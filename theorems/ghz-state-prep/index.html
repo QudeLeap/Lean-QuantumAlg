@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GHZ state preparation | Lean-QuantumAlg</title><meta name="description" content="Readable statement, citations, and Lean context for GHZ state preparation."><meta data-pagefind-meta="title" content="GHZ state preparation"><script>
+  (() => {
+    const storageKey = "lqa-theme";
+    const systemTheme = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    let stored = null;
+    try {
+      stored = window.localStorage.getItem(storageKey);
+    } catch {
+      stored = null;
+    }
+    const theme = stored === "light" || stored === "dark" ? stored : systemTheme();
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  })();
+</script><script>(function(){const mathjaxRoot = "/Lean-QuantumAlg/mathjax";
+const mathjaxFonts = "/Lean-QuantumAlg/mathjax-fonts";
+
+  window.MathJax = {
+    loader: {
+      paths: {
+        mathjax: mathjaxRoot,
+        fonts: mathjaxFonts
+      }
+    },
+    tex: {
+      inlineMath: [["\\(", "\\)"]],
+      displayMath: [["\\[", "\\]"]]
+    }
+  };
+})();</script> <script defer src="/Lean-QuantumAlg/mathjax/tex-mml-chtml-nofont.js"></script><script type="module" src="/Lean-QuantumAlg/_astro/CarbonImports.astro_astro_type_script_index_0_lang.KuWS6QhO.js"></script><link rel="stylesheet" href="/Lean-QuantumAlg/_astro/TheoremDetail.4iRqGw0F.css"></head> <body> <div class="page-shell theorem-shell"> <main class="standalone-detail" data-pagefind-body> <article class="theorem-detail"> <header class="detail-hero"> <p class="detail-kicker">Foundations / Protocols</p> <h1>GHZ state preparation</h1> </header> <section class="detail-card statement-card" aria-labelledby="ghz-state-prep-statement-heading"> <h2 id="ghz-state-prep-statement-heading">Theorem statement</h2> <div class="math-statement">The three-qubit GHZ circuit prepares the GHZ state exactly from \(\lvert 000\rangle\): applying a Hadamard on the first qubit followed by the two CNOT steps yields \(2^{-1/2}(\lvert 000\rangle+\lvert 111\rangle)\).</div> </section> <div class="detail-secondary-grid"> <section class="detail-card sources-card" aria-labelledby="ghz-state-prep-sources-heading"> <h2 id="ghz-state-prep-sources-heading">Sources</h2> <ol class="citation-list"> <li> <div> <strong>Going Beyond Bell&#39;s Theorem</strong> <p>Daniel M. Greenberger, Michael A. Horne, Anton Zeilinger, 1989</p> </div> </li><li> <div> <strong>Quantum Computation and Quantum Information</strong> <p>Michael A. Nielsen, Isaac L. Chuang, 2010</p> </div> </li> </ol> </section> <section class="detail-card lean-context" aria-labelledby="ghz-state-prep-lean-heading"> <h2 id="ghz-state-prep-lean-heading">Lean context</h2> <div class="lean-context-panel"> <dl class="definition-list"> <div> <dt>Import</dt> <dd><code>import QuantumAlg.Algorithms.GHZ</code></dd> </div> <div> <dt>Top theorem</dt> <dd><code>QuantumAlg.ghz_state_prep</code></dd> </div>  </dl> </div> </section> </div> <section class="detail-card copy-context" aria-labelledby="ghz-state-prep-copy-heading"> <h2 id="ghz-state-prep-copy-heading">Copy context</h2> <p>Copy a short prompt with the import, theorem name, citations, and public source link.</p> <div class="detail-actions"> <div class="copy-box"> <cds-button type="button" kind="primary" data-copy-text="Task: Use this public Lean theorem context to answer or verify a Lean-QuantumAlg claim.
+Target: ghz-state-prep
+Import: import QuantumAlg.Algorithms.GHZ
+Theorem: QuantumAlg.ghz_state_prep
+Citations: GHZ89, NC10
+Source: https://github.com/QudeLeap/Lean-QuantumAlg/blob/main/QuantumAlg/Algorithms/GHZ.lean#L69">Copy Lean context</cds-button> </div> <script type="module">function e(e){let t=document.createElement(`textarea`);t.value=e,t.setAttribute(`readonly`,`readonly`),t.style.position=`fixed`,t.style.left=`-9999px`,document.body.appendChild(t),t.select(),document.execCommand(`copy`),t.remove()}document.addEventListener(`click`,async t=>{let n=t.target,r=n instanceof Element?n.closest(`[data-copy-text]`):null;if(!(r instanceof HTMLElement))return;let i=r.dataset.copyText;if(i){try{navigator.clipboard?.writeText?await navigator.clipboard.writeText(i):e(i)}catch{e(i)}r.textContent=`Copied`,window.setTimeout(()=>{r.textContent=`Copy Lean context`},1800)}});</script> <cds-button href="https://github.com/QudeLeap/Lean-QuantumAlg/blob/main/QuantumAlg/Algorithms/GHZ.lean#L69" kind="secondary">Open Lean source</cds-button> </div> </section> </article> </main> <footer class="site-footer" data-pagefind-ignore> <a class="brand footer-brand" href="/Lean-QuantumAlg/">Lean-QuantumAlg</a> <p class="footer-meta"> <span>QudeLeap</span> <span>Apache-2.0</span> </p> <button class="theme-toggle" type="button" aria-label="Toggle color theme" aria-pressed="false" data-theme-toggle> <span class="theme-toggle-icon" aria-hidden="true"></span> </button> <a class="footer-github" href="https://github.com/QudeLeap/Lean-QuantumAlg"> <span>GitHub</span> <span>0 stars</span> </a> </footer> <script type="module">var e=`lqa-theme`,t=document.querySelector(`[data-theme-toggle]`),n=window.matchMedia(`(prefers-color-scheme: dark)`);function r(){try{return window.localStorage.getItem(e)}catch{return null}}function i(t){try{window.localStorage.setItem(e,t)}catch{return}}function a(){return n.matches?`dark`:`light`}function o(e){document.documentElement.dataset.theme=e,document.documentElement.style.colorScheme=e,t instanceof HTMLButtonElement&&t.setAttribute(`aria-pressed`,String(e===`dark`))}o(document.documentElement.dataset.theme||r()||a()),t?.addEventListener(`click`,()=>{let e=(document.documentElement.dataset.theme===`dark`?`dark`:`light`)==`dark`?`light`:`dark`;i(e),o(e)}),n.addEventListener(`change`,()=>{r()||o(a())});</script> </div> </body></html>
