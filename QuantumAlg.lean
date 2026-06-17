@@ -25,12 +25,12 @@ public import QuantumAlg.Primitives.PhaseKickback
 public import QuantumAlg.Primitives.HadamardTest
 public import QuantumAlg.Primitives.SwapTest
 public import QuantumAlg.Primitives.QFT
-public import QuantumAlg.Primitives.QPE
 public import QuantumAlg.Primitives.QSP
 public import QuantumAlg.Primitives.ControlledTransform
 public import QuantumAlg.Primitives.LCU
 public import QuantumAlg.Primitives.AmplitudeAmplification
 public import QuantumAlg.Primitives.QuantumKernel
+public import QuantumAlg.Algorithms.QPE
 public import QuantumAlg.Algorithms.GHZ
 public import QuantumAlg.Algorithms.SuperdenseCoding
 public import QuantumAlg.Algorithms.Teleportation

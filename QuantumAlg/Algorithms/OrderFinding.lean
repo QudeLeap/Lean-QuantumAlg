@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QPE
+public import QuantumAlg.Algorithms.QPE
 
 /-!
 # Order finding (exact, dyadic period `r ∣ 2^t`)
@@ -26,7 +26,7 @@ multiple of `N` whose factors must be shared with `N`
 This module formalizes the **exact** regime where the period divides the
 register size, `r ∣ 2^t`. There the eigenphase of the modular-multiplication
 unitary is the dyadic rational `φ = s/r = (s · 2^t/r) / 2^t`, so quantum phase
-estimation (`QuantumAlg.Primitives.QPE`) is reused as a decoupled interface: it
+estimation (`QuantumAlg.Algorithms.QPE`) is reused as a decoupled interface: it
 returns the basis index `j = s · (2^t / r)` exactly. The order is then recovered
 by a purely classical `Nat`-gcd computation, with no continued fractions needed
 in this exact case:

@@ -7,8 +7,8 @@
       "[<key>]",
       "[<key>, <file.tex>:<line>]"
     ],
-    "verification": "Every entry is TeX-verifiable: download https://arxiv.org/e-print/<arxiv_id><arxiv_version>, extract the TeX source, and read the cited file at the cited line. Line numbers are only meaningful for the pinned arxiv_version.",
-    "policy": "Only sources with public TeX are registered here. Works without TeX sources (books, pre-arXiv papers) are credited in prose (author, year) and never used as verification anchors."
+    "verification": "Entries with arxiv_id, arxiv_version, and entry_point are TeX-verifiable: download https://arxiv.org/e-print/<arxiv_id><arxiv_version>, extract the TeX source, and read the cited file at the cited line. Line numbers are only meaningful for the pinned arxiv_version.",
+    "policy": "Sources without public TeX may appear as citation-only entries for public attribution, but they are not used as TeX verification anchors."
   },
   "entries": [
     {
@@ -57,6 +57,40 @@
       "entry_point": "siam.tex"
     },
     {
+      "key": "NC10",
+      "authors": ["Michael A. Nielsen", "Isaac L. Chuang"],
+      "year": 2010,
+      "title": "Quantum Computation and Quantum Information"
+    },
+    {
+      "key": "BW92",
+      "authors": ["Charles H. Bennett", "Stephen J. Wiesner"],
+      "year": 1992,
+      "title": "Communication via one- and two-particle operators on Einstein-Podolsky-Rosen states",
+      "doi": "10.1103/PhysRevLett.69.2881"
+    },
+    {
+      "key": "DJ92",
+      "authors": ["David Deutsch", "Richard Jozsa"],
+      "year": 1992,
+      "title": "Rapid solution of problems by quantum computation",
+      "doi": "10.1098/rspa.1992.0167"
+    },
+    {
+      "key": "BV97",
+      "authors": ["Ethan Bernstein", "Umesh Vazirani"],
+      "year": 1997,
+      "title": "Quantum complexity theory",
+      "doi": "10.1137/S0097539796300921"
+    },
+    {
+      "key": "GHZ89",
+      "authors": ["Daniel M. Greenberger", "Michael A. Horne", "Anton Zeilinger"],
+      "year": 1989,
+      "title": "Going Beyond Bell's Theorem",
+      "arxiv_id": "0712.0921"
+    },
+    {
       "key": "GSLW19",
       "authors": ["Andras Gilyen", "Yuan Su", "Guang Hao Low", "Nathan Wiebe"],
       "year": 2019,
@@ -82,6 +116,51 @@
       "arxiv_id": "2209.14278",
       "arxiv_version": "v3",
       "entry_point": "arxiv_v3.tex"
+    },
+    {
+      "key": "SK18",
+      "authors": ["Maria Schuld", "Nathan Killoran"],
+      "year": 2018,
+      "title": "Quantum machine learning in feature Hilbert spaces",
+      "arxiv_id": "1803.07128",
+      "arxiv_version": "v1",
+      "entry_point": "featuremap_variational_cvcircuit.tex"
+    },
+    {
+      "key": "Sch21",
+      "authors": ["Maria Schuld"],
+      "year": 2021,
+      "title": "Supervised quantum machine learning models are kernel methods",
+      "arxiv_id": "2101.11020",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "GFE23",
+      "authors": ["Elies Gil-Fuster", "Jens Eisert", "Vedran Dunjko"],
+      "year": 2023,
+      "title": "On the expressivity of embedding quantum kernels",
+      "arxiv_id": "2309.14419",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "LAT21",
+      "authors": ["Yunchao Liu", "Srinivasan Arunachalam", "Kristan Temme"],
+      "year": 2021,
+      "title": "A rigorous and robust quantum speed-up in supervised machine learning",
+      "arxiv_id": "2010.02174",
+      "arxiv_version": "v2",
+      "entry_point": "arxiv.tex"
+    },
+    {
+      "key": "CVH+23",
+      "authors": ["M. Cerezo", "Guillaume Verdon", "Hsin-Yuan Huang", "Lukasz Cincio", "Patrick J. Coles"],
+      "year": 2023,
+      "title": "Challenges and Opportunities in Quantum Machine Learning",
+      "arxiv_id": "2303.09491",
+      "arxiv_version": "v1",
+      "entry_point": "Manuscript_Arxiv.tex"
     }
   ]
 }

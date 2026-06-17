@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QPE
+public import QuantumAlg.Algorithms.QPE
 public import QuantumAlg.Primitives.AmplitudeAmplification
 
 /-!
