@@ -9,6 +9,7 @@ module
 public import QuantumAlg.Init
 public import Mathlib.Data.ZMod.Basic
 public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import QuantumAlg.Core.Cost
 
 /-!
 # Simon's problem
@@ -30,7 +31,7 @@ mask [dW19, qcnotes.tex:1460].
   mask over bit vectors `Fin n → ZMod 2`.
 - `QuantumAlg.Simon.CompleteEquations` — the collected `𝔽₂`-linear equations
   have exactly the two expected solutions, `0` and `s`.
-- `QuantumAlg.simon_correct` — under the explicit promise and complete linear
+- `QuantumAlg.SimonsProblem.main` — under the explicit promise and complete linear
   post-processing equations, every nonzero candidate satisfying the equations
   is the hidden nonzero mask.
 -/
@@ -90,6 +91,19 @@ def CompleteEquations (samples : Finset (BitVec n)) (s : BitVec n) : Prop :=
 def Candidate (samples : Finset (BitVec n)) (t : BitVec n) : Prop :=
   t ≠ 0 ∧ SatisfiesEquations samples t
 
+/-- Trusted representative resource profile for the public Simon statement:
+expected linear oracle samples, quadratic Hadamard gates, and cubic classical
+linear algebra over `ZMod 2`. -/
+def expectedResourceProfile (n : ℕ) : ResourceProfile where
+  oracleQueries := n
+  hadamardGates := n ^ 2
+  elementaryGates := 0
+  classicalOps := n ^ 3
+
+theorem expectedResourceProfile_exact (n : ℕ) :
+    ResourceProfile.HasExactCounts (expectedResourceProfile n) n (n ^ 2) 0 (n ^ 3) := by
+  simp [ResourceProfile.HasExactCounts, expectedResourceProfile]
+
 @[simp]
 theorem dot_zero_left (x : BitVec n) : dot (0 : BitVec n) x = 0 := by
   simp [dot]
@@ -130,14 +144,15 @@ theorem satisfiesEquations_add {samples : Finset (BitVec n)} {a b : BitVec n}
   rw [SatisfiesEquation, Orthogonal, dot_add_right, ha y hy, hb y hy]
   simp
 
-/-- If the equations are complete, the hidden mask itself satisfies all of
+/-- If the equations are complete, the unknown nonzero string itself satisfies all of
 them. -/
 theorem hiddenMask_satisfiesEquations {samples : Finset (BitVec n)}
     {s : BitVec n} (hcomplete : CompleteEquations samples s) :
     SatisfiesEquations samples s := by
   exact (hcomplete s).2 (Or.inr rfl)
 
-/-- Complete Simon equations identify the hidden mask among nonzero candidates. -/
+/-- Complete Simon equations identify the unknown nonzero string among nonzero
+candidates. -/
 theorem recover_from_complete_equations {samples : Finset (BitVec n)}
     {s t : BitVec n} (hcomplete : CompleteEquations samples s)
     (hcandidate : Candidate samples t) :
@@ -163,7 +178,7 @@ end Simon
 hidden nonzero mask `s`. If the sampled `𝔽₂`-linear equations are complete
 and classical post-processing returns a nonzero candidate satisfying all of
 those equations, then that candidate is exactly the hidden nonzero mask. -/
-theorem simon_correct {n : ℕ} {α : Type u} {f : Simon.Oracle n α}
+theorem SimonsProblem.main {n : ℕ} {α : Type u} {f : Simon.Oracle n α}
     {s t : Simon.BitVec n} {samples : Finset (Simon.BitVec n)}
     (hpromise : Simon.Promise f s)
     (hcomplete : Simon.CompleteEquations samples s)
@@ -171,5 +186,22 @@ theorem simon_correct {n : ℕ} {α : Type u} {f : Simon.Oracle n α}
     t = s ∧ s ≠ 0 := by
   exact ⟨Simon.recover_from_complete_equations hcomplete hcandidate,
     hpromise.nonzero⟩
+
+/-- Simon supporting theorem for the public statement at the current
+post-sampling boundary: complete sampled equations recover the unknown nonzero
+string, and the trusted public resource profile records the accepted expected
+costs. -/
+theorem SimonsProblem.main_with_resources {n : ℕ} {α : Type u}
+    {f : Simon.Oracle n α} {s t : Simon.BitVec n}
+    {samples : Finset (Simon.BitVec n)}
+    (hpromise : Simon.Promise f s)
+    (hcomplete : Simon.CompleteEquations samples s)
+    (hcandidate : Simon.Candidate samples t) :
+    (t = s ∧ s ≠ 0) ∧
+      ResourceProfile.HasExactCounts (Simon.expectedResourceProfile n) n (n ^ 2) 0 (n ^ 3) := by
+  constructor
+  · exact SimonsProblem.main hpromise hcomplete hcandidate
+  · exact Simon.expectedResourceProfile_exact n
+
 
 end QuantumAlg

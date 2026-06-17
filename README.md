@@ -33,6 +33,7 @@ Use Lean `v4.30.0`. Then import either the aggregate module or a focused module:
 ```lean
 import QuantumAlg
 import QuantumAlg.Algorithms.Grover
+import QuantumAlg.Algorithms.QPE
 import QuantumAlg.Primitives.QFT
 ```
 
@@ -43,10 +44,12 @@ The library currently includes:
 - `QuantumAlg.Core.Components`: named gates, kets, oracle and control
   components.
 - `QuantumAlg.Primitives`: reusable quantum-algorithm primitives such as phase
-  kickback, QFT/QPE, QSP, LCU, swap test, and amplitude amplification.
+  kickback, QSP, LCU, swap test, and amplitude amplification.
+- Circuit theorem endpoints: fixed-circuit statements such as Bell-state
+  preparation, GHZ-state preparation, and QFT.
 - `QuantumAlg.Algorithms`: end-to-end algorithm/protocol statements including
-  Deutsch-Jozsa, Bernstein-Vazirani, Grover, order finding, amplitude
-  estimation, teleportation, superdense coding, Simon, and GHZ preparation.
+  Deutsch-Jozsa, Bernstein-Vazirani, Grover, QPE, order finding, amplitude
+  estimation, teleportation, superdense coding, and Simon.
 
 Trusted cost annotations for query or iterate counts live beside the theorem
 endpoints they annotate and use the shared CSLib `TimeM` adapter.

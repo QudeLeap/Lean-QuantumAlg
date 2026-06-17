@@ -26,7 +26,7 @@ with `amplitudeAmplificationStep θ` on this plane.
 
 ## Main results
 
-- `QuantumAlg.amplitude_amplification_correct` — exact state after `k`
+- `QuantumAlg.AmplitudeAmplification.main` — exact state after `k`
   amplification iterates under explicit reflection-product assumptions.
 - `QuantumAlg.amplitude_amplification_success_probability` — the corresponding
   good-state measurement probability.
@@ -118,15 +118,85 @@ structure AmplitudeAmplificationModel where
   the invariant good/bad plane. -/
   iterate_eq : startReflection * goodReflection = amplitudeAmplificationStep θ
 
+/-- Source-level reflection-product wrapper for the public amplitude-
+amplification statement. In the good/bad plane, `ket0` is the bad axis
+`|ψ₀⟩` and `ket1` is the good axis `|ψ₁⟩`. The preparation gate packages
+`A|0⟩ = sin θ |ψ₁⟩ + cos θ |ψ₀⟩`, while `iterate_eq` records the source
+iterate `A S₀ A† S_good` as the standard plane rotation. -/
+structure SourceAmplitudeAmplificationModel where
+  /-- Initial good-angle parameter. -/
+  theta : ℝ
+  /-- Source preparation unitary `A`, restricted to the invariant plane. -/
+  preparation : Gate 1
+  /-- Reflection around the initial computational state before preparation. -/
+  zeroReflection : Gate 1
+  /-- Reflection that flips the good component and fixes the bad component. -/
+  goodReflection : Gate 1
+  /-- Source preparation statement in public good/bad order. -/
+  prepares_start :
+    preparation.apply ket0 =
+      ((Real.sin theta : ℂ) • ket1) + ((Real.cos theta : ℂ) • ket0)
+  /-- The public reflection product, restricted to the invariant plane. -/
+  iterate_eq :
+    preparation * zeroReflection * preparation.conjTranspose * goodReflection =
+      amplitudeAmplificationStep theta
+
+namespace SourceAmplitudeAmplificationModel
+
+/-- Forget the source-level preparation wrapper and expose the existing
+two-dimensional amplitude-amplification model. -/
+def toModel (M : SourceAmplitudeAmplificationModel) : AmplitudeAmplificationModel where
+  θ := M.theta
+  goodReflection := M.goodReflection
+  startReflection := M.preparation * M.zeroReflection * M.preparation.conjTranspose
+  iterate_eq := M.iterate_eq
+
+/-- The source preparation statement is the initial good/bad-plane state used
+by the core amplitude-amplification theorem. -/
+theorem prepared_eq_state (M : SourceAmplitudeAmplificationModel) :
+    M.preparation.apply ket0 = amplitudeAmplificationState M.theta 0 := by
+  rw [M.prepares_start]
+  unfold amplitudeAmplificationState amplitudeAmplificationAngle
+  norm_num
+  rw [add_comm]
+
+end SourceAmplitudeAmplificationModel
+
 /-- Amplitude amplification correctness in the accepted two-dimensional scope:
 if the reflection product acts as the standard good/bad-plane rotation, then `k`
 iterations produce the closed-form amplified state. -/
-theorem amplitude_amplification_correct (M : AmplitudeAmplificationModel) (k : ℕ) :
+theorem AmplitudeAmplification.main (M : AmplitudeAmplificationModel) (k : ℕ) :
     Gate.apply ((M.startReflection * M.goodReflection) ^ k)
         (amplitudeAmplificationState M.θ 0) =
       amplitudeAmplificationState M.θ k := by
   rw [M.iterate_eq]
   exact amplitudeAmplificationStep_pow_apply M.θ k
+
+/-- Source-level reflection-product form of amplitude amplification. This
+states the public `A S₀ A† S_good` iterate through the same proved
+two-dimensional rotation theorem. -/
+theorem source_reflection_correct (M : SourceAmplitudeAmplificationModel) (k : ℕ) :
+    Gate.apply
+        ((M.preparation * M.zeroReflection * M.preparation.conjTranspose *
+            M.goodReflection) ^ k)
+        (M.preparation.apply ket0) =
+      amplitudeAmplificationState M.theta k := by
+  rw [SourceAmplitudeAmplificationModel.prepared_eq_state]
+  exact AmplitudeAmplification.main M.toModel k
+
+/-- Closed-form public-order source reflection statement:
+`(A S₀ A† S_good)^k A|0⟩ =
+sin((2k+1)θ)|ψ₁⟩ + cos((2k+1)θ)|ψ₀⟩` in the good/bad plane. -/
+theorem source_reflection_closed_form (M : SourceAmplitudeAmplificationModel) (k : ℕ) :
+    Gate.apply
+        ((M.preparation * M.zeroReflection * M.preparation.conjTranspose *
+            M.goodReflection) ^ k)
+        (M.preparation.apply ket0) =
+      ((Real.sin (amplitudeAmplificationAngle M.theta k) : ℂ) • ket1) +
+        ((Real.cos (amplitudeAmplificationAngle M.theta k) : ℂ) • ket0) := by
+  rw [source_reflection_correct]
+  unfold amplitudeAmplificationState
+  rw [add_comm]
 
 /-- The success probability of the closed-form amplitude-amplified state is the
 squared good amplitude. -/
@@ -140,14 +210,14 @@ theorem amplitudeAmplificationState_good_probability (θ : ℝ) (k : ℕ) :
 
 /-- Amplitude amplification success probability after `k` reflection-product
 iterations. -/
-theorem amplitude_amplification_success_probability
+theorem AmplitudeAmplification.main_success_probability
     (M : AmplitudeAmplificationModel) (k : ℕ) :
     PureState.probOutcome
         (Gate.apply ((M.startReflection * M.goodReflection) ^ k)
           (amplitudeAmplificationState M.θ 0))
         (1 : Fin (2 ^ 1)) =
       Real.sin (amplitudeAmplificationAngle M.θ k) ^ 2 := by
-  rw [amplitude_amplification_correct, amplitudeAmplificationState_good_probability]
+  rw [main, amplitudeAmplificationState_good_probability]
 
 namespace AmplitudeAmplification
 
@@ -170,7 +240,7 @@ theorem timedIterate_time (M : AmplitudeAmplificationModel) (k : ℕ) :
 /-- Amplitude-amplification correctness, phrased through the TimeM return value. -/
 theorem timedIterate_correct (M : AmplitudeAmplificationModel) (k : ℕ) :
     (timedIterate M k).ret = amplitudeAmplificationState M.θ k := by
-  exact amplitude_amplification_correct M k
+  exact AmplitudeAmplification.main M k
 
 /-- The good-state success probability after the timed iterate. -/
 theorem timedIterate_success_probability

@@ -33,7 +33,7 @@ Berthiaume, Deutsch, Ekert, Jozsa and Macchiavello (1997) (source
 
 - `QuantumAlg.swapRegisters` — the register-swap gate on `n + n` qubits.
 - `QuantumAlg.swapTest` — the circuit `(H ⊗ I) · c-SWAP · (H ⊗ I)`.
-- `QuantumAlg.swapTest_probQubit0_zero` / `_one` — outcome probabilities
+- `QuantumAlg.swapTest_probQubit0_zero` / `QuantumAlg.SwapTest.main` — outcome probabilities
   `(1 ± |⟨ψ|φ⟩|²)/2`.
 -/
 
@@ -94,7 +94,7 @@ theorem swapTest_probQubit0_zero (ψ φ : PureState n)
     (hψ : ‖ψ‖ = 1) (hφ : ‖φ‖ = 1) :
     probQubit0 ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 0
       = (1 + ‖inner ℂ ψ φ‖ ^ 2) / 2 := by
-  rw [swapTest, hadamardTest_probQubit0_zero _
+  rw [swapTest, HadamardTest.main _
       (by rw [PureState.norm_tensor, hψ, hφ, one_mul])
       (swapRegisters_mem_unitaryGroup n),
     re_inner_swapRegisters]
@@ -102,7 +102,7 @@ theorem swapTest_probQubit0_zero (ψ φ : PureState n)
 /-- **SWAP test, outcome 1** [BCWdW01, main.tex:328]: the control reads
 `1` with probability `(1 − |⟨ψ|φ⟩|²)/2` — zero iff the overlap is
 maximal, the one-sided error of quantum fingerprinting. -/
-theorem swapTest_probQubit0_one (ψ φ : PureState n)
+theorem SwapTest.main (ψ φ : PureState n)
     (hψ : ‖ψ‖ = 1) (hφ : ‖φ‖ = 1) :
     probQubit0 ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 1
       = (1 - ‖inner ℂ ψ φ‖ ^ 2) / 2 := by
@@ -110,6 +110,7 @@ theorem swapTest_probQubit0_one (ψ φ : PureState n)
       (by rw [PureState.norm_tensor, hψ, hφ, one_mul])
       (swapRegisters_mem_unitaryGroup n),
     re_inner_swapRegisters]
+
 
 end
 

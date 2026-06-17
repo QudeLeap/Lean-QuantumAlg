@@ -121,7 +121,7 @@ coefficients `α` with positive 1-norm and a prepare oracle `V` satisfying
 `V i 0 = √(αᵢ/‖α‖₁)`, the all-zeros control block of the walk operator is the
 normalized linear combination: for all system labels `s t`,
 `⟨0,s| W |0,t⟩ = (1/‖α‖₁) ∑ᵢ αᵢ ⟨s| Uᵢ |t⟩`. -/
-theorem lcu_block_encoding (V : Gate a) (U : Fin (2 ^ a) → Gate n)
+theorem LinearCombinationOfUnitaries.main (V : Gate a) (U : Fin (2 ^ a) → Gate n)
     (α : Fin (2 ^ a) → ℝ) (hα : ∀ i, 0 ≤ α i) (hlam : 0 < lcuNorm α)
     (hV : ∀ i, V i 0 = ((Real.sqrt (α i / lcuNorm α) : ℝ) : ℂ))
     (s t : Fin (2 ^ n)) :
@@ -140,6 +140,7 @@ theorem lcu_block_encoding (V : Gate a) (U : Fin (2 ^ a) → Gate n)
   rw [hV i, Complex.star_def, Complex.conj_ofReal, ← Complex.ofReal_mul,
     Real.mul_self_sqrt hnn, Complex.ofReal_div]
   ring
+
 
 end
 

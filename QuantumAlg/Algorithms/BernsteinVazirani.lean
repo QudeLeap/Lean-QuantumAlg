@@ -47,7 +47,7 @@ disagree).
   Walsh-character orthogonality via the bit-flip involution.
 - `QuantumAlg.BernsteinVazirani.finalState_oracle` — the final input
   register is exactly `|s⟩`.
-- `QuantumAlg.bernstein_vazirani_correct` — the joint register after the
+- `QuantumAlg.BernsteinVazirani.main` — the joint register after the
   circuit is exactly `|s⟩ ⊗ |−⟩`: one query recovers the hidden string.
 -/
 
@@ -250,24 +250,66 @@ theorem timedFinalJointState_ret (s : Fin (2 ^ n)) :
 theorem timedFinalJointState_time (s : Fin (2 ^ n)) :
     (timedFinalJointState s).time = 1 := rfl
 
-end BernsteinVazirani
+/-- Public resource profile for the Bernstein-Vazirani circuit:
+one oracle query and two `n`-qubit Hadamard layers plus the target Hadamard. -/
+def resourceProfile (n : ℕ) : ResourceProfile where
+  oracleQueries := 1
+  hadamardGates := 2 * n + 1
+  elementaryGates := 2 * n + 1
+  classicalOps := 0
+
+@[simp]
+theorem resourceProfile_oracleQueries (n : ℕ) :
+    (resourceProfile n).oracleQueries = 1 := rfl
+
+@[simp]
+theorem resourceProfile_hadamardGates (n : ℕ) :
+    (resourceProfile n).hadamardGates = 2 * n + 1 := rfl
+
+@[simp]
+theorem resourceProfile_elementaryGates (n : ℕ) :
+    (resourceProfile n).elementaryGates = 2 * n + 1 := rfl
+
+theorem resourceProfile_exact (n : ℕ) :
+    ResourceProfile.HasExactCounts (resourceProfile n) 1 (2 * n + 1) (2 * n + 1) 0 := by
+  simp [ResourceProfile.HasExactCounts, resourceProfile]
+
+/-- The final Bernstein-Vazirani joint state with its public resource profile. -/
+def profiledFinalJointState (s : Fin (2 ^ n)) : Profiled (PureState (n + 1)) :=
+  Profiled.trusted (resourceProfile n) (WalshHadamard.finalJointState (oracle s))
+
+@[simp]
+theorem profiledFinalJointState_ret (s : Fin (2 ^ n)) :
+    (profiledFinalJointState s).ret = WalshHadamard.finalJointState (oracle s) := rfl
+
+@[simp]
+theorem profiledFinalJointState_resources (s : Fin (2 ^ n)) :
+    (profiledFinalJointState s).resources = resourceProfile n := rfl
 
 /-- **Bernstein-Vazirani correctness**: running the Deutsch-Jozsa circuit
 with the inner-product oracle of hidden string `s` leaves the joint register
 in exactly `|s⟩ ⊗ |−⟩` [dW19, qcnotes.tex:1296], so a single query recovers
 the hidden string (Bernstein and Vazirani 1997). -/
-theorem bernstein_vazirani_correct (s : Fin (2 ^ n)) :
-    WalshHadamard.finalJointState (BernsteinVazirani.oracle s)
+theorem main (s : Fin (2 ^ n)) :
+    WalshHadamard.finalJointState (oracle s)
       = (ket s).tensor ketMinus := by
   rw [WalshHadamard.finalJointState_eq_finalState_tensor,
-    BernsteinVazirani.finalState_oracle]
-
-namespace BernsteinVazirani
+    finalState_oracle]
 
 /-- Bernstein-Vazirani correctness, phrased through the TimeM return value. -/
 theorem timedFinalJointState_correct (s : Fin (2 ^ n)) :
     (timedFinalJointState s).ret = (ket s).tensor ketMinus := by
-  exact bernstein_vazirani_correct s
+  exact main s
+
+/-- Bernstein-Vazirani supporting theorem for the public statement: the profiled
+circuit returns `|s⟩ ⊗ |-⟩` and records the accepted exact resource counts. -/
+theorem main_with_resources (s : Fin (2 ^ n)) :
+    (profiledFinalJointState s).ret = (ket s).tensor ketMinus ∧
+      ResourceProfile.HasExactCounts (profiledFinalJointState s).resources
+        1 (2 * n + 1) (2 * n + 1) 0 := by
+  constructor
+  · exact main s
+  · simp [resourceProfile_exact n]
 
 end BernsteinVazirani
 

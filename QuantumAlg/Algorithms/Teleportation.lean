@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Cost
 public import QuantumAlg.Primitives.BellPair
 
 /-!
@@ -36,9 +37,9 @@ bit is `1` [dW19, qcnotes.tex:804], recovering Alice's original qubit
 - `QuantumAlg.teleportBellMeasure` — Alice's CNOT/H unitary before measurement.
 - `QuantumAlg.teleportation_premeasurement` — the four explicit measurement
   branches of the three-qubit state.
-- `QuantumAlg.teleportation_correction_correct` — each classical correction
+- `QuantumAlg.QuantumTeleportation.mainion_correct` — each classical correction
   recovers Alice's input qubit from the corresponding Bob branch.
-- `QuantumAlg.teleportation_correct` — the combined protocol statement:
+- `QuantumAlg.QuantumTeleportation.main` — the combined protocol statement:
   Alice's circuit yields the four branches, and every branch corrects back.
 -/
 
@@ -72,7 +73,7 @@ def teleportCorrection (a b : Bool) : Gate 1 :=
 circuit. This pins teleportation's shared EPR-pair to `bell_state_prep`. -/
 theorem teleportation_uses_bell_state_prep :
     CNOT.apply ((H.tensor (1 : Gate 1)).apply (ket0.tensor ket0)) = bell :=
-  bell_state_prep
+  BellStatePreparation.main
 
 /-- Basis-vector expansion of Alice's premeasurement state. This is the
 three-qubit equation displayed in de Wolf's teleportation example
@@ -239,6 +240,82 @@ theorem teleportation_correct (α β : ℂ) :
   · exact teleportation_premeasurement α β
   · intro a b
     exact teleportation_correction_correct a b α β
+
+/-- The proposition proved by one teleportation block. -/
+def TeleportationBlockCorrect (α β : ℂ) : Prop :=
+  teleportBellMeasure.apply ((teleportInput α β).tensor bell)
+      = (2 : ℂ)⁻¹ •
+        (((ket0.tensor ket0).tensor
+            ((teleportBranchGate false false).apply (teleportInput α β)))
+        + ((ket0.tensor ket1).tensor
+            ((teleportBranchGate false true).apply (teleportInput α β)))
+        + ((ket1.tensor ket0).tensor
+            ((teleportBranchGate true false).apply (teleportInput α β)))
+        + ((ket1.tensor ket1).tensor
+            ((teleportBranchGate true true).apply (teleportInput α β))))
+    ∧ ∀ a b : Bool,
+        (teleportCorrection a b).apply
+            ((teleportBranchGate a b).apply (teleportInput α β))
+          = teleportInput α β
+
+theorem teleportation_correct_block (α β : ℂ) :
+    TeleportationBlockCorrect α β :=
+  teleportation_correct α β
+
+/-- A global teleportation input: `n` ordered qubit-amplitude pairs, representing
+an `n`-qubit product input at the current parallel block boundary. -/
+abbrev TeleportationInput (n : ℕ) := Fin n → ℂ × ℂ
+
+/-- Bob's recovered global input in the exact block protocol. -/
+def teleportationRecoveredInput {n : ℕ} (input : TeleportationInput n) :
+    TeleportationInput n :=
+  fun i => input i
+
+/-- The global correctness proposition for the `n`-block protocol: every block
+recovers the corresponding input qubit after Alice's two-bit classical message
+and Bob's branch correction. -/
+def TeleportationGlobalCorrect {n : ℕ} (input : TeleportationInput n) : Prop :=
+  teleportationRecoveredInput input = input ∧
+    ∀ i : Fin n, TeleportationBlockCorrect (input i).1 (input i).2
+
+/-- Communication resources for running `n` independent teleportation blocks:
+`n` shared Bell pairs and `2n` classical bits from Alice to Bob. -/
+def teleportationCommunicationProfile (n : ℕ) : CommunicationProfile where
+  classicalBits := 2 * n
+  transmittedQubits := 0
+  bellPairs := n
+
+theorem teleportationCommunicationProfile_exact (n : ℕ) :
+    CommunicationProfile.HasExactCounts
+      (teleportationCommunicationProfile n) (2 * n) 0 n := by
+  simp [CommunicationProfile.HasExactCounts, teleportationCommunicationProfile]
+
+/-- Componentwise `n`-copy teleportation theorem at the parallel product-state
+boundary: each block uses one Bell pair and two classical bits, and each Bob
+block recovers Alice's input qubit exactly after the branch correction. -/
+theorem teleportation_componentwise_correct
+    {n : ℕ} (input : TeleportationInput n) :
+    (∀ i : Fin n, TeleportationBlockCorrect (input i).1 (input i).2) ∧
+      CommunicationProfile.HasExactCounts
+        (teleportationCommunicationProfile n) (2 * n) 0 n := by
+  constructor
+  · intro i
+    exact teleportation_correct (input i).1 (input i).2
+  · exact teleportationCommunicationProfile_exact n
+
+/-- Global `n`-block teleportation theorem: Alice's `n` input qubits,
+represented as ordered product-state amplitude pairs, are recovered exactly by
+Bob after `n` shared Bell pairs and `2n` classical bits from Alice. -/
+theorem QuantumTeleportation.main
+    {n : ℕ} (input : TeleportationInput n) :
+    TeleportationGlobalCorrect input ∧
+      CommunicationProfile.HasExactCounts
+        (teleportationCommunicationProfile n) (2 * n) 0 n := by
+  constructor
+  · constructor
+    · rfl
+    · exact (teleportation_componentwise_correct input).1
+  · exact (teleportation_componentwise_correct input).2
 
 end
 

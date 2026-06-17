@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Cost
 public import QuantumAlg.Primitives.QFT
 public import QuantumAlg.Primitives.PhaseKickback
 public import QuantumAlg.Core.Components.Kets
@@ -51,7 +52,7 @@ computational-basis measurement returns `j` with probability one, recovering
 - `QuantumAlg.controlled_pow_kickback` — the per-control-qubit phase kickback
   `c-U^{2^s} (|+⟩ ⊗ |u⟩)` for an eigenstate `|u⟩`.
 - `QuantumAlg.phaseState_eq_qftApplyKet` — `phaseState t (j/2^t) = QFT t |j⟩`.
-- `QuantumAlg.qpe_correct` — exact QPE: the inverse-QFT readout of the phase
+- `QuantumAlg.QuantumPhaseEstimation.main_exact_dyadic` — exact QPE: the inverse-QFT readout of the phase
   superposition is `|j⟩`.
 - `QuantumAlg.qpe_probOutcome_eq_one` — the measurement returns `j` with
   probability one.
@@ -96,8 +97,33 @@ theorem controlled_pow_kickback {n : ℕ} (U : Gate n) (u : PureState n) (φ : �
     push_cast
     ring
   rw [show ketPlus = invSqrt2 • ket0 + invSqrt2 • ket1 from by rw [ketPlus, smul_add],
-    eigenvalue_phase_kickback (U ^ (2 ^ s)) u (2 * Real.pi * (φ * (2 : ℝ) ^ s))
+    GeneralizedPhaseKickback.main (U ^ (2 ^ s)) u (2 * Real.pi * (φ * (2 : ℝ) ^ s))
       hpow invSqrt2 invSqrt2]
+
+/-- Source-level exact-QPE input: an `n`-qubit unitary, an eigenstate, and its
+eigenphase. The controlled powers of `unitary` are the oracle calls used by the
+phase-estimation ladder. -/
+structure QPEEigenstateInput (n : ℕ) where
+  unitary : Gate n
+  eigenstate : PureState n
+  phase : ℝ
+  eigenstate_eq :
+    unitary.apply eigenstate =
+      Complex.exp (2 * ↑Real.pi * ↑phase * Complex.I) • eigenstate
+
+/-- The per-control-qubit kickbacks available from a source-level QPE input. -/
+def QPEControlledPowerKickbacks {n : ℕ} (P : QPEEigenstateInput n) : Prop :=
+  ∀ s : ℕ,
+    (Gate.controlled (P.unitary ^ (2 ^ s))).apply (ketPlus.tensor P.eigenstate)
+      = (invSqrt2 • ket0
+          + (Complex.exp (↑(2 * Real.pi * (P.phase * (2 : ℝ) ^ s)) * Complex.I) * invSqrt2)
+              • ket1).tensor P.eigenstate
+
+theorem qpe_eigenstate_controlled_power_kickbacks {n : ℕ}
+    (P : QPEEigenstateInput n) :
+    QPEControlledPowerKickbacks P := by
+  intro s
+  exact controlled_pow_kickback P.unitary P.eigenstate P.phase P.eigenstate_eq s
 
 /-! ### Phase superposition and the Fourier bridge -/
 
@@ -150,7 +176,7 @@ theorem qpe_readout (t : ℕ) (j : Fin (2 ^ t)) :
 `φ = j / 2^t`, then applying the inverse QFT to the QPE phase superposition
 `phaseState t φ` returns the computational-basis state `|j⟩` exactly
 [Lin22, phaseestimation.tex:513]. -/
-theorem qpe_correct (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
+theorem QuantumPhaseEstimation.main_exact_dyadic (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
     (hφ : φ = (j.val : ℝ) / (2 : ℝ) ^ t) :
     Gate.apply (invQFT t) (phaseState t φ) = ket j := by
   subst hφ
@@ -159,10 +185,75 @@ theorem qpe_correct (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
 
 /-- The QPE measurement is deterministic: in the exact regime the inverse-QFT
 readout of the phase superposition yields outcome `j` with probability one. -/
-theorem qpe_probOutcome_eq_one (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
+theorem QuantumPhaseEstimation.main_exact_probability_one (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
     (hφ : φ = (j.val : ℝ) / (2 : ℝ) ^ t) :
     PureState.probOutcome (Gate.apply (invQFT t) (phaseState t φ)) j = 1 := by
-  rw [qpe_correct t j φ hφ, PureState.probOutcome_ket, if_pos rfl]
+  rw [QuantumPhaseEstimation.main_exact_dyadic t j φ hφ, PureState.probOutcome_ket, if_pos rfl]
+
+/-- Trusted resource profile for exact dyadic QPE in the decoupled
+phase-register model: a controlled-power ladder with `2^t - 1` unitary-power
+uses and a quadratic-size inverse-QFT/readout layer. -/
+def qpeExactResourceProfile (t : ℕ) : ResourceProfile where
+  oracleQueries := 2 ^ t - 1
+  hadamardGates := t
+  elementaryGates := t ^ 2
+  classicalOps := 0
+
+theorem qpeExactResourceProfile_exact (t : ℕ) :
+    ResourceProfile.HasExactCounts
+      (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
+  simp [ResourceProfile.HasExactCounts, qpeExactResourceProfile]
+
+/-- Exact QPE readout with the decoupled phase-register resource profile. -/
+theorem QuantumPhaseEstimation.main_exact_dyadic_with_resources (t : ℕ) (j : Fin (2 ^ t)) (φ : ℝ)
+    (hφ : φ = (j.val : ℝ) / (2 : ℝ) ^ t) :
+    Gate.apply (invQFT t) (phaseState t φ) = ket j ∧
+      ResourceProfile.HasExactCounts
+        (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
+  constructor
+  · exact QuantumPhaseEstimation.main_exact_dyadic t j φ hφ
+  · exact qpeExactResourceProfile_exact t
+
+/-- Exact QPE from the source-level eigenstate/access assumptions, paired with
+the trusted controlled-power resource profile. This remains the dyadic exact
+regime: approximate precision and confidence amplification are separate
+refinements. -/
+theorem QuantumPhaseEstimation.main_exact_eigenstate_readout_with_resources {n : ℕ}
+    (P : QPEEigenstateInput n) (t : ℕ) (j : Fin (2 ^ t))
+    (hphase : P.phase = (j.val : ℝ) / (2 : ℝ) ^ t) :
+    QPEControlledPowerKickbacks P ∧
+      Gate.apply (invQFT t) (phaseState t P.phase) = ket j ∧
+        ResourceProfile.HasExactCounts
+          (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
+  constructor
+  · exact qpe_eigenstate_controlled_power_kickbacks P
+  · exact QuantumPhaseEstimation.main_exact_dyadic_with_resources t j P.phase hphase
+
+/-- Exact QPE from the source-level eigenstate/access assumptions, phrased as
+an exact estimate theorem. In the dyadic regime the phase estimate has zero
+error, so it satisfies any nonnegative precision and failure-probability
+thresholds. The same controlled-power resource profile is recorded. -/
+theorem QuantumPhaseEstimation.main {n : ℕ}
+    (P : QPEEigenstateInput n) (t : ℕ) (j : Fin (2 ^ t))
+    (eps eta : ℝ) (heps : 0 ≤ eps) (heta : 0 ≤ eta)
+    (hphase : P.phase = (j.val : ℝ) / (2 : ℝ) ^ t) :
+    QPEControlledPowerKickbacks P ∧
+      Gate.apply (invQFT t) (phaseState t P.phase) = ket j ∧
+        |P.phase - (j.val : ℝ) / (2 : ℝ) ^ t| ≤ eps ∧
+          1 - PureState.probOutcome
+              (Gate.apply (invQFT t) (phaseState t P.phase)) j ≤ eta ∧
+            ResourceProfile.HasExactCounts
+              (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
+  refine ⟨qpe_eigenstate_controlled_power_kickbacks P, ?_⟩
+  have hreadout : Gate.apply (invQFT t) (phaseState t P.phase) = ket j :=
+    QuantumPhaseEstimation.main_exact_dyadic t j P.phase hphase
+  refine ⟨hreadout, ?_⟩
+  refine ⟨?_, ?_⟩
+  · rw [hphase, sub_self, abs_zero]
+    exact heps
+  · refine ⟨?_, qpeExactResourceProfile_exact t⟩
+    rw [QuantumPhaseEstimation.main_exact_probability_one t j P.phase hphase]
+    simpa using heta
 
 end
 

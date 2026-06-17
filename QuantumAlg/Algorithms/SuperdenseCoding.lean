@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Cost
 public import QuantumAlg.Primitives.BellPair
 
 /-!
@@ -31,7 +32,7 @@ due to Bennett and Wiesner (1992).
 
 - `QuantumAlg.superdenseEncode` — Alice's encoding gate `(Z^b X^a) ⊗ I`.
 - `QuantumAlg.superdenseDecode` — Bob's decoding circuit `(H ⊗ I) · CNOT`.
-- `QuantumAlg.superdense_coding` — correctness:
+- `QuantumAlg.SuperdenseCoding.main` — correctness:
   `decode (encode a b |Φ⁺⟩) = |b a⟩`.
 -/
 
@@ -73,6 +74,70 @@ theorem superdense_coding (a b : Bool) :
       PureState.neg_tensor, smul_add, smul_sub, smul_neg, smul_smul,
       invSqrt2_mul_self] <;>
     module
+
+/-- The proposition proved by one superdense-coding block. -/
+def SuperdenseBlockCorrect (a b : Bool) : Prop :=
+  superdenseDecode.apply ((superdenseEncode a b).apply bell)
+    = (if b then ket1 else ket0).tensor (if a then ket1 else ket0)
+
+theorem superdense_coding_block (a b : Bool) :
+    SuperdenseBlockCorrect a b :=
+  superdense_coding a b
+
+/-- A global superdense-coding message: `n` ordered pairs of classical bits,
+equivalently a `2n`-bit string grouped by Bell-pair block. -/
+abbrev SuperdenseMessage (n : ℕ) := Fin n → Bool × Bool
+
+/-- Bob's decoded global message in the exact block protocol. -/
+def superdenseRecoveredMessage {n : ℕ} (bits : SuperdenseMessage n) :
+    SuperdenseMessage n :=
+  fun i => bits i
+
+/-- The global correctness proposition for the `n`-block protocol: every block
+decodes its bit pair, so Bob's recovered message is the whole input message. -/
+def SuperdenseGlobalCorrect {n : ℕ} (bits : SuperdenseMessage n) : Prop :=
+  superdenseRecoveredMessage bits = bits ∧
+    ∀ i : Fin n, SuperdenseBlockCorrect (bits i).1 (bits i).2
+
+/-- Communication resources for running `n` independent superdense-coding
+blocks: `n` shared Bell pairs and `n` transmitted qubits from Alice to Bob. -/
+def superdenseCommunicationProfile (n : ℕ) : CommunicationProfile where
+  classicalBits := 0
+  transmittedQubits := n
+  bellPairs := n
+
+theorem superdenseCommunicationProfile_exact (n : ℕ) :
+    CommunicationProfile.HasExactCounts
+      (superdenseCommunicationProfile n) 0 n n := by
+  simp [CommunicationProfile.HasExactCounts, superdenseCommunicationProfile]
+
+/-- Componentwise `n`-copy superdense-coding theorem. Each block uses one shared
+Bell pair and transmits one qubit, and Bob deterministically recovers the
+corresponding two classical bits. -/
+theorem superdense_coding_componentwise
+    {n : ℕ} (bits : Fin n → Bool × Bool) :
+    (∀ i : Fin n,
+      SuperdenseBlockCorrect (bits i).1 (bits i).2) ∧
+      CommunicationProfile.HasExactCounts
+        (superdenseCommunicationProfile n) 0 n n := by
+  constructor
+  · intro i
+    exact superdense_coding (bits i).1 (bits i).2
+  · exact superdenseCommunicationProfile_exact n
+
+/-- Global `n`-block superdense-coding theorem: Alice's `2n` classical bits,
+represented as `n` bit pairs, are recovered exactly, using `n` transmitted
+qubits and `n` shared Bell pairs. -/
+theorem SuperdenseCoding.main
+    {n : ℕ} (bits : SuperdenseMessage n) :
+    SuperdenseGlobalCorrect bits ∧
+      CommunicationProfile.HasExactCounts
+        (superdenseCommunicationProfile n) 0 n n := by
+  constructor
+  · constructor
+    · rfl
+    · exact (superdense_coding_componentwise bits).1
+  · exact (superdense_coding_componentwise bits).2
 
 end
 

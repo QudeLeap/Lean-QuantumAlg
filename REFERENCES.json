@@ -12,6 +12,15 @@
   },
   "entries": [
     {
+      "key": "AJL06",
+      "authors": ["Dorit Aharonov", "Vaughan Jones", "Zeph Landau"],
+      "year": 2006,
+      "title": "A Polynomial Quantum Algorithm for Approximating the Jones Polynomial",
+      "arxiv_id": "quant-ph/0511096",
+      "arxiv_version": "v2",
+      "entry_point": "qf2.tex"
+    },
+    {
       "key": "dW19",
       "authors": ["Ronald de Wolf"],
       "year": 2019,

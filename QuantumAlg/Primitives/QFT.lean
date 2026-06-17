@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Cost
 public import QuantumAlg.Core.Gate
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 public import Mathlib.RingTheory.RootsOfUnity.Complex
@@ -43,7 +44,7 @@ where `N = 2^n` and `ω = e^{2πi/N}` is the primitive `N`-th root of unity.
 - `QuantumAlg.QFT_apply_ket` — component formula for `QFT |x⟩`.
 - `QuantumAlg.sum_omega_zpow_eq_zero` — full-period geometric sums of
   nontrivial powers of `ω` vanish (column orthogonality).
-- `QuantumAlg.QFT_mem_unitaryGroup` — the QFT is unitary.
+- `QuantumAlg.QuantumFourierTransform.main` — the QFT is unitary.
 
 Pinned Mathlib API: `Complex.exp`, `Complex.exp_nat_mul`, `Complex.exp_eq_one_iff`,
 `Complex.norm_exp_ofReal_mul_I`, `Complex.isPrimitiveRoot_exp`,
@@ -211,6 +212,32 @@ theorem QFT_mem_unitaryGroup (n : ℕ) :
       exact hjk (Fin.val_injective
         (by exact_mod_cast sub_eq_zero.mp h0 : k.val = j.val)).symm
     rw [sum_omega_zpow_eq_zero n hd, mul_zero]
+
+/-- Fixed-circuit gate profile for the standard QFT decomposition: `n`
+Hadamard gates, `n(n-1)/2` controlled-phase gates, and `n/2` final register
+swaps in this natural-number convention. -/
+def QFTCircuitProfile (n : ℕ) : CircuitGateProfile where
+  hadamardGates := n
+  controlledPhaseGates := n * (n - 1) / 2
+  swapGates := n / 2
+
+theorem QFTCircuitProfile_exact (n : ℕ) :
+    CircuitGateProfile.HasExactCounts
+      (QFTCircuitProfile n) n (n * (n - 1) / 2) (n / 2) := by
+  simp [CircuitGateProfile.HasExactCounts, QFTCircuitProfile]
+
+/-- QFT basis action paired with the fixed-circuit gate counts used by the
+standard decomposition. -/
+theorem QuantumFourierTransform.main (n : ℕ) (x : Fin (2 ^ n)) :
+    (∀ i : Fin (2 ^ n),
+      (QFT n).apply (ket x) i = invSqrtN n * omega n ^ (i.val * x.val)) ∧
+      CircuitGateProfile.HasExactCounts
+        (QFTCircuitProfile n) n (n * (n - 1) / 2) (n / 2) := by
+  constructor
+  · intro i
+    exact QFT_apply_ket n x i
+  · exact QFTCircuitProfile_exact n
+
 
 end
 

@@ -37,7 +37,7 @@ nonzero decides the promise problem exactly.
 - `QuantumAlg.DeutschJozsa.circuitZeroAmplitude_eq_zeroAmplitude_mul` — the
   actual final joint amplitude (from `WalshHadamard.finalJointState`) is a
   nonzero scalar multiple of the standard signed phase average.
-- `QuantumAlg.deutsch_jozsa_correct` — under the explicit constant/balanced
+- `QuantumAlg.DeutschJozsa.main` — under the explicit constant/balanced
   promise, the nonzero final amplitude test is equivalent to the oracle being
   constant.
 -/
@@ -200,6 +200,31 @@ theorem timedFinalJointState_ret (f : WalshHadamard.Oracle n) :
 theorem timedFinalJointState_time (f : WalshHadamard.Oracle n) :
     (timedFinalJointState f).time = 1 := rfl
 
+/-- Public resource profile for the Deutsch-Jozsa circuit:
+one oracle query and two `n`-qubit Hadamard layers plus the target Hadamard. -/
+def resourceProfile (n : ℕ) : ResourceProfile where
+  oracleQueries := 1
+  hadamardGates := 2 * n + 1
+  elementaryGates := 2 * n + 1
+  classicalOps := 0
+
+theorem resourceProfile_exact (n : ℕ) :
+    ResourceProfile.HasExactCounts (resourceProfile n) 1 (2 * n + 1) (2 * n + 1) 0 := by
+  simp [ResourceProfile.HasExactCounts, resourceProfile]
+
+/-- The final Deutsch-Jozsa joint state with its public resource profile. -/
+def profiledFinalJointState (f : WalshHadamard.Oracle n) :
+    Profiled (PureState (n + 1)) :=
+  Profiled.trusted (resourceProfile n) (WalshHadamard.finalJointState f)
+
+@[simp]
+theorem profiledFinalJointState_ret (f : WalshHadamard.Oracle n) :
+    (profiledFinalJointState f).ret = WalshHadamard.finalJointState f := rfl
+
+@[simp]
+theorem profiledFinalJointState_resources (f : WalshHadamard.Oracle n) :
+    (profiledFinalJointState f).resources = resourceProfile n := rfl
+
 /-- The TimeM return value is the same final state used by the amplitude test. -/
 theorem reportsConstant_iff_timedFinalJointState
     (f : WalshHadamard.Oracle n) :
@@ -207,30 +232,26 @@ theorem reportsConstant_iff_timedFinalJointState
       (timedFinalJointState f).ret (prodEquiv (0, (0 : Fin (2 ^ 1)))) ≠ 0 := by
   rfl
 
-end DeutschJozsa
-
-/-- One Deutsch-Jozsa oracle query with the target qubit in `|−⟩` is the
+/-- One Deutsch-Jozsa oracle query with the target qubit in `|-⟩` is the
 phase query `|x⟩ ↦ (-1)^{f x}|x⟩`. -/
 theorem deutschJozsa_query_phase (f : WalshHadamard.Oracle n) (x : Fin (2 ^ n)) :
     (WalshHadamard.oracleGate f).apply ((ket x).tensor ketMinus)
       = WalshHadamard.phaseSign f x • ((ket x).tensor ketMinus) := by
-  exact phase_kickback f x
+  exact PhaseKickback.main f x
 
 /-- **Deutsch-Jozsa correctness**: under the explicit promise that the oracle
 is constant or balanced, the one-query amplitude test reports "constant" iff
 the oracle is constant. -/
-theorem deutsch_jozsa_correct (f : WalshHadamard.Oracle n)
-    (hf : DeutschJozsa.Promise f) :
-    DeutschJozsa.ReportsConstant f ↔ DeutschJozsa.IsConstant f := by
+theorem main (f : WalshHadamard.Oracle n)
+    (hf : Promise f) :
+    ReportsConstant f ↔ IsConstant f := by
   constructor
   · intro hreport
     rcases hf with hconstant | hbalanced
     · exact hconstant
-    · exact False.elim ((DeutschJozsa.not_reportsConstant_of_balanced f hbalanced) hreport)
+    · exact False.elim ((not_reportsConstant_of_balanced f hbalanced) hreport)
   · intro hconstant
-    exact DeutschJozsa.reportsConstant_of_constant f hconstant
-
-namespace DeutschJozsa
+    exact reportsConstant_of_constant f hconstant
 
 /-- Deutsch-Jozsa correctness, phrased through the TimeM return value. -/
 theorem timedFinalJointState_correct
@@ -238,7 +259,21 @@ theorem timedFinalJointState_correct
     (timedFinalJointState f).ret (prodEquiv (0, (0 : Fin (2 ^ 1)))) ≠ 0 ↔
       IsConstant f := by
   rw [← reportsConstant_iff_timedFinalJointState f]
-  exact deutsch_jozsa_correct f hf
+  exact main f hf
+
+/-- Deutsch-Jozsa supporting theorem for the public statement: under the
+constant/balanced promise, the profiled circuit decides the constant side
+exactly and records the accepted exact resource counts. -/
+theorem main_with_resources
+    (f : WalshHadamard.Oracle n) (hf : Promise f) :
+    ((profiledFinalJointState f).ret (prodEquiv (0, (0 : Fin (2 ^ 1)))) ≠ 0 ↔
+      IsConstant f) ∧
+      ResourceProfile.HasExactCounts (profiledFinalJointState f).resources
+        1 (2 * n + 1) (2 * n + 1) 0 := by
+  constructor
+  · rw [profiledFinalJointState_ret]
+    exact timedFinalJointState_correct f hf
+  · simp [resourceProfile_exact n]
 
 end DeutschJozsa
 

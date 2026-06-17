@@ -982,7 +982,7 @@ theorem qspYZY_mem_unitaryGroup (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
 **iff** some angles `(φ, θ₀, φ₀, ps)` with `L` encoding gates realize the
 matrix form `[[P, -Q], [Q*, P*]]` with `P = e^{-iLx/2}·A(e^{ix})` and
 `Q = e^{-iLx/2}·B(e^{ix})` for all `x : ℝ`. -/
-theorem qsp_yzzyz_iff (L : ℕ) (A B : ℂ[X]) :
+theorem TrigonometricQuantumSignalProcessing.main (L : ℕ) (A B : ℂ[X]) :
     IsYZPair L A B ↔
       ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧
         ∀ x : ℝ, qspYZZYZ φ θ₀ φ₀ ps x = qspMatYZ L A B x := by
@@ -997,7 +997,7 @@ theorem qsp_yzzyz_iff (L : ℕ) (A B : ℂ[X]) :
 (`lem:qnn_yzy`, encoded form): real-coefficient pairs `IsYZYPair L` are
 exactly those realized by `R_Y` angles `(θ₀, θs)` with `L` encoding
 gates. -/
-theorem qsp_yzy_iff (L : ℕ) (A B : ℂ[X]) :
+theorem TrigonometricQuantumSignalProcessing.main_yzy (L : ℕ) (A B : ℂ[X]) :
     IsYZYPair L A B ↔
       ∃ (θ₀ : ℝ) (θs : List ℝ), θs.length = L ∧
         ∀ x : ℝ, qspYZY θ₀ θs x = qspMatYZ L A B x := by

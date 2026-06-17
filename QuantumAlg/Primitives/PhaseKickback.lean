@@ -51,7 +51,7 @@ variable {n : ℕ}
 /-- **Phase kickback**: on a `|−⟩` target the XOR oracle acts as the phase
 oracle `|x⟩ ↦ (−1)^{f(x)} |x⟩`; the sign `(−1)^{f(x)}` is written
 `if f x then -1 else 1`. -/
-theorem phase_kickback (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
+theorem PhaseKickback.main (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
     (Gate.xorOracle f).apply ((ket x).tensor ketMinus)
       = (if f x then (-1 : ℂ) else 1) • ((ket x).tensor ketMinus) := by
   have h0 : (0 : Fin (2 ^ 1)).rev = 1 := by decide
@@ -63,6 +63,7 @@ theorem phase_kickback (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
   · simp [h, h0, h1]
     all_goals module
   · simp [h]
+
 
 /-- On a `|+⟩` target the XOR oracle acts trivially, whatever `f` is. -/
 theorem xorOracle_apply_tensor_ketPlus (f : Fin (2 ^ n) → Bool)
@@ -85,7 +86,7 @@ controlled `U` leaves the target unchanged and kicks the eigenvalue back
 onto the `|1⟩` component of the control [CEMM98, cemm6.tex:142]:
 
 `c-U ((a|0⟩ + b|1⟩) ⊗ |u⟩) = (a|0⟩ + e^{iθ} b|1⟩) ⊗ |u⟩`. -/
-theorem eigenvalue_phase_kickback (U : Gate n) (u : PureState n) (θ : ℝ)
+theorem GeneralizedPhaseKickback.main (U : Gate n) (u : PureState n) (θ : ℝ)
     (hu : U.apply u = Complex.exp (θ * Complex.I) • u) (a b : ℂ) :
     (Gate.controlled U).apply ((a • ket0 + b • ket1).tensor u)
       = (a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1).tensor u := by
@@ -93,6 +94,7 @@ theorem eigenvalue_phase_kickback (U : Gate n) (u : PureState n) (θ : ℝ)
     Gate.apply_smul, Gate.controlled_apply_ket0_tensor,
     Gate.controlled_apply_ket1_tensor, hu, PureState.tensor_smul, smul_smul]
   module
+
 
 end
 

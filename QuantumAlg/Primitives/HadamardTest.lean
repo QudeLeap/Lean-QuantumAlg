@@ -37,7 +37,7 @@ register-swap unitary it becomes the SWAP test of
 - `QuantumAlg.hadamardTest U` — the circuit `(H ⊗ I) · c-U · (H ⊗ I)`.
 - `QuantumAlg.hadamardTest_apply_ket0_tensor` — the pre-measurement state
   `(|0⟩ ⊗ (ψ + Uψ) + |1⟩ ⊗ (ψ − Uψ))/2`.
-- `QuantumAlg.hadamardTest_probQubit0_zero` / `_one` — the outcome
+- `QuantumAlg.HadamardTest.main` / `QuantumAlg.hadamardTest_probQubit0_one` — the outcome
   probabilities, as `Re`-of-inner-product formulas.
 -/
 
@@ -85,7 +85,7 @@ theorem hadamardTest_apply_ket0_tensor (U : Gate n) (ψ : PureState n) :
 /-- **Hadamard test, outcome 0** [CEMM98, cemm6.tex:93]: for normalized
 `ψ` and unitary `U`, the control reads `0` with probability
 `(1 + Re ⟨ψ| U |ψ⟩)/2`. -/
-theorem hadamardTest_probQubit0_zero {U : Gate n} (ψ : PureState n)
+theorem HadamardTest.main {U : Gate n} (ψ : PureState n)
     (hψ : ‖ψ‖ = 1) (hU : U ∈ Matrix.unitaryGroup (Fin (2 ^ n)) ℂ) :
     probQubit0 ((hadamardTest U).apply (ket0.tensor ψ)) 0
       = (1 + (inner ℂ ψ (U.apply ψ)).re) / 2 := by
@@ -98,6 +98,7 @@ theorem hadamardTest_probQubit0_zero {U : Gate n} (ψ : PureState n)
   rw [h2]
   simp only [RCLike.re_to_complex]
   ring
+
 
 /-- **Hadamard test, outcome 1** [CEMM98, cemm6.tex:93]: the control
 reads `1` with probability `(1 − Re ⟨ψ| U |ψ⟩)/2`. -/

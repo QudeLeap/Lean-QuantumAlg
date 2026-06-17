@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Cost
 public import QuantumAlg.Primitives.PhaseKickback
 public import QuantumAlg.Primitives.QSP
 
@@ -29,7 +30,7 @@ to single-qubit QSP at the signal `x = θ`:
 - on `|u⟩`, the signal `c-U` acts on the ancilla as the controlled-phase gate
   `phaseGate θ = diag(1, e^{iθ})` (eigenvalue phase kickback), which is the QSP
   encoding gate `R_Z(θ) = rotZStd θ` up to the global phase `e^{iθ/2}`
-  (`phaseGate_eq_smul_rotZStd`);
+  (`TransformationOnControlledUnitary.main_phase_gate_signal`);
 - consequently the QPP word `qppYZZYZ U φ θ₀ φ₀ ps` (the YZZYZ trainable blocks
   interleaved with `c-U`) on `|ψ⟩ ⊗ |u⟩` equals
   `(e^{iθ/2})^L · (qspYZZYZ φ θ₀ φ₀ ps θ |ψ⟩) ⊗ |u⟩`, i.e. the single-qubit
@@ -51,9 +52,9 @@ leaves only the parity phase `(e^{-iθ/2})^{L mod 2}`.
 - `QuantumAlg.controlled_apply_eigenstate` — on an eigenstate, `c-U` acts on the
   ancilla as the QSP signal gate up to a global phase:
   `c-U (|ψ⟩ ⊗ |u⟩) = (e^{iθ/2} · rotZStd θ |ψ⟩) ⊗ |u⟩`.
-- `QuantumAlg.phaseGate_eq_smul_rotZStd` — `diag(1, e^{iθ}) = e^{iθ/2} · R_Z(θ)`,
+- `QuantumAlg.TransformationOnControlledUnitary.main_phase_gate_signal` — `diag(1, e^{iθ}) = e^{iθ/2} · R_Z(θ)`,
   the controlled-phase gate as the QSP encoding gate up to global phase.
-- `QuantumAlg.qppYZZYZ_apply_eigenstate` — the eigenspace decomposition: the QPP
+- `QuantumAlg.TransformationOnControlledUnitary.main` — the eigenspace decomposition: the QPP
   word on `|ψ⟩ ⊗ |u⟩` is `(e^{iθ/2})^L · (qspYZZYZ … θ |ψ⟩) ⊗ |u⟩`.
 - `QuantumAlg.qpp_realizes_target` — every `IsYZPair` transform is realized on
   the eigenphase by some QPP word.
@@ -130,14 +131,14 @@ theorem controlled_apply_eigenstate_phase (U : Gate n) (u : PureState n) (θ : �
     (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u) (ψ : PureState 1) :
     (Gate.controlled U).apply (ψ.tensor u) = ((phaseGate θ).apply ψ).tensor u := by
   conv_lhs => rw [single_qubit_decomp ψ]
-  rw [eigenvalue_phase_kickback U u θ hu (ψ 0) (ψ 1), phaseGate_apply]
+  rw [GeneralizedPhaseKickback.main U u θ hu (ψ 0) (ψ 1), phaseGate_apply]
 
 /-! ### The controlled-phase gate is the QSP signal gate up to global phase -/
 
 /-- `diag(1, e^{iθ}) = e^{iθ/2} · R_Z(θ)`: the controlled-phase gate is the QSP
 encoding gate `rotZStd θ = R_Z(θ)` up to the global phase `e^{iθ/2}`
 [WZYW23, arxiv_v3.tex:632]. -/
-theorem phaseGate_eq_smul_rotZStd (θ : ℝ) :
+theorem TransformationOnControlledUnitary.main_phase_gate_signal (θ : ℝ) :
     phaseGate θ = Complex.exp ((θ / 2 : ℝ) * Complex.I) • rotZStd θ := by
   ext i j
   fin_cases i <;> fin_cases j <;>
@@ -154,13 +155,13 @@ theorem phaseGate_eq_smul_rotZStd (θ : ℝ) :
 theorem phaseGate_apply_eq_smul_rotZStd (θ : ℝ) (ψ : PureState 1) :
     (phaseGate θ).apply ψ
       = Complex.exp ((θ / 2 : ℝ) * Complex.I) • (rotZStd θ).apply ψ := by
-  rw [phaseGate_eq_smul_rotZStd, Gate.smul_apply]
+  rw [TransformationOnControlledUnitary.main_phase_gate_signal, Gate.smul_apply]
 
 /-- **Eigenstate reduction of `c-U` to the QSP signal.** On an eigenstate
 `U|u⟩ = e^{iθ}|u⟩`, the controlled unitary acts as the QSP encoding gate at
 signal `θ`, up to the global phase `e^{iθ/2}`:
 `c-U (|ψ⟩ ⊗ |u⟩) = (e^{iθ/2} · R_Z(θ)|ψ⟩) ⊗ |u⟩` [WZYW23, arxiv_v3.tex:641]. -/
-theorem controlled_apply_eigenstate (U : Gate n) (u : PureState n) (θ : ℝ)
+theorem TransformationOnControlledUnitary.main_eigenstate_reduction (U : Gate n) (u : PureState n) (θ : ℝ)
     (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u) (ψ : PureState 1) :
     (Gate.controlled U).apply (ψ.tensor u)
       = (Complex.exp ((θ / 2 : ℝ) * Complex.I) • (rotZStd θ).apply ψ).tensor u := by
@@ -194,7 +195,7 @@ eigenstate `U|u⟩ = e^{iθ}|u⟩`, the QPP word acts as the single-qubit YZZYZ 
 word at the signal `θ`, tensored with the untouched eigenstate, up to the
 global phase `(e^{iθ/2})^L` (`L` = number of `c-U` calls):
 `qppYZZYZ U φ θ₀ φ₀ ps (|ψ⟩ ⊗ |u⟩) = ((e^{iθ/2})^L · qspYZZYZ φ θ₀ φ₀ ps θ |ψ⟩) ⊗ |u⟩`. -/
-theorem qppYZZYZ_apply_eigenstate (U : Gate n) (u : PureState n) (θ : ℝ)
+theorem TransformationOnControlledUnitary.main (U : Gate n) (u : PureState n) (θ : ℝ)
     (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (ψ : PureState 1) :
     (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
@@ -207,7 +208,7 @@ theorem qppYZZYZ_apply_eigenstate (U : Gate n) (u : PureState n) (θ : ℝ)
   | append_singleton ps p ih =>
       rw [qppYZZYZ_concat, Gate.mul_apply, Gate.mul_apply,
         Gate.tensor_apply_tensor, Gate.one_apply,
-        controlled_apply_eigenstate U u θ hu, ih, qspYZZYZ_concat,
+        TransformationOnControlledUnitary.main_eigenstate_reduction U u θ hu, ih, qspYZZYZ_concat,
         List.length_append, List.length_singleton]
       congr 1
       rw [Gate.apply_smul, smul_smul, ← pow_succ, ← Gate.mul_apply,
@@ -220,16 +221,78 @@ transform admissible for single-qubit QSP (an `IsYZPair L A B`) is realized on
 the eigenphase of `U` by a QPP word with `L` controlled-unitary calls: there are
 angles `(φ, θ₀, φ₀, ps)` such that the QPP word maps `|ψ⟩ ⊗ |u⟩` to
 `((e^{iθ/2})^L · qspMatYZ L A B θ |ψ⟩) ⊗ |u⟩` for every ancilla state. -/
-theorem qpp_realizes_target (U : Gate n) (u : PureState n) (θ : ℝ)
+theorem TransformationOnControlledUnitary.main_realizes_target (U : Gate n) (u : PureState n) (θ : ℝ)
     (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
     (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
     ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
       (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
         = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
             • (qspMatYZ L A B θ).apply ψ).tensor u := by
-  obtain ⟨φ, θ₀, φ₀, ps, hlen, hmat⟩ := (qsp_yzzyz_iff L A B).mp h
+  obtain ⟨φ, θ₀, φ₀, ps, hlen, hmat⟩ := (TrigonometricQuantumSignalProcessing.main L A B).mp h
   refine ⟨φ, θ₀, φ₀, ps, hlen, fun ψ => ?_⟩
-  rw [qppYZZYZ_apply_eigenstate U u θ hu, hlen, hmat]
+  rw [main U u θ hu, hlen, hmat]
+
+/-- Trusted resource profile for the YZZYZ QPP word currently formalized here:
+`L` controlled-`U` signal calls and `2L+3` one-qubit processing rotations. -/
+def qppYZZYZResourceProfile (L : ℕ) : ResourceProfile where
+  oracleQueries := L
+  hadamardGates := 0
+  elementaryGates := 2 * L + 3
+  classicalOps := 0
+
+theorem qppYZZYZResourceProfile_exact (L : ℕ) :
+    ResourceProfile.HasExactCounts
+      (qppYZZYZResourceProfile L) L 0 (2 * L + 3) 0 := by
+  simp [ResourceProfile.HasExactCounts, qppYZZYZResourceProfile]
+
+/-- QPP realization paired with the resource profile of the YZZYZ convention
+formalized in this file. Conventions with alternating `controlled-U` and
+`controlled-U†` have a different resource profile. -/
+theorem qpp_realizes_target_with_resources (U : Gate n) (u : PureState n) (θ : ℝ)
+    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
+    (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
+    (∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
+      (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
+        = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
+            • (qspMatYZ L A B θ).apply ψ).tensor u) ∧
+      ResourceProfile.HasExactCounts (qppYZZYZResourceProfile L) L 0 (2 * L + 3) 0 := by
+  constructor
+  · exact TransformationOnControlledUnitary.main_realizes_target U u θ hu L A B h
+  · exact qppYZZYZResourceProfile_exact L
+
+/-- Public-facing resource convention for the alternating controlled-`U` /
+controlled-`U†` presentation of the QPP transform: `2L` controlled-unitary
+queries and `4L+3` one-qubit processing rotations. This is a trusted resource
+annotation for the source-level statement; the gate-level word formalized above
+is the YZZYZ convention. -/
+def qppPublicConventionResourceProfile (L : ℕ) : ResourceProfile where
+  oracleQueries := 2 * L
+  hadamardGates := 0
+  elementaryGates := 4 * L + 3
+  classicalOps := 0
+
+theorem qppPublicConventionResourceProfile_exact (L : ℕ) :
+    ResourceProfile.HasExactCounts
+      (qppPublicConventionResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
+  simp [ResourceProfile.HasExactCounts, qppPublicConventionResourceProfile]
+
+/-- QPP realization paired with the public-facing resource convention. The
+realization component is the current eigenstate reduction to YZZYZ QSP; the
+resource component records the public alternating controlled-`U` /
+controlled-`U†` convention used by the source-level resource claim. -/
+theorem qpp_realizes_target_with_public_convention_resources
+    (U : Gate n) (u : PureState n) (θ : ℝ)
+    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
+    (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
+    (∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
+      (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
+        = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
+            • (qspMatYZ L A B θ).apply ψ).tensor u) ∧
+      ResourceProfile.HasExactCounts
+        (qppPublicConventionResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
+  constructor
+  · exact TransformationOnControlledUnitary.main_realizes_target U u θ hu L A B h
+  · exact qppPublicConventionResourceProfile_exact L
 
 end
 

@@ -66,7 +66,7 @@ def ghzCircuit : Gate 3 :=
 /-- **GHZ state preparation**: the cascade circuit turns `|000⟩` into the
 GHZ state, extending Bell-state preparation (`bell_state_prep`) by one
 CNOT. -/
-theorem ghz_state_prep :
+theorem GHZStatePreparation.main :
     ghzCircuit.apply (ket0.tensor (ket0.tensor ket0)) = ghz := by
   -- `CNOT ⊗ I` on `(2+1)`-grouped basis kets.
   have hb21 : ∀ (x : Fin (2 ^ 2)) (y : Fin (2 ^ 1)),
@@ -114,6 +114,7 @@ theorem ghz_state_prep :
   simp only [PureState.tensor_ket]
   change invSqrt2 • (ket 0 + ket 7) = ghz
   rw [ghz]
+
 
 /-- The GHZ state is normalized. -/
 @[simp]

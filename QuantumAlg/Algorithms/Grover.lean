@@ -29,7 +29,7 @@ closed-form rotation core used by those refinements.
 
 ## Main results
 
-- `QuantumAlg.grover_correct` — exact good/bad-plane state after `k` Grover
+- `QuantumAlg.GroverSearch.main` — exact good/bad-plane state after `k` Grover
   iterates.
 - `QuantumAlg.grover_success_probability` — corresponding marked-subspace
   measurement probability.
@@ -42,6 +42,38 @@ namespace QuantumAlg
 open PureState Gate
 
 noncomputable section
+
+/-- The concrete Grover phase oracle for a marked-set predicate:
+`|j⟩` receives phase `-1` exactly when `marked j` is true. -/
+def phaseOracle {n : ℕ} (marked : Fin (2 ^ n) → Bool) : Gate n :=
+  fun i j => if i = j then (if marked j then -1 else 1 : ℂ) else 0
+
+theorem phaseOracle_apply_ket {n : ℕ} (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
+    (phaseOracle marked).apply (ket j) =
+      ((if marked j then -1 else 1 : ℂ) • ket j) := by
+  by_cases hm : marked j
+  · simp [hm]
+    apply WithLp.ofLp_injective
+    funext i
+    rw [show ((phaseOracle marked).apply (ket j)).ofLp i =
+          (phaseOracle marked).apply (ket j) i from rfl,
+      show ((-ket j).ofLp i) = (-ket j : PureState n) i from rfl,
+      Gate.apply_ket]
+    by_cases hij : i = j
+    · subst i
+      simp [phaseOracle, hm, ket_apply]
+    · simp [phaseOracle, ket_apply, hij]
+  · simp [hm]
+    apply WithLp.ofLp_injective
+    funext i
+    rw [show ((phaseOracle marked).apply (ket j)).ofLp i =
+          (phaseOracle marked).apply (ket j) i from rfl,
+      show (ket j).ofLp i = (ket j : PureState n) i from rfl,
+      Gate.apply_ket]
+    by_cases hij : i = j
+    · subst i
+      simp [phaseOracle, hm, ket_apply]
+    · simp [phaseOracle, ket_apply, hij]
 
 /-- A Grover search instance restricted to its invariant two-dimensional
 bad/good plane. The initial state is `amplitudeAmplificationState θ 0`, so the
@@ -62,7 +94,7 @@ structure GroverModel where
 /-- Grover correctness in the accepted two-dimensional scope: under the explicit
 oracle/diffusion rotation hypothesis, `k` Grover iterates produce the standard
 closed-form state. -/
-theorem grover_correct (M : GroverModel) (k : ℕ) :
+theorem GroverSearch.main (M : GroverModel) (k : ℕ) :
     Gate.apply ((M.diffusion * M.phaseOracle) ^ k) (amplitudeAmplificationState M.θ 0) =
       amplitudeAmplificationState M.θ k := by
   rw [M.iterate_eq]
@@ -71,12 +103,12 @@ theorem grover_correct (M : GroverModel) (k : ℕ) :
 /-- Grover success probability in the good/bad-plane model. Measuring the good
 basis state after `k` Grover iterates succeeds with probability
 `sin((2k+1)θ)^2`. -/
-theorem grover_success_probability (M : GroverModel) (k : ℕ) :
+theorem GroverSearch.main_success_probability (M : GroverModel) (k : ℕ) :
     PureState.probOutcome
         (Gate.apply ((M.diffusion * M.phaseOracle) ^ k) (amplitudeAmplificationState M.θ 0))
         (1 : Fin (2 ^ 1)) =
       Real.sin (amplitudeAmplificationAngle M.θ k) ^ 2 := by
-  rw [grover_correct, amplitudeAmplificationState_good_probability]
+  rw [main, amplitudeAmplificationState_good_probability]
 
 /-- Every Grover plane model is an amplitude-amplification model with the phase
 oracle as the good reflection and the diffusion operator as the start-state
@@ -91,7 +123,7 @@ def GroverModel.toAmplitudeAmplificationModel (M : GroverModel) :
 /-- Grover is the amplitude-amplification specialization where the good
 reflection is the phase oracle and the start-state reflection is the diffusion
 operator. -/
-theorem grover_eq_amplitude_amplification (M : GroverModel) (k : ℕ) :
+theorem GroverSearch.main_amplitude_amplification (M : GroverModel) (k : ℕ) :
     Gate.apply ((M.diffusion * M.phaseOracle) ^ k) (amplitudeAmplificationState M.θ 0) =
       Gate.apply ((M.toAmplitudeAmplificationModel.startReflection *
           M.toAmplitudeAmplificationModel.goodReflection) ^ k)
@@ -119,7 +151,7 @@ theorem timedIterate_time (M : GroverModel) (k : ℕ) :
 /-- Grover correctness, phrased through the TimeM return value. -/
 theorem timedIterate_correct (M : GroverModel) (k : ℕ) :
     (timedIterate M k).ret = amplitudeAmplificationState M.θ k := by
-  exact grover_correct M k
+  exact GroverSearch.main M k
 
 /-- The marked-subspace success probability after the timed Grover iterate. -/
 theorem timedIterate_success_probability (M : GroverModel) (k : ℕ) :
@@ -134,8 +166,55 @@ theorem timedIterate_ret_eq_amplitudeAmplification
       (AmplitudeAmplification.timedIterate
         M.toAmplitudeAmplificationModel k).ret := rfl
 
+/-- Trusted public resource profile for `k` Grover iterations on `n` index
+qubits: `k` oracle queries and a linear-in-`n` elementary-gate representative
+per iterate. -/
+def resourceProfile (n k : ℕ) : ResourceProfile where
+  oracleQueries := k
+  hadamardGates := 0
+  elementaryGates := k * n
+  classicalOps := 0
+
+theorem resourceProfile_exact (n k : ℕ) :
+    ResourceProfile.HasExactCounts (resourceProfile n k) k 0 (k * n) 0 := by
+  simp [ResourceProfile.HasExactCounts, resourceProfile]
+
+/-- Grover supporting theorem for the public marked-count statement. The
+relation between the concrete `n`-qubit oracle and this good/bad plane remains
+an explicit model hypothesis; under the marked-count angle relation, the timed
+iterate has the public success probability and resource profile. -/
+theorem success_probability_with_resources
+    (M : GroverModel) {n t k : ℕ}
+    (_ht_pos : 0 < t) (_ht_le : t ≤ 2 ^ n)
+    (hθ : M.θ = Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) :
+    PureState.probOutcome (timedIterate M k).ret (1 : Fin (2 ^ 1)) =
+        Real.sin (((2 : ℝ) * k + 1) *
+          Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) ^ 2 ∧
+      ResourceProfile.HasExactCounts (resourceProfile n k) k 0 (k * n) 0 := by
+  constructor
+  · rw [timedIterate_success_probability]
+    simp [amplitudeAmplificationAngle, hθ]
+  · exact resourceProfile_exact n k
+
 end Grover
 
+/-- Public-facing basis-action wrapper for the concrete Grover phase oracle. -/
+theorem GroverSearch.main_phase_oracle_basis_action {n : ℕ}
+    (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
+    (phaseOracle marked).apply (ket j) =
+      ((if marked j then -1 else 1 : ℂ) • ket j) := by
+  exact phaseOracle_apply_ket marked j
+
+/-- Public-facing resource wrapper for the marked-count Grover statement. -/
+theorem GroverSearch.main_success_probability_with_resources
+    (M : GroverModel) {n t k : ℕ}
+    (ht_pos : 0 < t) (ht_le : t ≤ 2 ^ n)
+    (hθ : M.θ = Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) :
+    PureState.probOutcome (Grover.timedIterate M k).ret (1 : Fin (2 ^ 1)) =
+        Real.sin (((2 : ℝ) * k + 1) *
+          Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) ^ 2 ∧
+      ResourceProfile.HasExactCounts (Grover.resourceProfile n k) k 0 (k * n) 0 := by
+  exact Grover.success_probability_with_resources M ht_pos ht_le hθ
 
 end
 

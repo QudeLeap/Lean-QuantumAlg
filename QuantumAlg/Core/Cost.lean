@@ -53,4 +53,151 @@ theorem trusted_time {α : Type u} (cost : ℕ) (ret : α) :
 
 end Timed
 
+/-- A trusted public-facing resource profile for theorem endpoints.
+
+The fields are intentionally lightweight counters. They record the resource
+model claimed beside a correctness theorem, not a derivation from Lean
+evaluation. -/
+structure ResourceProfile where
+  oracleQueries : ℕ
+  hadamardGates : ℕ
+  elementaryGates : ℕ
+  classicalOps : ℕ
+deriving DecidableEq, Repr
+
+namespace ResourceProfile
+
+/-- The empty resource profile. -/
+def zero : ResourceProfile where
+  oracleQueries := 0
+  hadamardGates := 0
+  elementaryGates := 0
+  classicalOps := 0
+
+/-- Sequential composition adds every resource counter. -/
+def sequential (left right : ResourceProfile) : ResourceProfile where
+  oracleQueries := left.oracleQueries + right.oracleQueries
+  hadamardGates := left.hadamardGates + right.hadamardGates
+  elementaryGates := left.elementaryGates + right.elementaryGates
+  classicalOps := left.classicalOps + right.classicalOps
+
+/-- Tensor/parallel circuit composition uses the same additive counters. -/
+def tensor (left right : ResourceProfile) : ResourceProfile :=
+  sequential left right
+
+/-- Exact counter claim used by supporting public theorem statements. -/
+def HasExactCounts (profile : ResourceProfile)
+    (oracleQueries hadamardGates elementaryGates classicalOps : ℕ) : Prop :=
+  profile.oracleQueries = oracleQueries ∧
+    profile.hadamardGates = hadamardGates ∧
+    profile.elementaryGates = elementaryGates ∧
+    profile.classicalOps = classicalOps
+
+@[simp]
+theorem sequential_oracleQueries (left right : ResourceProfile) :
+    (sequential left right).oracleQueries =
+      left.oracleQueries + right.oracleQueries := rfl
+
+@[simp]
+theorem sequential_hadamardGates (left right : ResourceProfile) :
+    (sequential left right).hadamardGates =
+      left.hadamardGates + right.hadamardGates := rfl
+
+@[simp]
+theorem sequential_elementaryGates (left right : ResourceProfile) :
+    (sequential left right).elementaryGates =
+      left.elementaryGates + right.elementaryGates := rfl
+
+@[simp]
+theorem sequential_classicalOps (left right : ResourceProfile) :
+    (sequential left right).classicalOps =
+      left.classicalOps + right.classicalOps := rfl
+
+@[simp]
+theorem tensor_oracleQueries (left right : ResourceProfile) :
+    (tensor left right).oracleQueries =
+      left.oracleQueries + right.oracleQueries := rfl
+
+@[simp]
+theorem tensor_hadamardGates (left right : ResourceProfile) :
+    (tensor left right).hadamardGates =
+      left.hadamardGates + right.hadamardGates := rfl
+
+@[simp]
+theorem tensor_elementaryGates (left right : ResourceProfile) :
+    (tensor left right).elementaryGates =
+      left.elementaryGates + right.elementaryGates := rfl
+
+@[simp]
+theorem tensor_classicalOps (left right : ResourceProfile) :
+    (tensor left right).classicalOps =
+      left.classicalOps + right.classicalOps := rfl
+
+end ResourceProfile
+
+/-- Gate counts for fixed circuit statements with named gate families. -/
+structure CircuitGateProfile where
+  hadamardGates : ℕ
+  controlledPhaseGates : ℕ
+  swapGates : ℕ
+deriving DecidableEq, Repr
+
+namespace CircuitGateProfile
+
+/-- Exact fixed-circuit gate-count claim. -/
+def HasExactCounts (profile : CircuitGateProfile)
+    (hadamardGates controlledPhaseGates swapGates : ℕ) : Prop :=
+  profile.hadamardGates = hadamardGates ∧
+    profile.controlledPhaseGates = controlledPhaseGates ∧
+    profile.swapGates = swapGates
+
+end CircuitGateProfile
+
+/-- A return value paired with a trusted resource profile. -/
+structure Profiled (α : Type u) where
+  ret : α
+  resources : ResourceProfile
+
+namespace Profiled
+
+/-- Attach a trusted resource profile to a return value. -/
+def trusted {α : Type u} (resources : ResourceProfile) (ret : α) : Profiled α :=
+  ⟨ret, resources⟩
+
+@[simp]
+theorem trusted_ret {α : Type u} (resources : ResourceProfile) (ret : α) :
+    (trusted resources ret).ret = ret := rfl
+
+@[simp]
+theorem trusted_resources {α : Type u} (resources : ResourceProfile) (ret : α) :
+    (trusted resources ret).resources = resources := rfl
+
+end Profiled
+
+/-- Communication resources for protocol statements. -/
+structure CommunicationProfile where
+  classicalBits : ℕ
+  transmittedQubits : ℕ
+  bellPairs : ℕ
+deriving DecidableEq, Repr
+
+namespace CommunicationProfile
+
+/-- Exact communication-resource claim for protocol supporting theorems. -/
+def HasExactCounts (profile : CommunicationProfile)
+    (classicalBits transmittedQubits bellPairs : ℕ) : Prop :=
+  profile.classicalBits = classicalBits ∧
+    profile.transmittedQubits = transmittedQubits ∧
+    profile.bellPairs = bellPairs
+
+@[simp]
+theorem hasExactCounts_mk (classicalBits transmittedQubits bellPairs : ℕ) :
+    HasExactCounts
+      { classicalBits := classicalBits, transmittedQubits := transmittedQubits,
+        bellPairs := bellPairs }
+      classicalBits transmittedQubits bellPairs := by
+  simp [HasExactCounts]
+
+end CommunicationProfile
+
 end QuantumAlg

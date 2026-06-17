@@ -26,7 +26,7 @@ another. The registered `bell-state-prep` target is `bell_state_prep` here.
 ## Main results
 
 - `QuantumAlg.bell` — the Bell state, as a `PureState 2`.
-- `QuantumAlg.bell_state_prep` — the preparation-circuit equality.
+- `QuantumAlg.BellStatePreparation.main` — the preparation-circuit equality.
 - `QuantumAlg.bell_eq_tensor` — the Bell state in per-qubit tensor form.
 - `QuantumAlg.norm_bell` — the Bell state is normalized.
 -/
@@ -52,7 +52,7 @@ theorem bell_eq_tensor :
 
 /-- Bell-state preparation: a Hadamard on qubit 0 followed by a CNOT
 (control = qubit 0) turns `|00⟩` into the Bell state. -/
-theorem bell_state_prep :
+theorem BellStatePreparation.main :
     CNOT.apply ((H.tensor (1 : Gate 1)).apply (ket0.tensor ket0)) = bell := by
   rw [Gate.tensor_apply_tensor, H_apply_ket0, Gate.one_apply, ketPlus,
     PureState.smul_tensor, PureState.add_tensor, ket0, ket1,
@@ -61,6 +61,7 @@ theorem bell_state_prep :
   rw [Gate.apply_smul, Gate.apply_add, CNOT_apply_ket, CNOT_apply_ket,
     show Equiv.swap (2 : Fin (2 ^ 2)) 3 0 = 0 by decide,
     show Equiv.swap (2 : Fin (2 ^ 2)) 3 2 = 3 by decide, bell]
+
 
 /-- The Bell state is normalized. -/
 @[simp]

@@ -25,7 +25,7 @@ O-convention: the signal operator is `O(x) = [[x, -√(1-x²)], [√(1-x²), x]]
 and the QSP sequence with phase factors `(φ₀, …, φ_d)` is
 `U_Φ(x) = e^{iφ₀Z} · ∏_{j=1}^d (O(x) e^{iφ_j Z})`.
 
-`QuantumAlg.qsp_reflection_iff` [Lin22, hermfunc.tex:1118]: `U_Φ(x)` takes the
+`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main` [Lin22, hermfunc.tex:1118]: `U_Φ(x)` takes the
 form `[[P(x), -Q(x)√(1-x²)], [Q*(x)√(1-x²), P*(x)]]` for all `x ∈ [-1,1]` for
 some phase factors **iff** `(P, Q)` is an `IsQSPPair d`, i.e.
 
@@ -38,7 +38,7 @@ infinite set `[-1,1]` (`QuantumAlg.qsp_normalization_iff`).
 
 The **Wx-convention** replaces `O(x)` by `W(x) = e^{i·arccos(x)·X}`; the fixed
 conjugation `W(x) = e^{-i(π/4)Z}·O(x)·e^{i(π/4)Z}` [Lin22, hermfunc.tex:1279]
-transports the characterization (`QuantumAlg.qsp_wx_iff`) with the same pair
+transports the characterization (`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx`) with the same pair
 conditions `IsQSPPair`.
 
 This module is one half of the single-qubit QSP development; the Fourier-basis
@@ -50,9 +50,9 @@ and `QuantumAlg.Primitives.QSP` re-exports both.
 - `QuantumAlg.qspO_mem_unitaryGroup` — `U_Φ(x)` is unitary for `x ∈ [-1,1]`.
 - `QuantumAlg.qspO_forward` / `QuantumAlg.qspO_converse` — soundness and
   completeness of the O-convention.
-- `QuantumAlg.qsp_reflection_iff` — the O-convention characterization
+- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main` — the O-convention characterization
   (registered target entry point).
-- `QuantumAlg.qsp_wx_iff` — the Wx-convention (XZX) characterization.
+- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx` — the Wx-convention (XZX) characterization.
 
 Pinned Mathlib API: `Polynomial.coeff_X_mul`, `Polynomial.coeff_mul`,
 `Polynomial.degree_le_iff_coeff_zero`, `Polynomial.degree_lt_iff_coeff_zero`,
@@ -596,7 +596,7 @@ a pair `(P, Q)` satisfies the degree, parity, and normalization conditions
 `IsQSPPair d` **iff** some phase factors `(φ₀, φs)` with `d` signal operators
 realize the matrix form
 `[[P(x), -Q(x)√(1-x²)], [Q*(x)√(1-x²), P*(x)]]` on `[-1,1]`. -/
-theorem qsp_reflection_iff (d : ℕ) (P Q : ℂ[X]) :
+theorem ReflectionBasedQuantumSignalProcessing.main (d : ℕ) (P Q : ℂ[X]) :
     IsQSPPair d P Q ↔
       ∃ (φ₀ : ℝ) (φs : List ℝ), φs.length = d ∧
         ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspO φ₀ φs x = qspMat P Q x := by
@@ -740,11 +740,11 @@ theorem qspW_form_iff (φ₀ : ℝ) (φs : List ℝ) (P Q : ℂ[X]) (x : ℝ) :
 satisfies `IsQSPPair d` **iff** some phase factors `(φ₀, φs)` with `d` signal
 operators realize the matrix form
 `[[P(x), iQ(x)√(1-x²)], [iQ*(x)√(1-x²), P*(x)]]` on `[-1,1]`. -/
-theorem qsp_wx_iff (d : ℕ) (P Q : ℂ[X]) :
+theorem ReflectionBasedQuantumSignalProcessing.main_wx (d : ℕ) (P Q : ℂ[X]) :
     IsQSPPair d P Q ↔
       ∃ (φ₀ : ℝ) (φs : List ℝ), φs.length = d ∧
         ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspW φ₀ φs x = qspMatW P Q x := by
-  rw [qsp_reflection_iff]
+  rw [ReflectionBasedQuantumSignalProcessing.main]
   constructor
   · rintro ⟨φ₀, φs, hlen, hmat⟩
     exact ⟨φ₀, φs, hlen,

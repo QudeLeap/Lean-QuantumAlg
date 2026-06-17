@@ -34,7 +34,7 @@ The two families are genuinely different transforms with different inputs
 
 ## Main results (registered targets)
 
-- `QuantumAlg.qsp_reflection_iff`, `QuantumAlg.qsp_wx_iff` — Chebyshev basis.
+- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main`, `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx` — Chebyshev basis.
 - `QuantumAlg.qsp_yzy_iff`, `QuantumAlg.qsp_yzzyz_iff` — Fourier basis.
 -/
 
