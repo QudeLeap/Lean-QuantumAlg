@@ -120,6 +120,25 @@ theorem quantumKernel_gram_posSemidef {ι : Type*} [Fintype ι]
   rw [hK]
   exact Matrix.posSemidef_conjTranspose_mul_self _
 
+namespace QuantumKernel
+
+/-- Main theorem: fidelity quantum-kernel Gram matrices are positive semidefinite. -/
+theorem main {ι : Type*} [Fintype ι] (φ : X → PureState n) (x : ι → X) :
+    (Matrix.of fun i j => quantumKernel φ (x i) (x j)).PosSemidef :=
+  quantumKernel_gram_posSemidef φ x
+
+/-- Public supporting theorem: the fidelity kernel is an inner product after tensor lifting. -/
+theorem main_feature_tensor (φ : X → PureState n) (x y : X) :
+    quantumKernel φ x y = inner ℂ (featureTensor φ x) (featureTensor φ y) :=
+  quantumKernel_eq_inner_featureTensor φ x y
+
+/-- Public supporting theorem: the diagonal fidelity-kernel value of a normalized state is one. -/
+theorem main_self (φ : X → PureState n) (x : X) (h : ‖φ x‖ = 1) :
+    quantumKernel φ x x = 1 :=
+  quantumKernel_self φ x h
+
+end QuantumKernel
+
 end
 
 end QuantumAlg

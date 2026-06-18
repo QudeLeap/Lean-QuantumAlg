@@ -53,7 +53,7 @@ theorem trusted_time {α : Type u} (cost : ℕ) (ret : α) :
 
 end Timed
 
-/-- A trusted public-facing resource profile for theorem endpoints.
+/-- A trusted resource profile for registered theorem endpoints.
 
 The fields are intentionally lightweight counters. They record the resource
 model claimed beside a correctness theorem, not a derivation from Lean

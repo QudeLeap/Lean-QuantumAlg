@@ -198,14 +198,14 @@ theorem success_probability_with_resources
 
 end Grover
 
-/-- Public-facing basis-action wrapper for the concrete Grover phase oracle. -/
+/-- Registered basis-action wrapper for the concrete Grover phase oracle. -/
 theorem GroverSearch.main_phase_oracle_basis_action {n : ℕ}
     (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
     (phaseOracle marked).apply (ket j) =
       ((if marked j then -1 else 1 : ℂ) • ket j) := by
   exact phaseOracle_apply_ket marked j
 
-/-- Public-facing resource wrapper for the marked-count Grover statement. -/
+/-- Registered resource wrapper for the marked-count Grover statement. -/
 theorem GroverSearch.main_success_probability_with_resources
     (M : GroverModel) {n t k : ℕ}
     (ht_pos : 0 < t) (ht_le : t ≤ 2 ^ n)

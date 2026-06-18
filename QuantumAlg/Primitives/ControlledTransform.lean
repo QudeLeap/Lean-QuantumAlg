@@ -260,27 +260,27 @@ theorem qpp_realizes_target_with_resources (U : Gate n) (u : PureState n) (θ : 
   · exact TransformationOnControlledUnitary.main_realizes_target U u θ hu L A B h
   · exact qppYZZYZResourceProfile_exact L
 
-/-- Public-facing resource convention for the alternating controlled-`U` /
+/-- Resource profile for the alternating controlled-`U` /
 controlled-`U†` presentation of the QPP transform: `2L` controlled-unitary
 queries and `4L+3` one-qubit processing rotations. This is a trusted resource
 annotation for the source-level statement; the gate-level word formalized above
 is the YZZYZ convention. -/
-def qppPublicConventionResourceProfile (L : ℕ) : ResourceProfile where
+def qppAlternatingControlledResourceProfile (L : ℕ) : ResourceProfile where
   oracleQueries := 2 * L
   hadamardGates := 0
   elementaryGates := 4 * L + 3
   classicalOps := 0
 
-theorem qppPublicConventionResourceProfile_exact (L : ℕ) :
+theorem qppAlternatingControlledResourceProfile_exact (L : ℕ) :
     ResourceProfile.HasExactCounts
-      (qppPublicConventionResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
-  simp [ResourceProfile.HasExactCounts, qppPublicConventionResourceProfile]
+      (qppAlternatingControlledResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
+  simp [ResourceProfile.HasExactCounts, qppAlternatingControlledResourceProfile]
 
-/-- QPP realization paired with the public-facing resource convention. The
+/-- QPP realization paired with the alternating controlled resource convention. The
 realization component is the current eigenstate reduction to YZZYZ QSP; the
-resource component records the public alternating controlled-`U` /
+resource component records the source-level alternating controlled-`U` /
 controlled-`U†` convention used by the source-level resource claim. -/
-theorem qpp_realizes_target_with_public_convention_resources
+theorem qpp_realizes_target_with_alternating_controlled_resources
     (U : Gate n) (u : PureState n) (θ : ℝ)
     (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
     (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
@@ -289,10 +289,10 @@ theorem qpp_realizes_target_with_public_convention_resources
         = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
             • (qspMatYZ L A B θ).apply ψ).tensor u) ∧
       ResourceProfile.HasExactCounts
-        (qppPublicConventionResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
+        (qppAlternatingControlledResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
   constructor
   · exact TransformationOnControlledUnitary.main_realizes_target U u θ hu L A B h
-  · exact qppPublicConventionResourceProfile_exact L
+  · exact qppAlternatingControlledResourceProfile_exact L
 
 end
 

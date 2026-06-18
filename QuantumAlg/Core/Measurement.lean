@@ -77,6 +77,11 @@ theorem probOutcome_ket (x y : Fin (2 ^ n)) :
   · rw [if_neg h, if_neg h]
     simp
 
+/-- Expectation value `⟨ψ|O|ψ⟩` of an observable `O` in the state `ψ`, as a real
+number via the real part. For a Hermitian `O` this is the physical expectation
+value; it is the cost function minimized by variational quantum algorithms. -/
+def expVal (ψ : PureState n) (O : Gate n) : ℝ := (inner ℂ ψ (O.apply ψ)).re
+
 /-- Probability that measuring qubit 0 of a `1 + n`-qubit state (in the
 computational basis, leaving the other qubits unobserved) yields `b`:
 the squared norm of the `|b⟩`-block, per the projective measurement

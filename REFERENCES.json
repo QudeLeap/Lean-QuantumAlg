@@ -170,6 +170,42 @@
       "arxiv_id": "2303.09491",
       "arxiv_version": "v1",
       "entry_point": "Manuscript_Arxiv.tex"
+    },
+    {
+      "key": "SBG+19",
+      "authors": ["Maria Schuld", "Ville Bergholm", "Christian Gogolin", "Josh Izaac", "Nathan Killoran"],
+      "year": 2019,
+      "title": "Evaluating analytic gradients on quantum hardware",
+      "arxiv_id": "1811.11184",
+      "arxiv_version": "v3",
+      "entry_point": "quantum_gradients.tex"
+    },
+    {
+      "key": "WIWL22",
+      "authors": ["David Wierichs", "Josh Izaac", "Cody Wang", "Cedric Yen-Yu Lin"],
+      "year": 2022,
+      "title": "General parameter-shift rules for quantum gradients",
+      "arxiv_id": "2107.12390",
+      "arxiv_version": "v2",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "RBS+23",
+      "authors": ["Michael Ragone", "Bojko N. Bakalov", "Frederic Sauvage", "Alexander F. Kemper", "Carlos Ortiz Marrero", "Martin Larocca", "M. Cerezo"],
+      "year": 2023,
+      "title": "A Lie Algebraic Theory of Barren Plateaus for Deep Parameterized Quantum Circuits",
+      "arxiv_id": "2309.09342",
+      "arxiv_version": "v3",
+      "entry_point": "Arxiv_Final.tex"
+    },
+    {
+      "key": "ACBE24",
+      "authors": ["Gerard Aguilar", "Simon Cichy", "Jens Eisert", "Lennart Bittel"],
+      "year": 2024,
+      "title": "Full classification of Pauli Lie algebras",
+      "arxiv_id": "2408.00081",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
     }
   ]
 }

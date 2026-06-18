@@ -17,7 +17,9 @@ public import QuantumAlg.Primitives.QSP
 public import QuantumAlg.Primitives.ControlledTransform
 public import QuantumAlg.Primitives.LCU
 public import QuantumAlg.Primitives.AmplitudeAmplification
-public import QuantumAlg.Primitives.QuantumKernel
+public import QuantumAlg.Primitives.ParameterShift
+public import QuantumAlg.Primitives.QKernel
+public import QuantumAlg.Primitives.QNN
 
 /-!
 # QuantumAlg primitives
