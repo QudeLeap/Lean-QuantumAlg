@@ -191,7 +191,7 @@ theorem qspYZY_eq_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
 /-- The trigonometric QSP target form `[[P, -Q], [Q*, P*]]` with
 `P = e^{-iLx/2}·A(e^{ix})` and `Q = e^{-iLx/2}·B(e^{ix})`
 [YYLW22, neurips_2022.tex:286]. -/
-def qspMatYZ (L : ℕ) (A B : ℂ[X]) (x : ℝ) : Gate 1 :=
+def qspMatYZ (L : ℕ) (A B : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
   !![lEval L A x, -lEval L B x;
      starRingEnd ℂ (lEval L B x), starRingEnd ℂ (lEval L A x)]
 
@@ -299,7 +299,7 @@ private theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {
       * Complex.exp (((φ / 2 : ℝ) : ℂ) * Complex.I) = v)
     (hw : (Real.sin (θ / 2) : ℂ)
       * Complex.exp (-(((φ / 2 : ℝ) : ℂ) * Complex.I)) = w) :
-    qspMatYZ L A B x * (rotZStd x * (rotY θ * rotZStd φ))
+    qspMatYZ L A B x * (rotZStd x * (rotY θ * rotZStd φ) : Gate 1)
       = qspMatYZ (L + 1) (C (starRingEnd ℂ v) * A - C w * (X * B))
           (C (starRingEnd ℂ w) * A + C v * (X * B)) x := by
   have hcv : (Real.cos (θ / 2) : ℂ)
@@ -323,11 +323,10 @@ private theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {
   simp only [map_sub, map_add, map_mul, conj_exp_I, conj_exp_neg_I,
     Complex.conj_conj] at hcA' hcB'
   unfold qspMatYZ rotZStd rotZ rotY
-  simp only [Complex.ofReal_neg, neg_mul, neg_neg]
   rw [hcA', hcB', hA', hB', ← hcv, ← hcw, ← hv, ← hw]
   ext i j
   fin_cases i <;> fin_cases j <;>
-    · simp [Matrix.mul_apply]
+    · simp [Matrix.mul_apply, rotZOp, rotYOp]
       ring
 
 /-- The initial block `R_Z(φ)·R_Y(θ₀)·R_Z(φ₀)` is the `L = 0` instance of
@@ -338,7 +337,8 @@ private theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : �
       * Complex.exp (-((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I)) = a)
     (hb : (Real.sin (θ₀ / 2) : ℂ)
       * Complex.exp (-((((φ - φ₀) / 2 : ℝ) : ℂ) * Complex.I)) = b) :
-    rotZStd φ * (rotY θ₀ * rotZStd φ₀) = qspMatYZ 0 (C a) (C b) x := by
+    (rotZStd φ * (rotY θ₀ * rotZStd φ₀) : Gate 1) =
+      qspMatYZ 0 (C a) (C b) x := by
   have hca : (Real.cos (θ₀ / 2) : ℂ)
       * Complex.exp ((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I)
         = starRingEnd ℂ a := by
@@ -364,12 +364,11 @@ private theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : �
         * Complex.exp (-(((φ₀ / 2 : ℝ) : ℂ) * Complex.I)) := by
     rw [← Complex.exp_add]; congr 1; push_cast; ring
   unfold qspMatYZ rotZStd rotZ rotY
-  simp only [Complex.ofReal_neg, neg_mul, neg_neg]
   rw [lEval_zero_C, lEval_zero_C, ← hca, ← hcb, ← ha, ← hb, hadd, hsub, hadd',
     hsub']
   ext i j
   fin_cases i <;> fin_cases j <;>
-    · simp [Matrix.mul_apply]
+    · simp [Matrix.mul_apply, rotZOp, rotYOp]
       ring
 
 /-! #### Soundness of the YZY and YZZYZ forms -/
@@ -430,13 +429,18 @@ theorem qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
         C (starRingEnd ℂ w) * A + C v * (X * B), ?_, fun x => ?_⟩
       · simpa using hpair.step v w hvw
       · rw [show (ps ++ [(θ, ψ)]).length = ps.length + 1 by simp,
-          qspYZZYZ_concat, hmat x,
-          qspMatYZ_step ps.length A B θ ψ x hv.symm hw.symm]
+          qspYZZYZ_concat]
+        change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) *
+            (rotZStd x * (rotY θ * rotZStd ψ) : Gate 1) =
+          qspMatYZ (ps.length + 1)
+            (C (starRingEnd ℂ v) * A - C w * (X * B))
+            (C (starRingEnd ℂ w) * A + C v * (X * B)) x
+        rw [hmat x, qspMatYZ_step ps.length A B θ ψ x hv.symm hw.symm]
 
 /-- The YZY one-step matrix recurrence: the `φ = 0` case of
 `qspMatYZ_step`. -/
 private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) :
-    qspMatYZ L A B x * (rotZStd x * rotY θ)
+    qspMatYZ L A B x * (rotZStd x * rotY θ : Gate 1)
       = qspMatYZ (L + 1)
           (C ((Real.cos (θ / 2) : ℂ)) * A
             - C ((Real.sin (θ / 2) : ℂ)) * (X * B))
@@ -454,7 +458,7 @@ private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) 
 
 /-- The `R_Y(θ₀)` gate is the `L = 0` instance of the target form. -/
 private theorem rotY_eq_qspMatYZ (θ₀ : ℝ) (x : ℝ) :
-    rotY θ₀ = qspMatYZ 0 (C ((Real.cos (θ₀ / 2) : ℂ)))
+    (rotY θ₀ : Gate 1) = qspMatYZ 0 (C ((Real.cos (θ₀ / 2) : ℂ)))
       (C ((Real.sin (θ₀ / 2) : ℂ))) x := by
   have h := rotYZ_base_eq_qspMatYZ 0 θ₀ 0 (Real.cos (θ₀ / 2) : ℂ)
     (Real.sin (θ₀ / 2) : ℂ) x (by norm_num) (by norm_num)
@@ -509,8 +513,15 @@ theorem qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
         C ((Real.sin (θ / 2) : ℂ)) * A
           + C ((Real.cos (θ / 2) : ℂ)) * (X * B), ?_, fun x => ?_⟩
       · simpa using hpair.step θ
-      · rw [show (θs ++ [θ]).length = θs.length + 1 by simp, qspYZY_concat,
-          hmat x, qspMatYZ_step_yzy θs.length A B θ x]
+      · rw [show (θs ++ [θ]).length = θs.length + 1 by simp, qspYZY_concat]
+        change (qspYZY θ₀ θs x : HilbertOperator 1) *
+            (rotZStd x * rotY θ : Gate 1) =
+          qspMatYZ (θs.length + 1)
+            (C ((Real.cos (θ / 2) : ℂ)) * A
+              - C ((Real.sin (θ / 2) : ℂ)) * (X * B))
+            (C ((Real.sin (θ / 2) : ℂ)) * A
+              + C ((Real.cos (θ / 2) : ℂ)) * (X * B)) x
+        rw [hmat x, qspMatYZ_step_yzy θs.length A B θ x]
 
 /-! #### Normalization on the circle -/
 
@@ -562,13 +573,16 @@ private theorem qspMatYZ_inj {L : ℕ} {A B A' B' : ℂ[X]}
     A = A' ∧ B = B' := by
   constructor
   · refine eq_of_circle_eval_eq fun x => ?_
-    have h00 := congrArg (fun M : Gate 1 => M 0 0) (hmat x)
-    have h : lEval L A x = lEval L A' x := by simpa [qspMatYZ] using h00
+    have h00 := congrArg (fun M : HilbertOperator 1 => M 0 0) (hmat x)
+    have h : lEval L A x = lEval L A' x := by
+      simpa [qspMatYZ, Matrix.cons_val_zero] using h00
     simp only [lEval] at h
     exact mul_left_cancel₀ (Complex.exp_ne_zero _) h
   · refine eq_of_circle_eval_eq fun x => ?_
-    have h01 := congrArg (fun M : Gate 1 => M 0 1) (hmat x)
-    have h : lEval L B x = lEval L B' x := by simpa [qspMatYZ] using h01
+    have h01 := congrArg (fun M : HilbertOperator 1 => M 0 1) (hmat x)
+    have h : lEval L B x = lEval L B' x := by
+      simpa [qspMatYZ, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
+        using h01
     simp only [lEval] at h
     exact mul_left_cancel₀ (Complex.exp_ne_zero _) h
 
@@ -825,8 +839,11 @@ theorem qspYZZYZ_converse :
       obtain ⟨θ, ψ, hv, hw⟩ := exists_rotYZ_angles hvw him
       obtain ⟨φ, θ₀, φ₀, ps, hlen, hmat⟩ := ih A' B' hp'
       refine ⟨φ, θ₀, φ₀, ps ++ [(θ, ψ)], by simp [hlen], fun x => ?_⟩
-      rw [qspYZZYZ_concat, hmat x, qspMatYZ_step L A' B' θ ψ x hv hw,
-        ← hAeq, ← hBeq]
+      rw [qspYZZYZ_concat]
+      change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) *
+          (rotZStd x * (rotY θ * rotZStd ψ) : Gate 1) =
+        qspMatYZ (L + 1) A B x
+      rw [hmat x, qspMatYZ_step L A' B' θ ψ x hv hw, ← hAeq, ← hBeq]
 
 private theorem IsYZYPair.conj_coeff_A {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B)
     (k : ℕ) : starRingEnd ℂ (A.coeff k) = A.coeff k := by
@@ -953,14 +970,18 @@ theorem qspYZY_converse :
       obtain ⟨θ, hc, hs⟩ := exists_cos_sin hu
       obtain ⟨θ₀, θs, hlen, hmat⟩ := ih A' B' ⟨hp', hrA', hrB'⟩
       refine ⟨θ₀, θs ++ [θ], by simp [hlen], fun x => ?_⟩
-      rw [qspYZY_concat, hmat x, qspMatYZ_step_yzy L A' B' θ x, hc, hs,
-        ← hAeq, ← hBeq]
+      rw [qspYZY_concat]
+      change (qspYZY θ₀ θs x : HilbertOperator 1) *
+          (rotZStd x * rotY θ : Gate 1) =
+        qspMatYZ (L + 1) A B x
+      rw [hmat x, qspMatYZ_step_yzy L A' B' θ x, hc, hs, ← hAeq, ← hBeq]
 
 /-! #### The characterization theorems -/
 
 theorem qspYZZYZ_mem_unitaryGroup (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ))
     (x : ℝ) :
-    qspYZZYZ φ θ₀ φ₀ ps x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
+    (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) ∈
+      Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   induction ps using List.reverseRecOn with
   | nil =>
       rw [qspYZZYZ_nil]
@@ -972,7 +993,8 @@ theorem qspYZZYZ_mem_unitaryGroup (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)
         (mul_mem (rotY_mem_unitaryGroup p.1) (rotZStd_mem_unitaryGroup p.2)))
 
 theorem qspYZY_mem_unitaryGroup (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
-    qspYZY θ₀ θs x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
+    (qspYZY θ₀ θs x : HilbertOperator 1) ∈
+      Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   rw [qspYZY_eq_qspYZZYZ]
   exact qspYZZYZ_mem_unitaryGroup 0 θ₀ 0 _ x
 

@@ -219,13 +219,13 @@ theorem phaseSign_oracle (s x : Fin (2 ^ n)) :
 exactly to the classical state `|s⟩` [dW19, qcnotes.tex:1296]. -/
 theorem finalState_oracle (s : Fin (2 ^ n)) :
     finalState (oracle s) = ket s := by
-  apply WithLp.ofLp_injective
-  funext y
+  ext y
   change finalState (oracle s) y = ket s y
   rw [WalshHadamard.finalState, Gate.apply_apply, ket_apply]
   have hterm : ∀ j, hadamardLayer n y j * afterPhaseQuery (oracle s) j
       = ((2 ^ n : ℕ) : ℂ)⁻¹ * (walshSign y j * walshSign s j) := fun j => by
-    change invSqrtCard n * walshSign y j * (invSqrtCard n * phaseSign (oracle s) j) = _
+    change (invSqrtCard n * walshSign y j)
+        * (invSqrtCard n * phaseSign (oracle s) j) = _
     rw [phaseSign_oracle, mul_mul_mul_comm, invSqrtCard_mul_self]
   simp only [hterm]
   rw [← Finset.mul_sum]

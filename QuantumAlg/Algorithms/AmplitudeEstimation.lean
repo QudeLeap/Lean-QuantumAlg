@@ -15,32 +15,9 @@ public import QuantumAlg.Primitives.AmplitudeAmplification
 
 Amplitude estimation reads the unknown good-state amplitude of an amplitude-
 amplification instance by running quantum phase estimation on the amplification
-operator [Lin22]. In the good/bad-plane model
-(`QuantumAlg.Primitives.AmplitudeAmplification`) one amplification iterate is a
-rotation by `2θ`, where the initial good-state probability is `sin² θ`
-[dW19, qcnotes.tex:2954]. As a planar rotation by `2θ`, the amplification
-operator has eigenphases `±θ/π` (eigenvalues `e^{±2iθ}`); phase estimation reads
-that eigenphase, and the amplitude is recovered as `sin²(π · eigenphase)`.
-
-This module formalizes the **exact** regime, where the eigenphase is the dyadic
-rational `θ/π = j / 2^t` for some `j : Fin (2^t)`, i.e. `θ = π · j / 2^t`. Two
-proved facts compose, with phase estimation entering only through its decoupled
-interface (`QuantumAlg.QuantumPhaseEstimation.main_exact_dyadic`):
-
-- phase estimation reads out `|j⟩` from the eigenphase superposition; and
-- the estimate `sin²(π · j / 2^t)` computed from the outcome `j` equals the true
-  good-state probability `sin² θ` of the amplitude-amplification instance,
-  reusing `QuantumAlg.amplitudeAmplificationState_good_probability`.
-
-The construction of the reflection operators whose product realizes the planar
-rotation, and the non-exact regime (where `θ/π` is not dyadic and continued-
-fraction / confidence-interval recovery is needed), are out of scope here.
-
-## Main results
-
-- `QuantumAlg.AmplitudeEstimation.main_exact_dyadic` — exact amplitude estimation: phase
-  estimation of the dyadic eigenphase `θ/π = j/2^t` reads out `|j⟩`, and
-  `sin²(π · j/2^t)` recovers the good-state probability `sin² θ`.
+operator [Lin22]. This module records the exact dyadic regime: QPE reads out the
+phase-register basis vector, and the estimate `sin^2(pi*j/2^t)` equals the
+good-state probability in the two-dimensional amplitude-amplification model.
 -/
 
 @[expose] public section
@@ -51,54 +28,48 @@ open PureState Gate
 
 noncomputable section
 
-/-- **Exact amplitude estimation.** Let an amplitude-amplification instance have
-initial angle `θ` whose corresponding eigenphase `θ/π` is the dyadic rational
-`j / 2^t` (equivalently `θ = π · j / 2^t`). Then:
-
-1. exact quantum phase estimation reads out `|j⟩` from the eigenphase
-   superposition (`QuantumAlg.QuantumPhaseEstimation.main_exact_dyadic`); and
-2. the amplitude estimate `sin²(π · j / 2^t)` formed from the outcome `j` equals
-   the true good-state probability `sin² θ` of the instance, via
-   `QuantumAlg.amplitudeAmplificationState_good_probability`.
-
-This is the decoupled correctness statement: phase estimation enters only
-through its proved interface, and the eigenphase/angle relation is taken as the
-hypothesis `hθ` [Lin22]. -/
-theorem AmplitudeEstimation.main_exact_dyadic (t : ℕ) (j : Fin (2 ^ t)) (θ : ℝ)
-    (hθ : θ = Real.pi * (j.val : ℝ) / (2 : ℝ) ^ t) :
-    Gate.apply (invQFT t) (phaseState t ((j.val : ℝ) / (2 : ℝ) ^ t)) = ket j
-      ∧ PureState.probOutcome (amplitudeAmplificationState θ 0) (1 : Fin (2 ^ 1))
-          = Real.sin (Real.pi * (j.val : ℝ) / (2 : ℝ) ^ t) ^ 2 := by
+/-- Exact amplitude estimation in the decoupled dyadic model. Phase estimation
+enters through the raw-vector readout theorem, while the success probability is
+the existing amplitude-amplification `PureState` probability theorem. -/
+theorem AmplitudeEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t)) (theta : Real)
+    (htheta : theta = Real.pi * (j.val : Real) / (2 : Real) ^ t) :
+    (invQFT t).applyVec (phaseState t ((j.val : Real) / (2 : Real) ^ t))
+        = (ket j : StateVector t) ∧
+      PureState.probOutcome (amplitudeAmplificationState theta 0) (1 : Fin (2 ^ 1))
+          = Real.sin (Real.pi * (j.val : Real) / (2 : Real) ^ t) ^ 2 := by
   refine ⟨?_, ?_⟩
   · exact QuantumPhaseEstimation.main_exact_dyadic t j _ rfl
   · rw [amplitudeAmplificationState_good_probability]
-    have hang : amplitudeAmplificationAngle θ 0 = θ := by
-      unfold amplitudeAmplificationAngle; push_cast; ring
-    rw [hang, hθ]
+    have hang : amplitudeAmplificationAngle theta 0 = theta := by
+      unfold amplitudeAmplificationAngle
+      push_cast
+      ring
+    rw [hang, htheta]
 
 /-- Trusted resource profile for exact amplitude estimation in the decoupled
-dyadic-eigenphase model. It records the QPE layer used by
-`amplitude_estimation_exact`; source-level state-preparation and reflection
-oracles are outside this exact model. -/
-def amplitudeEstimationExactResourceProfile (t : ℕ) : ResourceProfile :=
+dyadic-eigenphase model. It records the QPE layer used by the exact readout;
+source-level state-preparation and reflection oracles are outside this exact
+model. -/
+def amplitudeEstimationExactResourceProfile (t : Nat) : ResourceProfile :=
   qpeExactResourceProfile t
 
-theorem amplitudeEstimationExactResourceProfile_exact (t : ℕ) :
+theorem amplitudeEstimationExactResourceProfile_exact (t : Nat) :
     ResourceProfile.HasExactCounts
       (amplitudeEstimationExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   exact qpeExactResourceProfile_exact t
 
 /-- Exact amplitude estimation paired with the decoupled QPE resource profile. -/
 theorem AmplitudeEstimation.main_exact_dyadic_with_resources
-    (t : ℕ) (j : Fin (2 ^ t)) (θ : ℝ)
-    (hθ : θ = Real.pi * (j.val : ℝ) / (2 : ℝ) ^ t) :
-    (Gate.apply (invQFT t) (phaseState t ((j.val : ℝ) / (2 : ℝ) ^ t)) = ket j
-      ∧ PureState.probOutcome (amplitudeAmplificationState θ 0) (1 : Fin (2 ^ 1))
-          = Real.sin (Real.pi * (j.val : ℝ) / (2 : ℝ) ^ t) ^ 2) ∧
+    (t : Nat) (j : Fin (2 ^ t)) (theta : Real)
+    (htheta : theta = Real.pi * (j.val : Real) / (2 : Real) ^ t) :
+    ((invQFT t).applyVec (phaseState t ((j.val : Real) / (2 : Real) ^ t))
+        = (ket j : StateVector t) ∧
+      PureState.probOutcome (amplitudeAmplificationState theta 0) (1 : Fin (2 ^ 1))
+          = Real.sin (Real.pi * (j.val : Real) / (2 : Real) ^ t) ^ 2) ∧
       ResourceProfile.HasExactCounts
         (amplitudeEstimationExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   constructor
-  · exact AmplitudeEstimation.main_exact_dyadic t j θ hθ
+  · exact AmplitudeEstimation.main_exact_dyadic t j theta htheta
   · exact amplitudeEstimationExactResourceProfile_exact t
 
 /-- Source-level exact-amplitude-estimation input in the same dyadic regime:
@@ -106,21 +77,20 @@ a source-style preparation/reflection amplitude-amplification model together
 with a phase-register index for the exact QPE readout. -/
 structure SourceAmplitudeEstimationInput where
   source : SourceAmplitudeAmplificationModel
-  t : ℕ
+  t : Nat
   j : Fin (2 ^ t)
-  theta_eq : source.theta = Real.pi * (j.val : ℝ) / (2 : ℝ) ^ t
+  theta_eq : source.theta = Real.pi * (j.val : Real) / (2 : Real) ^ t
 
 /-- Source-level exact amplitude-estimation bridge: the source preparation has
-good-state probability `sin^2(theta)`, exact QPE reads the dyadic eigenphase,
-and the same trusted exact-QPE resource profile is recorded. This is still the
-exact dyadic regime; approximate precision and confidence bounds are separate
-refinements. -/
+good-state probability `sin^2(theta)`, exact QPE reads the dyadic phase register,
+and the same trusted exact-QPE resource profile is recorded. -/
 theorem AmplitudeEstimation.main
     (E : SourceAmplitudeEstimationInput) :
     (PureState.probOutcome (E.source.preparation.apply ket0) (1 : Fin (2 ^ 1)) =
-        Real.sin (Real.pi * (E.j.val : ℝ) / (2 : ℝ) ^ E.t) ^ 2 ∧
-      Gate.apply (invQFT E.t)
-          (phaseState E.t ((E.j.val : ℝ) / (2 : ℝ) ^ E.t)) = ket E.j) ∧
+        Real.sin (Real.pi * (E.j.val : Real) / (2 : Real) ^ E.t) ^ 2 ∧
+      (invQFT E.t).applyVec
+          (phaseState E.t ((E.j.val : Real) / (2 : Real) ^ E.t))
+          = (ket E.j : StateVector E.t)) ∧
       ResourceProfile.HasExactCounts
         (amplitudeEstimationExactResourceProfile E.t)
         (2 ^ E.t - 1) E.t (E.t ^ 2) 0 := by

@@ -46,9 +46,26 @@ def amplitudeAmplificationAngle (θ : ℝ) (k : ℕ) : ℝ := ((2 : ℝ) * k + 1
 /-- The good/bad-plane state with bad amplitude `cos((2k+1)θ)` and good
 amplitude `sin((2k+1)θ)`. In this two-dimensional model, `|0⟩` is the bad axis
 and `|1⟩` is the good axis. -/
-def amplitudeAmplificationState (θ : ℝ) (k : ℕ) : PureState 1 :=
-  ((Real.cos (amplitudeAmplificationAngle θ k) : ℂ) • ket0) +
+def amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) : StateVector 1 :=
+  ((Real.cos (amplitudeAmplificationAngle θ k) : ℂ) • (ket0 : StateVector 1)) +
     ((Real.sin (amplitudeAmplificationAngle θ k) : ℂ) • ket1)
+
+theorem norm_amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) :
+    ‖amplitudeAmplificationStateVec θ k‖ = 1 := by
+  rw [PureState.norm_eq_two_terms]
+  simp [amplitudeAmplificationStateVec, ket0, ket1, PureState.ket_apply,
+    PiLp.smul_apply, PiLp.add_apply]
+  rw [← Complex.normSq_eq_norm_sq, ← Complex.normSq_eq_norm_sq,
+    ← Complex.ofReal_cos, ← Complex.ofReal_sin, Complex.normSq_ofReal,
+    Complex.normSq_ofReal]
+  simpa [add_comm, sq] using Real.cos_sq_add_sin_sq (amplitudeAmplificationAngle θ k)
+
+/-- The good/bad-plane state with bad amplitude `cos((2k+1)θ)` and good
+amplitude `sin((2k+1)θ)`. In this two-dimensional model, `|0⟩` is the bad axis
+and `|1⟩` is the good axis. -/
+def amplitudeAmplificationState (θ : ℝ) (k : ℕ) : PureState 1 :=
+  PureState.ofVec (amplitudeAmplificationStateVec θ k)
+    (norm_amplitudeAmplificationStateVec θ k)
 
 /-- One amplitude-amplification iterate on the good/bad plane: rotation by
 `2θ`. Since `rotY φ` rotates the real plane by `φ/2`, this is `rotY (4θ)`. -/
@@ -56,7 +73,8 @@ def amplitudeAmplificationStep (θ : ℝ) : Gate 1 := rotY (4 * θ)
 
 /-- The plane rotation used by amplitude amplification is unitary. -/
 theorem amplitudeAmplificationStep_mem_unitaryGroup (θ : ℝ) :
-    amplitudeAmplificationStep θ ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ :=
+    (amplitudeAmplificationStep θ : HilbertOperator 1) ∈
+      Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ :=
   rotY_mem_unitaryGroup _
 
 /-- One amplitude-amplification step increases the good/bad-plane angle by
@@ -64,8 +82,7 @@ theorem amplitudeAmplificationStep_mem_unitaryGroup (θ : ℝ) :
 theorem amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
     (amplitudeAmplificationStep θ).apply (amplitudeAmplificationState θ k) =
       amplitudeAmplificationState θ (k + 1) := by
-  apply WithLp.ofLp_injective
-  funext i
+  ext i
   have hangle : amplitudeAmplificationAngle θ (k + 1) =
       amplitudeAmplificationAngle θ k + 2 * θ := by
     unfold amplitudeAmplificationAngle
@@ -75,19 +92,17 @@ theorem amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
   · change (amplitudeAmplificationStep θ).apply (amplitudeAmplificationState θ k) 0 =
       amplitudeAmplificationState θ (k + 1) 0
     rw [Gate.apply_apply]
-    simp [amplitudeAmplificationStep, amplitudeAmplificationState, rotY,
-      ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
-    rw [hangle]
-    norm_num
+    simp [amplitudeAmplificationStep, amplitudeAmplificationState,
+      amplitudeAmplificationStateVec, rotY, rotYOp, ket0, ket1,
+      PureState.ket_apply, hangle]
     rw [Complex.cos_add]
     ring_nf
   · change (amplitudeAmplificationStep θ).apply (amplitudeAmplificationState θ k) 1 =
       amplitudeAmplificationState θ (k + 1) 1
     rw [Gate.apply_apply]
-    simp [amplitudeAmplificationStep, amplitudeAmplificationState, rotY,
-      ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
-    rw [hangle]
-    norm_num
+    simp [amplitudeAmplificationStep, amplitudeAmplificationState,
+      amplitudeAmplificationStateVec, rotY, rotYOp, ket0, ket1,
+      PureState.ket_apply, hangle]
     rw [Complex.sin_add]
     ring_nf
 
@@ -134,8 +149,9 @@ structure SourceAmplitudeAmplificationModel where
   goodReflection : Gate 1
   /-- Source preparation statement in public good/bad order. -/
   prepares_start :
-    preparation.apply ket0 =
-      ((Real.sin theta : ℂ) • ket1) + ((Real.cos theta : ℂ) • ket0)
+    preparation.applyVec (ket0 : StateVector 1) =
+      ((Real.sin theta : ℂ) • (ket1 : StateVector 1)) +
+        ((Real.cos theta : ℂ) • (ket0 : StateVector 1))
   /-- The public reflection product, restricted to the invariant plane. -/
   iterate_eq :
     preparation * zeroReflection * preparation.conjTranspose * goodReflection =
@@ -155,10 +171,12 @@ def toModel (M : SourceAmplitudeAmplificationModel) : AmplitudeAmplificationMode
 by the core amplitude-amplification theorem. -/
 theorem prepared_eq_state (M : SourceAmplitudeAmplificationModel) :
     M.preparation.apply ket0 = amplitudeAmplificationState M.theta 0 := by
+  ext i
+  change M.preparation.applyVec (ket0 : StateVector 1) i =
+    amplitudeAmplificationStateVec M.theta 0 i
   rw [M.prepares_start]
-  unfold amplitudeAmplificationState amplitudeAmplificationAngle
-  norm_num
-  rw [add_comm]
+  simp [amplitudeAmplificationStateVec, amplitudeAmplificationAngle,
+    PiLp.smul_apply, PiLp.add_apply, add_comm]
 
 end SourceAmplitudeAmplificationModel
 
@@ -188,15 +206,16 @@ theorem source_reflection_correct (M : SourceAmplitudeAmplificationModel) (k : �
 `(A S₀ A† S_good)^k A|0⟩ =
 sin((2k+1)θ)|ψ₁⟩ + cos((2k+1)θ)|ψ₀⟩` in the good/bad plane. -/
 theorem source_reflection_closed_form (M : SourceAmplitudeAmplificationModel) (k : ℕ) :
-    Gate.apply
+    (Gate.apply
         ((M.preparation * M.zeroReflection * M.preparation.conjTranspose *
             M.goodReflection) ^ k)
-        (M.preparation.apply ket0) =
-      ((Real.sin (amplitudeAmplificationAngle M.theta k) : ℂ) • ket1) +
-        ((Real.cos (amplitudeAmplificationAngle M.theta k) : ℂ) • ket0) := by
+        (M.preparation.apply ket0) : StateVector 1) =
+      ((Real.sin (amplitudeAmplificationAngle M.theta k) : ℂ) •
+          (ket1 : StateVector 1)) +
+        ((Real.cos (amplitudeAmplificationAngle M.theta k) : ℂ) •
+          (ket0 : StateVector 1)) := by
   rw [source_reflection_correct]
-  unfold amplitudeAmplificationState
-  rw [add_comm]
+  simp [amplitudeAmplificationState, amplitudeAmplificationStateVec, add_comm]
 
 /-- The success probability of the closed-form amplitude-amplified state is the
 squared good amplitude. -/
@@ -204,9 +223,11 @@ theorem amplitudeAmplificationState_good_probability (θ : ℝ) (k : ℕ) :
     PureState.probOutcome (amplitudeAmplificationState θ k) (1 : Fin (2 ^ 1)) =
       Real.sin (amplitudeAmplificationAngle θ k) ^ 2 := by
   rw [PureState.probOutcome]
-  simp [amplitudeAmplificationState, ket0, ket1, ket_apply, PiLp.smul_apply,
-    PiLp.add_apply]
-  rw [← Complex.ofReal_sin, Complex.norm_real, Real.norm_eq_abs, sq_abs]
+  simp [StateVector.probOutcome, amplitudeAmplificationState,
+    amplitudeAmplificationStateVec, ket0, ket1, PureState.ket_apply,
+    PiLp.smul_apply, PiLp.add_apply]
+  rw [← Complex.normSq_eq_norm_sq, ← Complex.ofReal_sin, Complex.normSq_ofReal]
+  ring
 
 /-- Amplitude amplification success probability after `k` reflection-product
 iterations. -/

@@ -13,7 +13,8 @@ public import Mathlib.Analysis.InnerProductSpace.PiL2
 # Qubit states
 
 An `n`-qubit pure state is a unit vector in `ℂ^(2^n)` with the L2 inner
-product, encoded as `EuclideanSpace ℂ (Fin (2 ^ n))`.
+product. The raw Hilbert-space vector type is `StateVector n`; `PureState n`
+bundles such a vector with its unit-norm proof.
 
 ## Naming: `PureState`, not `State`
 
@@ -34,16 +35,17 @@ density-operator concept should the library later introduce mixed states
   left to right, so the basis label `x : Fin (2 ^ n)` encodes
   `|q₀ q₁ … q_{n-1}⟩` with `x = Σ qᵢ · 2^(n-1-i)`: qubit 0 carries the most
   significant bit.
-- **Normalization** is stated per ket (`norm_ket`; the named-ket norms live
-  with their kets in `Core.Components.Kets`), not bundled in the type: gates
-  act on the raw vector space and unitarity (`QuantumAlg.Gate`) preserves
-  norms.
+- **Normalization** is part of `PureState`: every value carries a proof that its
+  underlying vector has norm `1`. Linear combinations live at the raw
+  `StateVector` layer until separately proved normalized.
 - Components are accessed by plain application `ψ i`; the underlying
-  `Pi`-function of `ψ : PureState n` is `ψ.ofLp` (Mathlib's `WithLp` design).
+  vector of `ψ : PureState n` is `(ψ : StateVector n)`.
 
 ## Main definitions
 
-- `QuantumAlg.PureState n` — the state space `EuclideanSpace ℂ (Fin (2 ^ n))`.
+- `QuantumAlg.StateVector n` — the Hilbert-space vector type
+  `EuclideanSpace ℂ (Fin (2 ^ n))`.
+- `QuantumAlg.PureState n` — unit vectors in `StateVector n`.
 - `QuantumAlg.PureState.ket x` — computational basis ket `|x⟩`
   (`PiLp.single 2 x 1`).
 
@@ -58,11 +60,18 @@ Pinned Mathlib API: `PiLp.single`, `PiLp.single_apply`, `PiLp.norm_single`,
 
 namespace QuantumAlg
 
-/-- The space of `n`-qubit pure states: length-`2^n` complex vectors with the
-L2 inner product. States used in theorems are normalized (see the `norm_*`
-lemmas); the type itself does not enforce it. The general (density-operator)
-notion of state is intentionally not defined here — see the module docstring. -/
-abbrev PureState (n : ℕ) : Type := EuclideanSpace ℂ (Fin (2 ^ n))
+/-- Raw Hilbert-space vector for an `n`-qubit pure-state register. -/
+abbrev StateVector (n : ℕ) : Type := EuclideanSpace ℂ (Fin (2 ^ n))
+
+/-- An `n`-qubit pure state: a unit vector in the computational Hilbert space.
+
+The general (density-operator) notion of state is intentionally not defined
+here — see the module docstring. -/
+structure PureState (n : ℕ) where
+  /-- Underlying Hilbert-space vector. -/
+  vec : StateVector n
+  /-- Pure states are normalized by definition. -/
+  norm_eq_one : ‖vec‖ = 1
 
 namespace PureState
 
@@ -70,9 +79,69 @@ noncomputable section
 
 variable {n : ℕ}
 
+instance : Coe (PureState n) (StateVector n) := ⟨PureState.vec⟩
+
+instance : CoeFun (PureState n) (fun _ => Fin (2 ^ n) → ℂ) :=
+  ⟨fun ψ => ψ.vec⟩
+
+instance : Norm (PureState n) := ⟨fun ψ => ‖(ψ : StateVector n)‖⟩
+
+instance : Inner ℂ (PureState n) :=
+  ⟨fun ψ φ => inner ℂ (ψ : StateVector n) (φ : StateVector n)⟩
+
+instance : HAdd (PureState n) (PureState n) (StateVector n) :=
+  ⟨fun ψ φ => (ψ : StateVector n) + (φ : StateVector n)⟩
+
+instance : HSub (PureState n) (PureState n) (StateVector n) :=
+  ⟨fun ψ φ => (ψ : StateVector n) - (φ : StateVector n)⟩
+
+instance : HSMul ℂ (PureState n) (StateVector n) :=
+  ⟨fun c ψ => c • (ψ : StateVector n)⟩
+
+@[simp]
+theorem hAdd_apply (ψ φ : PureState n) (i : Fin (2 ^ n)) :
+    (ψ + φ : StateVector n) i = ψ i + φ i := rfl
+
+@[simp]
+theorem hSub_apply (ψ φ : PureState n) (i : Fin (2 ^ n)) :
+    (ψ - φ : StateVector n) i = ψ i - φ i := rfl
+
+@[simp]
+theorem hSMul_apply (c : ℂ) (ψ : PureState n) (i : Fin (2 ^ n)) :
+    (c • ψ : StateVector n) i = c * ψ i := rfl
+
+/-- Build a pure state from a normalized Hilbert-space vector. -/
+def ofVec (v : StateVector n) (h : ‖v‖ = 1) : PureState n := ⟨v, h⟩
+
+@[simp]
+theorem coe_ofVec (v : StateVector n) (h : ‖v‖ = 1) :
+    ((ofVec v h : PureState n) : StateVector n) = v := rfl
+
+@[simp]
+theorem ofVec_apply (v : StateVector n) (h : ‖v‖ = 1) (i : Fin (2 ^ n)) :
+    ofVec v h i = v i := rfl
+
+@[simp]
+theorem norm_eq_one' (ψ : PureState n) : ‖(ψ : StateVector n)‖ = 1 :=
+  ψ.norm_eq_one
+
+@[ext]
+theorem ext {ψ φ : PureState n} (h : ∀ i, ψ i = φ i) : ψ = φ := by
+  cases ψ with
+  | mk ψ hψ =>
+    cases φ with
+    | mk φ hφ =>
+      have hv : ψ = φ := by
+        apply WithLp.ofLp_injective
+        funext i
+        exact h i
+      subst hv
+      rfl
+
 /-- The computational basis ket `|x⟩ : PureState n`, big-endian (qubit 0 is
 the most significant bit of `x`). -/
-def ket (x : Fin (2 ^ n)) : PureState n := PiLp.single 2 x 1
+def ket (x : Fin (2 ^ n)) : PureState n :=
+  ofVec (PiLp.single 2 x 1) (by simp)
 
 @[simp]
 theorem ket_apply (x i : Fin (2 ^ n)) : ket x i = if i = x then 1 else 0 := by
@@ -86,8 +155,8 @@ theorem ket_injective : Function.Injective (ket (n := n)) := by
   exact one_ne_zero h
 
 @[simp]
-theorem norm_ket (x : Fin (2 ^ n)) : ‖ket x‖ = 1 := by
-  simp [ket]
+theorem norm_ket (x : Fin (2 ^ n)) : ‖(ket x : StateVector n)‖ = 1 := by
+  exact (ket x).norm_eq_one
 
 end
 

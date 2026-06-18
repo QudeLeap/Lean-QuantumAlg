@@ -73,65 +73,112 @@ variable {n : ℕ}
 /-! ### Single-qubit ancilla decomposition and gate scalars -/
 
 /-- A one-qubit state is its `|0⟩`/`|1⟩` coordinate combination. -/
-theorem single_qubit_decomp (ψ : PureState 1) :
-    ψ = (ψ 0) • ket0 + (ψ 1) • ket1 := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ i = ((ψ 0) • ket0 + (ψ 1) • ket1) i
+theorem single_qubit_vec_decomp (ψ : StateVector 1) :
+    ψ =
+      (ψ 0) • (ket0 : StateVector 1) + (ψ 1) • (ket1 : StateVector 1) := by
+  ext i
   fin_cases i <;>
     simp [ket0, ket1, ket_apply, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
 
-/-- Gate scalar multiplication commutes with application:
-`(c • G) ψ = c • (G ψ)`. -/
-theorem Gate.smul_apply (c : ℂ) (G : Gate n) (ψ : PureState n) :
-    (c • G).apply ψ = c • G.apply ψ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ((c • G).apply ψ) i = (c • G.apply ψ) i
-  simp only [Gate.apply_apply, PiLp.smul_apply, smul_eq_mul, Matrix.smul_apply]
-  rw [Finset.mul_sum]
-  exact Finset.sum_congr rfl fun j _ => by ring
+theorem single_qubit_decomp (ψ : PureState 1) :
+    (ψ : StateVector 1) =
+      (ψ 0) • (ket0 : StateVector 1) + (ψ 1) • (ket1 : StateVector 1) :=
+  single_qubit_vec_decomp (ψ : StateVector 1)
 
 /-! ### The controlled-phase action of `c-U` on an eigenstate -/
 
 /-- The controlled-phase gate `diag(1, e^{iθ})`: the action that `c-U` induces on
 the ancilla when the target holds an eigenstate of eigenphase `θ`. -/
-def phaseGate (θ : ℝ) : Gate 1 := !![1, 0; 0, Complex.exp ((θ : ℝ) * Complex.I)]
+def phaseGateOp (θ : ℝ) : HilbertOperator 1 :=
+  !![1, 0; 0, Complex.exp ((θ : ℝ) * Complex.I)]
+
+theorem phaseGateOp_mem_unitaryGroup (θ : ℝ) :
+    phaseGateOp θ ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
+  rw [Matrix.mem_unitaryGroup_iff]
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [phaseGateOp, Matrix.mul_apply, Matrix.star_apply, conj_exp_I,
+      exp_I_mul_exp_neg_I]
+
+def phaseGate (θ : ℝ) : Gate 1 :=
+  Gate.ofUnitary (phaseGateOp θ) (phaseGateOp_mem_unitaryGroup θ)
 
 @[simp]
 theorem phaseGate_apply_ket0 (θ : ℝ) : (phaseGate θ).apply ket0 = ket0 := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (phaseGate θ).apply ket0 i = ket0 i
+  ext i
   rw [ket0, Gate.apply_ket]
-  fin_cases i <;> simp [phaseGate, ket_apply]
+  fin_cases i <;> simp [phaseGate, phaseGateOp, ket_apply]
 
 @[simp]
 theorem phaseGate_apply_ket1 (θ : ℝ) :
-    (phaseGate θ).apply ket1 = Complex.exp ((θ : ℝ) * Complex.I) • ket1 := by
+    (phaseGate θ).applyVec (ket1 : StateVector 1) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (ket1 : StateVector 1) := by
   apply WithLp.ofLp_injective
   funext i
-  change (phaseGate θ).apply ket1 i = (Complex.exp ((θ : ℝ) * Complex.I) • ket1) i
-  rw [ket1, Gate.apply_ket]
-  fin_cases i <;> simp [phaseGate, ket_apply, PiLp.smul_apply, smul_eq_mul]
+  fin_cases i <;>
+    simp [Gate.applyVec, HilbertOperator.applyVec, phaseGate, phaseGateOp, ket1,
+      PureState.ket, PiLp.smul_apply, smul_eq_mul]
 
 /-- The controlled-phase gate on a general ancilla state. -/
+theorem phaseGate_applyVec (θ : ℝ) (ψ : StateVector 1) :
+    (phaseGate θ).applyVec ψ
+      = (ψ 0) • (ket0 : StateVector 1) +
+        (Complex.exp ((θ : ℝ) * Complex.I) * ψ 1) • (ket1 : StateVector 1) := by
+  apply WithLp.ofLp_injective
+  funext i
+  fin_cases i <;>
+    simp [Gate.applyVec, HilbertOperator.applyVec, phaseGate, phaseGateOp, ket0, ket1,
+      PureState.ket, Matrix.vecHead, Matrix.vecTail, PiLp.add_apply, PiLp.smul_apply,
+      smul_eq_mul]
+
 theorem phaseGate_apply (θ : ℝ) (ψ : PureState 1) :
-    (phaseGate θ).apply ψ
-      = (ψ 0) • ket0 + (Complex.exp ((θ : ℝ) * Complex.I) * ψ 1) • ket1 := by
-  conv_lhs => rw [single_qubit_decomp ψ]
-  rw [Gate.apply_add, Gate.apply_smul, Gate.apply_smul, phaseGate_apply_ket0,
-    phaseGate_apply_ket1, smul_smul, mul_comm (ψ 1)]
+    (phaseGate θ).applyVec (ψ : StateVector 1)
+      = (ψ 0) • (ket0 : StateVector 1) +
+        (Complex.exp ((θ : ℝ) * Complex.I) * ψ 1) • (ket1 : StateVector 1) :=
+  phaseGate_applyVec θ (ψ : StateVector 1)
 
 /-- **Controlled-phase factorization on an eigenstate.** When the target holds
 an eigenstate `U|u⟩ = e^{iθ}|u⟩`, the controlled unitary `c-U` acts on
 `|ψ⟩ ⊗ |u⟩` as the controlled-phase gate on the ancilla, leaving the
 eigenstate fixed [WZYW23, arxiv_v3.tex:641]. -/
+theorem controlled_apply_eigenstate_phaseVec (U : Gate n) (u : PureState n) (θ : ℝ)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n)) (ψ : StateVector 1) :
+    (Gate.controlled U).applyVec
+        (StateVector.tensor ψ (u : StateVector n)) =
+      StateVector.tensor ((phaseGate θ).applyVec ψ)
+        (u : StateVector n) := by
+  calc
+    (Gate.controlled U).applyVec
+        (StateVector.tensor ψ (u : StateVector n))
+        =
+      (Gate.controlled U).applyVec
+        (StateVector.tensor
+          ((ψ 0) • (ket0 : StateVector 1) + (ψ 1) • (ket1 : StateVector 1))
+          (u : StateVector n)) := by
+        exact congrArg
+          (fun v : StateVector 1 =>
+            (Gate.controlled U).applyVec (StateVector.tensor v (u : StateVector n)))
+          (single_qubit_vec_decomp ψ)
+    _ =
+      StateVector.tensor
+        ((ψ 0) • (ket0 : StateVector 1) +
+          (Complex.exp ((θ : ℝ) * Complex.I) * ψ 1) • (ket1 : StateVector 1))
+        (u : StateVector n) := by
+        rw [GeneralizedPhaseKickback.main U u θ hu (ψ 0) (ψ 1)]
+    _ =
+      StateVector.tensor ((phaseGate θ).applyVec ψ)
+        (u : StateVector n) := by
+        rw [phaseGate_applyVec]
+
 theorem controlled_apply_eigenstate_phase (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u) (ψ : PureState 1) :
-    (Gate.controlled U).apply (ψ.tensor u) = ((phaseGate θ).apply ψ).tensor u := by
-  conv_lhs => rw [single_qubit_decomp ψ]
-  rw [GeneralizedPhaseKickback.main U u θ hu (ψ 0) (ψ 1), phaseGate_apply]
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n)) (ψ : PureState 1) :
+    (Gate.controlled U).applyVec
+        (StateVector.tensor (ψ : StateVector 1) (u : StateVector n)) =
+      StateVector.tensor ((phaseGate θ).applyVec (ψ : StateVector 1))
+        (u : StateVector n) :=
+  controlled_apply_eigenstate_phaseVec U u θ hu (ψ : StateVector 1)
 
 /-! ### The controlled-phase gate is the QSP signal gate up to global phase -/
 
@@ -139,10 +186,12 @@ theorem controlled_apply_eigenstate_phase (U : Gate n) (u : PureState n) (θ : �
 encoding gate `rotZStd θ = R_Z(θ)` up to the global phase `e^{iθ/2}`
 [WZYW23, arxiv_v3.tex:632]. -/
 theorem TransformationOnControlledUnitary.main_phase_gate_signal (θ : ℝ) :
-    phaseGate θ = Complex.exp ((θ / 2 : ℝ) * Complex.I) • rotZStd θ := by
+    (phaseGate θ : HilbertOperator 1) =
+      Complex.exp ((θ / 2 : ℝ) * Complex.I) • (rotZStd θ : HilbertOperator 1) := by
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [phaseGate, rotZStd, rotZ, Matrix.smul_apply, smul_eq_mul]
+    simp [phaseGate, phaseGateOp, rotZStd, rotZ, rotZOp, Matrix.smul_apply,
+      smul_eq_mul]
   · rw [show (1 : ℂ) = Complex.exp 0 from (Complex.exp_zero).symm, ← Complex.exp_add]
     congr 1
     ring
@@ -152,20 +201,49 @@ theorem TransformationOnControlledUnitary.main_phase_gate_signal (θ : ℝ) :
 
 /-- `c-U` on a general ancilla, in QSP-signal form: the QSP encoding gate
 `rotZStd θ` up to the global phase `e^{iθ/2}`. -/
+theorem phaseGate_applyVec_eq_smul_rotZStd (θ : ℝ) (ψ : StateVector 1) :
+    (phaseGate θ).applyVec ψ
+      = Complex.exp ((θ / 2 : ℝ) * Complex.I) •
+        (rotZStd θ).applyVec ψ := by
+  have h := congrArg
+    (fun A : HilbertOperator 1 => HilbertOperator.applyVec A ψ)
+    (TransformationOnControlledUnitary.main_phase_gate_signal θ)
+  simpa [Gate.applyVec, HilbertOperator.smul_applyVec] using h
+
 theorem phaseGate_apply_eq_smul_rotZStd (θ : ℝ) (ψ : PureState 1) :
-    (phaseGate θ).apply ψ
-      = Complex.exp ((θ / 2 : ℝ) * Complex.I) • (rotZStd θ).apply ψ := by
-  rw [TransformationOnControlledUnitary.main_phase_gate_signal, Gate.smul_apply]
+    (phaseGate θ).applyVec (ψ : StateVector 1)
+      = Complex.exp ((θ / 2 : ℝ) * Complex.I) •
+        (rotZStd θ).applyVec (ψ : StateVector 1) :=
+  phaseGate_applyVec_eq_smul_rotZStd θ (ψ : StateVector 1)
 
 /-- **Eigenstate reduction of `c-U` to the QSP signal.** On an eigenstate
 `U|u⟩ = e^{iθ}|u⟩`, the controlled unitary acts as the QSP encoding gate at
 signal `θ`, up to the global phase `e^{iθ/2}`:
 `c-U (|ψ⟩ ⊗ |u⟩) = (e^{iθ/2} · R_Z(θ)|ψ⟩) ⊗ |u⟩` [WZYW23, arxiv_v3.tex:641]. -/
-theorem TransformationOnControlledUnitary.main_eigenstate_reduction (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u) (ψ : PureState 1) :
-    (Gate.controlled U).apply (ψ.tensor u)
-      = (Complex.exp ((θ / 2 : ℝ) * Complex.I) • (rotZStd θ).apply ψ).tensor u := by
-  rw [controlled_apply_eigenstate_phase U u θ hu, phaseGate_apply_eq_smul_rotZStd]
+theorem TransformationOnControlledUnitary.main_eigenstate_reductionVec
+    (U : Gate n) (u : PureState n) (θ : ℝ)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n)) (ψ : StateVector 1) :
+    (Gate.controlled U).applyVec
+        (StateVector.tensor ψ (u : StateVector n))
+      = StateVector.tensor
+          (Complex.exp ((θ / 2 : ℝ) * Complex.I) •
+            (rotZStd θ).applyVec ψ)
+          (u : StateVector n) := by
+  rw [controlled_apply_eigenstate_phaseVec U u θ hu, phaseGate_applyVec_eq_smul_rotZStd]
+
+theorem TransformationOnControlledUnitary.main_eigenstate_reduction
+    (U : Gate n) (u : PureState n) (θ : ℝ)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n)) (ψ : PureState 1) :
+    (Gate.controlled U).applyVec
+        (StateVector.tensor (ψ : StateVector 1) (u : StateVector n))
+      = StateVector.tensor
+          (Complex.exp ((θ / 2 : ℝ) * Complex.I) •
+            (rotZStd θ).applyVec (ψ : StateVector 1))
+          (u : StateVector n) :=
+  TransformationOnControlledUnitary.main_eigenstate_reductionVec U u θ hu
+    (ψ : StateVector 1)
 
 /-! ### The QPP word and its eigenspace decomposition -/
 
@@ -196,23 +274,27 @@ word at the signal `θ`, tensored with the untouched eigenstate, up to the
 global phase `(e^{iθ/2})^L` (`L` = number of `c-U` calls):
 `qppYZZYZ U φ θ₀ φ₀ ps (|ψ⟩ ⊗ |u⟩) = ((e^{iθ/2})^L · qspYZZYZ φ θ₀ φ₀ ps θ |ψ⟩) ⊗ |u⟩`. -/
 theorem TransformationOnControlledUnitary.main (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
-    (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (ψ : PureState 1) :
-    (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
-      = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ ps.length
-          • (qspYZZYZ φ θ₀ φ₀ ps θ).apply ψ).tensor u := by
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n))
+    (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (ψ : StateVector 1) :
+    (qppYZZYZ U φ θ₀ φ₀ ps).applyVec
+        (StateVector.tensor ψ (u : StateVector n))
+      = StateVector.tensor
+          ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ ps.length
+            • (qspYZZYZ φ θ₀ φ₀ ps θ).applyVec ψ)
+          (u : StateVector n) := by
   induction ps using List.reverseRecOn generalizing ψ with
   | nil =>
       rw [qppYZZYZ_nil, qspYZZYZ_nil, List.length_nil, pow_zero, one_smul,
-        Gate.tensor_apply_tensor, Gate.one_apply]
+        Gate.tensor_applyVec_tensor, Gate.one_applyVec]
   | append_singleton ps p ih =>
-      rw [qppYZZYZ_concat, Gate.mul_apply, Gate.mul_apply,
-        Gate.tensor_apply_tensor, Gate.one_apply,
-        TransformationOnControlledUnitary.main_eigenstate_reduction U u θ hu, ih, qspYZZYZ_concat,
+      rw [qppYZZYZ_concat, Gate.mul_applyVec, Gate.mul_applyVec,
+        Gate.tensor_applyVec_tensor, Gate.one_applyVec,
+        TransformationOnControlledUnitary.main_eigenstate_reductionVec U u θ hu, ih, qspYZZYZ_concat,
         List.length_append, List.length_singleton]
       congr 1
-      rw [Gate.apply_smul, smul_smul, ← pow_succ, ← Gate.mul_apply,
-        ← Gate.mul_apply, mul_assoc]
+      rw [Gate.applyVec_smul, smul_smul, ← pow_succ, ← Gate.mul_applyVec,
+        ← Gate.mul_applyVec, mul_assoc]
 
 /-! ### Phase evolution: realizing QSP transforms on the eigenphase -/
 
@@ -222,15 +304,28 @@ the eigenphase of `U` by a QPP word with `L` controlled-unitary calls: there are
 angles `(φ, θ₀, φ₀, ps)` such that the QPP word maps `|ψ⟩ ⊗ |u⟩` to
 `((e^{iθ/2})^L · qspMatYZ L A B θ |ψ⟩) ⊗ |u⟩` for every ancilla state. -/
 theorem TransformationOnControlledUnitary.main_realizes_target (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n))
     (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
     ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
-      (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
-        = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
-            • (qspMatYZ L A B θ).apply ψ).tensor u := by
+      (qppYZZYZ U φ θ₀ φ₀ ps).applyVec
+          (StateVector.tensor (ψ : StateVector 1) (u : StateVector n))
+        = StateVector.tensor
+            ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
+              • HilbertOperator.applyVec (qspMatYZ L A B θ) (ψ : StateVector 1))
+            (u : StateVector n) := by
   obtain ⟨φ, θ₀, φ₀, ps, hlen, hmat⟩ := (TrigonometricQuantumSignalProcessing.main L A B).mp h
   refine ⟨φ, θ₀, φ₀, ps, hlen, fun ψ => ?_⟩
-  rw [main U u θ hu, hlen, hmat]
+  rw [TransformationOnControlledUnitary.main U u θ hu, hlen]
+  have happly := congrArg
+    (fun A : HilbertOperator 1 => HilbertOperator.applyVec A (ψ : StateVector 1))
+    (hmat θ)
+  simpa [Gate.applyVec] using congrArg
+    (fun v : StateVector 1 =>
+      StateVector.tensor
+        ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L • v)
+        (u : StateVector n))
+    happly
 
 /-- Trusted resource profile for the YZZYZ QPP word currently formalized here:
 `L` controlled-`U` signal calls and `2L+3` one-qubit processing rotations. -/
@@ -249,12 +344,16 @@ theorem qppYZZYZResourceProfile_exact (L : ℕ) :
 formalized in this file. Conventions with alternating `controlled-U` and
 `controlled-U†` have a different resource profile. -/
 theorem qpp_realizes_target_with_resources (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n))
     (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
     (∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
-      (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
-        = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
-            • (qspMatYZ L A B θ).apply ψ).tensor u) ∧
+      (qppYZZYZ U φ θ₀ φ₀ ps).applyVec
+          (StateVector.tensor (ψ : StateVector 1) (u : StateVector n))
+        = StateVector.tensor
+            ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
+              • HilbertOperator.applyVec (qspMatYZ L A B θ) (ψ : StateVector 1))
+            (u : StateVector n)) ∧
       ResourceProfile.HasExactCounts (qppYZZYZResourceProfile L) L 0 (2 * L + 3) 0 := by
   constructor
   · exact TransformationOnControlledUnitary.main_realizes_target U u θ hu L A B h
@@ -282,12 +381,16 @@ resource component records the source-level alternating controlled-`U` /
 controlled-`U†` convention used by the source-level resource claim. -/
 theorem qpp_realizes_target_with_alternating_controlled_resources
     (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp ((θ : ℝ) * Complex.I) • u)
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp ((θ : ℝ) * Complex.I) • (u : StateVector n))
     (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair L A B) :
     (∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧ ∀ ψ : PureState 1,
-      (qppYZZYZ U φ θ₀ φ₀ ps).apply (ψ.tensor u)
-        = ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
-            • (qspMatYZ L A B θ).apply ψ).tensor u) ∧
+      (qppYZZYZ U φ θ₀ φ₀ ps).applyVec
+          (StateVector.tensor (ψ : StateVector 1) (u : StateVector n))
+        = StateVector.tensor
+            ((Complex.exp ((θ / 2 : ℝ) * Complex.I)) ^ L
+              • HilbertOperator.applyVec (qspMatYZ L A B θ) (ψ : StateVector 1))
+            (u : StateVector n)) ∧
       ResourceProfile.HasExactCounts
         (qppAlternatingControlledResourceProfile L) (2 * L) 0 (4 * L + 3) 0 := by
   constructor

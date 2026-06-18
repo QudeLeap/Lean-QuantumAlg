@@ -138,9 +138,10 @@ theorem inputZeroAmplitude_eq_zeroAmplitude (f : Oracle n) :
         = ∑ j, (((2 ^ n : ℕ) : ℂ)⁻¹ * phaseSign f j) := by
           refine Finset.sum_congr rfl ?_
           intro j _
-          simp [hadamardLayer, afterPhaseQuery]
-          rw [← mul_assoc, invSqrtCard_mul_self]
-          norm_num
+          change (invSqrtCard n * walshSign (0 : Fin (2 ^ n)) j)
+              * (invSqrtCard n * phaseSign f j)
+            = (((2 ^ n : ℕ) : ℂ)⁻¹ * phaseSign f j)
+          rw [walshSign_zero_left, mul_one, ← mul_assoc, invSqrtCard_mul_self]
     _ = ((2 ^ n : ℕ) : ℂ)⁻¹ * ∑ x, phaseSign f x := by
           rw [Finset.mul_sum]
 
@@ -235,8 +236,11 @@ theorem reportsConstant_iff_timedFinalJointState
 /-- One Deutsch-Jozsa oracle query with the target qubit in `|-⟩` is the
 phase query `|x⟩ ↦ (-1)^{f x}|x⟩`. -/
 theorem deutschJozsa_query_phase (f : WalshHadamard.Oracle n) (x : Fin (2 ^ n)) :
-    (WalshHadamard.oracleGate f).apply ((ket x).tensor ketMinus)
-      = WalshHadamard.phaseSign f x • ((ket x).tensor ketMinus) := by
+    ((WalshHadamard.oracleGate f).apply ((ket x).tensor ketMinus)
+        : StateVector (n + 1))
+      =
+      WalshHadamard.phaseSign f x
+        • (((ket x).tensor ketMinus : PureState (n + 1)) : StateVector (n + 1)) := by
   exact PhaseKickback.main f x
 
 /-- **Deutsch-Jozsa correctness**: under the explicit promise that the oracle

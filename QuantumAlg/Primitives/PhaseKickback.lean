@@ -52,17 +52,22 @@ variable {n : ℕ}
 oracle `|x⟩ ↦ (−1)^{f(x)} |x⟩`; the sign `(−1)^{f(x)}` is written
 `if f x then -1 else 1`. -/
 theorem PhaseKickback.main (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
-    (Gate.xorOracle f).apply ((ket x).tensor ketMinus)
-      = (if f x then (-1 : ℂ) else 1) • ((ket x).tensor ketMinus) := by
-  have h0 : (0 : Fin (2 ^ 1)).rev = 1 := by decide
-  have h1 : (1 : Fin (2 ^ 1)).rev = 0 := by decide
-  rw [ketMinus, PureState.tensor_smul, PureState.tensor_sub, ket0, ket1,
-    PureState.tensor_ket, PureState.tensor_ket, Gate.apply_smul,
-    Gate.apply_sub, Gate.xorOracle_apply_ket, Gate.xorOracle_apply_ket]
-  by_cases h : f x
-  · simp [h, h0, h1]
-    all_goals module
-  · simp [h]
+    ((Gate.xorOracle f).apply ((ket x).tensor ketMinus) : StateVector (n + 1))
+      = (if f x then (-1 : ℂ) else 1)
+          • (((ket x).tensor ketMinus : PureState (n + 1)) : StateVector (n + 1)) := by
+  apply WithLp.ofLp_injective
+  funext i
+  rcases (prodEquiv (m := n) (n := 1)).surjective i with ⟨⟨y, b⟩, rfl⟩
+  rw [Gate.xorOracle_apply]
+  simp only [Equiv.symm_apply_apply, Gate.xorPerm_apply]
+  by_cases hy : y = x
+  · subst y
+    by_cases h : f x
+    · fin_cases b <;>
+        simp [h, ketMinus_apply]
+    · simp [h, ketMinus_apply]
+  · by_cases hx : f x <;> by_cases h : f y <;> fin_cases b <;>
+      simp [hx, h, hy, PureState.ket_apply]
 
 
 /-- On a `|+⟩` target the XOR oracle acts trivially, whatever `f` is. -/
@@ -70,15 +75,15 @@ theorem xorOracle_apply_tensor_ketPlus (f : Fin (2 ^ n) → Bool)
     (x : Fin (2 ^ n)) :
     (Gate.xorOracle f).apply ((ket x).tensor ketPlus)
       = (ket x).tensor ketPlus := by
-  have h0 : (0 : Fin (2 ^ 1)).rev = 1 := by decide
-  have h1 : (1 : Fin (2 ^ 1)).rev = 0 := by decide
-  rw [ketPlus, PureState.tensor_smul, PureState.tensor_add, ket0, ket1,
-    PureState.tensor_ket, PureState.tensor_ket, Gate.apply_smul,
-    Gate.apply_add, Gate.xorOracle_apply_ket, Gate.xorOracle_apply_ket]
-  by_cases h : f x
-  · simp [h, h0, h1]
-    all_goals module
-  · simp [h]
+  ext i
+  rcases (prodEquiv (m := n) (n := 1)).surjective i with ⟨⟨y, b⟩, rfl⟩
+  rw [Gate.xorOracle_apply, PureState.tensor_apply_prod, PureState.tensor_apply_prod]
+  simp only [Equiv.symm_apply_apply, Gate.xorPerm_apply]
+  by_cases hy : y = x
+  · subst y
+    by_cases h : f x <;> fin_cases b <;> simp [h, ketPlus_apply]
+  · by_cases h : f y <;> fin_cases b <;>
+      simp [h, hy, PureState.ket_apply]
 
 /-- **Eigenvalue phase kickback** [CEMM98, cemm6.tex:163]: if the target
 register holds an eigenstate `|u⟩` of `U` with eigenvalue `e^{iθ}`, the
@@ -87,12 +92,27 @@ onto the `|1⟩` component of the control [CEMM98, cemm6.tex:142]:
 
 `c-U ((a|0⟩ + b|1⟩) ⊗ |u⟩) = (a|0⟩ + e^{iθ} b|1⟩) ⊗ |u⟩`. -/
 theorem GeneralizedPhaseKickback.main (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.apply u = Complex.exp (θ * Complex.I) • u) (a b : ℂ) :
-    (Gate.controlled U).apply ((a • ket0 + b • ket1).tensor u)
-      = (a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1).tensor u := by
-  simp only [PureState.add_tensor, PureState.smul_tensor, Gate.apply_add,
-    Gate.apply_smul, Gate.controlled_apply_ket0_tensor,
-    Gate.controlled_apply_ket1_tensor, hu, PureState.tensor_smul, smul_smul]
+    (hu : U.applyVec (u : StateVector n) =
+      Complex.exp (θ * Complex.I) • (u : StateVector n)) (a b : ℂ) :
+    (Gate.controlled U).applyVec
+        (StateVector.tensor
+          ((a • ket0 + b • ket1 : StateVector 1)) (u : StateVector n))
+      =
+      StateVector.tensor
+        ((a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1 : StateVector 1))
+        (u : StateVector n) := by
+  rw [StateVector.add_tensor, StateVector.smul_tensor, StateVector.smul_tensor,
+    Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
+  simp only [Gate.applyVec, Gate.controlled_applyVec_ket0_tensor,
+    Gate.controlled_applyVec_ket1_tensor]
+  rw [StateVector.add_tensor, StateVector.smul_tensor, StateVector.smul_tensor]
+  change a • StateVector.tensor (ket0 : StateVector 1) (u : StateVector n)
+      + b • StateVector.tensor (ket1 : StateVector 1) (U.applyVec (u : StateVector n))
+    =
+    a • StateVector.tensor (ket0 : StateVector 1) (u : StateVector n)
+      + (Complex.exp (θ * Complex.I) * b)
+          • StateVector.tensor (ket1 : StateVector 1) (u : StateVector n)
+  rw [hu, StateVector.tensor_smul, smul_smul]
   module
 
 

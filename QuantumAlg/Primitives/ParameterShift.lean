@@ -72,44 +72,46 @@ theorem ParamShiftModel.parameter_shift (M : ParamShiftModel) (θ : ℝ) :
 
 /-- The single-qubit `R_Y(θ)` variational cost with observable `O` on input `ψ`:
 `C(θ) = ⟨ψ| R_Y(θ)† O R_Y(θ) |ψ⟩`. -/
-def varCost (ψ : PureState 1) (O : Gate 1) (θ : ℝ) : ℝ :=
+def varCost (ψ : PureState 1) (O : HilbertOperator 1) (θ : ℝ) : ℝ :=
   expVal ((rotY θ).apply ψ) O
 
 /-- `R_Y(θ) |0⟩ = cos(θ/2) |0⟩ + sin(θ/2) |1⟩`. -/
 theorem rotY_apply_ket0 (θ : ℝ) :
-    (rotY θ).apply ket0
+    ((rotY θ).apply ket0 : StateVector 1)
       = (Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1 := by
   apply WithLp.ofLp_injective
   funext i
   fin_cases i
   · change (rotY θ).apply ket0 0 = _
     rw [Gate.apply_apply]
-    simp [rotY, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply, Fin.sum_univ_two]
+    simp [rotY, rotYOp, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
   · change (rotY θ).apply ket0 1 = _
     rw [Gate.apply_apply]
-    simp [rotY, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply, Fin.sum_univ_two]
+    simp [rotY, rotYOp, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
 
 /-- Inner product of two single-qubit states in the computational basis. -/
 theorem inner_ket01_combo (a b c d : ℂ) :
-    inner ℂ (a • ket0 + b • ket1) (c • ket0 + d • ket1)
+    inner ℂ ((a • ket0 + b • ket1 : StateVector 1))
+      ((c • ket0 + d • ket1 : StateVector 1))
       = starRingEnd ℂ a * c + starRingEnd ℂ b * d := by
-  simp [PiLp.inner_apply, RCLike.inner_apply, Fin.sum_univ_two, ket0, ket1, ket_apply,
-    PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+  simp [PiLp.inner_apply, RCLike.inner_apply, Fin.sum_univ_two, ket0, ket1,
+    PureState.ket, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
   ring
 
 /-- The `R_Y(θ)` ansatz cost with observable `Z` on `|0⟩` equals `cos θ`. -/
 theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
-  have hZ : Z.apply ((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
+  have hZ : HilbertOperator.applyVec (Z : HilbertOperator 1)
+      ((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
       = (Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1 := by
     apply WithLp.ofLp_injective
     funext i
     fin_cases i
-    · change Z.apply _ 0 = _
-      rw [Gate.apply_apply]
-      simp [Z, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply, Fin.sum_univ_two]
-    · change Z.apply _ 1 = _
-      rw [Gate.apply_apply]
-      simp [Z, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply, Fin.sum_univ_two]
+    · change HilbertOperator.applyVec ZOp _ 0 = _
+      simp [ZOp, ket0, ket1, PureState.ket, PiLp.smul_apply, PiLp.add_apply,
+        smul_eq_mul, HilbertOperator.applyVec]
+    · change HilbertOperator.applyVec ZOp _ 1 = _
+      simp [ZOp, ket0, ket1, PureState.ket, PiLp.smul_apply, PiLp.add_apply,
+        smul_eq_mul, HilbertOperator.applyVec]
   have htrig : Real.cos (θ / 2) * Real.cos (θ / 2) - Real.sin (θ / 2) * Real.sin (θ / 2)
       = Real.cos θ := by
     have hsc : Real.sin (θ / 2) ^ 2 + Real.cos (θ / 2) ^ 2 = 1 := Real.sin_sq_add_cos_sq (θ / 2)
@@ -117,7 +119,13 @@ theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
       conv_lhs => rw [show θ = 2 * (θ / 2) from by ring]
       rw [Real.cos_two_mul]
     rw [h2]; nlinarith [hsc]
-  rw [varCost, expVal, rotY_apply_ket0, hZ, inner_ket01_combo]
+  rw [varCost, expVal, rotY_apply_ket0, hZ]
+  change (inner ℂ
+      (((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
+        : StateVector 1)
+      (((Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1)
+        : StateVector 1)).re = Real.cos θ
+  rw [inner_ket01_combo]
   simp only [Complex.conj_ofReal, ← Complex.ofReal_neg, ← Complex.ofReal_mul,
     ← Complex.ofReal_add, Complex.ofReal_re]
   rw [← htrig]; ring

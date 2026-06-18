@@ -12,29 +12,10 @@ public import QuantumAlg.Primitives.HadamardTest
 /-!
 # The SWAP test
 
-The SWAP test estimates the overlap `|⟨ψ|φ⟩|²` of two `n`-qubit states:
+The SWAP test estimates the overlap `|<psi|phi>|^2` of two `n`-qubit states:
 run the Hadamard test with the unitary that swaps the two registers
 [BCWdW01, main.tex:291]. Measuring the control yields outcome `1` with
-probability `(1 − |⟨ψ|φ⟩|²)/2` [BCWdW01, main.tex:328] — `0` if
-`ψ = φ`, and bounded away from `0` when the overlap is small, which is
-the one-sided equality test used in quantum fingerprinting. The SWAP
-test goes back to the symmetrization-based stabilization of Barenco,
-Berthiaume, Deutsch, Ekert, Jozsa and Macchiavello (1997) (source
-`barenco-1997-symmetrization`).
-
-## Conventions
-
-- The control is qubit 0; the two `n`-qubit registers occupy qubits
-  `1, …, n` and `n+1, …, 2n` (groupings `1 + (n + n)`, big-endian).
-- `swapRegisters n` is the permutation gate exchanging the two
-  registers: `SWAP (ψ ⊗ φ) = φ ⊗ ψ`.
-
-## Main results
-
-- `QuantumAlg.swapRegisters` — the register-swap gate on `n + n` qubits.
-- `QuantumAlg.swapTest` — the circuit `(H ⊗ I) · c-SWAP · (H ⊗ I)`.
-- `QuantumAlg.swapTest_probQubit0_zero` / `QuantumAlg.SwapTest.main` — outcome probabilities
-  `(1 ± |⟨ψ|φ⟩|²)/2`.
+probability `(1 - |<psi|phi>|^2)/2` [BCWdW01, main.tex:328].
 -/
 
 @[expose] public section
@@ -47,70 +28,63 @@ noncomputable section
 
 variable {n : ℕ}
 
-/-- The permutation of joint basis labels that exchanges the two
-`n`-qubit registers. -/
+/-- The permutation of joint basis labels that exchanges two `n`-qubit registers. -/
 def swapRegistersPerm (n : ℕ) : Equiv.Perm (Fin (2 ^ (n + n))) :=
   ((prodEquiv (m := n) (n := n)).symm.trans
     (Equiv.prodComm (Fin (2 ^ n)) (Fin (2 ^ n)))).trans prodEquiv
 
-/-- The register-swap gate `SWAP : Gate (n + n)`, as a basis
-permutation: `SWAP (ψ ⊗ φ) = φ ⊗ ψ` [BCWdW01, main.tex:295]. -/
+/-- The register-swap gate `SWAP : Gate (n + n)`. -/
 def swapRegisters (n : ℕ) : Gate (n + n) := ofPerm (swapRegistersPerm n)
 
 theorem swapRegisters_mem_unitaryGroup (n : ℕ) :
-    swapRegisters n ∈ Matrix.unitaryGroup (Fin (2 ^ (n + n))) ℂ :=
-  ofPerm_mem_unitaryGroup _
+    (swapRegisters n : HilbertOperator (n + n))
+      ∈ Matrix.unitaryGroup (Fin (2 ^ (n + n))) ℂ :=
+  (swapRegisters n).unitary
 
-/-- The register swap exchanges tensor factors:
-`SWAP (ψ ⊗ φ) = φ ⊗ ψ`. -/
-theorem swapRegisters_apply_tensor (ψ φ : PureState n) :
-    (swapRegisters n).apply (ψ.tensor φ) = φ.tensor ψ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (swapRegisters n).apply (ψ.tensor φ) i = φ.tensor ψ i
+/-- The register swap exchanges tensor factors. -/
+theorem swapRegisters_apply_tensor (psi phi : PureState n) :
+    (swapRegisters n).apply (psi.tensor phi) = phi.tensor psi := by
+  ext i
+  change (swapRegisters n).apply (psi.tensor phi) i = phi.tensor psi i
   rw [swapRegisters, ofPerm_apply, PureState.tensor_apply,
     PureState.tensor_apply, swapRegistersPerm]
   simp only [Equiv.trans_apply, Equiv.prodComm_apply, Equiv.symm_apply_apply,
     Prod.fst_swap, Prod.snd_swap]
   exact mul_comm _ _
 
-/-- The SWAP test circuit: the Hadamard test of the register swap
-[BCWdW01, main.tex:291] — `(H ⊗ I) · c-SWAP · (H ⊗ I)`. -/
+/-- The SWAP test circuit: the Hadamard test of the register swap. -/
 def swapTest (n : ℕ) : Gate (1 + (n + n)) :=
   hadamardTest (swapRegisters n)
 
-/-- `Re ⟨ψ ⊗ φ, SWAP (ψ ⊗ φ)⟩ = |⟨ψ|φ⟩|²`: the SWAP expectation realizes
-the squared overlap. -/
-theorem re_inner_swapRegisters (ψ φ : PureState n) :
-    (inner ℂ (ψ.tensor φ) ((swapRegisters n).apply (ψ.tensor φ))).re
-      = ‖inner ℂ ψ φ‖ ^ 2 := by
-  rw [swapRegisters_apply_tensor, PureState.inner_tensor_tensor,
-    ← inner_conj_symm φ ψ, Complex.mul_conj', ← Complex.ofReal_pow,
+/-- `Re <psi ⊗ phi, SWAP (psi ⊗ phi)> = |<psi|phi>|^2`. -/
+theorem re_inner_swapRegisters (psi phi : PureState n) :
+    (inner ℂ (psi.tensor phi) ((swapRegisters n).apply (psi.tensor phi))).re
+      = ‖inner ℂ psi phi‖ ^ 2 := by
+  change (inner ℂ ((psi.tensor phi : PureState (n + n)) : StateVector (n + n))
+      (((swapRegisters n).apply (psi.tensor phi) : PureState (n + n))
+        : StateVector (n + n))).re
+    = ‖inner ℂ (psi : StateVector n) (phi : StateVector n)‖ ^ 2
+  rw [swapRegisters_apply_tensor]
+  change (inner ℂ
+      (StateVector.tensor (psi : StateVector n) (phi : StateVector n))
+      (StateVector.tensor (phi : StateVector n) (psi : StateVector n))).re
+    = ‖inner ℂ (psi : StateVector n) (phi : StateVector n)‖ ^ 2
+  rw [StateVector.inner_tensor_tensor,
+    ← inner_conj_symm (phi : StateVector n) (psi : StateVector n),
+    Complex.mul_conj', ← Complex.ofReal_pow,
     Complex.ofReal_re]
 
-/-- **SWAP test, outcome 0** [BCWdW01, main.tex:328]: for normalized
-states the control reads `0` with probability `(1 + |⟨ψ|φ⟩|²)/2`. -/
-theorem swapTest_probQubit0_zero (ψ φ : PureState n)
-    (hψ : ‖ψ‖ = 1) (hφ : ‖φ‖ = 1) :
-    probQubit0 ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 0
-      = (1 + ‖inner ℂ ψ φ‖ ^ 2) / 2 := by
-  rw [swapTest, HadamardTest.main _
-      (by rw [PureState.norm_tensor, hψ, hφ, one_mul])
-      (swapRegisters_mem_unitaryGroup n),
-    re_inner_swapRegisters]
+/-- **SWAP test, outcome 0** [BCWdW01, main.tex:328]. -/
+theorem swapTest_probQubit0_zero (psi phi : PureState n) :
+    probQubit0 ((swapTest n).apply (ket0.tensor (psi.tensor phi))) 0
+      = (1 + ‖inner ℂ psi phi‖ ^ 2) / 2 := by
+  rw [swapTest, HadamardTest.main, re_inner_swapRegisters]
 
-/-- **SWAP test, outcome 1** [BCWdW01, main.tex:328]: the control reads
-`1` with probability `(1 − |⟨ψ|φ⟩|²)/2` — zero iff the overlap is
-maximal, the one-sided error of quantum fingerprinting. -/
-theorem SwapTest.main (ψ φ : PureState n)
-    (hψ : ‖ψ‖ = 1) (hφ : ‖φ‖ = 1) :
-    probQubit0 ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 1
-      = (1 - ‖inner ℂ ψ φ‖ ^ 2) / 2 := by
-  rw [swapTest, hadamardTest_probQubit0_one _
-      (by rw [PureState.norm_tensor, hψ, hφ, one_mul])
-      (swapRegisters_mem_unitaryGroup n),
-    re_inner_swapRegisters]
-
+/-- **SWAP test, outcome 1** [BCWdW01, main.tex:328]. -/
+theorem SwapTest.main (psi phi : PureState n) :
+    probQubit0 ((swapTest n).apply (ket0.tensor (psi.tensor phi))) 1
+      = (1 - ‖inner ℂ psi phi‖ ^ 2) / 2 := by
+  rw [swapTest, hadamardTest_probQubit0_one, re_inner_swapRegisters]
 
 end
 

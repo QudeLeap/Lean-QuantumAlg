@@ -59,26 +59,30 @@ turns the encoded Bell state into exactly the basis state `|b a⟩`, so a
 computational-basis measurement recovers both of Alice's bits with
 certainty. Protocol due to Bennett and Wiesner (1992). -/
 theorem superdense_coding (a b : Bool) :
-    superdenseDecode.apply ((superdenseEncode a b).apply bell)
-      = (if b then ket1 else ket0).tensor (if a then ket1 else ket0) := by
-  rw [superdenseDecode, superdenseEncode, bell_eq_tensor, Gate.mul_apply]
+    superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector 2))
+      = StateVector.tensor
+          ((if b then ket1 else ket0 : PureState 1) : StateVector 1)
+          ((if a then ket1 else ket0 : PureState 1) : StateVector 1) := by
   cases a <;> cases b <;>
-    simp only [Bool.false_eq_true, reduceIte, one_mul, mul_one, Gate.mul_apply,
-      Gate.apply_smul, Gate.apply_add, Gate.apply_neg, Gate.one_apply,
-      Gate.tensor_apply_tensor, Gate.one_tensor_one,
-      X_apply_ket0, X_apply_ket1, Z_apply_ket0, Z_apply_ket1,
-      H_apply_ket0, H_apply_ket1, ketPlus, ketMinus,
-      CNOT_apply_ket0_tensor_ket0, CNOT_apply_ket0_tensor_ket1,
-      CNOT_apply_ket1_tensor_ket0, CNOT_apply_ket1_tensor_ket1,
-      PureState.smul_tensor, PureState.add_tensor, PureState.sub_tensor,
-      PureState.neg_tensor, smul_add, smul_sub, smul_neg, smul_smul,
-      invSqrt2_mul_self] <;>
-    module
+    apply WithLp.ofLp_injective <;>
+    funext i <;>
+    fin_cases i <;>
+    simp +decide [superdenseDecode, superdenseEncode, bell, bellVec, Gate.applyVec,
+      HilbertOperator.applyVec, Gate.tensor, HilbertOperator.tensor, Gate.ofUnitary,
+      Gate.ofPerm, H, HOp, X, Z, ZOp, CNOT, ket0, ket1, PureState.ket,
+      StateVector.tensor, prodEquiv, Matrix.mulVec, Matrix.mul_apply,
+      finProdFinEquiv, Fin.divNat, Fin.modNat, Matrix.vecHead, Matrix.vecTail,
+      Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.one_apply, Matrix.vecMul, Equiv.Perm.permMatrix,
+      Fin.sum_univ_four, invSqrt2_mul_self] <;>
+    ring_nf
 
 /-- The proposition proved by one superdense-coding block. -/
 def SuperdenseBlockCorrect (a b : Bool) : Prop :=
-  superdenseDecode.apply ((superdenseEncode a b).apply bell)
-    = (if b then ket1 else ket0).tensor (if a then ket1 else ket0)
+  superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector 2))
+    = StateVector.tensor
+        ((if b then ket1 else ket0 : PureState 1) : StateVector 1)
+        ((if a then ket1 else ket0 : PureState 1) : StateVector 1)
 
 theorem superdense_coding_block (a b : Bool) :
     SuperdenseBlockCorrect a b :=

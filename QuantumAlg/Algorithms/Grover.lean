@@ -45,35 +45,35 @@ noncomputable section
 
 /-- The concrete Grover phase oracle for a marked-set predicate:
 `|j⟩` receives phase `-1` exactly when `marked j` is true. -/
-def phaseOracle {n : ℕ} (marked : Fin (2 ^ n) → Bool) : Gate n :=
+def phaseOracle {n : ℕ} (marked : Fin (2 ^ n) → Bool) : HilbertOperator n :=
   fun i j => if i = j then (if marked j then -1 else 1 : ℂ) else 0
 
 theorem phaseOracle_apply_ket {n : ℕ} (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
-    (phaseOracle marked).apply (ket j) =
-      ((if marked j then -1 else 1 : ℂ) • ket j) := by
+    HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) =
+      ((if marked j then -1 else 1 : ℂ) • (ket j : StateVector n)) := by
   by_cases hm : marked j
   · simp [hm]
     apply WithLp.ofLp_injective
     funext i
-    rw [show ((phaseOracle marked).apply (ket j)).ofLp i =
-          (phaseOracle marked).apply (ket j) i from rfl,
-      show ((-ket j).ofLp i) = (-ket j : PureState n) i from rfl,
-      Gate.apply_ket]
+    rw [show (HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n)).ofLp i =
+          HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) i from rfl,
+      show ((-(ket j : StateVector n)).ofLp i) = (-(ket j : StateVector n)) i from rfl,
+      HilbertOperator.applyVec_ket]
     by_cases hij : i = j
     · subst i
-      simp [phaseOracle, hm, ket_apply]
-    · simp [phaseOracle, ket_apply, hij]
+      simp [phaseOracle, hm, PureState.ket_apply]
+    · simp [phaseOracle, PureState.ket_apply, hij]
   · simp [hm]
     apply WithLp.ofLp_injective
     funext i
-    rw [show ((phaseOracle marked).apply (ket j)).ofLp i =
-          (phaseOracle marked).apply (ket j) i from rfl,
-      show (ket j).ofLp i = (ket j : PureState n) i from rfl,
-      Gate.apply_ket]
+    rw [show (HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n)).ofLp i =
+          HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) i from rfl,
+      show ((ket j : StateVector n).ofLp i) = (ket j : StateVector n) i from rfl,
+      HilbertOperator.applyVec_ket]
     by_cases hij : i = j
     · subst i
-      simp [phaseOracle, hm, ket_apply]
-    · simp [phaseOracle, ket_apply, hij]
+      simp [phaseOracle, hm, PureState.ket_apply]
+    · simp [phaseOracle, PureState.ket_apply, hij]
 
 /-- A Grover search instance restricted to its invariant two-dimensional
 bad/good plane. The initial state is `amplitudeAmplificationState θ 0`, so the
@@ -201,8 +201,8 @@ end Grover
 /-- Registered basis-action wrapper for the concrete Grover phase oracle. -/
 theorem GroverSearch.main_phase_oracle_basis_action {n : ℕ}
     (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
-    (phaseOracle marked).apply (ket j) =
-      ((if marked j then -1 else 1 : ℂ) • ket j) := by
+    HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) =
+      ((if marked j then -1 else 1 : ℂ) • (ket j : StateVector n)) := by
   exact phaseOracle_apply_ket marked j
 
 /-- Registered resource wrapper for the marked-count Grover statement. -/

@@ -12,40 +12,11 @@ public import QuantumAlg.Util.FinPow
 public import Mathlib.LinearAlgebra.Matrix.Kronecker
 
 /-!
-# Tensor products of states and gates
+# Tensor products of vectors, states, operators, and gates
 
-Tensor (Kronecker) products composing an `m`-qubit and an `n`-qubit system
-into an `(m + n)`-qubit system.
-
-## Conventions
-
-- The first factor holds the lower-index qubits, i.e. the *most significant*
-  bits of the joint basis label (big-endian, matching `QuantumAlg.PureState`):
-  the joint label of `x : Fin (2 ^ m)` and `y : Fin (2 ^ n)` is
-  `y + 2 ^ n * x`, written `prodEquiv (x, y)`.
-- `Matrix.kroneckerMap (· * ·)` (notation `⊗ₖ`, scoped to `Kronecker`) is
-  indexed by pairs; `Gate.tensor` reindexes it along `prodEquiv` so that
-  composite gates act on `PureState (m + n)` directly.
-
-## Main definitions
-
-- `QuantumAlg.prodEquiv` (from `QuantumAlg.Util.FinPow`) —
-  `Fin (2 ^ m) × Fin (2 ^ n) ≃ Fin (2 ^ (m + n))`, the big-endian index pairing.
-- `QuantumAlg.PureState.tensor` — tensor product of states;
-  `tensor_ket` computes it on basis kets, `norm_tensor` shows
-  `‖ψ ⊗ φ‖ = ‖ψ‖ * ‖φ‖`.
-- `QuantumAlg.Gate.tensor` — tensor product of gates;
-  `Gate.tensor_mem_unitaryGroup` closes unitarity under `⊗`, and the
-  mixed-product law `Gate.tensor_apply_tensor` shows
-  `(G ⊗ K)(ψ ⊗ φ) = (G ψ) ⊗ (K φ)`. Gate tensors also satisfy the
-  matrix-level algebra: bilinearity, `Gate.tensor_mul_tensor`,
-  `Gate.conjTranspose_tensor`, `Gate.one_tensor_one`.
-
-Pinned Mathlib API:
-`Matrix.kroneckerMap` (`⊗ₖ`, `kroneckerMap_apply`, `mul_kronecker_mul`,
-`one_kronecker_one`, `conjTranspose_kronecker`), `Matrix.reindex`
-(`reindex_apply`, `submatrix_mul_equiv`, `conjTranspose_submatrix`,
-`submatrix_one_equiv`), `Equiv.sum_comp`, `Fintype.sum_prod_type`.
+Raw tensor products are defined at the `StateVector` and `HilbertOperator`
+layers. `PureState.tensor` and `Gate.tensor` wrap these raw tensors with the
+normalization/unitarity proofs needed to stay in their semantic types.
 -/
 
 @[expose] public section
@@ -56,18 +27,149 @@ open Kronecker
 
 variable {m n : ℕ}
 
+namespace StateVector
+
+noncomputable section
+
+/-- Tensor product of raw Hilbert-space vectors. -/
+def tensor (ψ : StateVector m) (φ : StateVector n) : StateVector (m + n) :=
+  WithLp.toLp 2 fun i => ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2
+
+@[simp]
+theorem tensor_apply (ψ : StateVector m) (φ : StateVector n)
+    (i : Fin (2 ^ (m + n))) :
+    tensor ψ φ i = ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2 :=
+  rfl
+
+theorem tensor_apply_prod (ψ : StateVector m) (φ : StateVector n)
+    (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
+    tensor ψ φ (prodEquiv (x, y)) = ψ x * φ y := by
+  rw [tensor_apply, Equiv.symm_apply_apply]
+
+@[simp]
+theorem add_tensor (ψ ψ' : StateVector m) (φ : StateVector n) :
+    tensor (ψ + ψ') φ = tensor ψ φ + tensor ψ' φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor (ψ + ψ') φ i = (tensor ψ φ + tensor ψ' φ) i
+  simp [add_mul]
+
+@[simp]
+theorem sub_tensor (ψ ψ' : StateVector m) (φ : StateVector n) :
+    tensor (ψ - ψ') φ = tensor ψ φ - tensor ψ' φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor (ψ - ψ') φ i = (tensor ψ φ - tensor ψ' φ) i
+  simp [sub_mul]
+
+@[simp]
+theorem smul_tensor (c : ℂ) (ψ : StateVector m) (φ : StateVector n) :
+    tensor (c • ψ) φ = c • tensor ψ φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor (c • ψ) φ i = (c • tensor ψ φ) i
+  simp [mul_assoc]
+
+@[simp]
+theorem tensor_add (ψ : StateVector m) (φ φ' : StateVector n) :
+    tensor ψ (φ + φ') = tensor ψ φ + tensor ψ φ' := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor ψ (φ + φ') i = (tensor ψ φ + tensor ψ φ') i
+  simp [mul_add]
+
+@[simp]
+theorem tensor_sub (ψ : StateVector m) (φ φ' : StateVector n) :
+    tensor ψ (φ - φ') = tensor ψ φ - tensor ψ φ' := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor ψ (φ - φ') i = (tensor ψ φ - tensor ψ φ') i
+  simp [mul_sub]
+
+@[simp]
+theorem tensor_smul (c : ℂ) (ψ : StateVector m) (φ : StateVector n) :
+    tensor ψ (c • φ) = c • tensor ψ φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor ψ (c • φ) i = (c • tensor ψ φ) i
+  simp [mul_left_comm]
+
+@[simp]
+theorem neg_tensor (ψ : StateVector m) (φ : StateVector n) :
+    tensor (-ψ) φ = -tensor ψ φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor (-ψ) φ i = (-tensor ψ φ) i
+  simp [tensor_apply]
+
+@[simp]
+theorem tensor_neg (ψ : StateVector m) (φ : StateVector n) :
+    tensor ψ (-φ) = -tensor ψ φ := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor ψ (-φ) i = (-tensor ψ φ) i
+  simp [tensor_apply]
+
+@[simp]
+theorem zero_tensor (φ : StateVector n) :
+    tensor (0 : StateVector m) φ = 0 := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor (0 : StateVector m) φ i = (0 : StateVector (m + n)) i
+  simp [tensor_apply]
+
+@[simp]
+theorem tensor_zero (ψ : StateVector m) :
+    tensor ψ (0 : StateVector n) = 0 := by
+  apply WithLp.ofLp_injective
+  funext i
+  change tensor ψ (0 : StateVector n) i = (0 : StateVector (m + n)) i
+  simp [tensor_apply]
+
+/-- The norm is multiplicative under tensor products. -/
+theorem norm_tensor (ψ : StateVector m) (φ : StateVector n) :
+    ‖tensor ψ φ‖ = ‖ψ‖ * ‖φ‖ := by
+  rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq, EuclideanSpace.norm_eq,
+    ← Real.sqrt_mul (show (0 : ℝ) ≤ ∑ i, ‖ψ i‖ ^ 2 from
+      Finset.sum_nonneg fun i _ => sq_nonneg ‖ψ i‖)]
+  congr 1
+  rw [← Equiv.sum_comp (prodEquiv (m := m) (n := n))
+      (fun i => ‖tensor ψ φ i‖ ^ 2),
+    Fintype.sum_prod_type, Finset.sum_mul_sum]
+  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+  rw [tensor_apply, Equiv.symm_apply_apply, norm_mul, mul_pow]
+
+/-- The inner product factors over tensor products. -/
+theorem inner_tensor_tensor (ψ ψ' : StateVector m) (φ φ' : StateVector n) :
+    inner ℂ (tensor ψ φ) (tensor ψ' φ')
+      = inner ℂ ψ ψ' * inner ℂ φ φ' := by
+  simp only [PiLp.inner_apply, RCLike.inner_apply]
+  rw [← Equiv.sum_comp (prodEquiv (m := m) (n := n))
+      (fun i => tensor ψ' φ' i * starRingEnd ℂ (tensor ψ φ i)),
+    Fintype.sum_prod_type, Finset.sum_mul_sum]
+  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+  rw [tensor_apply, tensor_apply, Equiv.symm_apply_apply, map_mul,
+    mul_mul_mul_comm]
+
+end
+
+end StateVector
+
 namespace PureState
 
 noncomputable section
 
-/-- Tensor product of pure states: `(ψ.tensor φ) (prodEquiv (x, y)) = ψ x * φ y`. -/
+/-- Tensor product of pure states. -/
 def tensor (ψ : PureState m) (φ : PureState n) : PureState (m + n) :=
-  WithLp.toLp 2 fun i => ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2
+  ofVec (StateVector.tensor (ψ : StateVector m) (φ : StateVector n)) (by
+    rw [StateVector.norm_tensor, ψ.norm_eq_one, φ.norm_eq_one, one_mul])
 
 @[simp]
 theorem tensor_apply (ψ : PureState m) (φ : PureState n)
     (i : Fin (2 ^ (m + n))) :
-    ψ.tensor φ i = ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2 :=
+    ψ.tensor φ i = ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2 := by
+  change StateVector.tensor (ψ : StateVector m) (φ : StateVector n) i
+      = ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2
   rfl
 
 theorem tensor_apply_prod (ψ : PureState m) (φ : PureState n)
@@ -75,94 +177,51 @@ theorem tensor_apply_prod (ψ : PureState m) (φ : PureState n)
     ψ.tensor φ (prodEquiv (x, y)) = ψ x * φ y := by
   rw [tensor_apply, Equiv.symm_apply_apply]
 
-/-! ### Bilinearity -/
+-- Compatibility names for linear raw-vector tensor proofs.
+theorem add_tensor (ψ ψ' : StateVector m) (φ : StateVector n) :
+    StateVector.tensor (ψ + ψ') φ = StateVector.tensor ψ φ + StateVector.tensor ψ' φ :=
+  StateVector.add_tensor ψ ψ' φ
 
-@[simp]
-theorem add_tensor (ψ ψ' : PureState m) (φ : PureState n) :
-    (ψ + ψ').tensor φ = ψ.tensor φ + ψ'.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (ψ + ψ').tensor φ i = (ψ.tensor φ + ψ'.tensor φ) i
-  simp [add_mul]
+theorem sub_tensor (ψ ψ' : StateVector m) (φ : StateVector n) :
+    StateVector.tensor (ψ - ψ') φ = StateVector.tensor ψ φ - StateVector.tensor ψ' φ :=
+  StateVector.sub_tensor ψ ψ' φ
 
-@[simp]
-theorem sub_tensor (ψ ψ' : PureState m) (φ : PureState n) :
-    (ψ - ψ').tensor φ = ψ.tensor φ - ψ'.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (ψ - ψ').tensor φ i = (ψ.tensor φ - ψ'.tensor φ) i
-  simp [sub_mul]
+theorem smul_tensor (c : ℂ) (ψ : StateVector m) (φ : StateVector n) :
+    StateVector.tensor (c • ψ) φ = c • StateVector.tensor ψ φ :=
+  StateVector.smul_tensor c ψ φ
 
-@[simp]
-theorem smul_tensor (c : ℂ) (ψ : PureState m) (φ : PureState n) :
-    (c • ψ).tensor φ = c • ψ.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (c • ψ).tensor φ i = (c • ψ.tensor φ) i
-  simp [mul_assoc]
+theorem tensor_add (ψ : StateVector m) (φ φ' : StateVector n) :
+    StateVector.tensor ψ (φ + φ') = StateVector.tensor ψ φ + StateVector.tensor ψ φ' :=
+  StateVector.tensor_add ψ φ φ'
 
-@[simp]
-theorem tensor_add (ψ : PureState m) (φ φ' : PureState n) :
-    ψ.tensor (φ + φ') = ψ.tensor φ + ψ.tensor φ' := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ.tensor (φ + φ') i = (ψ.tensor φ + ψ.tensor φ') i
-  simp [mul_add]
+theorem tensor_sub (ψ : StateVector m) (φ φ' : StateVector n) :
+    StateVector.tensor ψ (φ - φ') = StateVector.tensor ψ φ - StateVector.tensor ψ φ' :=
+  StateVector.tensor_sub ψ φ φ'
 
-@[simp]
-theorem tensor_sub (ψ : PureState m) (φ φ' : PureState n) :
-    ψ.tensor (φ - φ') = ψ.tensor φ - ψ.tensor φ' := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ.tensor (φ - φ') i = (ψ.tensor φ - ψ.tensor φ') i
-  simp [mul_sub]
+theorem tensor_smul (c : ℂ) (ψ : StateVector m) (φ : StateVector n) :
+    StateVector.tensor ψ (c • φ) = c • StateVector.tensor ψ φ :=
+  StateVector.tensor_smul c ψ φ
 
-@[simp]
-theorem tensor_smul (c : ℂ) (ψ : PureState m) (φ : PureState n) :
-    ψ.tensor (c • φ) = c • ψ.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ.tensor (c • φ) i = (c • ψ.tensor φ) i
-  simp [mul_left_comm]
+theorem neg_tensor (ψ : StateVector m) (φ : StateVector n) :
+    StateVector.tensor (-ψ) φ = -StateVector.tensor ψ φ :=
+  StateVector.neg_tensor ψ φ
 
-@[simp]
-theorem neg_tensor (ψ : PureState m) (φ : PureState n) :
-    (-ψ).tensor φ = -ψ.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (-ψ).tensor φ i = (-ψ.tensor φ) i
-  simp [tensor_apply]
+theorem tensor_neg (ψ : StateVector m) (φ : StateVector n) :
+    StateVector.tensor ψ (-φ) = -StateVector.tensor ψ φ :=
+  StateVector.tensor_neg ψ φ
 
-@[simp]
-theorem tensor_neg (ψ : PureState m) (φ : PureState n) :
-    ψ.tensor (-φ) = -ψ.tensor φ := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ.tensor (-φ) i = (-ψ.tensor φ) i
-  simp [tensor_apply]
+theorem zero_tensor (φ : StateVector n) :
+    StateVector.tensor (0 : StateVector m) φ = 0 :=
+  StateVector.zero_tensor φ
 
-@[simp]
-theorem zero_tensor (φ : PureState n) :
-    (0 : PureState m).tensor φ = 0 := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (0 : PureState m).tensor φ i = (0 : PureState (m + n)) i
-  simp [tensor_apply]
-
-@[simp]
-theorem tensor_zero (ψ : PureState m) :
-    ψ.tensor (0 : PureState n) = 0 := by
-  apply WithLp.ofLp_injective
-  funext i
-  change ψ.tensor (0 : PureState n) i = (0 : PureState (m + n)) i
-  simp [tensor_apply]
+theorem tensor_zero (ψ : StateVector m) :
+    StateVector.tensor ψ (0 : StateVector n) = 0 :=
+  StateVector.tensor_zero ψ
 
 /-- Basis kets tensor to basis kets: `|x⟩ ⊗ |y⟩ = |xy⟩`. -/
 theorem tensor_ket (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
     (ket x).tensor (ket y) = ket (prodEquiv (x, y)) := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (ket x).tensor (ket y) i = ket (prodEquiv (x, y)) i
+  ext i
   rw [tensor_apply, ket_apply, ket_apply, ket_apply]
   by_cases h : i = prodEquiv (x, y)
   · rw [if_pos h, if_pos (by rw [h, Equiv.symm_apply_apply]),
@@ -177,124 +236,175 @@ theorem tensor_ket (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
     · rw [if_neg h1, zero_mul]
     · rw [if_neg h2, mul_zero]
 
-/-- The norm is multiplicative under tensor products; in particular the
-tensor product of normalized states is normalized. -/
 theorem norm_tensor (ψ : PureState m) (φ : PureState n) :
     ‖ψ.tensor φ‖ = ‖ψ‖ * ‖φ‖ := by
-  rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq, EuclideanSpace.norm_eq,
-    ← Real.sqrt_mul (show (0 : ℝ) ≤ ∑ i, ‖ψ i‖ ^ 2 from
-      Finset.sum_nonneg fun i _ => sq_nonneg ‖ψ i‖)]
-  congr 1
-  rw [← Equiv.sum_comp (prodEquiv (m := m) (n := n))
-      (fun i => ‖ψ.tensor φ i‖ ^ 2),
-    Fintype.sum_prod_type, Finset.sum_mul_sum]
-  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
-  rw [tensor_apply, Equiv.symm_apply_apply, norm_mul, mul_pow]
+  change ‖StateVector.tensor (ψ : StateVector m) (φ : StateVector n)‖
+      = ‖(ψ : StateVector m)‖ * ‖(φ : StateVector n)‖
+  rw [StateVector.norm_tensor]
 
-/-- The inner product factors over tensor products:
-`⟨ψ ⊗ φ, ψ' ⊗ φ'⟩ = ⟨ψ, ψ'⟩ · ⟨φ, φ'⟩`. -/
 theorem inner_tensor_tensor (ψ ψ' : PureState m) (φ φ' : PureState n) :
     inner ℂ (ψ.tensor φ) (ψ'.tensor φ')
       = inner ℂ ψ ψ' * inner ℂ φ φ' := by
-  simp only [PiLp.inner_apply, RCLike.inner_apply]
-  rw [← Equiv.sum_comp (prodEquiv (m := m) (n := n))
-      (fun i => (ψ'.tensor φ') i * starRingEnd ℂ (ψ.tensor φ i)),
-    Fintype.sum_prod_type, Finset.sum_mul_sum]
-  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
-  rw [tensor_apply, tensor_apply, Equiv.symm_apply_apply, map_mul,
-    mul_mul_mul_comm]
+  change inner ℂ
+      (StateVector.tensor (ψ : StateVector m) (φ : StateVector n))
+      (StateVector.tensor (ψ' : StateVector m) (φ' : StateVector n))
+    = inner ℂ (ψ : StateVector m) (ψ' : StateVector m)
+      * inner ℂ (φ : StateVector n) (φ' : StateVector n)
+  rw [StateVector.inner_tensor_tensor]
 
 end
 
 end PureState
 
-namespace Gate
+namespace HilbertOperator
 
 noncomputable section
 
-/-- Tensor (Kronecker) product of gates, reindexed to act on
-`PureState (m + n)`. -/
-def tensor (G : Gate m) (K : Gate n) : Gate (m + n) :=
+/-- Tensor product of Hilbert-space operators. -/
+def tensor (G : HilbertOperator m) (K : HilbertOperator n) : HilbertOperator (m + n) :=
   Matrix.reindex prodEquiv prodEquiv (G ⊗ₖ K)
 
 @[simp]
-theorem tensor_apply (G : Gate m) (K : Gate n)
+theorem tensor_apply (G : HilbertOperator m) (K : HilbertOperator n)
     (i j : Fin (2 ^ (m + n))) :
-    G.tensor K i j
+    tensor G K i j
       = G (prodEquiv.symm i).1 (prodEquiv.symm j).1
-        * K (prodEquiv.symm i).2 (prodEquiv.symm j).2 :=
-  rfl
-
-/-! ### Algebra of gate tensors -/
+        * K (prodEquiv.symm i).2 (prodEquiv.symm j).2 := rfl
 
 @[simp]
-theorem zero_tensor (K : Gate n) : (0 : Gate m).tensor K = 0 := by
+theorem zero_tensor (K : HilbertOperator n) :
+    tensor (0 : HilbertOperator m) K = 0 := by
   ext i j
   simp [tensor_apply]
 
 @[simp]
-theorem tensor_zero (G : Gate m) : G.tensor (0 : Gate n) = 0 := by
+theorem tensor_zero (G : HilbertOperator m) :
+    tensor G (0 : HilbertOperator n) = 0 := by
   ext i j
   simp [tensor_apply]
 
-theorem add_tensor (G G' : Gate m) (K : Gate n) :
-    (G + G').tensor K = G.tensor K + G'.tensor K := by
+theorem add_tensor (G G' : HilbertOperator m) (K : HilbertOperator n) :
+    tensor (G + G') K = tensor G K + tensor G' K := by
   ext i j
   simp [tensor_apply, add_mul]
 
-theorem tensor_add (G : Gate m) (K K' : Gate n) :
-    G.tensor (K + K') = G.tensor K + G.tensor K' := by
+theorem tensor_add (G : HilbertOperator m) (K K' : HilbertOperator n) :
+    tensor G (K + K') = tensor G K + tensor G K' := by
   ext i j
   simp [tensor_apply, mul_add]
 
-/-- Mixed-product law at the matrix level:
-`(G ⊗ K) (G' ⊗ K') = (G G') ⊗ (K K')`. -/
-theorem tensor_mul_tensor (G G' : Gate m) (K K' : Gate n) :
-    G.tensor K * G'.tensor K' = tensor (G * G') (K * K') := by
+theorem tensor_mul_tensor (G G' : HilbertOperator m) (K K' : HilbertOperator n) :
+    tensor G K * tensor G' K' = tensor (G * G') (K * K') := by
   rw [tensor, tensor, tensor, Matrix.reindex_apply, Matrix.reindex_apply,
     Matrix.reindex_apply, Matrix.submatrix_mul_equiv,
     ← Matrix.mul_kronecker_mul]
 
-/-- Conjugate transpose distributes over gate tensors. -/
-theorem conjTranspose_tensor (G : Gate m) (K : Gate n) :
-    (G.tensor K).conjTranspose
-      = tensor G.conjTranspose K.conjTranspose := by
+theorem conjTranspose_tensor (G : HilbertOperator m) (K : HilbertOperator n) :
+    (tensor G K).conjTranspose = tensor G.conjTranspose K.conjTranspose := by
   rw [tensor, tensor, Matrix.reindex_apply, Matrix.reindex_apply,
     Matrix.conjTranspose_submatrix, Matrix.conjTranspose_kronecker]
 
 @[simp]
-theorem one_tensor_one : (1 : Gate m).tensor (1 : Gate n) = 1 := by
+theorem one_tensor_one : tensor (1 : HilbertOperator m) (1 : HilbertOperator n) = 1 := by
   rw [tensor, Matrix.one_kronecker_one, Matrix.reindex_apply,
     Matrix.submatrix_one_equiv]
 
-/-- Unitarity is preserved by tensor products. -/
-theorem tensor_mem_unitaryGroup {G : Gate m} {K : Gate n}
+theorem tensor_mem_unitaryGroup {G : HilbertOperator m} {K : HilbertOperator n}
     (hG : G ∈ Matrix.unitaryGroup (Fin (2 ^ m)) ℂ)
     (hK : K ∈ Matrix.unitaryGroup (Fin (2 ^ n)) ℂ) :
-    G.tensor K ∈ Matrix.unitaryGroup (Fin (2 ^ (m + n))) ℂ := by
+    tensor G K ∈ Matrix.unitaryGroup (Fin (2 ^ (m + n))) ℂ := by
   rw [Matrix.mem_unitaryGroup_iff, Matrix.star_eq_conjTranspose] at hG hK ⊢
   rw [tensor, Matrix.reindex_apply, Matrix.conjTranspose_submatrix,
     Matrix.conjTranspose_kronecker, Matrix.submatrix_mul_equiv,
     ← Matrix.mul_kronecker_mul, hG, hK, Matrix.one_kronecker_one,
     Matrix.submatrix_one_equiv]
 
-/-- Mixed-product law: `(G ⊗ K)(ψ ⊗ φ) = (G ψ) ⊗ (K φ)`. Composite circuits
-factor through per-subsystem actions. -/
+theorem tensor_applyVec_tensor (G : HilbertOperator m) (K : HilbertOperator n)
+    (ψ : StateVector m) (φ : StateVector n) :
+    applyVec (tensor G K) (StateVector.tensor ψ φ)
+      = StateVector.tensor (applyVec G ψ) (applyVec K φ) := by
+  apply WithLp.ofLp_injective
+  funext i
+  change applyVec (tensor G K) (StateVector.tensor ψ φ) i
+      = StateVector.tensor (applyVec G ψ) (applyVec K φ) i
+  rw [StateVector.tensor_apply, applyVec_apply, applyVec_apply, applyVec_apply,
+    Finset.sum_mul_sum,
+    ← Equiv.sum_comp (prodEquiv (m := m) (n := n))
+      (fun j => tensor G K i j * StateVector.tensor ψ φ j),
+    Fintype.sum_prod_type]
+  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+  rw [tensor_apply, StateVector.tensor_apply, Equiv.symm_apply_apply,
+    mul_mul_mul_comm]
+
+end
+
+end HilbertOperator
+
+namespace Gate
+
+noncomputable section
+
+/-- Tensor product of unitary gates. -/
+def tensor (G : Gate m) (K : Gate n) : Gate (m + n) :=
+  ofUnitary (HilbertOperator.tensor (G : HilbertOperator m) (K : HilbertOperator n))
+    (HilbertOperator.tensor_mem_unitaryGroup G.unitary K.unitary)
+
+@[simp]
+theorem tensor_apply (G : Gate m) (K : Gate n)
+    (i j : Fin (2 ^ (m + n))) :
+    G.tensor K i j
+      = G (prodEquiv.symm i).1 (prodEquiv.symm j).1
+        * K (prodEquiv.symm i).2 (prodEquiv.symm j).2 := rfl
+
+theorem tensor_mul_tensor (G G' : Gate m) (K K' : Gate n) :
+    G.tensor K * G'.tensor K' = tensor (G * G') (K * K') := by
+  ext i j
+  change (HilbertOperator.tensor (G : HilbertOperator m) (K : HilbertOperator n)
+        * HilbertOperator.tensor (G' : HilbertOperator m) (K' : HilbertOperator n)) i j
+      = HilbertOperator.tensor ((G : HilbertOperator m) * (G' : HilbertOperator m))
+          ((K : HilbertOperator n) * (K' : HilbertOperator n)) i j
+  rw [HilbertOperator.tensor_mul_tensor]
+
+theorem conjTranspose_tensor (G : Gate m) (K : Gate n) :
+    (G.tensor K).conjTranspose = tensor G.conjTranspose K.conjTranspose := by
+  ext i j
+  change (HilbertOperator.tensor (G : HilbertOperator m) (K : HilbertOperator n)).conjTranspose i j
+      = HilbertOperator.tensor ((G : HilbertOperator m).conjTranspose)
+          ((K : HilbertOperator n).conjTranspose) i j
+  rw [HilbertOperator.conjTranspose_tensor]
+
+@[simp]
+theorem one_tensor_one : (1 : Gate m).tensor (1 : Gate n) = 1 := by
+  ext i j
+  change HilbertOperator.tensor (1 : HilbertOperator m) (1 : HilbertOperator n) i j
+      = (1 : HilbertOperator (m + n)) i j
+  rw [HilbertOperator.one_tensor_one]
+
+theorem tensor_mem_unitaryGroup {G : Gate m} {K : Gate n}
+    (_hG : (G : HilbertOperator m) ∈ Matrix.unitaryGroup (Fin (2 ^ m)) ℂ)
+    (_hK : (K : HilbertOperator n) ∈ Matrix.unitaryGroup (Fin (2 ^ n)) ℂ) :
+    (G.tensor K : HilbertOperator (m + n))
+      ∈ Matrix.unitaryGroup (Fin (2 ^ (m + n))) ℂ :=
+  (G.tensor K).unitary
+
 theorem tensor_apply_tensor (G : Gate m) (K : Gate n)
     (ψ : PureState m) (φ : PureState n) :
     (G.tensor K).apply (ψ.tensor φ) = (G.apply ψ).tensor (K.apply φ) := by
-  apply WithLp.ofLp_injective
-  funext i
-  change (G.tensor K).apply (ψ.tensor φ) i
-      = (G.apply ψ).tensor (K.apply φ) i
-  rw [PureState.tensor_apply, apply_apply, apply_apply, apply_apply,
-    Finset.sum_mul_sum,
-    ← Equiv.sum_comp (prodEquiv (m := m) (n := n))
-      (fun j => G.tensor K i j * ψ.tensor φ j),
-    Fintype.sum_prod_type]
-  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
-  rw [tensor_apply, PureState.tensor_apply, Equiv.symm_apply_apply,
-    mul_mul_mul_comm]
+  ext i
+  change HilbertOperator.applyVec
+      (HilbertOperator.tensor (G : HilbertOperator m) (K : HilbertOperator n))
+      (StateVector.tensor (ψ : StateVector m) (φ : StateVector n)) i
+    = StateVector.tensor
+      (HilbertOperator.applyVec (G : HilbertOperator m) (ψ : StateVector m))
+      (HilbertOperator.applyVec (K : HilbertOperator n) (φ : StateVector n)) i
+  rw [HilbertOperator.tensor_applyVec_tensor]
+
+theorem tensor_applyVec_tensor (G : Gate m) (K : Gate n)
+    (ψ : StateVector m) (φ : StateVector n) :
+    (G.tensor K).applyVec (StateVector.tensor ψ φ)
+      = StateVector.tensor (G.applyVec ψ) (K.applyVec φ) := by
+  exact HilbertOperator.tensor_applyVec_tensor (G : HilbertOperator m)
+    (K : HilbertOperator n) ψ φ
 
 end
 

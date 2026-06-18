@@ -119,23 +119,23 @@ theorem invSqrtN_mul_self (n : ℕ) :
 /-- The quantum Fourier transform on `n` qubits
 [dW19, qcnotes.tex:1692].
 Entry `(j, k) = invSqrtN n * ω_n^{j·k}`. -/
-def QFT (n : ℕ) : Gate n :=
+def QFTMatrix (n : ℕ) : HilbertOperator n :=
   Matrix.of fun (j k : Fin (2 ^ n)) =>
     invSqrtN n * omega n ^ (j.val * k.val)
 
 @[simp]
 theorem QFT_entry (n : ℕ) (j k : Fin (2 ^ n)) :
-    QFT n j k = invSqrtN n * omega n ^ (j.val * k.val) := by
-  simp [QFT]
+    QFTMatrix n j k = invSqrtN n * omega n ^ (j.val * k.val) := by
+  simp [QFTMatrix]
 
 /-! ### Action on basis kets -/
 
 /-- Component formula for the QFT acting on a basis ket:
 `(QFT |x⟩)ᵢ = (1/√N) · ω^{i·x}` [dW19, qcnotes.tex:1692]. -/
 @[simp]
-theorem QFT_apply_ket (n : ℕ) (x i : Fin (2 ^ n)) :
-    (QFT n).apply (ket x) i = invSqrtN n * omega n ^ (i.val * x.val) := by
-  rw [Gate.apply_ket, QFT_entry]
+theorem QFTMatrix_apply_ket_column (n : ℕ) (x i : Fin (2 ^ n)) :
+    QFTMatrix n i x = invSqrtN n * omega n ^ (i.val * x.val) := by
+  rw [QFT_entry]
 
 /-! ### Unitarity -/
 
@@ -173,11 +173,11 @@ pairwise orthogonal. Entry-by-entry, `star (QFT n) * QFT n` at `(j, k)` is
 `invSqrtN² · ∑_l ω^{l·(k−j)}`, which `sum_omega_zpow_eq_zero` collapses to
 `if j = k then 1 else 0`. -/
 theorem QFT_mem_unitaryGroup (n : ℕ) :
-    QFT n ∈ Matrix.unitaryGroup (Fin (2 ^ n)) ℂ := by
+    QFTMatrix n ∈ Matrix.unitaryGroup (Fin (2 ^ n)) ℂ := by
   rw [Matrix.mem_unitaryGroup_iff']
   ext j k
   have hterm : ∀ l : Fin (2 ^ n),
-      star (QFT n) j l * QFT n l k =
+      star (QFTMatrix n) j l * QFTMatrix n l k =
         (↑((2 : ℝ) ^ n))⁻¹ *
           omega n ^ ((l.val : ℤ) * ((k.val : ℤ) - (j.val : ℤ))) := by
     intro l
@@ -212,6 +212,21 @@ theorem QFT_mem_unitaryGroup (n : ℕ) :
       exact hjk (Fin.val_injective
         (by exact_mod_cast sub_eq_zero.mp h0 : k.val = j.val)).symm
     rw [sum_omega_zpow_eq_zero n hd, mul_zero]
+
+/-- The quantum Fourier transform on `n` qubits as a unitary gate. -/
+def QFT (n : ℕ) : Gate n := Gate.ofUnitary (QFTMatrix n) (QFT_mem_unitaryGroup n)
+
+@[simp]
+theorem QFT_coe (n : ℕ) : ((QFT n : Gate n) : HilbertOperator n) = QFTMatrix n := rfl
+
+/-! ### Action on basis kets -/
+
+/-- Component formula for the QFT acting on a basis ket:
+`(QFT |x⟩)_i = (1/√N) · ω^{i·x}` [dW19, qcnotes.tex:1692]. -/
+@[simp]
+theorem QFT_apply_ket (n : ℕ) (x i : Fin (2 ^ n)) :
+    (QFT n).apply (ket x) i = invSqrtN n * omega n ^ (i.val * x.val) := by
+  simp [QFT, QFTMatrix]
 
 /-- Fixed-circuit gate profile for the standard QFT decomposition: `n`
 Hadamard gates, `n(n-1)/2` controlled-phase gates, and `n/2` final register

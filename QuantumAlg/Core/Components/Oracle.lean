@@ -82,8 +82,9 @@ def xorOracle (f : Fin (2 ^ n) → Bool) : Gate (n + 1) :=
   ofPerm (prodEquiv.permCongr (xorPerm f))
 
 theorem xorOracle_mem_unitaryGroup (f : Fin (2 ^ n) → Bool) :
-    xorOracle f ∈ Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ :=
-  ofPerm_mem_unitaryGroup _
+    (xorOracle f : HilbertOperator (n + 1))
+      ∈ Matrix.unitaryGroup (Fin (2 ^ (n + 1))) ℂ :=
+  (xorOracle f).unitary
 
 @[simp]
 theorem xorOracle_apply (f : Fin (2 ^ n) → Bool) (ψ : PureState (n + 1))

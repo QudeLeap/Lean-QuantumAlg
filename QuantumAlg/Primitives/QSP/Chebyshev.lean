@@ -74,14 +74,14 @@ noncomputable section
 /-- The signal rotation `O(x) = [[x, -√(1-x²)], [√(1-x²), x]]`
 [Lin22, hermfunc.tex:1103]; equals `U_A(x)·Z` for the reflection `U_A(x)` of
 [GSLW19, BlockHam.tex:488]. -/
-def signalO (x : ℝ) : Gate 1 :=
+def signalO (x : ℝ) : HilbertOperator 1 :=
   !![(x : ℂ), -(Real.sqrt (1 - x ^ 2) : ℂ);
      (Real.sqrt (1 - x ^ 2) : ℂ), (x : ℂ)]
 
 /-- The QSP sequence `U_Φ(x) = e^{iφ₀Z} ∏_j (O(x) e^{iφ_jZ})` with phase
 factors `Φ = (φ₀, φs)` [Lin22, hermfunc.tex:1121]. -/
-def qspO (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : Gate 1 :=
-  φs.foldl (fun U φ => U * (signalO x * rotZ φ)) (rotZ φ₀)
+def qspO (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator 1 :=
+  φs.foldl (fun U φ => U * (signalO x * rotZ φ)) (rotZ φ₀ : HilbertOperator 1)
 
 @[simp]
 theorem qspO_nil (φ₀ : ℝ) (x : ℝ) : qspO φ₀ [] x = rotZ φ₀ := rfl
@@ -119,17 +119,18 @@ theorem qspO_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
 
 /-- The target matrix form `[[P(x), -Q(x)s], [Q*(x)s, P*(x)]]`, `s = √(1-x²)`
 [Lin22, hermfunc.tex:1121]. -/
-def qspMat (P Q : ℂ[X]) (x : ℝ) : Gate 1 :=
+def qspMat (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
   !![P.eval (x : ℂ), -Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ);
      starRingEnd ℂ (Q.eval (x : ℂ)) * (Real.sqrt (1 - x ^ 2) : ℂ),
      starRingEnd ℂ (P.eval (x : ℂ))]
 
 /-- `rotZ φ₀` is the `d = 0` instance of the QSP form. -/
 private theorem rotZ_eq_qspMat (c : ℂ) (φ₀ : ℝ) (x : ℝ)
-    (hc : Complex.exp (φ₀ * Complex.I) = c) : rotZ φ₀ = qspMat (C c) 0 x := by
+    (hc : Complex.exp (φ₀ * Complex.I) = c) :
+    (rotZ φ₀ : HilbertOperator 1) = qspMat (C c) 0 x := by
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [rotZ, qspMat, ← hc, conj_exp_I]
+    simp [rotZ, rotZOp, qspMat, ← hc, conj_exp_I]
 
 /-- One-step recurrence [Lin22, hermfunc.tex:1148]: appending a signal-phase
 pair `O(x)·e^{iφZ}` maps the form `(P, Q)` to the form
@@ -142,17 +143,17 @@ private theorem qspMat_step (P Q : ℂ[X]) (φ : ℝ) {x : ℝ}
   have hs := sq_sqrt_one_sub_sq hx
   ext i j
   fin_cases i <;> fin_cases j
-  · simp [qspMat, signalO, rotZ, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
+  · simp [qspMat, signalO, rotZ, rotZOp, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
       Complex.conj_ofReal]
     linear_combination (-(Complex.exp ((φ : ℂ) * Complex.I) *
       Q.eval (x : ℂ))) * hs
-  · simp [qspMat, signalO, rotZ, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
+  · simp [qspMat, signalO, rotZ, rotZOp, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
       Complex.conj_ofReal]
     ring
-  · simp [qspMat, signalO, rotZ, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
+  · simp [qspMat, signalO, rotZ, rotZOp, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
       Complex.conj_ofReal]
     ring
-  · simp [qspMat, signalO, rotZ, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
+  · simp [qspMat, signalO, rotZ, rotZOp, Matrix.mul_apply, conj_exp_I, conj_exp_neg_I,
       Complex.conj_ofReal]
     linear_combination (-(Complex.exp (-((φ : ℂ) * Complex.I)) *
       starRingEnd ℂ (Q.eval (x : ℂ)))) * hs
@@ -413,16 +414,18 @@ private theorem signalO_zmat_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     linear_combination hs
 
 private theorem rotZ_pi_div_two :
-    rotZ (Real.pi / 2) = Complex.I • !![(1 : ℂ), 0; 0, -1] := by
+    (rotZ (Real.pi / 2) : HilbertOperator 1) =
+      Complex.I • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [rotZ, exp_neg_pi_div_two_mul_I]
+    simp [rotZ, rotZOp, exp_neg_pi_div_two_mul_I]
 
 private theorem rotZ_neg_pi_div_two :
-    rotZ (-(Real.pi / 2)) = (-Complex.I) • !![(1 : ℂ), 0; 0, -1] := by
+    (rotZ (-(Real.pi / 2)) : HilbertOperator 1) =
+      (-Complex.I) • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [rotZ, exp_neg_pi_div_two_mul_I]
+    simp [rotZ, rotZOp, exp_neg_pi_div_two_mul_I]
 
 /-- The signal-phase pairs at `φ = ±π/2` cancel:
 `O(x)e^{i(π/2)Z} · O(x)e^{-i(π/2)Z} = 1`. -/
@@ -548,7 +551,7 @@ private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
     refine (((Set.Icc_infinite (by norm_num : (-1 : ℝ) < 1)).image
       Complex.ofReal_injective.injOn).mono ?_)
     rintro z ⟨x, hx, rfl⟩
-    have h := congrArg (fun M : Gate 1 => M 0 0) (hmat x hx)
+    have h := congrArg (fun M : HilbertOperator 1 => M 0 0) (hmat x hx)
     simpa [qspMat] using h
   · refine Polynomial.eq_of_infinite_eval_eq Q Q' ?_
     refine (((Set.Ioo_infinite (by norm_num : (-1 : ℝ) < 1)).image
@@ -559,7 +562,7 @@ private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
       rw [Complex.ofReal_ne_zero]
       refine Real.sqrt_ne_zero'.mpr ?_
       nlinarith [hx.1, hx.2]
-    have h := congrArg (fun M : Gate 1 => M 0 1) (hmat x hx')
+    have h := congrArg (fun M : HilbertOperator 1 => M 0 1) (hmat x hx')
     simp only [qspMat] at h
     have h' : Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ)
         = Q'.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ) := by
@@ -622,14 +625,14 @@ from `qsp_reflection_iff` with the *same* pair conditions `IsQSPPair`. -/
 /-- The `Wx` signal rotation
 `W(x) = [[x, i√(1-x²)], [i√(1-x²), x]] = e^{i·arccos(x)·X}`
 [GSLW19, BlockHam.tex:295]. -/
-def signalW (x : ℝ) : Gate 1 :=
+def signalW (x : ℝ) : HilbertOperator 1 :=
   !![(x : ℂ), Complex.I * (Real.sqrt (1 - x ^ 2) : ℂ);
      Complex.I * (Real.sqrt (1 - x ^ 2) : ℂ), (x : ℂ)]
 
 /-- The Wx-convention QSP sequence `e^{iφ₀Z} ∏_j (W(x) e^{iφ_jZ})`
 [GSLW19, BlockHam.tex:317]. -/
-def qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : Gate 1 :=
-  φs.foldl (fun U φ => U * (signalW x * rotZ φ)) (rotZ φ₀)
+def qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator 1 :=
+  φs.foldl (fun U φ => U * (signalW x * rotZ φ)) (rotZ φ₀ : HilbertOperator 1)
 
 @[simp]
 theorem qspW_nil (φ₀ : ℝ) (x : ℝ) : qspW φ₀ [] x = rotZ φ₀ := rfl
@@ -638,9 +641,22 @@ theorem qspW_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
     qspW φ₀ (φs ++ [φ]) x = qspW φ₀ φs x * (signalW x * rotZ φ) := by
   simp [qspW, List.foldl_append]
 
+private theorem rotZ_comm_op (a b : ℝ) :
+    (rotZ a : HilbertOperator 1) * (rotZ b : HilbertOperator 1) =
+      (rotZ b : HilbertOperator 1) * (rotZ a : HilbertOperator 1) := by
+  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_comm a b)
+
+private theorem rotZ_neg_mul_rotZ_op (φ : ℝ) :
+    (rotZ (-φ) : HilbertOperator 1) * (rotZ φ : HilbertOperator 1) = 1 := by
+  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_neg_mul_rotZ φ)
+
+private theorem rotZ_mul_rotZ_neg_op (φ : ℝ) :
+    (rotZ φ : HilbertOperator 1) * (rotZ (-φ) : HilbertOperator 1) = 1 := by
+  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_mul_rotZ_neg φ)
+
 /-- The Wx target form `[[P(x), iQ(x)s], [iQ*(x)s, P*(x)]]`, `s = √(1-x²)`
 [GSLW19, BlockHam.tex:313]. -/
-def qspMatW (P Q : ℂ[X]) (x : ℝ) : Gate 1 :=
+def qspMatW (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
   !![P.eval (x : ℂ),
      Complex.I * Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ);
      Complex.I * starRingEnd ℂ (Q.eval (x : ℂ)) * (Real.sqrt (1 - x ^ 2) : ℂ),
@@ -649,54 +665,60 @@ def qspMatW (P Q : ℂ[X]) (x : ℝ) : Gate 1 :=
 /-- The fixed conjugation relating the two signal operators,
 `e^{i(π/4)Z} · W(x) = O(x) · e^{i(π/4)Z}` [Lin22, hermfunc.tex:1279]. -/
 private theorem rotZ_mul_signalW (x : ℝ) :
-    rotZ (Real.pi / 4) * signalW x = signalO x * rotZ (Real.pi / 4) := by
+    (rotZ (Real.pi / 4) : HilbertOperator 1) * signalW x =
+      signalO x * rotZ (Real.pi / 4) := by
   ext i j
   fin_cases i <;> fin_cases j
-  · simp [rotZ, signalW, signalO, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, signalW, signalO, Matrix.mul_apply]
     ring
-  · simp [rotZ, signalW, signalO, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, signalW, signalO, Matrix.mul_apply]
     linear_combination ((Real.sqrt (1 - x ^ 2) : ℂ)) * exp_pi_div_four_mul_I
-  · simp [rotZ, signalW, signalO, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, signalW, signalO, Matrix.mul_apply]
     linear_combination ((Real.sqrt (1 - x ^ 2) : ℂ)) *
       exp_neg_pi_div_four_mul_I
-  · simp [rotZ, signalW, signalO, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, signalW, signalO, Matrix.mul_apply]
     ring
 
 /-- The conjugation transports the Wx target form to the reflection form. -/
 private theorem rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
-    rotZ (Real.pi / 4) * qspMatW P Q x = qspMat P Q x * rotZ (Real.pi / 4) := by
+    (rotZ (Real.pi / 4) : HilbertOperator 1) * qspMatW P Q x =
+      qspMat P Q x * rotZ (Real.pi / 4) := by
   ext i j
   fin_cases i <;> fin_cases j
-  · simp [rotZ, qspMatW, qspMat, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, qspMatW, qspMat, Matrix.mul_apply]
     ring
-  · simp [rotZ, qspMatW, qspMat, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, qspMatW, qspMat, Matrix.mul_apply]
     linear_combination (Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ)) *
       exp_pi_div_four_mul_I
-  · simp [rotZ, qspMatW, qspMat, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, qspMatW, qspMat, Matrix.mul_apply]
     linear_combination (starRingEnd ℂ (Q.eval (x : ℂ)) *
       (Real.sqrt (1 - x ^ 2) : ℂ)) * exp_neg_pi_div_four_mul_I
-  · simp [rotZ, qspMatW, qspMat, Matrix.mul_apply]
+  · simp [rotZ, rotZOp, qspMatW, qspMat, Matrix.mul_apply]
     ring
 
 /-- The conjugation intertwines the full QSP sequences:
 `e^{i(π/4)Z} · U^W_Φ(x) = U^O_Φ(x) · e^{i(π/4)Z}`. -/
 private theorem rotZ_mul_qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) :
-    rotZ (Real.pi / 4) * qspW φ₀ φs x = qspO φ₀ φs x * rotZ (Real.pi / 4) := by
+    (rotZ (Real.pi / 4) : HilbertOperator 1) * qspW φ₀ φs x =
+      qspO φ₀ φs x * rotZ (Real.pi / 4) := by
   induction φs using List.reverseRecOn with
-  | nil => simpa using rotZ_comm (Real.pi / 4) φ₀
+  | nil => simpa using rotZ_comm_op (Real.pi / 4) φ₀
   | append_singleton φs φ ih =>
       rw [qspW_concat, qspO_concat, ← mul_assoc, ih, mul_assoc,
-        ← mul_assoc (rotZ (Real.pi / 4)) (signalW x) (rotZ φ),
-        rotZ_mul_signalW, mul_assoc (signalO x) (rotZ (Real.pi / 4)) (rotZ φ),
-        rotZ_comm (Real.pi / 4) φ,
-        ← mul_assoc (signalO x) (rotZ φ) (rotZ (Real.pi / 4)),
+        ← mul_assoc (rotZ (Real.pi / 4) : HilbertOperator 1) (signalW x)
+          (rotZ φ : HilbertOperator 1),
+        rotZ_mul_signalW, mul_assoc (signalO x)
+          (rotZ (Real.pi / 4) : HilbertOperator 1) (rotZ φ : HilbertOperator 1),
+        rotZ_comm_op (Real.pi / 4) φ,
+        ← mul_assoc (signalO x) (rotZ φ : HilbertOperator 1)
+          (rotZ (Real.pi / 4) : HilbertOperator 1),
         ← mul_assoc]
 
 theorem signalW_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalW x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
-  have h : signalW x = rotZ (-(Real.pi / 4)) *
+  have h : signalW x = (rotZ (-(Real.pi / 4)) : HilbertOperator 1) *
       (signalO x * rotZ (Real.pi / 4)) := by
-    rw [← rotZ_mul_signalW, ← mul_assoc, rotZ_neg_mul_rotZ, one_mul]
+    rw [← rotZ_mul_signalW, ← mul_assoc, rotZ_neg_mul_rotZ_op, one_mul]
   rw [h]
   exact mul_mem (rotZ_mem_unitaryGroup _)
     (mul_mem (signalO_mem_unitaryGroup hx) (rotZ_mem_unitaryGroup _))
@@ -719,21 +741,21 @@ theorem qspW_form_iff (φ₀ : ℝ) (φs : List ℝ) (P Q : ℂ[X]) (x : ℝ) :
   · intro h
     calc qspO φ₀ φs x
         = (rotZ (Real.pi / 4) * qspW φ₀ φs x) * rotZ (-(Real.pi / 4)) := by
-          rw [rotZ_mul_qspW, mul_assoc, rotZ_mul_rotZ_neg, mul_one]
+          rw [rotZ_mul_qspW, mul_assoc, rotZ_mul_rotZ_neg_op, mul_one]
       _ = (rotZ (Real.pi / 4) * qspMatW P Q x) * rotZ (-(Real.pi / 4)) := by
           rw [h]
       _ = qspMat P Q x := by
-          rw [rotZ_mul_qspMatW, mul_assoc, rotZ_mul_rotZ_neg, mul_one]
+          rw [rotZ_mul_qspMatW, mul_assoc, rotZ_mul_rotZ_neg_op, mul_one]
   · intro h
     calc qspW φ₀ φs x
         = rotZ (-(Real.pi / 4)) * (rotZ (Real.pi / 4) * qspW φ₀ φs x) := by
-          rw [← mul_assoc, rotZ_neg_mul_rotZ, one_mul]
+          rw [← mul_assoc, rotZ_neg_mul_rotZ_op, one_mul]
       _ = rotZ (-(Real.pi / 4)) * (qspMat P Q x * rotZ (Real.pi / 4)) := by
           rw [rotZ_mul_qspW, h]
       _ = rotZ (-(Real.pi / 4)) * (rotZ (Real.pi / 4) * qspMatW P Q x) := by
           rw [rotZ_mul_qspMatW]
       _ = qspMatW P Q x := by
-          rw [← mul_assoc, rotZ_neg_mul_rotZ, one_mul]
+          rw [← mul_assoc, rotZ_neg_mul_rotZ_op, one_mul]
 
 /-- **Quantum signal processing, Wx-convention (XZX form)**
 [GSLW19, BlockHam.tex:313] (`thm:basicCharacterisation`): a pair `(P, Q)`
