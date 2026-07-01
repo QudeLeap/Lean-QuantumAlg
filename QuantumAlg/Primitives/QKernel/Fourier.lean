@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Util.TrigPolynomial
+public import QuantumAlg.Util.Polynomial.Trigonometric
 public import Mathlib.Data.Matrix.Mul
 public import Mathlib.Tactic
 
@@ -17,7 +17,7 @@ public import Mathlib.Tactic
 For an `N`-input data-encoding circuit with a common diagonal generator, the fidelity
 quantum kernel `κ(x, x') = |⟨φ(x')|φ(x)⟩|²` is a finite sum of characters
 `e^{i⟨s,x⟩} e^{i⟨t,x'⟩}` whose frequencies are differences of the generator's eigenvalues
-(Schuld 2021). The encoding gates are modelled directly as diagonal phase matrices — the
+[Sch21, main.tex:350]. The encoding gates are modelled directly as diagonal phase matrices — the
 standard WLOG-diagonalization step — so the Fourier structure is proved genuinely while
 avoiding the matrix exponential.
 
@@ -39,11 +39,11 @@ variable {N d : ℕ}
 noncomputable def diagPhaseGate (lam : Fin d → ℝ) (xk : ℝ) : Matrix (Fin d) (Fin d) ℂ :=
   Matrix.diagonal (fun μ => Complex.exp (-Complex.I * ((xk * lam μ : ℝ) : ℂ)))
 
-/-- A data-parametrized vector each of whose components is an trigonometric polynomial. -/
+/-- A data-parametrized vector each of whose components is a trigonometric polynomial. -/
 def IsTrigPolynomialVec (v : (Fin N → ℝ) → (Fin d → ℂ)) : Prop :=
   ∀ m, ∃ f : TrigPolynomial N, ∀ x, v x m = f.eval x
 
-/-- Any constant vector is an trigonometric-polynomial vector (single zero frequency). -/
+/-- Any constant vector is a trigonometric-polynomial vector (single zero frequency). -/
 theorem isTrigPolynomialVec_const (w : Fin d → ℂ) :
     IsTrigPolynomialVec (fun _ : Fin N → ℝ => w) := by
   intro m
@@ -56,7 +56,7 @@ theorem IsTrigPolynomialVec.constMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (
   intro m
   choose f hf using hv
   refine ⟨TrigPolynomial.sum Finset.univ (fun j => (f j).smul (M m j)), fun x => ?_⟩
-  show (M *ᵥ v x) m = _
+  change (M *ᵥ v x) m = _
   rw [TrigPolynomial.eval_sum, show (M *ᵥ v x) m = ∑ j, M m j * v x j from rfl]
   exact Finset.sum_congr rfl (fun j _ => by rw [TrigPolynomial.eval_smul, ← hf j x])
 
@@ -67,7 +67,7 @@ theorem IsTrigPolynomialVec.phaseMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (
   intro m
   obtain ⟨f, hf⟩ := hv m
   refine ⟨f.expMul (-(lam m) • Pi.single k (1 : ℝ)), fun x => ?_⟩
-  show (diagPhaseGate lam (x k) *ᵥ v x) m = _
+  change (diagPhaseGate lam (x k) *ᵥ v x) m = _
   simp only [diagPhaseGate, Matrix.mulVec_diagonal]
   rw [hf x, TrigPolynomial.eval_expMul]
   congr 1
@@ -87,15 +87,19 @@ noncomputable def featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (la
         W ⟨j + 1, by omega⟩ *ᵥ (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x)
       else featState W lam ψ j x
 
-/-- Every layer of the feature state is an trigonometric-polynomial vector. -/
-theorem isTrigPolynomialVec_featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+/-- Every layer of the feature state is a trigonometric-polynomial vector. -/
+theorem isTrigPolynomialVec_featState
+    (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (j : ℕ) : IsTrigPolynomialVec (featState W lam ψ j) := by
   induction j with
   | zero => exact (isTrigPolynomialVec_const ψ).constMul (W 0)
   | succ j ih =>
       by_cases h : j < N
-      · have heq : featState W lam ψ (j + 1)
-            = fun x => W ⟨j + 1, by omega⟩ *ᵥ (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x) := by
+      · have heq :
+            featState W lam ψ (j + 1) =
+              fun x =>
+                W ⟨j + 1, by omega⟩ *ᵥ
+                  (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x) := by
           funext x; simp only [featState, dif_pos h]
         rw [heq]
         exact (ih.phaseMul lam ⟨j, h⟩).constMul (W ⟨j + 1, by omega⟩)
@@ -105,7 +109,8 @@ theorem isTrigPolynomialVec_featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d
 
 /-! ### Constructive feature components (explicit trigonometric polynomials) -/
 
-/-- A constant vector of trigonometric polynomials (each component a single zero-frequency term). -/
+/-- A constant vector of trigonometric polynomials, each component a single
+zero-frequency term. -/
 noncomputable def tpVecConst (w : Fin d → ℂ) : Fin d → TrigPolynomial N :=
   fun m => ⟨{0}, fun _ => w m⟩
 
@@ -117,7 +122,8 @@ noncomputable def tpVecConstMul (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → 
     Fin d → TrigPolynomial N :=
   fun m => TrigPolynomial.sum Finset.univ (fun j => (V j).smul (M m j))
 
-theorem tpVecConstMul_eval (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d)
+theorem tpVecConstMul_eval
+    (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d)
     (x : Fin N → ℝ) : (tpVecConstMul M V m).eval x = ∑ j, M m j * (V j).eval x := by
   simp only [tpVecConstMul, TrigPolynomial.eval_sum, TrigPolynomial.eval_smul]
 
@@ -132,7 +138,7 @@ theorem tpVecPhase_eval (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPol
       = Complex.exp (-Complex.I * ((x k * lam m : ℝ) : ℂ)) * (V m).eval x := by
   rw [tpVecPhase, TrigPolynomial.eval_expMul]
   congr 1
-  rw [freqDot_comm, freqDot_smul_single]; push_cast; ring
+  rw [freqDot_comm, freqDot_smul_single]; push_cast; ring_nf
 
 /-- The constructive feature component after `j` layers: an explicit `Fin d`-indexed family
 of trigonometric polynomials mirroring `featState`. -/
@@ -150,23 +156,29 @@ theorem featState_eq_featCompC (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) 
   induction j with
   | zero =>
       intro x m
-      show (W 0 *ᵥ ψ) m = _
+      change (W 0 *ᵥ ψ) m = _
       rw [featCompC, tpVecConstMul_eval]
       simp only [tpVecConst_eval]
       rfl
   | succ j ih =>
       intro x m
       by_cases h : j < N
-      · have hs : featState W lam ψ (j + 1) x m
-            = (W ⟨j + 1, by omega⟩ *ᵥ (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x)) m := by
+      · have hs :
+            featState W lam ψ (j + 1) x m =
+              (W ⟨j + 1, by omega⟩ *ᵥ
+                (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x)) m := by
           simp only [featState, dif_pos h]
-        have hc : featCompC W lam ψ (j + 1) m
-            = tpVecConstMul (W ⟨j + 1, by omega⟩) (tpVecPhase lam ⟨j, h⟩ (featCompC W lam ψ j)) m := by
+        have hc :
+            featCompC W lam ψ (j + 1) m =
+              tpVecConstMul (W ⟨j + 1, by omega⟩)
+                (tpVecPhase lam ⟨j, h⟩ (featCompC W lam ψ j)) m := by
           simp only [featCompC, dif_pos h]
-        rw [hs, hc, tpVecConstMul_eval,
-          show (W ⟨j + 1, by omega⟩ *ᵥ (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x)) m
-            = ∑ i, W ⟨j + 1, by omega⟩ m i
-                * (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x) i from rfl]
+        have hmul :
+            (W ⟨j + 1, by omega⟩ *ᵥ
+                (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x)) m =
+              ∑ i, W ⟨j + 1, by omega⟩ m i *
+                (diagPhaseGate lam (x ⟨j, h⟩) *ᵥ featState W lam ψ j x) i := rfl
+        rw [hs, hc, tpVecConstMul_eval, hmul]
         refine Finset.sum_congr rfl (fun i _ => ?_)
         rw [tpVecPhase_eval]
         congr 1
@@ -192,7 +204,8 @@ theorem featComp_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fi
 theorem tpVecConst_freqs (w : Fin d → ℂ) (m : Fin d) :
     (tpVecConst w m).freqs = ({0} : Finset (Fin N → ℝ)) := rfl
 
-theorem tpVecConstMul_freqs (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d) :
+theorem tpVecConstMul_freqs
+    (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d) :
     (tpVecConstMul M V m).freqs = Finset.univ.biUnion (fun j => (V j).freqs) := by
   simp only [tpVecConstMul, TrigPolynomial.sum_freqs, TrigPolynomial.smul_freqs]
 
@@ -220,8 +233,10 @@ theorem featCompC_layer (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : 
   | succ j ih =>
       intro m ω hω a
       by_cases hj : j < N
-      · have hfc : featCompC W lam ψ (j + 1) m
-            = tpVecConstMul (W ⟨j + 1, by omega⟩) (tpVecPhase lam ⟨j, hj⟩ (featCompC W lam ψ j)) m := by
+      · have hfc :
+            featCompC W lam ψ (j + 1) m =
+              tpVecConstMul (W ⟨j + 1, by omega⟩)
+                (tpVecPhase lam ⟨j, hj⟩ (featCompC W lam ψ j)) m := by
           simp only [featCompC, dif_pos hj]
         rw [hfc, tpVecConstMul_freqs] at hω
         simp only [tpVecPhase_freqs, Finset.mem_biUnion, Finset.mem_image] at hω
@@ -261,11 +276,13 @@ theorem featComp_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fi
     (a : Fin N) : ∃ μ, ω a = -lam μ :=
   (featCompC_layer W lam ψ N m ω hω a).1 a.isLt
 
-/-- The overlap `⟨φ(x')|φ(x)⟩` as an trigonometric polynomial in the concatenated variable. -/
+/-- The overlap `⟨φ(x')|φ(x)⟩` as a trigonometric polynomial in the concatenated variable. -/
 noncomputable def overlapES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) : TrigPolynomial (N + N) :=
   TrigPolynomial.sum Finset.univ
-    (fun m => ((featComp W lam ψ m).conj.embedR (m := N)).mul ((featComp W lam ψ m).embedL (n := N)))
+    (fun m =>
+      ((featComp W lam ψ m).conj.embedR (m := N)).mul
+        ((featComp W lam ψ m).embedL (n := N)))
 
 theorem overlapES_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (x x' : Fin N → ℝ) :
@@ -273,29 +290,34 @@ theorem overlapES_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : F
       = ∑ m, (starRingEnd ℂ) (featState W lam ψ N x' m) * featState W lam ψ N x m := by
   rw [overlapES, TrigPolynomial.eval_sum]
   refine Finset.sum_congr rfl (fun m _ => ?_)
-  rw [TrigPolynomial.eval_mul, TrigPolynomial.eval_embedL, TrigPolynomial.eval_embedR, TrigPolynomial.eval_conj,
+  rw [TrigPolynomial.eval_mul, TrigPolynomial.eval_embedL,
+      TrigPolynomial.eval_embedR, TrigPolynomial.eval_conj,
       ← featComp_eval W lam ψ m x', ← featComp_eval W lam ψ m x]
 
-/-- The quantum kernel as an trigonometric polynomial: the squared modulus of the overlap. -/
+/-- The quantum kernel as a trigonometric polynomial: the squared modulus of the overlap. -/
 noncomputable def kernelES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) : TrigPolynomial (N + N) :=
   (overlapES W lam ψ).mul (overlapES W lam ψ).conj
 
-/-- **Fourier representation of the quantum kernel** (Schuld 2021). The fidelity kernel
+/-- **Fourier representation of the quantum kernel** [Sch21, main.tex:357]. The fidelity kernel
 `κ(x,x') = |⟨φ(x')|φ(x)⟩|²` is a finite sum of characters `e^{i⟨ω,(x,x')⟩}` whose
 frequencies (the elements of `(kernelES …).freqs`) are differences of the generator's
 eigenvalue vectors. -/
 theorem fourier_representation (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (x x' : Fin N → ℝ) :
-    (Complex.normSq (∑ m, (starRingEnd ℂ) (featState W lam ψ N x' m) * featState W lam ψ N x m) : ℂ)
+    (Complex.normSq
+        (∑ m, (starRingEnd ℂ) (featState W lam ψ N x' m) *
+          featState W lam ψ N x m) : ℂ)
       = ∑ ω ∈ (kernelES W lam ψ).freqs,
-          (kernelES W lam ψ).coeff ω * Complex.exp (Complex.I * (freqDot ω (Fin.append x x') : ℂ)) := by
+          (kernelES W lam ψ).coeff ω *
+            Complex.exp (Complex.I * (freqDot ω (Fin.append x x') : ℂ)) := by
   have hov := overlapES_eval W lam ψ x x'
-  show _ = (kernelES W lam ψ).eval (Fin.append x x')
+  change _ = (kernelES W lam ψ).eval (Fin.append x x')
   rw [kernelES, TrigPolynomial.eval_mul, TrigPolynomial.eval_conj, ← hov, Complex.mul_conj]
 
-/-- **Reality condition.** The kernel's Fourier coefficients are conjugate-symmetric under
-frequency negation, which is exactly what makes the kernel real-valued. -/
+/-- **Reality condition** [Sch21, main.tex:360]. The kernel's Fourier coefficients are
+conjugate-symmetric under frequency negation, which is exactly what makes the kernel
+real-valued. -/
 theorem fourier_real (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (ω : Fin (N + N) → ℝ) :
     (kernelES W lam ψ).coeffAt ω = (starRingEnd ℂ) ((kernelES W lam ψ).coeffAt (-ω)) := by
@@ -337,8 +359,8 @@ theorem overlapES_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : F
     rw [Pi.add_apply, Fin.append_right, Fin.append_right, Pi.zero_apply, zero_add,
       Pi.neg_apply, hν', neg_neg]
 
-/-- **Integer-spectrum corollary** (Schuld 2021). If every eigenvalue difference is an
-integer, every kernel frequency has integer coordinates — the kernel is a genuine
+/-- **Integer-spectrum corollary** [Sch21, main.tex:368]. If every eigenvalue difference is
+an integer, every kernel frequency has integer coordinates — the kernel is a genuine
 multidimensional Fourier series. -/
 theorem fourier_integer_spectrum (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (hint : ∀ i j : Fin d, ∃ z : ℤ, lam i - lam j = z)
@@ -385,19 +407,18 @@ theorem pauliX_featState (x : ℝ) :
           (((Real.sqrt 2)⁻¹ : ℝ) : ℂ) * Complex.exp (-(Complex.I * ↑(x / 2)))] := by
   have hstep : featState pauliXW pauliXSpectrum pauliXPsi 1 ![x]
       = (1 : Matrix (Fin 2) (Fin 2) ℂ)
-          *ᵥ (diagPhaseGate pauliXSpectrum x *ᵥ ((1 : Matrix (Fin 2) (Fin 2) ℂ) *ᵥ pauliXPsi)) := rfl
+          *ᵥ (diagPhaseGate pauliXSpectrum x *ᵥ
+            ((1 : Matrix (Fin 2) (Fin 2) ℂ) *ᵥ pauliXPsi)) := rfl
   rw [hstep, Matrix.one_mulVec, Matrix.one_mulVec]
   funext i
   fin_cases i
-  · simp only [diagPhaseGate, pauliXSpectrum, pauliXPsi, Matrix.mulVec_diagonal,
-      Matrix.cons_val_zero]
+  · simp only [diagPhaseGate, pauliXSpectrum, pauliXPsi, Matrix.mulVec_diagonal]
     rw [mul_comm]; congr 1; congr 1; push_cast; ring
-  · simp only [diagPhaseGate, pauliXSpectrum, pauliXPsi, Matrix.mulVec_diagonal,
-      Matrix.cons_val_one, Matrix.head_cons]
+  · simp only [diagPhaseGate, pauliXSpectrum, pauliXPsi, Matrix.mulVec_diagonal]
     rw [mul_comm]; congr 1; congr 1; push_cast; ring
 
-/-- **Non-vacuity witness** (Schuld 2021). The single-qubit cosine-encoding quantum kernel
-equals the squared-cosine kernel `cos²((x-x')/2)`. -/
+/-- **Non-vacuity witness** [Sch21, main.tex:931]. The single-qubit cosine-encoding quantum
+kernel equals the squared-cosine kernel `cos²((x-x')/2)`. -/
 theorem pauliX_kernel_eq_cos_sq (x x' : ℝ) :
     Complex.normSq (∑ m, (starRingEnd ℂ) (featState pauliXW pauliXSpectrum pauliXPsi 1 ![x'] m)
         * featState pauliXW pauliXSpectrum pauliXPsi 1 ![x] m)
@@ -414,9 +435,12 @@ theorem pauliX_kernel_eq_cos_sq (x x' : ℝ) :
     rw [← Complex.exp_conj]; congr 1; rw [map_mul, Complex.conj_I, Complex.conj_ofReal]; ring
   have hconj2 : (starRingEnd ℂ) (Complex.exp (-(Complex.I * ↑(x' / 2))))
       = Complex.exp (Complex.I * ↑(x' / 2)) := by
-    rw [← Complex.exp_conj]; congr 1; rw [map_neg, map_mul, Complex.conj_I, Complex.conj_ofReal]; ring
+    rw [← Complex.exp_conj]
+    congr 1
+    rw [map_neg, map_mul, Complex.conj_I, Complex.conj_ofReal]
+    ring
   rw [pauliX_featState, pauliX_featState, Fin.sum_univ_two]
-  simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons, map_mul,
+  simp only [Matrix.cons_val_zero, Matrix.cons_val_one, map_mul,
     Complex.conj_ofReal, hconj1, hconj2]
   rw [show (((Real.sqrt 2)⁻¹ : ℝ) : ℂ) * Complex.exp (-(Complex.I * ↑(x' / 2)))
           * ((((Real.sqrt 2)⁻¹ : ℝ) : ℂ) * Complex.exp (Complex.I * ↑(x / 2)))

@@ -55,40 +55,44 @@ noncomputable section
 
 For arbitrary amplitudes this is a raw vector; a physical input qubit is a
 `PureState` only after a norm-one proof is supplied. -/
-def teleportInput (α β : ℂ) : StateVector 1 :=
-  α • (ket0 : StateVector 1) + β • (ket1 : StateVector 1)
+def teleportInput (α β : ℂ) : StateVector (Qubits 1) :=
+  α • (ket0 : StateVector (Qubits 1)) + β • (ket1 : StateVector (Qubits 1))
 
 /-- Alice's unitary before measuring her two qubits: CNOT on qubits `0,1`,
 then Hadamard on qubit `0` [dW19, qcnotes.tex:790]. -/
-def teleportBellMeasure : Gate 3 :=
-  Gate.tensor H (1 : Gate 2) * Gate.tensor CNOT (1 : Gate 1)
+def teleportBellMeasure : Gate (Qubits 3) :=
+  Gate.tensor H (1 : Gate (Qubits 2)) * Gate.tensor CNOT (1 : Gate (Qubits 1))
 
 /-- Bob's branch before correction for Alice's classical outcome bits `ab`:
 `00 ↦ I`, `01 ↦ X`, `10 ↦ Z`, `11 ↦ XZ`. -/
-def teleportBranchGate (a b : Bool) : Gate 1 :=
+def teleportBranchGate (a b : Bool) : Gate (Qubits 1) :=
   (if b then X else 1) * (if a then Z else 1)
 
 /-- Bob's classical correction for Alice's outcome bits `ab`: apply `X` when
 `b = 1`, then `Z` when `a = 1` [dW19, qcnotes.tex:804]. -/
-def teleportCorrection (a b : Bool) : Gate 1 :=
+def teleportCorrection (a b : Bool) : Gate (Qubits 1) :=
   (if a then Z else 1) * (if b then X else 1)
 
 /-- The Bell-pair resource can be prepared by the already-proved Bell-state
 circuit. This pins teleportation's shared EPR-pair to `bell_state_prep`. -/
 theorem teleportation_uses_bell_state_prep :
-    CNOT.apply ((H.tensor (1 : Gate 1)).apply (ket0.tensor ket0)) = bell :=
-  BellStatePreparation.main
+    CNOT.applyVec
+        ((H.tensor (1 : Gate (Qubits 1))).applyVec BellStatePreparation.input)
+      = (bell : StateVector (Qubits 2)) :=
+  by
+    simpa [BellStatePreparation.circuit, BellStatePreparation.input,
+      Circuit.apply_ofGate, Gate.mul_applyVec] using BellStatePreparation.main
 
 /-- Three-qubit computational basis vectors at the raw-vector layer. -/
-def teleKet3 (j : Fin (2 ^ 3)) : StateVector 3 :=
-  (ket j : PureState 3)
+def teleKet3 (j : Fin (2 ^ 3)) : StateVector (Qubits 3) :=
+  (ket j : PureState (Qubits 3))
 
 /-- Basis-vector expansion of Alice's premeasurement state. This is the
 three-qubit equation displayed in de Wolf's teleportation example
 [dW19, qcnotes.tex:791]. -/
 theorem teleportation_premeasurement_basis (α β : ℂ) :
     teleportBellMeasure.applyVec
-        (StateVector.tensor (teleportInput α β) (bell : StateVector 2))
+        (StateVector.tensor (teleportInput α β) (bell : StateVector (Qubits 2)))
       = (2 : ℂ)⁻¹ •
         ((α • teleKet3 0) + (β • teleKet3 1)
           + (β • teleKet3 2) + (α • teleKet3 3)
@@ -110,19 +114,19 @@ theorem teleportation_premeasurement_basis (α β : ℂ) :
 coefficient `1/2` before conditional normalization [dW19, qcnotes.tex:791]. -/
 theorem teleportation_premeasurement (α β : ℂ) :
     teleportBellMeasure.applyVec
-        (StateVector.tensor (teleportInput α β) (bell : StateVector 2))
+        (StateVector.tensor (teleportInput α β) (bell : StateVector (Qubits 2)))
       = (2 : ℂ)⁻¹ •
         (StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate false false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate false true).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate true false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate true true).applyVec (teleportInput α β))) := by
   apply WithLp.ofLp_injective
   funext i
@@ -155,19 +159,19 @@ for every classical outcome `ab`, Bob's correction recovers Alice's input qubit
 exactly. -/
 theorem teleportation_correct (α β : ℂ) :
     teleportBellMeasure.applyVec
-        (StateVector.tensor (teleportInput α β) (bell : StateVector 2))
+        (StateVector.tensor (teleportInput α β) (bell : StateVector (Qubits 2)))
       = (2 : ℂ)⁻¹ •
         (StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate false false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate false true).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate true false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate true true).applyVec (teleportInput α β)))
     ∧ ∀ a b : Bool,
         (teleportCorrection a b).applyVec
@@ -181,19 +185,19 @@ theorem teleportation_correct (α β : ℂ) :
 /-- The proposition proved by one teleportation block. -/
 def TeleportationBlockCorrect (α β : ℂ) : Prop :=
   teleportBellMeasure.applyVec
-      (StateVector.tensor (teleportInput α β) (bell : StateVector 2))
+      (StateVector.tensor (teleportInput α β) (bell : StateVector (Qubits 2)))
       = (2 : ℂ)⁻¹ •
         (StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate false false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket0 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate false true).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket0 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
           ((teleportBranchGate true false).applyVec (teleportInput α β))
         + StateVector.tensor
-          (StateVector.tensor (ket1 : StateVector 1) (ket1 : StateVector 1))
+          (StateVector.tensor (ket1 : StateVector (Qubits 1)) (ket1 : StateVector (Qubits 1)))
           ((teleportBranchGate true true).applyVec (teleportInput α β)))
     ∧ ∀ a b : Bool,
         (teleportCorrection a b).applyVec

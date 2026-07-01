@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Core.Measurement
+public import QuantumAlg.Core.Base
 
 /-!
 # Named one-qubit kets
@@ -31,10 +31,10 @@ namespace PureState
 noncomputable section
 
 /-- `|0>`, the first one-qubit basis ket. -/
-def ket0 : PureState 1 := ket 0
+def ket0 : PureState (Qubits 1) := ket 0
 
 /-- `|1>`, the second one-qubit basis ket. -/
-def ket1 : PureState 1 := ket 1
+def ket1 : PureState (Qubits 1) := ket 1
 
 /-- `(sqrt 2)^-1 : ℂ`, the ubiquitous normalization scalar. -/
 def invSqrt2 : ℂ := (Real.sqrt 2 : ℂ)⁻¹
@@ -70,11 +70,13 @@ theorem invSqrt2_ne_zero : invSqrt2 ≠ 0 :=
   inv_ne_zero <| Complex.ofReal_ne_zero.mpr <|
     Real.sqrt_ne_zero'.mpr (by norm_num)
 
-def ketPlusVec : StateVector 1 :=
-  invSqrt2 • ((ket0 : StateVector 1) + (ket1 : StateVector 1))
+/-- The one-qubit `|+>` state vector. -/
+def ketPlusVec : StateVector (Qubits 1) :=
+  invSqrt2 • ((ket0 : StateVector (Qubits 1)) + (ket1 : StateVector (Qubits 1)))
 
-def ketMinusVec : StateVector 1 :=
-  invSqrt2 • ((ket0 : StateVector 1) - (ket1 : StateVector 1))
+/-- The one-qubit `|->` state vector. -/
+def ketMinusVec : StateVector (Qubits 1) :=
+  invSqrt2 • ((ket0 : StateVector (Qubits 1)) - (ket1 : StateVector (Qubits 1)))
 
 @[simp]
 theorem ketPlusVec_apply (i : Fin (2 ^ 1)) :
@@ -92,7 +94,7 @@ theorem norm_sq_invSqrt2 : ‖invSqrt2‖ ^ 2 = 2⁻¹ := by
   rw [norm_invSqrt2, inv_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
 
 /-- Norm over `Fin (2 ^ 1)` as a two-term sum. -/
-theorem norm_eq_two_terms (psi : StateVector 1) :
+theorem norm_eq_two_terms (psi : StateVector (Qubits 1)) :
     ‖psi‖ = √(‖psi 0‖ ^ 2 + ‖psi 1‖ ^ 2) := by
   rw [EuclideanSpace.norm_eq]
   congr 1
@@ -110,10 +112,10 @@ theorem norm_ketMinusVec : ‖ketMinusVec‖ = 1 := by
   norm_num
 
 /-- `|+> = (|0> + |1>)/sqrt 2`. -/
-def ketPlus : PureState 1 := ofVec ketPlusVec norm_ketPlusVec
+def ketPlus : PureState (Qubits 1) := ofVec ketPlusVec norm_ketPlusVec
 
 /-- `|-> = (|0> - |1>)/sqrt 2`. -/
-def ketMinus : PureState 1 := ofVec ketMinusVec norm_ketMinusVec
+def ketMinus : PureState (Qubits 1) := ofVec ketMinusVec norm_ketMinusVec
 
 @[simp]
 theorem ketPlus_apply (i : Fin (2 ^ 1)) : ketPlus i = invSqrt2 := by
@@ -126,21 +128,19 @@ theorem ketMinus_apply (i : Fin (2 ^ 1)) :
   change ketMinusVec i = if i = 0 then invSqrt2 else -invSqrt2
   rw [ketMinusVec_apply]
 
-@[simp]
 theorem norm_ketPlus : ‖ketPlus‖ = 1 := by
   exact ketPlus.norm_eq_one
 
-@[simp]
 theorem norm_ketMinus : ‖ketMinus‖ = 1 := by
   exact ketMinus.norm_eq_one
 
 /-- Workhorse for test circuits: on `|0> ⊗ alpha + |1> ⊗ beta` the probability
 of reading `0` on qubit 0 is `‖alpha‖^2`. -/
 theorem probQubit0_ket0_tensor_add_ket1_tensor {n : ℕ}
-    (alpha beta : StateVector n) :
+    (alpha beta : StateVector (Qubits n)) :
     StateVector.probQubit0
-        (StateVector.tensor (ket0 : StateVector 1) alpha
-          + StateVector.tensor (ket1 : StateVector 1) beta) 0
+        (StateVector.tensor (ket0 : StateVector (Qubits 1)) alpha
+          + StateVector.tensor (ket1 : StateVector (Qubits 1)) beta) 0
       = ‖alpha‖ ^ 2 := by
   rw [StateVector.probQubit0, EuclideanSpace.norm_eq,
     Real.sq_sqrt (Finset.sum_nonneg fun i _ => sq_nonneg ‖alpha i‖)]
@@ -153,10 +153,10 @@ theorem probQubit0_ket0_tensor_add_ket1_tensor {n : ℕ}
 /-- On `|0> ⊗ alpha + |1> ⊗ beta` the probability of reading `1` on qubit 0 is
 `‖beta‖^2`. -/
 theorem probQubit1_ket0_tensor_add_ket1_tensor {n : ℕ}
-    (alpha beta : StateVector n) :
+    (alpha beta : StateVector (Qubits n)) :
     StateVector.probQubit0
-        (StateVector.tensor (ket0 : StateVector 1) alpha
-          + StateVector.tensor (ket1 : StateVector 1) beta) 1
+        (StateVector.tensor (ket0 : StateVector (Qubits 1)) alpha
+          + StateVector.tensor (ket1 : StateVector (Qubits 1)) beta) 1
       = ‖beta‖ ^ 2 := by
   rw [StateVector.probQubit0, EuclideanSpace.norm_eq,
     Real.sq_sqrt (Finset.sum_nonneg fun i _ => sq_nonneg ‖beta i‖)]

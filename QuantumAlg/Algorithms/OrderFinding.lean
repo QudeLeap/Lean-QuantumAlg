@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Algorithms.QPE
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Order finding (exact, dyadic period `r ∣ 2^t`)
@@ -64,7 +65,8 @@ linear combination before it is packaged as a `PureState`. -/
 theorem main_exact_dyadic {t s r : ℕ} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
     (hsr : Nat.Coprime s r) (j : Fin (2 ^ t))
     (hj : j.val = s * (2 ^ t / r)) :
-    (invQFT t).applyVec (phaseState t ((s : ℝ) / r)) = (ket j : StateVector t)
+    (invQFT t).applyVec (phaseState t ((s : ℝ) / r))
+      = (PureState.ket (R := Qubits t) j : StateVector (Qubits t))
       ∧ 2 ^ t / Nat.gcd j.val (2 ^ t) = r := by
   refine ⟨?_, ?_⟩
   · apply QuantumPhaseEstimation.main_exact_dyadic
@@ -96,6 +98,11 @@ theorem orderFindingExactResourceProfile_exact (t : ℕ) :
     ResourceProfile.HasExactCounts
       (orderFindingExactResourceProfile t) 1 t (t ^ 2) 1 := by
   simp [ResourceProfile.HasExactCounts, orderFindingExactResourceProfile]
+
+/-- Typed circuit witness for the exact order-finding endpoint. -/
+def orderFindingCircuit (t : ℕ) : Circuit (Qubits t) :=
+  Circuit.abstract (Qubits t) "order-finding" (orderFindingExactResourceProfile t)
+    (t ^ 2) 1
 
 /-- Register assumptions for the modular-exponentiation oracle used in exact
 order finding. The target register has `m` qubits, large enough to hold
@@ -141,11 +148,11 @@ theorem modExpOraclePerm_symm {N x t m : ℕ} (A : ModExpOracleAccess N x t m) :
 
 /-- The modular-exponentiation oracle gate in the public access model:
 `U_x |a,y> = |a, y xor (x^a mod N)>`. -/
-def modExpOracle {N x t m : ℕ} (A : ModExpOracleAccess N x t m) : Gate (t + m) :=
+def modExpOracle {N x t m : ℕ} (A : ModExpOracleAccess N x t m) : Gate (Qubits (t + m)) :=
   Gate.ofPerm (prodEquiv.permCongr (modExpOraclePerm A))
 
 theorem modExpOracle_mem_unitaryGroup {N x t m : ℕ} (A : ModExpOracleAccess N x t m) :
-    ((modExpOracle A : Gate (t + m)) : HilbertOperator (t + m))
+    ((modExpOracle A : Gate (Qubits (t + m))) : HilbertOperator (Qubits (t + m)))
       ∈ Matrix.unitaryGroup (Fin (2 ^ (t + m))) ℂ :=
   Gate.ofPerm_mem_unitaryGroup _
 
@@ -164,7 +171,8 @@ theorem modExpOracle_apply_ket {N x t m : ℕ} (A : ModExpOracleAccess N x t m)
 theorem main_exact_dyadic_with_resources {t s r : ℕ}
     (hr : 0 < r) (hrt : r ∣ 2 ^ t) (hsr : Nat.Coprime s r)
     (j : Fin (2 ^ t)) (hj : j.val = s * (2 ^ t / r)) :
-    ((invQFT t).applyVec (phaseState t ((s : ℝ) / r)) = (ket j : StateVector t)
+    ((invQFT t).applyVec (phaseState t ((s : ℝ) / r))
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t))
       ∧ 2 ^ t / Nat.gcd j.val (2 ^ t) = r) ∧
       ResourceProfile.HasExactCounts
         (orderFindingExactResourceProfile t) 1 t (t ^ 2) 1 := by
@@ -211,7 +219,8 @@ theorem main_output_with_resources {N x t r s : ℕ}
   have hlt : s * q < 2 ^ t := by
     rw [hq]
     exact Nat.mul_lt_mul_of_pos_right hs hqpos
-  refine ⟨⟨s * q, hlt⟩, ?_, ?_⟩
+  refine ⟨⟨s * q, hlt⟩, ?_⟩
+  constructor
   · rw [hdiv]
   · exact orderFindingExactResourceProfile_exact t
 
@@ -226,7 +235,7 @@ profile. -/
 theorem main {N x t m r s : ℕ}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (hrt : r ∣ 2 ^ t) (hs : s < r) :
-    (((modExpOracle A : Gate (t + m)) : HilbertOperator (t + m))
+    (((modExpOracle A : Gate (Qubits (t + m))) : HilbertOperator (Qubits (t + m)))
         ∈ Matrix.unitaryGroup (Fin (2 ^ (t + m))) ℂ ∧
       ∀ a : Fin (2 ^ t), ∀ y : Fin (2 ^ m),
         (modExpOracle A).apply (ket (prodEquiv (a, y))) =
@@ -241,6 +250,26 @@ theorem main {N x t m r s : ℕ}
     · intro a y
       exact modExpOracle_apply_ket A a y
   · exact main_output_with_resources hinput hrt hs
+
+/-- Resource-correct public witness for exact order finding. -/
+def mainResourceCorrectWitness {N x t m r s : ℕ}
+    (hinput : OrderFinding.Input N x r)
+    (A : ModExpOracleAccess N x t m) (hrt : r ∣ 2 ^ t) (hs : s < r) :
+    ResourceCorrectWitness (R := Qubits t)
+      ((((modExpOracle A : Gate (Qubits (t + m))) : HilbertOperator (Qubits (t + m)))
+          ∈ Matrix.unitaryGroup (Fin (2 ^ (t + m))) ℂ ∧
+        ∀ a : Fin (2 ^ t), ∀ y : Fin (2 ^ m),
+          (modExpOracle A).apply (ket (prodEquiv (a, y))) =
+            ket (prodEquiv (a, modExpOracleTarget A a y))) ∧
+        ∃ j : Fin (2 ^ t),
+          j.val = s * (2 ^ t / r) ∧
+            ResourceProfile.HasExactCounts
+              (orderFindingExactResourceProfile t) 1 t (t ^ 2) 1)
+      (ResourceProfile.HasExactCounts (orderFindingCircuit t).resources 1 t (t ^ 2) 1) := by
+  exact
+    { circuit := orderFindingCircuit t
+      correctness := main hinput A hrt hs
+      resources := by simpa [orderFindingCircuit] using orderFindingExactResourceProfile_exact t }
 
 end OrderFinding
 

@@ -136,6 +136,16 @@ theorem ofReal_sin_sq_add_cos_sq (t : ℝ) :
   norm_cast
   linear_combination Real.sin_sq_add_cos_sq t
 
+/-- A unit-norm complex number is the exponential of its argument. -/
+theorem exp_arg_of_norm_eq_one (z : ℂ) (hz : ‖z‖ = 1) :
+    Complex.exp ((Complex.arg z : ℂ) * Complex.I) = z := by
+  calc
+    Complex.exp ((Complex.arg z : ℂ) * Complex.I)
+        = (‖z‖ : ℂ) * Complex.exp ((Complex.arg z : ℂ) * Complex.I) := by
+          rw [hz]
+          norm_num
+    _ = z := Complex.norm_mul_exp_arg_mul_I z
+
 /-- `t ↦ e^{it}` is injective on `(0, π)`. -/
 theorem exp_I_injOn_Ioo :
     Set.InjOn (fun t : ℝ => Complex.exp ((t : ℂ) * Complex.I))
@@ -173,6 +183,29 @@ theorem mul_conj_eq_norm_sq (z : ℂ) :
   conv_lhs => rw [← Complex.norm_mul_exp_arg_mul_I z]
   rw [map_mul, Complex.conj_ofReal, conj_exp_I]
   linear_combination ((‖z‖ : ℂ) * (‖z‖ : ℂ)) * exp_I_mul_exp_neg_I z.arg
+
+/-- If `c / k` is a nonnegative real number, then it has a complex square-root
+scale in the form needed by Laurent root-product normalizations. -/
+theorem exists_scale_mul_conj_mul_eq_of_div_nonnegative_real {c k : ℂ}
+    (hk : k ≠ 0) (him : (c / k).im = 0) (hre : 0 ≤ (c / k).re) :
+    ∃ s : ℂ, s * starRingEnd ℂ s * k = c := by
+  let r : ℝ := Real.sqrt ((c / k).re)
+  have hr2 : r ^ 2 = (c / k).re := Real.sq_sqrt hre
+  have hreal : (((c / k).re : ℝ) : ℂ) = c / k := by
+    apply Complex.ext
+    · simp
+    · simpa using him.symm
+  refine ⟨(r : ℂ), ?_⟩
+  calc
+    (r : ℂ) * starRingEnd ℂ (r : ℂ) * k =
+        ((r ^ 2 : ℝ) : ℂ) * k := by
+          rw [Complex.conj_ofReal]
+          have hrpow : (r : ℂ) * (r : ℂ) = ((r ^ 2 : ℝ) : ℂ) := by
+            norm_num [sq]
+          rw [hrpow]
+    _ = (((c / k).re : ℝ) : ℂ) * k := by rw [hr2]
+    _ = (c / k) * k := by rw [hreal]
+    _ = c := div_mul_cancel₀ c hk
 
 /-- A unit-normalized multiple of a nonzero pair, with real product: the
 phase `e^{-i·arg(pq)/2}` makes `|cp|² + |cq|² = 1` and `c²pq` real. -/

@@ -9,6 +9,7 @@ module
 public import QuantumAlg.Init
 public import QuantumAlg.Primitives.WalshHadamard
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Bernstein-Vazirani algorithm
@@ -220,7 +221,6 @@ exactly to the classical state `|s⟩` [dW19, qcnotes.tex:1296]. -/
 theorem finalState_oracle (s : Fin (2 ^ n)) :
     finalState (oracle s) = ket s := by
   ext y
-  change finalState (oracle s) y = ket s y
   rw [WalshHadamard.finalState, Gate.apply_apply, ket_apply]
   have hterm : ∀ j, hadamardLayer n y j * afterPhaseQuery (oracle s) j
       = ((2 ^ n : ℕ) : ℂ)⁻¹ * (walshSign y j * walshSign s j) := fun j => by
@@ -239,7 +239,7 @@ theorem finalState_oracle (s : Fin (2 ^ n)) :
   · rw [if_neg hys, sum_walshSign_mul_walshSign hys, mul_zero]
 
 /-- The final Bernstein-Vazirani joint state, annotated with one oracle query. -/
-def timedFinalJointState (s : Fin (2 ^ n)) : Timed (PureState (n + 1)) :=
+def timedFinalJointState (s : Fin (2 ^ n)) : Timed (PureState (Qubits (n + 1))) :=
   Timed.trusted 1 (WalshHadamard.finalJointState (oracle s))
 
 @[simp]
@@ -275,7 +275,7 @@ theorem resourceProfile_exact (n : ℕ) :
   simp [ResourceProfile.HasExactCounts, resourceProfile]
 
 /-- The final Bernstein-Vazirani joint state with its public resource profile. -/
-def profiledFinalJointState (s : Fin (2 ^ n)) : Profiled (PureState (n + 1)) :=
+def profiledFinalJointState (s : Fin (2 ^ n)) : Profiled (PureState (Qubits (n + 1))) :=
   Profiled.trusted (resourceProfile n) (WalshHadamard.finalJointState (oracle s))
 
 @[simp]
@@ -285,6 +285,11 @@ theorem profiledFinalJointState_ret (s : Fin (2 ^ n)) :
 @[simp]
 theorem profiledFinalJointState_resources (s : Fin (2 ^ n)) :
     (profiledFinalJointState s).resources = resourceProfile n := rfl
+
+/-- Typed circuit witness for the Bernstein-Vazirani endpoint. -/
+def circuit (n : ℕ) : Circuit (Qubits (n + 1)) :=
+  Circuit.abstract (Qubits (n + 1)) "bernstein-vazirani" (resourceProfile n)
+    (2 * n + 1) 1
 
 /-- **Bernstein-Vazirani correctness**: running the Deutsch-Jozsa circuit
 with the inner-product oracle of hidden string `s` leaves the joint register
@@ -310,6 +315,18 @@ theorem main_with_resources (s : Fin (2 ^ n)) :
   constructor
   · exact main s
   · simp [resourceProfile_exact n]
+
+/-- Resource-correct public witness: correctness and costs are attached to one
+typed circuit record. -/
+def mainResourceCorrectWitness (s : Fin (2 ^ n)) :
+    ResourceCorrectWitness (R := Qubits (n + 1))
+      (WalshHadamard.finalJointState (oracle s) = (ket s).tensor ketMinus)
+      (ResourceProfile.HasExactCounts (circuit n).resources
+        1 (2 * n + 1) (2 * n + 1) 0) := by
+  exact
+    { circuit := circuit n
+      correctness := main s
+      resources := by simpa [circuit] using resourceProfile_exact n }
 
 end BernsteinVazirani
 

@@ -47,7 +47,7 @@ structure TrigPolynomial (k : ℕ) where
   /-- The complex coefficient at each frequency. -/
   coeff : (Fin k → ℝ) → ℂ
 
-/-- Evaluate an trigonometric polynomial at a data point `x`. -/
+/-- Evaluate a trigonometric polynomial at a data point `x`. -/
 noncomputable def TrigPolynomial.eval (f : TrigPolynomial k) (x : Fin k → ℝ) : ℂ :=
   ∑ ω ∈ f.freqs, f.coeff ω * Complex.exp (Complex.I * (freqDot ω x : ℂ))
 
@@ -74,10 +74,11 @@ def TrigPolynomial.zero : TrigPolynomial k where
   freqs := ∅
   coeff := fun _ => 0
 
-@[simp] theorem TrigPolynomial.eval_zero (x : Fin k → ℝ) : (TrigPolynomial.zero : TrigPolynomial k).eval x = 0 := by
+@[simp] theorem TrigPolynomial.eval_zero (x : Fin k → ℝ) :
+    (TrigPolynomial.zero : TrigPolynomial k).eval x = 0 := by
   simp [TrigPolynomial.eval, TrigPolynomial.zero]
 
-/-- Scale an trigonometric polynomial by a complex constant. -/
+/-- Scale a trigonometric polynomial by a complex constant. -/
 def TrigPolynomial.smul (c : ℂ) (f : TrigPolynomial k) : TrigPolynomial k where
   freqs := f.freqs
   coeff := fun ω => c * f.coeff ω
@@ -104,9 +105,10 @@ theorem TrigPolynomial.eval_add (f g : TrigPolynomial k) (x : Fin k → ℝ) :
         (fun ω _ hω => by rw [if_neg hω, zero_mul])]
     exact Finset.sum_congr rfl (fun ω hω => by rw [if_pos hω])
 
-/-- Multiply an trigonometric polynomial by the character `e^{i⟨a,x⟩}`: shifts every frequency
+/-- Multiply a trigonometric polynomial by the character `e^{i⟨a,x⟩}`: shifts every frequency
 by `a` and leaves the coefficients (re-indexed) unchanged. -/
-noncomputable def TrigPolynomial.expMul (a : Fin k → ℝ) (f : TrigPolynomial k) : TrigPolynomial k where
+noncomputable def TrigPolynomial.expMul (a : Fin k → ℝ)
+    (f : TrigPolynomial k) : TrigPolynomial k where
   freqs := f.freqs.image (fun ω => ω + a)
   coeff := fun ω => f.coeff (ω - a)
 
@@ -120,12 +122,15 @@ theorem TrigPolynomial.eval_expMul (a : Fin k → ℝ) (f : TrigPolynomial k) (x
   rw [mul_add, Complex.exp_add]
   ring
 
-/-- A finite sum of trigonometric polynomials (frequencies union over the index, coefficients added). -/
-noncomputable def TrigPolynomial.sum {ι : Type*} (s : Finset ι) (F : ι → TrigPolynomial k) : TrigPolynomial k where
+/-- A finite sum of trigonometric polynomials: frequencies union over the
+index, and coefficients are added. -/
+noncomputable def TrigPolynomial.sum {ι : Type*} (s : Finset ι)
+    (F : ι → TrigPolynomial k) : TrigPolynomial k where
   freqs := s.biUnion (fun i => (F i).freqs)
   coeff := fun ω => ∑ i ∈ s, (if ω ∈ (F i).freqs then (F i).coeff ω else 0)
 
-theorem TrigPolynomial.eval_sum {ι : Type*} (s : Finset ι) (F : ι → TrigPolynomial k) (x : Fin k → ℝ) :
+theorem TrigPolynomial.eval_sum {ι : Type*} (s : Finset ι)
+    (F : ι → TrigPolynomial k) (x : Fin k → ℝ) :
     (TrigPolynomial.sum s F).eval x = ∑ i ∈ s, (F i).eval x := by
   simp only [TrigPolynomial.eval, TrigPolynomial.sum, Finset.sum_mul]
   rw [Finset.sum_comm]
@@ -149,7 +154,7 @@ theorem TrigPolynomial.eval_mul (f g : TrigPolynomial k) (x : Fin k → ℝ) :
     ← Finset.sum_mul]
   rfl
 
-/-- Complex conjugate of an trigonometric polynomial: negate frequencies, conjugate coefficients. -/
+/-- Complex conjugate of a trigonometric polynomial: negate frequencies, conjugate coefficients. -/
 noncomputable def TrigPolynomial.conj (f : TrigPolynomial k) : TrigPolynomial k where
   freqs := f.freqs.image (fun ω => -ω)
   coeff := fun ω => (starRingEnd ℂ) (f.coeff (-ω))
@@ -167,7 +172,7 @@ theorem TrigPolynomial.eval_conj (f : TrigPolynomial k) (x : Fin k → ℝ) :
   push_cast
   ring
 
-/-- The canonical coefficient of an trigonometric polynomial at a frequency: its (guarded)
+/-- The canonical coefficient of a trigonometric polynomial at a frequency: its (guarded)
 contribution. Two trigonometric polynomials with the same values have the same canonical
 coefficients (`coeffAt_eq_of_eval_eq`). -/
 noncomputable def TrigPolynomial.coeffAt (f : TrigPolynomial k) (ω : Fin k → ℝ) : ℂ :=
@@ -207,16 +212,29 @@ data points (written multiplicatively) to `ℂ`. -/
 noncomputable def chiHom (ω : Fin k → ℝ) : Multiplicative (Fin k → ℝ) →* ℂ where
   toFun := fun y => Complex.exp (Complex.I * (freqDot ω (Multiplicative.toAdd y) : ℂ))
   map_one' := by
-    show Complex.exp (Complex.I *
-      ((freqDot ω (Multiplicative.toAdd (1 : Multiplicative (Fin k → ℝ))) : ℝ) : ℂ)) = 1
-    rw [show Multiplicative.toAdd (1 : Multiplicative (Fin k → ℝ)) = (0 : Fin k → ℝ) from rfl]
+    change
+      Complex.exp
+          (Complex.I *
+            ((freqDot ω
+              (Multiplicative.toAdd (1 : Multiplicative (Fin k → ℝ))) : ℝ) : ℂ)) =
+        1
+    have htoAdd :
+        Multiplicative.toAdd (1 : Multiplicative (Fin k → ℝ)) = (0 : Fin k → ℝ) := rfl
+    rw [htoAdd]
     simp [freqDot]
   map_mul' := fun y₁ y₂ => by
-    show Complex.exp (Complex.I * ((freqDot ω (Multiplicative.toAdd (y₁ * y₂)) : ℝ) : ℂ))
-       = Complex.exp (Complex.I * ((freqDot ω (Multiplicative.toAdd y₁) : ℝ) : ℂ))
-       * Complex.exp (Complex.I * ((freqDot ω (Multiplicative.toAdd y₂) : ℝ) : ℂ))
-    rw [show Multiplicative.toAdd (y₁ * y₂)
-          = Multiplicative.toAdd y₁ + Multiplicative.toAdd y₂ from rfl, freqDot_add_right]
+    change
+      Complex.exp
+          (Complex.I * ((freqDot ω (Multiplicative.toAdd (y₁ * y₂)) : ℝ) : ℂ))
+        =
+        Complex.exp
+            (Complex.I * ((freqDot ω (Multiplicative.toAdd y₁) : ℝ) : ℂ))
+          * Complex.exp
+            (Complex.I * ((freqDot ω (Multiplicative.toAdd y₂) : ℝ) : ℂ))
+    have htoAdd :
+        Multiplicative.toAdd (y₁ * y₂)
+          = Multiplicative.toAdd y₁ + Multiplicative.toAdd y₂ := rfl
+    rw [htoAdd, freqDot_add_right]
     push_cast
     rw [mul_add, Complex.exp_add]
 
@@ -288,7 +306,8 @@ theorem TrigPolynomial.coeffAt_conj (f : TrigPolynomial k) (ω : Fin k → ℝ) 
 
 /-! ### Frequency-set characterizations (for tracking which frequencies appear) -/
 
-@[simp] theorem TrigPolynomial.smul_freqs (c : ℂ) (f : TrigPolynomial k) : (f.smul c).freqs = f.freqs := rfl
+@[simp] theorem TrigPolynomial.smul_freqs (c : ℂ) (f : TrigPolynomial k) :
+    (f.smul c).freqs = f.freqs := rfl
 
 @[simp] theorem TrigPolynomial.expMul_freqs (a : Fin k → ℝ) (f : TrigPolynomial k) :
     (f.expMul a).freqs = f.freqs.image (fun ω => ω + a) := rfl
@@ -377,7 +396,10 @@ theorem trig_parameter_shift (a b c θ : ℝ) :
       (Real.hasDerivAt_sin θ).const_mul c
     have hH : HasDerivAt (fun t => a + b * Real.cos t + c * Real.sin t)
         (-(b * Real.sin θ) + c * Real.cos θ) θ := by
-      simpa using ((hasDerivAt_const θ a).add h1).add h2
+      have hsum : HasDerivAt ((fun t : ℝ => b * Real.cos t) + fun t => c * Real.sin t)
+          (-(b * Real.sin θ) + c * Real.cos θ) θ := by
+        exact h1.add h2
+      simpa [Pi.add_apply, add_assoc] using hsum.const_add a
     exact hH.deriv
   rw [hd, Real.cos_add, Real.cos_sub, Real.sin_add, Real.sin_sub,
     Real.cos_pi_div_two, Real.sin_pi_div_two]

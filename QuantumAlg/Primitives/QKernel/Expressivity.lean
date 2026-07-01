@@ -15,9 +15,11 @@ public import Mathlib.Tactic
 /-!
 # Embedding quantum kernels: density-matrix realization (expressivity)
 
-The genuine core of Gil-Fuster, Eisert, Dunjko (2023) Theorem 1: every feature-map kernel is
-realizable, up to a positive affine transform, by valid density matrices via the embedding
-quantum kernel `tr{ρ(x)ρ(x')}`. Converse of `quantumKernel_gram_posSemidef`. No assumptions.
+A core ingredient of [GFE23, main.tex:504] Theorem 1: any normalized feature map is realized
+*exactly*, up to a positive affine transform, by valid density matrices via the embedding quantum
+kernel `tr{ρ(x)ρ(x')}`. Converse of `quantumKernel_gram_posSemidef`. (This is the exact
+finite-dimensional realization step; the full GFE23 Thm 1 — `ε`-approximation of an *arbitrary*
+kernel via a Mercer expansion and a `2ⁿ`-term Pauli-mixture density — is not formalized here.)
 -/
 
 @[expose] public section
@@ -38,7 +40,7 @@ theorem trace_fromBlocks' {A : Matrix (Fin 1) (Fin 1) ℂ} {B : Matrix (Fin 1) (
     {C : Matrix (Fin r) (Fin 1) ℂ} {D : Matrix (Fin r) (Fin r) ℂ} :
     (Matrix.fromBlocks A B C D).trace = A.trace + D.trace := by
   simp only [Matrix.trace, Matrix.diag_apply, Fintype.sum_sum_type]
-  congr 1 <;> (apply Finset.sum_congr rfl; intro i _; simp [Matrix.fromBlocks])
+  congr 1
 
 theorem offDiagEmb_isHermitian (v : Fin r → ℂ) : (offDiagEmb v).IsHermitian := by
   have hB : (Matrix.of fun (_ : Fin 1) (k : Fin r) => v k)ᴴ
@@ -160,10 +162,12 @@ theorem densityOf_mul_trace (v w : Fin r → ℂ) :
   push_cast
   ring
 
-/-- **Approximate universality (finite, positive-affine form), Gil-Fuster 2023 Thm 1.** Any
-normalized feature map `φ` is realized by a family of genuine density matrices whose embedding
-quantum kernel equals `c²·(D + 2·Re⟨φ_i,φ_j⟩)` — a positive affine image of the feature kernel
-`Re⟨φ_i,φ_j⟩` (exact for real feature maps). -/
+/-- **Exact finite positive-affine realization (core ingredient of
+[GFE23, main.tex:504] Thm 1).** Any normalized feature map `φ` is realized by a
+family of genuine density matrices whose embedding quantum kernel equals
+`c²·(D + 2·Re⟨φ_i,φ_j⟩)` — a positive affine image of the feature kernel
+`Re⟨φ_i,φ_j⟩` (exact for real feature maps). This is the exact realization
+step, *not* the full `ε`-approximate universality over arbitrary kernels. -/
 theorem eqk_realizes {ι : Type*} (φ : ι → (Fin r → ℂ))
     (hφ : ∀ i, ∑ k, Complex.normSq (φ i k) ≤ 1) :
     (∀ i, (densityOf (φ i)).IsHermitian ∧ (densityOf (φ i)).trace = 1
@@ -172,7 +176,7 @@ theorem eqk_realizes {ι : Type*} (φ : ι → (Fin r → ℂ))
         = ((((r : ℝ) + 1)⁻¹ : ℂ)) ^ 2
           * (((1 + r : ℕ) : ℂ) + 2 * (∑ k, starRingEnd ℂ (φ i k) * φ j k).re) :=
   ⟨fun i => ⟨densityOf_isHermitian _ (hφ i), densityOf_trace_one _, densityOf_posSemidef _ (hφ i)⟩,
-    fun i j => densityOf_mul_trace _ _⟩
+    fun _ _ => densityOf_mul_trace _ _⟩
 
 /-- Non-vacuity: a concrete two-input feature map gives valid density matrices realizing a
 non-constant embedding quantum kernel. -/
@@ -185,10 +189,9 @@ theorem eqk_nonempty :
   · intro i
     refine ⟨densityOf_posSemidef _ ?_, densityOf_trace_one _⟩
     fin_cases i <;>
-      simp [Fin.sum_univ_one, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
+      simp [Matrix.cons_val_zero, Matrix.cons_val_one]
   · rw [densityOf_mul_trace, densityOf_mul_trace]
-    simp only [Fin.sum_univ_one, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
-      map_one, one_mul, mul_zero, mul_one]
+    simp only [Fin.sum_univ_one, Matrix.cons_val_zero, Matrix.cons_val_one, map_one, mul_one]
     norm_num
 
 end QuantumAlg

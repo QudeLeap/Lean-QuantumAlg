@@ -9,6 +9,7 @@ module
 public import QuantumAlg.Init
 public import QuantumAlg.Algorithms.QPE
 public import QuantumAlg.Primitives.AmplitudeAmplification
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Amplitude estimation (exact, dyadic eigenphase)
@@ -34,7 +35,7 @@ the existing amplitude-amplification `PureState` probability theorem. -/
 theorem AmplitudeEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t)) (theta : Real)
     (htheta : theta = Real.pi * (j.val : Real) / (2 : Real) ^ t) :
     (invQFT t).applyVec (phaseState t ((j.val : Real) / (2 : Real) ^ t))
-        = (ket j : StateVector t) ∧
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
       PureState.probOutcome (amplitudeAmplificationState theta 0) (1 : Fin (2 ^ 1))
           = Real.sin (Real.pi * (j.val : Real) / (2 : Real) ^ t) ^ 2 := by
   refine ⟨?_, ?_⟩
@@ -58,12 +59,17 @@ theorem amplitudeEstimationExactResourceProfile_exact (t : Nat) :
       (amplitudeEstimationExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   exact qpeExactResourceProfile_exact t
 
+/-- Typed circuit witness for the exact amplitude-estimation endpoint. -/
+def amplitudeEstimationCircuit (t : Nat) : Circuit (Qubits t) :=
+  Circuit.abstract (Qubits t) "amplitude-estimation" (amplitudeEstimationExactResourceProfile t)
+    (t ^ 2) (2 ^ t - 1)
+
 /-- Exact amplitude estimation paired with the decoupled QPE resource profile. -/
 theorem AmplitudeEstimation.main_exact_dyadic_with_resources
     (t : Nat) (j : Fin (2 ^ t)) (theta : Real)
     (htheta : theta = Real.pi * (j.val : Real) / (2 : Real) ^ t) :
     ((invQFT t).applyVec (phaseState t ((j.val : Real) / (2 : Real) ^ t))
-        = (ket j : StateVector t) ∧
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
       PureState.probOutcome (amplitudeAmplificationState theta 0) (1 : Fin (2 ^ 1))
           = Real.sin (Real.pi * (j.val : Real) / (2 : Real) ^ t) ^ 2) ∧
       ResourceProfile.HasExactCounts
@@ -76,8 +82,11 @@ theorem AmplitudeEstimation.main_exact_dyadic_with_resources
 a source-style preparation/reflection amplitude-amplification model together
 with a phase-register index for the exact QPE readout. -/
 structure SourceAmplitudeEstimationInput where
+  /-- Source amplification model containing the prepared state and reflections. -/
   source : SourceAmplitudeAmplificationModel
+  /-- Number of phase-register qubits in the exact readout. -/
   t : Nat
+  /-- Exact dyadic phase-grid index selected by the source promise. -/
   j : Fin (2 ^ t)
   theta_eq : source.theta = Real.pi * (j.val : Real) / (2 : Real) ^ t
 
@@ -90,7 +99,7 @@ theorem AmplitudeEstimation.main
         Real.sin (Real.pi * (E.j.val : Real) / (2 : Real) ^ E.t) ^ 2 ∧
       (invQFT E.t).applyVec
           (phaseState E.t ((E.j.val : Real) / (2 : Real) ^ E.t))
-          = (ket E.j : StateVector E.t)) ∧
+          = (PureState.ket (R := Qubits E.t) E.j : StateVector (Qubits E.t))) ∧
       ResourceProfile.HasExactCounts
         (amplitudeEstimationExactResourceProfile E.t)
         (2 ^ E.t - 1) E.t (E.t ^ 2) 0 := by
@@ -103,6 +112,26 @@ theorem AmplitudeEstimation.main
       rw [E.theta_eq]
     · exact (AmplitudeEstimation.main_exact_dyadic E.t E.j E.source.theta E.theta_eq).1
   · exact amplitudeEstimationExactResourceProfile_exact E.t
+
+/-- Resource-correct public witness for exact amplitude estimation. -/
+def AmplitudeEstimation.mainResourceCorrectWitness
+    (E : SourceAmplitudeEstimationInput) :
+    ResourceCorrectWitness (R := Qubits E.t)
+      ((PureState.probOutcome (E.source.preparation.apply ket0) (1 : Fin (2 ^ 1)) =
+          Real.sin (Real.pi * (E.j.val : Real) / (2 : Real) ^ E.t) ^ 2 ∧
+        (invQFT E.t).applyVec
+            (phaseState E.t ((E.j.val : Real) / (2 : Real) ^ E.t))
+            = (PureState.ket (R := Qubits E.t) E.j : StateVector (Qubits E.t))) ∧
+        ResourceProfile.HasExactCounts
+          (amplitudeEstimationExactResourceProfile E.t)
+          (2 ^ E.t - 1) E.t (E.t ^ 2) 0)
+      (ResourceProfile.HasExactCounts (amplitudeEstimationCircuit E.t).resources
+        (2 ^ E.t - 1) E.t (E.t ^ 2) 0) := by
+  exact
+    { circuit := amplitudeEstimationCircuit E.t
+      correctness := AmplitudeEstimation.main E
+      resources := by
+        simpa [amplitudeEstimationCircuit] using amplitudeEstimationExactResourceProfile_exact E.t }
 
 end
 

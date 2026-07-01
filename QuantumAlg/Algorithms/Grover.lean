@@ -8,7 +8,9 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Primitives.AmplitudeAmplification
+public import QuantumAlg.Core.Components.Oracle
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Grover search in the good/bad-plane model
@@ -43,38 +45,6 @@ open PureState Gate
 
 noncomputable section
 
-/-- The concrete Grover phase oracle for a marked-set predicate:
-`|j⟩` receives phase `-1` exactly when `marked j` is true. -/
-def phaseOracle {n : ℕ} (marked : Fin (2 ^ n) → Bool) : HilbertOperator n :=
-  fun i j => if i = j then (if marked j then -1 else 1 : ℂ) else 0
-
-theorem phaseOracle_apply_ket {n : ℕ} (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
-    HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) =
-      ((if marked j then -1 else 1 : ℂ) • (ket j : StateVector n)) := by
-  by_cases hm : marked j
-  · simp [hm]
-    apply WithLp.ofLp_injective
-    funext i
-    rw [show (HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n)).ofLp i =
-          HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) i from rfl,
-      show ((-(ket j : StateVector n)).ofLp i) = (-(ket j : StateVector n)) i from rfl,
-      HilbertOperator.applyVec_ket]
-    by_cases hij : i = j
-    · subst i
-      simp [phaseOracle, hm, PureState.ket_apply]
-    · simp [phaseOracle, PureState.ket_apply, hij]
-  · simp [hm]
-    apply WithLp.ofLp_injective
-    funext i
-    rw [show (HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n)).ofLp i =
-          HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) i from rfl,
-      show ((ket j : StateVector n).ofLp i) = (ket j : StateVector n) i from rfl,
-      HilbertOperator.applyVec_ket]
-    by_cases hij : i = j
-    · subst i
-      simp [phaseOracle, hm, PureState.ket_apply]
-    · simp [phaseOracle, PureState.ket_apply, hij]
-
 /-- A Grover search instance restricted to its invariant two-dimensional
 bad/good plane. The initial state is `amplitudeAmplificationState θ 0`, so the
 initial marked-subspace probability is `sin θ ^ 2`; the oracle and diffusion
@@ -84,9 +54,9 @@ structure GroverModel where
   textbook relation is `sin θ = sqrt (t / N)`. -/
   θ : ℝ
   /-- Phase oracle: reflection through the bad subspace in the good/bad plane. -/
-  phaseOracle : Gate 1
+  phaseOracle : Gate (Qubits 1)
   /-- Diffusion reflection through the prepared uniform/start state. -/
-  diffusion : Gate 1
+  diffusion : Gate (Qubits 1)
   /-- One Grover iterate, diffusion after phase oracle, is the standard
   amplitude-amplification rotation on the invariant plane. -/
   iterate_eq : diffusion * phaseOracle = amplitudeAmplificationStep θ
@@ -133,7 +103,7 @@ theorem GroverSearch.main_amplitude_amplification (M : GroverModel) (k : ℕ) :
 namespace Grover
 
 /-- The state after `k` Grover iterates, annotated with iterate cost `k`. -/
-def timedIterate (M : GroverModel) (k : ℕ) : Timed (PureState 1) :=
+def timedIterate (M : GroverModel) (k : ℕ) : Timed (PureState (Qubits 1)) :=
   Timed.trusted k
     (Gate.apply ((M.diffusion * M.phaseOracle) ^ k)
       (amplitudeAmplificationState M.θ 0))
@@ -179,6 +149,10 @@ theorem resourceProfile_exact (n k : ℕ) :
     ResourceProfile.HasExactCounts (resourceProfile n k) k 0 (k * n) 0 := by
   simp [ResourceProfile.HasExactCounts, resourceProfile]
 
+/-- Typed circuit witness for the public Grover iterate endpoint. -/
+def circuit (n k : ℕ) : Circuit (Qubits n) :=
+  Circuit.abstract (Qubits n) "grover-iterate" (resourceProfile n k) (k * n) k
+
 /-- Grover supporting theorem for the public marked-count statement. The
 relation between the concrete `n`-qubit oracle and this good/bad plane remains
 an explicit model hypothesis; under the marked-count angle relation, the timed
@@ -201,8 +175,11 @@ end Grover
 /-- Registered basis-action wrapper for the concrete Grover phase oracle. -/
 theorem GroverSearch.main_phase_oracle_basis_action {n : ℕ}
     (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
-    HilbertOperator.applyVec (phaseOracle marked) (ket j : StateVector n) =
-      ((if marked j then -1 else 1 : ℂ) • (ket j : StateVector n)) := by
+    HilbertOperator.applyVec (phaseOracle marked)
+        (PureState.ket (R := Qubits n) j : StateVector (Qubits n))
+      =
+      (if marked j then -1 else 1 : ℂ) •
+        (PureState.ket (R := Qubits n) j : StateVector (Qubits n)) := by
   exact phaseOracle_apply_ket marked j
 
 /-- Registered resource wrapper for the marked-count Grover statement. -/
@@ -215,6 +192,21 @@ theorem GroverSearch.main_success_probability_with_resources
           Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) ^ 2 ∧
       ResourceProfile.HasExactCounts (Grover.resourceProfile n k) k 0 (k * n) 0 := by
   exact Grover.success_probability_with_resources M ht_pos ht_le hθ
+
+/-- Resource-correct public witness for the marked-count Grover statement. -/
+def GroverSearch.mainResourceCorrectWitness
+    (M : GroverModel) {n t k : ℕ}
+    (ht_pos : 0 < t) (ht_le : t ≤ 2 ^ n)
+    (hθ : M.θ = Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) :
+    ResourceCorrectWitness (R := Qubits n)
+      (PureState.probOutcome (Grover.timedIterate M k).ret (1 : Fin (2 ^ 1)) =
+        Real.sin (((2 : ℝ) * k + 1) *
+          Real.arcsin (Real.sqrt ((t : ℝ) / ((2 ^ n : ℕ) : ℝ)))) ^ 2)
+      (ResourceProfile.HasExactCounts (Grover.circuit n k).resources k 0 (k * n) 0) := by
+  exact
+    { circuit := Grover.circuit n k
+      correctness := (GroverSearch.main_success_probability_with_resources M ht_pos ht_le hθ).1
+      resources := by simpa [Grover.circuit] using Grover.resourceProfile_exact n k }
 
 end
 

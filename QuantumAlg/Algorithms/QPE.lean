@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 public import QuantumAlg.Primitives.QFT
 public import QuantumAlg.Primitives.PhaseKickback
 public import QuantumAlg.Core.Components.Kets
@@ -51,10 +52,10 @@ noncomputable section
 eigenvalue raised to the same power. This is stated at the raw-vector layer
 because `lam • u` is not itself a `PureState` unless a unit-norm proof is
 supplied. -/
-theorem Gate.applyVec_pow_eigenstate {n : Nat} {U : Gate n} {u : PureState n}
+theorem Gate.applyVec_pow_eigenstate {n : Nat} {U : Gate (Qubits n)} {u : PureState (Qubits n)}
     {lam : Complex}
-    (hu : U.applyVec (u : StateVector n) = lam • (u : StateVector n)) (m : Nat) :
-    (U ^ m).applyVec (u : StateVector n) = lam ^ m • (u : StateVector n) := by
+    (hu : U.applyVec (u : StateVector (Qubits n)) = lam • (u : StateVector (Qubits n))) (m : Nat) :
+    (U ^ m).applyVec (u : StateVector (Qubits n)) = lam ^ m • (u : StateVector (Qubits n)) := by
   induction m with
   | zero => rw [pow_zero, pow_zero, Gate.one_applyVec, one_smul]
   | succ m ih =>
@@ -67,28 +68,29 @@ theorem Gate.applyVec_pow_eigenstate {n : Nat} {U : Gate n} {u : PureState n}
 controls `U^{2^s}`. On `|+> ⊗ |u>` with eigenvalue `exp(2*pi*i*phi)`, the
 controlled power leaves `|u>` fixed and writes the relative phase
 `exp(2*pi*i*phi*2^s)` onto the `|1>` branch. -/
-theorem controlled_pow_kickback {n : Nat} (U : Gate n) (u : PureState n) (phi : Real)
-    (hu : U.applyVec (u : StateVector n) =
-      Complex.exp (2 * Real.pi * phi * Complex.I) • (u : StateVector n)) (s : Nat) :
+theorem controlled_pow_kickback {n : Nat} (U : Gate (Qubits n))
+    (u : PureState (Qubits n)) (phi : Real)
+    (hu : U.applyVec (u : StateVector (Qubits n)) =
+      Complex.exp (2 * Real.pi * phi * Complex.I) • (u : StateVector (Qubits n))) (s : Nat) :
     (Gate.controlled (U ^ (2 ^ s))).applyVec
-        (StateVector.tensor (ketPlus : StateVector 1) (u : StateVector n))
+        (StateVector.tensor (ketPlus : StateVector (Qubits 1)) (u : StateVector (Qubits n)))
       =
       StateVector.tensor
         ((invSqrt2 • ket0
           + (Complex.exp ((2 * Real.pi * (phi * (2 : Real) ^ s) : Real) * Complex.I)
-              * invSqrt2) • ket1 : StateVector 1))
-        (u : StateVector n) := by
-  have hpow : (U ^ (2 ^ s)).applyVec (u : StateVector n)
+              * invSqrt2) • ket1 : StateVector (Qubits 1)))
+        (u : StateVector (Qubits n)) := by
+  have hpow : (U ^ (2 ^ s)).applyVec (u : StateVector (Qubits n))
       = Complex.exp ((2 * Real.pi * (phi * (2 : Real) ^ s) : Real) * Complex.I)
-          • (u : StateVector n) := by
+          • (u : StateVector (Qubits n)) := by
     rw [Gate.applyVec_pow_eigenstate hu (2 ^ s), ← Complex.exp_nat_mul]
     congr 1
     congr 1
     push_cast
     ring
-  rw [show (ketPlus : StateVector 1) =
-      (invSqrt2 • ket0 + invSqrt2 • ket1 : StateVector 1) from by
-        change ketPlusVec = (invSqrt2 • ket0 + invSqrt2 • ket1 : StateVector 1)
+  rw [show (ketPlus : StateVector (Qubits 1)) =
+      (invSqrt2 • ket0 + invSqrt2 • ket1 : StateVector (Qubits 1)) from by
+        change ketPlusVec = (invSqrt2 • ket0 + invSqrt2 • ket1 : StateVector (Qubits 1))
         rw [ketPlusVec, smul_add],
     GeneralizedPhaseKickback.main (U ^ (2 ^ s)) u
       (2 * Real.pi * (phi * (2 : Real) ^ s)) hpow invSqrt2 invSqrt2]
@@ -97,24 +99,28 @@ theorem controlled_pow_kickback {n : Nat} (U : Gate n) (u : PureState n) (phi : 
 eigenphase. The controlled powers of `unitary` are the oracle calls used by the
 phase-estimation ladder. -/
 structure QPEEigenstateInput (n : Nat) where
-  unitary : Gate n
-  eigenstate : PureState n
+  /-- The unitary whose eigenphase is estimated by controlled powers. -/
+  unitary : Gate (Qubits n)
+  /-- Normalized eigenstate supplied to the phase-estimation circuit. -/
+  eigenstate : PureState (Qubits n)
+  /-- Real phase parameter for the eigenvalue `exp (2 * pi * i * phase)`. -/
   phase : Real
   eigenstate_eq :
-    unitary.applyVec (eigenstate : StateVector n) =
-      Complex.exp (2 * Real.pi * phase * Complex.I) • (eigenstate : StateVector n)
+    unitary.applyVec (eigenstate : StateVector (Qubits n)) =
+      Complex.exp (2 * Real.pi * phase * Complex.I) • (eigenstate : StateVector (Qubits n))
 
 /-- The per-control-qubit kickbacks available from a source-level QPE input. -/
 def QPEControlledPowerKickbacks {n : Nat} (P : QPEEigenstateInput n) : Prop :=
   forall s : Nat,
     (Gate.controlled (P.unitary ^ (2 ^ s))).applyVec
-        (StateVector.tensor (ketPlus : StateVector 1) (P.eigenstate : StateVector n))
+        (StateVector.tensor (ketPlus : StateVector (Qubits 1))
+          (P.eigenstate : StateVector (Qubits n)))
       =
       StateVector.tensor
         ((invSqrt2 • ket0
           + (Complex.exp ((2 * Real.pi * (P.phase * (2 : Real) ^ s) : Real) * Complex.I)
-              * invSqrt2) • ket1 : StateVector 1))
-        (P.eigenstate : StateVector n)
+              * invSqrt2) • ket1 : StateVector (Qubits 1)))
+        (P.eigenstate : StateVector (Qubits n))
 
 theorem qpe_eigenstate_controlled_power_kickbacks {n : Nat}
     (P : QPEEigenstateInput n) :
@@ -126,7 +132,7 @@ theorem qpe_eigenstate_controlled_power_kickbacks {n : Nat}
 
 /-- The QPE phase superposition on a `t`-qubit register for eigenphase `phi`:
 `(1/sqrt N) * sum_k exp(2*pi*i*phi*k) |k>`. -/
-def phaseState (t : Nat) (phi : Real) : StateVector t :=
+def phaseState (t : Nat) (phi : Real) : StateVector (Qubits t) :=
   WithLp.toLp 2 fun k : Fin (2 ^ t) =>
     invSqrtN t * Complex.exp (2 * Real.pi * phi * k.val * Complex.I)
 
@@ -140,11 +146,11 @@ theorem phaseState_apply (t : Nat) (phi : Real) (k : Fin (2 ^ t)) :
 superposition is exactly `QFT t |j>`. -/
 theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
     phaseState t ((j.val : Real) / (2 : Real) ^ t)
-      = ((QFT t).apply (ket j) : StateVector t) := by
+      = ((QFT t).apply (ket j) : StateVector (Qubits t)) := by
   apply WithLp.ofLp_injective
   funext k
   change phaseState t ((j.val : Real) / (2 : Real) ^ t) k
-      = ((QFT t).apply (ket j) : StateVector t) k
+      = ((QFT t).apply (ket j) : StateVector (Qubits t)) k
   rw [phaseState_apply, QFT_apply_ket, omega, ← Complex.exp_nat_mul]
   congr 1
   congr 1
@@ -154,15 +160,15 @@ theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
 /-! ### Inverse-QFT readout -/
 
 /-- The inverse quantum Fourier transform, `QFT†`. -/
-def invQFT (t : Nat) : Gate t := (QFT t).conjTranspose
+def invQFT (t : Nat) : Gate (Qubits t) := (QFT t).conjTranspose
 
 /-- The inverse QFT undoes the QFT on a basis ket. -/
 theorem qpe_readout (t : Nat) (j : Fin (2 ^ t)) :
     Gate.apply (invQFT t) ((QFT t).apply (ket j)) = ket j := by
   rw [invQFT, ← Gate.mul_apply]
-  have h : (QFT t).conjTranspose * QFT t = (1 : Gate t) := by
+  have h : (QFT t).conjTranspose * QFT t = (1 : Gate (Qubits t)) := by
     ext i k
-    change ((QFTMatrix t).conjTranspose * QFTMatrix t) i k = (1 : HilbertOperator t) i k
+    change ((QFTMatrix t).conjTranspose * QFTMatrix t) i k = (1 : HilbertOperator (Qubits t)) i k
     have hU := QFT_mem_unitaryGroup t
     have hM : (QFTMatrix t).conjTranspose * QFTMatrix t = 1 := by
       rwa [Matrix.mem_unitaryGroup_iff', Matrix.star_eq_conjTranspose] at hU
@@ -171,10 +177,10 @@ theorem qpe_readout (t : Nat) (j : Fin (2 ^ t)) :
 
 /-- Raw-vector form of the inverse-QFT readout. -/
 theorem qpe_readoutVec (t : Nat) (j : Fin (2 ^ t)) :
-    (invQFT t).applyVec (((QFT t).apply (ket j)) : StateVector t)
-      = (ket j : StateVector t) := by
-  change ((Gate.apply (invQFT t) ((QFT t).apply (ket j))) : StateVector t)
-      = (ket j : StateVector t)
+    (invQFT t).applyVec (((QFT t).apply (ket j)) : StateVector (Qubits t))
+      = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) := by
+  change ((Gate.apply (invQFT t) ((QFT t).apply (ket j))) : StateVector (Qubits t))
+      = (PureState.ket (R := Qubits t) j : StateVector (Qubits t))
   rw [qpe_readout]
 
 /-! ### Exact QPE -/
@@ -184,7 +190,8 @@ theorem qpe_readoutVec (t : Nat) (j : Fin (2 ^ t)) :
 the computational-basis vector `|j>` exactly. -/
 theorem QuantumPhaseEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t))
     (phi : Real) (hphi : phi = (j.val : Real) / (2 : Real) ^ t) :
-    (invQFT t).applyVec (phaseState t phi) = (ket j : StateVector t) := by
+    (invQFT t).applyVec (phaseState t phi)
+      = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) := by
   subst hphi
   rw [phaseState_eq_qftApplyKet]
   exact qpe_readoutVec t j
@@ -192,7 +199,7 @@ theorem QuantumPhaseEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t))
 /-- The exact readout has deterministic basis outcome `j`. -/
 theorem QuantumPhaseEstimation.main_exact_probability_one (t : Nat) (j : Fin (2 ^ t))
     (phi : Real) (_hphi : phi = (j.val : Real) / (2 : Real) ^ t) :
-    PureState.probOutcome (ket j : PureState t) j = 1 := by
+    PureState.probOutcome (ket j : PureState (Qubits t)) j = 1 := by
   rw [PureState.probOutcome_ket, if_pos rfl]
 
 /-- Trusted decoupled phase-register resource profile for exact dyadic QPE. -/
@@ -207,11 +214,17 @@ theorem qpeExactResourceProfile_exact (t : Nat) :
       (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   simp [ResourceProfile.HasExactCounts, qpeExactResourceProfile]
 
+/-- Typed circuit witness for the exact QPE phase-register endpoint. -/
+def qpeExactCircuit (t : Nat) : Circuit (Qubits t) :=
+  Circuit.abstract (Qubits t) "quantum-phase-estimation" (qpeExactResourceProfile t)
+    (t ^ 2) (2 ^ t - 1)
+
 /-- Exact QPE readout with the decoupled phase-register resource profile. -/
 theorem QuantumPhaseEstimation.main_exact_dyadic_with_resources (t : Nat)
     (j : Fin (2 ^ t)) (phi : Real)
     (hphi : phi = (j.val : Real) / (2 : Real) ^ t) :
-    (invQFT t).applyVec (phaseState t phi) = (ket j : StateVector t) ∧
+    (invQFT t).applyVec (phaseState t phi)
+      = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
       ResourceProfile.HasExactCounts
         (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   constructor
@@ -224,7 +237,8 @@ theorem QuantumPhaseEstimation.main_exact_eigenstate_readout_with_resources {n :
     (P : QPEEigenstateInput n) (t : Nat) (j : Fin (2 ^ t))
     (hphase : P.phase = (j.val : Real) / (2 : Real) ^ t) :
     QPEControlledPowerKickbacks P ∧
-      (invQFT t).applyVec (phaseState t P.phase) = (ket j : StateVector t) ∧
+      (invQFT t).applyVec (phaseState t P.phase)
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
         ResourceProfile.HasExactCounts
           (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   constructor
@@ -240,13 +254,16 @@ theorem QuantumPhaseEstimation.main {n : Nat}
     (eps eta : ℝ) (heps : 0 ≤ eps) (heta : 0 ≤ eta)
     (hphase : P.phase = (j.val : Real) / (2 : Real) ^ t) :
     QPEControlledPowerKickbacks P ∧
-      (invQFT t).applyVec (phaseState t P.phase) = (ket j : StateVector t) ∧
+      (invQFT t).applyVec (phaseState t P.phase)
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
         |P.phase - (j.val : ℝ) / (2 : ℝ) ^ t| ≤ eps ∧
-          1 - PureState.probOutcome (ket j : PureState t) j ≤ eta ∧
+          1 - PureState.probOutcome (ket j : PureState (Qubits t)) j ≤ eta ∧
             ResourceProfile.HasExactCounts
               (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0 := by
   refine ⟨qpe_eigenstate_controlled_power_kickbacks P, ?_⟩
-  have hreadout : (invQFT t).applyVec (phaseState t P.phase) = (ket j : StateVector t) :=
+  have hreadout :
+      (invQFT t).applyVec (phaseState t P.phase)
+        = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) :=
     QuantumPhaseEstimation.main_exact_dyadic t j P.phase hphase
   refine ⟨hreadout, ?_⟩
   refine ⟨?_, ?_⟩
@@ -255,6 +272,27 @@ theorem QuantumPhaseEstimation.main {n : Nat}
   · refine ⟨?_, qpeExactResourceProfile_exact t⟩
     rw [QuantumPhaseEstimation.main_exact_probability_one t j P.phase hphase]
     simpa using heta
+
+/-- Resource-correct public witness for exact QPE: the correctness theorem and
+resource counts refer to one typed circuit boundary. -/
+def QuantumPhaseEstimation.mainResourceCorrectWitness {n : Nat}
+    (P : QPEEigenstateInput n) (t : Nat) (j : Fin (2 ^ t))
+    (eps eta : ℝ) (heps : 0 ≤ eps) (heta : 0 ≤ eta)
+    (hphase : P.phase = (j.val : Real) / (2 : Real) ^ t) :
+    ResourceCorrectWitness (R := Qubits t)
+      (QPEControlledPowerKickbacks P ∧
+        (invQFT t).applyVec (phaseState t P.phase)
+          = (PureState.ket (R := Qubits t) j : StateVector (Qubits t)) ∧
+          |P.phase - (j.val : ℝ) / (2 : ℝ) ^ t| ≤ eps ∧
+            1 - PureState.probOutcome (ket j : PureState (Qubits t)) j ≤ eta ∧
+              ResourceProfile.HasExactCounts
+                (qpeExactResourceProfile t) (2 ^ t - 1) t (t ^ 2) 0)
+      (ResourceProfile.HasExactCounts (qpeExactCircuit t).resources
+        (2 ^ t - 1) t (t ^ 2) 0) := by
+  exact
+    { circuit := qpeExactCircuit t
+      correctness := QuantumPhaseEstimation.main P t j eps eta heps heta hphase
+      resources := by simpa [qpeExactCircuit] using qpeExactResourceProfile_exact t }
 
 end
 

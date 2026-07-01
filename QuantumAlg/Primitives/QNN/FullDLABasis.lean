@@ -19,7 +19,8 @@ symmetric `(Eᵢⱼ+Eⱼᵢ)/√2`, antisymmetric `i(Eᵢⱼ−Eⱼᵢ)/√2`). 
 `DLAHermBasis` of the fully controllable circuit (dynamical Lie algebra `= gl(2ⁿ)`,
 dimension `4ⁿ`), which — fed into `ragone_hasBarrenPlateau` — exhibits a concrete
 family with an **exponentially vanishing** loss variance: a genuine barren plateau,
-witnessing that the capstone is not vacuous on the canonical physical case.
+witnessing that the capstone is not vacuous on the canonical physical case. This is the
+maximally expressive source of barren plateaus `dim(g) ∼ 4ⁿ` [RBS+23, Arxiv_Final.tex:709].
 -/
 
 @[expose] public section
@@ -27,6 +28,8 @@ witnessing that the capstone is not vacuous on the canonical physical case.
 namespace QuantumAlg
 
 open Matrix
+
+attribute [local instance 100] LieRing.ofAssociativeRing
 
 variable {N : ℕ}
 
@@ -85,7 +88,7 @@ local macro "hsFinish" : tactic =>
           hsInner_sub_left, hsInner_sub_right, hsInner_single, starRingEnd_apply, rt2inv_conj,
           star_I_eq]
        all_goals
-         (split_ifs <;> (try (exfalso; omega)) <;> (try ring) <;>
+         (split_ifs <;> (try (exfalso; omega)) <;> (try ring_nf) <;>
            (try (rw [rt2inv_sq]; norm_num)) <;>
            (try (rw [rt2inv_sq, Complex.I_sq]; norm_num)))))
 
@@ -148,32 +151,78 @@ noncomputable def fullHermBasis (N : ℕ) :
       dynamicalLieAlgebra_eq_top_of_span_top (by rw [Submodule.span_univ]),
       LieSubalgebra.top_toSubmodule]
 
-/-- The Ragone second-moment bundle for the fully controllable `n`-qubit family, with
+/-- The second-moment bundle [RBS+23] for the fully controllable `n`-qubit family, with
 observable and state both equal to the first (Hermitian, normalized) basis element. -/
 noncomputable def fullCtrlSM (n : ℕ) :
     RagoneSecondMoment (fullHermBasis (2 ^ n))
-      ((fullHermBasis (2 ^ n)).B ⟨0, by show 0 < 2 ^ n * 2 ^ n; positivity⟩)
-      ((fullHermBasis (2 ^ n)).B ⟨0, by show 0 < 2 ^ n * 2 ^ n; positivity⟩) :=
-  RagoneSecondMoment.ofHermitian ((fullHermBasis (2 ^ n)).herm _)
-    ((fullHermBasis (2 ^ n)).herm _) (by show 0 < 2 ^ n * 2 ^ n; positivity)
+      ((fullHermBasis (2 ^ n)).B
+        ⟨0, by
+          change 0 < 2 ^ n * 2 ^ n
+          positivity⟩)
+      ((fullHermBasis (2 ^ n)).B
+        ⟨0, by
+          change 0 < 2 ^ n * 2 ^ n
+          positivity⟩) :=
+  RagoneSecondMoment.ofHermitian
+    ((fullHermBasis (2 ^ n)).herm _)
+    ((fullHermBasis (2 ^ n)).herm _)
+    (by
+      change 0 < 2 ^ n * 2 ^ n
+      positivity)
 
 /-- **Concrete exponential barren plateau (full controllability).** The qubit-indexed
 family of fully controllable circuits — dynamical Lie algebra `gl(2ⁿ)`, dimension `4ⁿ` —
-has an exponentially vanishing loss variance: a genuine barren plateau. This instantiates
-`ragone_hasBarrenPlateau` on the canonical physical case, witnessing it is not vacuous. -/
+has an exponentially vanishing loss variance: a genuine barren plateau [RBS+23,
+Arxiv_Final.tex:709]. This instantiates `ragone_hasBarrenPlateau` on the canonical
+physical case, witnessing it is not vacuous. -/
 theorem fullControllability_hasBarrenPlateau :
     HasBarrenPlateau (fun n => (fullCtrlSM n).variance) := by
   apply ragone_hasBarrenPlateau (M := fullCtrlSM)
     (hρ := fun n => (fullHermBasis (2 ^ n)).herm _)
-    (hdimpos := fun n => by show 0 < 2 ^ n * 2 ^ n; positivity)
+    (hO := fun n => (fullHermBasis (2 ^ n)).herm _)
+    (hdimpos := fun n => by
+      change 0 < 2 ^ n * 2 ^ n
+      positivity)
     (C := 1) (hC := zero_le_one) (base := 2) (hbase := one_lt_two)
   · intro n
     rw [DLAHermBasis.gPurity_basis_elem]; norm_num
   · intro n
     have hdimeq : ((fullHermBasis (2 ^ n)).dim : ℝ) = (2 : ℝ) ^ n * (2 : ℝ) ^ n := by
-      show ((2 ^ n * 2 ^ n : ℕ) : ℝ) = _; push_cast; ring
+      change ((2 ^ n * 2 ^ n : ℕ) : ℝ) = _
+      push_cast
+      ring
     rw [hdimeq]
     nlinarith [one_le_pow₀ (show (1 : ℝ) ≤ 2 by norm_num) (n := n),
       pow_nonneg (show (0 : ℝ) ≤ 2 by norm_num) n]
+
+/-- **A non-degenerate reductive witness.** The reductive bundle `RagoneReductive` is inhabited by
+a genuinely non-abelian dynamical Lie algebra — the full `gl(2)` (dimension `4`), taken as a single
+ideal, with state and observable the first Hermitian basis element. This strengthens the
+one-dimensional *abelian* witness `ragone_reductive_nonempty`: the **derived** reductive sum
+`RagoneReductive.totalVariance_eq` [RBS+23, Arxiv_Final.tex:682] is inhabited over a non-abelian
+DLA, not only the trivial one-dimensional algebra. (A fully *simple* `su(2)` witness, excluding the
+`gl(2)` center, is left to future work.) -/
+theorem ragone_reductive_nonempty_gl2 :
+    Nonempty
+      (RagoneReductive
+        ((fullHermBasis (2 ^ 1)).B
+          ⟨0, by
+            change 0 < 2 ^ 1 * 2 ^ 1
+            positivity⟩)
+        ((fullHermBasis (2 ^ 1)).B
+          ⟨0, by
+            change 0 < 2 ^ 1 * 2 ^ 1
+            positivity⟩)) := by
+  obtain ⟨κ, hκ⟩ := (fullCtrlSM 1).proj_mem
+  exact ⟨{
+    numComp := 1
+    gens := fun _ => Set.univ
+    basis := fun _ => fullHermBasis (2 ^ 1)
+    cross_ortho := fun i j hij => absurd (Subsingleton.elim i j) hij
+    variance := (fullCtrlSM 1).variance
+    secondMoment := (fullCtrlSM 1).secondMoment
+    var_eq := (fullCtrlSM 1).var_eq
+    proj_mem := ⟨fun _ => κ, by rw [Fin.sum_univ_one]; exact hκ⟩
+    proj_orth := fun _ => (fullCtrlSM 1).proj_orth }⟩
 
 end QuantumAlg

@@ -7,17 +7,16 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Core.Gate
+public import QuantumAlg.Core.Base
 public import QuantumAlg.Primitives.QNN.DynamicalLieAlgebra
 public import QuantumAlg.Primitives.QNN.LieAlgebraicBP
 public import QuantumAlg.Util.HilbertSchmidt
 
 /-!
-# The Lie-algebraic loss-variance formula (Ragone et al. 2023): foundations
+# The Lie-algebraic loss-variance formula [RBS+23]: foundations
 
-This module builds, in staged milestones, toward a genuine formalization of the
-loss-gradient variance law of Ragone et al. (2023), *A Lie algebraic theory of barren
-plateaus* (arXiv:2309.09342):
+This module builds toward a genuine formalization of the loss-gradient variance law of
+[RBS+23] (*A Lie algebraic theory of barren plateaus*, arXiv:2309.09342):
 `Var_θ[ℓ] = P_g(ρ) · P_g(O) / dim(g)` for a simple dynamical Lie algebra `g`
 (and the per-component sum for the reductive case). The deep analytic / representation-
 theoretic inputs that are genuine Mathlib gaps (a normalized Haar measure on the
@@ -26,7 +25,7 @@ dynamical Lie group; the twirl-is-a-projector property; Schur's lemma for Lie mo
 downstream of them — the entire algebraic / Hilbert–Schmidt derivation of the closed
 form — is machine-checked.
 
-## Phase 1 (this file, growing):
+## Foundations (this file):
 
 * **`*-closedness`** — when the circuit generators are skew-Hermitian (`star A = -A`,
   i.e. `A = i H`), the dynamical Lie algebra is closed under the adjoint `star = (·)ᴴ`.
@@ -43,6 +42,8 @@ namespace QuantumAlg
 
 open Matrix
 
+attribute [local instance 100] LieRing.ofAssociativeRing
+
 variable {N : ℕ}
 
 /-- **The dynamical Lie algebra of skew-Hermitian generators is `*`-closed.** If every
@@ -58,9 +59,10 @@ theorem dynamicalLieAlgebra_star_mem
     (p := fun t _ => star t ∈ dynamicalLieAlgebra gens) ?_ ?_ ?_ ?_ ?_ hx
   · -- generators: `star b = -b ∈ DLA`
     intro b hb
-    simpa only [hskew b hb] using neg_mem (LieSubalgebra.subset_lieSpan hb)
+    simpa only [dynamicalLieAlgebra, hskew b hb] using
+      neg_mem (LieSubalgebra.subset_lieSpan hb)
   · -- zero
-    simpa using zero_mem (dynamicalLieAlgebra gens)
+    simp
   · -- addition
     intro a b _ _ ha hb
     simpa only [star_add] using add_mem ha hb
@@ -89,7 +91,7 @@ theorem dynamicalLieAlgebra_conjTranspose_mem
 open scoped Kronecker
 
 /-- A **Hermitian Hilbert–Schmidt orthonormal basis** of the dynamical Lie algebra:
-the data underlying the quadratic Casimir and the `g`-purity in Ragone et al. (2023).
+the data underlying the quadratic Casimir and the `g`-purity in [RBS+23].
 Such a basis exists whenever the generators are skew-Hermitian (the DLA is then
 `*`-closed, see `dynamicalLieAlgebra_star_mem`); existence is established separately. -/
 structure DLAHermBasis (gens : Set (Matrix (Fin N) (Fin N) ℂ)) where
@@ -139,10 +141,12 @@ noncomputable def casimir : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ := ∑ 
 noncomputable def gProj (H : Matrix (Fin N) (Fin N) ℂ) : Matrix (Fin N) (Fin N) ℂ :=
   ∑ j, hsInner (b.B j) H • b.B j
 
-/-- The **`g`-purity** `P_g(H) = Σⱼ ⟪Bⱼ,H⟫²` (Ragone et al. 2023, Eq. (6); equal to
-`Tr[H_g²]`, see `gPurity_eq_trace`). -/
+/-- The **`g`-purity** `P_g(H) = Σⱼ |⟪Bⱼ,H⟫|²` [RBS+23, Arxiv_Final.tex:657]: a real,
+nonnegative quantity (cast to `ℂ`). For Hermitian `H` it equals the bare Casimir
+contraction `Σⱼ ⟪Bⱼ,H⟫²` (each `⟪Bⱼ,H⟫` is then real; see `casimir_hsInner_kron`) and
+the `Tr[H_g²]` form (`gPurity_eq_trace`). -/
 noncomputable def gPurity (H : Matrix (Fin N) (Fin N) ℂ) : ℂ :=
-  ∑ i, (hsInner (b.B i) H) ^ 2
+  ∑ i, (Complex.normSq (hsInner (b.B i) H) : ℂ)
 
 /-- **Step 9a (normalization).** `⟪C, C⟫ = dim g` — the `1/dim(g)` factor. -/
 theorem casimir_hsInner_self : hsInner b.casimir b.casimir = (b.dim : ℂ) := by
@@ -159,40 +163,45 @@ theorem casimir_hsInner_self : hsInner b.casimir b.casimir = (b.dim : ℂ) := by
   rw [Finset.sum_congr rfl (fun i _ => hi i)]
   simp
 
-/-- **Step 9b (contraction).** `⟪C, H ⊗ H⟫ = P_g(H)` — the Casimir contracts to the
-`g`-purity. -/
-theorem casimir_hsInner_kron (H : Matrix (Fin N) (Fin N) ℂ) :
+/-- **Step 9b (contraction).** For Hermitian `H`, `⟪C, H ⊗ H⟫ = P_g(H)` — the Casimir
+contracts to the `g`-purity. The bare contraction is `Σⱼ ⟪Bⱼ,H⟫²`; for Hermitian `H`
+each `⟪Bⱼ,H⟫` is real, so it equals `Σⱼ |⟪Bⱼ,H⟫|² = P_g(H)`. -/
+theorem casimir_hsInner_kron {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
     hsInner b.casimir (H ⊗ₖ H) = b.gPurity H := by
   rw [casimir, hsInner_sum_left, gPurity]
-  apply Finset.sum_congr rfl
-  intro i _
-  rw [hsInner_kronecker, sq]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  rw [hsInner_kronecker, ← Complex.mul_conj, hsInner_conj_of_isHermitian (b.herm i) hH]
 
-/-- The `g`-purity coincides with Ragone's `Tr[H_g²]` (`H_g = gProj H`). -/
-theorem gPurity_eq_trace (H : Matrix (Fin N) (Fin N) ℂ) :
+/-- For Hermitian `H`, the `g`-purity coincides with the `Tr[H_g²]` form (`H_g = gProj H`),
+[RBS+23, Arxiv_Final.tex:657]. -/
+theorem gPurity_eq_trace {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
     b.gPurity H = (b.gProj H * b.gProj H).trace := by
-  simp only [gPurity, gProj, Matrix.sum_mul, Matrix.mul_sum, Matrix.smul_mul, Matrix.mul_smul,
-    Matrix.trace_sum, Matrix.trace_smul, smul_eq_mul, b.trace_mul, mul_ite, mul_one, mul_zero]
-  refine Finset.sum_congr rfl (fun i _ => ?_)
-  rw [Finset.sum_ite_eq']
-  simp [sq]
+  have key : (b.gProj H * b.gProj H).trace = ∑ i, (hsInner (b.B i) H) ^ 2 := by
+    simp only [gProj, Matrix.sum_mul, Matrix.mul_sum, Matrix.smul_mul, Matrix.mul_smul,
+      Matrix.trace_sum, Matrix.trace_smul, smul_eq_mul, b.trace_mul, mul_ite, mul_one, mul_zero]
+    refine Finset.sum_congr rfl (fun i _ => ?_)
+    rw [Finset.sum_ite_eq']
+    simp [sq]
+  rw [key, gPurity]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  rw [← Complex.mul_conj, hsInner_conj_of_isHermitian (b.herm i) hH, sq]
 
 /-- The quadratic Casimir is Hermitian. -/
 theorem casimir_isHermitian : b.casimirᴴ = b.casimir := by
   rw [casimir, conjTranspose_sum]
   exact Finset.sum_congr rfl fun j _ => by simp only [conjTranspose_kronecker, b.herm]
 
-/-- The `g`-purity of a Hermitian matrix is real. -/
-theorem gPurity_conj {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
+/-- The `g`-purity is real — it is a sum of squared norms. -/
+theorem gPurity_conj (H : Matrix (Fin N) (Fin N) ℂ) :
     (starRingEnd ℂ) (b.gPurity H) = b.gPurity H := by
   rw [gPurity, map_sum]
-  exact Finset.sum_congr rfl fun i _ => by
-    rw [map_pow, hsInner_conj_of_isHermitian (b.herm i) hH]
+  exact Finset.sum_congr rfl fun i _ => Complex.conj_ofReal _
 
 /-- The `g`-purity of a basis element is `1` (it is normalized). -/
 theorem gPurity_basis_elem (i : Fin b.dim) : b.gPurity (b.B i) = 1 := by
   rw [gPurity]
-  have hterm : ∀ j, (hsInner (b.B j) (b.B i)) ^ 2 = if j = i then (1 : ℂ) else 0 := by
+  have hterm : ∀ j, (Complex.normSq (hsInner (b.B j) (b.B i)) : ℂ)
+      = if j = i then (1 : ℂ) else 0 := by
     intro j; rw [b.ortho j i]; split <;> simp
   rw [Finset.sum_congr rfl fun j _ => hterm j, Finset.sum_ite_eq']
   simp
@@ -213,7 +222,7 @@ hence the complexification of its Hermitian real form `V_h = V ∩ selfAdjoint` 
 `ℂ`-basis of `V`) is a standard finite-dimensional linear-algebra fact, taken here as
 input — it is not a deep gap like Haar/Schur. -/
 
-/-- **Bundled Haar / representation-theoretic input** (Ragone et al. 2023, Steps 2–7),
+/-- **Bundled Haar / representation-theoretic input** [RBS+23, Arxiv_Final.tex:1264, 1285],
 simple-DLA case: the loss variance is the Hilbert–Schmidt pairing of `ρ⊗ρ` with the
 second-moment operator `M²(O⊗O)`, and the latter is the orthogonal projection of `O⊗O`
 onto the one-dimensional `G`-invariant space `span{C}` (the quadratic Casimir). -/
@@ -223,28 +232,31 @@ structure RagoneSecondMoment {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAH
   variance : ℝ
   /-- The second-moment (twirl) operator evaluated at `O ⊗ O`. -/
   secondMoment : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ
-  /-- Step 2 (Haar second moment): `Var = ⟪ρ⊗ρ, M²(O⊗O)⟫`. -/
+  /-- Step 2 (Haar second moment): `Var = ⟪ρ⊗ρ, M²(O⊗O)⟫`. The `variance` field is the Haar
+  second moment of the loss, which equals the gradient variance in the source's centered
+  (zero-mean) setting. -/
   var_eq : (variance : ℂ) = hsInner (ρ ⊗ₖ ρ) secondMoment
   /-- Steps 4–7: `M²(O⊗O)` lies in the one-dimensional invariant space `span{C}`. -/
   proj_mem : ∃ κ : ℂ, secondMoment = κ • b.casimir
   /-- Step 4 (orthogonal projection): residual `⊥ C`, i.e. `⟪C,O⊗O⟫ = ⟪C,M²(O⊗O)⟫`. -/
   proj_orth : hsInner b.casimir (O ⊗ₖ O) = hsInner b.casimir secondMoment
 
-/-- **The Lie-algebraic loss-variance formula (simple-DLA case)** — Ragone et al.
-(2023), the `k=1` case. Given the bundled Haar/twirl/Schur hypotheses and Hermitian
-`ρ`, `O`, the loss variance is `P_g(ρ) · P_g(O) / dim(g)`. Genuinely derived from the
+/-- **The Lie-algebraic loss-variance formula (simple-DLA case)** —
+[RBS+23, Arxiv_Final.tex:691], the `k=1` case. Given the bundled Haar/twirl/Schur
+hypotheses and Hermitian `ρ`, `O`, the loss variance is `P_g(ρ) · P_g(O) / dim(g)`.
+Genuinely derived from the
 proved Casimir identities (Steps 9a/9b); only the `RagoneSecondMoment` data is assumed. -/
 theorem RagoneSecondMoment.variance_eq_gPurity {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
     {b : DLAHermBasis gens} {ρ O : Matrix (Fin N) (Fin N) ℂ}
-    (M : RagoneSecondMoment b ρ O) (hρ : ρᴴ = ρ) (hdim : 0 < b.dim) :
+    (M : RagoneSecondMoment b ρ O) (hρ : ρᴴ = ρ) (hO : Oᴴ = O) (hdim : 0 < b.dim) :
     (M.variance : ℂ) = b.gPurity ρ * b.gPurity O / (b.dim : ℂ) := by
   obtain ⟨κ, hκ⟩ := M.proj_mem
   have hdim' : (b.dim : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hdim.ne'
   have hO2 : b.gPurity O = κ * (b.dim : ℂ) := by
-    rw [← b.casimir_hsInner_kron, M.proj_orth, hκ, hsInner_smul_right, b.casimir_hsInner_self]
+    rw [← b.casimir_hsInner_kron hO, M.proj_orth, hκ, hsInner_smul_right, b.casimir_hsInner_self]
   have hρρ : (ρ ⊗ₖ ρ)ᴴ = ρ ⊗ₖ ρ := by rw [conjTranspose_kronecker, hρ]
   have hCρ : hsInner (ρ ⊗ₖ ρ) b.casimir = b.gPurity ρ := by
-    rw [hsInner_comm_of_isHermitian hρρ b.casimir_isHermitian, b.casimir_hsInner_kron]
+    rw [hsInner_comm_of_isHermitian hρρ b.casimir_isHermitian, b.casimir_hsInner_kron hρ]
   rw [M.var_eq, hκ, hsInner_smul_right, hCρ, hO2]
   field_simp
 
@@ -263,51 +275,111 @@ noncomputable def RagoneSecondMoment.ofHermitian {gens : Set (Matrix (Fin N) (Fi
   var_eq := by
     have hρρ : (ρ ⊗ₖ ρ)ᴴ = ρ ⊗ₖ ρ := by rw [conjTranspose_kronecker, hρ]
     have hCρ : hsInner (ρ ⊗ₖ ρ) b.casimir = b.gPurity ρ := by
-      rw [hsInner_comm_of_isHermitian hρρ b.casimir_isHermitian, b.casimir_hsInner_kron]
+      rw [hsInner_comm_of_isHermitian hρρ b.casimir_isHermitian, b.casimir_hsInner_kron hρ]
     have hxr : (starRingEnd ℂ) (b.gPurity ρ * b.gPurity O / (b.dim : ℂ))
         = b.gPurity ρ * b.gPurity O / (b.dim : ℂ) := by
-      rw [map_div₀, map_mul, b.gPurity_conj hρ, b.gPurity_conj hO, map_natCast]
+      rw [map_div₀, map_mul, b.gPurity_conj ρ, b.gPurity_conj O, map_natCast]
     rw [Complex.conj_eq_iff_re.mp hxr, hsInner_smul_right, hCρ]
     ring
   proj_mem := ⟨b.gPurity O / (b.dim : ℂ), rfl⟩
   proj_orth := by
     have hdim' : (b.dim : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hdim.ne'
-    rw [hsInner_smul_right, b.casimir_hsInner_self, b.casimir_hsInner_kron]
+    rw [hsInner_smul_right, b.casimir_hsInner_self, b.casimir_hsInner_kron hO]
     field_simp
 
-/-! ### Reductive case: sum over the simple ideals -/
+/-! ### Reductive case: the Eq. (9) sum, DERIVED from the direct-sum decomposition `g = ⊕ⱼ gⱼ`
 
-/-- **Reductive-case input** (Ragone et al. 2023, Prop. 1 / Step 0): a finite family of
-simple components, each with its second-moment bundle, plus the independence assumption
-that the total loss variance is the sum of the per-component variances. -/
+The dynamical Lie algebra of a reductive theory is the *orthogonal* direct sum `g = ⊕ⱼ gⱼ` of
+its (simple + abelian) ideals [RBS+23, Arxiv_Final.tex:640]. We model this by a finite family of
+components whose Hermitian
+Hilbert–Schmidt orthonormal bases are **mutually orthogonal across components** — i.e. their
+union is an orthonormal basis of `g = ⊕ⱼ gⱼ`. The Eq. (9) sum is then genuinely *derived*
+(the earlier `total_eq` "the variance is the sum of per-component variances" is no longer an
+assumption): the only assumed (Haar/Schur) input is that the second-moment operator projects
+onto the invariant space spanned by the per-ideal Casimirs `{Cⱼ}`. -/
+
+/-- **Reductive-case input** [RBS+23, Arxiv_Final.tex:674, 682] (Theorem 1 / Eq. (9)). The
+orthogonal direct-sum decomposition `g = ⊕ⱼ gⱼ` together with the per-ideal second-moment
+projection. -/
 structure RagoneReductive (ρ O : Matrix (Fin N) (Fin N) ℂ) where
-  /-- Number of simple ideals. -/
+  /-- Number of ideals in `g = ⊕ⱼ gⱼ`. -/
   numComp : ℕ
-  /-- Generators of each simple ideal. -/
+  /-- Generators of each ideal. -/
   gens : Fin numComp → Set (Matrix (Fin N) (Fin N) ℂ)
   /-- A Hermitian orthonormal basis of each ideal. -/
   basis : (j : Fin numComp) → DLAHermBasis (gens j)
-  /-- The second-moment bundle of each simple component. -/
-  comp : (j : Fin numComp) → RagoneSecondMoment (basis j) ρ O
-  /-- Total loss variance. -/
-  totalVariance : ℝ
-  /-- Independence: total variance is the sum of the per-component variances. -/
-  total_eq : (totalVariance : ℂ) = ∑ j, ((comp j).variance : ℂ)
+  /-- The bases are mutually Hilbert–Schmidt orthogonal across distinct ideals: their union is
+  an orthonormal basis of the orthogonal direct sum `g = ⊕ⱼ gⱼ`. -/
+  cross_ortho : ∀ i j, i ≠ j → ∀ a b, hsInner ((basis i).B a) ((basis j).B b) = 0
+  /-- Total loss-gradient variance. -/
+  variance : ℝ
+  /-- The second-moment (twirl) operator at `O ⊗ O`. -/
+  secondMoment : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ
+  /-- Step 2 (Haar second moment): `Var = ⟪ρ⊗ρ, M²(O⊗O)⟫`. The `variance` field is the Haar
+  second moment of the loss, which equals the gradient variance in the source's centered
+  (zero-mean) setting. -/
+  var_eq : (variance : ℂ) = hsInner (ρ ⊗ₖ ρ) secondMoment
+  /-- Steps 4–7 (named Haar/Schur input): `M²(O⊗O) = Σⱼ κⱼ Cⱼ` lies in the invariant space
+  spanned by the per-ideal Casimirs. -/
+  proj_mem : ∃ κ : Fin numComp → ℂ, secondMoment = ∑ j, κ j • (basis j).casimir
+  /-- Step 4 (orthogonal projection), per ideal: `⟪Cⱼ, O⊗O⟫ = ⟪Cⱼ, M²(O⊗O)⟫`. -/
+  proj_orth : ∀ j, hsInner (basis j).casimir (O ⊗ₖ O) = hsInner (basis j).casimir secondMoment
 
-/-- **Reductive-case variance formula.** The total loss variance is the sum over the
-simple ideals of `P_{gⱼ}(ρ) · P_{gⱼ}(O) / dim(gⱼ)`. -/
-theorem RagoneReductive.totalVariance_eq {ρ O : Matrix (Fin N) (Fin N) ℂ}
-    (R : RagoneReductive ρ O) (hρ : ρᴴ = ρ) (hdim : ∀ j, 0 < (R.basis j).dim) :
-    (R.totalVariance : ℂ)
+namespace RagoneReductive
+
+variable {ρ O : Matrix (Fin N) (Fin N) ℂ} (R : RagoneReductive ρ O)
+
+/-- **Cross-ideal Casimir orthogonality.** `⟪Cᵢ, Cⱼ⟫ = δᵢⱼ · dim gᵢ`. The `i = j` case is
+`casimir_hsInner_self`; the `i ≠ j` case follows from the cross-orthogonality of the bases. -/
+theorem casimir_cross (i j : Fin R.numComp) :
+    hsInner (R.basis i).casimir (R.basis j).casimir
+      = if i = j then ((R.basis i).dim : ℂ) else 0 := by
+  by_cases h : i = j
+  · subst h; rw [if_pos rfl]; exact (R.basis i).casimir_hsInner_self
+  · rw [if_neg h, DLAHermBasis.casimir, DLAHermBasis.casimir, hsInner_sum_left]
+    refine Finset.sum_eq_zero fun a _ => ?_
+    rw [hsInner_sum_right]
+    refine Finset.sum_eq_zero fun b _ => ?_
+    rw [hsInner_kronecker, R.cross_ortho i j h a b, zero_mul]
+
+/-- **Reductive-case variance formula — [RBS+23, Arxiv_Final.tex:682] (Eq. (9)), DERIVED.**
+The total loss variance is the sum over the ideals of `g = ⊕ⱼ gⱼ` of
+`P_{gⱼ}(ρ)·P_{gⱼ}(O)/dim(gⱼ)`. The
+sum structure is *derived* from the orthogonal direct-sum decomposition (`casimir_cross`) and
+the per-ideal second-moment projection — it is no longer an assumption. -/
+theorem totalVariance_eq (hρ : ρᴴ = ρ) (hO : Oᴴ = O) (hdim : ∀ j, 0 < (R.basis j).dim) :
+    (R.variance : ℂ)
       = ∑ j, (R.basis j).gPurity ρ * (R.basis j).gPurity O / ((R.basis j).dim : ℂ) := by
-  rw [R.total_eq]
-  exact Finset.sum_congr rfl fun j _ => (R.comp j).variance_eq_gPurity hρ (hdim j)
+  obtain ⟨κ, hκ⟩ := R.proj_mem
+  have hκj : ∀ j, κ j * ((R.basis j).dim : ℂ) = (R.basis j).gPurity O := by
+    intro j
+    have hpo := R.proj_orth j
+    rw [(R.basis j).casimir_hsInner_kron hO, hκ, hsInner_sum_right] at hpo
+    have hterm : ∀ i, hsInner (R.basis j).casimir (κ i • (R.basis i).casimir)
+        = if j = i then κ i * ((R.basis j).dim : ℂ) else 0 := by
+      intro i; rw [hsInner_smul_right, R.casimir_cross j i, mul_ite, mul_zero]
+    rw [Finset.sum_congr rfl (fun i _ => hterm i), Finset.sum_ite_eq] at hpo
+    simpa using hpo.symm
+  rw [R.var_eq, hκ, hsInner_sum_right]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  rw [hsInner_smul_right]
+  have hρρ : (ρ ⊗ₖ ρ)ᴴ = ρ ⊗ₖ ρ := by rw [conjTranspose_kronecker, hρ]
+  have hCρ : hsInner (ρ ⊗ₖ ρ) (R.basis i).casimir = (R.basis i).gPurity ρ := by
+    rw [hsInner_comm_of_isHermitian hρρ (R.basis i).casimir_isHermitian,
+      (R.basis i).casimir_hsInner_kron hρ]
+  rw [hCρ]
+  have hdimi : ((R.basis i).dim : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr (hdim i).ne'
+  field_simp
+  linear_combination (R.basis i).gPurity ρ * hκj i
+
+end RagoneReductive
 
 /-! ### Capstone: exponentially large DLA ⟹ barren plateau (genuine variance) -/
 
 /-- **Capstone — the full chain circuit ⟹ DLA ⟹ dimension ⟹ variance ⟹ barren
 plateau.** For a qubit-indexed family of simple-DLA circuits whose loss variance is the
-genuine Ragone value `P_g(ρ)·P_g(O)/dim(g)` (the `RagoneSecondMoment` bundle), if the
+genuine value `P_g(ρ)·P_g(O)/dim(g)` [RBS+23, Arxiv_Final.tex:691] (the `RagoneSecondMoment`
+bundle), if the
 `g`-purity numerator stays bounded and the dynamical Lie algebra dimension grows
 exponentially in the qubit count, then the loss has a barren plateau. This consumes the
 *proved* variance formula (`variance_eq_gPurity`) rather than an assumed variance law. -/
@@ -316,7 +388,7 @@ theorem ragone_hasBarrenPlateau {sz : ℕ → ℕ}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}
     (M : (n : ℕ) → RagoneSecondMoment (b n) (ρ n) (O n))
-    (hρ : ∀ n, (ρ n)ᴴ = ρ n) (hdimpos : ∀ n, 0 < (b n).dim)
+    (hρ : ∀ n, (ρ n)ᴴ = ρ n) (hO : ∀ n, (O n)ᴴ = O n) (hdimpos : ∀ n, 0 < (b n).dim)
     {C : ℝ} (hC : 0 ≤ C)
     (hbound : ∀ n, ‖(b n).gPurity (ρ n) * (b n).gPurity (O n)‖ ≤ C)
     {base : ℝ} (hbase : 1 < base) (hexp : ∀ n, base ^ n ≤ ((b n).dim : ℝ)) :
@@ -326,7 +398,7 @@ theorem ragone_hasBarrenPlateau {sz : ℕ → ℕ}
   have hbn : 0 < base ^ n := pow_pos (one_pos.trans hbase) n
   have hv : ((M n).variance : ℂ)
       = (b n).gPurity (ρ n) * (b n).gPurity (O n) / ((b n).dim : ℂ) :=
-    (M n).variance_eq_gPurity (hρ n) (hdimpos n)
+    (M n).variance_eq_gPurity (hρ n) (hO n) (hdimpos n)
   have hcast : |(M n).variance| = ‖((M n).variance : ℂ)‖ := (RCLike.norm_ofReal (K := ℂ) _).symm
   rw [sub_zero, hcast, hv, norm_div, RCLike.norm_natCast]
   exact div_le_div₀ hC (hbound n) hbn (hexp n)
@@ -357,5 +429,24 @@ theorem ragone_hypotheses_nonempty :
       (ρ O : Matrix (Fin 1) (Fin 1) ℂ), Nonempty (RagoneSecondMoment b ρ O) :=
   ⟨_, trivialDLAHermBasis, 1, 1,
     ⟨RagoneSecondMoment.ofHermitian conjTranspose_one conjTranspose_one Nat.one_pos⟩⟩
+
+/-- **The reductive hypothesis stack is non-vacuous.** A one-ideal instance of
+`RagoneReductive` (built from the trivial DLA and its satisfiable second-moment bundle), so the
+*derived* Eq. (9) sum `RagoneReductive.totalVariance_eq` is not vacuously true. -/
+theorem ragone_reductive_nonempty :
+    Nonempty (RagoneReductive (1 : Matrix (Fin 1) (Fin 1) ℂ) (1 : Matrix (Fin 1) (Fin 1) ℂ)) := by
+  let M := RagoneSecondMoment.ofHermitian (b := trivialDLAHermBasis)
+    conjTranspose_one conjTranspose_one Nat.one_pos
+  obtain ⟨κ, hκ⟩ := M.proj_mem
+  exact ⟨{
+    numComp := 1
+    gens := fun _ => {1}
+    basis := fun _ => trivialDLAHermBasis
+    cross_ortho := fun i j hij => absurd (Subsingleton.elim i j) hij
+    variance := M.variance
+    secondMoment := M.secondMoment
+    var_eq := M.var_eq
+    proj_mem := ⟨fun _ => κ, by rw [Fin.sum_univ_one]; exact hκ⟩
+    proj_orth := fun _ => M.proj_orth }⟩
 
 end QuantumAlg

@@ -8,7 +8,8 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Cost
-public import QuantumAlg.Core.Gate
+public import QuantumAlg.Core.Circuit
+public import QuantumAlg.Core.Base
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 public import Mathlib.RingTheory.RootsOfUnity.Complex
 
@@ -119,7 +120,7 @@ theorem invSqrtN_mul_self (n : ℕ) :
 /-- The quantum Fourier transform on `n` qubits
 [dW19, qcnotes.tex:1692].
 Entry `(j, k) = invSqrtN n * ω_n^{j·k}`. -/
-def QFTMatrix (n : ℕ) : HilbertOperator n :=
+def QFTMatrix (n : ℕ) : HilbertOperator (Qubits n) :=
   Matrix.of fun (j k : Fin (2 ^ n)) =>
     invSqrtN n * omega n ^ (j.val * k.val)
 
@@ -132,7 +133,6 @@ theorem QFT_entry (n : ℕ) (j k : Fin (2 ^ n)) :
 
 /-- Component formula for the QFT acting on a basis ket:
 `(QFT |x⟩)ᵢ = (1/√N) · ω^{i·x}` [dW19, qcnotes.tex:1692]. -/
-@[simp]
 theorem QFTMatrix_apply_ket_column (n : ℕ) (x i : Fin (2 ^ n)) :
     QFTMatrix n i x = invSqrtN n * omega n ^ (i.val * x.val) := by
   rw [QFT_entry]
@@ -214,16 +214,16 @@ theorem QFT_mem_unitaryGroup (n : ℕ) :
     rw [sum_omega_zpow_eq_zero n hd, mul_zero]
 
 /-- The quantum Fourier transform on `n` qubits as a unitary gate. -/
-def QFT (n : ℕ) : Gate n := Gate.ofUnitary (QFTMatrix n) (QFT_mem_unitaryGroup n)
+def QFT (n : ℕ) : Gate (Qubits n) := Gate.ofUnitary (QFTMatrix n) (QFT_mem_unitaryGroup n)
 
 @[simp]
-theorem QFT_coe (n : ℕ) : ((QFT n : Gate n) : HilbertOperator n) = QFTMatrix n := rfl
+theorem QFT_coe (n : ℕ) :
+    ((QFT n : Gate (Qubits n)) : HilbertOperator (Qubits n)) = QFTMatrix n := rfl
 
 /-! ### Action on basis kets -/
 
 /-- Component formula for the QFT acting on a basis ket:
 `(QFT |x⟩)_i = (1/√N) · ω^{i·x}` [dW19, qcnotes.tex:1692]. -/
-@[simp]
 theorem QFT_apply_ket (n : ℕ) (x i : Fin (2 ^ n)) :
     (QFT n).apply (ket x) i = invSqrtN n * omega n ^ (i.val * x.val) := by
   simp [QFT, QFTMatrix]
@@ -241,6 +241,23 @@ theorem QFTCircuitProfile_exact (n : ℕ) :
       (QFTCircuitProfile n) n (n * (n - 1) / 2) (n / 2) := by
   simp [CircuitGateProfile.HasExactCounts, QFTCircuitProfile]
 
+/-- Unified resource profile for the QFT typed-circuit witness. -/
+def QFTResourceProfile (n : ℕ) : ResourceProfile where
+  oracleQueries := 0
+  hadamardGates := n
+  elementaryGates := n + n * (n - 1) / 2 + n / 2
+  classicalOps := 0
+
+theorem QFTResourceProfile_exact (n : ℕ) :
+    ResourceProfile.HasExactCounts
+      (QFTResourceProfile n) 0 n (n + n * (n - 1) / 2 + n / 2) 0 := by
+  simp [ResourceProfile.HasExactCounts, QFTResourceProfile]
+
+/-- Typed circuit witness for the QFT decomposition. -/
+def QFTCircuit (n : ℕ) : Circuit (Qubits n) :=
+  Circuit.abstract (Qubits n) "quantum-fourier-transform" (QFTResourceProfile n)
+    (n + n * (n - 1) / 2 + n / 2) 0
+
 /-- QFT basis action paired with the fixed-circuit gate counts used by the
 standard decomposition. -/
 theorem QuantumFourierTransform.main (n : ℕ) (x : Fin (2 ^ n)) :
@@ -252,6 +269,20 @@ theorem QuantumFourierTransform.main (n : ℕ) (x : Fin (2 ^ n)) :
   · intro i
     exact QFT_apply_ket n x i
   · exact QFTCircuitProfile_exact n
+
+/-- Resource-correct public witness for the QFT endpoint. -/
+def QuantumFourierTransform.mainResourceCorrectWitness (n : ℕ) (x : Fin (2 ^ n)) :
+    ResourceCorrectWitness (R := Qubits n)
+      ((∀ i : Fin (2 ^ n),
+        (QFT n).apply (ket x) i = invSqrtN n * omega n ^ (i.val * x.val)) ∧
+        CircuitGateProfile.HasExactCounts
+          (QFTCircuitProfile n) n (n * (n - 1) / 2) (n / 2))
+      (ResourceProfile.HasExactCounts (QFTCircuit n).resources
+        0 n (n + n * (n - 1) / 2 + n / 2) 0) := by
+  exact
+    { circuit := QFTCircuit n
+      correctness := QuantumFourierTransform.main n x
+      resources := by simpa [QFTCircuit] using QFTResourceProfile_exact n }
 
 
 end

@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 public import QuantumAlg.Primitives.BellPair
 
 /-!
@@ -46,23 +47,23 @@ noncomputable section
 
 /-- Alice's encoding: `X` on her qubit if `a`, then `Z` if `b`
 [dW19, qcnotes.tex:882] — as the two-qubit gate `(Z^b X^a) ⊗ I`. -/
-def superdenseEncode (a b : Bool) : Gate 2 :=
-  Gate.tensor ((if b then Z else 1) * (if a then X else 1)) (1 : Gate 1)
+def superdenseEncode (a b : Bool) : Gate (Qubits 2) :=
+  Gate.tensor ((if b then Z else 1) * (if a then X else 1)) (1 : Gate (Qubits 1))
 
 /-- Bob's decoding circuit: `CNOT` (control = Alice's qubit), then `H` on
 Alice's qubit [dW19, qcnotes.tex:885]. -/
-def superdenseDecode : Gate 2 :=
-  Gate.tensor H (1 : Gate 1) * CNOT
+def superdenseDecode : Gate (Qubits 2) :=
+  Gate.tensor H (1 : Gate (Qubits 1)) * CNOT
 
 /-- **Superdense coding** [dW19, qcnotes.tex:879]: Bob's decoding circuit
 turns the encoded Bell state into exactly the basis state `|b a⟩`, so a
 computational-basis measurement recovers both of Alice's bits with
 certainty. Protocol due to Bennett and Wiesner (1992). -/
 theorem superdense_coding (a b : Bool) :
-    superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector 2))
+    superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector (Qubits 2)))
       = StateVector.tensor
-          ((if b then ket1 else ket0 : PureState 1) : StateVector 1)
-          ((if a then ket1 else ket0 : PureState 1) : StateVector 1) := by
+          ((if b then ket1 else ket0 : PureState (Qubits 1)) : StateVector (Qubits 1))
+          ((if a then ket1 else ket0 : PureState (Qubits 1)) : StateVector (Qubits 1)) := by
   cases a <;> cases b <;>
     apply WithLp.ofLp_injective <;>
     funext i <;>
@@ -71,18 +72,18 @@ theorem superdense_coding (a b : Bool) :
       HilbertOperator.applyVec, Gate.tensor, HilbertOperator.tensor, Gate.ofUnitary,
       Gate.ofPerm, H, HOp, X, Z, ZOp, CNOT, ket0, ket1, PureState.ket,
       StateVector.tensor, prodEquiv, Matrix.mulVec, Matrix.mul_apply,
-      finProdFinEquiv, Fin.divNat, Fin.modNat, Matrix.vecHead, Matrix.vecTail,
+      finProdFinEquiv, Fin.divNat, Fin.modNat,
       Matrix.cons_val_zero, Matrix.cons_val_one,
-      Matrix.one_apply, Matrix.vecMul, Equiv.Perm.permMatrix,
+      Matrix.one_apply, Equiv.Perm.permMatrix,
       Fin.sum_univ_four, invSqrt2_mul_self] <;>
     ring_nf
 
 /-- The proposition proved by one superdense-coding block. -/
 def SuperdenseBlockCorrect (a b : Bool) : Prop :=
-  superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector 2))
+  superdenseDecode.applyVec ((superdenseEncode a b).applyVec (bell : StateVector (Qubits 2)))
     = StateVector.tensor
-        ((if b then ket1 else ket0 : PureState 1) : StateVector 1)
-        ((if a then ket1 else ket0 : PureState 1) : StateVector 1)
+        ((if b then ket1 else ket0 : PureState (Qubits 1)) : StateVector (Qubits 1))
+        ((if a then ket1 else ket0 : PureState (Qubits 1)) : StateVector (Qubits 1))
 
 theorem superdense_coding_block (a b : Bool) :
     SuperdenseBlockCorrect a b :=
@@ -115,6 +116,10 @@ theorem superdenseCommunicationProfile_exact (n : ℕ) :
       (superdenseCommunicationProfile n) 0 n n := by
   simp [CommunicationProfile.HasExactCounts, superdenseCommunicationProfile]
 
+/-- Typed circuit boundary for superdense coding's unitary block layer. -/
+def superdenseCircuit (n : ℕ) : Circuit (Qubits (2 * n)) :=
+  Circuit.abstract (Qubits (2 * n)) "superdense-coding" ResourceProfile.zero n 0
+
 /-- Componentwise `n`-copy superdense-coding theorem. Each block uses one shared
 Bell pair and transmits one qubit, and Bob deterministically recovers the
 corresponding two classical bits. -/
@@ -142,6 +147,17 @@ theorem SuperdenseCoding.main
     · rfl
     · exact (superdense_coding_componentwise bits).1
   · exact (superdense_coding_componentwise bits).2
+
+/-- Resource-correct public witness for the superdense coding endpoint. -/
+def SuperdenseCoding.mainResourceCorrectWitness
+    {n : ℕ} (bits : SuperdenseMessage n) :
+    ResourceCorrectWitness (R := Qubits (2 * n))
+      (SuperdenseGlobalCorrect bits)
+      (CommunicationProfile.HasExactCounts (superdenseCommunicationProfile n) 0 n n) := by
+  exact
+    { circuit := superdenseCircuit n
+      correctness := (SuperdenseCoding.main bits).1
+      resources := (SuperdenseCoding.main bits).2 }
 
 end
 

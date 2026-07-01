@@ -52,9 +52,10 @@ variable {n : ℕ}
 oracle `|x⟩ ↦ (−1)^{f(x)} |x⟩`; the sign `(−1)^{f(x)}` is written
 `if f x then -1 else 1`. -/
 theorem PhaseKickback.main (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
-    ((Gate.xorOracle f).apply ((ket x).tensor ketMinus) : StateVector (n + 1))
+    ((Gate.xorOracle f).apply ((ket x).tensor ketMinus) : StateVector (Qubits (n + 1)))
       = (if f x then (-1 : ℂ) else 1)
-          • (((ket x).tensor ketMinus : PureState (n + 1)) : StateVector (n + 1)) := by
+          • (((ket x).tensor ketMinus : PureState (Qubits (n + 1))) :
+              StateVector (Qubits (n + 1))) := by
   apply WithLp.ofLp_injective
   funext i
   rcases (prodEquiv (m := n) (n := 1)).surjective i with ⟨⟨y, b⟩, rfl⟩
@@ -70,48 +71,34 @@ theorem PhaseKickback.main (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
       simp [hx, h, hy, PureState.ket_apply]
 
 
-/-- On a `|+⟩` target the XOR oracle acts trivially, whatever `f` is. -/
-theorem xorOracle_apply_tensor_ketPlus (f : Fin (2 ^ n) → Bool)
-    (x : Fin (2 ^ n)) :
-    (Gate.xorOracle f).apply ((ket x).tensor ketPlus)
-      = (ket x).tensor ketPlus := by
-  ext i
-  rcases (prodEquiv (m := n) (n := 1)).surjective i with ⟨⟨y, b⟩, rfl⟩
-  rw [Gate.xorOracle_apply, PureState.tensor_apply_prod, PureState.tensor_apply_prod]
-  simp only [Equiv.symm_apply_apply, Gate.xorPerm_apply]
-  by_cases hy : y = x
-  · subst y
-    by_cases h : f x <;> fin_cases b <;> simp [h, ketPlus_apply]
-  · by_cases h : f y <;> fin_cases b <;>
-      simp [h, hy, PureState.ket_apply]
-
 /-- **Eigenvalue phase kickback** [CEMM98, cemm6.tex:163]: if the target
 register holds an eigenstate `|u⟩` of `U` with eigenvalue `e^{iθ}`, the
 controlled `U` leaves the target unchanged and kicks the eigenvalue back
 onto the `|1⟩` component of the control [CEMM98, cemm6.tex:142]:
 
 `c-U ((a|0⟩ + b|1⟩) ⊗ |u⟩) = (a|0⟩ + e^{iθ} b|1⟩) ⊗ |u⟩`. -/
-theorem GeneralizedPhaseKickback.main (U : Gate n) (u : PureState n) (θ : ℝ)
-    (hu : U.applyVec (u : StateVector n) =
-      Complex.exp (θ * Complex.I) • (u : StateVector n)) (a b : ℂ) :
+theorem GeneralizedPhaseKickback.main (U : Gate (Qubits n)) (u : PureState (Qubits n)) (θ : ℝ)
+    (hu : U.applyVec (u : StateVector (Qubits n)) =
+      Complex.exp (θ * Complex.I) • (u : StateVector (Qubits n))) (a b : ℂ) :
     (Gate.controlled U).applyVec
         (StateVector.tensor
-          ((a • ket0 + b • ket1 : StateVector 1)) (u : StateVector n))
+          ((a • ket0 + b • ket1 : StateVector (Qubits 1))) (u : StateVector (Qubits n)))
       =
       StateVector.tensor
-        ((a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1 : StateVector 1))
-        (u : StateVector n) := by
+        ((a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1 : StateVector (Qubits 1)))
+        (u : StateVector (Qubits n)) := by
   rw [StateVector.add_tensor, StateVector.smul_tensor, StateVector.smul_tensor,
     Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
   simp only [Gate.applyVec, Gate.controlled_applyVec_ket0_tensor,
     Gate.controlled_applyVec_ket1_tensor]
   rw [StateVector.add_tensor, StateVector.smul_tensor, StateVector.smul_tensor]
-  change a • StateVector.tensor (ket0 : StateVector 1) (u : StateVector n)
-      + b • StateVector.tensor (ket1 : StateVector 1) (U.applyVec (u : StateVector n))
+  change a • StateVector.tensor (ket0 : StateVector (Qubits 1)) (u : StateVector (Qubits n))
+      + b • StateVector.tensor (ket1 : StateVector (Qubits 1))
+          (U.applyVec (u : StateVector (Qubits n)))
     =
-    a • StateVector.tensor (ket0 : StateVector 1) (u : StateVector n)
+    a • StateVector.tensor (ket0 : StateVector (Qubits 1)) (u : StateVector (Qubits n))
       + (Complex.exp (θ * Complex.I) * b)
-          • StateVector.tensor (ket1 : StateVector 1) (u : StateVector n)
+          • StateVector.tensor (ket1 : StateVector (Qubits 1)) (u : StateVector (Qubits n))
   rw [hu, StateVector.tensor_smul, smul_smul]
   module
 

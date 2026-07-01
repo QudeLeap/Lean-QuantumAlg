@@ -12,7 +12,7 @@ public import Mathlib.Data.Real.Basic
 public import Mathlib.Tactic
 
 /-!
-# Quantum-kernel learning advantage (Liu, Arunachalam, Temme 2021)
+# Quantum-kernel learning advantage [LAT21]
 
 A *genuine conditional separation* over the discrete-log concept class: under the hardness of
 the discrete-logarithm problem, a support-vector machine with quantum-kernel estimation provably
@@ -20,27 +20,27 @@ separates a concept class that no efficient classical learner can. The classical
 is **derived** (not assumed) by a contrapositive that consumes the proved secret-homogeneity
 `acc_shift` (in `QuantumAlg.Primitives.QKernel.DiscreteLogConcept`); the deep crypto/learning
 facts (DLP hardness, the efficient reduction, the SVM-QKE margin floor) are named hypothesis
-fields citing Liu, NOT axioms.
+fields citing [LAT21], NOT axioms.
 
 The expressivity (density-matrix EQK realization) half lives in
 `QuantumAlg.Primitives.QKernel.Expressivity`; the fidelity-kernel PSD foundation is in
 `QuantumAlg.Primitives.QKernel.Fidelity`.
 
-Source: Liu, Arunachalam, Temme (2021), *A rigorous and robust quantum speed-up in supervised
-machine learning*.
+Source: Liu, Arunachalam & Temme (2021), *A rigorous and robust quantum speed-up in supervised
+machine learning* [LAT21].
 -/
 
 @[expose] public section
 
 namespace QuantumAlg
 
-/-- **Provable quantum-kernel learning advantage** (Liu, Arunachalam, Temme 2021), as a
+/-- **Provable quantum-kernel learning advantage** [LAT21], as a
 *genuine conditional separation* over the discrete-log concept class on a finite cyclic
 group `G`. The classical ceiling is **derived** (not assumed) by a contrapositive that
 consumes the proved secret-homogeneity `acc_shift`: a learner beating `1/2 + ε`, transported
 to the fixed concept `f_1`, would solve the discrete-log problem.
 
-The genuinely deep crypto/learning facts are named hypothesis fields citing Liu (NOT axioms):
+The genuinely deep crypto/learning facts are named hypothesis fields citing [LAT21] (NOT axioms):
 `ClassicalSolvesDLP`/`dlpHard` (DLP hardness — equivalent to a P≠ statement, unprovable in
 principle), `singleConceptReduction` (the efficient reduction; its algebraic step is the
 proved `dlogConcept_reduction`), and `quantumFloor` (the SVM-QKE margin generalization). -/
@@ -57,7 +57,7 @@ structure QuantumKernelAdvantage (G : Type*) [Group G] [Fintype G] [IsCyclic G] 
   hε_lt : 1 / 2 + ε < 99 / 100
   /-- An opaque proposition standing for "the discrete-log problem is classically easy". -/
   ClassicalSolvesDLP : Prop
-  /-- **DLP hardness** (Liu Thm 1 assumption): no efficient classical DLP solver. -/
+  /-- **DLP hardness** ([LAT21, arxiv.tex:284] assumption): no efficient classical DLP solver. -/
   dlpHard : ¬ ClassicalSolvesDLP
   /-- The classical learner under scrutiny. -/
   classicalPredictor : G → Bool
@@ -67,15 +67,16 @@ structure QuantumKernelAdvantage (G : Type*) [Group G] [Fintype G] [IsCyclic G] 
   classicalAcc : ℝ
   /-- The accuracy is the uniform agreement with the concept `f_{classicalSecret}`. -/
   classicalAcc_def : classicalAcc = acc g hg classicalPredictor classicalSecret
-  /-- **The reduction** (Liu Thm 1): an above-chance learner for the fixed concept `f_1`
-  yields an efficient DLP solver. Its algebraic step is `dlogConcept_reduction`. -/
+  /-- **The reduction** ([LAT21, arxiv.tex:284]): an above-chance learner for
+  the fixed concept `f_1` yields an efficient DLP solver. Its algebraic step is
+  `dlogConcept_reduction`. -/
   singleConceptReduction :
     (1 / 2 + ε <
       acc g hg (fun y => classicalPredictor (y * gpow g hg (classicalSecret - 1))) 1)
       → ClassicalSolvesDLP
   /-- The quantum-kernel SVM's accuracy. -/
   quantumAcc : ℝ
-  /-- **Quantum floor** (Liu Thm 2): the SVM with quantum-kernel estimation is highly
+  /-- **Quantum floor** ([LAT21, arxiv.tex:333]): the SVM with quantum-kernel estimation is highly
   accurate (margin generalization). -/
   quantumFloor : (99 : ℝ) / 100 ≤ quantumAcc
 
@@ -85,7 +86,7 @@ applies the reduction, contradicting hardness. -/
 theorem QuantumKernelAdvantage.classical_ceiling {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (M : QuantumKernelAdvantage G) : M.classicalAcc ≤ 1 / 2 + M.ε := by
   by_contra h
-  push_neg at h
+  push Not at h
   refine M.dlpHard (M.singleConceptReduction ?_)
   rw [acc_shift, ← M.classicalAcc_def]
   exact h

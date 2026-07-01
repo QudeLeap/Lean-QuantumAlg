@@ -77,8 +77,7 @@ theorem hsInner_smul_right (c : ℂ) (A B : Matrix m m ℂ) :
 /-- Conjugate-linearity in the first argument. -/
 theorem hsInner_smul_left (c : ℂ) (A B : Matrix m m ℂ) :
     hsInner (c • A) B = (starRingEnd ℂ) c * hsInner A B := by
-  simp [hsInner, conjTranspose_smul, Matrix.smul_mul, Matrix.trace_smul, smul_eq_mul,
-    star_eq_conjTranspose]
+  simp [hsInner, conjTranspose_smul, Matrix.smul_mul, Matrix.trace_smul, smul_eq_mul]
 
 /-- Additivity over a finite sum in the second argument. -/
 theorem hsInner_sum_right {ι : Type*} (A : Matrix m m ℂ) (s : Finset ι)

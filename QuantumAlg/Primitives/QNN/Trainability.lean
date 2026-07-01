@@ -13,8 +13,8 @@ public import Mathlib.Analysis.Normed.Group.Basic
 /-!
 # Trainability: exponential concentration and barren plateaus
 
-The unifying notion behind **barren plateaus** (McClean et al. 2018) and
-**quantum-kernel concentration** (Thanasilp et al. 2022, Def. 1) is *exponential
+The unifying notion behind **barren plateaus** [MBS+18, maintext.tex:91] and
+**quantum-kernel concentration** [TWC+22, main-update.tex:658] is *exponential
 concentration*: a quantity indexed by system size `n` (a loss, a gradient variance,
 or a kernel value) deviates from a fixed value `μ` by at most `C / b ^ n` for some
 `b > 1`. The practical consequence is that the quantity becomes exponentially
@@ -25,8 +25,7 @@ barren-plateau models on top of it in the `GroverModel`/`ParamShiftModel` style:
 hard Haar / `t`-design / Weingarten input (the variance bound) is bundled as a
 hypothesis, and the trainability consequence is derived.
 
-Sources: McClean, Boixo, Smelyanskiy, Babbush, Neven (2018); Cerezo, Sone, Volkoff,
-Cincio, Coles (2021); Ragone et al. (2023); Thanasilp, Wang, Cerezo, Holmes (2022).
+Sources: [MBS+18]; [CSV+21, Arxiv_Final.tex:342]; [RBS+23]; [TWC+22].
 -/
 
 @[expose] public section
@@ -36,7 +35,7 @@ namespace QuantumAlg
 open Filter Topology
 
 /-- **Exponential concentration.** `X n` deviates from `μ` by at most `C / b ^ n`
-for some base `b > 1` (McClean 2018; Thanasilp 2022, Def. 1). -/
+for some base `b > 1` [MBS+18, maintext.tex:91; TWC+22, main-update.tex:658]. -/
 def ExpConcentrated (X : ℕ → ℝ) (μ : ℝ) : Prop :=
   ∃ b : ℝ, 1 < b ∧ ∃ C : ℝ, 0 ≤ C ∧ ∀ n, |X n - μ| ≤ C / b ^ n
 
@@ -69,10 +68,10 @@ theorem HasBarrenPlateau.variance_tendsto_zero {variance : ℕ → ℝ}
 
 /-! ### Lie-algebraic barren plateaus -/
 
-/-- **Lie-algebraic barren plateaus** (Ragone et al. 2023). In the simple-DLA case the
-loss variance is `P_g(ρ) P_g(O) / dim(g)` (their Eq. (10)); bundling the numerator and
-the DLA dimension, an exponentially large dynamical Lie algebra forces a barren
-plateau. -/
+/-- **Lie-algebraic barren plateaus** [RBS+23, Arxiv_Final.tex:691]. In the simple-DLA
+case the loss variance is `P_g(ρ) P_g(O) / dim(g)` (their Eq. (10)); bundling the
+numerator and the DLA dimension, an exponentially large dynamical Lie algebra forces a
+barren plateau. -/
 structure LieAlgebraicVariance where
   /-- `dim g` as a function of the system size. -/
   gdim : ℕ → ℝ
@@ -84,7 +83,7 @@ structure LieAlgebraicVariance where
   gdim_pos : ∀ n, 0 < gdim n
   /-- The loss variance. -/
   variance : ℕ → ℝ
-  /-- Ragone et al. (2023), Eq. (10): variance `= P_g(ρ) P_g(O) / dim(g)`. -/
+  /-- [RBS+23, Arxiv_Final.tex:691], Eq. (10): variance `= P_g(ρ) P_g(O) / dim(g)`. -/
   variance_eq : ∀ n, variance n = numer / gdim n
 
 /-- An exponentially large dynamical Lie algebra forces a barren plateau. -/
@@ -99,7 +98,7 @@ theorem LieAlgebraicVariance.hasBarrenPlateau_of_exp_dim (M : LieAlgebraicVarian
 
 /-! ### Cost-function-dependent barren plateaus -/
 
-/-- **Cost-function-dependent barren plateaus** (Cerezo et al. 2021): a global cost
+/-- **Cost-function-dependent barren plateaus** [CSV+21, Arxiv_Final.tex:342]: a global cost
 exhibits a barren plateau (exponentially concentrated gradient variance), whereas a
 local cost is trainable (its gradient variance has a polynomial lower bound). -/
 structure CostDependentBP where
@@ -124,14 +123,14 @@ theorem CostDependentBP.local_pos (M : CostDependentBP) {n : ℕ} (hn : 0 < n) :
 
 /-! ### Quantum-kernel concentration -/
 
-/-- **Quantum-kernel concentration** (Thanasilp et al. 2022): the kernel value
+/-- **Quantum-kernel concentration** [TWC+22, main-update.tex:658]: the kernel value
 concentrates exponentially to a fixed `κ₀`, so a polynomial number of measurement
 shots cannot distinguish inputs (the model becomes input-independent).
 
 This is the abstract deterministic-sequence form. The genuine probabilistic result —
 a concrete quantum kernel whose data-averaged value provably concentrates exponentially,
 derived from first principles with no Haar assumption — is
-`QuantumAlg.ryKernel_concentrates` in `QuantumAlg/Primitives/KernelConcentration.lean`,
+`QuantumAlg.ryKernel_concentrates` in `QuantumAlg/Primitives/QKernel/Concentration.lean`,
 built on the probabilistic engine `QuantumAlg.ExpConcentratedProb`. -/
 def KernelConcentration (kernel : ℕ → ℝ) (κ₀ : ℝ) : Prop := ExpConcentrated kernel κ₀
 
@@ -143,10 +142,12 @@ theorem KernelConcentration.tendsto {kernel : ℕ → ℝ} {κ₀ : ℝ}
 
 /-! ### Geometric/equivariant QML trainability -/
 
-/-- **Geometric/equivariant QML trainability** (Ragone et al. 2022 + the DLA variance
-law). A symmetry-structured model whose dynamical Lie algebra has only polynomial
-dimension keeps a polynomial lower bound on its gradient variance, hence avoids a
-barren plateau. -/
+/-- **Geometric/equivariant QML trainability** — the trainability counterpart of the Ragone DLA
+variance law `Var = P_g(ρ)P_g(O)/dim(g)` [RBS+23, Arxiv_Final.tex:691]: a symmetry-structured model
+(in the Geometric-QML sense) whose dynamical Lie algebra has only *polynomial* dimension keeps a
+polynomial lower bound on its gradient variance, hence avoids a barren plateau. This is the generic
+abstraction of that principle (a polynomial variance lower bound); it does not
+re-derive the variance law. -/
 structure GeometricQMLTrainable where
   /-- Gradient variance. -/
   variance : ℕ → ℝ

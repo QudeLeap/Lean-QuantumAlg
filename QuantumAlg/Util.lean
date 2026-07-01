@@ -7,12 +7,14 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Util.Asymptotics
 public import QuantumAlg.Util.Complex
 public import QuantumAlg.Util.Polynomial
 public import QuantumAlg.Util.FinPow
 public import QuantumAlg.Util.HilbertSchmidt
-public import QuantumAlg.Util.TrigPolynomial
+public import QuantumAlg.Util.QuantumFisher
 public import QuantumAlg.Util.Concentration
+public import QuantumAlg.Util.Haar
 
 /-!
 # QuantumAlg utility layer

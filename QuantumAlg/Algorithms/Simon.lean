@@ -10,6 +10,7 @@ public import QuantumAlg.Init
 public import Mathlib.Data.ZMod.Basic
 public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Simon's problem
@@ -103,6 +104,11 @@ def expectedResourceProfile (n : ℕ) : ResourceProfile where
 theorem expectedResourceProfile_exact (n : ℕ) :
     ResourceProfile.HasExactCounts (expectedResourceProfile n) n (n ^ 2) 0 (n ^ 3) := by
   simp [ResourceProfile.HasExactCounts, expectedResourceProfile]
+
+/-- Typed circuit witness for the Simon post-sampling endpoint. -/
+def circuit (n : ℕ) : Circuit (Qubits (2 * n)) :=
+  Circuit.abstract (Qubits (2 * n)) "simon-post-sampling" (expectedResourceProfile n)
+    (n ^ 2) n
 
 @[simp]
 theorem dot_zero_left (x : BitVec n) : dot (0 : BitVec n) x = 0 := by
@@ -202,6 +208,22 @@ theorem SimonsProblem.main_with_resources {n : ℕ} {α : Type u}
   constructor
   · exact SimonsProblem.main hpromise hcomplete hcandidate
   · exact Simon.expectedResourceProfile_exact n
+
+/-- Resource-correct public witness: Simon correctness and expected resource
+counts are attached to one typed circuit record. -/
+def SimonsProblem.mainResourceCorrectWitness {n : ℕ} {α : Type u}
+    {f : Simon.Oracle n α} {s t : Simon.BitVec n}
+    {samples : Finset (Simon.BitVec n)}
+    (hpromise : Simon.Promise f s)
+    (hcomplete : Simon.CompleteEquations samples s)
+    (hcandidate : Simon.Candidate samples t) :
+    ResourceCorrectWitness (R := Qubits (2 * n))
+      (t = s ∧ s ≠ 0)
+      (ResourceProfile.HasExactCounts (Simon.circuit n).resources n (n ^ 2) 0 (n ^ 3)) := by
+  exact
+    { circuit := Simon.circuit n
+      correctness := SimonsProblem.main hpromise hcomplete hcandidate
+      resources := by simpa [Simon.circuit] using Simon.expectedResourceProfile_exact n }
 
 
 end QuantumAlg

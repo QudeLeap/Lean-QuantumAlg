@@ -13,7 +13,11 @@
   "entries": [
     {
       "key": "AJL06",
-      "authors": ["Dorit Aharonov", "Vaughan Jones", "Zeph Landau"],
+      "authors": [
+        "Dorit Aharonov",
+        "Vaughan Jones",
+        "Zeph Landau"
+      ],
       "year": 2006,
       "title": "A Polynomial Quantum Algorithm for Approximating the Jones Polynomial",
       "arxiv_id": "quant-ph/0511096",
@@ -22,7 +26,9 @@
     },
     {
       "key": "dW19",
-      "authors": ["Ronald de Wolf"],
+      "authors": [
+        "Ronald de Wolf"
+      ],
       "year": 2019,
       "title": "Quantum Computing: Lecture Notes",
       "arxiv_id": "1907.09415",
@@ -31,7 +37,12 @@
     },
     {
       "key": "CEMM98",
-      "authors": ["Richard Cleve", "Artur Ekert", "Chiara Macchiavello", "Michele Mosca"],
+      "authors": [
+        "Richard Cleve",
+        "Artur Ekert",
+        "Chiara Macchiavello",
+        "Michele Mosca"
+      ],
       "year": 1998,
       "title": "Quantum Algorithms Revisited",
       "arxiv_id": "quant-ph/9708016",
@@ -40,7 +51,9 @@
     },
     {
       "key": "Lin22",
-      "authors": ["Lin Lin"],
+      "authors": [
+        "Lin Lin"
+      ],
       "year": 2022,
       "title": "Lecture Notes on Quantum Algorithms for Scientific Computation",
       "arxiv_id": "2201.08309",
@@ -49,7 +62,12 @@
     },
     {
       "key": "BCWdW01",
-      "authors": ["Harry Buhrman", "Richard Cleve", "John Watrous", "Ronald de Wolf"],
+      "authors": [
+        "Harry Buhrman",
+        "Richard Cleve",
+        "John Watrous",
+        "Ronald de Wolf"
+      ],
       "year": 2001,
       "title": "Quantum Fingerprinting",
       "arxiv_id": "quant-ph/0102001",
@@ -58,7 +76,14 @@
     },
     {
       "key": "BBD+96",
-      "authors": ["Adriano Barenco", "Andre Berthiaume", "David Deutsch", "Artur Ekert", "Richard Jozsa", "Chiara Macchiavello"],
+      "authors": [
+        "Adriano Barenco",
+        "Andre Berthiaume",
+        "David Deutsch",
+        "Artur Ekert",
+        "Richard Jozsa",
+        "Chiara Macchiavello"
+      ],
       "year": 1996,
       "title": "Stabilisation of Quantum Computations by Symmetrisation",
       "arxiv_id": "quant-ph/9604028",
@@ -67,41 +92,62 @@
     },
     {
       "key": "NC10",
-      "authors": ["Michael A. Nielsen", "Isaac L. Chuang"],
+      "authors": [
+        "Michael A. Nielsen",
+        "Isaac L. Chuang"
+      ],
       "year": 2010,
       "title": "Quantum Computation and Quantum Information"
     },
     {
       "key": "BW92",
-      "authors": ["Charles H. Bennett", "Stephen J. Wiesner"],
+      "authors": [
+        "Charles H. Bennett",
+        "Stephen J. Wiesner"
+      ],
       "year": 1992,
       "title": "Communication via one- and two-particle operators on Einstein-Podolsky-Rosen states",
       "doi": "10.1103/PhysRevLett.69.2881"
     },
     {
       "key": "DJ92",
-      "authors": ["David Deutsch", "Richard Jozsa"],
+      "authors": [
+        "David Deutsch",
+        "Richard Jozsa"
+      ],
       "year": 1992,
       "title": "Rapid solution of problems by quantum computation",
       "doi": "10.1098/rspa.1992.0167"
     },
     {
       "key": "BV97",
-      "authors": ["Ethan Bernstein", "Umesh Vazirani"],
+      "authors": [
+        "Ethan Bernstein",
+        "Umesh Vazirani"
+      ],
       "year": 1997,
       "title": "Quantum complexity theory",
       "doi": "10.1137/S0097539796300921"
     },
     {
       "key": "GHZ89",
-      "authors": ["Daniel M. Greenberger", "Michael A. Horne", "Anton Zeilinger"],
+      "authors": [
+        "Daniel M. Greenberger",
+        "Michael A. Horne",
+        "Anton Zeilinger"
+      ],
       "year": 1989,
       "title": "Going Beyond Bell's Theorem",
       "arxiv_id": "0712.0921"
     },
     {
       "key": "GSLW19",
-      "authors": ["Andras Gilyen", "Yuan Su", "Guang Hao Low", "Nathan Wiebe"],
+      "authors": [
+        "Andras Gilyen",
+        "Yuan Su",
+        "Guang Hao Low",
+        "Nathan Wiebe"
+      ],
       "year": 2019,
       "title": "Quantum singular value transformation and beyond: exponential improvements for quantum matrix arithmetics",
       "arxiv_id": "1806.01838",
@@ -110,7 +156,12 @@
     },
     {
       "key": "YYLW22",
-      "authors": ["Zhan Yu", "Hongshun Yao", "Mujin Li", "Xin Wang"],
+      "authors": [
+        "Zhan Yu",
+        "Hongshun Yao",
+        "Mujin Li",
+        "Xin Wang"
+      ],
       "year": 2022,
       "title": "Power and limitations of single-qubit native quantum neural networks",
       "arxiv_id": "2205.07848",
@@ -119,7 +170,12 @@
     },
     {
       "key": "WZYW23",
-      "authors": ["Youle Wang", "Lei Zhang", "Zhan Yu", "Xin Wang"],
+      "authors": [
+        "Youle Wang",
+        "Lei Zhang",
+        "Zhan Yu",
+        "Xin Wang"
+      ],
       "year": 2023,
       "title": "Quantum Phase Processing and its Applications in Estimating Phase and Entropies",
       "arxiv_id": "2209.14278",
@@ -128,7 +184,10 @@
     },
     {
       "key": "SK18",
-      "authors": ["Maria Schuld", "Nathan Killoran"],
+      "authors": [
+        "Maria Schuld",
+        "Nathan Killoran"
+      ],
       "year": 2018,
       "title": "Quantum machine learning in feature Hilbert spaces",
       "arxiv_id": "1803.07128",
@@ -137,7 +196,9 @@
     },
     {
       "key": "Sch21",
-      "authors": ["Maria Schuld"],
+      "authors": [
+        "Maria Schuld"
+      ],
       "year": 2021,
       "title": "Supervised quantum machine learning models are kernel methods",
       "arxiv_id": "2101.11020",
@@ -146,7 +207,11 @@
     },
     {
       "key": "GFE23",
-      "authors": ["Elies Gil-Fuster", "Jens Eisert", "Vedran Dunjko"],
+      "authors": [
+        "Elies Gil-Fuster",
+        "Jens Eisert",
+        "Vedran Dunjko"
+      ],
       "year": 2023,
       "title": "On the expressivity of embedding quantum kernels",
       "arxiv_id": "2309.14419",
@@ -155,7 +220,11 @@
     },
     {
       "key": "LAT21",
-      "authors": ["Yunchao Liu", "Srinivasan Arunachalam", "Kristan Temme"],
+      "authors": [
+        "Yunchao Liu",
+        "Srinivasan Arunachalam",
+        "Kristan Temme"
+      ],
       "year": 2021,
       "title": "A rigorous and robust quantum speed-up in supervised machine learning",
       "arxiv_id": "2010.02174",
@@ -164,7 +233,13 @@
     },
     {
       "key": "CVH+23",
-      "authors": ["M. Cerezo", "Guillaume Verdon", "Hsin-Yuan Huang", "Lukasz Cincio", "Patrick J. Coles"],
+      "authors": [
+        "M. Cerezo",
+        "Guillaume Verdon",
+        "Hsin-Yuan Huang",
+        "Lukasz Cincio",
+        "Patrick J. Coles"
+      ],
       "year": 2023,
       "title": "Challenges and Opportunities in Quantum Machine Learning",
       "arxiv_id": "2303.09491",
@@ -173,7 +248,13 @@
     },
     {
       "key": "SBG+19",
-      "authors": ["Maria Schuld", "Ville Bergholm", "Christian Gogolin", "Josh Izaac", "Nathan Killoran"],
+      "authors": [
+        "Maria Schuld",
+        "Ville Bergholm",
+        "Christian Gogolin",
+        "Josh Izaac",
+        "Nathan Killoran"
+      ],
       "year": 2019,
       "title": "Evaluating analytic gradients on quantum hardware",
       "arxiv_id": "1811.11184",
@@ -182,7 +263,12 @@
     },
     {
       "key": "WIWL22",
-      "authors": ["David Wierichs", "Josh Izaac", "Cody Wang", "Cedric Yen-Yu Lin"],
+      "authors": [
+        "David Wierichs",
+        "Josh Izaac",
+        "Cody Wang",
+        "Cedric Yen-Yu Lin"
+      ],
       "year": 2022,
       "title": "General parameter-shift rules for quantum gradients",
       "arxiv_id": "2107.12390",
@@ -191,7 +277,15 @@
     },
     {
       "key": "RBS+23",
-      "authors": ["Michael Ragone", "Bojko N. Bakalov", "Frederic Sauvage", "Alexander F. Kemper", "Carlos Ortiz Marrero", "Martin Larocca", "M. Cerezo"],
+      "authors": [
+        "Michael Ragone",
+        "Bojko N. Bakalov",
+        "Frederic Sauvage",
+        "Alexander F. Kemper",
+        "Carlos Ortiz Marrero",
+        "Martin Larocca",
+        "M. Cerezo"
+      ],
       "year": 2023,
       "title": "A Lie Algebraic Theory of Barren Plateaus for Deep Parameterized Quantum Circuits",
       "arxiv_id": "2309.09342",
@@ -199,13 +293,127 @@
       "entry_point": "Arxiv_Final.tex"
     },
     {
-      "key": "ACBE24",
-      "authors": ["Gerard Aguilar", "Simon Cichy", "Jens Eisert", "Lennart Bittel"],
+      "key": "TWC+22",
+      "authors": [
+        "Supanut Thanasilp",
+        "Samson Wang",
+        "M. Cerezo",
+        "Zoe Holmes"
+      ],
+      "year": 2022,
+      "title": "Exponential concentration in quantum kernel methods",
+      "arxiv_id": "2208.11060",
+      "arxiv_version": "v3",
+      "entry_point": "main-update.tex"
+    },
+    {
+      "key": "LJG+21",
+      "authors": [
+        "Martin Larocca",
+        "Nathan Ju",
+        "Diego Garcia-Martin",
+        "Patrick J. Coles",
+        "M. Cerezo"
+      ],
+      "year": 2021,
+      "title": "Theory of overparametrization in quantum neural networks",
+      "arxiv_id": "2109.11676",
+      "arxiv_version": "v3",
+      "entry_point": "main2.tex"
+    },
+    {
+      "key": "LTW+24",
+      "authors": [
+        "Martin Larocca",
+        "Supanut Thanasilp",
+        "Samson Wang",
+        "Kunal Sharma",
+        "Jacob Biamonte",
+        "Patrick J. Coles",
+        "et al."
+      ],
       "year": 2024,
-      "title": "Full classification of Pauli Lie algebras",
-      "arxiv_id": "2408.00081",
+      "title": "Barren plateaus in variational quantum computing",
+      "arxiv_id": "2405.00781",
+      "arxiv_version": "v2",
+      "entry_point": "Nat_Rev_Phys_revised.tex"
+    },
+    {
+      "key": "MBS+18",
+      "authors": [
+        "Jarrod R. McClean",
+        "Sergio Boixo",
+        "Vadim N. Smelyanskiy",
+        "Ryan Babbush",
+        "Hartmut Neven"
+      ],
+      "year": 2018,
+      "title": "Barren plateaus in quantum neural network training landscapes",
+      "arxiv_id": "1803.11173",
+      "arxiv_version": "v1",
+      "entry_point": "maintext.tex"
+    },
+    {
+      "key": "RJT+25",
+      "authors": [
+        "Manuel S. Rudolph",
+        "Tyson Jones",
+        "Yanting Teng",
+        "Armando Angrisani",
+        "Zoe Holmes"
+      ],
+      "year": 2025,
+      "title": "Pauli Propagation: A Computational Framework for Simulating Quantum Systems",
+      "arxiv_id": "2505.21606",
       "arxiv_version": "v1",
       "entry_point": "main.tex"
+    },
+    {
+      "key": "CSV+21",
+      "authors": [
+        "M. Cerezo",
+        "Akira Sone",
+        "Tyler Volkoff",
+        "Lukasz Cincio",
+        "Patrick J. Coles"
+      ],
+      "year": 2021,
+      "title": "Cost Function Dependent Barren Plateaus in Shallow Parametrized Quantum Circuits",
+      "arxiv_id": "2001.00550",
+      "arxiv_version": "v3",
+      "entry_point": "Arxiv_Final.tex"
+    },
+    {
+      "key": "RBN+22",
+      "authors": [
+        "Michael Ragone",
+        "Paolo Braccia",
+        "Quynh T. Nguyen",
+        "Louis Schatzki",
+        "Patrick J. Coles",
+        "Frederic Sauvage",
+        "Martin Larocca",
+        "M. Cerezo"
+      ],
+      "year": 2022,
+      "title": "Representation Theory for Geometric Quantum Machine Learning",
+      "arxiv_id": "2210.07980",
+      "arxiv_version": "v3",
+      "entry_point": "rep_theory_qml.tex"
+    },
+    {
+      "key": "ASY+24",
+      "authors": [
+        "Jonathan Allcock",
+        "Miklos Santha",
+        "Pei Yuan",
+        "Shengyu Zhang"
+      ],
+      "year": 2024,
+      "title": "On the dynamical Lie algebras of quantum approximate optimization algorithms",
+      "arxiv_id": "2407.12587",
+      "arxiv_version": "v2",
+      "entry_point": "Quantum-main.tex"
     }
   ]
 }

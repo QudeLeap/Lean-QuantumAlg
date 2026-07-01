@@ -16,7 +16,7 @@ public import Mathlib.Tactic
 /-!
 # Exponential concentration of the tensor-product RY quantum kernel
 
-The global-measurement example of Thanasilp et al. (2022): the fidelity kernel of the
+The global-measurement example of [TWC+22, main-update.tex:927]: the fidelity kernel of the
 embedding `U(x) = ⊗ₖ R_Y(xₖ)` is `κ(x,x') = ∏ₖ cos²((xₖ-x'ₖ)/2)`. By translation
 invariance each coordinate reduces to a uniform variable on `[-π,π]`, so we study
 `ryKernel n θ = ∏ₖ cos²(θₖ)`. Its moments are elementary (`𝔼[κ]=(1/2)ⁿ`,
@@ -47,7 +47,7 @@ instance : IsProbabilityMeasure unifAngle := by
     ENNReal.inv_mul_cancel (ENNReal.ofReal_pos.mpr (by positivity)).ne' ENNReal.ofReal_ne_top]
 
 theorem ryKernel_nonneg (n : ℕ) (θ : Fin n → ℝ) : 0 ≤ ryKernel n θ :=
-  Finset.prod_nonneg (fun k _ => sq_nonneg _)
+  Finset.prod_nonneg (fun _ _ => sq_nonneg _)
 
 theorem ryKernel_le_one (n : ℕ) (θ : Fin n → ℝ) : ryKernel n θ ≤ 1 :=
   Finset.prod_le_one (fun k _ => sq_nonneg _)
@@ -128,8 +128,8 @@ theorem variance_ryKernel_le (n : ℕ) :
   have : (0 : ℝ) ≤ (1 / 4) ^ n := by positivity
   linarith
 
-/-- **The tensor-product RY quantum kernel concentrates exponentially** (Thanasilp 2022),
-with NO Haar assumption. -/
+/-- **The tensor-product RY quantum kernel concentrates exponentially**
+[TWC+22, main-update.tex:930], with NO Haar assumption. -/
 theorem ryKernel_concentrates :
     ExpConcentratedProb (fun n => ryMeasure n) (fun n => ryKernel n) := by
   refine expConcentratedProb_of_variance_le (fun n => ryMeasure n) (fun n => ryKernel n)

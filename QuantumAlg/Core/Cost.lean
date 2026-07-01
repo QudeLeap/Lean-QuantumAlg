@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Core.Base.Gate
+public import QuantumAlg.Util.Asymptotics
 public import Cslib.Algorithms.Lean.TimeM
 
 /-!
@@ -59,11 +61,15 @@ The fields are intentionally lightweight counters. They record the resource
 model claimed beside a correctness theorem, not a derivation from Lean
 evaluation. -/
 structure ResourceProfile where
+  /-- Trusted oracle-query count in the selected endpoint model. -/
   oracleQueries : ℕ
+  /-- Trusted Hadamard-gate count for circuit statements. -/
   hadamardGates : ℕ
+  /-- Trusted count of elementary non-Hadamard gates. -/
   elementaryGates : ℕ
+  /-- Trusted count of classical side computations. -/
   classicalOps : ℕ
-deriving DecidableEq, Repr
+deriving DecidableEq
 
 namespace ResourceProfile
 
@@ -84,6 +90,13 @@ def sequential (left right : ResourceProfile) : ResourceProfile where
 /-- Tensor/parallel circuit composition uses the same additive counters. -/
 def tensor (left right : ResourceProfile) : ResourceProfile :=
   sequential left right
+
+/-- Repeat a resource profile `k` times. -/
+def scale (k : ℕ) (profile : ResourceProfile) : ResourceProfile where
+  oracleQueries := k * profile.oracleQueries
+  hadamardGates := k * profile.hadamardGates
+  elementaryGates := k * profile.elementaryGates
+  classicalOps := k * profile.classicalOps
 
 /-- Exact counter claim used by supporting public theorem statements. -/
 def HasExactCounts (profile : ResourceProfile)
@@ -133,14 +146,70 @@ theorem tensor_classicalOps (left right : ResourceProfile) :
     (tensor left right).classicalOps =
       left.classicalOps + right.classicalOps := rfl
 
+@[simp]
+theorem scale_oracleQueries (k : ℕ) (profile : ResourceProfile) :
+    (scale k profile).oracleQueries = k * profile.oracleQueries := rfl
+
+@[simp]
+theorem scale_hadamardGates (k : ℕ) (profile : ResourceProfile) :
+    (scale k profile).hadamardGates = k * profile.hadamardGates := rfl
+
+@[simp]
+theorem scale_elementaryGates (k : ℕ) (profile : ResourceProfile) :
+    (scale k profile).elementaryGates = k * profile.elementaryGates := rfl
+
+@[simp]
+theorem scale_classicalOps (k : ℕ) (profile : ResourceProfile) :
+    (scale k profile).classicalOps = k * profile.classicalOps := rfl
+
 end ResourceProfile
+
+/-! ### Counted gate words -/
+
+/-- A small circuit word boundary for endpoints whose correctness and resource
+counts must refer to the same constructed unitary.  The word deliberately keeps
+only its evaluated gate and derived resource profile; richer syntax can be
+introduced later without changing public theorem statements. -/
+structure CountedGateWord (R : Register) where
+  /-- Evaluated gate represented by the counted word. -/
+  matrix : Gate R
+  /-- Trusted resource counters attached to the same word. -/
+  resources : ResourceProfile
+
+namespace CountedGateWord
+
+/-- A counted word with explicit resources for an already-built gate. -/
+def ofGate {R : Register} (gate : Gate R) (resources : ResourceProfile) :
+    CountedGateWord R where
+  matrix := gate
+  resources := resources
+
+/-- Sequential composition evaluates by multiplying the gates and adds the
+resource counters from the same syntax boundary. -/
+def sequential {R : Register} (left right : CountedGateWord R) : CountedGateWord R where
+  matrix := left.matrix * right.matrix
+  resources := ResourceProfile.sequential left.resources right.resources
+
+@[simp]
+theorem sequential_matrix {R : Register} (left right : CountedGateWord R) :
+    (sequential left right).matrix = left.matrix * right.matrix := rfl
+
+@[simp]
+theorem sequential_resources {R : Register} (left right : CountedGateWord R) :
+    (sequential left right).resources =
+      ResourceProfile.sequential left.resources right.resources := rfl
+
+end CountedGateWord
 
 /-- Gate counts for fixed circuit statements with named gate families. -/
 structure CircuitGateProfile where
+  /-- Number of Hadamard gates. -/
   hadamardGates : ℕ
+  /-- Number of controlled phase gates. -/
   controlledPhaseGates : ℕ
+  /-- Number of swap gates. -/
   swapGates : ℕ
-deriving DecidableEq, Repr
+deriving DecidableEq
 
 namespace CircuitGateProfile
 
@@ -155,7 +224,9 @@ end CircuitGateProfile
 
 /-- A return value paired with a trusted resource profile. -/
 structure Profiled (α : Type u) where
+  /-- The profiled return value. -/
   ret : α
+  /-- Trusted resources associated with the return value. -/
   resources : ResourceProfile
 
 namespace Profiled
@@ -176,10 +247,13 @@ end Profiled
 
 /-- Communication resources for protocol statements. -/
 structure CommunicationProfile where
+  /-- Classical bits communicated by the protocol. -/
   classicalBits : ℕ
+  /-- Qubits transmitted by the protocol. -/
   transmittedQubits : ℕ
+  /-- Shared Bell pairs consumed or produced by the protocol. -/
   bellPairs : ℕ
-deriving DecidableEq, Repr
+deriving DecidableEq
 
 namespace CommunicationProfile
 

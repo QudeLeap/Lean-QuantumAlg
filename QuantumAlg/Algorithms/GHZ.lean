@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
+public import QuantumAlg.Core.Circuit
 
 /-!
 # GHZ state preparation
@@ -37,8 +38,8 @@ locally-equivalent three-qubit state powers Mermin's game
 
 ## Main results
 
-- `QuantumAlg.ghz` — the three-qubit GHZ state, as a `PureState 3`.
-- `QuantumAlg.ghzCircuit` — the preparation circuit, as a `Gate 3`.
+- `QuantumAlg.ghz` — the three-qubit GHZ state, as a `PureState (Qubits 3)`.
+- `QuantumAlg.ghzCircuit` — the preparation circuit, as a `Gate (Qubits 3)`.
 - `QuantumAlg.ghz_state_prep` — the preparation-circuit equality.
 - `QuantumAlg.norm_ghz` — the GHZ state is normalized.
 -/
@@ -54,55 +55,70 @@ noncomputable section
 /-- The three-qubit GHZ state `(|000⟩ + |111⟩)/√2` (Greenberger, Horne and
 Zeilinger 1989; three-qubit form standard, e.g. Nielsen and Chuang 2000).
 In the big-endian basis labelling, `|000⟩ = ket 0` and `|111⟩ = ket 7`. -/
-def ghzVec : StateVector 3 :=
-  invSqrt2 • ((ket 0 : PureState 3) + (ket 7 : PureState 3) : StateVector 3)
+def ghzVec : StateVector (Qubits 3) :=
+  invSqrt2 •
+    (((ket 0 : PureState (Qubits 3)) + (ket 7 : PureState (Qubits 3))
+      : StateVector (Qubits 3)))
 
 /-- The raw GHZ vector has unit norm. -/
 theorem norm_ghzVec : ‖ghzVec‖ = 1 := by
   rw [ghzVec, norm_smul, norm_invSqrt2]
-  have h : ‖((ket 0 : PureState 3) + (ket 7 : PureState 3) : StateVector 3)‖
+  have h :
+      ‖(((ket 0 : PureState (Qubits 3)) + (ket 7 : PureState (Qubits 3))
+        : StateVector (Qubits 3)))‖
       = Real.sqrt 2 := by
     rw [EuclideanSpace.norm_eq]
     have hsum : ∑ i,
-        ‖(((ket 0 : PureState 3) + (ket 7 : PureState 3) : StateVector 3) i)‖ ^ 2 = 2 := by
+        ‖(((ket 0 : PureState (Qubits 3)) + (ket 7 : PureState (Qubits 3))
+          : StateVector (Qubits 3)) i)‖ ^ 2 = 2 := by
       refine (Fin.sum_univ_eight (f := fun i : Fin (2 ^ 3) =>
-        ‖(((ket 0 : PureState 3) + (ket 7 : PureState 3) : StateVector 3) i)‖ ^ 2)).trans ?_
+        ‖(((ket 0 : PureState (Qubits 3)) + (ket 7 : PureState (Qubits 3))
+          : StateVector (Qubits 3)) i)‖ ^ 2)).trans ?_
       simp +decide [PureState.ket_apply]
       all_goals norm_num
     rw [hsum]
   rw [h, inv_mul_cancel₀ (Real.sqrt_ne_zero'.mpr (by norm_num))]
 
 /-- The normalized GHZ state. -/
-def ghz : PureState 3 := PureState.ofVec ghzVec norm_ghzVec
+def ghz : PureState (Qubits 3) := PureState.ofVec ghzVec norm_ghzVec
 
 /-- The GHZ preparation circuit: a Hadamard on qubit 0, a CNOT with
 control 0 and target 1, then a CNOT with control 1 and target 2 —
 `(I ⊗ CNOT) · (CNOT ⊗ I) · (H ⊗ I ⊗ I)`. -/
-def ghzCircuit : Gate 3 :=
-  Gate.tensor (1 : Gate 1) CNOT
-    * (Gate.tensor CNOT (1 : Gate 1) * Gate.tensor H (1 : Gate 2))
+def ghzCircuit : Gate (Qubits 3) :=
+  Gate.tensor (1 : Gate (Qubits 1)) CNOT
+    * (Gate.tensor CNOT (1 : Gate (Qubits 1)) * Gate.tensor H (1 : Gate (Qubits 2)))
 
-/-- **GHZ state preparation**: the cascade circuit turns `|000⟩` into the
-GHZ state, extending Bell-state preparation (`bell_state_prep`) by one
+/-- Typed circuit witness for GHZ-state preparation. -/
+def GHZStatePreparation.circuit : Circuit (Qubits 3) :=
+  Circuit.ofGate "ghz-state-prep" ghzCircuit
+    { oracleQueries := 0, hadamardGates := 1, elementaryGates := 3, classicalOps := 0 } 3 0
+
+/-- GHZ preparation input state. -/
+def GHZStatePreparation.input : StateVector (Qubits 3) :=
+  StateVector.tensor (ket0 : StateVector (Qubits 1))
+    (StateVector.tensor (ket0 : StateVector (Qubits 1)) (ket0 : StateVector (Qubits 1)))
+
+/-- **GHZ state preparation**: the typed cascade circuit turns `|000⟩` into
+the GHZ state, extending Bell-state preparation (`bell_state_prep`) by one
 CNOT. -/
 theorem GHZStatePreparation.main :
-    ghzCircuit.applyVec
-        (StateVector.tensor (ket0 : StateVector 1)
-          (StateVector.tensor (ket0 : StateVector 1) (ket0 : StateVector 1)))
-      = (ghz : StateVector 3) := by
+    Circuit.apply GHZStatePreparation.circuit GHZStatePreparation.input =
+      (ghz : StateVector (Qubits 3)) := by
+  rw [GHZStatePreparation.circuit, GHZStatePreparation.input,
+    Circuit.apply_ofGate]
   apply WithLp.ofLp_injective
   funext i
   fin_cases i <;>
-    simp +decide [ghzCircuit, ghz, ghzVec, Gate.applyVec, HilbertOperator.applyVec,
+    simp +decide [ghzCircuit, ghz, ghzVec,
       Gate.tensor, HilbertOperator.tensor, Gate.ofUnitary, Gate.ofPerm, H, HOp,
       CNOT, ket0, PureState.ket, StateVector.tensor, prodEquiv,
-      Matrix.mulVec, Matrix.mul_apply, finProdFinEquiv, Fin.divNat, Fin.modNat,
+      Matrix.mul_apply, finProdFinEquiv, Fin.divNat, Fin.modNat,
       Matrix.cons_val_zero, Matrix.cons_val_one,
-      Matrix.one_apply, Equiv.Perm.permMatrix, dotProduct, Fin.sum_univ_eight]
+      Matrix.one_apply, Equiv.Perm.permMatrix, Fin.sum_univ_eight]
 
 
 /-- The GHZ state is normalized. -/
-@[simp]
 theorem norm_ghz : ‖ghz‖ = 1 := ghz.norm_eq_one
 
 end

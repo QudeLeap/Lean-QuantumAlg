@@ -59,7 +59,7 @@ variable {n : ℕ}
 abbrev Oracle (n : ℕ) : Type := Fin (2 ^ n) → Bool
 
 /-- The standard XOR query gate for a Boolean oracle. -/
-abbrev oracleGate (f : Oracle n) : Gate (n + 1) := Gate.xorOracle f
+abbrev oracleGate (f : Oracle n) : Gate (Qubits (n + 1)) := Gate.xorOracle f
 
 /-- The phase `(-1)^{f x}`, written as a complex scalar. -/
 def phaseSign (f : Oracle n) (x : Fin (2 ^ n)) : ℂ :=
@@ -274,7 +274,7 @@ theorem norm_phaseSign (f : Oracle n) (x : Fin (2 ^ n)) :
   by_cases h : f x <;> simp [h]
 
 /-- Raw `n`-qubit Hadamard layer in Walsh-Hadamard closed form. -/
-def hadamardLayerOp (n : ℕ) : HilbertOperator n :=
+def hadamardLayerOp (n : ℕ) : HilbertOperator (Qubits n) :=
   fun y x => invSqrtCard n * walshSign y x
 
 /-- The Walsh-Hadamard closed-form matrix is unitary. -/
@@ -297,7 +297,7 @@ theorem hadamardLayerOp_mem_unitaryGroup (n : ℕ) :
     _ = (((2 ^ n : ℕ) : ℂ)⁻¹)
           * (if y = s then ((2 ^ n : ℕ) : ℂ) else 0) := by
           rw [invSqrtCard_mul_self, sum_walshSign_mul_walshSign_eq]
-    _ = (1 : HilbertOperator n) y s := by
+    _ = (1 : HilbertOperator (Qubits n)) y s := by
           by_cases hys : y = s
           · subst s
             rw [if_pos rfl, Matrix.one_apply_eq]
@@ -305,11 +305,11 @@ theorem hadamardLayerOp_mem_unitaryGroup (n : ℕ) :
           · rw [if_neg hys, Matrix.one_apply_ne hys, mul_zero]
 
 /-- The `n`-qubit Hadamard layer as a unitary gate. -/
-def hadamardLayer (n : ℕ) : Gate n :=
+def hadamardLayer (n : ℕ) : Gate (Qubits n) :=
   Gate.ofUnitary (hadamardLayerOp n) (hadamardLayerOp_mem_unitaryGroup n)
 
 /-- Raw uniform input-register vector produced by the first Hadamard layer. -/
-def uniformStateVec (n : ℕ) : StateVector n :=
+def uniformStateVec (n : ℕ) : StateVector (Qubits n) :=
   WithLp.toLp 2 fun _ => invSqrtCard n
 
 /-- The uniform input-register vector has unit norm. -/
@@ -323,7 +323,7 @@ theorem norm_uniformStateVec (n : ℕ) : ‖uniformStateVec n‖ = 1 := by
   rw [hsum, Real.sqrt_one]
 
 /-- The uniform input-register state produced by the first Hadamard layer. -/
-def uniformState (n : ℕ) : PureState n :=
+def uniformState (n : ℕ) : PureState (Qubits n) :=
   PureState.ofVec (uniformStateVec n) (norm_uniformStateVec n)
 
 @[simp]
@@ -334,20 +334,19 @@ theorem uniformState_apply (x : Fin (2 ^ n)) : uniformState n x = invSqrtCard n 
 theorem hadamardLayer_apply_zero :
     (hadamardLayer n).apply (ket (0 : Fin (2 ^ n))) = uniformState n := by
   ext i
-  change (hadamardLayer n).apply (ket (0 : Fin (2 ^ n))) i = uniformState n i
   rw [Gate.apply_ket]
   simp [hadamardLayer, hadamardLayerOp]
 
 /-! ### The XOR phase-query pipeline -/
 
 /-- The pre-Hadamard joint basis state `|0^n⟩ ⊗ |−⟩`. -/
-def initialBasisState (n : ℕ) : PureState (n + 1) :=
+def initialBasisState (n : ℕ) : PureState (Qubits (n + 1)) :=
   (ket (0 : Fin (2 ^ n))).tensor ketMinus
 
 /-- The joint state queried by the XOR oracle, obtained by applying the first
 Hadamard layer to the input register and leaving the `|−⟩` target alone. -/
-def initialState (n : ℕ) : PureState (n + 1) :=
-  ((hadamardLayer n).tensor (1 : Gate 1)).apply (initialBasisState n)
+def initialState (n : ℕ) : PureState (Qubits (n + 1)) :=
+  ((hadamardLayer n).tensor (1 : Gate (Qubits 1))).apply (initialBasisState n)
 
 /-- The queried state is the uniform input register tensored with `|−⟩`. -/
 theorem initialState_eq_uniform_tensor :
@@ -356,12 +355,12 @@ theorem initialState_eq_uniform_tensor :
     hadamardLayer_apply_zero, Gate.one_apply]
 
 /-- The actual post-query joint state, using the XOR oracle gate. -/
-def postOracleState (f : Oracle n) : PureState (n + 1) :=
+def postOracleState (f : Oracle n) : PureState (Qubits (n + 1)) :=
   (oracleGate f).apply (initialState n)
 
 /-- The input-register state after rewriting the oracle query by phase
 kickback: `(√(2^n))⁻¹ ∑ x, (-1)^{f x}|x⟩`. -/
-def afterPhaseQueryVec (f : Oracle n) : StateVector n :=
+def afterPhaseQueryVec (f : Oracle n) : StateVector (Qubits n) :=
   WithLp.toLp 2 fun x => invSqrtCard n * phaseSign f x
 
 /-- The phase-query vector has unit norm. -/
@@ -380,7 +379,8 @@ theorem norm_afterPhaseQueryVec (f : Oracle n) : ‖afterPhaseQueryVec f‖ = 1 
               norm_num
   rw [hsum, Real.sqrt_one]
 
-def afterPhaseQuery (f : Oracle n) : PureState n :=
+/-- Pure-state wrapper for the normalized vector after the phase query. -/
+def afterPhaseQuery (f : Oracle n) : PureState (Qubits n) :=
   PureState.ofVec (afterPhaseQueryVec f) (norm_afterPhaseQueryVec f)
 
 /-- The actual XOR-oracle query on the uniform input register and `|−⟩`
@@ -399,13 +399,13 @@ theorem postOracleState_eq_afterPhaseQuery_tensor (f : Oracle n) :
 
 /-- The final input-register state after the second Hadamard layer, in the
 phase-query view. -/
-def finalState (f : Oracle n) : PureState n :=
+def finalState (f : Oracle n) : PureState (Qubits n) :=
   (hadamardLayer n).apply (afterPhaseQuery f)
 
 /-- The actual final joint state: apply the second Hadamard layer to the
 input register and leave the target qubit alone. -/
-def finalJointState (f : Oracle n) : PureState (n + 1) :=
-  ((hadamardLayer n).tensor (1 : Gate 1)).apply (postOracleState f)
+def finalJointState (f : Oracle n) : PureState (Qubits (n + 1)) :=
+  ((hadamardLayer n).tensor (1 : Gate (Qubits 1))).apply (postOracleState f)
 
 /-- The actual final joint state factors as the final input-register state
 and the unchanged `|−⟩` target. -/

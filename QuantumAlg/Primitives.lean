@@ -14,10 +14,10 @@ public import QuantumAlg.Primitives.HadamardTest
 public import QuantumAlg.Primitives.SwapTest
 public import QuantumAlg.Primitives.QFT
 public import QuantumAlg.Primitives.QSP
-public import QuantumAlg.Primitives.ControlledTransform
 public import QuantumAlg.Primitives.LCU
 public import QuantumAlg.Primitives.AmplitudeAmplification
 public import QuantumAlg.Primitives.ParameterShift
+public import QuantumAlg.Primitives.GeneralizedParameterShift
 public import QuantumAlg.Primitives.QKernel
 public import QuantumAlg.Primitives.QNN
 

@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
+public import QuantumAlg.Core.Circuit
 public import QuantumAlg.Util.Complex
 public import QuantumAlg.Util.Polynomial
 
@@ -25,8 +26,9 @@ O-convention: the signal operator is `O(x) = [[x, -√(1-x²)], [√(1-x²), x]]
 and the QSP sequence with phase factors `(φ₀, …, φ_d)` is
 `U_Φ(x) = e^{iφ₀Z} · ∏_{j=1}^d (O(x) e^{iφ_j Z})`.
 
-`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main` [Lin22, hermfunc.tex:1118]: `U_Φ(x)` takes the
-form `[[P(x), -Q(x)√(1-x²)], [Q*(x)√(1-x²), P*(x)]]` for all `x ∈ [-1,1]` for
+`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main`
+[Lin22, hermfunc.tex:1118]: `U_Φ(x)` takes the form
+`[[P(x), -Q(x)√(1-x²)], [Q*(x)√(1-x²), P*(x)]]` for all `x ∈ [-1,1]` for
 some phase factors **iff** `(P, Q)` is an `IsQSPPair d`, i.e.
 
 1. `deg P ≤ d` and `Q.degree < d`,
@@ -38,11 +40,12 @@ infinite set `[-1,1]` (`QuantumAlg.qsp_normalization_iff`).
 
 The **Wx-convention** replaces `O(x)` by `W(x) = e^{i·arccos(x)·X}`; the fixed
 conjugation `W(x) = e^{-i(π/4)Z}·O(x)·e^{i(π/4)Z}` [Lin22, hermfunc.tex:1279]
-transports the characterization (`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx`) with the same pair
-conditions `IsQSPPair`.
+transports the characterization
+(`QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx`) with the same
+pair conditions `IsQSPPair`.
 
 This module is one half of the single-qubit QSP development; the Fourier-basis
-(trigonometric YZY/YZZYZ) forms live in `QuantumAlg.Primitives.QSP.Fourier`,
+(trigonometric YZY/YZZYZ) forms live in `QuantumAlg.Primitives.QSP.SingleQubit.Fourier`,
 and `QuantumAlg.Primitives.QSP` re-exports both.
 
 ## Main results
@@ -52,7 +55,8 @@ and `QuantumAlg.Primitives.QSP` re-exports both.
   completeness of the O-convention.
 - `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main` — the O-convention characterization
   (registered target entry point).
-- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx` — the Wx-convention (XZX) characterization.
+- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx` — the
+  Wx-convention (XZX) characterization.
 
 Pinned Mathlib API: `Polynomial.coeff_X_mul`, `Polynomial.coeff_mul`,
 `Polynomial.degree_le_iff_coeff_zero`, `Polynomial.degree_lt_iff_coeff_zero`,
@@ -74,21 +78,9 @@ noncomputable section
 /-- The signal rotation `O(x) = [[x, -√(1-x²)], [√(1-x²), x]]`
 [Lin22, hermfunc.tex:1103]; equals `U_A(x)·Z` for the reflection `U_A(x)` of
 [GSLW19, BlockHam.tex:488]. -/
-def signalO (x : ℝ) : HilbertOperator 1 :=
+def signalO (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![(x : ℂ), -(Real.sqrt (1 - x ^ 2) : ℂ);
      (Real.sqrt (1 - x ^ 2) : ℂ), (x : ℂ)]
-
-/-- The QSP sequence `U_Φ(x) = e^{iφ₀Z} ∏_j (O(x) e^{iφ_jZ})` with phase
-factors `Φ = (φ₀, φs)` [Lin22, hermfunc.tex:1121]. -/
-def qspO (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator 1 :=
-  φs.foldl (fun U φ => U * (signalO x * rotZ φ)) (rotZ φ₀ : HilbertOperator 1)
-
-@[simp]
-theorem qspO_nil (φ₀ : ℝ) (x : ℝ) : qspO φ₀ [] x = rotZ φ₀ := rfl
-
-theorem qspO_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
-    qspO φ₀ (φs ++ [φ]) x = qspO φ₀ φs x * (signalO x * rotZ φ) := by
-  simp [qspO, List.foldl_append]
 
 theorem signalO_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalO x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
@@ -105,6 +97,50 @@ theorem signalO_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
   · simp [signalO, Matrix.mul_apply, Matrix.star_apply, Complex.conj_ofReal]
     linear_combination hs
 
+/-- The QSP sequence `U_Φ(x) = e^{iφ₀Z} ∏_j (O(x) e^{iφ_jZ})` with phase
+factors `Φ = (φ₀, φs)` [Lin22, hermfunc.tex:1121]. -/
+def qspO (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator (Qubits 1) :=
+  φs.foldl (fun U φ => U * (signalO x * rotZ φ)) (rotZ φ₀ : HilbertOperator (Qubits 1))
+
+/-- Initial typed circuit block for the Chebyshev O-convention product. -/
+def qspOInitialCircuit (φ₀ : ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-o-initial" (rotZ φ₀) ResourceProfile.zero 1 0
+
+/-- One indexed Chebyshev O-convention signal-processing block. -/
+def qspOStepCircuit (x φ : ℝ) (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-o-step"
+    (Gate.ofUnitary (signalO x) (signalO_mem_unitaryGroup hx) * rotZ φ)
+    ResourceProfile.zero 1 0
+
+/-- Typed indexed-product version of the Chebyshev O-convention QSP word. -/
+def qspOIndexedCircuit (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    Circuit (Qubits 1) :=
+  Circuit.indexedProductList "qsp-o" (qspOInitialCircuit φ₀) φs
+    (fun φ => qspOStepCircuit x φ hx)
+
+@[simp]
+theorem qspOIndexedCircuit_matrix (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    (show HilbertOperator (Qubits 1) from
+      ((qspOIndexedCircuit φ₀ φs x hx).matrix :
+        HilbertOperator (Qubits 1))) =
+      qspO φ₀ φs x := by
+  change (show HilbertOperator (Qubits 1) from
+      ((Circuit.indexedProductList "qsp-o" (qspOInitialCircuit φ₀) φs
+        (fun φ => qspOStepCircuit x φ hx)).matrix :
+        HilbertOperator (Qubits 1))) =
+    qspO φ₀ φs x
+  simp [qspOInitialCircuit, qspOStepCircuit, qspO, Circuit.indexedProductList_matrix]
+
+@[simp]
+theorem qspO_nil (φ₀ : ℝ) (x : ℝ) : qspO φ₀ [] x = rotZ φ₀ := rfl
+
+theorem qspO_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
+    qspO φ₀ (φs ++ [φ]) x = qspO φ₀ φs x * (signalO x * rotZ φ) := by
+  simp [qspO, List.foldl_append]
+
 theorem qspO_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspO φ₀ φs x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
@@ -119,7 +155,7 @@ theorem qspO_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
 
 /-- The target matrix form `[[P(x), -Q(x)s], [Q*(x)s, P*(x)]]`, `s = √(1-x²)`
 [Lin22, hermfunc.tex:1121]. -/
-def qspMat (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
+def qspMat (P Q : ℂ[X]) (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![P.eval (x : ℂ), -Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ);
      starRingEnd ℂ (Q.eval (x : ℂ)) * (Real.sqrt (1 - x ^ 2) : ℂ),
      starRingEnd ℂ (P.eval (x : ℂ))]
@@ -127,7 +163,7 @@ def qspMat (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
 /-- `rotZ φ₀` is the `d = 0` instance of the QSP form. -/
 private theorem rotZ_eq_qspMat (c : ℂ) (φ₀ : ℝ) (x : ℝ)
     (hc : Complex.exp (φ₀ * Complex.I) = c) :
-    (rotZ φ₀ : HilbertOperator 1) = qspMat (C c) 0 x := by
+    (rotZ φ₀ : HilbertOperator (Qubits 1)) = qspMat (C c) 0 x := by
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [rotZ, rotZOp, qspMat, ← hc, conj_exp_I]
@@ -414,14 +450,14 @@ private theorem signalO_zmat_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     linear_combination hs
 
 private theorem rotZ_pi_div_two :
-    (rotZ (Real.pi / 2) : HilbertOperator 1) =
+    (rotZ (Real.pi / 2) : HilbertOperator (Qubits 1)) =
       Complex.I • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [rotZ, rotZOp, exp_neg_pi_div_two_mul_I]
 
 private theorem rotZ_neg_pi_div_two :
-    (rotZ (-(Real.pi / 2)) : HilbertOperator 1) =
+    (rotZ (-(Real.pi / 2)) : HilbertOperator (Qubits 1)) =
       (-Complex.I) • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
   fin_cases i <;> fin_cases j <;>
@@ -551,7 +587,7 @@ private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
     refine (((Set.Icc_infinite (by norm_num : (-1 : ℝ) < 1)).image
       Complex.ofReal_injective.injOn).mono ?_)
     rintro z ⟨x, hx, rfl⟩
-    have h := congrArg (fun M : HilbertOperator 1 => M 0 0) (hmat x hx)
+    have h := congrArg (fun M : HilbertOperator (Qubits 1) => M 0 0) (hmat x hx)
     simpa [qspMat] using h
   · refine Polynomial.eq_of_infinite_eval_eq Q Q' ?_
     refine (((Set.Ioo_infinite (by norm_num : (-1 : ℝ) < 1)).image
@@ -562,7 +598,7 @@ private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
       rw [Complex.ofReal_ne_zero]
       refine Real.sqrt_ne_zero'.mpr ?_
       nlinarith [hx.1, hx.2]
-    have h := congrArg (fun M : HilbertOperator 1 => M 0 1) (hmat x hx')
+    have h := congrArg (fun M : HilbertOperator (Qubits 1) => M 0 1) (hmat x hx')
     simp only [qspMat] at h
     have h' : Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ)
         = Q'.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ) := by
@@ -625,14 +661,14 @@ from `qsp_reflection_iff` with the *same* pair conditions `IsQSPPair`. -/
 /-- The `Wx` signal rotation
 `W(x) = [[x, i√(1-x²)], [i√(1-x²), x]] = e^{i·arccos(x)·X}`
 [GSLW19, BlockHam.tex:295]. -/
-def signalW (x : ℝ) : HilbertOperator 1 :=
+def signalW (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![(x : ℂ), Complex.I * (Real.sqrt (1 - x ^ 2) : ℂ);
      Complex.I * (Real.sqrt (1 - x ^ 2) : ℂ), (x : ℂ)]
 
 /-- The Wx-convention QSP sequence `e^{iφ₀Z} ∏_j (W(x) e^{iφ_jZ})`
 [GSLW19, BlockHam.tex:317]. -/
-def qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator 1 :=
-  φs.foldl (fun U φ => U * (signalW x * rotZ φ)) (rotZ φ₀ : HilbertOperator 1)
+def qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator (Qubits 1) :=
+  φs.foldl (fun U φ => U * (signalW x * rotZ φ)) (rotZ φ₀ : HilbertOperator (Qubits 1))
 
 @[simp]
 theorem qspW_nil (φ₀ : ℝ) (x : ℝ) : qspW φ₀ [] x = rotZ φ₀ := rfl
@@ -642,21 +678,27 @@ theorem qspW_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
   simp [qspW, List.foldl_append]
 
 private theorem rotZ_comm_op (a b : ℝ) :
-    (rotZ a : HilbertOperator 1) * (rotZ b : HilbertOperator 1) =
-      (rotZ b : HilbertOperator 1) * (rotZ a : HilbertOperator 1) := by
-  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_comm a b)
+    (rotZ a : HilbertOperator (Qubits 1)) * (rotZ b : HilbertOperator (Qubits 1)) =
+      (rotZ b : HilbertOperator (Qubits 1)) * (rotZ a : HilbertOperator (Qubits 1)) := by
+  simpa using
+    congrArg (fun G : Gate (Qubits 1) => (G : HilbertOperator (Qubits 1)))
+      (rotZ_comm a b)
 
 private theorem rotZ_neg_mul_rotZ_op (φ : ℝ) :
-    (rotZ (-φ) : HilbertOperator 1) * (rotZ φ : HilbertOperator 1) = 1 := by
-  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_neg_mul_rotZ φ)
+    (rotZ (-φ) : HilbertOperator (Qubits 1)) * (rotZ φ : HilbertOperator (Qubits 1)) = 1 := by
+  simpa using
+    congrArg (fun G : Gate (Qubits 1) => (G : HilbertOperator (Qubits 1)))
+      (rotZ_neg_mul_rotZ φ)
 
 private theorem rotZ_mul_rotZ_neg_op (φ : ℝ) :
-    (rotZ φ : HilbertOperator 1) * (rotZ (-φ) : HilbertOperator 1) = 1 := by
-  simpa using congrArg (fun G : Gate 1 => (G : HilbertOperator 1)) (rotZ_mul_rotZ_neg φ)
+    (rotZ φ : HilbertOperator (Qubits 1)) * (rotZ (-φ) : HilbertOperator (Qubits 1)) = 1 := by
+  simpa using
+    congrArg (fun G : Gate (Qubits 1) => (G : HilbertOperator (Qubits 1)))
+      (rotZ_mul_rotZ_neg φ)
 
 /-- The Wx target form `[[P(x), iQ(x)s], [iQ*(x)s, P*(x)]]`, `s = √(1-x²)`
 [GSLW19, BlockHam.tex:313]. -/
-def qspMatW (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
+def qspMatW (P Q : ℂ[X]) (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![P.eval (x : ℂ),
      Complex.I * Q.eval (x : ℂ) * (Real.sqrt (1 - x ^ 2) : ℂ);
      Complex.I * starRingEnd ℂ (Q.eval (x : ℂ)) * (Real.sqrt (1 - x ^ 2) : ℂ),
@@ -665,7 +707,7 @@ def qspMatW (P Q : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
 /-- The fixed conjugation relating the two signal operators,
 `e^{i(π/4)Z} · W(x) = O(x) · e^{i(π/4)Z}` [Lin22, hermfunc.tex:1279]. -/
 private theorem rotZ_mul_signalW (x : ℝ) :
-    (rotZ (Real.pi / 4) : HilbertOperator 1) * signalW x =
+    (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)) * signalW x =
       signalO x * rotZ (Real.pi / 4) := by
   ext i j
   fin_cases i <;> fin_cases j
@@ -681,7 +723,7 @@ private theorem rotZ_mul_signalW (x : ℝ) :
 
 /-- The conjugation transports the Wx target form to the reflection form. -/
 private theorem rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
-    (rotZ (Real.pi / 4) : HilbertOperator 1) * qspMatW P Q x =
+    (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)) * qspMatW P Q x =
       qspMat P Q x * rotZ (Real.pi / 4) := by
   ext i j
   fin_cases i <;> fin_cases j
@@ -699,29 +741,61 @@ private theorem rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
 /-- The conjugation intertwines the full QSP sequences:
 `e^{i(π/4)Z} · U^W_Φ(x) = U^O_Φ(x) · e^{i(π/4)Z}`. -/
 private theorem rotZ_mul_qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) :
-    (rotZ (Real.pi / 4) : HilbertOperator 1) * qspW φ₀ φs x =
+    (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)) * qspW φ₀ φs x =
       qspO φ₀ φs x * rotZ (Real.pi / 4) := by
   induction φs using List.reverseRecOn with
   | nil => simpa using rotZ_comm_op (Real.pi / 4) φ₀
   | append_singleton φs φ ih =>
       rw [qspW_concat, qspO_concat, ← mul_assoc, ih, mul_assoc,
-        ← mul_assoc (rotZ (Real.pi / 4) : HilbertOperator 1) (signalW x)
-          (rotZ φ : HilbertOperator 1),
+        ← mul_assoc (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)) (signalW x)
+          (rotZ φ : HilbertOperator (Qubits 1)),
         rotZ_mul_signalW, mul_assoc (signalO x)
-          (rotZ (Real.pi / 4) : HilbertOperator 1) (rotZ φ : HilbertOperator 1),
+          (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)) (rotZ φ : HilbertOperator (Qubits 1)),
         rotZ_comm_op (Real.pi / 4) φ,
-        ← mul_assoc (signalO x) (rotZ φ : HilbertOperator 1)
-          (rotZ (Real.pi / 4) : HilbertOperator 1),
+        ← mul_assoc (signalO x) (rotZ φ : HilbertOperator (Qubits 1))
+          (rotZ (Real.pi / 4) : HilbertOperator (Qubits 1)),
         ← mul_assoc]
 
 theorem signalW_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalW x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
-  have h : signalW x = (rotZ (-(Real.pi / 4)) : HilbertOperator 1) *
+  have h : signalW x = (rotZ (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) *
       (signalO x * rotZ (Real.pi / 4)) := by
     rw [← rotZ_mul_signalW, ← mul_assoc, rotZ_neg_mul_rotZ_op, one_mul]
   rw [h]
   exact mul_mem (rotZ_mem_unitaryGroup _)
     (mul_mem (signalO_mem_unitaryGroup hx) (rotZ_mem_unitaryGroup _))
+
+/-- Initial typed circuit block for the Wx-convention product. -/
+def qspWInitialCircuit (φ₀ : ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-w-initial" (rotZ φ₀) ResourceProfile.zero 1 0
+
+/-- One indexed Wx-convention signal-processing block. -/
+def qspWStepCircuit (x φ : ℝ) (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-w-step"
+    (Gate.ofUnitary (signalW x) (signalW_mem_unitaryGroup hx) * rotZ φ)
+    ResourceProfile.zero 1 0
+
+/-- Typed indexed-product version of the Wx-convention QSP word. -/
+def qspWIndexedCircuit (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    Circuit (Qubits 1) :=
+  Circuit.indexedProductList "qsp-w" (qspWInitialCircuit φ₀) φs
+    (fun φ => qspWStepCircuit x φ hx)
+
+@[simp]
+theorem qspWIndexedCircuit_matrix (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    (show HilbertOperator (Qubits 1) from
+      ((qspWIndexedCircuit φ₀ φs x hx).matrix :
+        HilbertOperator (Qubits 1))) =
+      qspW φ₀ φs x := by
+  change (show HilbertOperator (Qubits 1) from
+      ((Circuit.indexedProductList "qsp-w" (qspWInitialCircuit φ₀) φs
+        (fun φ => qspWStepCircuit x φ hx)).matrix :
+        HilbertOperator (Qubits 1))) =
+    qspW φ₀ φs x
+  simp [qspWInitialCircuit, qspWStepCircuit, qspW, Circuit.indexedProductList_matrix]
 
 theorem qspW_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :

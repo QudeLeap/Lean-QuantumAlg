@@ -8,8 +8,10 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
+public import QuantumAlg.Core.Components.Kets
+public import QuantumAlg.Core.Circuit
 public import QuantumAlg.Util.Complex
-public import QuantumAlg.Util.Polynomial
+public import QuantumAlg.Util.Polynomial.Laurent
 
 /-!
 # Quantum signal processing (single qubit) — Fourier basis (trigonometric)
@@ -31,11 +33,11 @@ and the pointwise normalization becomes the polynomial identity
 `QuantumAlg.qsp_yzy_iff` and `QuantumAlg.qsp_yzzyz_iff` are the YZY and YZZYZ
 characterizations, with pair conditions `IsYZYPair`/`IsYZPair` and a Laurent-side
 induction (this is the single-qubit precursor of the controlled-unitary /
-QET-QPP transformations). The polynomial normalization matches the pointwise
+unitary-polynomial transformations). The polynomial normalization matches the pointwise
 `|P|² + |Q|² = 1` via `QuantumAlg.qspYZ_normalization_iff`.
 
 This module is one half of the single-qubit QSP development; the Chebyshev-basis
-(reflection + Wx) forms live in `QuantumAlg.Primitives.QSP.Chebyshev`, and
+(reflection + Wx) forms live in `QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev`, and
 `QuantumAlg.Primitives.QSP` re-exports both.
 
 ## Main results
@@ -58,7 +60,7 @@ Pinned Mathlib API: `Polynomial.reflect`, `Polynomial.divX`,
 
 namespace QuantumAlg
 
-open Polynomial Complex
+open Polynomial Complex PureState
 
 noncomputable section
 
@@ -73,79 +75,59 @@ encoding gate `R_Z(x) = e^{-ixZ/2}`) through *Laurent* polynomials
 
 A Laurent polynomial of degree `≤ L` and parity `L mod 2` has exponent
 support in `{-L, -L+2, …, L}`, so it is exactly `e^{-iLx/2}·A(e^{ix})` for a
-unique ordinary `A : ℂ[X]` with `deg A ≤ L` (`lEval` below). Under this
+unique ordinary `A : ℂ[X]` with `deg A ≤ L` (`lEval`). Under this
 encoding, conjugation on the unit circle becomes the conjugate-reflection
 `A ↦ reflect L (conjP A)` (`conj_lEval`), and the pointwise normalization
 becomes the polynomial identity
 `A·reflect L (conjP A) + B·reflect L (conjP B) = X^L`
 (`qspYZ_normalization_iff`). -/
 
-/-- `e^{-iLx/2}·F(e^{ix})`: the value at `z = e^{ix/2}` of the Laurent
-polynomial `z^{-L}·F(z²)` encoded by `F : ℂ[X]`. -/
-def lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) : ℂ :=
-  Complex.exp (-((L * x / 2 : ℝ) * Complex.I)) *
-    F.eval (Complex.exp ((x : ℂ) * Complex.I))
-
-theorem lEval_C_mul (L : ℕ) (c : ℂ) (F : ℂ[X]) (x : ℝ) :
-    lEval L (C c * F) x = c * lEval L F x := by
-  rw [lEval, lEval, Polynomial.eval_mul, Polynomial.eval_C]
-  ring
-
-theorem lEval_add (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
-    lEval L (F + G) x = lEval L F x + lEval L G x := by
-  rw [lEval, lEval, lEval, Polynomial.eval_add]
-  ring
-
-theorem lEval_sub (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
-    lEval L (F - G) x = lEval L F x - lEval L G x := by
-  rw [lEval, lEval, lEval, Polynomial.eval_sub]
-  ring
-
-/-- Raising the parity budget multiplies the encoded value by `e^{-ix/2}`. -/
-theorem lEval_succ (L : ℕ) (F : ℂ[X]) (x : ℝ) :
-    lEval (L + 1) F x
-      = Complex.exp (-(((x / 2 : ℝ) : ℂ) * Complex.I)) * lEval L F x := by
-  rw [lEval, lEval, ← mul_assoc, ← Complex.exp_add]
-  congr 2
-  push_cast
-  ring
-
-/-- Raising the budget while multiplying by `X` multiplies by `e^{ix/2}`. -/
-theorem lEval_succ_X_mul (L : ℕ) (F : ℂ[X]) (x : ℝ) :
-    lEval (L + 1) (X * F) x
-      = Complex.exp (((x / 2 : ℝ) : ℂ) * Complex.I) * lEval L F x := by
-  rw [lEval, lEval, Polynomial.eval_mul, Polynomial.eval_X, ← mul_assoc,
-    ← mul_assoc, ← Complex.exp_add, ← Complex.exp_add]
-  congr 2
-  push_cast
-  ring
-
-/-- The encoded value of a constant at budget `0`. -/
-theorem lEval_zero_C (c : ℂ) (x : ℝ) : lEval 0 (C c) x = c := by
-  rw [lEval, Polynomial.eval_C]
-  norm_num
-
-/-- Conjugating the encoded value reflects the conjugated coefficients. -/
-theorem conj_lEval {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
-    starRingEnd ℂ (lEval L F x) = lEval L ((conjP F).reflect L) x := by
-  have hw : Complex.exp ((x : ℂ) * Complex.I) ≠ 0 := Complex.exp_ne_zero _
-  have hFc : (conjP F).natDegree ≤ L :=
-    le_trans (Polynomial.natDegree_map_le) hF
-  have h1 : (conjP F).eval (Complex.exp (-((x : ℂ) * Complex.I)))
-      = starRingEnd ℂ (F.eval (Complex.exp ((x : ℂ) * Complex.I))) := by
-    rw [← conj_exp_I, conjP, Polynomial.eval_map, Polynomial.eval₂_hom]
-  rw [lEval, map_mul, conj_exp_neg_I, ← h1, lEval, eval_reflect hFc hw,
-    ← Complex.exp_neg, ← Complex.exp_nat_mul, ← mul_assoc, ← Complex.exp_add]
-  congr 2
-  push_cast
-  ring
-
 /-! #### Gates and products -/
 
 /-- The YZY QNN `U^{YZY}_{θ,L}(x) = R_Y(θ₀)·∏_{j=1}^L R_Z(x)·R_Y(θ_j)`
 [YYLW22, neurips_2022.tex:266]. -/
-def qspYZY (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) : Gate 1 :=
+def qspYZY (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) : Gate (Qubits 1) :=
   θs.foldl (fun U θ => U * (rotZStd x * rotY θ)) (rotY θ₀)
+
+/-- Initial typed circuit block for the YZY product. -/
+def qspYZYInitialCircuit (θ₀ : ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-yzy-initial" (rotY θ₀) ResourceProfile.zero 1 0
+
+/-- One indexed YZY signal-processing block. -/
+def qspYZYStepCircuit (x θ : ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-yzy-step" (rotZStd x * rotY θ) ResourceProfile.zero 1 0
+
+/-- Typed indexed-product version of the YZY QSP word. -/
+def qspYZYIndexedCircuit (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+    Circuit (Qubits 1) :=
+  Circuit.indexedProductList "qsp-yzy" (qspYZYInitialCircuit θ₀) θs
+    (qspYZYStepCircuit x)
+
+@[simp]
+theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+    (show HilbertOperator (Qubits 1) from
+      ((qspYZYIndexedCircuit θ₀ θs x).matrix :
+        HilbertOperator (Qubits 1))) =
+      (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) := by
+  change (show HilbertOperator (Qubits 1) from
+      ((Circuit.indexedProductList "qsp-yzy" (qspYZYInitialCircuit θ₀) θs
+        (qspYZYStepCircuit x)).matrix :
+        HilbertOperator (Qubits 1))) =
+    (qspYZY θ₀ θs x : HilbertOperator (Qubits 1))
+  calc
+    (show HilbertOperator (Qubits 1) from
+        ((Circuit.indexedProductList "qsp-yzy" (qspYZYInitialCircuit θ₀) θs
+          (qspYZYStepCircuit x)).matrix :
+          HilbertOperator (Qubits 1))) =
+        θs.foldl
+          (fun op θ =>
+            op * ((rotZStd x * rotY θ : Gate (Qubits 1)) :
+              HilbertOperator (Qubits 1)))
+          (rotY θ₀ : HilbertOperator (Qubits 1)) := by
+          simp [qspYZYInitialCircuit, qspYZYStepCircuit,
+            Circuit.indexedProductList_matrix]
+    _ = (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) := by
+          simp [qspYZY, Circuit.foldl_gate_matrix]
 
 @[simp]
 theorem qspYZY_nil (θ₀ : ℝ) (x : ℝ) : qspYZY θ₀ [] x = rotY θ₀ := rfl
@@ -157,9 +139,51 @@ theorem qspYZY_concat (θ₀ : ℝ) (θs : List ℝ) (θ : ℝ) (x : ℝ) :
 /-- The YZZYZ (W-Z-W) QNN
 `U^{WZW}_{θ,φ,L}(x) = R_Z(φ)·W(θ₀,φ₀)·∏_{j=1}^L R_Z(x)·W(θ_j,φ_j)` with
 trainable blocks `W(θ,φ) = R_Y(θ)·R_Z(φ)` [YYLW22, neurips_2022.tex:316]. -/
-def qspYZZYZ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) : Gate 1 :=
+def qspYZZYZ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) : Gate (Qubits 1) :=
   ps.foldl (fun U p => U * (rotZStd x * (rotY p.1 * rotZStd p.2)))
     (rotZStd φ * (rotY θ₀ * rotZStd φ₀))
+
+/-- Initial typed circuit block for the YZZYZ product. -/
+def qspYZZYZInitialCircuit (φ θ₀ φ₀ : ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-yzzyz-initial" (rotZStd φ * (rotY θ₀ * rotZStd φ₀))
+    ResourceProfile.zero 3 0
+
+/-- One indexed YZZYZ signal-processing block. -/
+def qspYZZYZStepCircuit (x : ℝ) (p : ℝ × ℝ) : Circuit (Qubits 1) :=
+  Circuit.ofGate "qsp-yzzyz-step" (rotZStd x * (rotY p.1 * rotZStd p.2))
+    ResourceProfile.zero 3 0
+
+/-- Typed indexed-product version of the YZZYZ QSP word. -/
+def qspYZZYZIndexedCircuit (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+    Circuit (Qubits 1) :=
+  Circuit.indexedProductList "qsp-yzzyz" (qspYZZYZInitialCircuit φ θ₀ φ₀) ps
+    (qspYZZYZStepCircuit x)
+
+@[simp]
+theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+    (show HilbertOperator (Qubits 1) from
+      ((qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).matrix :
+        HilbertOperator (Qubits 1))) =
+      (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) := by
+  change (show HilbertOperator (Qubits 1) from
+      ((Circuit.indexedProductList "qsp-yzzyz" (qspYZZYZInitialCircuit φ θ₀ φ₀) ps
+        (qspYZZYZStepCircuit x)).matrix :
+        HilbertOperator (Qubits 1))) =
+    (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1))
+  calc
+    (show HilbertOperator (Qubits 1) from
+        ((Circuit.indexedProductList "qsp-yzzyz" (qspYZZYZInitialCircuit φ θ₀ φ₀) ps
+          (qspYZZYZStepCircuit x)).matrix :
+          HilbertOperator (Qubits 1))) =
+        ps.foldl
+          (fun op p => op * ((rotZStd x * (rotY p.1 * rotZStd p.2) : Gate (Qubits 1)) :
+            HilbertOperator (Qubits 1)))
+          ((rotZStd φ * (rotY θ₀ * rotZStd φ₀) : Gate (Qubits 1)) :
+            HilbertOperator (Qubits 1)) := by
+          simp [qspYZZYZInitialCircuit, qspYZZYZStepCircuit,
+            Circuit.indexedProductList_matrix]
+    _ = (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) := by
+          simp [qspYZZYZ, Circuit.foldl_gate_matrix]
 
 @[simp]
 theorem qspYZZYZ_nil (φ θ₀ φ₀ : ℝ) (x : ℝ) :
@@ -191,7 +215,7 @@ theorem qspYZY_eq_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
 /-- The trigonometric QSP target form `[[P, -Q], [Q*, P*]]` with
 `P = e^{-iLx/2}·A(e^{ix})` and `Q = e^{-iLx/2}·B(e^{ix})`
 [YYLW22, neurips_2022.tex:286]. -/
-def qspMatYZ (L : ℕ) (A B : ℂ[X]) (x : ℝ) : HilbertOperator 1 :=
+def qspMatYZ (L : ℕ) (A B : ℂ[X]) (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![lEval L A x, -lEval L B x;
      starRingEnd ℂ (lEval L B x), starRingEnd ℂ (lEval L A x)]
 
@@ -294,12 +318,12 @@ private theorem IsYZPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) (v w
 `R_Z(x)·R_Y(θ)·R_Z(φ)` maps the form `(A, B)` to
 `(v*·A - w·X·B, w*·A + v·X·B)` where `v = cos(θ/2)·e^{iφ/2}` and
 `w = sin(θ/2)·e^{-iφ/2}` [YYLW22, neurips_2022.tex:806]. -/
-private theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {v w : ℂ}
+theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {v w : ℂ}
     (hv : (Real.cos (θ / 2) : ℂ)
       * Complex.exp (((φ / 2 : ℝ) : ℂ) * Complex.I) = v)
     (hw : (Real.sin (θ / 2) : ℂ)
       * Complex.exp (-(((φ / 2 : ℝ) : ℂ) * Complex.I)) = w) :
-    qspMatYZ L A B x * (rotZStd x * (rotY θ * rotZStd φ) : Gate 1)
+    qspMatYZ L A B x * (rotZStd x * (rotY θ * rotZStd φ) : Gate (Qubits 1))
       = qspMatYZ (L + 1) (C (starRingEnd ℂ v) * A - C w * (X * B))
           (C (starRingEnd ℂ w) * A + C v * (X * B)) x := by
   have hcv : (Real.cos (θ / 2) : ℂ)
@@ -332,12 +356,12 @@ private theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {
 /-- The initial block `R_Z(φ)·R_Y(θ₀)·R_Z(φ₀)` is the `L = 0` instance of
 the form, with constants `a = cos(θ₀/2)e^{-i(φ+φ₀)/2}` and
 `b = sin(θ₀/2)e^{-i(φ-φ₀)/2}` [YYLW22, neurips_2022.tex:804]. -/
-private theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : ℝ)
+theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : ℝ)
     (ha : (Real.cos (θ₀ / 2) : ℂ)
       * Complex.exp (-((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I)) = a)
     (hb : (Real.sin (θ₀ / 2) : ℂ)
       * Complex.exp (-((((φ - φ₀) / 2 : ℝ) : ℂ) * Complex.I)) = b) :
-    (rotZStd φ * (rotY θ₀ * rotZStd φ₀) : Gate 1) =
+    (rotZStd φ * (rotY θ₀ * rotZStd φ₀) : Gate (Qubits 1)) =
       qspMatYZ 0 (C a) (C b) x := by
   have hca : (Real.cos (θ₀ / 2) : ℂ)
       * Complex.exp ((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I)
@@ -430,8 +454,8 @@ theorem qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
       · simpa using hpair.step v w hvw
       · rw [show (ps ++ [(θ, ψ)]).length = ps.length + 1 by simp,
           qspYZZYZ_concat]
-        change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) *
-            (rotZStd x * (rotY θ * rotZStd ψ) : Gate 1) =
+        change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) *
+            (rotZStd x * (rotY θ * rotZStd ψ) : Gate (Qubits 1)) =
           qspMatYZ (ps.length + 1)
             (C (starRingEnd ℂ v) * A - C w * (X * B))
             (C (starRingEnd ℂ w) * A + C v * (X * B)) x
@@ -440,7 +464,7 @@ theorem qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
 /-- The YZY one-step matrix recurrence: the `φ = 0` case of
 `qspMatYZ_step`. -/
 private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) :
-    qspMatYZ L A B x * (rotZStd x * rotY θ : Gate 1)
+    qspMatYZ L A B x * (rotZStd x * rotY θ : Gate (Qubits 1))
       = qspMatYZ (L + 1)
           (C ((Real.cos (θ / 2) : ℂ)) * A
             - C ((Real.sin (θ / 2) : ℂ)) * (X * B))
@@ -458,7 +482,7 @@ private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) 
 
 /-- The `R_Y(θ₀)` gate is the `L = 0` instance of the target form. -/
 private theorem rotY_eq_qspMatYZ (θ₀ : ℝ) (x : ℝ) :
-    (rotY θ₀ : Gate 1) = qspMatYZ 0 (C ((Real.cos (θ₀ / 2) : ℂ)))
+    (rotY θ₀ : Gate (Qubits 1)) = qspMatYZ 0 (C ((Real.cos (θ₀ / 2) : ℂ)))
       (C ((Real.sin (θ₀ / 2) : ℂ))) x := by
   have h := rotYZ_base_eq_qspMatYZ 0 θ₀ 0 (Real.cos (θ₀ / 2) : ℂ)
     (Real.sin (θ₀ / 2) : ℂ) x (by norm_num) (by norm_num)
@@ -514,8 +538,8 @@ theorem qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
           + C ((Real.cos (θ / 2) : ℂ)) * (X * B), ?_, fun x => ?_⟩
       · simpa using hpair.step θ
       · rw [show (θs ++ [θ]).length = θs.length + 1 by simp, qspYZY_concat]
-        change (qspYZY θ₀ θs x : HilbertOperator 1) *
-            (rotZStd x * rotY θ : Gate 1) =
+        change (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) *
+            (rotZStd x * rotY θ : Gate (Qubits 1)) =
           qspMatYZ (θs.length + 1)
             (C ((Real.cos (θ / 2) : ℂ)) * A
               - C ((Real.sin (θ / 2) : ℂ)) * (X * B))
@@ -525,20 +549,6 @@ theorem qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
 
 /-! #### Normalization on the circle -/
 
-/-- The conjugate-pair product under `lEval`, as a single polynomial
-evaluation on the circle. -/
-private theorem lEval_mul_conj {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
-    lEval L F x * starRingEnd ℂ (lEval L F x)
-      = Complex.exp (-((L * x : ℝ) * Complex.I))
-        * (F * (conjP F).reflect L).eval
-            (Complex.exp ((x : ℂ) * Complex.I)) := by
-  rw [conj_lEval hF, Polynomial.eval_mul]
-  simp only [lEval]
-  rw [mul_mul_mul_comm, ← Complex.exp_add]
-  congr 2
-  push_cast
-  ring
-
 /-- The polynomial normalization identity is equivalent to the pointwise
 circle normalization `|P(x)|² + |Q(x)|² = 1` on `ℝ`
 [YYLW22, neurips_2022.tex:288]. -/
@@ -547,39 +557,36 @@ theorem qspYZ_normalization_iff {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L
     A * (conjP A).reflect L + B * (conjP B).reflect L = X ^ L ↔
       ∀ x : ℝ, lEval L A x * starRingEnd ℂ (lEval L A x)
         + lEval L B x * starRingEnd ℂ (lEval L B x) = 1 := by
-  have hzero : ∀ x : ℝ, -((L * x : ℝ) * Complex.I)
-      + (L : ℂ) * ((x : ℂ) * Complex.I) = 0 := by
-    intro x
-    push_cast
-    ring
   constructor
   · intro hnorm x
-    rw [lEval_mul_conj hA x, lEval_mul_conj hB x, ← mul_add,
-      ← Polynomial.eval_add, hnorm, Polynomial.eval_pow, Polynomial.eval_X,
-      ← Complex.exp_nat_mul, ← Complex.exp_add, hzero x, Complex.exp_zero]
+    rw [lEval_mul_conj hA x, lEval_mul_conj hB x, ← lEval_add, hnorm,
+      lEval_two_mul_X_pow]
   · intro hpt
     refine eq_of_circle_eval_eq fun x => ?_
     have h := hpt x
-    rw [lEval_mul_conj hA x, lEval_mul_conj hB x, ← mul_add,
-      ← Polynomial.eval_add] at h
-    rw [Polynomial.eval_pow, Polynomial.eval_X, ← Complex.exp_nat_mul]
+    rw [lEval_mul_conj hA x, lEval_mul_conj hB x, ← lEval_add] at h
+    have hleq :
+        lEval (2 * L) (A * (conjP A).reflect L + B * (conjP B).reflect L) x =
+          lEval (2 * L) (X ^ L : ℂ[X]) x := by
+      rw [h, lEval_two_mul_X_pow]
+    unfold lEval at hleq
     apply mul_left_cancel₀
-      (Complex.exp_ne_zero (-((L * x : ℝ) * Complex.I)))
-    rw [h, ← Complex.exp_add, hzero x, Complex.exp_zero]
+      (Complex.exp_ne_zero (-(↑(↑(2 * L) * x / 2) * Complex.I)))
+    exact hleq
 
 /-- Two target forms agreeing for all `x : ℝ` have equal polynomial pairs. -/
-private theorem qspMatYZ_inj {L : ℕ} {A B A' B' : ℂ[X]}
+theorem qspMatYZ_inj {L : ℕ} {A B A' B' : ℂ[X]}
     (hmat : ∀ x : ℝ, qspMatYZ L A B x = qspMatYZ L A' B' x) :
     A = A' ∧ B = B' := by
   constructor
   · refine eq_of_circle_eval_eq fun x => ?_
-    have h00 := congrArg (fun M : HilbertOperator 1 => M 0 0) (hmat x)
+    have h00 := congrArg (fun M : HilbertOperator (Qubits 1) => M 0 0) (hmat x)
     have h : lEval L A x = lEval L A' x := by
       simpa [qspMatYZ, Matrix.cons_val_zero] using h00
     simp only [lEval] at h
     exact mul_left_cancel₀ (Complex.exp_ne_zero _) h
   · refine eq_of_circle_eval_eq fun x => ?_
-    have h01 := congrArg (fun M : HilbertOperator 1 => M 0 1) (hmat x)
+    have h01 := congrArg (fun M : HilbertOperator (Qubits 1) => M 0 1) (hmat x)
     have h : lEval L B x = lEval L B' x := by
       simpa [qspMatYZ, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
         using h01
@@ -840,8 +847,8 @@ theorem qspYZZYZ_converse :
       obtain ⟨φ, θ₀, φ₀, ps, hlen, hmat⟩ := ih A' B' hp'
       refine ⟨φ, θ₀, φ₀, ps ++ [(θ, ψ)], by simp [hlen], fun x => ?_⟩
       rw [qspYZZYZ_concat]
-      change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) *
-          (rotZStd x * (rotY θ * rotZStd ψ) : Gate 1) =
+      change (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) *
+          (rotZStd x * (rotY θ * rotZStd ψ) : Gate (Qubits 1)) =
         qspMatYZ (L + 1) A B x
       rw [hmat x, qspMatYZ_step L A' B' θ ψ x hv hw, ← hAeq, ← hBeq]
 
@@ -971,8 +978,8 @@ theorem qspYZY_converse :
       obtain ⟨θ₀, θs, hlen, hmat⟩ := ih A' B' ⟨hp', hrA', hrB'⟩
       refine ⟨θ₀, θs ++ [θ], by simp [hlen], fun x => ?_⟩
       rw [qspYZY_concat]
-      change (qspYZY θ₀ θs x : HilbertOperator 1) *
-          (rotZStd x * rotY θ : Gate 1) =
+      change (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) *
+          (rotZStd x * rotY θ : Gate (Qubits 1)) =
         qspMatYZ (L + 1) A B x
       rw [hmat x, qspMatYZ_step_yzy L A' B' θ x, hc, hs, ← hAeq, ← hBeq]
 
@@ -980,7 +987,7 @@ theorem qspYZY_converse :
 
 theorem qspYZZYZ_mem_unitaryGroup (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ))
     (x : ℝ) :
-    (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator 1) ∈
+    (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) ∈
       Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   induction ps using List.reverseRecOn with
   | nil =>
@@ -993,10 +1000,147 @@ theorem qspYZZYZ_mem_unitaryGroup (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)
         (mul_mem (rotY_mem_unitaryGroup p.1) (rotZStd_mem_unitaryGroup p.2)))
 
 theorem qspYZY_mem_unitaryGroup (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
-    (qspYZY θ₀ θs x : HilbertOperator 1) ∈
+    (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) ∈
       Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   rw [qspYZY_eq_qspYZZYZ]
   exact qspYZZYZ_mem_unitaryGroup 0 θ₀ 0 _ x
+
+/-- YZY is the zero-Z-phase special case of YZZYZ, so its soundness can be
+read through the YZZYZ soundness theorem without duplicating the statement. -/
+theorem qspYZY_forward_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
+    ∃ A B : ℂ[X], IsYZPair θs.length A B ∧
+      ∀ x : ℝ, qspYZY θ₀ θs x = qspMatYZ θs.length A B x := by
+  obtain ⟨A, B, hpair, hmat⟩ :=
+    qspYZZYZ_forward 0 θ₀ 0 (θs.map fun θ => (θ, (0 : ℝ)))
+  refine ⟨A, B, by simpa using hpair, fun x => ?_⟩
+  rw [qspYZY_eq_qspYZZYZ]
+  simpa using hmat x
+
+/-- The YZZYZ-derived YZY soundness keeps the real-coefficient side conditions
+by transporting them from the original YZY recurrence across the identical
+matrix realization. -/
+theorem qspYZY_forward_real_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
+    ∃ A B : ℂ[X], IsYZYPair θs.length A B ∧
+      ∀ x : ℝ, qspYZY θ₀ θs x = qspMatYZ θs.length A B x := by
+  obtain ⟨A, B, hpair, hmat⟩ := qspYZY_forward_via_qspYZZYZ θ₀ θs
+  obtain ⟨A', B', hpair', hmat'⟩ := qspYZY_forward θ₀ θs
+  obtain ⟨hA, hB⟩ := qspMatYZ_inj fun x => (hmat' x).symm.trans (hmat x)
+  refine ⟨A, B, ?_, hmat⟩
+  rwa [hA, hB] at hpair'
+
+/-- YZY completeness also preserves into the YZZYZ convention by taking all
+added Z phases to be zero. -/
+theorem qspYZY_converse_via_qspYZZYZ (L : ℕ) (A B : ℂ[X]) (h : IsYZYPair L A B) :
+    ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧
+      ∀ x : ℝ, qspYZZYZ φ θ₀ φ₀ ps x = qspMatYZ L A B x := by
+  obtain ⟨θ₀, θs, hlen, hmat⟩ := qspYZY_converse L A B h
+  refine ⟨0, θ₀, 0, θs.map (fun θ => (θ, (0 : ℝ))), by simp [hlen], fun x => ?_⟩
+  rw [← qspYZY_eq_qspYZZYZ]
+  exact hmat x
+
+/-! #### Polynomial pair generated by a concrete YZZYZ phase schedule -/
+
+/-- Initial encoded polynomial pair for the YZZYZ processing block
+`R_Z(φ) R_Y(θ₀) R_Z(φ₀)` [YYLW22, neurips_2022.tex:804]. -/
+noncomputable def qspYZZYZInitialPair (φ θ₀ φ₀ : ℝ) :
+    Polynomial ℂ × Polynomial ℂ :=
+  (Polynomial.C ((Real.cos (θ₀ / 2) : ℂ)
+      * Complex.exp (-((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I))),
+   Polynomial.C ((Real.sin (θ₀ / 2) : ℂ)
+      * Complex.exp (-((((φ - φ₀) / 2 : ℝ) : ℂ) * Complex.I))))
+
+/-- One encoded YZZYZ polynomial recurrence step:
+`(A,B) ↦ (v* A - w X B, w* A + v X B)`, where
+`v = cos(θ/2)e^{iφ/2}` and `w = sin(θ/2)e^{-iφ/2}`
+[YYLW22, neurips_2022.tex:806]. -/
+noncomputable def qspYZZYZPairStep (pair : Polynomial ℂ × Polynomial ℂ) (p : ℝ × ℝ) :
+    Polynomial ℂ × Polynomial ℂ :=
+  let v : ℂ := (Real.cos (p.1 / 2) : ℂ)
+    * Complex.exp (((p.2 / 2 : ℝ) : ℂ) * Complex.I)
+  let w : ℂ := (Real.sin (p.1 / 2) : ℂ)
+    * Complex.exp (-(((p.2 / 2 : ℝ) : ℂ) * Complex.I))
+  (Polynomial.C (starRingEnd ℂ v) * pair.1 - Polynomial.C w * (Polynomial.X * pair.2),
+   Polynomial.C (starRingEnd ℂ w) * pair.1 + Polynomial.C v * (Polynomial.X * pair.2))
+
+/-- Encoded polynomial pair generated by a concrete YZZYZ phase schedule. -/
+noncomputable def qspYZZYZGeneratedPair (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
+    Polynomial ℂ × Polynomial ℂ :=
+  ps.foldl qspYZZYZPairStep (qspYZZYZInitialPair φ θ₀ φ₀)
+
+/-- The generated pair is exactly the pair realized by the concrete YZZYZ
+phase schedule.  This names the recurrence already used in the QSP Fourier
+soundness proof so QPP can substitute the same polynomial into a multi-qubit
+controlled-`U` word. -/
+theorem qspYZZYZ_eq_qspMatYZ_generatedPair
+    (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+    qspYZZYZ φ θ₀ φ₀ ps x =
+      qspMatYZ ps.length
+        (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).1
+        (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).2 x := by
+  induction ps using List.reverseRecOn with
+  | nil =>
+      change qspYZZYZ φ θ₀ φ₀ [] x =
+        qspMatYZ 0
+          (Polynomial.C ((Real.cos (θ₀ / 2) : ℂ)
+            * Complex.exp (-((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I))))
+          (Polynomial.C ((Real.sin (θ₀ / 2) : ℂ)
+            * Complex.exp (-((((φ - φ₀) / 2 : ℝ) : ℂ) * Complex.I)))) x
+      rw [qspYZZYZ_nil]
+      exact rotYZ_base_eq_qspMatYZ φ θ₀ φ₀ _ _ x rfl rfl
+  | append_singleton ps p ih =>
+      obtain ⟨θ, ψ⟩ := p
+      set pair := qspYZZYZGeneratedPair φ θ₀ φ₀ ps with hpair
+      set v : ℂ := (Real.cos (θ / 2) : ℂ)
+        * Complex.exp (((ψ / 2 : ℝ) : ℂ) * Complex.I) with hv
+      set w : ℂ := (Real.sin (θ / 2) : ℂ)
+        * Complex.exp (-(((ψ / 2 : ℝ) : ℂ) * Complex.I)) with hw
+      rw [qspYZZYZ_concat]
+      change
+        ((qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) *
+            ((rotZStd x * (rotY θ * rotZStd ψ) : Gate (Qubits 1)) :
+              HilbertOperator (Qubits 1))) =
+          qspMatYZ (ps ++ [(θ, ψ)]).length
+            (qspYZZYZGeneratedPair φ θ₀ φ₀ (ps ++ [(θ, ψ)])).1
+            (qspYZZYZGeneratedPair φ θ₀ φ₀ (ps ++ [(θ, ψ)])).2 x
+      rw [ih]
+      rw [show (ps ++ [(θ, ψ)]).length = ps.length + 1 by simp]
+      simp only [qspYZZYZGeneratedPair, List.foldl_append, List.foldl_cons,
+        List.foldl_nil]
+      change
+        qspMatYZ ps.length pair.1 pair.2 x *
+            (rotZStd x * (rotY θ * rotZStd ψ) : Gate (Qubits 1)) =
+          qspMatYZ (ps.length + 1)
+            (Polynomial.C (starRingEnd ℂ v) * pair.1 -
+              Polynomial.C w * (Polynomial.X * pair.2))
+            (Polynomial.C (starRingEnd ℂ w) * pair.1 +
+              Polynomial.C v * (Polynomial.X * pair.2)) x
+      rw [qspMatYZ_step ps.length pair.1 pair.2 θ ψ x hv.symm hw.symm]
+
+/-- If a concrete YZZYZ phase schedule realizes a target polynomial pair, then
+the recurrence-generated pair is that target pair.  This is the algebraic
+bridge from the source's one-qubit QSP realization statement to the QPP
+multi-qubit controlled-word proof. -/
+theorem qspYZZYZGeneratedPair_eq_of_matrix
+    (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (A B : Polynomial ℂ)
+    (hmat : ∀ x : ℝ, qspYZZYZ φ θ₀ φ₀ ps x = qspMatYZ ps.length A B x) :
+    (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).1 = A ∧
+      (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).2 = B := by
+  exact
+    qspMatYZ_inj (L := ps.length)
+      (A := (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).1)
+      (B := (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).2)
+      (A' := A) (B' := B)
+      (fun x => (qspYZZYZ_eq_qspMatYZ_generatedPair φ θ₀ φ₀ ps x).symm.trans
+        (hmat x))
+
+/-- The top-left entry of the one-qubit QSP matrix applied to `|0>` is the
+Laurent value `P(e^{iθ})`. -/
+theorem qspMatYZ_applyVec_ket0_zero
+    (L : ℕ) (A B : Polynomial ℂ) (θ : ℝ) :
+    (HilbertOperator.applyVec (qspMatYZ (2 * L) A B θ)
+        (ket0 : StateVector (Qubits 1))) 0 =
+      lEval (2 * L) A θ := by
+  simp [HilbertOperator.applyVec_apply, qspMatYZ, ket0, PureState.ket]
 
 /-- **Trigonometric QSP, YZZYZ (W-Z-W) form**
 [YYLW22, neurips_2022.tex:333] (`lem:qnn_yzzyz`, encoded form): a pair
@@ -1026,7 +1170,7 @@ theorem TrigonometricQuantumSignalProcessing.main_yzy (L : ℕ) (A B : ℂ[X]) :
   constructor
   · exact qspYZY_converse L A B
   · rintro ⟨θ₀, θs, rfl, hmat⟩
-    obtain ⟨A', B', hpair, hmat'⟩ := qspYZY_forward θ₀ θs
+    obtain ⟨A', B', hpair, hmat'⟩ := qspYZY_forward_real_via_qspYZZYZ θ₀ θs
     obtain ⟨hA, hB⟩ := qspMatYZ_inj fun x => (hmat' x).symm.trans (hmat x)
     rwa [← hA, ← hB]
 

@@ -7,35 +7,21 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.Chebyshev
-public import QuantumAlg.Primitives.QSP.Fourier
+public import QuantumAlg.Primitives.QSP.SingleQubit
+public import QuantumAlg.Primitives.QSP.MultiQubit
 
 /-!
-# Quantum signal processing (single qubit)
+# Quantum signal processing
 
-Quantum signal processing (QSP) interleaves a fixed one-parameter *signal*
-rotation with tunable *processing* phase rotations and characterizes exactly
-which `SU(2)`-valued polynomial transforms of the signal are achievable.
+This is the umbrella module for single-qubit QSP characterizations and the
+multi-qubit QSP descendants that lift those phase-synthesis results into
+unitary polynomial and block-encoding transformations.
 
-This is the umbrella module for the single-qubit QSP development. It splits by
-polynomial basis and re-exports both halves:
-
-- `QuantumAlg.Primitives.QSP.Chebyshev` — the Chebyshev-basis forms: the
-  reflection-derived **O-convention** (`qsp_reflection_iff`) and the
-  **Wx-convention / XZX form** (`qsp_wx_iff`), characterized by `IsQSPPair`.
-- `QuantumAlg.Primitives.QSP.Fourier` — the Fourier-basis (trigonometric)
-  forms: the **YZY** (`qsp_yzy_iff`) and **YZZYZ / W-Z-W** (`qsp_yzzyz_iff`)
-  quantum-neural-network forms, characterized by `IsYZYPair`/`IsYZPair` through
-  the Laurent encoding `lEval`.
-
-The two families are genuinely different transforms with different inputs
-(Chebyshev polynomials in `x ∈ [-1,1]` vs. Laurent/Fourier polynomials in
-`e^{ix/2}`); a cross-convention bridge (`x = cos θ`) is left as future work.
-
-## Main results (registered targets)
-
-- `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main`, `QuantumAlg.ReflectionBasedQuantumSignalProcessing.main_wx` — Chebyshev basis.
-- `QuantumAlg.qsp_yzy_iff`, `QuantumAlg.qsp_yzzyz_iff` — Fourier basis.
+- `QuantumAlg.Primitives.QSP.SingleQubit` contains the Chebyshev/Fourier
+  single-qubit signal forms and their bridge.
+- `QuantumAlg.Primitives.QSP.MultiQubit` contains QPP and QSVT, whose public
+  endpoints keep correctness and resource counts bound to one constructed
+  circuit witness.
 -/
 
 @[expose] public section

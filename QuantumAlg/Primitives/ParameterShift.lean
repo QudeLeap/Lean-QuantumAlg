@@ -8,8 +8,8 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
-public import QuantumAlg.Core.Measurement
-public import QuantumAlg.Util.TrigPolynomial
+public import QuantumAlg.Core.Base
+public import QuantumAlg.Util.Polynomial.Trigonometric
 
 /-!
 # Parameter-shift rule
@@ -72,12 +72,12 @@ theorem ParamShiftModel.parameter_shift (M : ParamShiftModel) (θ : ℝ) :
 
 /-- The single-qubit `R_Y(θ)` variational cost with observable `O` on input `ψ`:
 `C(θ) = ⟨ψ| R_Y(θ)† O R_Y(θ) |ψ⟩`. -/
-def varCost (ψ : PureState 1) (O : HilbertOperator 1) (θ : ℝ) : ℝ :=
+def varCost (ψ : PureState (Qubits 1)) (O : HilbertOperator (Qubits 1)) (θ : ℝ) : ℝ :=
   expVal ((rotY θ).apply ψ) O
 
 /-- `R_Y(θ) |0⟩ = cos(θ/2) |0⟩ + sin(θ/2) |1⟩`. -/
 theorem rotY_apply_ket0 (θ : ℝ) :
-    ((rotY θ).apply ket0 : StateVector 1)
+    ((rotY θ).apply ket0 : StateVector (Qubits 1))
       = (Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1 := by
   apply WithLp.ofLp_injective
   funext i
@@ -91,8 +91,8 @@ theorem rotY_apply_ket0 (θ : ℝ) :
 
 /-- Inner product of two single-qubit states in the computational basis. -/
 theorem inner_ket01_combo (a b c d : ℂ) :
-    inner ℂ ((a • ket0 + b • ket1 : StateVector 1))
-      ((c • ket0 + d • ket1 : StateVector 1))
+    inner ℂ ((a • ket0 + b • ket1 : StateVector (Qubits 1)))
+      ((c • ket0 + d • ket1 : StateVector (Qubits 1)))
       = starRingEnd ℂ a * c + starRingEnd ℂ b * d := by
   simp [PiLp.inner_apply, RCLike.inner_apply, Fin.sum_univ_two, ket0, ket1,
     PureState.ket, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
@@ -100,7 +100,7 @@ theorem inner_ket01_combo (a b c d : ℂ) :
 
 /-- The `R_Y(θ)` ansatz cost with observable `Z` on `|0⟩` equals `cos θ`. -/
 theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
-  have hZ : HilbertOperator.applyVec (Z : HilbertOperator 1)
+  have hZ : HilbertOperator.applyVec (Z : HilbertOperator (Qubits 1))
       ((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
       = (Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1 := by
     apply WithLp.ofLp_injective
@@ -122,9 +122,9 @@ theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
   rw [varCost, expVal, rotY_apply_ket0, hZ]
   change (inner ℂ
       (((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
-        : StateVector 1)
+        : StateVector (Qubits 1))
       (((Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1)
-        : StateVector 1)).re = Real.cos θ
+        : StateVector (Qubits 1))).re = Real.cos θ
   rw [inner_ket01_combo]
   simp only [Complex.conj_ofReal, ← Complex.ofReal_neg, ← Complex.ofReal_mul,
     ← Complex.ofReal_add, Complex.ofReal_re]

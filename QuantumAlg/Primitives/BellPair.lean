@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Bell pair (EPR pair) and its preparation
@@ -25,7 +26,7 @@ another. The registered `bell-state-prep` target is `bell_state_prep` here.
 
 ## Main results
 
-- `QuantumAlg.bell` — the Bell state, as a `PureState 2`.
+- `QuantumAlg.bell` — the Bell state, as a `PureState (Qubits 2)`.
 - `QuantumAlg.BellStatePreparation.main` — the preparation-circuit equality.
 - `QuantumAlg.bell_eq_tensor` — the Bell state in per-qubit tensor form.
 - `QuantumAlg.norm_bell` — the Bell state is normalized.
@@ -41,53 +42,74 @@ noncomputable section
 
 /-- Raw Bell-state vector `( |00⟩ + |11⟩ ) / √2` [dW19, qcnotes.tex:622].
 In the big-endian basis labelling, `|00⟩ = ket 0` and `|11⟩ = ket 3`. -/
-def bellVec : StateVector 2 :=
-  invSqrt2 • ((ket 0 : PureState 2) + (ket 3 : PureState 2) : StateVector 2)
+def bellVec : StateVector (Qubits 2) :=
+  invSqrt2 •
+    (((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2)) :
+      StateVector (Qubits 2)))
 
 /-- The raw Bell-state vector has unit norm. -/
 theorem norm_bellVec : ‖bellVec‖ = 1 := by
   rw [bellVec, norm_smul, norm_invSqrt2]
-  have h : ‖((ket 0 : PureState 2) + (ket 3 : PureState 2) : StateVector 2)‖
-      = Real.sqrt 2 := by
+  have h :
+      ‖(((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2)) :
+        StateVector (Qubits 2)))‖ = Real.sqrt 2 := by
     rw [EuclideanSpace.norm_eq]
     have hsum :
-        ∑ i, ‖(((ket 0 : PureState 2) + (ket 3 : PureState 2)
-          : StateVector 2) i)‖ ^ 2 = 2 := by
+        ∑ i, ‖(((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2))
+          : StateVector (Qubits 2)) i)‖ ^ 2 = 2 := by
       refine (Fin.sum_univ_four (f := fun i : Fin (2 ^ 2) =>
-        ‖(((ket 0 : PureState 2) + (ket 3 : PureState 2)
-          : StateVector 2) i)‖ ^ 2)).trans ?_
+        ‖(((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2))
+          : StateVector (Qubits 2)) i)‖ ^ 2)).trans ?_
       simp +decide [PureState.ket_apply]
       all_goals norm_num
     rw [hsum]
   rw [h, inv_mul_cancel₀ (Real.sqrt_ne_zero'.mpr (by norm_num))]
 
 /-- The Bell state (EPR-pair) as a normalized pure state. -/
-def bell : PureState 2 := ofVec bellVec norm_bellVec
+def bell : PureState (Qubits 2) := ofVec bellVec norm_bellVec
 
 /-- The Bell state in per-qubit tensor form: `(|0⟩⊗|0⟩ + |1⟩⊗|1⟩)/√2`. -/
 theorem bell_eq_tensor :
-    (bell : StateVector 2)
-      = invSqrt2 • ((ket0.tensor ket0 + ket1.tensor ket1 : StateVector 2)) := by
+    (bell : StateVector (Qubits 2))
+      = invSqrt2 • ((ket0.tensor ket0 + ket1.tensor ket1 : StateVector (Qubits 2))) := by
   change bellVec
-    = invSqrt2 • ((ket0.tensor ket0 + ket1.tensor ket1 : StateVector 2))
+    = invSqrt2 • ((ket0.tensor ket0 + ket1.tensor ket1 : StateVector (Qubits 2)))
   rw [bellVec, ket0, ket1, PureState.tensor_ket, PureState.tensor_ket]
-  change invSqrt2 • ((ket 0 : PureState 2) + (ket 3 : PureState 2) : StateVector 2)
-    = invSqrt2 • ((ket 0 : PureState 2) + (ket 3 : PureState 2) : StateVector 2)
+  change
+      invSqrt2 •
+        (((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2)) :
+          StateVector (Qubits 2))) =
+      invSqrt2 •
+        (((ket 0 : PureState (Qubits 2)) + (ket 3 : PureState (Qubits 2)) :
+          StateVector (Qubits 2)))
   rfl
 
-/-- Bell-state preparation: a Hadamard on qubit 0 followed by a CNOT
-(control = qubit 0) turns `|00⟩` into the Bell state. -/
+/-- Typed circuit witness for Bell-state preparation. -/
+def BellStatePreparation.circuit : Circuit (Qubits 2) :=
+  Circuit.ofGate "bell-state-prep" (CNOT * H.tensor (1 : Gate (Qubits 1)))
+    { oracleQueries := 0, hadamardGates := 1, elementaryGates := 2, classicalOps := 0 } 2 0
+
+/-- Bell preparation input state. -/
+def BellStatePreparation.input : StateVector (Qubits 2) :=
+  ket0.tensor ket0
+
+/-- Bell-state preparation: the typed circuit turns `|00⟩` into the Bell state. -/
 theorem BellStatePreparation.main :
-    CNOT.apply ((H.tensor (1 : Gate 1)).apply (ket0.tensor ket0)) = bell := by
+    Circuit.apply BellStatePreparation.circuit BellStatePreparation.input = bell := by
+  rw [BellStatePreparation.circuit, BellStatePreparation.input,
+    Circuit.apply_ofGate, Gate.mul_applyVec]
+  change
+      (CNOT.apply
+        ((H.tensor (1 : Gate (Qubits 1))).apply (ket0.tensor ket0)) :
+        StateVector (Qubits 2)) = bell
   rw [Gate.tensor_apply_tensor, H_apply_ket0, Gate.one_apply]
   ext i
   fin_cases i <;>
     simp +decide [bell, bellVec, ketPlus, ketPlusVec, ket0, ket1,
-      PureState.tensor_apply, PureState.ket_apply, Gate.apply_apply, CNOT,
+      PureState.tensor_apply, PureState.ket_apply, CNOT,
       Gate.ofPerm, Fin.sum_univ_four]
 
 /-- The Bell state is normalized by construction. -/
-@[simp]
 theorem norm_bell : ‖bell‖ = 1 := bell.norm_eq_one
 
 end

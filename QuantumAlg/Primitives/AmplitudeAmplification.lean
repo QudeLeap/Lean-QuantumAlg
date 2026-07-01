@@ -8,8 +8,9 @@ module
 
 public import QuantumAlg.Init
 public import QuantumAlg.Core.Components.Gates
-public import QuantumAlg.Core.Measurement
+public import QuantumAlg.Core.Base
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Amplitude amplification in the good/bad plane
@@ -46,15 +47,16 @@ def amplitudeAmplificationAngle (θ : ℝ) (k : ℕ) : ℝ := ((2 : ℝ) * k + 1
 /-- The good/bad-plane state with bad amplitude `cos((2k+1)θ)` and good
 amplitude `sin((2k+1)θ)`. In this two-dimensional model, `|0⟩` is the bad axis
 and `|1⟩` is the good axis. -/
-def amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) : StateVector 1 :=
-  ((Real.cos (amplitudeAmplificationAngle θ k) : ℂ) • (ket0 : StateVector 1)) +
+def amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) : StateVector (Qubits 1) :=
+  ((Real.cos (amplitudeAmplificationAngle θ k) : ℂ) • (ket0 : StateVector (Qubits 1))) +
     ((Real.sin (amplitudeAmplificationAngle θ k) : ℂ) • ket1)
 
 theorem norm_amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) :
     ‖amplitudeAmplificationStateVec θ k‖ = 1 := by
   rw [PureState.norm_eq_two_terms]
-  simp [amplitudeAmplificationStateVec, ket0, ket1, PureState.ket_apply,
-    PiLp.smul_apply, PiLp.add_apply]
+  simp only [amplitudeAmplificationStateVec, ket0, ket1, PureState.ket_apply,
+    PiLp.smul_apply, PiLp.add_apply, smul_eq_mul, Nat.reducePow]
+  norm_num
   rw [← Complex.normSq_eq_norm_sq, ← Complex.normSq_eq_norm_sq,
     ← Complex.ofReal_cos, ← Complex.ofReal_sin, Complex.normSq_ofReal,
     Complex.normSq_ofReal]
@@ -63,17 +65,17 @@ theorem norm_amplitudeAmplificationStateVec (θ : ℝ) (k : ℕ) :
 /-- The good/bad-plane state with bad amplitude `cos((2k+1)θ)` and good
 amplitude `sin((2k+1)θ)`. In this two-dimensional model, `|0⟩` is the bad axis
 and `|1⟩` is the good axis. -/
-def amplitudeAmplificationState (θ : ℝ) (k : ℕ) : PureState 1 :=
+def amplitudeAmplificationState (θ : ℝ) (k : ℕ) : PureState (Qubits 1) :=
   PureState.ofVec (amplitudeAmplificationStateVec θ k)
     (norm_amplitudeAmplificationStateVec θ k)
 
 /-- One amplitude-amplification iterate on the good/bad plane: rotation by
 `2θ`. Since `rotY φ` rotates the real plane by `φ/2`, this is `rotY (4θ)`. -/
-def amplitudeAmplificationStep (θ : ℝ) : Gate 1 := rotY (4 * θ)
+def amplitudeAmplificationStep (θ : ℝ) : Gate (Qubits 1) := rotY (4 * θ)
 
 /-- The plane rotation used by amplitude amplification is unitary. -/
 theorem amplitudeAmplificationStep_mem_unitaryGroup (θ : ℝ) :
-    (amplitudeAmplificationStep θ : HilbertOperator 1) ∈
+    (amplitudeAmplificationStep θ : HilbertOperator (Qubits 1)) ∈
       Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ :=
   rotY_mem_unitaryGroup _
 
@@ -92,17 +94,25 @@ theorem amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
   · change (amplitudeAmplificationStep θ).apply (amplitudeAmplificationState θ k) 0 =
       amplitudeAmplificationState θ (k + 1) 0
     rw [Gate.apply_apply]
-    simp [amplitudeAmplificationStep, amplitudeAmplificationState,
-      amplitudeAmplificationStateVec, rotY, rotYOp, ket0, ket1,
-      PureState.ket_apply, hangle]
+    simp only [amplitudeAmplificationStep, amplitudeAmplificationState,
+      amplitudeAmplificationStateVec, rotY, rotYOp, Gate.coe_ofUnitary,
+      hangle, Nat.reducePow, Fin.sum_univ_two, Matrix.of_apply,
+      Matrix.cons_val_zero, Matrix.cons_val_one, PureState.ofVec_apply,
+      ket0, ket1, PureState.ket_apply, PiLp.smul_apply, PiLp.add_apply,
+      smul_eq_mul, Complex.ofReal_cos, Complex.ofReal_sin]
+    norm_num
     rw [Complex.cos_add]
     ring_nf
   · change (amplitudeAmplificationStep θ).apply (amplitudeAmplificationState θ k) 1 =
       amplitudeAmplificationState θ (k + 1) 1
     rw [Gate.apply_apply]
-    simp [amplitudeAmplificationStep, amplitudeAmplificationState,
-      amplitudeAmplificationStateVec, rotY, rotYOp, ket0, ket1,
-      PureState.ket_apply, hangle]
+    simp only [amplitudeAmplificationStep, amplitudeAmplificationState,
+      amplitudeAmplificationStateVec, rotY, rotYOp, Gate.coe_ofUnitary,
+      hangle, Nat.reducePow, Fin.sum_univ_two, Matrix.of_apply,
+      Matrix.cons_val_zero, Matrix.cons_val_one, PureState.ofVec_apply,
+      ket0, ket1, PureState.ket_apply, PiLp.smul_apply, PiLp.add_apply,
+      smul_eq_mul, Complex.ofReal_cos, Complex.ofReal_sin]
+    norm_num
     rw [Complex.sin_add]
     ring_nf
 
@@ -126,9 +136,9 @@ structure AmplitudeAmplificationModel where
   `sin θ ^ 2`. -/
   θ : ℝ
   /-- Reflection that flips the good component and fixes the bad component. -/
-  goodReflection : Gate 1
+  goodReflection : Gate (Qubits 1)
   /-- Reflection through the prepared start state. -/
-  startReflection : Gate 1
+  startReflection : Gate (Qubits 1)
   /-- The product of the two reflections acts as the amplification rotation on
   the invariant good/bad plane. -/
   iterate_eq : startReflection * goodReflection = amplitudeAmplificationStep θ
@@ -142,16 +152,16 @@ structure SourceAmplitudeAmplificationModel where
   /-- Initial good-angle parameter. -/
   theta : ℝ
   /-- Source preparation unitary `A`, restricted to the invariant plane. -/
-  preparation : Gate 1
+  preparation : Gate (Qubits 1)
   /-- Reflection around the initial computational state before preparation. -/
-  zeroReflection : Gate 1
+  zeroReflection : Gate (Qubits 1)
   /-- Reflection that flips the good component and fixes the bad component. -/
-  goodReflection : Gate 1
+  goodReflection : Gate (Qubits 1)
   /-- Source preparation statement in public good/bad order. -/
   prepares_start :
-    preparation.applyVec (ket0 : StateVector 1) =
-      ((Real.sin theta : ℂ) • (ket1 : StateVector 1)) +
-        ((Real.cos theta : ℂ) • (ket0 : StateVector 1))
+    preparation.applyVec (ket0 : StateVector (Qubits 1)) =
+      ((Real.sin theta : ℂ) • (ket1 : StateVector (Qubits 1))) +
+        ((Real.cos theta : ℂ) • (ket0 : StateVector (Qubits 1)))
   /-- The public reflection product, restricted to the invariant plane. -/
   iterate_eq :
     preparation * zeroReflection * preparation.conjTranspose * goodReflection =
@@ -172,7 +182,7 @@ by the core amplitude-amplification theorem. -/
 theorem prepared_eq_state (M : SourceAmplitudeAmplificationModel) :
     M.preparation.apply ket0 = amplitudeAmplificationState M.theta 0 := by
   ext i
-  change M.preparation.applyVec (ket0 : StateVector 1) i =
+  change M.preparation.applyVec (ket0 : StateVector (Qubits 1)) i =
     amplitudeAmplificationStateVec M.theta 0 i
   rw [M.prepares_start]
   simp [amplitudeAmplificationStateVec, amplitudeAmplificationAngle,
@@ -180,15 +190,67 @@ theorem prepared_eq_state (M : SourceAmplitudeAmplificationModel) :
 
 end SourceAmplitudeAmplificationModel
 
+namespace AmplitudeAmplification
+
+/-- Typed circuit block for one amplitude-amplification iterate. -/
+def stepCircuit (M : AmplitudeAmplificationModel) : Circuit (Qubits 1) :=
+  Circuit.ofGate "amplitude-amplification-step"
+    (M.startReflection * M.goodReflection) ResourceProfile.zero 1 0
+
+/-- Typed circuit witness for `k` amplitude-amplification iterates, recorded as
+one symbolic repetition node rather than an unrolled gate list. -/
+def circuit (M : AmplitudeAmplificationModel) (k : ℕ) : Circuit (Qubits 1) :=
+  Circuit.iterate k (stepCircuit M)
+
+end AmplitudeAmplification
+
 /-- Amplitude amplification correctness in the accepted two-dimensional scope:
 if the reflection product acts as the standard good/bad-plane rotation, then `k`
 iterations produce the closed-form amplified state. -/
-theorem AmplitudeAmplification.main (M : AmplitudeAmplificationModel) (k : ℕ) :
+theorem AmplitudeAmplification.iterate_apply (M : AmplitudeAmplificationModel) (k : ℕ) :
     Gate.apply ((M.startReflection * M.goodReflection) ^ k)
         (amplitudeAmplificationState M.θ 0) =
       amplitudeAmplificationState M.θ k := by
   rw [M.iterate_eq]
   exact amplitudeAmplificationStep_pow_apply M.θ k
+
+/-- **Amplitude amplification.**  The symbolic repetition circuit for the
+reflection product maps the initial good/bad-plane state to the closed-form
+amplified state. -/
+theorem AmplitudeAmplification.main (M : AmplitudeAmplificationModel) (k : ℕ) :
+    Circuit.apply (AmplitudeAmplification.circuit M k)
+        (amplitudeAmplificationState M.θ 0) =
+      amplitudeAmplificationState M.θ k := by
+  have hcircuit :
+      (show HilbertOperator (Qubits 1) from
+        (Circuit.matrix (AmplitudeAmplification.circuit M k) :
+          HilbertOperator (Qubits 1))) =
+        (((M.startReflection * M.goodReflection) ^ k : Gate (Qubits 1)) :
+          HilbertOperator (Qubits 1)) := by
+    rw [AmplitudeAmplification.circuit, Circuit.iterate_matrix]
+    change ((AmplitudeAmplification.stepCircuit M).matrix : HilbertOperator (Qubits 1)) ^ k =
+        (((M.startReflection * M.goodReflection) ^ k : Gate (Qubits 1)) :
+          HilbertOperator (Qubits 1))
+    rw [AmplitudeAmplification.stepCircuit, Circuit.ofGate_matrix, Gate.coe_pow]
+  have happly :
+      Circuit.apply (AmplitudeAmplification.circuit M k)
+          (amplitudeAmplificationState M.θ 0) =
+        ((M.startReflection * M.goodReflection) ^ k).applyVec
+          (amplitudeAmplificationState M.θ 0 : StateVector (Qubits 1)) := by
+    simpa [Circuit.apply, Gate.applyVec] using
+      congrArg
+        (fun op : HilbertOperator (Qubits 1) =>
+          HilbertOperator.applyVec op
+            (amplitudeAmplificationState M.θ 0 : StateVector (Qubits 1)))
+        hcircuit
+  have hvec :
+      ((M.startReflection * M.goodReflection) ^ k).applyVec
+          (amplitudeAmplificationState M.θ 0 : StateVector (Qubits 1)) =
+        (amplitudeAmplificationState M.θ k : StateVector (Qubits 1)) := by
+    simpa using
+      congrArg (fun s : PureState (Qubits 1) => (s : StateVector (Qubits 1)))
+        (AmplitudeAmplification.iterate_apply M k)
+  exact happly.trans hvec
 
 /-- Source-level reflection-product form of amplitude amplification. This
 states the public `A S₀ A† S_good` iterate through the same proved
@@ -200,7 +262,7 @@ theorem source_reflection_correct (M : SourceAmplitudeAmplificationModel) (k : �
         (M.preparation.apply ket0) =
       amplitudeAmplificationState M.theta k := by
   rw [SourceAmplitudeAmplificationModel.prepared_eq_state]
-  exact AmplitudeAmplification.main M.toModel k
+  exact AmplitudeAmplification.iterate_apply M.toModel k
 
 /-- Closed-form public-order source reflection statement:
 `(A S₀ A† S_good)^k A|0⟩ =
@@ -209,11 +271,11 @@ theorem source_reflection_closed_form (M : SourceAmplitudeAmplificationModel) (k
     (Gate.apply
         ((M.preparation * M.zeroReflection * M.preparation.conjTranspose *
             M.goodReflection) ^ k)
-        (M.preparation.apply ket0) : StateVector 1) =
+        (M.preparation.apply ket0) : StateVector (Qubits 1)) =
       ((Real.sin (amplitudeAmplificationAngle M.theta k) : ℂ) •
-          (ket1 : StateVector 1)) +
+          (ket1 : StateVector (Qubits 1))) +
         ((Real.cos (amplitudeAmplificationAngle M.theta k) : ℂ) •
-          (ket0 : StateVector 1)) := by
+          (ket0 : StateVector (Qubits 1))) := by
   rw [source_reflection_correct]
   simp [amplitudeAmplificationState, amplitudeAmplificationStateVec, add_comm]
 
@@ -223,9 +285,11 @@ theorem amplitudeAmplificationState_good_probability (θ : ℝ) (k : ℕ) :
     PureState.probOutcome (amplitudeAmplificationState θ k) (1 : Fin (2 ^ 1)) =
       Real.sin (amplitudeAmplificationAngle θ k) ^ 2 := by
   rw [PureState.probOutcome]
-  simp [StateVector.probOutcome, amplitudeAmplificationState,
-    amplitudeAmplificationStateVec, ket0, ket1, PureState.ket_apply,
-    PiLp.smul_apply, PiLp.add_apply]
+  simp only [StateVector.probOutcome, amplitudeAmplificationState,
+    PureState.ofVec_apply, amplitudeAmplificationStateVec, ket0, ket1,
+    PureState.ket_apply, PiLp.smul_apply, PiLp.add_apply, smul_eq_mul,
+    Nat.reducePow]
+  norm_num
   rw [← Complex.normSq_eq_norm_sq, ← Complex.ofReal_sin, Complex.normSq_ofReal]
   ring
 
@@ -238,12 +302,12 @@ theorem AmplitudeAmplification.main_success_probability
           (amplitudeAmplificationState M.θ 0))
         (1 : Fin (2 ^ 1)) =
       Real.sin (amplitudeAmplificationAngle M.θ k) ^ 2 := by
-  rw [main, amplitudeAmplificationState_good_probability]
+  rw [iterate_apply, amplitudeAmplificationState_good_probability]
 
 namespace AmplitudeAmplification
 
 /-- The state after `k` amplification iterates, annotated with iterate cost `k`. -/
-def timedIterate (M : AmplitudeAmplificationModel) (k : ℕ) : Timed (PureState 1) :=
+def timedIterate (M : AmplitudeAmplificationModel) (k : ℕ) : Timed (PureState (Qubits 1)) :=
   Timed.trusted k
     (Gate.apply ((M.startReflection * M.goodReflection) ^ k)
       (amplitudeAmplificationState M.θ 0))
@@ -261,7 +325,7 @@ theorem timedIterate_time (M : AmplitudeAmplificationModel) (k : ℕ) :
 /-- Amplitude-amplification correctness, phrased through the TimeM return value. -/
 theorem timedIterate_correct (M : AmplitudeAmplificationModel) (k : ℕ) :
     (timedIterate M k).ret = amplitudeAmplificationState M.θ k := by
-  exact AmplitudeAmplification.main M k
+  exact AmplitudeAmplification.iterate_apply M k
 
 /-- The good-state success probability after the timed iterate. -/
 theorem timedIterate_success_probability

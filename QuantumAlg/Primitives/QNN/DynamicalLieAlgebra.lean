@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Core.Gate
+public import QuantumAlg.Core.Base
 public import Mathlib.Algebra.Lie.OfAssociative
 public import Mathlib.Algebra.Lie.Subalgebra
 
@@ -26,9 +26,9 @@ arbitrary set of matrix generators via `LieSubalgebra.lieSpan`; the physical
 generators `i • Hₖ` are skew-Hermitian, so the resulting algebra lies inside
 `u(N)`.
 
-Sources: Ragone et al. (2023), *A Lie Algebraic Theory of Barren Plateaus*
-(definition Eq. (5)); Allcock et al. (2024), *On the dynamical Lie algebras of
-QAOA*.
+Sources: [RBS+23, Arxiv_Final.tex:636-638] (DLA defined as the Lie closure
+`g = ⟨i𝒢⟩_Lie` of the circuit generators); [ASY+24, Quantum-main.tex:58]
+(DLAs of parameterized circuits as expressiveness/trainability invariants).
 
 ## Main definitions / results
 
@@ -44,6 +44,8 @@ QAOA*.
 namespace QuantumAlg
 
 noncomputable section
+
+attribute [local instance 100] LieRing.ofAssociativeRing
 
 variable {N : ℕ}
 
@@ -76,68 +78,6 @@ theorem dynamicalLieAlgebra_minimal (gens : Set (Matrix (Fin N) (Fin N) ℂ))
     dynamicalLieAlgebra gens ≤ K :=
   LieSubalgebra.lieSpan_le.mpr h
 
-/-! ### Controllability -/
-
-/-- **Algebraic controllability criterion.** The system is controllable when its
-dynamical Lie algebra is all of `gl(N, ℂ)`. For unitary dynamics the reachable set
-is the connected Lie group `exp(g)`, which is the whole group exactly when `g` is
-the full algebra; we record the Lie-algebraic criterion (`g = ⊤`). Identifying the
-reachable set with `exp(g)` at the Lie-group level is left to future work. -/
-def IsControllable (gens : Set (Matrix (Fin N) (Fin N) ℂ)) : Prop :=
-  dynamicalLieAlgebra gens = ⊤
-
-/-- Controllability is equivalent to every matrix lying in the Lie closure of the
-generators. -/
-theorem isControllable_iff_forall_mem (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
-    IsControllable gens ↔ ∀ A, A ∈ dynamicalLieAlgebra gens := by
-  constructor
-  · intro h A
-    rw [IsControllable] at h
-    rw [h]
-    exact LieSubalgebra.mem_top A
-  · intro h
-    exact le_antisymm le_top fun a _ => h a
-
-/-- Enlarging the generator set preserves controllability. -/
-theorem IsControllable.mono {gens gens' : Set (Matrix (Fin N) (Fin N) ℂ)}
-    (hsub : gens ⊆ gens') (hc : IsControllable gens) : IsControllable gens' := by
-  have hmono : dynamicalLieAlgebra gens ≤ dynamicalLieAlgebra gens' :=
-    LieSubalgebra.lieSpan_le.mpr (hsub.trans LieSubalgebra.subset_lieSpan)
-  rw [IsControllable] at hc ⊢
-  rw [hc] at hmono
-  exact top_le_iff.mp hmono
-
-/-! ### Classification: the abelian (mutually commuting) case -/
-
-/-- **Abelian case of the Pauli-Lie-algebra classification.** If the generators
-pairwise commute, the dynamical Lie algebra is abelian: the commutator vanishes on
-all of it. This is the free/trivial end of the structural classification of
-Pauli-generated Lie algebras (Aguilar et al. 2024). -/
-theorem dynamicalLieAlgebra_lie_eq_zero_of_comm
-    {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
-    (hcomm : ∀ a ∈ gens, ∀ b ∈ gens, ⁅a, b⁆ = 0)
-    {x y : Matrix (Fin N) (Fin N) ℂ}
-    (hx : x ∈ dynamicalLieAlgebra gens) (hy : y ∈ dynamicalLieAlgebra gens) :
-    ⁅x, y⁆ = 0 := by
-  -- inner induction: for a generator `s`, `⁅s, ·⁆` vanishes on the whole DLA.
-  have hgen : ∀ s ∈ gens, ∀ z ∈ dynamicalLieAlgebra gens, ⁅s, z⁆ = 0 := by
-    intro s hs z hz
-    refine LieSubalgebra.lieSpan_induction ℂ (p := fun t _ => ⁅s, t⁆ = 0)
-      ?_ ?_ ?_ ?_ ?_ hz
-    · intro b hb; exact hcomm s hs b hb
-    · simp
-    · intro t1 t2 ht1 ht2 h1 h2; simp [lie_add, h1, h2]
-    · intro a t ht h; simp [lie_smul, h]
-    · intro t1 t2 ht1 ht2 h1 h2; rw [leibniz_lie, h1, h2]; simp
-  -- outer induction: `⁅·, y⁆` vanishes on the whole DLA.
-  refine LieSubalgebra.lieSpan_induction ℂ (p := fun t _ => ⁅t, y⁆ = 0)
-    ?_ ?_ ?_ ?_ ?_ hx
-  · intro s hs; exact hgen s hs y hy
-  · simp
-  · intro t1 t2 ht1 ht2 h1 h2; simp [add_lie, h1, h2]
-  · intro a t ht h; simp [smul_lie, h]
-  · intro t1 t2 ht1 ht2 h1 h2; rw [lie_lie, h1, h2]; simp
-
 namespace DynamicalLieAlgebra
 
 /-- Main theorem: the DLA is the smallest Lie subalgebra containing the generators. -/
@@ -159,30 +99,7 @@ theorem main_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
       ↔ gens ⊆ (K : Set (Matrix (Fin N) (Fin N) ℂ)) :=
   dynamicalLieAlgebra_le_iff gens K
 
-/-- Public supporting theorem: commuting generators produce an abelian DLA. -/
-theorem main_abelian_of_commuting_generators
-    {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
-    (hcomm : ∀ a ∈ gens, ∀ b ∈ gens, ⁅a, b⁆ = 0)
-    {x y : Matrix (Fin N) (Fin N) ℂ}
-    (hx : x ∈ dynamicalLieAlgebra gens) (hy : y ∈ dynamicalLieAlgebra gens) :
-    ⁅x, y⁆ = 0 :=
-  dynamicalLieAlgebra_lie_eq_zero_of_comm hcomm hx hy
-
 end DynamicalLieAlgebra
-
-namespace DLAReachability
-
-/-- Main theorem: controllability is membership of every matrix in the DLA. -/
-theorem main (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
-    IsControllable gens ↔ ∀ A, A ∈ dynamicalLieAlgebra gens :=
-  isControllable_iff_forall_mem gens
-
-/-- Public supporting theorem: enlarging generators preserves controllability. -/
-theorem main_mono {gens gens' : Set (Matrix (Fin N) (Fin N) ℂ)}
-    (hsub : gens ⊆ gens') (hc : IsControllable gens) : IsControllable gens' :=
-  IsControllable.mono hsub hc
-
-end DLAReachability
 
 end
 

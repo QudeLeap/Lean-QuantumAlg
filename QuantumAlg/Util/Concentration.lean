@@ -101,8 +101,8 @@ theorem ExpConcentratedProb.tendsto_zero {Ω : ℕ → Type*} [∀ n, Measurable
   have hcr : Filter.Tendsto (fun n => ENNReal.ofReal (C / (b ^ n * δ ^ 2)))
       Filter.atTop (nhds 0) := by
     have := (ENNReal.continuous_ofReal.tendsto 0).comp hreal
-    simpa using this
+    simpa [Function.comp_def] using this
   exact tendsto_of_tendsto_of_tendsto_of_le_of_le tendsto_const_nhds hcr
-    (fun _ => zero_le') (fun n => hbound n δ hδ)
+    (fun _ => zero_le) (fun n => hbound n δ hδ)
 
 end QuantumAlg

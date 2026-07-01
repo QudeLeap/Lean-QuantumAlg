@@ -10,6 +10,7 @@ public import QuantumAlg.Init
 public import QuantumAlg.Primitives.WalshHadamard
 public import QuantumAlg.Primitives.PhaseKickback
 public import QuantumAlg.Core.Cost
+public import QuantumAlg.Core.Circuit
 
 /-!
 # Deutsch-Jozsa algorithm
@@ -190,7 +191,7 @@ theorem not_reportsConstant_of_balanced (f : Oracle n) (hf : IsBalanced f) :
   simp
 
 /-- The final Deutsch-Jozsa joint state, annotated with one oracle query. -/
-def timedFinalJointState (f : WalshHadamard.Oracle n) : Timed (PureState (n + 1)) :=
+def timedFinalJointState (f : WalshHadamard.Oracle n) : Timed (PureState (Qubits (n + 1))) :=
   Timed.trusted 1 (WalshHadamard.finalJointState f)
 
 @[simp]
@@ -215,7 +216,7 @@ theorem resourceProfile_exact (n : ℕ) :
 
 /-- The final Deutsch-Jozsa joint state with its public resource profile. -/
 def profiledFinalJointState (f : WalshHadamard.Oracle n) :
-    Profiled (PureState (n + 1)) :=
+    Profiled (PureState (Qubits (n + 1))) :=
   Profiled.trusted (resourceProfile n) (WalshHadamard.finalJointState f)
 
 @[simp]
@@ -225,6 +226,11 @@ theorem profiledFinalJointState_ret (f : WalshHadamard.Oracle n) :
 @[simp]
 theorem profiledFinalJointState_resources (f : WalshHadamard.Oracle n) :
     (profiledFinalJointState f).resources = resourceProfile n := rfl
+
+/-- Typed circuit witness for the Deutsch-Jozsa endpoint. -/
+def circuit (n : ℕ) : Circuit (Qubits (n + 1)) :=
+  Circuit.abstract (Qubits (n + 1)) "deutsch-jozsa" (resourceProfile n)
+    (2 * n + 1) 1
 
 /-- The TimeM return value is the same final state used by the amplitude test. -/
 theorem reportsConstant_iff_timedFinalJointState
@@ -237,10 +243,11 @@ theorem reportsConstant_iff_timedFinalJointState
 phase query `|x⟩ ↦ (-1)^{f x}|x⟩`. -/
 theorem deutschJozsa_query_phase (f : WalshHadamard.Oracle n) (x : Fin (2 ^ n)) :
     ((WalshHadamard.oracleGate f).apply ((ket x).tensor ketMinus)
-        : StateVector (n + 1))
+        : StateVector (Qubits (n + 1)))
       =
       WalshHadamard.phaseSign f x
-        • (((ket x).tensor ketMinus : PureState (n + 1)) : StateVector (n + 1)) := by
+        • (((ket x).tensor ketMinus : PureState (Qubits (n + 1)))
+          : StateVector (Qubits (n + 1))) := by
   exact PhaseKickback.main f x
 
 /-- **Deutsch-Jozsa correctness**: under the explicit promise that the oracle
@@ -278,6 +285,19 @@ theorem main_with_resources
   · rw [profiledFinalJointState_ret]
     exact timedFinalJointState_correct f hf
   · simp [resourceProfile_exact n]
+
+/-- Resource-correct public witness: the decision correctness and exact counts
+are attached to one typed circuit record. -/
+def mainResourceCorrectWitness
+    (f : WalshHadamard.Oracle n) (hf : Promise f) :
+    ResourceCorrectWitness (R := Qubits (n + 1))
+      (ReportsConstant f ↔ IsConstant f)
+      (ResourceProfile.HasExactCounts (circuit n).resources
+        1 (2 * n + 1) (2 * n + 1) 0) := by
+  exact
+    { circuit := circuit n
+      correctness := main f hf
+      resources := by simpa [circuit] using resourceProfile_exact n }
 
 end DeutschJozsa
 

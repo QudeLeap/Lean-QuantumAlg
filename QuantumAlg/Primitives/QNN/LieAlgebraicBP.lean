@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Core.Gate
+public import QuantumAlg.Core.Base
 public import QuantumAlg.Primitives.QNN.DynamicalLieAlgebra
 public import QuantumAlg.Primitives.QNN.Trainability
 public import Mathlib.LinearAlgebra.Dimension.Constructions
@@ -15,27 +15,27 @@ public import Mathlib.LinearAlgebra.FiniteDimensional.Basic
 public import Mathlib.Algebra.DirectSum.Module
 
 /-!
-# Lie-algebraic barren plateaus from the *real* dynamical Lie algebra
+# Lie-algebraic barren plateaus from the dynamical Lie algebra
 
 The standard logic of a Lie-algebraic barren-plateau analysis is:
 
 > circuit generators  ⟹  dynamical Lie algebra `g`  ⟹  decomposition into
 > components `g = ⊕ₖ gₖ`  ⟹  the dimension `dim g`  ⟹  (with the variance law
-> `Var ∼ 1 / dim g`)  the *scaling* of the variance: exponential or polynomial in
-> the number of qubits.
+> `Var ∼ 1 / dim g` [RBS+23, Arxiv_Final.tex:691])  the *scaling* of the variance:
+> exponential or polynomial in the number of qubits.
 
-The earlier `LieAlgebraicVariance` model (in `QuantumAlg.Primitives.Trainability`)
+The earlier `LieAlgebraicVariance` model (in `QuantumAlg.Primitives.QNN.Trainability`)
 bundled `dim g` as an opaque `ℕ → ℝ`. This module replaces it by the **genuine**
 dimension `Module.finrank ℂ g` of the *formalized* `dynamicalLieAlgebra`, and proves:
 
-* **`dlaDim`** — the real dimension of the dynamical Lie algebra.
-* **`hasBarrenPlateau_of_exp_dlaDim`** — if the real `dim g` grows exponentially in
-  the qubit count then the (Ragone) variance law forces a barren plateau. The
+* **`dlaDim`** — the genuine dimension `Module.finrank ℂ` of the dynamical Lie algebra.
+* **`hasBarrenPlateau_of_exp_dlaDim`** — if `dim g` grows exponentially in
+  the qubit count then the [RBS+23] variance law forces a barren plateau. The
   variance *value* `numer / dim g` (which needs Haar / Weingarten averaging) is the
-  only assumed input; the dimension is real.
+  only assumed input; the dimension is the genuine `Module.finrank ℂ`.
 * **`finrank_eq_sum_of_isInternal` / `dlaDim_eq_sum_of_isInternal`** — the
-  *decomposition* step: if `g` is an internal direct sum of subspaces `gₖ` then
-  `dim g = ∑ₖ dim gₖ`.
+  *decomposition* step ([RBS+23, Arxiv_Final.tex:642]): if `g` is an internal direct
+  sum of subspaces `gₖ` then `dim g = ∑ₖ dim gₖ`.
 * Two end-to-end **worked examples** computing the real `dim g` and deriving the
   scaling:
   - `dlaDim_univ` + `barrenPlateau_of_full_dla` — the maximal (fully controllable)
@@ -43,12 +43,12 @@ dimension `Module.finrank ℂ g` of the *formalized* `dynamicalLieAlgebra`, and 
   - `dlaDim_singleton` + `not_barrenPlateau_of_dlaDim_const` — a single-generator
     (commuting) circuit has `dim g = 1` (constant) ⟹ *no* barren plateau (trainable).
 
-The first-principles derivation of the variance law itself (Ragone et al. 2023,
-Eq. (10), via Weingarten calculus / `t`-designs) remains a Mathlib gap and is left as
-an assumed hypothesis throughout; see `QuantumAlg.Primitives.Trainability`.
+The first-principles derivation of the variance law itself
+([RBS+23, Arxiv_Final.tex:691], via Weingarten calculus / `t`-designs) remains a
+Mathlib gap and is left as an assumed hypothesis throughout; see
+`QuantumAlg.Primitives.QNN.Trainability`.
 
-Source: Ragone, Bakalov, Sauvage, Kemper, Ortiz Marrero, Larocca, Cerezo (2023),
-*A Lie algebraic theory of barren plateaus* (arXiv:2309.09342).
+Source: [RBS+23] — A Lie algebraic theory of barren plateaus.
 -/
 
 @[expose] public section
@@ -60,21 +60,26 @@ open scoped DirectSum
 
 noncomputable section
 
+attribute [local instance 100] LieRing.ofAssociativeRing
+
 variable {N : ℕ}
 
-/-! ### The real dimension of the dynamical Lie algebra -/
+/-! ### The dimension of the dynamical Lie algebra -/
 
 /-- The **dimension of the dynamical Lie algebra** of a generator set: the `ℂ`-finrank
 of the formalized `dynamicalLieAlgebra` (a subspace of `gl(N, ℂ)`). This is the genuine
-`dim g` of the Lie-algebraic variance law, not an opaque parameter. -/
+`dim g` of the Lie-algebraic variance law, not an opaque parameter. For skew-Hermitian
+generators the DLA is the complexification of the real algebra `g ⊆ u(N)`
+[RBS+23, Arxiv_Final.tex:640], so this `ℂ`-finrank equals its real dimension
+`dim_ℝ(g)`. -/
 def dlaDim (gens : Set (Matrix (Fin N) (Fin N) ℂ)) : ℕ :=
   Module.finrank ℂ (dynamicalLieAlgebra gens).toSubmodule
 
 /-! ### Tier 1 — barren plateau from exponential growth of the *real* dimension -/
 
-/-- **Lie-algebraic barren plateau (real dimension).** Given the Ragone variance law
+/-- **Lie-algebraic barren plateau.** Given the [RBS+23, Arxiv_Final.tex:691] variance law
 `variance n = numer / dim g_n` (the numerator, requiring Haar/Weingarten averaging, is
-the assumed input), if the **real** dynamical-Lie-algebra dimension grows at least like
+the assumed input), if the dynamical-Lie-algebra dimension grows at least like
 `bⁿ` for some `b > 1`, then the loss has a barren plateau. -/
 theorem hasBarrenPlateau_of_exp_dlaDim
     {sz : ℕ → ℕ} {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
@@ -132,7 +137,7 @@ theorem dlaDim_univ : dlaDim (Set.univ : Set (Matrix (Fin N) (Fin N) ℂ)) = N *
 
 /-- **Worked example (exponential ⟹ barren plateau).** A fully controllable circuit
 family on `n` qubits — whose generators span all of `gl(2ⁿ, ℂ)`, so `dim g = 4ⁿ` — has
-a barren plateau under the Ragone variance law. -/
+a barren plateau under the [RBS+23, Arxiv_Final.tex:691] variance law. -/
 theorem barrenPlateau_of_full_dla
     {gens : (n : ℕ) → Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)}
     (hfull : ∀ n, Submodule.span ℂ (gens n) = ⊤)
@@ -208,7 +213,11 @@ theorem not_barrenPlateau_of_dlaDim_const
     {sz : ℕ → ℕ} {H : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     (hH : ∀ n, H n ≠ 0)
     {variance : ℕ → ℝ} {numer : ℝ} (hnum : 0 < numer)
-    (hvar : ∀ n, variance n = numer / (dlaDim ({H n} : Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)) : ℝ)) :
+    (hvar :
+      ∀ n,
+        variance n =
+          numer /
+            (dlaDim ({H n} : Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)) : ℝ)) :
     ¬ HasBarrenPlateau variance := by
   intro hbp
   have hconst : variance = fun _ => numer := by
