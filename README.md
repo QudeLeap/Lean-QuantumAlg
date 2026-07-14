@@ -65,6 +65,48 @@ For theorem discovery, start from `QuantumAlg.lean` or the module names above.
 Lean docstrings cite the source references using keys resolved by
 `REFERENCES.json`.
 
+## Quantum machine learning
+
+Lean-QuantumAlg exposes two overlapping views of quantum machine learning:
+expressivity, and trainability with Lie-algebraic simulation.
+
+**Expressivity.** Trigonometric polynomials and QSP/QSVT provide the polynomial
+transformation substrate, followed by parameter-shift rules, quantum kernels,
+and QFIM-based capacity bounds. Verified highlights include:
+
+- [`QuantumAlg.ParameterShiftRule.main`](QuantumAlg/Primitives/ParameterShift.lean),
+  an exact parameter-shift identity for frequency-one variational costs.
+- [`QuantumAlg.QuantumKernel.main`](QuantumAlg/Primitives/QKernel/Fidelity.lean),
+  proving that every finite fidelity-kernel Gram matrix is positive semidefinite.
+- [`QuantumAlg.qfim_rank_le_dlaDim`](QuantumAlg/Primitives/QNN/Overparam/QuantumFisherRank.lean)
+  and [`QuantumAlg.QFIMOverparam.main`](QuantumAlg/Primitives/QNN/Overparam/OverparamQFIM.lean),
+  giving a dynamical-Lie-algebra rank bound and a non-vacuous `su(2)` QFIM onset.
+
+**Trainability.** The main results connect Lie-algebraic variance laws, explicit
+no-barren-plateau families, and exact loss reconstruction:
+
+- [Barren-plateau gradient variance](https://qudeleap.github.io/Lean-QuantumAlg/theorems/barren-plateau-variance/)
+  derives the reductive Ragone sum from explicit second-moment and Schur inputs;
+  Lean: [`QuantumAlg.RagoneReductive.totalVariance_eq`](QuantumAlg/Primitives/QNN/Interface/RagoneInterface.lean).
+- [Locality forbids the barren plateau](https://qudeleap.github.io/Lean-QuantumAlg/theorems/locality-no-barren-plateau/)
+  gives a genuine product-Clifford local family with constant variance;
+  Lean: [`QuantumAlg.localObs_not_hasBarrenPlateau`](QuantumAlg/Primitives/QNN/Algebras/SingleQubitDLA.lean).
+- [g-sim transfer-matrix coordinate propagation](https://qudeleap.github.io/Lean-QuantumAlg/theorems/gsim-transfer-matrix/)
+  evolves observables in the `dim(g)`-dimensional Lie-algebra coordinate space;
+  Lean: [`QuantumAlg.gsimEvolved_coords`](QuantumAlg/Primitives/QNN/Simulation/GSim.lean).
+- [Lie-algebraic loss reconstruction](https://qudeleap.github.io/Lean-QuantumAlg/theorems/gsim-correctness/)
+  reconstructs the loss exactly from `dim(g)` quantum data;
+  Lean: [`QuantumAlg.gsim_loss_reconstruction_ansatz`](QuantumAlg/Primitives/QNN/Simulation/GSim.lean).
+
+Start from the two focused public navigation modules:
+
+```lean
+import QuantumAlg.Primitives.QNN.Expressivity
+import QuantumAlg.Primitives.QNN.Trainability
+```
+
+Bibliographic sources are indexed in [`REFERENCES.json`](REFERENCES.json).
+
 ## Contributing and discussion
 
 Issues and pull requests are welcome. Please keep contributions small and

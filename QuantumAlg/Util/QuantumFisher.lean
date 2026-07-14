@@ -23,15 +23,16 @@ covariance matrix of the (Heisenberg-rotated) generators `hₐ` in the reference
 [LJG+21, Eq. (QFIM-elements)]:
 `[F]_{ab} = 4 ( Re⟨ψ|hₐh_b|ψ⟩ − ⟨ψ|hₐ|ψ⟩⟨ψ|h_b|ψ⟩ )`.
 
-This file records the **quantum-free linear algebra** of that closed form over
-raw matrices and a state vector `ψ : n → ℂ`: the expectation `expval`, the
-quantum covariance `qCov`, the matrix `qfim`, and its basic properties —
-symmetry, positive-semidefiniteness, the Gram rank bound, and
-reparameterization.
-The identification of this covariance matrix with the analytic QFIM /
-`4·g^FS` (the fidelity second-order expansion and the Fubini–Study metric) is
-the named bridge handled downstream; the generator-covariance
-form is Larocca's own intermediate representation and is taken here as the definition.
+This file records the **quantum-free linear algebra** of that closed form over raw
+matrices and a state
+vector `ψ : n → ℂ`: the expectation `expval`, the quantum covariance `qCov`, the
+matrix `qfim`, and its
+basic properties — symmetry, positive-semidefiniteness, the Gram rank bound, and reparameterization.
+The generator-covariance form is the definition used in this module.  The analytic
+identification with the
+fidelity second-order expansion / Fubini--Study metric is not hidden in this
+definition; it is carried by
+the explicit bridge data in `QuantumAlg.Util.QuantumFisher.FSBridge`.
 -/
 
 @[expose] public section
@@ -117,9 +118,9 @@ private theorem re_dotProduct_star_self_nonneg (w : n → ℂ) : 0 ≤ (star w �
   rw [Pi.star_apply, Complex.star_def, mul_comm, Complex.mul_conj, Complex.ofReal_re]
   exact Complex.normSq_nonneg _
 
-/-- **Positive-semidefiniteness of the QFIM** (Hermitian generators, unit
-state). The QFIM is the real Gram matrix `4·Re⟪cₐ, c_b⟫` of the centered
-states, hence PSD. -/
+/-- **Positive-semidefiniteness of the QFIM** (Hermitian generators, unit state).
+The QFIM is the real
+Gram matrix `4·Re⟪cₐ, c_b⟫` of the centered states, hence PSD. -/
 theorem qfim_posSemidef {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1)
     {h : Fin M → Matrix n n ℂ} (hh : ∀ a, (h a)ᴴ = h a) :
     (qfim ψ h).PosSemidef := by
@@ -219,9 +220,9 @@ theorem qCov_sum_ofReal_smul_right (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
   | insert _ _ hns ih =>
     rw [Finset.sum_insert hns, Finset.sum_insert hns, qCov_add_right, qCov_ofReal_smul_right, ih]
 
-/-- **Reparameterization covariance** (a QFIM basic property). Under a
-real-linear reparameterization of the generators `hᵢ' = ∑ₐ Jᵢₐ hₐ`, the QFIM
-transforms covariantly: `F' = J · F · Jᵀ`. -/
+/-- **Reparameterization covariance** (a QFIM basic property). Under a real-linear
+reparameterization of
+the generators `hᵢ' = ∑ₐ Jᵢₐ hₐ`, the QFIM transforms covariantly: `F' = J · F · Jᵀ`. -/
 theorem qfim_reparam {M' : ℕ} (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ)
     (J : Matrix (Fin M') (Fin M) ℝ) :
     qfim ψ (fun i => ∑ a, (J i a : ℂ) • h a) = J * qfim ψ h * Jᵀ := by

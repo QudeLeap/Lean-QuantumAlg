@@ -414,6 +414,68 @@
       "arxiv_id": "2407.12587",
       "arxiv_version": "v2",
       "entry_point": "Quantum-main.tex"
+    },
+    {
+      "key": "Web15",
+      "authors": [
+        "Zak Webb"
+      ],
+      "year": 2015,
+      "title": "The Clifford group forms a unitary 3-design",
+      "arxiv_id": "1510.02769",
+      "arxiv_version": "v3",
+      "entry_point": "Cliffords_are_a_3-design.tex"
+    },
+    {
+      "key": "WKKB24",
+      "authors": [
+        "Roeland Wiersema",
+        "Efekan Kökcü",
+        "Alexander F. Kemper",
+        "Bojko N. Bakalov"
+      ],
+      "year": 2024,
+      "title": "Classification of dynamical Lie algebras of 2-local spin systems on linear, circular and fully connected topologies",
+      "arxiv_id": "2309.05690",
+      "arxiv_version": "v2",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "CLG+23",
+      "authors": [
+        "M. Cerezo",
+        "Martin Larocca",
+        "Diego Garcia-Martin",
+        "N. L. Diaz",
+        "Paolo Braccia",
+        "Enrico Fontana",
+        "Manuel S. Rudolph",
+        "Pablo Bermejo",
+        "Aroosa Ijaz",
+        "Supanut Thanasilp",
+        "Eric R. Anschuetz",
+        "Zoe Holmes"
+      ],
+      "year": 2023,
+      "title": "Does provable absence of barren plateaus imply classical simulability? Or, why we need to rethink variational quantum computing",
+      "arxiv_id": "2312.09121",
+      "arxiv_version": "v3",
+      "entry_point": null
+    },
+    {
+      "key": "GLC+23",
+      "authors": [
+        "Matthew L. Goh",
+        "Martin Larocca",
+        "Lukasz Cincio",
+        "M. Cerezo",
+        "Frederic Sauvage"
+      ],
+      "year": 2023,
+      "title": "Lie-algebraic classical simulations for quantum computing",
+      "arxiv_id": "2308.01432",
+      "arxiv_version": "v1",
+      "entry_point": null
     }
   ]
 }

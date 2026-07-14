@@ -12,6 +12,7 @@ public import Mathlib.LinearAlgebra.Matrix.Trace
 public import Mathlib.LinearAlgebra.Matrix.ConjTranspose
 public import Mathlib.Data.Matrix.Basis
 public import Mathlib.Data.Complex.Basic
+public import Mathlib.Data.Complex.BigOperators
 
 /-!
 # The Hilbert–Schmidt inner product on matrices
@@ -109,6 +110,21 @@ theorem hsInner_conj_of_isHermitian {A B : Matrix m m ℂ} (hA : Aᴴ = A) (hB :
     (starRingEnd ℂ) (hsInner A B) = hsInner A B := by
   rw [← hsInner_conj_symm]
   exact hsInner_comm_of_isHermitian hB hA
+
+/-- The Hilbert-Schmidt squared norm `⟪A, A⟫ = Tr[Aᴴ A]` has nonnegative real part: it is
+the sum of squared entry moduli. This is the positivity input for Bessel-type bounds. -/
+theorem hsInner_self_re_nonneg (A : Matrix m m ℂ) : 0 ≤ (hsInner A A).re := by
+  have hsum : hsInner A A = ∑ i, ∑ j, (Complex.normSq (A j i) : ℂ) := by
+    simp only [hsInner, Matrix.trace, Matrix.diag_apply, Matrix.mul_apply,
+      Matrix.conjTranspose_apply]
+    refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
+    rw [← starRingEnd_apply, ← Complex.normSq_eq_conj_mul_self]
+  rw [hsum, Complex.re_sum]
+  refine Finset.sum_nonneg fun i _ => ?_
+  rw [Complex.re_sum]
+  refine Finset.sum_nonneg fun j _ => ?_
+  rw [Complex.ofReal_re]
+  exact Complex.normSq_nonneg _
 
 /-- The matrix units `single i j 1` are Hilbert–Schmidt orthonormal. -/
 theorem hsInner_single [DecidableEq m] (i j k l : m) :

@@ -11,6 +11,7 @@ public import QuantumAlg.Util
 public import QuantumAlg.Core
 public import QuantumAlg.Core.Components
 public import QuantumAlg.Primitives
+public import QuantumAlg.Primitives.QNN.Expressivity
 public import QuantumAlg.Algorithms
 
 /-!

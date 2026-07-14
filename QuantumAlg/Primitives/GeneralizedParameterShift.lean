@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Util.DirichletKernel
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 public import Mathlib.Tactic
 
@@ -22,26 +23,21 @@ Wierichs, Izaac, Wang, Lin (2022), *General parameter-shift rules for quantum gr
 form of `⟨ψ|U†(x) O U(x)|ψ⟩` for `U(x)=e^{ixG}`, Sec. 2.1), the exact first and second
 derivatives at the origin are linear combinations of finitely many shifted evaluations.
 
-## What is genuinely proved vs. assumed
+## What is proved here
 
 * **Proved (this file):** the *derivative side* of the rule — by term-by-term differentiation,
   `ℓ'(0) = ∑_p p·b_p` (`genTrigCost_deriv_zero`) and `ℓ''(0) = -∑_p p²·a_p`
   (`genTrigCost_deriv2_zero`, which reuses the first via the derivative-function identity
   `deriv_genTrigCost`).
-* **Assumed (named `structure` fields, cited):** the deep finite trigonometric-sum (Dirichlet
-  kernel) identities (`dirichlet_first`, `dirichlet_second`) stating that the specific weighted
-  evaluations reproduce `∑_p p·b_p` resp. `-∑_p p²·a_p`. These are the Wierichs App. derivations
-  via the (modified) Dirichlet kernel — a genuine analytic identity for every `R`, recorded as a
-  named hypothesis (Mathlib has no Dirichlet-kernel theory), **never an `axiom`**.
+* **Proved in `QuantumAlg.Util.DirichletKernel`, assembled here:** the finite trigonometric-sum
+  identities (`dirichlet_first_identity`, `dirichlet_second_identity`) stating that the specific
+  weighted evaluations reproduce `∑_p p·b_p` resp. `-∑_p p²·a_p`.
 
 The closed-form rules `GeneralizedParamShift.firstDeriv` / `secondDeriv` then follow by combining
-the proved derivative values with the named Dirichlet identities. The R=1 case recovers the
-two-term parameter-shift rule (`QuantumAlg.ParameterShiftRule.main`).
-
-Future work: the Dirichlet-kernel trigonometric-sum identities (`dirichlet_first`,
-`dirichlet_second`) are to be proved from scratch as reusable, quantum-free lemmas under
-`QuantumAlg/Util/` (e.g. `Util/DirichletKernel.lean`); discharging them there would upgrade this
-file to an assumption-free proof of the generalized parameter-shift rule.
+the proved derivative values with the proved Dirichlet identities. This is an assumption-free proof
+at the abstract `genTrigCost` level; the quantum circuit-to-trigonometric-polynomial bridge remains
+a separate follow-up target. The R=1 case recovers the two-term parameter-shift rule
+(`QuantumAlg.ParameterShiftRule.main`).
 -/
 
 @[expose] public section
@@ -125,27 +121,179 @@ theorem genTrigCost_deriv2_zero (a b : ℕ → ℝ) (R : ℕ) :
     ← Finset.sum_add_distrib]
   exact Finset.sum_eq_zero fun p _ => by ring
 
-/-! ### The generalized parameter-shift rule -/
+/-! ### The generalized parameter-shift rule
 
-/-- Evaluation point for the first-derivative rule: `x_μ = (2μ-1)π/(2R)`. -/
-def psPoint (R μ : ℕ) : ℝ := (2 * (μ : ℝ) - 1) * Real.pi / (2 * R)
+The evaluation nodes `psPoint`/`psPoint2` and weights `psWeight`/`psWeight2` are the
+quantum-free node data developed in `QuantumAlg.Util.DirichletKernel`. -/
 
-/-- Weight for the first-derivative rule: `(-1)^{μ-1} / (4R sin²((2μ-1)π/(4R)))`. -/
-def psWeight (R μ : ℕ) : ℝ :=
-  (-1 : ℝ) ^ (μ - 1) / (4 * R * Real.sin ((2 * (μ : ℝ) - 1) * Real.pi / (4 * R)) ^ 2)
+/-- The odd-node Dirichlet identity used by the first generalized parameter-shift rule.
+This is now proved in `QuantumAlg.Util.DirichletKernel` at coefficient level and assembled
+here for the abstract trigonometric polynomial `genTrigCost`. -/
+theorem dirichlet_first_identity (a b : ℕ → ℝ) (R : ℕ) (hR : 1 ≤ R) :
+    ∑ μ ∈ Finset.Icc 1 (2 * R), genTrigCost a b R (psPoint R μ) * psWeight R μ
+      = ∑ p ∈ Finset.Icc 1 R, (p : ℝ) * b p := by
+  unfold genTrigCost
+  rw [show (∑ μ ∈ Finset.Icc 1 (2 * R),
+        (a 0 + ∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint R μ)
+          + b p * Real.sin ((p : ℝ) * psPoint R μ))) * psWeight R μ)
+      =
+        ∑ μ ∈ Finset.Icc 1 (2 * R),
+          (a 0 * psWeight R μ
+            + (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint R μ)
+              + b p * Real.sin ((p : ℝ) * psPoint R μ))) * psWeight R μ) by
+      exact Finset.sum_congr rfl fun μ _ => by ring]
+  rw [Finset.sum_add_distrib]
+  rw [show (∑ μ ∈ Finset.Icc 1 (2 * R), a 0 * psWeight R μ)
+      = a 0 * ∑ μ ∈ Finset.Icc 1 (2 * R), psWeight R μ by
+      rw [Finset.mul_sum]]
+  rw [sum_psWeight_eq_zero R hR, mul_zero, zero_add]
+  rw [show (∑ μ ∈ Finset.Icc 1 (2 * R),
+        (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint R μ)
+          + b p * Real.sin ((p : ℝ) * psPoint R μ))) * psWeight R μ)
+      =
+        ∑ p ∈ Finset.Icc 1 R,
+          (a p * ∑ μ ∈ Finset.Icc 1 (2 * R),
+              Real.cos ((p : ℝ) * psPoint R μ) * psWeight R μ
+            + b p * ∑ μ ∈ Finset.Icc 1 (2 * R),
+              Real.sin ((p : ℝ) * psPoint R μ) * psWeight R μ) by
+      calc
+        (∑ μ ∈ Finset.Icc 1 (2 * R),
+          (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint R μ)
+            + b p * Real.sin ((p : ℝ) * psPoint R μ))) * psWeight R μ)
+            =
+          ∑ μ ∈ Finset.Icc 1 (2 * R),
+            ∑ p ∈ Finset.Icc 1 R,
+              (a p * Real.cos ((p : ℝ) * psPoint R μ)
+                + b p * Real.sin ((p : ℝ) * psPoint R μ)) * psWeight R μ := by
+          apply Finset.sum_congr rfl
+          intro μ _
+          rw [Finset.sum_mul]
+        _ = ∑ p ∈ Finset.Icc 1 R,
+            ∑ μ ∈ Finset.Icc 1 (2 * R),
+              (a p * Real.cos ((p : ℝ) * psPoint R μ)
+                + b p * Real.sin ((p : ℝ) * psPoint R μ)) * psWeight R μ := by
+          rw [Finset.sum_comm]
+        _ = ∑ p ∈ Finset.Icc 1 R,
+          (a p * ∑ μ ∈ Finset.Icc 1 (2 * R),
+              Real.cos ((p : ℝ) * psPoint R μ) * psWeight R μ
+            + b p * ∑ μ ∈ Finset.Icc 1 (2 * R),
+              Real.sin ((p : ℝ) * psPoint R μ) * psWeight R μ) := by
+          apply Finset.sum_congr rfl
+          intro p _
+          rw [Finset.sum_congr rfl (fun μ _ => by ring :
+            ∀ μ ∈ Finset.Icc 1 (2 * R),
+              (a p * Real.cos ((p : ℝ) * psPoint R μ)
+                + b p * Real.sin ((p : ℝ) * psPoint R μ)) * psWeight R μ
+                =
+                  a p * (Real.cos ((p : ℝ) * psPoint R μ) * psWeight R μ)
+                  + b p * (Real.sin ((p : ℝ) * psPoint R μ) * psWeight R μ))]
+          rw [Finset.sum_add_distrib, ← Finset.mul_sum, ← Finset.mul_sum]]
+  apply Finset.sum_congr rfl
+  intro p hp
+  obtain ⟨hp1, hpR⟩ := Finset.mem_Icc.mp hp
+  rw [sum_cos_mul_psWeight_eq_zero R p hR, sum_sin_mul_psWeight_eq R p hR hp1 hpR]
+  ring
 
-/-- Evaluation point for the second-derivative rule: `μπ/R`. -/
-def psPoint2 (R μ : ℕ) : ℝ := (μ : ℝ) * Real.pi / R
+/-- The even-node Dirichlet identity used by the second generalized parameter-shift rule.
+This assembles the coefficient-level identities proved in `QuantumAlg.Util.DirichletKernel`
+for the abstract trigonometric polynomial `genTrigCost`. -/
+theorem dirichlet_second_identity (a b : ℕ → ℝ) (R : ℕ) (hR : 1 ≤ R) :
+    -genTrigCost a b R 0 * (2 * (R : ℝ) ^ 2 + 1) / 6
+        + ∑ μ ∈ Finset.Icc 1 (2 * R - 1), genTrigCost a b R (psPoint2 R μ) * psWeight2 R μ
+      = -∑ p ∈ Finset.Icc 1 R, (p : ℝ) ^ 2 * a p := by
+  let C : ℝ := (2 * (R : ℝ) ^ 2 + 1) / 6
+  rw [show -genTrigCost a b R 0 * (2 * (R : ℝ) ^ 2 + 1) / 6
+      = -genTrigCost a b R 0 * C by
+      simp [C]
+      ring]
+  change -genTrigCost a b R 0 * C
+        + ∑ μ ∈ Finset.Icc 1 (2 * R - 1), genTrigCost a b R (psPoint2 R μ) * psWeight2 R μ
+      = -∑ p ∈ Finset.Icc 1 R, (p : ℝ) ^ 2 * a p
+  have hzero : genTrigCost a b R 0 = a 0 + ∑ p ∈ Finset.Icc 1 R, a p := by
+    unfold genTrigCost
+    congr 1
+    apply Finset.sum_congr rfl
+    intro p _
+    simp only [mul_zero, Real.cos_zero, Real.sin_zero, mul_one, add_zero]
+  have hweighted :
+      ∑ μ ∈ Finset.Icc 1 (2 * R - 1), genTrigCost a b R (psPoint2 R μ) * psWeight2 R μ
+        = a 0 * C + ∑ p ∈ Finset.Icc 1 R, a p * (C - (p : ℝ) ^ 2) := by
+    unfold genTrigCost
+    rw [show (∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+          (a 0 + ∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+            + b p * Real.sin ((p : ℝ) * psPoint2 R μ))) * psWeight2 R μ)
+        =
+          ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+            (a 0 * psWeight2 R μ
+              + (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+                + b p * Real.sin ((p : ℝ) * psPoint2 R μ))) * psWeight2 R μ) by
+        exact Finset.sum_congr rfl fun μ _ => by ring]
+    rw [Finset.sum_add_distrib]
+    rw [show (∑ μ ∈ Finset.Icc 1 (2 * R - 1), a 0 * psWeight2 R μ)
+        = a 0 * ∑ μ ∈ Finset.Icc 1 (2 * R - 1), psWeight2 R μ by
+        rw [Finset.mul_sum]]
+    rw [show (∑ μ ∈ Finset.Icc 1 (2 * R - 1), psWeight2 R μ) = C by
+      simpa [C] using sum_psWeight2_eq R hR]
+    rw [show (∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+          (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+            + b p * Real.sin ((p : ℝ) * psPoint2 R μ))) * psWeight2 R μ)
+        =
+          ∑ p ∈ Finset.Icc 1 R,
+            (a p * ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+                Real.cos ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ
+              + b p * ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+                Real.sin ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ) by
+        calc
+          (∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+            (∑ p ∈ Finset.Icc 1 R, (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+              + b p * Real.sin ((p : ℝ) * psPoint2 R μ))) * psWeight2 R μ)
+              =
+            ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+              ∑ p ∈ Finset.Icc 1 R,
+                (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+                  + b p * Real.sin ((p : ℝ) * psPoint2 R μ)) * psWeight2 R μ := by
+            apply Finset.sum_congr rfl
+            intro μ _
+            rw [Finset.sum_mul]
+          _ = ∑ p ∈ Finset.Icc 1 R,
+              ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+                (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+                  + b p * Real.sin ((p : ℝ) * psPoint2 R μ)) * psWeight2 R μ := by
+            rw [Finset.sum_comm]
+          _ = ∑ p ∈ Finset.Icc 1 R,
+            (a p * ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+                Real.cos ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ
+              + b p * ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
+                Real.sin ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ) := by
+            apply Finset.sum_congr rfl
+            intro p _
+            rw [Finset.sum_congr rfl (fun μ _ => by ring :
+              ∀ μ ∈ Finset.Icc 1 (2 * R - 1),
+                (a p * Real.cos ((p : ℝ) * psPoint2 R μ)
+                  + b p * Real.sin ((p : ℝ) * psPoint2 R μ)) * psWeight2 R μ
+                  =
+                    a p * (Real.cos ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ)
+                    + b p * (Real.sin ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ))]
+            rw [Finset.sum_add_distrib, ← Finset.mul_sum, ← Finset.mul_sum]]
+    apply congrArg (fun t => a 0 * C + t)
+    apply Finset.sum_congr rfl
+    intro p hp
+    obtain ⟨hp1, hpR⟩ := Finset.mem_Icc.mp hp
+    rw [sum_cos_mul_psWeight2_eq R p hR hp1 hpR, sum_sin_mul_psWeight2_eq_zero R p hR]
+    ring
+  rw [hweighted, hzero]
+  rw [show (∑ p ∈ Finset.Icc 1 R, a p * (C - (p : ℝ) ^ 2))
+      = C * ∑ p ∈ Finset.Icc 1 R, a p
+        - ∑ p ∈ Finset.Icc 1 R, (p : ℝ) ^ 2 * a p by
+      rw [show (∑ p ∈ Finset.Icc 1 R, a p * (C - (p : ℝ) ^ 2))
+          = ∑ p ∈ Finset.Icc 1 R, (C * a p - (p : ℝ) ^ 2 * a p) by
+          exact Finset.sum_congr rfl fun p _ => by ring]
+      rw [Finset.sum_sub_distrib, ← Finset.mul_sum]]
+  ring
 
-/-- Weight for the second-derivative rule: `(-1)^{μ-1} / (2 sin²(μπ/(2R)))`. -/
-def psWeight2 (R μ : ℕ) : ℝ :=
-  (-1 : ℝ) ^ (μ - 1) / (2 * Real.sin ((μ : ℝ) * Real.pi / (2 * R)) ^ 2)
-
-/-- **Generalized parameter-shift data** (Wierichs et al. 2022, Sec. 3.4). The trigonometric-
-polynomial coefficients together with the two named Dirichlet-kernel identities (App. derivation)
-that the weighted evaluations reproduce the derivatives. The deep finite trigonometric-sum
-identities are isolated as hypotheses (no Mathlib Dirichlet-kernel theory); everything else is
-derived. -/
+/-- **Generalized parameter-shift data** (Wierichs et al. 2022, Sec. 3.4). The trigonometric
+polynomial coefficients; the required Dirichlet-kernel identities are proved in
+`QuantumAlg.Util.DirichletKernel` and assembled above for `genTrigCost`. -/
 structure GeneralizedParamShift (R : ℕ) where
   /-- Cosine coefficients (`a 0` is the constant term). -/
   a : ℕ → ℝ
@@ -153,17 +301,6 @@ structure GeneralizedParamShift (R : ℕ) where
   b : ℕ → ℝ
   /-- At least one frequency. -/
   hR : 1 ≤ R
-  /-- **Dirichlet identity, odd kernels** (Wierichs App.): the `2R`-point weighted evaluation
-  reproduces `∑_p p·b_p = ℓ'(0)`. -/
-  dirichlet_first :
-    ∑ μ ∈ Finset.Icc 1 (2 * R), genTrigCost a b R (psPoint R μ) * psWeight R μ
-      = ∑ p ∈ Finset.Icc 1 R, (p : ℝ) * b p
-  /-- **Dirichlet identity, even kernels** (Wierichs App.): the weighted evaluation reproduces
-  `-∑_p p²·a_p = ℓ''(0)`. -/
-  dirichlet_second :
-    -genTrigCost a b R 0 * (2 * (R : ℝ) ^ 2 + 1) / 6
-        + ∑ μ ∈ Finset.Icc 1 (2 * R - 1), genTrigCost a b R (psPoint2 R μ) * psWeight2 R μ
-      = -∑ p ∈ Finset.Icc 1 R, (p : ℝ) ^ 2 * a p
 
 namespace GeneralizedParamShift
 
@@ -171,11 +308,11 @@ variable {R : ℕ} (G : GeneralizedParamShift R)
 
 /-- **Generalized parameter-shift rule (first derivative).** The exact gradient `ℓ'(0)` equals
 the `2R`-point weighted sum of shifted evaluations. Combines the genuine derivative
-`genTrigCost_deriv_zero` with the named Dirichlet identity. -/
+`genTrigCost_deriv_zero` with the proved Dirichlet identity. -/
 theorem firstDeriv :
     deriv (genTrigCost G.a G.b R) 0
       = ∑ μ ∈ Finset.Icc 1 (2 * R), genTrigCost G.a G.b R (psPoint R μ) * psWeight R μ := by
-  rw [genTrigCost_deriv_zero, ← G.dirichlet_first]
+  rw [genTrigCost_deriv_zero, ← dirichlet_first_identity G.a G.b R G.hR]
 
 /-- **Generalized parameter-shift rule (second derivative).** The exact curvature `ℓ''(0)`
 equals the weighted sum of shifted evaluations. -/
@@ -184,18 +321,15 @@ theorem secondDeriv :
       = -genTrigCost G.a G.b R 0 * (2 * (R : ℝ) ^ 2 + 1) / 6
         + ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
             genTrigCost G.a G.b R (psPoint2 R μ) * psWeight2 R μ := by
-  rw [genTrigCost_deriv2_zero, ← G.dirichlet_second]
+  rw [genTrigCost_deriv2_zero, ← dirichlet_second_identity G.a G.b R G.hR]
 
 end GeneralizedParamShift
 
-/-- **Non-vacuity.** The hypothesis bundle is satisfiable: the zero cost (`a = b = 0`) on `R = 1`
-satisfies both Dirichlet identities (both sides vanish), so the rules are not vacuously true. -/
+/-- **Non-vacuity.** A concrete nonzero trigonometric polynomial exists at `R = 1`. -/
 theorem generalizedParamShift_nonempty : Nonempty (GeneralizedParamShift 1) :=
-  ⟨{ a := fun _ => 0
-     b := fun _ => 0
-     hR := le_refl 1
-     dirichlet_first := by simp [genTrigCost]
-     dirichlet_second := by simp [genTrigCost] }⟩
+  ⟨{ a := fun p => if p = 1 then 1 else 0
+     b := fun p => if p = 1 then 1 else 0
+     hR := le_refl 1 }⟩
 
 end
 

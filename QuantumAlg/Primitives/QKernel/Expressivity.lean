@@ -162,12 +162,12 @@ theorem densityOf_mul_trace (v w : Fin r → ℂ) :
   push_cast
   ring
 
-/-- **Exact finite positive-affine realization (core ingredient of
-[GFE23, main.tex:504] Thm 1).** Any normalized feature map `φ` is realized by a
-family of genuine density matrices whose embedding quantum kernel equals
-`c²·(D + 2·Re⟨φ_i,φ_j⟩)` — a positive affine image of the feature kernel
-`Re⟨φ_i,φ_j⟩` (exact for real feature maps). This is the exact realization
-step, *not* the full `ε`-approximate universality over arbitrary kernels. -/
+/-- **Exact finite positive-affine realization (core ingredient of [GFE23,
+main.tex:504] Thm 1).** Any
+normalized feature map `φ` is realized by a family of genuine density matrices whose embedding
+quantum kernel equals `c²·(D + 2·Re⟨φ_i,φ_j⟩)` — a positive affine image of the feature kernel
+`Re⟨φ_i,φ_j⟩` (exact for real feature maps). This is the exact realization step, *not* the full
+`ε`-approximate universality over arbitrary kernels. -/
 theorem eqk_realizes {ι : Type*} (φ : ι → (Fin r → ℂ))
     (hφ : ∀ i, ∑ k, Complex.normSq (φ i k) ≤ 1) :
     (∀ i, (densityOf (φ i)).IsHermitian ∧ (densityOf (φ i)).trace = 1
