@@ -105,9 +105,14 @@ def invSqrtN (n : ℕ) : ℂ := (↑(Real.sqrt ((2 : ℝ) ^ n)))⁻¹
 theorem star_invSqrtN (n : ℕ) : star (invSqrtN n) = invSqrtN n := by
   rw [invSqrtN, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
-theorem invSqrtN_ne_zero (n : ℕ) : invSqrtN n ≠ 0 :=
+private theorem invSqrtN_ne_zero (n : ℕ) : invSqrtN n ≠ 0 :=
   inv_ne_zero <| Complex.ofReal_ne_zero.mpr <|
     Real.sqrt_ne_zero'.mpr (pow_pos two_pos n)
+
+theorem norm_invSqrtN (n : ℕ) :
+    ‖invSqrtN n‖ = (Real.sqrt ((2 : ℝ) ^ n))⁻¹ := by
+  rw [invSqrtN, norm_inv, Complex.norm_real,
+    Real.norm_of_nonneg (Real.sqrt_nonneg _)]
 
 @[simp]
 theorem invSqrtN_mul_self (n : ℕ) :

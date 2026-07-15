@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Init
 public import Mathlib.Analysis.SpecialFunctions.Complex.Log
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 
 /-!
 # Complex exponential and unit-circle helper lemmas (quantum-free)
@@ -55,6 +56,249 @@ theorem exp_I_mul_exp_neg_I (φ : ℝ) :
 theorem exp_neg_I_mul_exp_I (φ : ℝ) :
     Complex.exp (-(φ * Complex.I)) * Complex.exp (φ * Complex.I) = 1 := by
   rw [← Complex.exp_add, neg_add_cancel, Complex.exp_zero]
+
+/-- Multiplying two unit-circle exponentials subtracts their real phases in the
+exponent. This is the scalar algebra used by phase-register geometric sums. -/
+private theorem exp_neg_two_pi_mul_mul_exp_two_pi_mul (a b k : ℝ) :
+    Complex.exp (-(2 * Real.pi * b * k) * Complex.I) *
+        Complex.exp (2 * Real.pi * a * k * Complex.I) =
+      Complex.exp (2 * Real.pi * ((a - b) * k) * Complex.I) := by
+  rw [← Complex.exp_add]
+  congr 1
+  ring
+
+/-- A finite exponential phase progression is a geometric progression on the
+unit-circle base. -/
+theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom (θ : ℝ) (m : ℕ) :
+    (Finset.range m).sum
+        (fun b => Complex.exp (2 * Real.pi *
+          (((b : ℝ) * θ : ℝ) : ℂ) * Complex.I)) =
+      (Finset.range m).sum
+        (fun b => Complex.exp (2 * Real.pi * θ * Complex.I) ^ b) := by
+  refine Finset.sum_congr rfl fun b _hb => ?_
+  rw [← Complex.exp_nat_mul]
+  congr 1
+  push_cast
+  ring
+
+/-- Degenerate finite exponential progression when the unit-circle base is
+one. -/
+theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_natCast_of_base_eq_one
+    {θ : ℝ} {m : ℕ}
+    (hbase : Complex.exp (2 * Real.pi * θ * Complex.I) = 1) :
+    (Finset.range m).sum
+        (fun b => Complex.exp (2 * Real.pi *
+          (((b : ℝ) * θ : ℝ) : ℂ) * Complex.I)) =
+      (m : ℂ) := by
+  rw [sum_range_exp_two_pi_mul_nat_mul_I_eq_geom]
+  simp [hbase]
+
+/-- Closed form for a finite exponential phase progression with nontrivial
+unit-circle base. -/
+theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom_closed
+    {θ : ℝ} {m : ℕ}
+    (hne : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1) :
+    (Finset.range m).sum
+        (fun b => Complex.exp (2 * Real.pi *
+          (((b : ℝ) * θ : ℝ) : ℂ) * Complex.I)) =
+      (Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1) /
+        (Complex.exp (2 * Real.pi * θ * Complex.I) - 1) := by
+  rw [sum_range_exp_two_pi_mul_nat_mul_I_eq_geom]
+  exact geom_sum_eq hne m
+
+/-- Unit-circle chord upper bound in the `x * I` convention used by the local
+phase formulas. -/
+theorem norm_exp_ofReal_mul_I_sub_one_le (x : ℝ) :
+    ‖Complex.exp (x * Complex.I) - 1‖ ≤ |x| := by
+  simpa [mul_comm, Real.norm_eq_abs] using
+    (Real.norm_exp_I_mul_ofReal_sub_one_le (x := x))
+
+/-- Unit-circle chord lower bound in the `I * x` convention, valid on one
+principal interval. -/
+theorem two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one
+    {x : ℝ} (hx : |x| ≤ Real.pi) :
+    (2 / Real.pi) * |x| ≤
+      ‖Complex.exp (Complex.I * x) - 1‖ := by
+  have hnorm :
+      ‖Complex.exp (Complex.I * x) - 1‖ =
+        2 * |Real.sin (x / 2)| := by
+    rw [Complex.norm_exp_I_mul_ofReal_sub_one]
+    simp
+  rw [hnorm]
+  have hxhalf : |x / 2| ≤ Real.pi / 2 := by
+    rw [abs_div, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
+    nlinarith [Real.pi_pos]
+  have hsin := Real.mul_abs_le_abs_sin hxhalf
+  calc
+    (2 / Real.pi) * |x| =
+        2 * ((2 / Real.pi) * |x / 2|) := by
+      rw [abs_div, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
+      ring
+    _ ≤ 2 * |Real.sin (x / 2)| := by
+      nlinarith
+
+/-- Unit-circle chord lower bound in the `x * I` convention used by the local
+phase formulas. -/
+theorem two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
+    {x : ℝ} (hx : |x| ≤ Real.pi) :
+    (2 / Real.pi) * |x| ≤
+      ‖Complex.exp (x * Complex.I) - 1‖ := by
+  simpa [mul_comm] using
+    (two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one (x := x) hx)
+
+/-- Denominator bound for the `2πθ` unit-circle base. -/
+theorem norm_exp_two_pi_mul_I_sub_one_le (θ : ℝ) :
+    ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ ≤
+      |2 * Real.pi * θ| := by
+  convert norm_exp_ofReal_mul_I_sub_one_le (2 * Real.pi * θ) using 2
+  push_cast
+  ring
+
+/-- Numerator lower bound for a finite `2πθ` geometric phase on the principal
+interval. -/
+theorem two_div_pi_mul_abs_le_norm_exp_two_pi_mul_nat_mul_I_sub_one
+    {θ : ℝ} {m : ℕ}
+    (hprincipal : |2 * Real.pi * ((m : ℝ) * θ)| ≤ Real.pi) :
+    (2 / Real.pi) * |2 * Real.pi * ((m : ℝ) * θ)| ≤
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ := by
+  rw [← Complex.exp_nat_mul]
+  have harg :
+      (m : ℂ) * (2 * Real.pi * θ * Complex.I) =
+        2 * Real.pi * (((m : ℝ) * θ : ℝ) : ℂ) * Complex.I := by
+    push_cast
+    ring
+  rw [harg]
+  convert two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
+    (x := 2 * Real.pi * ((m : ℝ) * θ)) hprincipal using 2
+  push_cast
+  ring
+
+/-- Concavity of sine gives the secant-line lower bound from `0` to `A` on
+`[0, π]`. -/
+theorem sin_ge_slope_mul_of_nonneg_of_le
+    {x A : ℝ} (hApos : 0 < A) (hApi : A ≤ Real.pi)
+    (hx0 : 0 ≤ x) (hxA : x ≤ A) :
+    (Real.sin A / A) * x ≤ Real.sin x := by
+  have hA0 : A ≠ 0 := ne_of_gt hApos
+  have hscale0 : 0 ≤ x / A := div_nonneg hx0 hApos.le
+  have hscale1 : x / A ≤ 1 := by
+    rw [div_le_one hApos]
+    exact hxA
+  have hconc :=
+    strictConcaveOn_sin_Icc.concaveOn.2
+      ⟨le_rfl, Real.pi_pos.le⟩ ⟨hApos.le, hApi⟩
+      (sub_nonneg.2 hscale1) hscale0
+  simpa [mul_comm x, div_eq_mul_inv, mul_assoc, mul_left_comm, hA0] using hconc
+
+/-- Numerator lower bound for a finite `2πθ` geometric phase from an explicit
+absolute phase-angle bound. -/
+theorem norm_exp_two_pi_mul_nat_mul_I_sub_one_lower_bound_of_angle_le
+    {θ A : ℝ} {m : ℕ}
+    (hApos : 0 < A) (hApi : A ≤ Real.pi)
+    (hangle : Real.pi * ((m : ℝ) * |θ|) ≤ A) :
+    2 * ((Real.sin A / A) * (Real.pi * ((m : ℝ) * |θ|))) ≤
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ := by
+  let x : ℝ := Real.pi * ((m : ℝ) * |θ|)
+  have hx0 : 0 ≤ x := by
+    dsimp [x]
+    positivity
+  have hxA : x ≤ A := by
+    simpa [x] using hangle
+  have hxpi : x ≤ Real.pi := le_trans hxA hApi
+  have harg_abs :
+      |Real.pi * ((m : ℝ) * θ)| = x := by
+    dsimp [x]
+    rw [abs_mul, abs_mul, abs_of_nonneg Real.pi_pos.le,
+      abs_of_nonneg (Nat.cast_nonneg m)]
+  have hnorm :
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ =
+        2 * |Real.sin (Real.pi * ((m : ℝ) * θ))| := by
+    rw [← Complex.exp_nat_mul]
+    have harg :
+        (m : ℂ) * (2 * Real.pi * θ * Complex.I) =
+          (2 * Real.pi * (((m : ℝ) * θ : ℝ) : ℂ)) * Complex.I := by
+      push_cast
+      ring
+    rw [harg]
+    have hcomm :
+        (2 * Real.pi * (((m : ℝ) * θ : ℝ) : ℂ)) * Complex.I =
+          Complex.I * ((2 * Real.pi * ((m : ℝ) * θ) : ℝ) : ℂ) := by
+      push_cast
+      ring
+    rw [hcomm, Complex.norm_exp_I_mul_ofReal_sub_one]
+    simp [Real.norm_eq_abs]
+    ring_nf
+  rw [hnorm]
+  rw [Real.abs_sin_eq_sin_abs_of_abs_le_pi (by
+    rw [harg_abs]
+    exact hxpi)]
+  rw [harg_abs]
+  have hsin := sin_ge_slope_mul_of_nonneg_of_le hApos hApi hx0 hxA
+  nlinarith
+
+/-- Lower bound for the norm quotient of a nontrivial finite unit-circle
+geometric phase. -/
+theorem geometric_phase_norm_ratio_lower_bound
+    {θ : ℝ} {m : ℕ}
+    (hprincipal : |2 * Real.pi * ((m : ℝ) * θ)| ≤ Real.pi)
+    (hne : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1) :
+    ((2 / Real.pi) * |2 * Real.pi * ((m : ℝ) * θ)|) /
+        |2 * Real.pi * θ| ≤
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ /
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+  have hnum :
+      (2 / Real.pi) * |2 * Real.pi * ((m : ℝ) * θ)| ≤
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ :=
+    two_div_pi_mul_abs_le_norm_exp_two_pi_mul_nat_mul_I_sub_one hprincipal
+  have hden :
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ ≤
+        |2 * Real.pi * θ| :=
+    norm_exp_two_pi_mul_I_sub_one_le θ
+  have hden_pos :
+      0 < ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+    rw [norm_pos_iff]
+    exact sub_ne_zero.mpr hne
+  exact div_le_div₀ (norm_nonneg _) hnum hden_pos hden
+
+/-- Lower bound for the norm quotient of a nontrivial finite unit-circle
+geometric phase from an explicit absolute phase-angle bound. This version does
+not require the full `2πmθ` phase to lie in one principal interval. -/
+theorem geometric_phase_norm_ratio_lower_bound_of_angle_le
+    {θ A : ℝ} {m : ℕ}
+    (hApos : 0 < A) (hApi : A ≤ Real.pi)
+    (hangle : Real.pi * ((m : ℝ) * |θ|) ≤ A)
+    (hne : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1) :
+    (m : ℝ) * (Real.sin A / A) ≤
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ /
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+  have hθ_ne : θ ≠ 0 := by
+    intro hθ
+    apply hne
+    simp [hθ]
+  have hnum :
+      2 * ((Real.sin A / A) * (Real.pi * ((m : ℝ) * |θ|))) ≤
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ :=
+    norm_exp_two_pi_mul_nat_mul_I_sub_one_lower_bound_of_angle_le
+      hApos hApi hangle
+  have hden :
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ ≤
+        |2 * Real.pi * θ| :=
+    norm_exp_two_pi_mul_I_sub_one_le θ
+  have hden_pos :
+      0 < ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+    rw [norm_pos_iff]
+    exact sub_ne_zero.mpr hne
+  have hratio :=
+    div_le_div₀ (norm_nonneg _) hnum hden_pos hden
+  have hleft :
+      (2 * ((Real.sin A / A) * (Real.pi * ((m : ℝ) * |θ|)))) /
+          |2 * Real.pi * θ| =
+        (m : ℝ) * (Real.sin A / A) := by
+    rw [abs_mul, abs_mul, abs_of_nonneg (by norm_num : (0 : ℝ) ≤ 2),
+      abs_of_nonneg Real.pi_pos.le]
+    field_simp [abs_ne_zero.mpr hθ_ne, ne_of_gt hApos, ne_of_gt Real.pi_pos]
+  rw [← hleft]
+  exact hratio
 
 theorem exp_pi_div_two_mul_I :
     Complex.exp ((Real.pi : ℂ) / 2 * Complex.I) = Complex.I := by

@@ -22,14 +22,14 @@ Umbrella module for the quantum-kernel development; re-exports the genuine resul
 - `QKernel.Fidelity` — the fidelity quantum kernel and its Gram-matrix positive
   semidefiniteness (`quantumKernel_gram_posSemidef`).
 - `QKernel.Fourier` — the Fourier representation of quantum kernels
-  (`fourier_representation`, Schuld 2021).
+  (`QuantumKernelFourier.main`, Schuld 2021).
 - `QKernel.Concentration` — exponential concentration of the tensor-product RY kernel
-  (`ryKernel_concentrates`, Thanasilp 2022).
+  (`QuantumKernelConcentration.main`, Thanasilp 2022).
 - `QKernel.DiscreteLogConcept` / `QKernel.Advantage` — the discrete-log concept class
   (secret-homogeneity `acc_shift`) and the conditional learning-advantage separation
-  (`QuantumKernelAdvantage.separation`, Liu 2021).
+  (`QuantumKernelAdvantage.main`, Liu 2021).
 - `QKernel.Expressivity` — density-matrix realization of feature-map kernels
-  (`eqk_realizes`, Gil-Fuster 2023).
+  (`QuantumKernelExpressivity.main`, Gil-Fuster 2023).
 -/
 
 @[expose] public section

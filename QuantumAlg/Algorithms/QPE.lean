@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
+public import QuantumAlg.Util.Complex
 public import QuantumAlg.Core.Cost
 public import QuantumAlg.Core.Circuit
 public import QuantumAlg.Primitives.QFT
@@ -142,6 +143,50 @@ theorem phaseState_apply (t : Nat) (phi : Real) (k : Fin (2 ^ t)) :
       invSqrtN t * Complex.exp (2 * Real.pi * phi * k.val * Complex.I) :=
   rfl
 
+@[simp]
+theorem probOutcome_phaseState (t : Nat) (phi : Real) (k : Fin (2 ^ t)) :
+    StateVector.probOutcome (phaseState t phi) k = ((2 : ℝ) ^ t)⁻¹ := by
+  have hphase :
+      ‖Complex.exp ((2 : ℂ) * (Real.pi : ℂ) * (phi : ℂ) *
+        (k.val : ℂ) * Complex.I)‖ = 1 := by
+    simpa [mul_assoc] using
+      Complex.norm_exp_ofReal_mul_I (2 * Real.pi * phi * k.val)
+  rw [StateVector.probOutcome, phaseState_apply, norm_mul, norm_invSqrtN,
+    hphase, mul_one, inv_pow,
+    Real.sq_sqrt (by positivity : (0 : ℝ) ≤ (2 : ℝ) ^ t)]
+
+theorem sum_probOutcome_phaseState (t : Nat) (phi : Real) :
+    ∑ k : Fin (2 ^ t), StateVector.probOutcome (phaseState t phi) k = 1 := by
+  calc
+    ∑ k : Fin (2 ^ t), StateVector.probOutcome (phaseState t phi) k =
+        ∑ _k : Fin (2 ^ t), ((2 : ℝ) ^ t)⁻¹ := by
+      refine Finset.sum_congr rfl fun k _ => ?_
+      exact probOutcome_phaseState t phi k
+    _ = 1 := by
+      rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+      rw [Nat.cast_pow]
+      exact mul_inv_cancel₀ (pow_ne_zero t (by norm_num : (2 : ℝ) ≠ 0))
+
+theorem norm_phaseState (t : Nat) (phi : Real) :
+    ‖phaseState t phi‖ = 1 := by
+  have hsq : ‖phaseState t phi‖ ^ 2 = (1 : ℝ) ^ 2 := by
+    rw [← StateVector.sum_probOutcome, sum_probOutcome_phaseState]
+    norm_num
+  exact (sq_eq_sq₀ (norm_nonneg _) zero_le_one).mp hsq
+
+/-- The QPE phase superposition packaged as a pure state for arbitrary
+eigenphase. -/
+def phasePureState (t : Nat) (phi : Real) : PureState (Qubits t) :=
+  PureState.ofVec (phaseState t phi) (norm_phaseState t phi)
+
+/-- Closed-form geometric-sum amplitude for observing phase-register index `j`
+after inverse QFT on an eigenphase `phi`. -/
+def phaseRegisterGeometricAmplitude (t : Nat) (phi : Real) (j : Fin (2 ^ t)) : ℂ :=
+  (((2 : ℝ) ^ t : ℂ))⁻¹ *
+    ∑ k : Fin (2 ^ t),
+      Complex.exp (2 * Real.pi *
+        (((phi - (j.val : ℝ) / (2 : ℝ) ^ t) * k.val : ℝ)) * Complex.I)
+
 /-- Dyadic/Fourier bridge: when the eigenphase is `j / 2^t`, the QPE phase
 superposition is exactly `QFT t |j>`. -/
 theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
@@ -161,6 +206,62 @@ theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
 
 /-- The inverse quantum Fourier transform, `QFT†`. -/
 def invQFT (t : Nat) : Gate (Qubits t) := (QFT t).conjTranspose
+
+theorem invQFT_phaseState_term_eq (t : Nat) (phi : Real)
+    (j k : Fin (2 ^ t)) :
+    star (invSqrtN t * omega t ^ (k.val * j.val)) *
+        (invSqrtN t * Complex.exp (2 * Real.pi * phi * k.val * Complex.I)) =
+      (((2 : ℝ) ^ t : ℂ))⁻¹ *
+        Complex.exp (2 * Real.pi *
+          (((phi - (j.val : ℝ) / (2 : ℝ) ^ t) * k.val : ℝ)) * Complex.I) := by
+  rw [star_mul', star_invSqrtN, star_pow, star_omega]
+  calc
+    invSqrtN t * (omega t)⁻¹ ^ (k.val * j.val) *
+        (invSqrtN t * Complex.exp (2 * ↑Real.pi * ↑phi * ↑↑k * Complex.I)) =
+        (invSqrtN t * invSqrtN t) *
+          ((omega t)⁻¹ ^ (k.val * j.val) *
+            Complex.exp (2 * ↑Real.pi * ↑phi * ↑↑k * Complex.I)) := by ring
+    _ = (((2 : ℝ) ^ t : ℂ))⁻¹ *
+        ((omega t)⁻¹ ^ (k.val * j.val) *
+          Complex.exp (2 * ↑Real.pi * ↑phi * ↑↑k * Complex.I)) := by
+      rw [invSqrtN_mul_self]
+      norm_num
+    _ = (((2 : ℝ) ^ t : ℂ))⁻¹ *
+        Complex.exp (2 * Real.pi *
+          (((phi - (j.val : ℝ) / (2 : ℝ) ^ t) * k.val : ℝ)) * Complex.I) := by
+      congr 1
+      rw [omega]
+      rw [← Complex.exp_neg, ← Complex.exp_nat_mul, ← Complex.exp_add]
+      congr 2
+      push_cast
+      field_simp [pow_ne_zero t (by norm_num : (2 : ℝ) ≠ 0)]
+      ring
+
+/-- Inverse QFT converts a QPE phase state into the standard geometric-sum
+amplitude formula. -/
+theorem invQFT_phaseState_apply_geometricSum (t : Nat) (phi : Real)
+    (j : Fin (2 ^ t)) :
+    (invQFT t).applyVec (phaseState t phi) j =
+      phaseRegisterGeometricAmplitude t phi j := by
+  rw [phaseRegisterGeometricAmplitude]
+  calc
+    (invQFT t).applyVec (phaseState t phi) j =
+        ∑ k : Fin (2 ^ t),
+          star (invSqrtN t * omega t ^ (k.val * j.val)) *
+            (invSqrtN t * Complex.exp (2 * Real.pi * phi * k.val * Complex.I)) := by
+      rw [Gate.applyVec_apply]
+      simp [invQFT, QFT, QFTMatrix, phaseState, Matrix.conjTranspose_apply]
+    _ = ∑ k : Fin (2 ^ t),
+        (((2 : ℝ) ^ t : ℂ))⁻¹ *
+          Complex.exp (2 * Real.pi *
+            (((phi - (j.val : ℝ) / (2 : ℝ) ^ t) * k.val : ℝ)) * Complex.I) := by
+      refine Finset.sum_congr rfl fun k _ => ?_
+      exact invQFT_phaseState_term_eq t phi j k
+    _ = (((2 : ℝ) ^ t : ℂ))⁻¹ *
+        ∑ k : Fin (2 ^ t),
+          Complex.exp (2 * Real.pi *
+            (((phi - (j.val : ℝ) / (2 : ℝ) ^ t) * k.val : ℝ)) * Complex.I) := by
+      rw [Finset.mul_sum]
 
 /-- The inverse QFT undoes the QFT on a basis ket. -/
 theorem qpe_readout (t : Nat) (j : Fin (2 ^ t)) :
@@ -232,7 +333,9 @@ theorem QuantumPhaseEstimation.main_exact_dyadic_with_resources (t : Nat)
   · exact qpeExactResourceProfile_exact t
 
 /-- Exact QPE from the source-level eigenstate/access assumptions, paired with
-the trusted controlled-power resource profile. -/
+the trusted controlled-power resource profile. The source describes QFT-based
+QPE under an exact binary phase assumption and deterministic recovery
+[Lin22, phaseestimation.tex:510-566, 640-666; CEMM98, cemm6.tex:574]. -/
 theorem QuantumPhaseEstimation.main_exact_eigenstate_readout_with_resources {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) (j : Fin (2 ^ t))
     (hphase : P.phase = (j.val : Real) / (2 : Real) ^ t) :

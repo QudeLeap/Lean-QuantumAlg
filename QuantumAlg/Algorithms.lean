@@ -16,6 +16,9 @@ public import QuantumAlg.Algorithms.BernsteinVazirani
 public import QuantumAlg.Algorithms.Simon
 public import QuantumAlg.Algorithms.Grover
 public import QuantumAlg.Algorithms.OrderFinding
+public import QuantumAlg.Algorithms.FiniteCyclicDLP
+public import QuantumAlg.Algorithms.EllipticCurve
+public import QuantumAlg.Algorithms.Factoring
 public import QuantumAlg.Algorithms.AmplitudeEstimation
 
 /-!

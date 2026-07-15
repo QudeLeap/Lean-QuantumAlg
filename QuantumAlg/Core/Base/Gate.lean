@@ -358,19 +358,19 @@ theorem applyVec_neg (G : Gate R) (psi : StateVector R) :
     G.applyVec (-psi) = -G.applyVec psi :=
   HilbertOperator.applyVec_neg (G : HilbertOperator R) psi
 
-theorem apply_add (G : Gate R) (psi phi : StateVector R) :
+private theorem apply_add (G : Gate R) (psi phi : StateVector R) :
     G.applyVec (psi + phi) = G.applyVec psi + G.applyVec phi :=
   applyVec_add G psi phi
 
-theorem apply_sub (G : Gate R) (psi phi : StateVector R) :
+private theorem apply_sub (G : Gate R) (psi phi : StateVector R) :
     G.applyVec (psi - phi) = G.applyVec psi - G.applyVec phi :=
   applyVec_sub G psi phi
 
-theorem apply_smul (G : Gate R) (c : ℂ) (psi : StateVector R) :
+private theorem apply_smul (G : Gate R) (c : ℂ) (psi : StateVector R) :
     G.applyVec (c • psi) = c • G.applyVec psi :=
   applyVec_smul G c psi
 
-theorem apply_neg (G : Gate R) (psi : StateVector R) :
+private theorem apply_neg (G : Gate R) (psi : StateVector R) :
     G.applyVec (-psi) = -G.applyVec psi :=
   applyVec_neg G psi
 
@@ -453,6 +453,13 @@ theorem ofPerm_apply (sigma : Equiv.Perm R.Index) (psi : PureState R)
   rw [Matrix.permMatrix_mulVec]
   rfl
 
+theorem ofPerm_applyVec (sigma : Equiv.Perm R.Index) (psi : StateVector R)
+    (i : R.Index) : (ofPerm sigma).applyVec psi i = psi (sigma i) := by
+  change HilbertOperator.applyVec (sigma.permMatrix ℂ) psi i = psi (sigma i)
+  unfold HilbertOperator.applyVec
+  rw [Matrix.permMatrix_mulVec]
+  rfl
+
 theorem ofPerm_apply_ket (sigma : Equiv.Perm R.Index) (x : R.Index) :
     (ofPerm sigma).apply (PureState.ket x) = PureState.ket (sigma⁻¹ x) := by
   ext i
@@ -469,7 +476,7 @@ theorem ofPerm_mem_unitaryGroup (sigma : Equiv.Perm R.Index) :
 /-! ## Unitary gates preserve inner products and norms -/
 
 /-- Unitary gates preserve the inner product. -/
-theorem inner_apply_apply_of_mem_unitaryGroup {U : Gate R}
+private theorem inner_apply_apply_of_mem_unitaryGroup {U : Gate R}
     (_hU : (U : HilbertOperator R) ∈ Matrix.unitaryGroup R.Index ℂ)
     (psi phi : PureState R) :
     inner ℂ (U.apply psi : StateVector R) (U.apply phi : StateVector R)
@@ -478,7 +485,7 @@ theorem inner_apply_apply_of_mem_unitaryGroup {U : Gate R}
     (psi : StateVector R) (phi : StateVector R)
 
 /-- Unitary gates preserve the norm. -/
-theorem norm_apply_of_mem_unitaryGroup {U : Gate R}
+private theorem norm_apply_of_mem_unitaryGroup {U : Gate R}
     (_hU : (U : HilbertOperator R) ∈ Matrix.unitaryGroup R.Index ℂ)
     (psi : PureState R) :
     ‖(U.apply psi : StateVector R)‖ = ‖(psi : StateVector R)‖ :=

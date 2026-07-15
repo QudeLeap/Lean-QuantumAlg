@@ -92,14 +92,14 @@ theorem QuantumKernelAdvantage.classical_ceiling {G : Type*} [Group G] [Fintype 
   exact h
 
 /-- The quantum-kernel learner strictly outperforms every classical learner. -/
-theorem QuantumKernelAdvantage.separation {G : Type*} [Group G] [Fintype G] [IsCyclic G]
+theorem QuantumKernelAdvantage.main {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (M : QuantumKernelAdvantage G) : M.classicalAcc < M.quantumAcc :=
   lt_of_le_of_lt M.classical_ceiling (lt_of_lt_of_le M.hε_lt M.quantumFloor)
 
 /-- The conditional-separation hypotheses are jointly satisfiable (not vacuous): a concrete
 `QuantumKernelAdvantage` on the order-2 cyclic group, with an always-wrong classical predictor
 (`acc = 0`), so the reduction's premise is false and the bundle is consistent with `dlpHard`. -/
-theorem qka_nonempty : Nonempty (QuantumKernelAdvantage (Multiplicative (ZMod 2))) := by
+private theorem qka_nonempty : Nonempty (QuantumKernelAdvantage (Multiplicative (ZMod 2))) := by
   obtain ⟨g, hg⟩ := IsCyclic.exists_generator (α := Multiplicative (ZMod 2))
   refine ⟨{
     g := g, hg := hg, ε := 1 / 100, hε := by norm_num, hε_lt := by norm_num

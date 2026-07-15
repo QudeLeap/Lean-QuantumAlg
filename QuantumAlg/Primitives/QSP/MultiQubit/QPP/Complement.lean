@@ -555,20 +555,20 @@ structure QPP.BoundedLaurentPolynomial (L : ℕ)
   /-- Laurent complement certificate derived from Wang's bounded source package. -/
   complement : QPP.LaurentComplementCertificate L coeff
 
-/-- Source-facing bounded Laurent data before the QSP phase-synthesis step.
-This package replaces a raw complement witness by Wang's boundedness hypothesis;
-the reciprocal-conjugate root algebra derives the complement internally
-[WZYW23, arxiv_v3.tex:2237-2274]. -/
-structure QPP.SourceBoundedLaurentPolynomial (L : ℕ)
+/-- Public bounded trigonometric-polynomial hypothesis before the QSP
+phase-synthesis step.  This is the Lean form of the source assumption
+`|F(x)| ≤ 1`; the reciprocal-conjugate root algebra derives the Laurent
+complement internally [WZYW23, arxiv_v3.tex:2237-2274]. -/
+structure QPP.TrigonometricPolynomialBound (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ) where
   bounded :
     ∀ x : ℝ, ‖lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff) x‖ ≤ 1
 
 /-- Convert Wang's source root-class facts into the existing Laurent complement
 package consumed by the QSP/QPP circuit construction. -/
-noncomputable def QPP.SourceBoundedLaurentPolynomial.toBoundedLaurentPolynomial
+noncomputable def QPP.TrigonometricPolynomialBound.toBoundedLaurentPolynomial
     {L : ℕ} {coeff : Fin (2 * L + 1) → ℂ}
-    (h : QPP.SourceBoundedLaurentPolynomial L coeff) :
+    (h : QPP.TrigonometricPolynomialBound L coeff) :
     QPP.BoundedLaurentPolynomial L coeff where
   bounded := h.bounded
   complement := by
@@ -824,10 +824,11 @@ abbrev BoundedLaurentPolynomial (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ) :=
   QuantumAlg.QSP.MultiQubit.QPP.BoundedLaurentPolynomial L coeff
 
-/-- Namespace-local spelling of bounded Laurent data before complement extraction. -/
-abbrev SourceBoundedLaurentPolynomial (L : ℕ)
+/-- Namespace-local spelling of the bounded trigonometric-polynomial public
+hypothesis before complement extraction. -/
+abbrev TrigonometricPolynomialBound (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ) :=
-  QuantumAlg.QSP.MultiQubit.QPP.SourceBoundedLaurentPolynomial L coeff
+  QuantumAlg.QSP.MultiQubit.QPP.TrigonometricPolynomialBound L coeff
 
 /-- Namespace-local spelling of generated phase-pair certificates. -/
 abbrev GeneratedPairCertificate (L : ℕ)

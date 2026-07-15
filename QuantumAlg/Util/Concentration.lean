@@ -68,7 +68,7 @@ theorem expConcentratedProb_of_variance_le {Ω : ℕ → Type*} [∀ n, Measurab
   exact hvar n
 
 /-- A `[0,1]`-valued family with exponentially small mean concentrates exponentially. -/
-theorem expConcentratedProb_of_mean_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
+private theorem expConcentratedProb_of_mean_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
     (μ : (n : ℕ) → Measure (Ω n)) [∀ n, IsProbabilityMeasure (μ n)]
     (X : (n : ℕ) → Ω n → ℝ) (hmem : ∀ n, MemLp (X n) 2 (μ n))
     (h0 : ∀ n, 0 ≤ᵐ[μ n] X n) (h1 : ∀ n, X n ≤ᵐ[μ n] 1)

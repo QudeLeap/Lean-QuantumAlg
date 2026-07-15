@@ -11,6 +11,16 @@ public import QuantumAlg.Util.Asymptotics
 public import QuantumAlg.Util.Complex
 public import QuantumAlg.Util.Polynomial
 public import QuantumAlg.Util.FinPow
+public import QuantumAlg.Util.FiniteCyclicDLP
+public import QuantumAlg.Util.ResidueEncoding
+public import QuantumAlg.Util.ModularMultiplicationDomain
+public import QuantumAlg.Util.Nat
+public import QuantumAlg.Util.OrderFinding
+public import QuantumAlg.Util.OrderCandidate
+public import QuantumAlg.Util.RationalApproximation
+public import QuantumAlg.Util.ShorFactoring
+public import QuantumAlg.Util.ZModUnits
+public import QuantumAlg.Util.EllipticCurve
 public import QuantumAlg.Util.HilbertSchmidt
 public import QuantumAlg.Util.QuantumFisher
 public import QuantumAlg.Util.Concentration
