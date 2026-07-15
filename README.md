@@ -107,6 +107,49 @@ import QuantumAlg.Primitives.QNN.Trainability
 
 Bibliographic sources are indexed in [`REFERENCES.json`](REFERENCES.json).
 
+## Cryptanalysis
+
+Lean-QuantumAlg formalizes source-backed endpoints for quantum cryptanalysis
+while keeping algorithmic correctness, conditional classical reductions, and
+logical-resource accounting explicit. The current results cover integer
+factoring and finite-cyclic discrete logarithms, together with formula-based
+estimates for RSA-2048 and P-256; each theorem states the certificates and
+hypotheses that connect a quantum routine to its cryptographic target.
+
+Verified highlights include:
+
+- [Order finding](https://qudeleap.github.io/Lean-QuantumAlg/theorems/order-finding/)
+  and its [exact dyadic specialization](https://qudeleap.github.io/Lean-QuantumAlg/theorems/order-finding-exact/)
+  connect QPE output to classical order recovery, while the
+  [modular-multiplication eigenstructure](https://qudeleap.github.io/Lean-QuantumAlg/theorems/modular-multiplication-eigenstructure/)
+  fixes the spectral convention used by the circuit endpoint; Lean:
+  [`QuantumAlg.OrderFinding.ShorSourceJoint.main`](QuantumAlg/Algorithms/OrderFinding.lean),
+  [`QuantumAlg.OrderFinding.main`](QuantumAlg/Algorithms/OrderFinding.lean), and
+  [`QuantumAlg.OrderFinding.ResidueRegisterEigenstructure.main`](QuantumAlg/Algorithms/OrderFinding.lean).
+- [Shor-style factoring](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-factorization-shor/)
+  and [Ekera-Hastad-style factoring](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-factorization-ekera-hastad/)
+  package distinct source-shaped correctness and resource certificates; Lean:
+  [`QuantumAlg.Factoring.ShorStyle.main`](QuantumAlg/Algorithms/Factoring/ShorStyle.lean)
+  and [`QuantumAlg.Factoring.EkeraHastadStyle.PublicTheoremShape.main`](QuantumAlg/Algorithms/Factoring/EkeraHastadStyle.lean).
+- [RSA-2048 logical-resource estimate](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-2048-logical-resource-estimate/)
+  evaluates the formalized factoring formula envelope; Lean:
+  [`QuantumAlg.Factoring.FormulaEnvelope.RSA2048.main`](QuantumAlg/Algorithms/Factoring/FormulaEnvelope.lean).
+- [Finite-cyclic discrete logarithms](https://qudeleap.github.io/Lean-QuantumAlg/theorems/finite-cyclic-discrete-logarithms/)
+  expose recovery correctness with exact natural-number resource counters;
+  Lean: [`QuantumAlg.FiniteCyclicDLP.PublicTheoremShape.main`](QuantumAlg/Algorithms/FiniteCyclicDLP.lean).
+- [P-256 logical-resource estimate](https://qudeleap.github.io/Lean-QuantumAlg/theorems/p256-logical-resource-estimate/)
+  records the domain-specific logical-resource baseline for elliptic-curve
+  discrete logarithms; Lean:
+  [`QuantumAlg.EllipticCurve.P256LogicalResources.PublicTheoremShape.main`](QuantumAlg/Algorithms/EllipticCurve/P256/Resources.lean).
+
+Start from the focused public navigation modules:
+
+```lean
+import QuantumAlg.Algorithms.Factoring
+import QuantumAlg.Algorithms.FiniteCyclicDLP
+import QuantumAlg.Algorithms.EllipticCurve
+```
+
 ## Contributing and discussion
 
 Issues and pull requests are welcome. Please keep contributions small and
