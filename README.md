@@ -1,11 +1,21 @@
 # Lean-QuantumAlg
 
+<p align="center">
+  <a href="https://github.com/leanprover/lean4/releases/tag/v4.31.0"><img src="https://img.shields.io/badge/Lean-v4.31.0-6C5CE7" alt="Lean v4.31.0"></a>
+  <a href="https://github.com/leanprover-community/mathlib4/releases/tag/v4.31.0"><img src="https://img.shields.io/badge/mathlib-v4.31.0-0087BD" alt="mathlib v4.31.0"></a>
+  <a href="https://github.com/leanprover/cslib/releases/tag/v4.31.0"><img src="https://img.shields.io/badge/CSLib-v4.31.0-4B8BBE" alt="CSLib v4.31.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="Apache License 2.0"></a>
+  <br>
+  <a href="https://arxiv.org/abs/2607.12981"><img src="https://img.shields.io/badge/arXiv-2607.12981-b31b1b.svg" alt="QML paper on arXiv"></a>
+  <a href="https://arxiv.org/abs/2607.14082"><img src="https://img.shields.io/badge/arXiv-2607.14082-b31b1b.svg" alt="Shor paper on arXiv"></a>
+</p>
+
 Lean-QuantumAlg is a Lean 4 library for formally verified quantum algorithms.
 
 ## What's Lean-QuantumAlg?
 
 Lean-QuantumAlg provides reusable definitions, primitives, and theorem
-statements for quantum algorithms in Lean. It is built on Mathlib and CSLib,
+statements for quantum algorithms in Lean. It is built on mathlib and CSLib,
 with public theorem endpoints organized so readers and agents can import the
 modules they need.
 
@@ -13,8 +23,38 @@ modules they need.
 
 - Provide a modest, reusable Lean library for quantum-algorithm formalization.
 - Keep algorithm statements tied to source references and stable import paths.
-- Follow Mathlib and CSLib conventions closely enough to support later upstream
+- Follow mathlib and CSLib conventions closely enough to support later upstream
   review and reuse.
+
+### Cite this repository
+
+If you use the quantum machine learning or quantum neural network formalizations in Lean-QuantumAlg, please cite:
+
+```bibtex
+@misc{jing2026agentic,
+      title={An Agentic Formalization for Certified Quantum Neural Network Design},
+      author={Mingrui Jing and Lei Zhang and Yusheng Zhao and Hongshun Yao and Xin Wang},
+      year={2026},
+      eprint={2607.12981},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph},
+      url={https://arxiv.org/abs/2607.12981},
+}
+```
+
+If you use Shor's algorithm, the RSA-2048 or P-256 developments, or broader quantum cryptanalysis formalizations in Lean-QuantumAlg, please cite:
+
+```bibtex
+@misc{zhang2026building,
+      title={Building Shor's Algorithm in Lean: An Agentic Formalization of Quantum Attacks on RSA-2048 and P-256},
+      author={Lei Zhang and Yusheng Zhao and Hongshun Yao and Xin Wang},
+      year={2026},
+      eprint={2607.14082},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph},
+      url={https://arxiv.org/abs/2607.14082},
+}
+```
 
 ## Using Lean-QuantumAlg in your project
 
@@ -28,7 +68,7 @@ git = "https://github.com/QudeLeap/Lean-QuantumAlg.git"
 rev = "main"
 ```
 
-Use Lean `v4.30.0`. Then import either the aggregate module or a focused module:
+Use Lean `v4.31.0`. Then import either the aggregate module or a focused module:
 
 ```lean
 import QuantumAlg
