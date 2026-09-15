@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Product
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Product
 
 /-!
 # Laurent complement certificates
@@ -15,7 +15,7 @@ public import QuantumAlg.Util.Polynomial.Complement.Laurent.Product
 Stage module for Laurent square-root and source-root complement certificates.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -47,3 +47,5 @@ end Complement.Laurent.Certificate
 end
 
 end QuantumAlg
+
+end

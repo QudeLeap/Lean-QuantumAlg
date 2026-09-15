@@ -1,0 +1,148 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Fold.SourceProgram
+import all QuantumAlg.Primitives.MAU.Addition.Gidney.Resources
+
+/-!
+# Actual output reflection controlled by the retained iteration bit
+
+The source keeps the final coefficient when Iter is one and replaces it
+by its negative modulo the original prime when Iter is zero
+[LYL+26, sec_EEA/sub_4phase.tex:123-125]. Two literal X gates around the
+existing coherently controlled bi-flip select precisely that zero branch.
+The bi-flip at pivot `p+1` implements `p-t` on the reached coefficient
+interval [G17, paper.tex:276-277].
+
+This focused native program retains the original Iter value and restores
+an arbitrary helper on every binary input. The total finite action also
+specifies labels outside the coefficient interval. Placement on the
+actual little-endian Work2 wires, output copying, and reversal of all
+retained forward history are separate actual operations.
+-/
+
+namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputCorrectionFocus
+
+noncomputable section
+
+open Addition.Gidney FoldSourceProgram
+
+/-- Two real flag X gates select the existing controlled reflection on Iter zero. -/
+def program (modulus : Nat) :
+    UnitaryCircuit (Qubits (Addition.Gidney.encoding (wordWidth modulus)).width) :=
+  ((flagFlipProgram (wordWidth modulus)).seq
+    (biFlipProgram (wordWidth modulus) (reflectionPivot modulus))).seq
+      (flagFlipProgram (wordWidth modulus))
+
+/-- Total finite-word action, preserving both the original parity and the arbitrary helper. -/
+def step (modulus : Nat) (state : Addition.Gidney.Registers (wordWidth modulus)) :
+    Addition.Gidney.Registers (wordWidth modulus) :=
+  (state.1, (if state.1 then state.2.1 else
+    Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus) state.2.1, state.2.2))
+
+private theorem component_steps (modulus : Nat)
+    (state : Addition.Gidney.Registers (wordWidth modulus)) :
+    flagFlipOutput (biFlipOutput (reflectionPivot modulus) (flagFlipOutput state)) =
+      step modulus state := by
+  rcases state with ⟨iteration, word, helper⟩
+  cases iteration <;> rfl
+
+/-- Exact phase-preserving action of the actual three native blocks on every input label. -/
+theorem program_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus)) (program modulus)
+      (step modulus) :=
+  (((gidneyFlagFlip_realizes (wordWidth modulus)).seq
+    (gidneyBiFlip_realizes (wordWidth modulus) (reflectionPivot modulus))).seq
+      (gidneyFlagFlip_realizes (wordWidth modulus))).congrStep (component_steps modulus)
+
+/-- The sign history is retained rather than erased by the output correction. -/
+theorem step_iteration (modulus : Nat)
+    (state : Addition.Gidney.Registers (wordWidth modulus)) :
+    (step modulus state).1 = state.1 := rfl
+
+/-- Every value and correlation of the borrowed helper is restored by the actual program. -/
+theorem step_helper (modulus : Nat)
+    (state : Addition.Gidney.Registers (wordWidth modulus)) :
+    (step modulus state).2.2 = state.2.2 := rfl
+
+/-- The internally reached coefficient interval gives the source's exact natural correction. -/
+theorem step_value (modulus : Nat) (iteration helper : Bool)
+    (word : Fin (2 ^ wordWidth modulus)) (bounded : word.val ≤ modulus) :
+    (step modulus (iteration, (word, helper))).2.1.val =
+      if iteration then word.val else modulus - word.val := by
+  have below : word.val < (reflectionPivot modulus).val := by
+    change word.val < modulus + 1
+    omega
+  cases iteration with
+  | false =>
+    change (Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus) word).val = _
+    simp only [Nat.FixedWidth.biFlipWordOutput, Nat.FixedWidth.biFlip, if_pos below]
+    change modulus + 1 - (word.val + 1) = modulus - word.val
+    omega
+  | true => rfl
+
+/-- The original parity and finite reflection make the full register action involutive. -/
+theorem step_involutive (modulus : Nat) : Function.Involutive (step modulus) := by
+  rintro ⟨iteration, word, helper⟩
+  cases iteration with
+  | false =>
+    change (false, (Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus)
+      (Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus) word), helper)) = _
+    rw [Nat.FixedWidth.gidneyBiFlipWord_involutive]
+  | true => rfl
+
+/-- The actual circuit adjoint has the same total label action and restores its helper. -/
+theorem inverse_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus))
+      (program modulus).dagger (step modulus) :=
+  (program_realizes modulus).dagger_of_rightInverse (step_involutive modulus)
+
+private theorem flag_range (width : Nat) :
+    (flagFlipProgram width).physical_idx ⊆ List.range (width + 2) := by
+  have actual := EncodedBit.GateSpec.program_physical_idx_subset_range (.x (flagBit width))
+  have encodedWidth : (Addition.Gidney.encoding width).width = width + 2 := by
+    change 1 + (width + 1) = width + 2
+    omega
+  unfold flagFlipProgram
+  simpa only [encodedWidth] using actual
+
+/-- Only the declared coefficient word, iteration bit, and existing helper are addressed. -/
+theorem program_physical_range (modulus : Nat) :
+    (program modulus).physical_idx ⊆ List.range (wordWidth modulus + 2) :=
+  UnitaryCircuit.seq_physical_idx_subset _ _
+    (UnitaryCircuit.seq_physical_idx_subset _ _ (flag_range (wordWidth modulus))
+      (gidneyBiFlip_physical_range (wordWidth modulus) (reflectionPivot modulus)))
+    (flag_range (wordWidth modulus))
+
+/-- The actual trace includes both flag operations and the selected controlled arithmetic body. -/
+theorem program_eventTrace (modulus : Nat) :
+    (program modulus).eventTrace =
+      (flagFlipProgram (wordWidth modulus)).eventTrace ++
+        (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventTrace ++
+          (flagFlipProgram (wordWidth modulus)).eventTrace := by
+  simp only [program, UnitaryCircuit.seq_eventTrace]
+
+/-- Exact event cardinality, including both real parity complements. -/
+theorem program_event_count (modulus : Nat) :
+    (program modulus).eventCost.card =
+      (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventCost.card + 2 := by
+  simp only [program, UnitaryCircuit.seq_eventCost, Multiset.card_add,
+    gidneyFlagFlip_eventCost, ResourcePool.singleton, Multiset.card_replicate]
+  omega
+
+/-- The shared actual coherent control serializes the body and the two parity gates. -/
+theorem program_unitDepth (modulus : Nat) :
+    (program modulus).evaluatedEventDepth (fun _ => 1) =
+      (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventCost.card + 2 := by
+  simp only [program, UnitaryCircuit.evaluatedEventDepth_seq, gidneyFlagFlip_depth,
+    gidneyBiFlip_depth_eq_events]
+  omega
+
+end
+
+end QuantumAlg.MAU.Inversion.SharedEEA.OutputCorrectionFocus

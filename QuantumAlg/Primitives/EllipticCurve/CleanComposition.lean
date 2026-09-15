@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.MAU.CleanInterface
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.MAU.CleanInterface
 
 /-!
 # Clean composition for elliptic-curve circuit endpoints
@@ -20,7 +20,7 @@ auxiliary qubits for the elliptic-curve modular-arithmetic circuits are returned
 to their original states [RNSL17, ECDLP.tex:555,657-684].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
@@ -43,59 +43,9 @@ theorem composeList_preserves_work
     ((composeList Data Work steps).perm x).2 = x.2 :=
   (composeList Data Work steps).preservesWork x
 
-/-- Typed circuit wrapper for a composed clean map. -/
-noncomputable def composedCircuit
-    [Fintype Data] [DecidableEq Data] [Fintype Work] [DecidableEq Work]
-    (steps : List (WorkRegister.CleanReversibleMap Data Work))
-    (profile : ModularArithmeticResourceProfile) :
-    Circuit (WorkRegister.CleanReversibleMap.register Data Work) :=
-  (composeList Data Work steps).circuit profile
-
-/-- Basis-state correctness for the composed clean circuit. -/
-theorem composedCircuit_apply_ket
-    [Fintype Data] [DecidableEq Data] [Fintype Work] [DecidableEq Work]
-    (steps : List (WorkRegister.CleanReversibleMap Data Work))
-    (profile : ModularArithmeticResourceProfile) (x : Data × Work) :
-    Circuit.apply (composedCircuit steps profile)
-      (PureState.ket (R := WorkRegister.CleanReversibleMap.register Data Work) x :
-        StateVector (WorkRegister.CleanReversibleMap.register Data Work)) =
-      (PureState.ket (R := WorkRegister.CleanReversibleMap.register Data Work)
-        ((composeList Data Work steps).perm x) :
-        StateVector (WorkRegister.CleanReversibleMap.register Data Work)) := by
-  simpa [composedCircuit] using
-    WorkRegister.CleanReversibleMap.circuit_apply_ket
-      (clean := composeList Data Work steps) (profile := profile) (x := x)
-
-/-- The composed clean circuit keeps the work-register label clean. -/
-theorem composedCircuit_preserves_work
-    (steps : List (WorkRegister.CleanReversibleMap Data Work))
-    (_profile : ModularArithmeticResourceProfile) (x : Data × Work) :
-    ((composeList Data Work steps).perm x).2 = x.2 :=
-  composeList_preserves_work steps x
-
-/-- Resource-correct witness for a composed clean reversible endpoint. -/
-noncomputable def resourceCorrectWitness
-    [Fintype Data] [DecidableEq Data] [Fintype Work] [DecidableEq Work]
-    (steps : List (WorkRegister.CleanReversibleMap Data Work))
-    (profile : ModularArithmeticResourceProfile) :
-    ResourceCorrectWitness
-      (R := WorkRegister.CleanReversibleMap.register Data Work)
-      (∀ x : Data × Work,
-        Circuit.apply (composedCircuit steps profile)
-          (PureState.ket (R := WorkRegister.CleanReversibleMap.register Data Work) x :
-            StateVector (WorkRegister.CleanReversibleMap.register Data Work)) =
-          (PureState.ket (R := WorkRegister.CleanReversibleMap.register Data Work)
-            ((composeList Data Work steps).perm x) :
-            StateVector (WorkRegister.CleanReversibleMap.register Data Work)))
-      ((composedCircuit steps profile).resources = profile.toResourceProfile ∧
-        (composedCircuit steps profile).depth = profile.circuitDepth ∧
-        (composedCircuit steps profile).queryDepth = profile.oracleQueries) := by
-  exact
-    { circuit := composedCircuit steps profile
-      correctness := fun x => composedCircuit_apply_ket steps profile x
-      resources := ⟨rfl, rfl, rfl⟩ }
-
 end CleanComposition
 
 end EllipticCurve
 end QuantumAlg
+
+end

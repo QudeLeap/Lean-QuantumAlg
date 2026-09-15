@@ -6,21 +6,27 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.Arithmetic.BitSlice
-public import QuantumAlg.Primitives.Arithmetic.Comparator
-public import QuantumAlg.Primitives.Arithmetic.PlainAdder
-public import QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
-public import QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.Arithmetic.BitSlice
+import all QuantumAlg.Primitives.Arithmetic.Comparator
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
+import all QuantumAlg.Primitives.Arithmetic.CleanCircuit
 
 /-!
 # Reversible arithmetic primitives
 
 This module re-exports reusable non-modular reversible-arithmetic primitives:
-bit-slice base-gate blocks, comparator schedule shells, plain-adder interfaces,
-folded plain-adder schedule shells, and plain-adder structured same-Circuit
-witness interfaces.  Modular arithmetic units are re-exported by
+bit-slice base-gate blocks, comparator schedule shells and their cleanup-aware
+fixed-layout circuit, plain-adder interfaces, folded plain-adder schedule
+shells, and plain-adder structured same-Circuit witness interfaces.  Modular
+arithmetic units are re-exported by
 `QuantumAlg.Primitives.MAU`.
 -/
 
-@[expose] public section
+section
+
+end

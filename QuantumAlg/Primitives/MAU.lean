@@ -6,17 +6,18 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.MAU.CleanInterface
-public import QuantumAlg.Primitives.MAU.ModularAddition
-public import QuantumAlg.Primitives.MAU.ModularAddition.StructuredCircuit
-public import QuantumAlg.Primitives.MAU.VBEBlockCounting
-public import QuantumAlg.Primitives.MAU.ModularMultiplyAccumulate
-public import QuantumAlg.Primitives.MAU.ModularMultiplication
-public import QuantumAlg.Primitives.MAU.ModularInversion
-public import QuantumAlg.Primitives.MAU.ModularDivision
-public import QuantumAlg.Primitives.MAU.ModularExponentiation
-public import QuantumAlg.Primitives.MAU.ModularMultiplicationGate
+import QuantumAlg.Init
+import QuantumAlg.Primitives.MAU.Addition
+import QuantumAlg.Primitives.MAU.Addition.DirtyBorrowed
+import QuantumAlg.Primitives.MAU.Inversion.Layout
+import QuantumAlg.Primitives.MAU.VBEBlockCounting
+import QuantumAlg.Primitives.MAU.Multiplication
+import QuantumAlg.Primitives.MAU.Multiplication.Windowed.Comparison
+import QuantumAlg.Primitives.MAU.Inversion
+import QuantumAlg.Primitives.MAU.Division
+public import QuantumAlg.Primitives.MAU.Exponentiation
+public import QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Endpoint
+import QuantumAlg.Primitives.MAU.Exponentiation.Windowed
 
 /-!
 # Modular arithmetic units
@@ -24,4 +25,6 @@ public import QuantumAlg.Primitives.MAU.ModularMultiplicationGate
 This module re-exports reusable modular-arithmetic circuit components.
 -/
 
-@[expose] public section
+section
+
+end

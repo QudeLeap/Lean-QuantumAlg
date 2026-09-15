@@ -6,8 +6,17 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Pair
+import QuantumAlg.Init
+public import QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Accounting.Space
+import all QuantumAlg.Core.Base.Layout.Qubit.Quantum
+public import QuantumAlg.Components.Oracle.Reflection
+public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Complement
+import all QuantumAlg.Components.Oracle.SignalProcessing
+import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Pair
+import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Components.Gates
+import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
 # Projected QSVT circuits
@@ -16,7 +25,7 @@ Alternating phase modulation, projected-QSVT circuit witnesses, and same-circuit
 resource accounting.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -28,53 +37,159 @@ namespace QSVT
 
 /-! ### Alternating phase modulation words -/
 
-/-- Lift a signal gate to the phase-ancilla plus signal space used in
-alternating phase modulation. -/
-def liftSignalGate {N : Nat} (U : Gate (Qubits N)) : Gate (Qubits (1 + N)) :=
-  Gate.tensor (1 : Gate (Qubits 1)) U
+/-- Seal a semantic signal unitary as one canonical local QSVT oracle call. -/
+def qsvtOracleGate {N : ℕ} (U : UnitaryOperator (Qubits N)) : UnitaryCircuit (Qubits N) :=
+  UnitaryCircuit.ofLeaf (qsvtOracleLeaf U) (by
+    simpa only [qsvtOracleLeaf, qsvtOracleLeafAt,
+      UnitaryLeaf.subroutine_systemIdx] using
+      (List.nodup_range : (List.range N).Nodup))
+
+@[simp]
+theorem qsvtOracleGate_applyVec {N : ℕ} (U : UnitaryOperator (Qubits N))
+    (ψ : HilbertVector (Qubits N)) :
+    (qsvtOracleGate U).applyVec ψ = U.applyVec ψ := rfl
+
+@[simp]
+theorem qsvtOracleGate_coe {N : ℕ} (U : UnitaryOperator (Qubits N)) :
+    (qsvtOracleGate U : HilbertOperator (Qubits N)) = U := rfl
+
+@[simp]
+theorem qsvtOracleGate_dagger_applyVec {N : ℕ} (U : UnitaryOperator (Qubits N))
+    (ψ : HilbertVector (Qubits N)) :
+    (qsvtOracleGate U).dagger.applyVec ψ = U.dagger.applyVec ψ := rfl
+
+/-- A fresh leading control wire is disjoint from a circuit shifted by one. -/
+theorem leadingQubitLayout {N : Nat} (body : UnitaryCircuit (Qubits N)) :
+    PhysicalLayout.DisjointMerge [0]
+      (UnitaryCircuit.shiftPhysicalIdx 1 body).physical_idx where
+  left_nodup := by simp
+  right_nodup := (UnitaryCircuit.shiftPhysicalIdx 1 body).physical_idx_nodup
+  disjoint := by
+    rw [List.disjoint_left]
+    intro index hindex hshifted
+    simp only [List.mem_singleton] at hindex
+    subst index
+    simp only [UnitaryCircuit.shiftPhysicalIdx_physical_idx, List.mem_map] at hshifted
+    obtain ⟨old, _hold, hzero⟩ := hshifted
+    omega
+
+/-- Lift a metadata-free signal unitary to the phase-ancilla plus signal
+space used in alternating phase modulation. -/
+def liftSignalOperator {N : Nat} (U : UnitaryOperator (Qubits N)) :
+    UnitaryOperator (Qubits (1 + N)) :=
+  (1 : UnitaryOperator (Qubits 1)).tensor U
+
+/-- Structural circuit adapter for `liftSignalOperator`. -/
+def liftSignalGate {N : Nat} (U : UnitaryCircuit (Qubits N)) : UnitaryCircuit (Qubits (1 + N)) :=
+  let ancilla := UnitaryCircuit.identity (Qubits 1) [0] (by simp)
+  let shifted := UnitaryCircuit.shiftPhysicalIdx 1 U
+  UnitaryCircuit.tensorQubits ancilla shifted (leadingQubitLayout U)
+
+@[simp]
+theorem liftSignalGate_matrix {N : Nat} (U : UnitaryCircuit (Qubits N)) :
+    (liftSignalGate U).matrix = liftSignalOperator U.matrix := by
+  rw [liftSignalGate, UnitaryCircuit.tensorQubits_matrix]
+  apply Subtype.ext
+  simp only [UnitaryCircuit.identity_matrix, UnitaryCircuit.shiftPhysicalIdx_matrix,
+    liftSignalOperator, UnitaryOperator.coe_tensor, Submonoid.coe_one]
+
+@[simp]
+theorem liftSignalGate_eventCost {N : Nat} (U : UnitaryCircuit (Qubits N)) :
+    (liftSignalGate U).eventCost = U.eventCost := by
+  unfold liftSignalGate
+  rw [UnitaryCircuit.tensorQubits_eventCost, UnitaryCircuit.identity_eventCost,
+    UnitaryCircuit.shiftPhysicalIdx_eventCost, zero_add]
+
+/-- Relative metadata-free branch unitary used by a controlled direct sum. -/
+def phaseRelativeOperator {N : Nat} (V0 V1 : UnitaryOperator (Qubits N)) :
+    UnitaryOperator (Qubits N) :=
+  V1 * V0.dagger
+
+/-- Structural circuit for `phaseRelativeOperator`. -/
+def phaseRelativeGate {N : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits N)) : UnitaryCircuit (Qubits N) :=
+  UnitaryCircuit.seq V0.dagger V1
+
+@[simp]
+theorem phaseRelativeGate_matrix {N : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits N)) :
+    (phaseRelativeGate V0 V1).matrix = phaseRelativeOperator V0.matrix V1.matrix := by
+  apply Subtype.ext
+  simp [phaseRelativeGate, phaseRelativeOperator]
+
+/-- Controlled direct sum as a metadata-free unitary. -/
+noncomputable def phaseControlledDirectSumOperator {N : Nat}
+    (V0 V1 : UnitaryOperator (Qubits N)) : UnitaryOperator (Qubits (1 + N)) :=
+  UnitaryOperator.controlledQubits (phaseRelativeOperator V0 V1) *
+    liftSignalOperator V0
 
 /-- Controlled direct sum over the phase ancilla: on the `|0⟩` branch it applies
 `V0`, and on the `|1⟩` branch it applies `V1`.  This elementary gate is the
 linear-algebraic carrier for the real-polynomial controlled construction in
 [GSLW19, BlockHam.tex:851-887]. -/
 noncomputable def phaseControlledDirectSum {N : Nat}
-    (V0 V1 : Gate (Qubits N)) : Gate (Qubits (1 + N)) :=
-  Gate.controlled (V1 * V0.conjTranspose) * Gate.tensor (1 : Gate (Qubits 1)) V0
+    (V0 V1 : UnitaryCircuit (Qubits N)) : UnitaryCircuit (Qubits (1 + N)) :=
+  let relative := phaseRelativeGate V0 V1
+  let controlled := UnitaryCircuit.controlQubitsAt [0]
+    (UnitaryCircuit.shiftPhysicalIdx 1 relative) (leadingQubitLayout relative) (1 : Fin 2)
+  let lifted := liftSignalGate V0
+  UnitaryCircuit.seq lifted controlled
+
+
+
+@[simp]
+theorem phaseControlledDirectSum_eventCost {N : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits N)) :
+    (phaseControlledDirectSum V0 V1).eventCost =
+      V0.eventCost +
+        ResourcePool.controlForDimension 2 (V0.eventCost + V1.eventCost) := by
+  simp [phaseControlledDirectSum, phaseRelativeGate]
+
+@[simp]
+theorem phaseControlledDirectSum_matrix {N : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits N)) :
+    (phaseControlledDirectSum V0 V1).matrix =
+      phaseControlledDirectSumOperator V0.matrix V1.matrix := by
+  apply Subtype.ext
+  simp [phaseControlledDirectSum, phaseControlledDirectSumOperator,
+    UnitaryOperator.controlledQubits]
 
 /-- Matrix decomposition of `phaseControlledDirectSum`. -/
 theorem phaseControlledDirectSum_eq_tensor_decomp {N : Nat}
-    (V0 V1 : Gate (Qubits N)) :
-    (phaseControlledDirectSum V0 V1 : HilbertOperator (Qubits (1 + N))) =
-      HilbertOperator.tensor Gate.proj0 (V0 : HilbertOperator (Qubits N)) +
-        HilbertOperator.tensor Gate.proj1 (V1 : HilbertOperator (Qubits N)) := by
+    (V0 V1 : UnitaryOperator (Qubits N)) :
+    (phaseControlledDirectSumOperator V0 V1 : HilbertOperator (Qubits (1 + N))) =
+      HilbertOperator.tensor HilbertOperator.proj0 (V0 : HilbertOperator (Qubits N)) +
+        HilbertOperator.tensor HilbertOperator.proj1 (V1 : HilbertOperator (Qubits N)) := by
   have hV0 :
       (V0 : HilbertOperator (Qubits N)).conjTranspose *
           (V0 : HilbertOperator (Qubits N)) =
         1 := by
     rw [← Matrix.star_eq_conjTranspose]
-    exact Matrix.mem_unitaryGroup_iff'.mp V0.unitary
+    exact Matrix.mem_unitaryGroup_iff'.mp V0.property
   have htail :
-      (((V1 * V0.conjTranspose : Gate (Qubits N)) : HilbertOperator (Qubits N)) *
-          (V0 : HilbertOperator (Qubits N))) =
+      ((phaseRelativeOperator V0 V1 : HilbertOperator (Qubits N)) *
+        (V0 : HilbertOperator (Qubits N))) =
         (V1 : HilbertOperator (Qubits N)) := by
     calc
-      (((V1 * V0.conjTranspose : Gate (Qubits N)) : HilbertOperator (Qubits N)) *
+      ((phaseRelativeOperator V0 V1 : HilbertOperator (Qubits N)) *
           (V0 : HilbertOperator (Qubits N))) =
           ((V1 : HilbertOperator (Qubits N)) *
             (V0 : HilbertOperator (Qubits N)).conjTranspose) *
-              (V0 : HilbertOperator (Qubits N)) := rfl
+              (V0 : HilbertOperator (Qubits N)) := by
+          simp [phaseRelativeOperator, UnitaryOperator.coe_dagger]
       _ = (V1 : HilbertOperator (Qubits N)) *
             ((V0 : HilbertOperator (Qubits N)).conjTranspose *
               (V0 : HilbertOperator (Qubits N))) := by
           rw [Matrix.mul_assoc]
       _ = (V1 : HilbertOperator (Qubits N)) := by
           rw [hV0, Matrix.mul_one]
-  change Gate.controlledOp (V1 * V0.conjTranspose) *
+  change (UnitaryOperator.controlledQubits (phaseRelativeOperator V0 V1) :
+      HilbertOperator (Qubits (1 + N))) *
       HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
         (V0 : HilbertOperator (Qubits N)) =
-      HilbertOperator.tensor Gate.proj0 (V0 : HilbertOperator (Qubits N)) +
-        HilbertOperator.tensor Gate.proj1 (V1 : HilbertOperator (Qubits N))
-  rw [Gate.controlledOp, Matrix.add_mul,
+      HilbertOperator.tensor HilbertOperator.proj0 (V0 : HilbertOperator (Qubits N)) +
+        HilbertOperator.tensor HilbertOperator.proj1 (V1 : HilbertOperator (Qubits N))
+  rw [UnitaryOperator.coe_controlledQubits, Matrix.add_mul,
     HilbertOperator.tensor_mul_tensor, HilbertOperator.tensor_mul_tensor,
     Matrix.one_mul, htail]
   simp
@@ -83,61 +198,106 @@ theorem phaseControlledDirectSum_eq_tensor_decomp {N : Nat}
 two branches.  This is the elementary controlled-sum calculation used by the
 real-polynomial projected-QSVT corollary [GSLW19, BlockHam.tex:851-887]. -/
 theorem phasePlusBlock_phaseControlledDirectSum {N : Nat}
-    (V0 V1 : Gate (Qubits N)) :
-    phasePlusBlock (phaseControlledDirectSum V0 V1) =
+    (V0 V1 : UnitaryOperator (Qubits N)) :
+    phasePlusBlock (phaseControlledDirectSumOperator V0 V1) =
       ((1 / 2 : ℂ) • (V0 : HilbertOperator (Qubits N)) +
         (1 / 2 : ℂ) • (V1 : HilbertOperator (Qubits N))) := by
   ext i j
   rw [phasePlusBlock]
   rw [phaseControlledDirectSum_eq_tensor_decomp]
-  simp only [HilbertOperator.tensor_apply, Gate.proj0, Gate.proj1,
-    Nat.reducePow, PureState.ketPlus_apply, Matrix.add_apply,
+  simp only [HilbertOperator.tensor_apply, HilbertOperator.proj0, HilbertOperator.proj1,
+    Nat.reducePow, NormalizedVector.ketPlus_apply, Matrix.add_apply,
     Equiv.symm_apply_apply, Fin.sum_univ_two, Fin.isValue, one_div,
     Matrix.of_apply, Matrix.cons_val_zero, Matrix.cons_val_one,
     Matrix.smul_apply, smul_eq_mul, one_mul, zero_mul, add_zero, zero_add]
-  have hstar : (starRingEnd ℂ) PureState.invSqrt2 = PureState.invSqrt2 :=
-    PureState.star_invSqrt2
+  have hstar : (starRingEnd ℂ) NormalizedVector.invSqrt2 = NormalizedVector.invSqrt2 :=
+    NormalizedVector.star_invSqrt2
   rw [hstar]
   simp only [mul_zero, zero_mul, add_zero, zero_add]
-  rw [show PureState.invSqrt2 * (V0 : HilbertOperator (Qubits N)) i j *
-        PureState.invSqrt2 = (2 : ℂ)⁻¹ * (V0 : HilbertOperator (Qubits N)) i j by
-      rw [mul_assoc, PureState.invSqrt2_mul_mul_invSqrt2]]
-  rw [show PureState.invSqrt2 * (V1 : HilbertOperator (Qubits N)) i j *
-        PureState.invSqrt2 = (2 : ℂ)⁻¹ * (V1 : HilbertOperator (Qubits N)) i j by
-      rw [mul_assoc, PureState.invSqrt2_mul_mul_invSqrt2]]
+  rw [show NormalizedVector.invSqrt2 * (V0 : HilbertOperator (Qubits N)) i j *
+        NormalizedVector.invSqrt2 = (2 : ℂ)⁻¹ * (V0 : HilbertOperator (Qubits N)) i j by
+      rw [mul_assoc, NormalizedVector.invSqrt2_mul_mul_invSqrt2]]
+  rw [show NormalizedVector.invSqrt2 * (V1 : HilbertOperator (Qubits N)) i j *
+        NormalizedVector.invSqrt2 = (2 : ℂ)⁻¹ * (V1 : HilbertOperator (Qubits N)) i j by
+      rw [mul_assoc, NormalizedVector.invSqrt2_mul_mul_invSqrt2]]
 
 /-- Hadamard-wrapped controlled direct sums average the top-left projected
 blocks of two branches.  This is the circuit-level linear-combination gadget
 used when the arbitrary-parity Hermitian QSVT theorem combines real-polynomial
 branches [GSLW19, BlockHam.tex:1948-1952]. -/
 noncomputable def averageProjectedBlockGate {a n : Nat}
-    (V0 V1 : Gate (Qubits (a + n))) : Gate (Qubits ((1 + a) + n)) :=
+    (V0 V1 : UnitaryCircuit (Qubits (a + n))) : UnitaryCircuit (Qubits ((1 + a) + n)) :=
   reassociatePhaseAncillaGate (m := a) (n := n)
     (phaseHadamardWrapper (phaseControlledDirectSum V0 V1))
 
-/-- The projected block of `averageProjectedBlockGate` is the arithmetic
-average of the projected blocks of its two branches. -/
-theorem projectedBlock_averageProjectedBlockGate {a n : Nat}
-    (V0 V1 : Gate (Qubits (a + n))) :
+/-- Metadata-free selector average of two branch unitary operators. -/
+noncomputable def averageProjectedBlockOperator {a n : Nat}
+    (V0 V1 : UnitaryOperator (Qubits (a + n))) :
+    UnitaryOperator (Qubits ((1 + a) + n)) :=
+  reassociatePhaseAncillaOperator (m := a) (n := n)
+    (phaseHadamardWrapperOperator (phaseControlledDirectSumOperator V0 V1))
+
+@[simp]
+theorem averageProjectedBlockGate_matrix {a n : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits (a + n))) :
+    (averageProjectedBlockGate (a := a) (n := n) V0 V1).matrix =
+      averageProjectedBlockOperator (a := a) (n := n) V0.matrix V1.matrix := by
+  simp [averageProjectedBlockGate, averageProjectedBlockOperator]
+
+/-- The projected block of the metadata-free selector average is the
+arithmetic average of the projected branch blocks. -/
+theorem projectedBlock_averageProjectedBlockOperator {a n : Nat}
+    (V0 V1 : UnitaryOperator (Qubits (a + n))) :
     projectedBlock (1 + a) n
-        (averageProjectedBlockGate (a := a) (n := n) V0 V1 :
+        (averageProjectedBlockOperator (a := a) (n := n) V0 V1 :
           HilbertOperator (Qubits ((1 + a) + n))) =
       (1 / 2 : ℂ) • projectedBlock a n (V0 : HilbertOperator (Qubits (a + n))) +
-        (1 / 2 : ℂ) • projectedBlock a n (V1 : HilbertOperator (Qubits (a + n))) := by
-  unfold averageProjectedBlockGate
+        (1 / 2 : ℂ) • projectedBlock a n
+          (V1 : HilbertOperator (Qubits (a + n))) := by
+  unfold averageProjectedBlockOperator
   rw [projectedBlock_reassociatedPhaseHadamardWrapper,
     phasePlusBlock_phaseControlledDirectSum]
   ext i j
   simp [projectedBlock, Matrix.add_apply, Matrix.smul_apply]
 
+/-- Averaging two intrinsic unitary block encodings yields the averaged target. -/
+theorem exactBlockEncoding_averageProjectedBlockOperator {a n : Nat}
+    {V0 V1 : UnitaryOperator (Qubits (a + n))}
+    {A0 A1 : HilbertOperator (Qubits n)}
+    (h0 : ExactBlockEncoding a n V0 A0)
+    (h1 : ExactBlockEncoding a n V1 A1) :
+    ExactBlockEncoding (1 + a) n
+      (averageProjectedBlockOperator (a := a) (n := n) V0 V1)
+      ((1 / 2 : ℂ) • A0 + (1 / 2 : ℂ) • A1) := by
+  constructor
+  intro i j
+  have hblock := projectedBlock_averageProjectedBlockOperator (a := a) (n := n) V0 V1
+  have hentry := congrFun (congrFun hblock i) j
+  simpa [h0.projected_block_eq, h1.projected_block_eq,
+    Matrix.add_apply, Matrix.smul_apply] using hentry
+
+/-- The projected block of `averageProjectedBlockGate` is the arithmetic
+average of the projected blocks of its two branches. -/
+theorem projectedBlock_averageProjectedBlockGate {a n : Nat}
+    (V0 V1 : UnitaryCircuit (Qubits (a + n))) :
+    projectedBlock (1 + a) n
+        (averageProjectedBlockGate (a := a) (n := n) V0 V1 :
+          HilbertOperator (Qubits ((1 + a) + n))) =
+      (1 / 2 : ℂ) • projectedBlock a n (V0 : HilbertOperator (Qubits (a + n))) +
+        (1 / 2 : ℂ) • projectedBlock a n (V1 : HilbertOperator (Qubits (a + n))) := by
+  rw [averageProjectedBlockGate_matrix]
+  exact projectedBlock_averageProjectedBlockOperator (a := a) (n := n)
+    V0.matrix V1.matrix
+
 /-- Averaging two exact block encodings yields an exact block encoding of the
 averaged target, with the averaging ancilla accounted for in the carrier. -/
 theorem exactBlockEncoding_averageProjectedBlockGate {a n : Nat}
-    {V0 V1 : Gate (Qubits (a + n))}
+    {V0 V1 : UnitaryCircuit (Qubits (a + n))}
     {A0 A1 : HilbertOperator (Qubits n)}
-    (h0 : ExactBlockEncoding a n V0 A0) (h1 : ExactBlockEncoding a n V1 A1) :
+    (h0 : ExactBlockEncoding a n V0.matrix A0)
+    (h1 : ExactBlockEncoding a n V1.matrix A1) :
     ExactBlockEncoding (1 + a) n
-      (averageProjectedBlockGate (a := a) (n := n) V0 V1)
+      (averageProjectedBlockGate (a := a) (n := n) V0 V1).matrix
       ((1 / 2 : ℂ) • A0 + (1 / 2 : ℂ) • A1) := by
   constructor
   intro i j
@@ -151,16 +311,64 @@ theorem exactBlockEncoding_averageProjectedBlockGate {a n : Nat}
 bookkeeping gadget is useful for auditing the four real/imaginary even/odd
 branches in the arbitrary-parity QSVT note [GSLW19, BlockHam.tex:1936-1952]. -/
 noncomputable def fourWayAverageProjectedBlockGate {a n : Nat}
-    (V00 V01 V10 V11 : Gate (Qubits (a + n))) :
-    Gate (Qubits ((1 + (1 + a)) + n)) :=
+    (V00 V01 V10 V11 : UnitaryCircuit (Qubits (a + n))) :
+    UnitaryCircuit (Qubits ((1 + (1 + a)) + n)) :=
   averageProjectedBlockGate (a := 1 + a) (n := n)
     (averageProjectedBlockGate (a := a) (n := n) V00 V01)
     (averageProjectedBlockGate (a := a) (n := n) V10 V11)
 
+/-- Metadata-free selector average of four branch unitary operators. -/
+noncomputable def fourWayAverageProjectedBlockOperator {a n : Nat}
+    (V00 V01 V10 V11 : UnitaryOperator (Qubits (a + n))) :
+    UnitaryOperator (Qubits ((1 + (1 + a)) + n)) :=
+  averageProjectedBlockOperator (a := 1 + a) (n := n)
+    (averageProjectedBlockOperator (a := a) (n := n) V00 V01)
+    (averageProjectedBlockOperator (a := a) (n := n) V10 V11)
+
+theorem projectedBlock_fourWayAverageProjectedBlockOperator {a n : Nat}
+    (V00 V01 V10 V11 : UnitaryOperator (Qubits (a + n))) :
+    projectedBlock (1 + (1 + a)) n
+        (fourWayAverageProjectedBlockOperator (a := a) (n := n) V00 V01 V10 V11 :
+          HilbertOperator (Qubits ((1 + (1 + a)) + n))) =
+      (1 / 4 : ℂ) • projectedBlock a n (V00 : HilbertOperator (Qubits (a + n))) +
+        (1 / 4 : ℂ) • projectedBlock a n (V01 : HilbertOperator (Qubits (a + n))) +
+      ((1 / 4 : ℂ) • projectedBlock a n (V10 : HilbertOperator (Qubits (a + n))) +
+        (1 / 4 : ℂ) • projectedBlock a n
+          (V11 : HilbertOperator (Qubits (a + n)))) := by
+  unfold fourWayAverageProjectedBlockOperator
+  rw [projectedBlock_averageProjectedBlockOperator,
+    projectedBlock_averageProjectedBlockOperator,
+    projectedBlock_averageProjectedBlockOperator]
+  ext i j
+  simp [Matrix.add_apply, Matrix.smul_apply]
+  ring
+
+/-- Averaging four intrinsic unitary block encodings yields their four-way mean. -/
+theorem exactBlockEncoding_fourWayAverageProjectedBlockOperator {a n : Nat}
+    {V00 V01 V10 V11 : UnitaryOperator (Qubits (a + n))}
+    {A00 A01 A10 A11 : HilbertOperator (Qubits n)}
+    (h00 : ExactBlockEncoding a n V00 A00)
+    (h01 : ExactBlockEncoding a n V01 A01)
+    (h10 : ExactBlockEncoding a n V10 A10)
+    (h11 : ExactBlockEncoding a n V11 A11) :
+    ExactBlockEncoding (1 + (1 + a)) n
+      (fourWayAverageProjectedBlockOperator (a := a) (n := n) V00 V01 V10 V11)
+      ((1 / 4 : ℂ) • A00 + (1 / 4 : ℂ) • A01 +
+        ((1 / 4 : ℂ) • A10 + (1 / 4 : ℂ) • A11)) := by
+  constructor
+  intro i j
+  have hblock :=
+    projectedBlock_fourWayAverageProjectedBlockOperator (a := a) (n := n)
+      V00 V01 V10 V11
+  have hentry := congrFun (congrFun hblock i) j
+  simpa [h00.projected_block_eq, h01.projected_block_eq,
+    h10.projected_block_eq, h11.projected_block_eq,
+    Matrix.add_apply, Matrix.smul_apply] using hentry
+
 /-- The projected block of `fourWayAverageProjectedBlockGate` is the arithmetic
 mean of the four branch projected blocks. -/
 theorem projectedBlock_fourWayAverageProjectedBlockGate {a n : Nat}
-    (V00 V01 V10 V11 : Gate (Qubits (a + n))) :
+    (V00 V01 V10 V11 : UnitaryCircuit (Qubits (a + n))) :
     projectedBlock (1 + (1 + a)) n
         (fourWayAverageProjectedBlockGate (a := a) (n := n) V00 V01 V10 V11 :
           HilbertOperator (Qubits ((1 + (1 + a)) + n))) =
@@ -179,14 +387,14 @@ theorem projectedBlock_fourWayAverageProjectedBlockGate {a n : Nat}
 /-- Averaging four exact block encodings yields an exact block encoding of the
 four-way averaged target, with both selector ancillas accounted for. -/
 theorem exactBlockEncoding_fourWayAverageProjectedBlockGate {a n : Nat}
-    {V00 V01 V10 V11 : Gate (Qubits (a + n))}
+    {V00 V01 V10 V11 : UnitaryCircuit (Qubits (a + n))}
     {A00 A01 A10 A11 : HilbertOperator (Qubits n)}
-    (h00 : ExactBlockEncoding a n V00 A00)
-    (h01 : ExactBlockEncoding a n V01 A01)
-    (h10 : ExactBlockEncoding a n V10 A10)
-    (h11 : ExactBlockEncoding a n V11 A11) :
+    (h00 : ExactBlockEncoding a n V00.matrix A00)
+    (h01 : ExactBlockEncoding a n V01.matrix A01)
+    (h10 : ExactBlockEncoding a n V10.matrix A10)
+    (h11 : ExactBlockEncoding a n V11.matrix A11) :
     ExactBlockEncoding (1 + (1 + a)) n
-      (fourWayAverageProjectedBlockGate (a := a) (n := n) V00 V01 V10 V11)
+      (fourWayAverageProjectedBlockGate (a := a) (n := n) V00 V01 V10 V11).matrix
       ((1 / 4 : ℂ) • A00 + (1 / 4 : ℂ) • A01 +
         ((1 / 4 : ℂ) • A10 + (1 / 4 : ℂ) • A11)) := by
   constructor
@@ -202,43 +410,17 @@ theorem exactBlockEncoding_fourWayAverageProjectedBlockGate {a n : Nat}
   simpa [h00block, h01block, h10block, h11block, Matrix.add_apply,
     Matrix.smul_apply] using hentry
 
-/-- Multiply a gate by a global phase.  This keeps the same mathematical
-carrier circuit while scaling every projected block by the same phase. -/
-noncomputable def phaseScaledGate {R : Register} (ζ : ℂ) (hζ : Complex.normSq ζ = 1)
-    (V : Gate R) : Gate R :=
-  Gate.ofUnitary (ζ • (V : HilbertOperator R)) (by
-    rw [Matrix.mem_unitaryGroup_iff, star_smul, smul_mul_smul_comm]
-    have hphase : ζ * starRingEnd ℂ ζ = 1 := by
-      rw [Complex.mul_conj]
-      exact_mod_cast hζ
-    have hphase' : ζ * star ζ = 1 := by
-      simpa using hphase
-    rw [hphase', one_smul]
-    exact Matrix.mem_unitaryGroup_iff.mp V.unitary)
-
-@[simp]
-theorem phaseScaledGate_coe {R : Register} (ζ : ℂ) (hζ : Complex.normSq ζ = 1)
-    (V : Gate R) :
-    ((phaseScaledGate ζ hζ V : Gate R) : HilbertOperator R) =
-      ζ • (V : HilbertOperator R) := rfl
-
-/-- Global phase scaling of a carrier scales the encoded target by the same
-phase. -/
-theorem exactBlockEncoding_phaseScaledGate {a n : Nat} {V : Gate (Qubits (a + n))}
-    {A : HilbertOperator (Qubits n)} (ζ : ℂ) (hζ : Complex.normSq ζ = 1)
-    (h : ExactBlockEncoding a n V A) :
-    ExactBlockEncoding a n (phaseScaledGate ζ hζ V) (ζ • A) := by
+/-- Global phase scaling of an intrinsic carrier scales its projected block by
+the same phase. -/
+theorem exactBlockEncoding_phaseScaledOperator {a n : Nat}
+    {V : UnitaryOperator (Qubits (a + n))}
+    {A : HilbertOperator (Qubits n)} (ζ : ℂ)
+    (hζ : Complex.normSq ζ = 1) (h : ExactBlockEncoding a n V A) :
+    ExactBlockEncoding a n (phaseScaledOperator ζ hζ V) (ζ • A) := by
   constructor
   intro i j
-  simp [projectedBlock, Matrix.smul_apply, h.block_entry i j]
-
-/-- Dilation of a scalar system operator, with `m` source ancillas retained in
-the block-encoding carrier.  This is used for constant branches in the
-arbitrary-parity split. -/
-noncomputable def scalarDilationWithSourceAncillas {m n : Nat}
-    (c : ℂ) (hc : Complex.normSq c ≤ 1) : Gate (Qubits ((1 + m) + n)) :=
-  reassociatePhaseAncillaGate (m := m) (n := n)
-    (diagonalScalarDilationGate (n := m + n) (fun _ => c) (fun _ => hc))
+  simp [projectedBlock, phaseScaledOperatorRaw, Matrix.smul_apply,
+    h.block_entry i j]
 
 /-- The scalar dilation with retained source ancillas exactly block-encodes
 `c • I` on the system register. -/
@@ -250,16 +432,13 @@ theorem exactBlockEncoding_scalarDilationWithSourceAncillas {m n : Nat}
   constructor
   intro i j
   unfold scalarDilationWithSourceAncillas
-  rw [show
-      projectedBlock (1 + m) n
-          (reassociatePhaseAncillaGate (m := m) (n := n)
-            (diagonalScalarDilationGate (n := m + n) (fun _ => c) (fun _ => hc)) :
-            HilbertOperator (Qubits ((1 + m) + n))) =
-        projectedBlock m n
-          (ancillaBlock 0 0
-            (diagonalScalarDilationGate (n := m + n) (fun _ => c) (fun _ => hc))) by
-      rw [projectedBlock_reassociatePhaseAncillaGate]]
-  unfold projectedBlock ancillaBlock diagonalScalarDilationGate
+  change projectedBlock (1 + m) n
+      (reassociatePhaseAncillaOperator (m := m) (n := n)
+        (diagonalScalarDilationOperator (n := m + n) (fun _ => c) (fun _ => hc)) :
+        HilbertOperator (Qubits ((1 + m) + n))) i j =
+    (c • (1 : HilbertOperator (Qubits n))) i j
+  rw [projectedBlock_reassociatePhaseAncillaOperator]
+  unfold projectedBlock ancillaBlock diagonalScalarDilationOperator
     diagonalScalarDilationQubitOp diagonalScalarDilationOp
   simp [Matrix.smul_apply]
   by_cases hij : i = j
@@ -287,13 +466,10 @@ theorem exactBlockEncoding_constantPolynomialWithSourceAncillas {m n : Nat}
 theorem complex_normSq_I : Complex.normSq Complex.I = 1 := by
   simp [Complex.normSq]
 
-/-- Four branch encodings for the real/imaginary and even/odd pieces of `P`
-combine into a normalization-four encoding of `P(A)`.  This is the block
-encoding form of the source's complex-polynomial note following
-`thm:arbParity` [GSLW19, BlockHam.tex:1936-1952]. -/
-theorem exactBlockEncoding_complexFourPartAverageProjectedBlockGate {a n : Nat}
+/-- Intrinsic-unitary four-branch construction for a complex polynomial. -/
+theorem exactBlockEncoding_complexFourPartAverageProjectedBlockOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
-    {VReEven VReOdd VImEven VImOdd : Gate (Qubits (a + n))}
+    {VReEven VReOdd VImEven VImOdd : UnitaryOperator (Qubits (a + n))}
     (hReEven : ExactBlockEncoding a n VReEven
       (polynomialOperator
         (realPolynomialToComplex
@@ -311,28 +487,17 @@ theorem exactBlockEncoding_complexFourPartAverageProjectedBlockGate {a n : Nat}
         (realPolynomialToComplex
           (realPolynomialOddPart (complexPolynomialImagPart P))) A)) :
     ExactBlockEncoding (1 + (1 + a)) n
-      (fourWayAverageProjectedBlockGate (a := a) (n := n)
+      (fourWayAverageProjectedBlockOperator (a := a) (n := n)
         VReEven VReOdd
-        (phaseScaledGate Complex.I complex_normSq_I VImEven)
-        (phaseScaledGate Complex.I complex_normSq_I VImOdd))
+        (phaseScaledOperator Complex.I complex_normSq_I VImEven)
+        (phaseScaledOperator Complex.I complex_normSq_I VImOdd))
       ((1 / 4 : ℂ) • polynomialOperator P A) := by
-  have hImEvenScaled :
-      ExactBlockEncoding a n
-        (phaseScaledGate Complex.I complex_normSq_I VImEven)
-        (Complex.I • polynomialOperator
-          (realPolynomialToComplex
-            (realPolynomialEvenPart (complexPolynomialImagPart P))) A) := by
-    exact exactBlockEncoding_phaseScaledGate Complex.I complex_normSq_I hImEven
-  have hImOddScaled :
-      ExactBlockEncoding a n
-        (phaseScaledGate Complex.I complex_normSq_I VImOdd)
-        (Complex.I • polynomialOperator
-          (realPolynomialToComplex
-            (realPolynomialOddPart (complexPolynomialImagPart P))) A) := by
-    exact exactBlockEncoding_phaseScaledGate Complex.I complex_normSq_I hImOdd
-  have hAvg :=
-    exactBlockEncoding_fourWayAverageProjectedBlockGate
-      (a := a) (n := n) hReEven hReOdd hImEvenScaled hImOddScaled
+  have hImEvenScaled := exactBlockEncoding_phaseScaledOperator
+    Complex.I complex_normSq_I hImEven
+  have hImOddScaled := exactBlockEncoding_phaseScaledOperator
+    Complex.I complex_normSq_I hImOdd
+  have hAvg := exactBlockEncoding_fourWayAverageProjectedBlockOperator
+    (a := a) (n := n) hReEven hReOdd hImEvenScaled hImOddScaled
   have htarget :
       (1 / 4 : ℂ) • polynomialOperator
           (realPolynomialToComplex
@@ -352,13 +517,10 @@ theorem exactBlockEncoding_complexFourPartAverageProjectedBlockGate {a n : Nat}
   intro i j
   exact (hAvg.block_entry i j).trans (congrFun (congrFun htarget i) j)
 
-/-- If two branches encode the doubled even and odd parts of a real polynomial,
-their selector average encodes the original polynomial.  This is the
-block-encoding form of the real arbitrary-parity split in `thm:arbParity`
-[GSLW19, BlockHam.tex:1936-1951]. -/
-theorem exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockGate {a n : Nat}
+/-- Intrinsic-unitary version of the real even/odd selector average. -/
+theorem exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
     (PRe : Polynomial ℝ) (A : HilbertOperator (Qubits n))
-    {VEven VOdd : Gate (Qubits (a + n))}
+    {VEven VOdd : UnitaryOperator (Qubits (a + n))}
     (hEven : ExactBlockEncoding a n VEven
       (polynomialOperator
         (realPolynomialToComplex ((2 : ℝ) • realPolynomialEvenPart PRe)) A))
@@ -366,124 +528,148 @@ theorem exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockGate {a n : Nat
       (polynomialOperator
         (realPolynomialToComplex ((2 : ℝ) • realPolynomialOddPart PRe)) A)) :
     ExactBlockEncoding (1 + a) n
-      (averageProjectedBlockGate (a := a) (n := n) VEven VOdd)
+      (averageProjectedBlockOperator (a := a) (n := n) VEven VOdd)
       (polynomialOperator (realPolynomialToComplex PRe) A) := by
-  have hAvg :=
-    exactBlockEncoding_averageProjectedBlockGate (a := a) (n := n) hEven hOdd
-  have htarget :=
-    polynomialOperator_real_evenOdd_double_average_recompose PRe A
+  have hAvg := exactBlockEncoding_averageProjectedBlockOperator
+    (a := a) (n := n) hEven hOdd
+  have htarget := polynomialOperator_real_evenOdd_double_average_recompose PRe A
   constructor
   intro i j
   exact (hAvg.block_entry i j).trans (congrFun (congrFun htarget i) j)
 
-/-- If two branches encode the doubled even and odd complex coefficient parts,
-their selector average encodes the original complex polynomial.  This is the
-two-branch interface needed for the source-style complex arbitrary-parity QSVT
-construction without adding a third selector ancilla. -/
-theorem exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockGate {a n : Nat}
+/-- Intrinsic-unitary version of the complex even/odd selector average. -/
+theorem exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
-    {VEven VOdd : Gate (Qubits (a + n))}
+    {VEven VOdd : UnitaryOperator (Qubits (a + n))}
     (hEven : ExactBlockEncoding a n VEven
       (polynomialOperator ((2 : ℂ) • complexPolynomialEvenPart P) A))
     (hOdd : ExactBlockEncoding a n VOdd
       (polynomialOperator ((2 : ℂ) • complexPolynomialOddPart P) A)) :
     ExactBlockEncoding (1 + a) n
-      (averageProjectedBlockGate (a := a) (n := n) VEven VOdd)
+      (averageProjectedBlockOperator (a := a) (n := n) VEven VOdd)
       (polynomialOperator P A) := by
-  have hAvg :=
-    exactBlockEncoding_averageProjectedBlockGate (a := a) (n := n) hEven hOdd
-  have htarget :=
-    polynomialOperator_complex_evenOdd_double_average_recompose P A
+  have hAvg := exactBlockEncoding_averageProjectedBlockOperator
+    (a := a) (n := n) hEven hOdd
+  have htarget := polynomialOperator_complex_evenOdd_double_average_recompose P A
   constructor
   intro i j
   exact (hAvg.block_entry i j).trans (congrFun (congrFun htarget i) j)
 
-@[simp]
 theorem ancillaBlock_tensor {N : Nat} (a b : Fin (2 ^ 1))
-    (G : Gate (Qubits 1)) (K : Gate (Qubits N)) :
-    ancillaBlock a b (Gate.tensor G K) =
+    (G : UnitaryCircuit (Qubits 1)) (K : UnitaryCircuit (Qubits N))
+    (layout : PhysicalLayout.DisjointMerge G.physical_idx K.physical_idx) :
+    ancillaBlock a b (UnitaryCircuit.tensorQubits G K layout) =
       G a b • (K : HilbertOperator (Qubits N)) := by
   ext i j
-  simp [ancillaBlock, Gate.tensor_apply, smul_eq_mul]
+  simp [ancillaBlock, UnitaryCircuit.tensorQubits_matrix, smul_eq_mul]
 
-@[simp]
 theorem ancillaBlock_liftSignalGate {N : Nat} (a b : Fin (2 ^ 1))
-    (U : Gate (Qubits N)) :
+    (U : UnitaryCircuit (Qubits N)) :
     ancillaBlock a b (liftSignalGate U) =
       (if a = b then (U : HilbertOperator (Qubits N)) else 0) := by
   ext i j
-  by_cases h : a = b <;>
-    simp [liftSignalGate, ancillaBlock_tensor, h]
+  rw [liftSignalGate_matrix]
+  change (HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
+      (U : HilbertOperator (Qubits N)))
+      (prodEquiv (a, i)) (prodEquiv (b, j)) =
+    (if a = b then (U : HilbertOperator (Qubits N)) else 0) i j
+  rw [HilbertOperator.tensor_apply]
+  have hai := Equiv.symm_apply_apply (prodEquiv (m := 1) (n := N)) (a, i)
+  have hbj := Equiv.symm_apply_apply (prodEquiv (m := 1) (n := N)) (b, j)
+  rw [hai, hbj]
+  by_cases h : a = b <;> simp [Matrix.one_apply, h]
 
-@[simp]
-theorem phasePlusBlock_liftSignalGate {N : Nat} (U : Gate (Qubits N)) :
-    phasePlusBlock (liftSignalGate U) = (U : HilbertOperator (Qubits N)) := by
+theorem phasePlusBlock_liftSignalGate {N : Nat} (U : UnitaryCircuit (Qubits N)) :
+    phasePlusBlock (liftSignalGate U).matrix = (U : HilbertOperator (Qubits N)) := by
   rw [phasePlusBlock_eq_sum_ancillaBlock]
   ext i j
-  simp only [Nat.reducePow, PureState.ketPlus_apply, ancillaBlock_liftSignalGate, smul_ite,
+  simp only [Nat.reducePow, NormalizedVector.ketPlus_apply, ancillaBlock_liftSignalGate, smul_ite,
     smul_zero, Finset.sum_ite_eq, Finset.mem_univ, ↓reduceIte, Finset.sum_const,
     Finset.card_univ, Fintype.card_fin, Matrix.smul_apply, smul_eq_mul, nsmul_eq_mul,
     Nat.cast_ofNat]
-  have hstar : (starRingEnd ℂ) PureState.invSqrt2 = PureState.invSqrt2 := by
-    exact PureState.star_invSqrt2
+  have hstar : (starRingEnd ℂ) NormalizedVector.invSqrt2 = NormalizedVector.invSqrt2 := by
+    exact NormalizedVector.star_invSqrt2
   rw [hstar]
-  change 2 * (PureState.invSqrt2 *
-      (PureState.invSqrt2 * ((U : HilbertOperator (Qubits N)) i j))) =
+  change 2 * (NormalizedVector.invSqrt2 *
+      (NormalizedVector.invSqrt2 * ((U : HilbertOperator (Qubits N)) i j))) =
     (U : HilbertOperator (Qubits N)) i j
   calc
-    2 * (PureState.invSqrt2 *
-        (PureState.invSqrt2 * ((U : HilbertOperator (Qubits N)) i j))) =
-        (2 * (PureState.invSqrt2 * PureState.invSqrt2)) *
+    2 * (NormalizedVector.invSqrt2 *
+        (NormalizedVector.invSqrt2 * ((U : HilbertOperator (Qubits N)) i j))) =
+        (2 * (NormalizedVector.invSqrt2 * NormalizedVector.invSqrt2)) *
           ((U : HilbertOperator (Qubits N)) i j) := by
       ring
     _ = (U : HilbertOperator (Qubits N)) i j := by
-      rw [PureState.invSqrt2_mul_self]
+      rw [NormalizedVector.invSqrt2_mul_self]
       ring
 
-@[simp]
 theorem projectedPhasePlusBlock_liftSignalGate {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N)) :
-    projectedPhasePlusBlock left right (liftSignalGate U) =
-      projectedUnitaryBlock left right U := by
-  simp [projectedPhasePlusBlock, projectedUnitaryBlock]
+    (left right : OrthogonalProjector N) (U : UnitaryCircuit (Qubits N)) :
+    projectedPhasePlusBlock left right (liftSignalGate U).matrix =
+      projectedUnitaryBlock left right U.matrix := by
+  unfold projectedPhasePlusBlock projectedUnitaryBlock
+  rw [phasePlusBlock_liftSignalGate]
+
+/-! ### Role-specific projected-QSVT implementation leaves -/
+
+/-- Lift one role-specific projector-controlled NOT into the circuit tree. -/
+def qsvtProjectorControlledNot {N : Nat} (side : QSVTProjectorSide)
+    (P : OrthogonalProjector N) : UnitaryCircuit (Qubits (1 + N)) :=
+  UnitaryCircuit.ofLeaf (qsvtProjectorControlledNotLeaf side P) (by
+    cases side <;>
+    simpa only [qsvtProjectorControlledNotLeaf,
+      qsvtLeftProjectorControlledNotLeafAt,
+      qsvtRightProjectorControlledNotLeafAt,
+      UnitaryLeaf.subroutine_systemIdx] using
+        (List.nodup_range : (List.range (1 + N)).Nodup))
+
+/-- One projected-QSVT phase primitive. -/
+noncomputable def qsvtControlledPhase (φ : ℝ) : UnitaryCircuit (Qubits 1) :=
+  UnitaryCircuit.ofLeaf (qsvtControlledPhaseLeaf φ) (by
+    simp [qsvtControlledPhaseLeaf, qsvtControlledPhaseLeafAt])
+
+@[simp]
+theorem qsvtControlledPhase_matrix (φ : ℝ) :
+    (qsvtControlledPhase φ).matrix = rotZStdOp φ := rfl
 
 /-- One projector-controlled phase block, implemented by the source's
 `C_P NOT (R_Z(phi) ⊗ I) C_P NOT` pattern. -/
-noncomputable def projectorPhaseGate {N : Nat} (phi : ℝ) (P : OrthogonalProjector N) :
-    Gate (Qubits (1 + N)) :=
-  OrthogonalProjector.controlledNot P
-    * Gate.tensor (rotZStd phi) (1 : Gate (Qubits N))
-    * OrthogonalProjector.controlledNot P
+noncomputable def projectorPhaseGate {N : Nat} (φ : ℝ) (P : OrthogonalProjector N)
+    (side : QSVTProjectorSide := .left) :
+    UnitaryCircuit (Qubits (1 + N)) := by
+  let controlledNot := qsvtProjectorControlledNot side P
+  let identity := UnitaryCircuit.identity (Qubits N) (List.range' 1 N) List.nodup_range'
+  let rotation := UnitaryCircuit.tensorQubits (qsvtControlledPhase φ) identity
+    { left_nodup := (qsvtControlledPhase φ).physical_idx_nodup
+      right_nodup := identity.physical_idx_nodup
+      disjoint := by
+        change [0].Disjoint (List.range' 1 N)
+        simp }
+  exact UnitaryCircuit.seq (UnitaryCircuit.seq controlledNot rotation) controlledNot
 
-@[simp]
-theorem X_mul_rotZStd_mul_X (phi : ℝ) :
-    Gate.X * rotZStd phi * Gate.X = rotZStd (-phi) := by
+theorem X_mul_rotZStd_mul_X (φ : ℝ) :
+    (Gate.X : HilbertOperator (Qubits 1)) *
+        (rotZStd φ : HilbertOperator (Qubits 1)) *
+        (Gate.X : HilbertOperator (Qubits 1)) =
+      (rotZStd (-φ) : HilbertOperator (Qubits 1)) := by
+  rw [Gate.X_matrix, coe_rotZStd, coe_rotZStd]
   ext i j
-  change ((Gate.X : HilbertOperator (Qubits 1)) *
-      (rotZStd phi : HilbertOperator (Qubits 1)) *
-      (Gate.X : HilbertOperator (Qubits 1))) i j =
-    (rotZStd (-phi) : HilbertOperator (Qubits 1)) i j
   fin_cases i <;> fin_cases j <;>
-    simp [Gate.X, Gate.ofPerm, rotZStd, rotZ, rotZOp, Matrix.mul_apply] <;>
+    simp [Gate.XOp, UnitaryOperator.ofPerm, rotZStdOp, rotZOp, Matrix.mul_apply] <;>
     congr 1 <;> ring
 
-@[simp]
-theorem X_mul_rotZStd_mul_X_op (phi : ℝ) :
+theorem X_mul_rotZStd_mul_X_op (φ : ℝ) :
     (Gate.X : HilbertOperator (Qubits 1)) *
-        ((rotZStd phi : Gate (Qubits 1)) : HilbertOperator (Qubits 1)) *
+        (rotZStd φ : HilbertOperator (Qubits 1)) *
         (Gate.X : HilbertOperator (Qubits 1)) =
-      ((rotZStd (-phi) : Gate (Qubits 1)) : HilbertOperator (Qubits 1)) := by
-  change ((Gate.X * rotZStd phi * Gate.X : Gate (Qubits 1)) :
-      HilbertOperator (Qubits 1)) =
-    ((rotZStd (-phi) : Gate (Qubits 1)) : HilbertOperator (Qubits 1))
-  rw [X_mul_rotZStd_mul_X]
+      (rotZStd (-φ) : HilbertOperator (Qubits 1)) :=
+  X_mul_rotZStd_mul_X φ
 
-@[simp]
-theorem X_mul_rotZStd_mul_X_op_assoc (phi : ℝ) :
+theorem X_mul_rotZStd_mul_X_op_assoc (φ : ℝ) :
     (Gate.X : HilbertOperator (Qubits 1)) *
-        (((rotZStd phi : Gate (Qubits 1)) : HilbertOperator (Qubits 1)) *
+        ((rotZStd φ : HilbertOperator (Qubits 1)) *
           (Gate.X : HilbertOperator (Qubits 1))) =
-      ((rotZStd (-phi) : Gate (Qubits 1)) : HilbertOperator (Qubits 1)) := by
+      (rotZStd (-φ) : HilbertOperator (Qubits 1)) := by
   rw [← Matrix.mul_assoc, X_mul_rotZStd_mul_X_op]
 
 /-- Matrix decomposition of the projector-controlled phase gadget.  On the
@@ -492,19 +678,35 @@ complement branch it leaves the ancilla rotation unchanged.  This is the
 gate-level semantic content of the source implementation
 `C_P NOT (R_Z(phi) ⊗ I) C_P NOT` [GSLW19, BlockHam.tex:883-887]. -/
 theorem projectorPhaseGate_eq_tensor_decomp {N : Nat}
-    (phi : ℝ) (P : OrthogonalProjector N) :
-    (projectorPhaseGate phi P : HilbertOperator (Qubits (1 + N))) =
-      HilbertOperator.tensor (rotZStd (-phi) : HilbertOperator (Qubits 1)) P.op +
-        HilbertOperator.tensor (rotZStd phi : HilbertOperator (Qubits 1))
+    (φ : ℝ) (P : OrthogonalProjector N)
+    (side : QSVTProjectorSide := .left) :
+    (projectorPhaseGate φ P side : HilbertOperator (Qubits (1 + N))) =
+      HilbertOperator.tensor (rotZStd (-φ) : HilbertOperator (Qubits 1)) P.op +
+        HilbertOperator.tensor (rotZStd φ : HilbertOperator (Qubits 1))
           (OrthogonalProjector.complement P) := by
-  change OrthogonalProjector.controlledNotOp P *
-      HilbertOperator.tensor (rotZStd phi : HilbertOperator (Qubits 1))
+  rw [show (projectorPhaseGate φ P side).matrix =
+      OrthogonalProjector.controlledNotOp P *
+        UnitaryOperator.tensor (rotZStd φ).matrix 1 *
+        OrthogonalProjector.controlledNotOp P by
+    apply Subtype.ext
+    cases side <;>
+      simp [projectorPhaseGate, qsvtProjectorControlledNot,
+        qsvtProjectorControlledNotLeaf,
+        qsvtLeftProjectorControlledNotLeafAt,
+        qsvtRightProjectorControlledNotLeafAt,
+        OrthogonalProjector.controlledNotOp, Matrix.mul_assoc]]
+  change
+    (HilbertOperator.tensor (Gate.X : HilbertOperator (Qubits 1)) P.op +
+        HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
+          (OrthogonalProjector.complement P)) *
+      HilbertOperator.tensor (rotZStd φ : HilbertOperator (Qubits 1))
         (1 : HilbertOperator (Qubits N)) *
-      OrthogonalProjector.controlledNotOp P =
-      HilbertOperator.tensor (rotZStd (-phi) : HilbertOperator (Qubits 1)) P.op +
-        HilbertOperator.tensor (rotZStd phi : HilbertOperator (Qubits 1))
+      (HilbertOperator.tensor (Gate.X : HilbertOperator (Qubits 1)) P.op +
+        HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
+          (OrthogonalProjector.complement P)) =
+      HilbertOperator.tensor (rotZStd (-φ) : HilbertOperator (Qubits 1)) P.op +
+        HilbertOperator.tensor (rotZStd φ : HilbertOperator (Qubits 1))
           (OrthogonalProjector.complement P)
-  rw [OrthogonalProjector.controlledNotOp]
   rw [Matrix.add_mul]
   rw [Matrix.mul_add]
   rw [Matrix.add_mul, Matrix.add_mul]
@@ -517,17 +719,14 @@ theorem projectorPhaseGate_eq_tensor_decomp {N : Nat}
   simp [HilbertOperator.tensor_zero]
 
 @[simp]
-theorem projectorPhaseGate_zero {N : Nat} (P : OrthogonalProjector N) :
-    projectorPhaseGate 0 P = 1 := by
-  apply Gate.ext
-  intro i j
-  change (projectorPhaseGate 0 P : HilbertOperator (Qubits (1 + N))) i j =
-    (1 : HilbertOperator (Qubits (1 + N))) i j
-  rw [show (projectorPhaseGate 0 P : HilbertOperator (Qubits (1 + N))) =
+theorem projectorPhaseGate_zero {N : Nat} (P : OrthogonalProjector N)
+    (side : QSVTProjectorSide := .left) :
+    (projectorPhaseGate 0 P side : HilbertOperator (Qubits (1 + N))) = 1 := by
+  rw [show (projectorPhaseGate 0 P side : HilbertOperator (Qubits (1 + N))) =
       HilbertOperator.tensor (1 : HilbertOperator (Qubits 1)) P.op +
         HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
           (OrthogonalProjector.complement P) by
-    simpa using projectorPhaseGate_eq_tensor_decomp (N := N) 0 P]
+    simpa using projectorPhaseGate_eq_tensor_decomp (N := N) 0 P side]
   rw [← HilbertOperator.tensor_add]
   have hsum : P.op + OrthogonalProjector.complement P =
       (1 : HilbertOperator (Qubits N)) := by
@@ -536,20 +735,20 @@ theorem projectorPhaseGate_zero {N : Nat} (P : OrthogonalProjector N) :
 
 @[simp]
 theorem ancillaBlock_projectorPhaseGate {N : Nat} (a b : Fin (2 ^ 1))
-    (phi : ℝ) (P : OrthogonalProjector N) :
-    ancillaBlock a b (projectorPhaseGate phi P) =
-      ((rotZStd (-phi) : Gate (Qubits 1)) a b) • P.op +
-        ((rotZStd phi : Gate (Qubits 1)) a b) • OrthogonalProjector.complement P := by
+    (φ : ℝ) (P : OrthogonalProjector N) :
+    ancillaBlock a b (projectorPhaseGate φ P) =
+      (rotZStd (-φ) a b) • P.op +
+        (rotZStd φ a b) • OrthogonalProjector.complement P := by
   ext i j
-  change (projectorPhaseGate phi P : HilbertOperator (Qubits (1 + N)))
+  change (projectorPhaseGate φ P : HilbertOperator (Qubits (1 + N)))
       (prodEquiv (a, i)) (prodEquiv (b, j)) =
-    (((rotZStd (-phi) : Gate (Qubits 1)) a b) • P.op +
-      ((rotZStd phi : Gate (Qubits 1)) a b) • OrthogonalProjector.complement P) i j
-  rw [show (projectorPhaseGate phi P : HilbertOperator (Qubits (1 + N))) =
-      HilbertOperator.tensor (rotZStd (-phi) : HilbertOperator (Qubits 1)) P.op +
-        HilbertOperator.tensor (rotZStd phi : HilbertOperator (Qubits 1))
+    ((rotZStd (-φ) a b) • P.op +
+      (rotZStd φ a b) • OrthogonalProjector.complement P) i j
+  rw [show (projectorPhaseGate φ P : HilbertOperator (Qubits (1 + N))) =
+      HilbertOperator.tensor (rotZStd (-φ) : HilbertOperator (Qubits 1)) P.op +
+        HilbertOperator.tensor (rotZStd φ : HilbertOperator (Qubits 1))
           (OrthogonalProjector.complement P) by
-    exact projectorPhaseGate_eq_tensor_decomp phi P]
+    exact projectorPhaseGate_eq_tensor_decomp φ P]
   simp [HilbertOperator.tensor_apply, smul_eq_mul]
 
 /-- Select the alternating projector used at slot `k`. -/
@@ -560,7 +759,7 @@ def alternatingProjector {N : Nat} (left right : OrthogonalProjector N) (k : ℕ
 /-- The parity-selected output projector `Π_L` in the projected-QSVT statement
 [GSLW19, BlockHam.tex:883-887].  We use `left = \widetilde Π` and
 `right = Π`, so odd `L` selects `left` and even `L` selects `right`. -/
-def projectedOutputProjector {N : Nat} (left right : OrthogonalProjector N) (L : ℕ) :
+public def projectedOutputProjector {N : Nat} (left right : OrthogonalProjector N) (L : ℕ) :
     OrthogonalProjector N :=
   if L % 2 = 0 then right else left
 
@@ -593,107 +792,47 @@ def sourcePhaseProjector {N : Nat} (left right : OrthogonalProjector N) (remaini
 /-- Source-aligned signal oracle in the projected-QSVT phase sequence:
 odd remaining length uses `U`, even remaining length uses `U†`
 [GSLW19, BlockHam.tex:738-745]. -/
-def sourcePhaseSignal {N : Nat} (U : Gate (Qubits N)) (remaining : ℕ) :
-    Gate (Qubits N) :=
-  if remaining % 2 = 0 then U.conjTranspose else U
+def sourcePhaseSignal {N : Nat} (U : UnitaryOperator (Qubits N)) (remaining : ℕ) :
+    UnitaryCircuit (Qubits N) :=
+  if remaining % 2 = 0 then (qsvtOracleGate U).dagger else qsvtOracleGate U
 
 /-- Lift the source-aligned signal oracle for one projected-QSVT phase slot. -/
-def liftSourcePhaseSignal {N : Nat} (U : Gate (Qubits N)) (remaining : ℕ) :
-    Gate (Qubits (1 + N)) :=
+def liftSourcePhaseSignal {N : Nat} (U : UnitaryOperator (Qubits N)) (remaining : ℕ) :
+    UnitaryCircuit (Qubits (1 + N)) :=
   liftSignalGate (sourcePhaseSignal U remaining)
 
 /-! ### Source-level alternating phase modulation on the signal space -/
-
-/-- The source projector phase `e^{iφ(2P-I)}` on the signal space, written using
-the projector/complement decomposition.  The projector-controlled-NOT gadget
-below is an implementation of this signal-space unitary, not the mathematical
-definition of `U_Φ` itself [GSLW19, BlockHam.tex:738-745,883-887]. -/
-noncomputable def projectorPhaseOp {N : Nat} (phi : ℝ) (P : OrthogonalProjector N) :
-    HilbertOperator (Qubits N) :=
-  Complex.exp (phi * Complex.I) • P.op +
-    Complex.exp (-(phi * Complex.I)) • OrthogonalProjector.complement P
-
-theorem projectorPhaseOp_conjTranspose {N : Nat} (phi : ℝ) (P : OrthogonalProjector N) :
-    (projectorPhaseOp phi P).conjTranspose =
-      Complex.exp (-(phi * Complex.I)) • P.op +
-        Complex.exp (phi * Complex.I) • OrthogonalProjector.complement P := by
-  rw [projectorPhaseOp, Matrix.conjTranspose_add, Matrix.conjTranspose_smul,
-    Matrix.conjTranspose_smul, P.selfAdjoint,
-    OrthogonalProjector.complement_conjTranspose]
-  simp [conj_exp_I, conj_exp_neg_I]
-
-theorem projectorPhaseOp_mem_unitaryGroup {N : Nat} (phi : ℝ)
-    (P : OrthogonalProjector N) :
-    projectorPhaseOp phi P ∈ Matrix.unitaryGroup (Fin (2 ^ N)) ℂ := by
-  rw [Matrix.mem_unitaryGroup_iff, Matrix.star_eq_conjTranspose,
-    projectorPhaseOp_conjTranspose]
-  rw [projectorPhaseOp, Matrix.add_mul, Matrix.mul_add, Matrix.mul_add]
-  simp only [Matrix.smul_mul, Matrix.mul_smul, smul_smul]
-  rw [P.idempotent, OrthogonalProjector.mul_complement,
-    OrthogonalProjector.complement_mul, OrthogonalProjector.complement_sq]
-  simp only [exp_neg_I_mul_exp_I, one_smul, smul_zero, add_zero,
-    exp_I_mul_exp_neg_I, zero_add]
-  have hsum : P.op + OrthogonalProjector.complement P = (1 : HilbertOperator (Qubits N)) := by
-    simp [OrthogonalProjector.complement]
-  exact hsum
-
-/-- On the projector image, the source projector phase acts by `e^{i phi}`.
-This is the one-dimensional block of the phase operators in `lemma:singInvDec`
-[GSLW19, BlockHam.tex:672-714]. -/
-theorem projectorPhaseOp_applyVec_of_projector_applyVec_eq_self {N : Nat}
-    (phi : ℝ) (P : OrthogonalProjector N) {psi : StateVector (Qubits N)}
-    (hpsi : HilbertOperator.applyVec P.op psi = psi) :
-    HilbertOperator.applyVec (projectorPhaseOp phi P) psi =
-      Complex.exp (phi * Complex.I) • psi := by
-  rw [projectorPhaseOp, HilbertOperator.add_applyVec,
-    HilbertOperator.smul_applyVec, HilbertOperator.smul_applyVec, hpsi,
-    OrthogonalProjector.complement_applyVec_eq_zero_of_projector_applyVec_eq_self P hpsi]
-  simp
-
-/-- On the projector complement, the source projector phase acts by `e^{-i phi}`.
-This is the complementary block of the phase operators in `lemma:singInvDec`
-[GSLW19, BlockHam.tex:672-714]. -/
-theorem projectorPhaseOp_applyVec_of_complement_applyVec_eq_self {N : Nat}
-    (phi : ℝ) (P : OrthogonalProjector N) {psi : StateVector (Qubits N)}
-    (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement P) psi = psi) :
-    HilbertOperator.applyVec (projectorPhaseOp phi P) psi =
-      Complex.exp (-(phi * Complex.I)) • psi := by
-  rw [projectorPhaseOp, HilbertOperator.add_applyVec,
-    HilbertOperator.smul_applyVec, HilbertOperator.smul_applyVec,
-    OrthogonalProjector.projector_applyVec_eq_zero_of_complement_applyVec_eq_self P hpsi,
-    hpsi]
-  simp
 
 /-- Left-complement vector candidate for the `0 < σ < 1` source sector in
 `lemma:singInvDec`.  It is the normalized component of `U |v⟩` outside
 `img \widetildeΠ` [GSLW19, BlockHam.tex:655-716]. -/
 noncomputable def projectedUnitaryBlockLeftPerpCandidate {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
-    StateVector (Qubits N) :=
+    HilbertVector (Qubits N) :=
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
-  ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)⁻¹ •
+  ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)⁻¹ •
     HilbertOperator.applyVec (OrthogonalProjector.complement left) (U.applyVec pair.rightVec)
 
 /-- Right-complement vector candidate for the `0 < σ < 1` source sector in
 `lemma:singInvDec`.  It is the normalized component of `U† |w⟩` outside
 `img Π` [GSLW19, BlockHam.tex:655-716]. -/
 noncomputable def projectedUnitaryBlockRightPerpCandidate {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
-    StateVector (Qubits N) :=
+    HilbertVector (Qubits N) :=
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
-  ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)⁻¹ •
+  ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)⁻¹ •
     HilbertOperator.applyVec (OrthogonalProjector.complement right)
-      (U.conjTranspose.applyVec pair.leftVec)
+      (U.dagger.applyVec pair.leftVec)
 
 /-- The left-complement candidate is supported on `I - \widetildeΠ`. -/
 theorem projectedUnitaryBlockLeftPerpCandidate_support {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -707,7 +846,7 @@ theorem projectedUnitaryBlockLeftPerpCandidate_support {N : Nat}
 
 /-- The right-complement candidate is supported on `I - Π`. -/
 theorem projectedUnitaryBlockRightPerpCandidate_support {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -719,53 +858,167 @@ theorem projectedUnitaryBlockRightPerpCandidate_support {N : Nat}
   congr 1
   rw [← HilbertOperator.mul_applyVec, OrthogonalProjector.complement_sq]
 
-/-- In the `0 < σ < 1` sector, `U |v⟩` splits into its projected singular
-component and normalized left-complement component [GSLW19,
-BlockHam.tex:655-716]. -/
-theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+/-- Under the genuine two-dimensional-sector hypothesis, the left-complement
+candidate is a unit vector. -/
+theorem projectedUnitaryBlockLeftPerpCandidate_norm_eq_one {N : Nat}
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma_lt_one :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1) :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    ‖projectedUnitaryBlockLeftPerpCandidate left right U i hlambda‖ = 1 := by
+  let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
+  have hprojected :
+      HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+        (pair.σ : ℂ) • pair.leftVec := by
+    have hA := pair.A_right
+    change HilbertOperator.applyVec
+        (left.op * (U : HilbertOperator (Qubits N)) * right.op) pair.rightVec =
+      (pair.σ : ℂ) • pair.leftVec at hA
+    rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec,
+      pair.right_support] at hA
+    exact hA
+  have hprojected_norm :
+      ‖HilbertOperator.applyVec left.op (U.applyVec pair.rightVec)‖ = pair.σ := by
+    rw [hprojected, norm_smul, pair.leftVec.norm_eq_one, mul_one,
+      Complex.norm_of_nonneg (le_of_lt pair.sigma_pos)]
+  have hcomplement_norm :
+      ‖HilbertOperator.applyVec (OrthogonalProjector.complement left)
+          (U.applyVec pair.rightVec)‖ = Real.sqrt (1 - pair.σ ^ 2) := by
+    simpa using orthogonalProjector_complement_norm_eq_sqrt left
+      (U.apply pair.rightVec) pair.σ hprojected_norm
+  have hsqrt_ne : Real.sqrt (1 - pair.σ ^ 2) ≠ 0 :=
+    Real.sqrt_ne_zero'.mpr (by nlinarith [pair.sigma_pos, hsigma_lt_one])
+  change
+    ‖((Real.sqrt (1 - pair.σ ^ 2) : ℂ)⁻¹ •
+      HilbertOperator.applyVec (OrthogonalProjector.complement left)
+        (U.applyVec pair.rightVec))‖ = 1
+  rw [norm_smul, hcomplement_norm, norm_inv,
+    Complex.norm_of_nonneg (Real.sqrt_nonneg _), inv_mul_cancel₀ hsqrt_ne]
+
+/-- Under the genuine two-dimensional-sector hypothesis, the right-complement
+candidate is a unit vector. -/
+theorem projectedUnitaryBlockRightPerpCandidate_norm_eq_one {N : Nat}
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
+    (hsigma_lt_one :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    ‖projectedUnitaryBlockRightPerpCandidate left right U i hlambda‖ = 1 := by
+  let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
+  have hprojected :
+      HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+        (pair.σ : ℂ) • pair.rightVec := by
+    have hA := pair.Astar_left
+    change HilbertOperator.applyVec
+        (Matrix.conjTranspose
+          (left.op * (U : HilbertOperator (Qubits N)) * right.op)) pair.leftVec =
+      (pair.σ : ℂ) • pair.rightVec at hA
+    rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul,
+      left.selfAdjoint, right.selfAdjoint, HilbertOperator.mul_applyVec,
+      HilbertOperator.mul_applyVec, pair.left_support] at hA
+    exact hA
+  have hprojected_norm :
+      ‖HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec)‖ = pair.σ := by
+    rw [hprojected, norm_smul, pair.rightVec.norm_eq_one, mul_one,
+      Complex.norm_of_nonneg (le_of_lt pair.sigma_pos)]
+  have hcomplement_norm :
+      ‖HilbertOperator.applyVec (OrthogonalProjector.complement right)
+          (U.dagger.applyVec pair.leftVec)‖ = Real.sqrt (1 - pair.σ ^ 2) := by
+    simpa using orthogonalProjector_complement_norm_eq_sqrt right
+      (U.dagger.apply pair.leftVec) pair.σ hprojected_norm
+  have hsqrt_ne : Real.sqrt (1 - pair.σ ^ 2) ≠ 0 :=
+    Real.sqrt_ne_zero'.mpr (by nlinarith [pair.sigma_pos, hsigma_lt_one])
+  change
+    ‖((Real.sqrt (1 - pair.σ ^ 2) : ℂ)⁻¹ •
+      HilbertOperator.applyVec (OrthogonalProjector.complement right)
+        (U.dagger.applyVec pair.leftVec))‖ = 1
+  rw [norm_smul, hcomplement_norm, norm_inv,
+    Complex.norm_of_nonneg (Real.sqrt_nonneg _), inv_mul_cancel₀ hsqrt_ne]
+
+/-- Certified left-complement vector for a genuine two-dimensional singular
+sector. -/
+noncomputable def projectedUnitaryBlockLeftPerp {N : Nat}
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
+    (hsigma_lt_one :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    NormalizedVector (Qubits N) :=
+  NormalizedVector.ofVector
+    (projectedUnitaryBlockLeftPerpCandidate left right U i hlambda)
+    (projectedUnitaryBlockLeftPerpCandidate_norm_eq_one
+      left right U i hlambda hsigma_lt_one)
+
+/-- Certified right-complement vector for a genuine two-dimensional singular
+sector. -/
+noncomputable def projectedUnitaryBlockRightPerp {N : Nat}
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
+    (hsigma_lt_one :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    NormalizedVector (Qubits N) :=
+  NormalizedVector.ofVector
+    (projectedUnitaryBlockRightPerpCandidate left right U i hlambda)
+    (projectedUnitaryBlockRightPerpCandidate_norm_eq_one
+      left right U i hlambda hsigma_lt_one)
+
+/-- In the `0 < σ < 1` sector, `U |v⟩` splits into its projected singular
+component and normalized left-complement component [GSLW19,
+BlockHam.tex:655-716]. -/
+theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
+    (hsigma_lt_one :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
     U.applyVec (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).rightVec =
-      ((projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma : ℂ) •
+      ((projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ : ℂ) •
         (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).leftVec +
       ((Real.sqrt
           (1 -
             (projectedUnitaryBlockNonzeroSingularPair
-              left right U i hlambda).sigma ^ 2) :
+              left right U i hlambda).σ ^ 2) :
           ℝ) : ℂ) •
         projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
   have hproj :
       HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
-        (pair.sigma : ℂ) • pair.leftVec := by
+        (pair.σ : ℂ) • pair.leftVec := by
     have hA := pair.A_right
     change HilbertOperator.applyVec
         (left.op * (U : HilbertOperator (Qubits N)) * right.op) pair.rightVec =
-      (pair.sigma : ℂ) • pair.leftVec at hA
+      (pair.σ : ℂ) • pair.leftVec at hA
     rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec,
       pair.right_support] at hA
-    simpa [Gate.applyVec] using hA
+    change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+      (pair.σ : ℂ) • pair.leftVec at hA
+    change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+      (pair.σ : ℂ) • pair.leftVec
+    exact hA
   have hgamma_ne :
-      ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) ≠ 0 := by
-    have hpos : 0 < 1 - pair.sigma ^ 2 := by
+      ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) ≠ 0 := by
+    have hpos : 0 < 1 - pair.σ ^ 2 := by
       nlinarith [pair.sigma_pos, hsigma_lt_one]
     exact_mod_cast (Real.sqrt_pos.2 hpos).ne'
   have hcomp :
       HilbertOperator.applyVec (OrthogonalProjector.complement left) (U.applyVec pair.rightVec) =
-        ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) •
+        ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) •
           projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
-    let gamma : ℂ := ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)
-    have hgamma_ne' : gamma ≠ 0 := hgamma_ne
+    let γ : ℂ := ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)
+    have hgamma_ne' : γ ≠ 0 := hgamma_ne
     unfold projectedUnitaryBlockLeftPerpCandidate
     dsimp [pair]
     change
       HilbertOperator.applyVec (OrthogonalProjector.complement left)
         (U.applyVec pair.rightVec) =
-      gamma • (gamma⁻¹ •
+      γ • (γ⁻¹ •
         HilbertOperator.applyVec (OrthogonalProjector.complement left) (U.applyVec pair.rightVec))
     rw [smul_smul, mul_inv_cancel₀ hgamma_ne']
     simp
@@ -783,8 +1036,8 @@ theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
           HilbertOperator.applyVec (OrthogonalProjector.complement left)
             (U.applyVec pair.rightVec) := by
       rw [HilbertOperator.add_applyVec]
-    _ = (pair.sigma : ℂ) • pair.leftVec +
-          ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) •
+    _ = (pair.σ : ℂ) • pair.leftVec +
+          ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) •
             projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
       rw [hproj, hcomp]
 
@@ -792,73 +1045,77 @@ theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
 component and normalized right-complement component [GSLW19,
 BlockHam.tex:655-716]. -/
 theorem projectedUnitaryBlock_Udag_leftVec_decomposition {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma_lt_one :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1) :
-    U.conjTranspose.applyVec
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    U.dagger.applyVec
         (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).leftVec =
-      ((projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma : ℂ) •
+      ((projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ : ℂ) •
         (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).rightVec +
       ((Real.sqrt
           (1 -
             (projectedUnitaryBlockNonzeroSingularPair
-              left right U i hlambda).sigma ^ 2) :
+              left right U i hlambda).σ ^ 2) :
           ℝ) : ℂ) •
         projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
   have hproj :
-      HilbertOperator.applyVec right.op (U.conjTranspose.applyVec pair.leftVec) =
-        (pair.sigma : ℂ) • pair.rightVec := by
+      HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+        (pair.σ : ℂ) • pair.rightVec := by
     have hA := pair.Astar_left
     change HilbertOperator.applyVec
         (Matrix.conjTranspose
           (left.op * (U : HilbertOperator (Qubits N)) * right.op)) pair.leftVec =
-      (pair.sigma : ℂ) • pair.rightVec at hA
+      (pair.σ : ℂ) • pair.rightVec at hA
     rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul,
       left.selfAdjoint, right.selfAdjoint, HilbertOperator.mul_applyVec,
       HilbertOperator.mul_applyVec, pair.left_support] at hA
-    simpa [Gate.applyVec] using hA
+    change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+      (pair.σ : ℂ) • pair.rightVec at hA
+    change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+      (pair.σ : ℂ) • pair.rightVec
+    exact hA
   have hgamma_ne :
-      ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) ≠ 0 := by
-    have hpos : 0 < 1 - pair.sigma ^ 2 := by
+      ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) ≠ 0 := by
+    have hpos : 0 < 1 - pair.σ ^ 2 := by
       nlinarith [pair.sigma_pos, hsigma_lt_one]
     exact_mod_cast (Real.sqrt_pos.2 hpos).ne'
   have hcomp :
       HilbertOperator.applyVec (OrthogonalProjector.complement right)
-          (U.conjTranspose.applyVec pair.leftVec) =
-        ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) •
+          (U.dagger.applyVec pair.leftVec) =
+        ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) •
           projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
-    let gamma : ℂ := ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)
-    have hgamma_ne' : gamma ≠ 0 := hgamma_ne
+    let γ : ℂ := ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)
+    have hgamma_ne' : γ ≠ 0 := hgamma_ne
     unfold projectedUnitaryBlockRightPerpCandidate
     dsimp [pair]
     change HilbertOperator.applyVec (OrthogonalProjector.complement right)
-        (U.conjTranspose.applyVec pair.leftVec) =
-      gamma • (gamma⁻¹ •
+        (U.dagger.applyVec pair.leftVec) =
+      γ • (γ⁻¹ •
         HilbertOperator.applyVec (OrthogonalProjector.complement right)
-          (U.conjTranspose.applyVec pair.leftVec))
+          (U.dagger.applyVec pair.leftVec))
     rw [smul_smul, mul_inv_cancel₀ hgamma_ne']
     simp
   have hsum : right.op + OrthogonalProjector.complement right =
       (1 : HilbertOperator (Qubits N)) := by
     simp [OrthogonalProjector.complement]
   calc
-    U.conjTranspose.applyVec pair.leftVec =
+    U.dagger.applyVec pair.leftVec =
         HilbertOperator.applyVec (1 : HilbertOperator (Qubits N))
-          (U.conjTranspose.applyVec pair.leftVec) := by
+          (U.dagger.applyVec pair.leftVec) := by
       rw [HilbertOperator.one_applyVec]
     _ = HilbertOperator.applyVec (right.op + OrthogonalProjector.complement right)
-          (U.conjTranspose.applyVec pair.leftVec) := by
+          (U.dagger.applyVec pair.leftVec) := by
       rw [hsum]
-    _ = HilbertOperator.applyVec right.op (U.conjTranspose.applyVec pair.leftVec) +
+    _ = HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) +
           HilbertOperator.applyVec (OrthogonalProjector.complement right)
-            (U.conjTranspose.applyVec pair.leftVec) := by
+            (U.dagger.applyVec pair.leftVec) := by
       rw [HilbertOperator.add_applyVec]
-    _ = (pair.sigma : ℂ) • pair.rightVec +
-          ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ) •
+    _ = (pair.σ : ℂ) • pair.rightVec +
+          ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ) •
             projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
       rw [hproj, hcomp]
 
@@ -866,106 +1123,113 @@ theorem projectedUnitaryBlock_Udag_leftVec_decomposition {N : Nat}
 second row of the source two-by-two singular block [GSLW19,
 BlockHam.tex:655-716]. -/
 theorem projectedUnitaryBlock_U_rightPerp_decomposition {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma_lt_one :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1) :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
     U.applyVec (projectedUnitaryBlockRightPerpCandidate left right U i hlambda) =
       ((Real.sqrt
           (1 -
             (projectedUnitaryBlockNonzeroSingularPair
-              left right U i hlambda).sigma ^ 2) :
+              left right U i hlambda).σ ^ 2) :
           ℝ) : ℂ) •
           (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).leftVec +
-        (-(projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma : ℂ) •
+        (-(projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ : ℂ) •
           projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
-  let gamma : ℂ := ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)
-  have hgamma_pos : 0 < 1 - pair.sigma ^ 2 := by
+  let γ : ℂ := ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)
+  have hgamma_pos : 0 < 1 - pair.σ ^ 2 := by
     nlinarith [pair.sigma_pos, hsigma_lt_one]
-  have hgamma_ne : gamma ≠ 0 := by
-    dsimp [gamma]
+  have hgamma_ne : γ ≠ 0 := by
+    dsimp [γ]
     exact_mod_cast (Real.sqrt_pos.2 hgamma_pos).ne'
-  have hgamma_sq : gamma * gamma = 1 - (pair.sigma : ℂ) ^ 2 := by
-    dsimp [gamma]
+  have hgamma_sq : γ * γ = 1 - (pair.σ : ℂ) ^ 2 := by
+    dsimp [γ]
     have hsqrt_sq :
-        Real.sqrt (1 - pair.sigma ^ 2) * Real.sqrt (1 - pair.sigma ^ 2) =
-          1 - pair.sigma ^ 2 := by
+        Real.sqrt (1 - pair.σ ^ 2) * Real.sqrt (1 - pair.σ ^ 2) =
+          1 - pair.σ ^ 2 := by
       rw [← pow_two, Real.sq_sqrt (le_of_lt hgamma_pos)]
     rw [← Complex.ofReal_mul, hsqrt_sq]
     norm_num [pow_two]
   have hproj :
-      HilbertOperator.applyVec right.op (U.conjTranspose.applyVec pair.leftVec) =
-        (pair.sigma : ℂ) • pair.rightVec := by
+      HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+        (pair.σ : ℂ) • pair.rightVec := by
     have hA := pair.Astar_left
     change HilbertOperator.applyVec
         (Matrix.conjTranspose
           (left.op * (U : HilbertOperator (Qubits N)) * right.op)) pair.leftVec =
-      (pair.sigma : ℂ) • pair.rightVec at hA
+      (pair.σ : ℂ) • pair.rightVec at hA
     rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul,
       left.selfAdjoint, right.selfAdjoint, HilbertOperator.mul_applyVec,
       HilbertOperator.mul_applyVec, pair.left_support] at hA
-    simpa [Gate.applyVec] using hA
+    change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+      (pair.σ : ℂ) • pair.rightVec at hA
+    change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+      (pair.σ : ℂ) • pair.rightVec
+    exact hA
   have hrightPerp :
       projectedUnitaryBlockRightPerpCandidate left right U i hlambda =
-        gamma⁻¹ •
-          (U.conjTranspose.applyVec pair.leftVec -
-            (pair.sigma : ℂ) • pair.rightVec) := by
+        γ⁻¹ •
+          (U.dagger.applyVec pair.leftVec -
+            (pair.σ : ℂ) • pair.rightVec) := by
     unfold projectedUnitaryBlockRightPerpCandidate
-    dsimp [pair, gamma]
+    dsimp [pair, γ]
     rw [orthogonalProjector_complement_applyVec, hproj]
     rfl
   have hUright :=
     projectedUnitaryBlock_U_rightVec_decomposition left right U i hlambda hsigma_lt_one
   have hUinv := gate_applyVec_conjTranspose_applyVec U pair.leftVec
-  have hscale_left : gamma⁻¹ * (1 - (pair.sigma : ℂ) ^ 2) = gamma := by
+  have hUinv_gate : U.applyVec (U.dagger.applyVec pair.leftVec) = pair.leftVec := by
+    exact hUinv
+  have hscale_left : γ⁻¹ * (1 - (pair.σ : ℂ) ^ 2) = γ := by
     rw [← hgamma_sq]
     rw [← mul_assoc, inv_mul_cancel₀ hgamma_ne, one_mul]
-  have hscale_perp : gamma⁻¹ * ((pair.sigma : ℂ) * gamma) = (pair.sigma : ℂ) := by
-    rw [mul_comm (pair.sigma : ℂ) gamma]
+  have hscale_perp : γ⁻¹ * ((pair.σ : ℂ) * γ) = (pair.σ : ℂ) := by
+    rw [mul_comm (pair.σ : ℂ) γ]
     rw [← mul_assoc, inv_mul_cancel₀ hgamma_ne, one_mul]
   have hcoeff_left :
-      gamma⁻¹ + -(gamma⁻¹ * ((pair.sigma : ℂ) * (pair.sigma : ℂ))) = gamma := by
+      γ⁻¹ + -(γ⁻¹ * ((pair.σ : ℂ) * (pair.σ : ℂ))) = γ := by
     have h := hscale_left
     rw [sub_eq_add_neg, mul_add, mul_one, mul_neg, pow_two] at h
     simpa [mul_assoc] using h
   have hcoeff_perp :
-      -(gamma⁻¹ * ((pair.sigma : ℂ) * gamma)) = -(pair.sigma : ℂ) := by
+      -(γ⁻¹ * ((pair.σ : ℂ) * γ)) = -(pair.σ : ℂ) := by
     rw [hscale_perp]
   calc
     U.applyVec (projectedUnitaryBlockRightPerpCandidate left right U i hlambda) =
-        U.applyVec (gamma⁻¹ •
-          (U.conjTranspose.applyVec pair.leftVec -
-            (pair.sigma : ℂ) • pair.rightVec)) := by
+        U.applyVec (γ⁻¹ •
+          (U.dagger.applyVec pair.leftVec -
+            (pair.σ : ℂ) • pair.rightVec)) := by
       rw [hrightPerp]
-    _ = gamma⁻¹ •
-          (U.applyVec (U.conjTranspose.applyVec pair.leftVec) -
-            (pair.sigma : ℂ) • U.applyVec pair.rightVec) := by
-      rw [Gate.applyVec_smul, Gate.applyVec_sub, Gate.applyVec_smul]
-    _ = gamma⁻¹ •
+    _ = γ⁻¹ •
+          (U.applyVec (U.dagger.applyVec pair.leftVec) -
+            (pair.σ : ℂ) • U.applyVec pair.rightVec) := by
+      rw [UnitaryOperator.applyVec_smul, UnitaryOperator.applyVec_sub,
+        UnitaryOperator.applyVec_smul]
+    _ = γ⁻¹ •
           (pair.leftVec -
-            (pair.sigma : ℂ) •
-              (((pair.sigma : ℂ) • pair.leftVec) +
-                gamma • projectedUnitaryBlockLeftPerpCandidate left right U i hlambda)) := by
-      rw [hUinv, hUright]
-    _ = gamma • pair.leftVec +
-          (-(pair.sigma : ℂ)) •
+            (pair.σ : ℂ) •
+              (((pair.σ : ℂ) • pair.leftVec) +
+                γ • projectedUnitaryBlockLeftPerpCandidate left right U i hlambda)) := by
+      rw [hUinv_gate, hUright]
+    _ = γ • pair.leftVec +
+          (-(pair.σ : ℂ)) •
             projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
       calc
-        gamma⁻¹ •
+        γ⁻¹ •
             (pair.leftVec -
-              (pair.sigma : ℂ) •
-                (((pair.sigma : ℂ) • pair.leftVec) +
-                  gamma • projectedUnitaryBlockLeftPerpCandidate left right U i hlambda)) =
-            (gamma⁻¹ + -(gamma⁻¹ * ((pair.sigma : ℂ) * (pair.sigma : ℂ)))) •
+              (pair.σ : ℂ) •
+                (((pair.σ : ℂ) • pair.leftVec) +
+                  γ • projectedUnitaryBlockLeftPerpCandidate left right U i hlambda)) =
+            (γ⁻¹ + -(γ⁻¹ * ((pair.σ : ℂ) * (pair.σ : ℂ)))) •
                 pair.leftVec +
-              (-(gamma⁻¹ * ((pair.sigma : ℂ) * gamma))) •
+              (-(γ⁻¹ * ((pair.σ : ℂ) * γ))) •
                 projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
           module
-        _ = gamma • pair.leftVec +
-              (-(pair.sigma : ℂ)) •
+        _ = γ • pair.leftVec +
+              (-(pair.σ : ℂ)) •
                 projectedUnitaryBlockLeftPerpCandidate left right U i hlambda := by
           rw [hcoeff_left, hcoeff_perp]
 
@@ -973,105 +1237,112 @@ theorem projectedUnitaryBlock_U_rightPerp_decomposition {N : Nat}
 second column of the source two-by-two singular block [GSLW19,
 BlockHam.tex:655-716]. -/
 theorem projectedUnitaryBlock_Udag_leftPerp_decomposition {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma_lt_one :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1) :
-    U.conjTranspose.applyVec (projectedUnitaryBlockLeftPerpCandidate left right U i hlambda) =
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
+    U.dagger.applyVec (projectedUnitaryBlockLeftPerpCandidate left right U i hlambda) =
       ((Real.sqrt
           (1 -
             (projectedUnitaryBlockNonzeroSingularPair
-              left right U i hlambda).sigma ^ 2) :
+              left right U i hlambda).σ ^ 2) :
           ℝ) : ℂ) •
           (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).rightVec +
-        (-(projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma : ℂ) •
+        (-(projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ : ℂ) •
           projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
-  let gamma : ℂ := ((Real.sqrt (1 - pair.sigma ^ 2) : ℝ) : ℂ)
-  have hgamma_pos : 0 < 1 - pair.sigma ^ 2 := by
+  let γ : ℂ := ((Real.sqrt (1 - pair.σ ^ 2) : ℝ) : ℂ)
+  have hgamma_pos : 0 < 1 - pair.σ ^ 2 := by
     nlinarith [pair.sigma_pos, hsigma_lt_one]
-  have hgamma_ne : gamma ≠ 0 := by
-    dsimp [gamma]
+  have hgamma_ne : γ ≠ 0 := by
+    dsimp [γ]
     exact_mod_cast (Real.sqrt_pos.2 hgamma_pos).ne'
-  have hgamma_sq : gamma * gamma = 1 - (pair.sigma : ℂ) ^ 2 := by
-    dsimp [gamma]
+  have hgamma_sq : γ * γ = 1 - (pair.σ : ℂ) ^ 2 := by
+    dsimp [γ]
     have hsqrt_sq :
-        Real.sqrt (1 - pair.sigma ^ 2) * Real.sqrt (1 - pair.sigma ^ 2) =
-          1 - pair.sigma ^ 2 := by
+        Real.sqrt (1 - pair.σ ^ 2) * Real.sqrt (1 - pair.σ ^ 2) =
+          1 - pair.σ ^ 2 := by
       rw [← pow_two, Real.sq_sqrt (le_of_lt hgamma_pos)]
     rw [← Complex.ofReal_mul, hsqrt_sq]
     norm_num [pow_two]
   have hproj :
       HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
-        (pair.sigma : ℂ) • pair.leftVec := by
+        (pair.σ : ℂ) • pair.leftVec := by
     have hA := pair.A_right
     change HilbertOperator.applyVec
         (left.op * (U : HilbertOperator (Qubits N)) * right.op) pair.rightVec =
-      (pair.sigma : ℂ) • pair.leftVec at hA
+      (pair.σ : ℂ) • pair.leftVec at hA
     rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec,
       pair.right_support] at hA
-    simpa [Gate.applyVec] using hA
+    change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+      (pair.σ : ℂ) • pair.leftVec at hA
+    change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+      (pair.σ : ℂ) • pair.leftVec
+    exact hA
   have hleftPerp :
       projectedUnitaryBlockLeftPerpCandidate left right U i hlambda =
-        gamma⁻¹ •
+        γ⁻¹ •
           (U.applyVec pair.rightVec -
-            (pair.sigma : ℂ) • pair.leftVec) := by
+            (pair.σ : ℂ) • pair.leftVec) := by
     unfold projectedUnitaryBlockLeftPerpCandidate
-    dsimp [pair, gamma]
+    dsimp [pair, γ]
     rw [orthogonalProjector_complement_applyVec, hproj]
     rfl
   have hUdagLeft :=
     projectedUnitaryBlock_Udag_leftVec_decomposition left right U i hlambda hsigma_lt_one
   have hUinv := gate_conjTranspose_applyVec_applyVec U pair.rightVec
-  have hscale_left : gamma⁻¹ * (1 - (pair.sigma : ℂ) ^ 2) = gamma := by
+  have hUinv_gate : U.dagger.applyVec (U.applyVec pair.rightVec) = pair.rightVec := by
+    exact hUinv
+  have hscale_left : γ⁻¹ * (1 - (pair.σ : ℂ) ^ 2) = γ := by
     rw [← hgamma_sq]
     rw [← mul_assoc, inv_mul_cancel₀ hgamma_ne, one_mul]
-  have hscale_perp : gamma⁻¹ * ((pair.sigma : ℂ) * gamma) = (pair.sigma : ℂ) := by
-    rw [mul_comm (pair.sigma : ℂ) gamma]
+  have hscale_perp : γ⁻¹ * ((pair.σ : ℂ) * γ) = (pair.σ : ℂ) := by
+    rw [mul_comm (pair.σ : ℂ) γ]
     rw [← mul_assoc, inv_mul_cancel₀ hgamma_ne, one_mul]
   have hcoeff_left :
-      gamma⁻¹ + -(gamma⁻¹ * ((pair.sigma : ℂ) * (pair.sigma : ℂ))) = gamma := by
+      γ⁻¹ + -(γ⁻¹ * ((pair.σ : ℂ) * (pair.σ : ℂ))) = γ := by
     have h := hscale_left
     rw [sub_eq_add_neg, mul_add, mul_one, mul_neg, pow_two] at h
     simpa [mul_assoc] using h
   have hcoeff_perp :
-      -(gamma⁻¹ * ((pair.sigma : ℂ) * gamma)) = -(pair.sigma : ℂ) := by
+      -(γ⁻¹ * ((pair.σ : ℂ) * γ)) = -(pair.σ : ℂ) := by
     rw [hscale_perp]
   calc
-    U.conjTranspose.applyVec
+    U.dagger.applyVec
         (projectedUnitaryBlockLeftPerpCandidate left right U i hlambda) =
-        U.conjTranspose.applyVec (gamma⁻¹ •
+        U.dagger.applyVec (γ⁻¹ •
           (U.applyVec pair.rightVec -
-            (pair.sigma : ℂ) • pair.leftVec)) := by
+            (pair.σ : ℂ) • pair.leftVec)) := by
       rw [hleftPerp]
-    _ = gamma⁻¹ •
-          (U.conjTranspose.applyVec (U.applyVec pair.rightVec) -
-            (pair.sigma : ℂ) • U.conjTranspose.applyVec pair.leftVec) := by
-      rw [Gate.applyVec_smul, Gate.applyVec_sub, Gate.applyVec_smul]
-    _ = gamma⁻¹ •
+    _ = γ⁻¹ •
+          (U.dagger.applyVec (U.applyVec pair.rightVec) -
+            (pair.σ : ℂ) • U.dagger.applyVec pair.leftVec) := by
+      rw [UnitaryOperator.applyVec_smul, UnitaryOperator.applyVec_sub,
+        UnitaryOperator.applyVec_smul]
+    _ = γ⁻¹ •
           (pair.rightVec -
-            (pair.sigma : ℂ) •
-              (((pair.sigma : ℂ) • pair.rightVec) +
-                gamma • projectedUnitaryBlockRightPerpCandidate left right U i hlambda)) := by
-      rw [hUinv, hUdagLeft]
-    _ = gamma • pair.rightVec +
-          (-(pair.sigma : ℂ)) •
+            (pair.σ : ℂ) •
+              (((pair.σ : ℂ) • pair.rightVec) +
+                γ • projectedUnitaryBlockRightPerpCandidate left right U i hlambda)) := by
+      rw [hUinv_gate, hUdagLeft]
+    _ = γ • pair.rightVec +
+          (-(pair.σ : ℂ)) •
             projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
       calc
-        gamma⁻¹ •
+        γ⁻¹ •
             (pair.rightVec -
-              (pair.sigma : ℂ) •
-                (((pair.sigma : ℂ) • pair.rightVec) +
-                  gamma • projectedUnitaryBlockRightPerpCandidate left right U i hlambda)) =
-            (gamma⁻¹ + -(gamma⁻¹ * ((pair.sigma : ℂ) * (pair.sigma : ℂ)))) •
+              (pair.σ : ℂ) •
+                (((pair.σ : ℂ) • pair.rightVec) +
+                  γ • projectedUnitaryBlockRightPerpCandidate left right U i hlambda)) =
+            (γ⁻¹ + -(γ⁻¹ * ((pair.σ : ℂ) * (pair.σ : ℂ)))) •
                 pair.rightVec +
-              (-(gamma⁻¹ * ((pair.sigma : ℂ) * gamma))) •
+              (-(γ⁻¹ * ((pair.σ : ℂ) * γ))) •
                 projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
           module
-        _ = gamma • pair.rightVec +
-              (-(pair.sigma : ℂ)) •
+        _ = γ • pair.rightVec +
+              (-(pair.σ : ℂ)) •
                 projectedUnitaryBlockRightPerpCandidate left right U i hlambda := by
           rw [hcoeff_left, hcoeff_perp]
 
@@ -1081,20 +1352,20 @@ right/left singular vectors together with their orthogonal complements so that
 `U` acts by the displayed two-by-two block [GSLW19, BlockHam.tex:583-613,
 655-735].  This structure records the local block data used before assembling
 the global direct-sum decomposition. -/
-structure SourceTwoDimensionalSingularBlock {N : Nat} (U : Gate (Qubits N))
+structure SourceTwoDimensionalSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Singular value for the `0 < sigma < 1` two-dimensional source sector. -/
-  sigma : ℝ
-  sigma_pos : 0 < sigma
-  sigma_lt_one : sigma < 1
+  σ : ℝ
+  sigma_pos : 0 < σ
+  sigma_lt_one : σ < 1
   /-- Right singular vector supported by the input projector. -/
-  rightVec : StateVector (Qubits N)
+  rightVec : NormalizedVector (Qubits N)
   /-- Left singular vector supported by the output projector. -/
-  leftVec : StateVector (Qubits N)
+  leftVec : NormalizedVector (Qubits N)
   /-- Right-complement vector paired with `leftVec` by `U†`. -/
-  rightPerp : StateVector (Qubits N)
+  rightPerp : NormalizedVector (Qubits N)
   /-- Left-complement vector paired with `rightVec` by `U`. -/
-  leftPerp : StateVector (Qubits N)
+  leftPerp : NormalizedVector (Qubits N)
   right_support :
     HilbertOperator.applyVec right.op rightVec = rightVec
   left_support :
@@ -1105,28 +1376,28 @@ structure SourceTwoDimensionalSingularBlock {N : Nat} (U : Gate (Qubits N))
     HilbertOperator.applyVec (OrthogonalProjector.complement left) leftPerp = leftPerp
   U_right :
     U.applyVec rightVec =
-      (sigma : ℂ) • leftVec + ((Real.sqrt (1 - sigma ^ 2) : ℝ) : ℂ) • leftPerp
+      (σ : ℂ) • leftVec + ((Real.sqrt (1 - σ ^ 2) : ℝ) : ℂ) • leftPerp
   U_rightPerp :
     U.applyVec rightPerp =
-      ((Real.sqrt (1 - sigma ^ 2) : ℝ) : ℂ) • leftVec + (-(sigma : ℂ)) • leftPerp
+      ((Real.sqrt (1 - σ ^ 2) : ℝ) : ℂ) • leftVec + (-(σ : ℂ)) • leftPerp
   Udag_left :
-    U.conjTranspose.applyVec leftVec =
-      (sigma : ℂ) • rightVec + ((Real.sqrt (1 - sigma ^ 2) : ℝ) : ℂ) • rightPerp
+    U.dagger.applyVec leftVec =
+      (σ : ℂ) • rightVec + ((Real.sqrt (1 - σ ^ 2) : ℝ) : ℂ) • rightPerp
   Udag_leftPerp :
-    U.conjTranspose.applyVec leftPerp =
-      ((Real.sqrt (1 - sigma ^ 2) : ℝ) : ℂ) • rightVec + (-(sigma : ℂ)) • rightPerp
+    U.dagger.applyVec leftPerp =
+      ((Real.sqrt (1 - σ ^ 2) : ℝ) : ℂ) • rightVec + (-(σ : ℂ)) • rightPerp
 
 namespace SourceTwoDimensionalSingularBlock
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec =
-      (block.sigma : Complex) • block.leftVec := by
+      (block.σ : Complex) • block.leftVec := by
   unfold projectedUnitaryBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support]
   change HilbertOperator.applyVec left.op (U.applyVec block.rightVec) =
-    (block.sigma : Complex) • block.leftVec
+    (block.σ : Complex) • block.leftVec
   rw [block.U_right]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.left_support,
@@ -1135,16 +1406,16 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
   simp
 
 theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
         block.leftVec =
-      (block.sigma : Complex) • block.rightVec := by
+      (block.σ : Complex) • block.rightVec := by
   unfold projectedUnitaryBlock
   rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul, left.selfAdjoint, right.selfAdjoint]
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.left_support]
-  change HilbertOperator.applyVec right.op (U.conjTranspose.applyVec block.leftVec) =
-    (block.sigma : Complex) • block.rightVec
+  change HilbertOperator.applyVec right.op (U.dagger.applyVec block.leftVec) =
+    (block.σ : Complex) • block.rightVec
   rw [block.Udag_left]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.right_support,
@@ -1155,151 +1426,151 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
 /-- On a nontrivial source two-dimensional singular block, the Gram operator has
 eigenvalue `σ^2` on the right singular vector [GSLW19, BlockHam.tex:655-735,
 747-764]. -/
-theorem gram_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec
         ((projectedUnitaryBlock left right U).conjTranspose *
           projectedUnitaryBlock left right U)
         block.rightVec =
-      ((block.sigma : Complex) ^ 2) • block.rightVec := by
+      ((block.σ : Complex) ^ 2) • block.rightVec := by
   rw [HilbertOperator.mul_applyVec, block.projectedUnitaryBlock_applyVec_rightVec,
     HilbertOperator.applyVec_smul, block.projectedUnitaryBlock_conjTranspose_applyVec_leftVec,
     smul_smul]
   ring_nf
 
 theorem evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
     HilbertOperator.applyVec
         (evenSingularValuePolynomial right P (projectedUnitaryBlock left right U))
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.rightVec := by
+      P.eval (block.σ : Complex) • block.rightVec := by
   unfold evenSingularValuePolynomial
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support,
     polynomialOperator_applyVec_of_eigenvector (evenSquareQuotient P)
       ((projectedUnitaryBlock left right U).conjTranspose *
         projectedUnitaryBlock left right U)
-      ((block.sigma : Complex) ^ 2) block.rightVec
+      ((block.σ : Complex) ^ 2) block.rightVec
       block.gram_applyVec_rightVec,
     evenSquareQuotient_eval_sq_of_hasParity hL hP,
     HilbertOperator.applyVec_smul, block.right_support]
 
 theorem oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
     HilbertOperator.applyVec
         (oddSingularValuePolynomial P (projectedUnitaryBlock left right U))
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.leftVec := by
+      P.eval (block.σ : Complex) • block.leftVec := by
   unfold oddSingularValuePolynomial
   rw [HilbertOperator.mul_applyVec,
     polynomialOperator_applyVec_of_eigenvector (oddSquareQuotient P)
       ((projectedUnitaryBlock left right U).conjTranspose *
         projectedUnitaryBlock left right U)
-      ((block.sigma : Complex) ^ 2) block.rightVec
+      ((block.σ : Complex) ^ 2) block.rightVec
       block.gram_applyVec_rightVec,
     HilbertOperator.applyVec_smul, block.projectedUnitaryBlock_applyVec_rightVec, smul_smul]
-  have hodd := oddSquareQuotient_eval_sq_of_hasParity hL hP (block.sigma : Complex)
+  have hodd := oddSquareQuotient_eval_sq_of_hasParity hL hP (block.σ : Complex)
   rw [← hodd]
   ring_nf
 
 theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
     HilbertOperator.applyVec
         (singularValuePolynomial right L P (projectedUnitaryBlock left right U))
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.rightVec := by
+      P.eval (block.σ : Complex) • block.rightVec := by
   unfold singularValuePolynomial
   simp [hL, evenSingularValuePolynomial_applyVec_rightVec block P hL hP]
 
 theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
     HilbertOperator.applyVec
         (singularValuePolynomial right L P (projectedUnitaryBlock left right U))
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.leftVec := by
+      P.eval (block.σ : Complex) • block.leftVec := by
   unfold singularValuePolynomial
   have hnot : ¬ L % 2 = 0 := by omega
   simp [hnot, oddSingularValuePolynomial_applyVec_rightVec block P hL hP]
 
-theorem sigma_mem_unitInterval {N : Nat} {U : Gate (Qubits N)}
+theorem sigma_mem_unitInterval {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
-    block.sigma ∈ Set.Icc (-1 : ℝ) 1 :=
+    block.σ ∈ Set.Icc (-1 : ℝ) 1 :=
   ⟨le_trans (by norm_num) (le_of_lt block.sigma_pos), le_of_lt block.sigma_lt_one⟩
 
-theorem right_phase_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceTwoDimensionalSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-      Complex.exp (phi * Complex.I) • block.rightVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi right block.right_support
+    (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+      Complex.exp (φ * Complex.I) • block.rightVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem right_phase_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceTwoDimensionalSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightPerp =
-      Complex.exp (-(phi * Complex.I)) • block.rightPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi right block.right_perp_support
+    (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
+      Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceTwoDimensionalSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftVec =
-      Complex.exp (phi * Complex.I) • block.leftVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi left block.left_support
+    (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
+      Complex.exp (φ * Complex.I) • block.leftVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceTwoDimensionalSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftPerp =
-      Complex.exp (-(phi * Complex.I)) • block.leftPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi left block.left_perp_support
+    (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
+      Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
     (sourcePhaseSignal U remaining).applyVec block.rightVec =
-      (block.sigma : ℂ) • block.leftVec +
-        ((Real.sqrt (1 - block.sigma ^ 2) : ℝ) : ℂ) • block.leftPerp := by
+      (block.σ : ℂ) • block.leftVec +
+        ((Real.sqrt (1 - block.σ ^ 2) : ℝ) : ℂ) • block.leftPerp := by
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
     (sourcePhaseSignal U remaining).applyVec block.rightPerp =
-      ((Real.sqrt (1 - block.sigma ^ 2) : ℝ) : ℂ) • block.leftVec +
-        (-(block.sigma : ℂ)) • block.leftPerp := by
+      ((Real.sqrt (1 - block.σ ^ 2) : ℝ) : ℂ) • block.leftVec +
+        (-(block.σ : ℂ)) • block.leftPerp := by
   rw [sourcePhaseSignal, if_neg hremaining]
   simpa [neg_smul] using block.U_rightPerp
 
-theorem even_signal_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
     (sourcePhaseSignal U remaining).applyVec block.leftVec =
-      (block.sigma : ℂ) • block.rightVec +
-        ((Real.sqrt (1 - block.sigma ^ 2) : ℝ) : ℂ) • block.rightPerp := by
+      (block.σ : ℂ) • block.rightVec +
+        ((Real.sqrt (1 - block.σ ^ 2) : ℝ) : ℂ) • block.rightPerp := by
   rw [sourcePhaseSignal, if_pos hremaining]
   exact block.Udag_left
 
-theorem even_signal_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
     (sourcePhaseSignal U remaining).applyVec block.leftPerp =
-      ((Real.sqrt (1 - block.sigma ^ 2) : ℝ) : ℂ) • block.rightVec +
-        (-(block.sigma : ℂ)) • block.rightPerp := by
+      ((Real.sqrt (1 - block.σ ^ 2) : ℝ) : ℂ) • block.rightVec +
+        (-(block.σ : ℂ)) • block.rightPerp := by
   rw [sourcePhaseSignal, if_pos hremaining]
   simpa [neg_smul] using block.Udag_leftPerp
 
@@ -1309,22 +1580,24 @@ end SourceTwoDimensionalSingularBlock
 two-dimensional invariant sector of `lemma:singInvDec` [GSLW19,
 BlockHam.tex:583-613,655-735]. -/
 noncomputable def projectedUnitaryBlockTwoDimensionalSingularBlock {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma_lt_one :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1) :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1) :
     SourceTwoDimensionalSingularBlock U left right := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
   refine
-    { sigma := pair.sigma
+    { σ := pair.σ
       sigma_pos := pair.sigma_pos
       sigma_lt_one := hsigma_lt_one
       rightVec := pair.rightVec
       leftVec := pair.leftVec
-      rightPerp := projectedUnitaryBlockRightPerpCandidate left right U i hlambda
-      leftPerp := projectedUnitaryBlockLeftPerpCandidate left right U i hlambda
+      rightPerp := projectedUnitaryBlockRightPerp
+        left right U i hlambda hsigma_lt_one
+      leftPerp := projectedUnitaryBlockLeftPerp
+        left right U i hlambda hsigma_lt_one
       right_support := pair.right_support
       left_support := pair.left_support
       right_perp_support :=
@@ -1344,36 +1617,36 @@ noncomputable def projectedUnitaryBlockTwoDimensionalSingularBlock {N : Nat}
 in `lemma:singInvDec`.  These are the blocks where `U` maps a right singular
 vector in `img Π` directly to the matching left singular vector in
 `img \widetildeΠ` [GSLW19, BlockHam.tex:583-613,655-671,718-735]. -/
-structure SourceUnitSingularBlock {N : Nat} (U : Gate (Qubits N))
+structure SourceUnitSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Right singular vector in the unit singular-value sector. -/
-  rightVec : StateVector (Qubits N)
+  rightVec : NormalizedVector (Qubits N)
   /-- Left singular vector paired with `rightVec` by `U`. -/
-  leftVec : StateVector (Qubits N)
+  leftVec : NormalizedVector (Qubits N)
   right_support :
     HilbertOperator.applyVec right.op rightVec = rightVec
   left_support :
     HilbertOperator.applyVec left.op leftVec = leftVec
   U_right : U.applyVec rightVec = leftVec
-  Udag_left : U.conjTranspose.applyVec leftVec = rightVec
+  Udag_left : U.dagger.applyVec leftVec = rightVec
 
 namespace SourceUnitSingularBlock
 
-theorem right_phase_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceUnitSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-      Complex.exp (phi * Complex.I) • block.rightVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi right block.right_support
+    (block : SourceUnitSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+      Complex.exp (φ * Complex.I) • block.rightVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceUnitSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftVec =
-      Complex.exp (phi * Complex.I) • block.leftVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi left block.left_support
+    (block : SourceUnitSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
+      Complex.exp (φ * Complex.I) • block.leftVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec =
@@ -1384,7 +1657,7 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
   rw [block.U_right, block.left_support]
 
 theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
         block.leftVec =
@@ -1392,11 +1665,11 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
   unfold projectedUnitaryBlock
   rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul, left.selfAdjoint, right.selfAdjoint]
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.left_support]
-  change HilbertOperator.applyVec right.op (U.conjTranspose.applyVec block.leftVec) =
+  change HilbertOperator.applyVec right.op (U.dagger.applyVec block.leftVec) =
     block.rightVec
   rw [block.Udag_left, block.right_support]
 
-theorem gram_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec
@@ -1409,7 +1682,7 @@ theorem gram_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
   simp
 
 theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
     HilbertOperator.applyVec
@@ -1431,7 +1704,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
   rw [heven1]
 
 theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
     HilbertOperator.applyVec
@@ -1451,7 +1724,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
   rw [← hodd]
   ring_nf
 
-theorem odd_signal_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1459,7 +1732,7 @@ theorem odd_signal_on_rightVec {N : Nat} {U : Gate (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem even_signal_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1475,12 +1748,12 @@ projector norm saturation to upgrade the projected equations
 `Π̃ U Π v = w` and `Π U† Π̃ w = v` to the unprojected equations
 `U v = w` and `U† w = v` [GSLW19, BlockHam.tex:583-613,655-671]. -/
 noncomputable def projectedUnitaryBlockUnitSingularBlock {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0)
     (hsigma :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma = 1) :
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ = 1) :
     SourceUnitSingularBlock U left right := by
   let pair := projectedUnitaryBlockNonzeroSingularPair left right U i hlambda
   refine
@@ -1495,49 +1768,49 @@ noncomputable def projectedUnitaryBlockUnitSingularBlock {N : Nat}
       have hA := pair.A_right
       change HilbertOperator.applyVec
           (left.op * (U : HilbertOperator (Qubits N)) * right.op) pair.rightVec =
-        (pair.sigma : ℂ) • pair.leftVec at hA
+        (pair.σ : ℂ) • pair.leftVec at hA
       rw [HilbertOperator.mul_applyVec,
         HilbertOperator.mul_applyVec, pair.right_support, hsigma] at hA
-      simpa [Gate.applyVec] using hA
-    have hU_norm : ‖U.applyVec pair.rightVec‖ = 1 := by
-      change ‖HilbertOperator.applyVec (U : HilbertOperator (Qubits N)) pair.rightVec‖ = 1
-      rw [HilbertOperator.norm_applyVec_of_mem_unitaryGroup U.unitary, pair.right_norm]
+      change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+        (1 : ℂ) • pair.leftVec at hA
+      change HilbertOperator.applyVec left.op (U.applyVec pair.rightVec) =
+        pair.leftVec
+      simpa only [one_smul] using hA
     have hproj_norm :
         ‖HilbertOperator.applyVec left.op (U.applyVec pair.rightVec)‖ = 1 := by
-      rw [hproj, pair.left_norm]
+      rw [hproj, pair.leftVec.norm_eq_one]
     have hsupport :=
       orthogonalProjector_applyVec_eq_self_of_norm_eq_one left
-        (U.applyVec pair.rightVec) hU_norm hproj_norm
+        (U.apply pair.rightVec) hproj_norm
     exact hsupport.symm.trans hproj
   · have hproj :
-        HilbertOperator.applyVec right.op (U.conjTranspose.applyVec pair.leftVec) =
+        HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
           pair.rightVec := by
       have hA := pair.Astar_left
       change HilbertOperator.applyVec
           (Matrix.conjTranspose
             (left.op * (U : HilbertOperator (Qubits N)) * right.op)) pair.leftVec =
-        (pair.sigma : ℂ) • pair.rightVec at hA
+        (pair.σ : ℂ) • pair.rightVec at hA
       rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul,
         left.selfAdjoint, right.selfAdjoint, HilbertOperator.mul_applyVec,
         HilbertOperator.mul_applyVec, pair.left_support, hsigma] at hA
-      simpa [Gate.applyVec] using hA
-    have hU_norm : ‖U.conjTranspose.applyVec pair.leftVec‖ = 1 := by
-      change ‖HilbertOperator.applyVec (U.conjTranspose : HilbertOperator (Qubits N))
-        pair.leftVec‖ = 1
-      rw [HilbertOperator.norm_applyVec_of_mem_unitaryGroup U.conjTranspose.unitary,
-        pair.left_norm]
+      change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+        (1 : ℂ) • pair.rightVec at hA
+      change HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec) =
+        pair.rightVec
+      simpa only [one_smul] using hA
     have hproj_norm :
-        ‖HilbertOperator.applyVec right.op (U.conjTranspose.applyVec pair.leftVec)‖ = 1 := by
-      rw [hproj, pair.right_norm]
+        ‖HilbertOperator.applyVec right.op (U.dagger.applyVec pair.leftVec)‖ = 1 := by
+      rw [hproj, pair.rightVec.norm_eq_one]
     have hsupport :=
       orthogonalProjector_applyVec_eq_self_of_norm_eq_one right
-        (U.conjTranspose.applyVec pair.leftVec) hU_norm hproj_norm
+        (U.dagger.apply pair.leftVec) hproj_norm
     exact hsupport.symm.trans hproj
 
 /-- Source-facing classification for nonzero singular sectors in
 `lemma:singInvDec`: a sector is either `σ=1` and one-dimensional, or
 `0<σ<1` and two-dimensional [GSLW19, BlockHam.tex:583-613,655-735]. -/
-inductive SourceNonzeroClassifiedSingularBlock {N : Nat} (U : Gate (Qubits N))
+inductive SourceNonzeroClassifiedSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) : Type where
   | unitBlock : SourceUnitSingularBlock U left right ->
       SourceNonzeroClassifiedSingularBlock U left right
@@ -1547,18 +1820,18 @@ inductive SourceNonzeroClassifiedSingularBlock {N : Nat} (U : Gate (Qubits N))
 /-- Classify a nonzero projected singular pair into the source's `σ=1` or
 `0<σ<1` invariant sector [GSLW19, BlockHam.tex:583-613,655-735]. -/
 noncomputable def projectedUnitaryBlockNonzeroClassifiedSingularBlock {N : Nat}
-    (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
     SourceNonzeroClassifiedSingularBlock U left right := by
   classical
   by_cases hsigma :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma = 1
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ = 1
   · exact SourceNonzeroClassifiedSingularBlock.unitBlock
       (projectedUnitaryBlockUnitSingularBlock left right U i hlambda hsigma)
   · have hlt :
-        (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma < 1 := by
+        (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ < 1 := by
       rcases SourceNonzeroSingularPair.sigma_eq_one_or_lt_one
           (left := left) (right := right) (U := U) (i := i) hlambda with heq | hlt
       · exact False.elim (hsigma heq)
@@ -1570,36 +1843,36 @@ noncomputable def projectedUnitaryBlockNonzeroClassifiedSingularBlock {N : Nat}
 Here the right singular vector lies in `img Π`, its encoded matrix image is
 zero, and `U` sends it into the left complement [GSLW19,
 BlockHam.tex:599-611,655-716]. -/
-structure SourceRightKernelSingularBlock {N : Nat} (U : Gate (Qubits N))
+structure SourceRightKernelSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Right-supported vector in the zero singular-value sector. -/
-  rightVec : StateVector (Qubits N)
+  rightVec : NormalizedVector (Qubits N)
   /-- Left-complement image of the right-kernel vector under `U`. -/
-  leftPerp : StateVector (Qubits N)
+  leftPerp : NormalizedVector (Qubits N)
   right_support :
     HilbertOperator.applyVec right.op rightVec = rightVec
   left_perp_support :
     HilbertOperator.applyVec (OrthogonalProjector.complement left) leftPerp = leftPerp
   U_right : U.applyVec rightVec = leftPerp
-  Udag_leftPerp : U.conjTranspose.applyVec leftPerp = rightVec
+  Udag_leftPerp : U.dagger.applyVec leftPerp = rightVec
 
 namespace SourceRightKernelSingularBlock
 
-theorem right_phase_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceRightKernelSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-      Complex.exp (phi * Complex.I) • block.rightVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi right block.right_support
+    (block : SourceRightKernelSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+      Complex.exp (φ * Complex.I) • block.rightVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceRightKernelSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftPerp =
-      Complex.exp (-(phi * Complex.I)) • block.leftPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi left block.left_perp_support
+    (block : SourceRightKernelSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
+      Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1607,7 +1880,7 @@ theorem odd_signal_on_rightVec {N : Nat} {U : Gate (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem even_signal_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1621,36 +1894,36 @@ end SourceRightKernelSingularBlock
 This is the left-hand zero singular-value sector: a left singular vector in
 `img \widetildeΠ` is paired with a right-complement vector by `U` and `U†`
 [GSLW19, BlockHam.tex:599-611,655-716]. -/
-structure SourceLeftKernelSingularBlock {N : Nat} (U : Gate (Qubits N))
+structure SourceLeftKernelSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Right-complement preimage of the left-kernel vector under `U`. -/
-  rightPerp : StateVector (Qubits N)
+  rightPerp : NormalizedVector (Qubits N)
   /-- Left-supported vector in the zero singular-value sector. -/
-  leftVec : StateVector (Qubits N)
+  leftVec : NormalizedVector (Qubits N)
   right_perp_support :
     HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp = rightPerp
   left_support :
     HilbertOperator.applyVec left.op leftVec = leftVec
   U_rightPerp : U.applyVec rightPerp = leftVec
-  Udag_left : U.conjTranspose.applyVec leftVec = rightPerp
+  Udag_left : U.dagger.applyVec leftVec = rightPerp
 
 namespace SourceLeftKernelSingularBlock
 
-theorem right_phase_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceLeftKernelSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightPerp =
-      Complex.exp (-(phi * Complex.I)) • block.rightPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi right block.right_perp_support
+    (block : SourceLeftKernelSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
+      Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceLeftKernelSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftVec =
-      Complex.exp (phi * Complex.I) • block.leftVec :=
-  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self phi left block.left_support
+    (block : SourceLeftKernelSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
+      Complex.exp (φ * Complex.I) • block.leftVec :=
+  projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1658,7 +1931,7 @@ theorem odd_signal_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_rightPerp
 
-theorem even_signal_on_leftVec {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1673,24 +1946,28 @@ vector whose projected-unitary image is zero.  The unprojected image is therefor
 supported in the left complement, and unitarity gives the paired adjoint action
 [GSLW19, BlockHam.tex:599-611,655-716]. -/
 noncomputable def sourceRightKernelSingularBlockOfProjectedBlockEqZero {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
-    (rightVec : StateVector (Qubits N))
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (rightVec : NormalizedVector (Qubits N))
     (hright : HilbertOperator.applyVec right.op rightVec = rightVec)
     (hzero : HilbertOperator.applyVec (projectedUnitaryBlock left right U) rightVec = 0) :
     SourceRightKernelSingularBlock U left right :=
   { rightVec := rightVec,
-    leftPerp := U.applyVec rightVec,
+    leftPerp := U.apply rightVec,
     right_support := hright,
     left_perp_support := by
+      change HilbertOperator.applyVec (OrthogonalProjector.complement left)
+        (U.applyVec rightVec) = U.applyVec rightVec
       have hleft_zero : HilbertOperator.applyVec left.op (U.applyVec rightVec) = 0 := by
         have h := hzero
         unfold projectedUnitaryBlock at h
         rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, hright] at h
-        simpa [Gate.applyVec] using h
+        change HilbertOperator.applyVec left.op (U.applyVec rightVec) = 0 at h
+        change HilbertOperator.applyVec left.op (U.applyVec rightVec) = 0
+        exact h
       rw [orthogonalProjector_complement_applyVec, hleft_zero, sub_zero],
     U_right := rfl,
     Udag_leftPerp := by
-      simpa using gate_conjTranspose_applyVec_applyVec U rightVec }
+      exact gate_conjTranspose_applyVec_applyVec U rightVec }
 
 /-- Construct the left-kernel sector of `lemma:singInvDec` from a left-supported
 vector whose adjoint projected-unitary image is zero.  This is the left-handed
@@ -1698,64 +1975,68 @@ zero-singular-value companion of
 `sourceRightKernelSingularBlockOfProjectedBlockEqZero`
 [GSLW19, BlockHam.tex:599-611,655-716]. -/
 noncomputable def sourceLeftKernelSingularBlockOfProjectedBlockConjTransposeEqZero
-    {N : Nat} (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
-    (leftVec : StateVector (Qubits N))
+    {N : Nat} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (leftVec : NormalizedVector (Qubits N))
     (hleft : HilbertOperator.applyVec left.op leftVec = leftVec)
     (hzero :
       HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
         leftVec = 0) :
     SourceLeftKernelSingularBlock U left right :=
-  { rightPerp := U.conjTranspose.applyVec leftVec,
+  { rightPerp := U.dagger.apply leftVec,
     leftVec := leftVec,
     right_perp_support := by
+      change HilbertOperator.applyVec (OrthogonalProjector.complement right)
+        (U.dagger.applyVec leftVec) = U.dagger.applyVec leftVec
       have hright_zero :
-          HilbertOperator.applyVec right.op (U.conjTranspose.applyVec leftVec) = 0 := by
+          HilbertOperator.applyVec right.op (U.dagger.applyVec leftVec) = 0 := by
         have h := hzero
         unfold projectedUnitaryBlock at h
         rw [Matrix.conjTranspose_mul, Matrix.conjTranspose_mul,
           left.selfAdjoint, right.selfAdjoint,
           HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, hleft] at h
-        simpa [Gate.applyVec] using h
+        change HilbertOperator.applyVec right.op (U.dagger.applyVec leftVec) = 0 at h
+        change HilbertOperator.applyVec right.op (U.dagger.applyVec leftVec) = 0
+        exact h
       rw [orthogonalProjector_complement_applyVec, hright_zero, sub_zero],
     left_support := hleft,
     U_rightPerp := by
-      simpa using gate_applyVec_conjTranspose_applyVec U leftVec,
+      exact gate_applyVec_conjTranspose_applyVec U leftVec,
     Udag_left := rfl }
 
 /-- Source-facing certificate for the fully complementary sector in
 `lemma:singInvDec`: `U` maps the right complement of the singular-vector
 decomposition to the corresponding left complement [GSLW19,
 BlockHam.tex:607-613,718-735]. -/
-structure SourceComplementSingularBlock {N : Nat} (U : Gate (Qubits N))
+structure SourceComplementSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Right-complement vector in the fully complementary sector. -/
-  rightPerp : StateVector (Qubits N)
+  rightPerp : NormalizedVector (Qubits N)
   /-- Left-complement vector paired with `rightPerp` by `U`. -/
-  leftPerp : StateVector (Qubits N)
+  leftPerp : NormalizedVector (Qubits N)
   right_perp_support :
     HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp = rightPerp
   left_perp_support :
     HilbertOperator.applyVec (OrthogonalProjector.complement left) leftPerp = leftPerp
   U_rightPerp : U.applyVec rightPerp = leftPerp
-  Udag_leftPerp : U.conjTranspose.applyVec leftPerp = rightPerp
+  Udag_leftPerp : U.dagger.applyVec leftPerp = rightPerp
 
 namespace SourceComplementSingularBlock
 
-theorem right_phase_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceComplementSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightPerp =
-      Complex.exp (-(phi * Complex.I)) • block.rightPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi right block.right_perp_support
+    (block : SourceComplementSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
+      Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
-    (block : SourceComplementSingularBlock U left right) (phi : ℝ) :
-    HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftPerp =
-      Complex.exp (-(phi * Complex.I)) • block.leftPerp :=
-  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self phi left block.left_perp_support
+    (block : SourceComplementSingularBlock U left right) (φ : ℝ) :
+    HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
+      Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
+  projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
+theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1763,7 +2044,7 @@ theorem odd_signal_on_rightPerp {N : Nat} {U : Gate (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_rightPerp
 
-theorem even_signal_on_leftPerp {N : Nat} {U : Gate (Qubits N)}
+theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1778,28 +2059,30 @@ already in the right complement and its image under `U` has no left-projector
 component, then `U` and `U†` pair it with a left-complement vector
 [GSLW19, BlockHam.tex:607-613,718-735]. -/
 noncomputable def sourceComplementSingularBlockOfRightComplementProjectedZero
-    {N : Nat} (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
-    (rightPerp : StateVector (Qubits N))
+    {N : Nat} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (rightPerp : NormalizedVector (Qubits N))
     (hright_perp :
       HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp =
         rightPerp)
     (hleft_zero : HilbertOperator.applyVec left.op (U.applyVec rightPerp) = 0) :
     SourceComplementSingularBlock U left right :=
   { rightPerp := rightPerp,
-    leftPerp := U.applyVec rightPerp,
+    leftPerp := U.apply rightPerp,
     right_perp_support := hright_perp,
     left_perp_support := by
+      change HilbertOperator.applyVec (OrthogonalProjector.complement left)
+        (U.applyVec rightPerp) = U.applyVec rightPerp
       rw [orthogonalProjector_complement_applyVec, hleft_zero, sub_zero],
     U_rightPerp := rfl,
     Udag_leftPerp := by
-      simpa using gate_conjTranspose_applyVec_applyVec U rightPerp }
+      exact gate_conjTranspose_applyVec_applyVec U rightPerp }
 
 /-- Source-facing direct-sum skeleton for `lemma:singInvDec`.  The source
 decomposes the space into singular-value-one, two-dimensional `0 < sigma < 1`,
 right-kernel, left-kernel, and fully complementary sectors; each sector is
 recorded above with the local `U`, `U†`, and projector-phase actions needed for
 `thm:singValTransformation` [GSLW19, BlockHam.tex:583-613,655-736]. -/
-structure SourceSingularInvariantDecomposition {N : Nat} (U : Gate (Qubits N))
+structure SourceSingularInvariantDecomposition {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Number of unit singular-value source sectors. -/
   unitBlockCount : Nat
@@ -1827,55 +2110,129 @@ structure SourceSingularInvariantDecomposition {N : Nat} (U : Gate (Qubits N))
   complementBlock :
     Fin complementBlockCount -> SourceComplementSingularBlock U left right
 
-/-- Bundle the source projector phase as a signal-space gate. -/
-noncomputable def projectorPhase {N : Nat} (phi : ℝ) (P : OrthogonalProjector N) :
-    Gate (Qubits N) :=
-  Gate.ofUnitary (projectorPhaseOp phi P) (projectorPhaseOp_mem_unitaryGroup phi P)
+/-- Bundle the source projector phase as a sealed signal-space circuit. -/
+noncomputable def projectorPhase {N : Nat} (φ : ℝ) (P : OrthogonalProjector N) :
+    UnitaryCircuit (Qubits N) :=
+  UnitaryCircuit.ofLeaf (projectorPhaseLeaf φ P) (by
+    simpa [projectorPhaseLeaf, projectorPhaseLeafAt] using
+      (List.nodup_range : (List.range N).Nodup))
 
 @[simp]
 theorem projectorPhase_zero {N : Nat} (P : OrthogonalProjector N) :
-    projectorPhase 0 P = 1 := by
-  apply Gate.ext
-  intro i j
-  change projectorPhaseOp 0 P i j = (1 : HilbertOperator (Qubits N)) i j
-  simp [projectorPhaseOp, OrthogonalProjector.complement]
+    (projectorPhase 0 P : HilbertOperator (Qubits N)) = 1 := by
+  ext i j
+  change
+    (Complex.exp (0 * Complex.I) • P.op +
+      Complex.exp (-(0 * Complex.I)) • OrthogonalProjector.complement P) i j =
+        (1 : HilbertOperator (Qubits N)) i j
+  simp [OrthogonalProjector.complement]
 
 /-- Source-level alternating phase modulation sequence `U_Φ` on the signal
 space.  This is Definition `def:phaseSeq`: it alternates projector phases with
 `U` and `U†`, starting from `\widetilde\Pi/U` for odd length and from
 `\Pi/U†` for even length [GSLW19, BlockHam.tex:738-745]. -/
-noncomputable def sourceAlternatingPhaseModulation {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) : List ℝ → Gate (Qubits N)
-  | [] => 1
-  | phi :: phases =>
-      projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))
-        * sourcePhaseSignal U (phases.length + 1)
-        * sourceAlternatingPhaseModulation U left right phases
+noncomputable def sourceAlternatingPhaseModulation {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) : List ℝ → UnitaryCircuit (Qubits N)
+  | [] => UnitaryCircuit.identity (Qubits N) (List.range N) List.nodup_range
+  | φ :: phases => by
+      let phase := projectorPhase φ
+        (sourcePhaseProjector left right (phases.length + 1))
+      let signal := sourcePhaseSignal U (phases.length + 1)
+      let tail := sourceAlternatingPhaseModulation U left right phases
+      exact UnitaryCircuit.seq (UnitaryCircuit.seq tail signal) phase
 
 @[simp]
-theorem sourceAlternatingPhaseModulation_nil {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) :
-    sourceAlternatingPhaseModulation U left right [] = 1 := rfl
+theorem sourceAlternatingPhaseModulation_physical_idx {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (phases : List ℝ) :
+    (sourceAlternatingPhaseModulation U left right phases).physical_idx =
+      List.range N := by
+  induction phases with
+  | nil => rfl
+  | cons φ phases ih =>
+      rw [sourceAlternatingPhaseModulation]
+      have hunion : (List.range N).union (List.range N) = List.range N :=
+        List.Subset.union_eq_right (fun _ hmem => hmem)
+      by_cases hparity : (phases.length + 1) % 2 = 0 <;>
+        simp [UnitaryCircuit.seq, UnitaryCircuit.unionPhysicalIdx, sourcePhaseSignal,
+          qsvtOracleGate, qsvtOracleLeaf, qsvtOracleLeafAt,
+          projectorPhase, projectorPhaseLeaf, projectorPhaseLeafAt,
+          ih, hparity, UnitaryCircuit.dagger, UnitaryCircuit.ofLeaf, hunion]
 
-theorem sourceAlternatingPhaseModulation_cons {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) (phi : ℝ) (phases : List ℝ) :
-    sourceAlternatingPhaseModulation U left right (phi :: phases) =
-      projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))
-        * sourcePhaseSignal U (phases.length + 1)
-        * sourceAlternatingPhaseModulation U left right phases := rfl
+@[simp]
+theorem sourceAlternatingPhaseModulation_nil {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) :
+    (sourceAlternatingPhaseModulation U left right [] :
+      HilbertOperator (Qubits N)) = 1 := rfl
+
+theorem sourceAlternatingPhaseModulation_cons {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (φ : ℝ) (phases : List ℝ) :
+    (sourceAlternatingPhaseModulation U left right (φ :: phases) :
+      HilbertOperator (Qubits N)) =
+        (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1)) :
+            HilbertOperator (Qubits N)) *
+          (sourcePhaseSignal U (phases.length + 1) : HilbertOperator (Qubits N)) *
+          (sourceAlternatingPhaseModulation U left right phases :
+            HilbertOperator (Qubits N)) := by
+  simp [sourceAlternatingPhaseModulation, Matrix.mul_assoc]
+
+@[simp]
+theorem sourceAlternatingPhaseModulation_cons_applyVec {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (φ : ℝ) (phases : List ℝ) (ψ : HilbertVector (Qubits N)) :
+    (sourceAlternatingPhaseModulation U left right (φ :: phases)).applyVec ψ =
+      (projectorPhase φ
+        (sourcePhaseProjector left right (phases.length + 1))).applyVec
+        ((sourcePhaseSignal U (phases.length + 1)).applyVec
+          ((sourceAlternatingPhaseModulation U left right phases).applyVec ψ)) := by
+  change HilbertOperator.applyVec
+      (sourceAlternatingPhaseModulation U left right (φ :: phases)) ψ = _
+  rw [sourceAlternatingPhaseModulation_cons,
+    HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec]
+  rfl
+
+
+
+
+
+/-- Exact strict-event ledger of the source-level alternating word. -/
+def qsvtSourceAlternatingEventResource (N L : ℕ) : ResourcePool .quantum :=
+  ResourcePool.singleton (qsvtOracleEvent N) L +
+    ResourcePool.singleton qsvtSourceProjectorPhaseEvent L
+
+@[simp]
+theorem sourceAlternatingPhaseModulation_eventCost {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (phases : List ℝ) :
+    (sourceAlternatingPhaseModulation U left right phases).eventCost =
+      qsvtSourceAlternatingEventResource N phases.length := by
+  induction phases with
+  | nil => rfl
+  | cons φ phases ih =>
+      rw [sourceAlternatingPhaseModulation]
+      simp only [UnitaryCircuit.seq_eventCost]
+      rw [ih]
+      by_cases hparity : (phases.length + 1) % 2 = 0 <;>
+        simp [sourcePhaseSignal, hparity, projectorPhase, projectorPhaseLeaf,
+          projectorPhaseLeafAt, qsvtOracleGate, qsvtOracleLeaf,
+          qsvtOracleLeafAt, qsvtOracleEvent,
+          qsvtSourceAlternatingEventResource,
+          qsvtSourceProjectorPhaseEvent, ResourcePool.singleton,
+          Multiset.replicate_succ] <;>
+          simp only [← Multiset.singleton_add] <;> ac_rfl
 
 /-- Scalar phase product accumulated by a one-dimensional singular block of
 the source alternating phase sequence. -/
 noncomputable def phaseProduct (phases : List ℝ) : ℂ :=
-  (phases.map fun phi => Complex.exp (phi * Complex.I)).prod
+  (phases.map fun φ => Complex.exp (φ * Complex.I)).prod
 
 @[simp]
 theorem phaseProduct_nil : phaseProduct [] = 1 := rfl
 
 @[simp]
-theorem phaseProduct_cons (phi : ℝ) (phases : List ℝ) :
-    phaseProduct (phi :: phases) =
-      Complex.exp (phi * Complex.I) * phaseProduct phases := by
+theorem phaseProduct_cons (φ : ℝ) (phases : List ℝ) :
+    phaseProduct (φ :: phases) =
+      Complex.exp (φ * Complex.I) * phaseProduct phases := by
   simp [phaseProduct]
 
 /-- The `(0,0)` scalar entry of the `W`-convention one-qubit QSP product at
@@ -1886,10 +2243,10 @@ theorem qspW_one_zero_zero_eq_phaseProduct (φ₀ : ℝ) (φs : List ℝ) :
         (φs.map fun φ => Complex.exp (φ * Complex.I)).prod := by
   induction φs using List.reverseRecOn with
   | nil =>
-      simp [qspW, rotZ, rotZOp]
+      simp [qspW, rotZOp]
   | append_singleton φs φ ih =>
       rw [qspW_concat]
-      simp [Matrix.mul_apply, signalW, rotZ, rotZOp, ih]
+      simp [Matrix.mul_apply, signalW, rotZOp, ih]
       ring
 
 /-- The real `R(x)` signal block used in the source proof of singular-value
@@ -1898,6 +2255,37 @@ transformation.  It is the local two-dimensional block induced by `U` and
 noncomputable def singularSignalR (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![(x : ℂ), (Real.sqrt (1 - x ^ 2) : ℂ);
      (Real.sqrt (1 - x ^ 2) : ℂ), (-(x : ℂ))]
+
+/-- The source `R(x)` signal block is unitary on its physical singular-value
+domain. -/
+theorem singularSignalR_mem_unitaryGroup {x : ℝ}
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    singularSignalR x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
+  have hs := sq_sqrt_one_sub_sq hx
+  rw [Matrix.mem_unitaryGroup_iff]
+  ext i j
+  fin_cases i <;> fin_cases j
+  · simp [singularSignalR, Matrix.mul_apply, Matrix.star_apply, Complex.conj_ofReal]
+    linear_combination hs
+  · simp [singularSignalR, Matrix.mul_apply, Matrix.star_apply, Complex.conj_ofReal]
+    ring
+  · simp [singularSignalR, Matrix.mul_apply, Matrix.star_apply, Complex.conj_ofReal]
+    ring
+  · simp [singularSignalR, Matrix.mul_apply, Matrix.star_apply, Complex.conj_ofReal]
+    linear_combination hs
+
+/-- The source `R(x)` signal block certified on its physical singular-value
+domain. -/
+noncomputable def singularSignalROperator (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) : UnitaryOperator (Qubits 1) :=
+  UnitaryOperator.ofMatrix (singularSignalR x)
+    (singularSignalR_mem_unitaryGroup hx)
+
+@[simp]
+theorem singularSignalROperator_coe (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    (singularSignalROperator x hx : HilbertOperator (Qubits 1)) =
+      singularSignalR x := rfl
 
 -- CSLib weak-linter exception: this source-aligned 2x2 matrix expansion is
 -- kept in its existing proof shape; `simp only` rewrites were brittle here.
@@ -1913,7 +2301,7 @@ theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
           singularSignalR x * (rotZ (-(Real.pi / 4)) : HilbertOperator (Qubits 1))) := by
   ext i j
   fin_cases i <;> fin_cases j
-  · simp [signalW, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+  · simp [signalW, singularSignalR, rotZOp]
     have hprod :
         Complex.exp (-(↑Real.pi / 4 * Complex.I)) *
             ↑x * Complex.exp (-(↑Real.pi / 4 * Complex.I)) =
@@ -1931,7 +2319,7 @@ theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
       rw [mul_neg, Complex.I_mul_I]
       ring]
     ring
-  · simp [signalW, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+  · simp [signalW, singularSignalR, rotZOp]
     have hprod :
         Complex.exp (-(↑Real.pi / 4 * Complex.I)) *
             ↑√(1 - x ^ 2) * Complex.exp (↑Real.pi / 4 * Complex.I) =
@@ -1943,7 +2331,7 @@ theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
       rw [← Complex.exp_add]
       simp
     rw [hprod]
-  · simp [signalW, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+  · simp [signalW, singularSignalR, rotZOp]
     have hprod :
         Complex.exp (↑Real.pi / 4 * Complex.I) *
             ↑√(1 - x ^ 2) * Complex.exp (-(↑Real.pi / 4 * Complex.I)) =
@@ -1955,7 +2343,7 @@ theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
       rw [← Complex.exp_add]
       simp
     rw [hprod]
-  · simp [signalW, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+  · simp [signalW, singularSignalR, rotZOp]
     have hprod :
         Complex.exp (↑Real.pi / 4 * Complex.I) *
             ↑x * Complex.exp (↑Real.pi / 4 * Complex.I) =
@@ -1976,38 +2364,58 @@ theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
 projected-unitary phase sequence [GSLW19, BlockHam.tex:520-528,768-849]. -/
 noncomputable def singularSignalRProduct : List ℝ -> ℝ -> HilbertOperator (Qubits 1)
   | [], _ => 1
-  | phi :: phases, x =>
-      (rotZ phi : HilbertOperator (Qubits 1)) *
+  | φ :: phases, x =>
+      (rotZ φ : HilbertOperator (Qubits 1)) *
         singularSignalR x * singularSignalRProduct phases x
+
+/-- The source `R`-convention product certified on the physical singular-value
+domain. -/
+noncomputable def singularSignalRProductOperator :
+    (phases : List ℝ) -> (x : ℝ) ->
+      x ∈ Set.Icc (-1 : ℝ) 1 -> UnitaryOperator (Qubits 1)
+  | [], _, _ => 1
+  | φ :: phases, x, hx =>
+      (rotZ φ).matrix * singularSignalROperator x hx *
+        singularSignalRProductOperator phases x hx
+
+@[simp]
+theorem singularSignalRProductOperator_coe (phases : List ℝ) (x : ℝ)
+    (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    (singularSignalRProductOperator phases x hx :
+      HilbertOperator (Qubits 1)) = singularSignalRProduct phases x := by
+  induction phases with
+  | nil => rfl
+  | cons φ phases ih =>
+      simp [singularSignalRProductOperator, singularSignalRProduct, ih]
 
 @[simp]
 theorem singularSignalRProduct_nil (x : ℝ) :
     singularSignalRProduct [] x = 1 := rfl
 
 @[simp]
-theorem singularSignalRProduct_cons (phi : ℝ) (phases : List ℝ) (x : ℝ) :
-    singularSignalRProduct (phi :: phases) x =
-      (rotZ phi : HilbertOperator (Qubits 1)) *
+theorem singularSignalRProduct_cons (φ : ℝ) (phases : List ℝ) (x : ℝ) :
+    singularSignalRProduct (φ :: phases) x =
+      (rotZ φ : HilbertOperator (Qubits 1)) *
         singularSignalR x * singularSignalRProduct phases x := rfl
 
 /-- Appending one source `R`-signal block on the right multiplies the existing
 source product by that block [GSLW19, BlockHam.tex:501-528]. -/
-theorem singularSignalRProduct_append_singleton (phases : List ℝ) (phi x : ℝ) :
-    singularSignalRProduct (phases ++ [phi]) x =
+theorem singularSignalRProduct_append_singleton (phases : List ℝ) (φ x : ℝ) :
+    singularSignalRProduct (phases ++ [φ]) x =
       singularSignalRProduct phases x *
-        ((rotZ phi : HilbertOperator (Qubits 1)) * singularSignalR x) := by
+        ((rotZ φ : HilbertOperator (Qubits 1)) * singularSignalR x) := by
   induction phases with
   | nil =>
       simp [singularSignalRProduct]
-  | cons theta phases ih =>
+  | cons θ phases ih =>
       simp [singularSignalRProduct, ih, mul_assoc]
 
-private theorem rotZ_neg_eq_map_star (phi : ℝ) :
-    (rotZ (-phi) : HilbertOperator (Qubits 1)) =
-      ((rotZ phi : HilbertOperator (Qubits 1)).map (starRingEnd ℂ)) := by
+private theorem rotZ_neg_eq_map_star (φ : ℝ) :
+    (rotZ (-φ) : HilbertOperator (Qubits 1)) =
+      ((rotZ φ : HilbertOperator (Qubits 1)).map (starRingEnd ℂ)) := by
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [rotZ, rotZOp, conj_exp_I, conj_exp_neg_I]
+    simp [rotZOp, conj_exp_I, conj_exp_neg_I]
 
 private theorem singularSignalR_eq_map_star (x : ℝ) :
     singularSignalR x = (singularSignalR x).map (starRingEnd ℂ) := by
@@ -2015,19 +2423,19 @@ private theorem singularSignalR_eq_map_star (x : ℝ) :
   fin_cases i <;> fin_cases j <;> simp [singularSignalR]
 
 theorem singularSignalRProduct_map_neg_eq_map_star (phases : List ℝ) (x : ℝ) :
-    singularSignalRProduct (phases.map fun phi => -phi) x =
+    singularSignalRProduct (phases.map fun φ => -φ) x =
       (singularSignalRProduct phases x).map (starRingEnd ℂ) := by
   induction phases with
   | nil =>
       simp [singularSignalRProduct]
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       simp only [List.map_cons, singularSignalRProduct_cons]
       rw [ih, rotZ_neg_eq_map_star]
       rw [Matrix.map_mul, Matrix.map_mul]
       rw [← singularSignalR_eq_map_star]
 
 theorem singularSignalRProduct_map_neg_zero_zero (phases : List ℝ) (x : ℝ) :
-    singularSignalRProduct (phases.map fun phi => -phi) x 0 0 =
+    singularSignalRProduct (phases.map fun φ => -φ) x 0 0 =
       star (singularSignalRProduct phases x 0 0) := by
   rw [singularSignalRProduct_map_neg_eq_map_star]
   rfl
@@ -2036,9 +2444,8 @@ theorem singularSignalRProduct_map_neg_zero_zero (phases : List ℝ) (x : ℝ) :
 theorem rotZ_op_mul (a b : ℝ) :
     (rotZ a : HilbertOperator (Qubits 1)) *
         (rotZ b : HilbertOperator (Qubits 1)) =
-      (rotZ (a + b) : HilbertOperator (Qubits 1)) := by
-  simpa using congrArg (fun G : Gate (Qubits 1) => (G : HilbertOperator (Qubits 1)))
-    (rotZ_mul_rotZ a b)
+      (rotZ (a + b) : HilbertOperator (Qubits 1)) :=
+  rotZ_mul_rotZ a b
 
 private theorem matrix_smul_mul_smul_mul (A B C : HilbertOperator (Qubits 1)) (c d : ℂ) :
     (c • A) * ((d • B) * C) = (c * d) • (A * B * C) := by
@@ -2077,6 +2484,21 @@ noncomputable def singularSignalRRawProduct (φ₀ : ℝ) (init : List ℝ) (x :
     HilbertOperator (Qubits 1) :=
   singularSignalRProduct ((φ₀ - Real.pi / 4) :: init.map (fun φ => φ - Real.pi / 2)) x
 
+/-- The raw source `R`-product certified on the physical singular-value
+domain. -/
+noncomputable def singularSignalRRawProductOperator (φ₀ : ℝ)
+    (init : List ℝ) (x : ℝ) (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    UnitaryOperator (Qubits 1) :=
+  singularSignalRProductOperator
+    ((φ₀ - Real.pi / 4) :: init.map (fun φ => φ - Real.pi / 2)) x hx
+
+@[simp]
+theorem singularSignalRRawProductOperator_coe (φ₀ : ℝ)
+    (init : List ℝ) (x : ℝ) (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+    (singularSignalRRawProductOperator φ₀ init x hx :
+      HilbertOperator (Qubits 1)) = singularSignalRRawProduct φ₀ init x := by
+  simp [singularSignalRRawProductOperator, singularSignalRRawProduct]
+
 -- CSLib weak-linter exception: this induction depends on the existing broad
 -- simplification shape of the imported single-qubit `qspW` product.
 set_option linter.flexible false in
@@ -2095,26 +2517,27 @@ theorem qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
       intro last
       simp [qspW, singularSignalRRawProduct, singularSignalRProduct,
         signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ]
-      rw [show (rotZ φ₀).op *
-          ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-            (rotZ (-(Real.pi / 4))).op * (rotZ last).op) =
-        (rotZ φ₀).op *
-          ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-            (rotZ (-(Real.pi / 4))).op) *
-          (rotZ last).op by noncomm_ring]
+      rw [show (rotZOp φ₀ : HilbertOperator (Qubits 1)) *
+          ((rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) * singularSignalR x *
+            (rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) *
+              (rotZOp last : HilbertOperator (Qubits 1))) =
+        (rotZOp φ₀ : HilbertOperator (Qubits 1)) *
+          ((rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) * singularSignalR x *
+            (rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1))) *
+          (rotZOp last : HilbertOperator (Qubits 1)) by noncomm_ring]
       calc
-        (rotZ φ₀).op *
-            ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-              (rotZ (-(Real.pi / 4))).op) *
-            (rotZ last).op =
-          (rotZ (φ₀ + -(Real.pi / 4))).op *
-            singularSignalR x * (rotZ (-(Real.pi / 4) + last)).op := by
+        (rotZ φ₀).matrix *
+            ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+              (rotZ (-(Real.pi / 4))).matrix) *
+            (rotZ last).matrix =
+          (rotZ (φ₀ + -(Real.pi / 4))).matrix *
+            singularSignalR x * (rotZ (-(Real.pi / 4) + last)).matrix := by
             simpa using
               rotZ_singularSignalR_rotZ_reassociate φ₀ (-(Real.pi / 4))
                 (-(Real.pi / 4)) last x
         _ =
-          (rotZ (φ₀ - Real.pi / 4)).op * singularSignalR x *
-            (rotZ (last - Real.pi / 4)).op := by
+          (rotZ (φ₀ - Real.pi / 4)).matrix * singularSignalR x *
+            (rotZ (last - Real.pi / 4)).matrix := by
             congr 2
             all_goals ring_nf
   | append_singleton init φ ih =>
@@ -2128,15 +2551,15 @@ theorem qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
       change (Complex.I ^ (init.length + 1) * Complex.I) •
           (singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              (rotZ (φ - Real.pi / 4)).op *
-            ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                (rotZ (-(Real.pi / 4))).op) *
-              (rotZ last).op) =
+              (rotZ (φ - Real.pi / 4)).matrix *
+            ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                (rotZ (-(Real.pi / 4))).matrix) *
+              (rotZ last).matrix) =
         Complex.I ^ ((init ++ [φ]).length + 1) •
           (singularSignalRProduct
               (((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) ++ [φ - Real.pi / 2]) x *
-            (rotZ (last - Real.pi / 4)).op)
+            (rotZ (last - Real.pi / 4)).matrix)
       rw [singularSignalRProduct_append_singleton]
       rw [show (Complex.I ^ (init.length + 1) * Complex.I) =
           Complex.I ^ ((init ++ [φ]).length + 1) by
@@ -2144,71 +2567,71 @@ theorem qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
       have hmatrix :
           singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              (rotZ (φ - Real.pi / 4)).op *
-            ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                (rotZ (-(Real.pi / 4))).op) *
-              (rotZ last).op =
+              (rotZ (φ - Real.pi / 4)).matrix *
+            ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                (rotZ (-(Real.pi / 4))).matrix) *
+              (rotZ last).matrix =
           singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-            ((rotZ (φ - Real.pi / 2)).op * singularSignalR x) *
-              (rotZ (last - Real.pi / 4)).op := by
+            ((rotZ (φ - Real.pi / 2)).matrix * singularSignalR x) *
+              (rotZ (last - Real.pi / 4)).matrix := by
         have hblock :
-            (rotZ (φ - Real.pi / 4)).op *
-                ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                  (rotZ (-(Real.pi / 4))).op) *
-                (rotZ last).op =
-              (rotZ (φ - Real.pi / 2)).op * singularSignalR x *
-                (rotZ (last - Real.pi / 4)).op := by
+            (rotZ (φ - Real.pi / 4)).matrix *
+                ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                  (rotZ (-(Real.pi / 4))).matrix) *
+                (rotZ last).matrix =
+              (rotZ (φ - Real.pi / 2)).matrix * singularSignalR x *
+                (rotZ (last - Real.pi / 4)).matrix := by
           calc
-            (rotZ (φ - Real.pi / 4)).op *
-                ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                  (rotZ (-(Real.pi / 4))).op) *
-                (rotZ last).op =
-              (rotZ ((φ - Real.pi / 4) + -(Real.pi / 4))).op *
-                singularSignalR x * (rotZ (-(Real.pi / 4) + last)).op := by
+            (rotZ (φ - Real.pi / 4)).matrix *
+                ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                  (rotZ (-(Real.pi / 4))).matrix) *
+                (rotZ last).matrix =
+              (rotZ ((φ - Real.pi / 4) + -(Real.pi / 4))).matrix *
+                singularSignalR x * (rotZ (-(Real.pi / 4) + last)).matrix := by
                 simpa using
                   rotZ_singularSignalR_rotZ_reassociate (φ - Real.pi / 4)
                     (-(Real.pi / 4)) (-(Real.pi / 4)) last x
             _ =
-              (rotZ (φ - Real.pi / 2)).op * singularSignalR x *
-                (rotZ (last - Real.pi / 4)).op := by
+              (rotZ (φ - Real.pi / 2)).matrix * singularSignalR x *
+                (rotZ (last - Real.pi / 4)).matrix := by
                 congr 2
                 all_goals ring_nf
         calc
           singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              (rotZ (φ - Real.pi / 4)).op *
-            ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                (rotZ (-(Real.pi / 4))).op) *
-              (rotZ last).op
+              (rotZ (φ - Real.pi / 4)).matrix *
+            ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                (rotZ (-(Real.pi / 4))).matrix) *
+              (rotZ last).matrix
               =
             singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              ((rotZ (φ - Real.pi / 4)).op *
-                ((rotZ (-(Real.pi / 4))).op * singularSignalR x *
-                  (rotZ (-(Real.pi / 4))).op) *
-                (rotZ last).op) := by
+              ((rotZ (φ - Real.pi / 4)).matrix *
+                ((rotZ (-(Real.pi / 4))).matrix * singularSignalR x *
+                  (rotZ (-(Real.pi / 4))).matrix) *
+                (rotZ last).matrix) := by
                 noncomm_ring
           _ =
             singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              ((rotZ (φ - Real.pi / 2)).op * singularSignalR x *
-                (rotZ (last - Real.pi / 4)).op) := by
+              ((rotZ (φ - Real.pi / 2)).matrix * singularSignalR x *
+                (rotZ (last - Real.pi / 4)).matrix) := by
                 rw [hblock]
           _ =
             singularSignalRProduct ((φ₀ - Real.pi / 4) ::
                 List.map (fun φ => φ - Real.pi / 2) init) x *
-              ((rotZ (φ - Real.pi / 2)).op * singularSignalR x) *
-                (rotZ (last - Real.pi / 4)).op := by
+              ((rotZ (φ - Real.pi / 2)).matrix * singularSignalR x) *
+                (rotZ (last - Real.pi / 4)).matrix := by
                 noncomm_ring
       rw [hmatrix]
 
 /-- Right multiplication by `rotZ` multiplies the `(0,0)` entry by the positive
 phase. -/
-private theorem mul_rotZ_zero_zero (A : HilbertOperator (Qubits 1)) (theta : ℝ) :
-    (A * (rotZ theta : HilbertOperator (Qubits 1))) 0 0 =
-      A 0 0 * Complex.exp ((theta : ℂ) * Complex.I) := by
-  simp [rotZ, rotZOp, Matrix.mul_apply]
+private theorem mul_rotZ_zero_zero (A : HilbertOperator (Qubits 1)) (θ : ℝ) :
+    (A * (rotZ θ : HilbertOperator (Qubits 1))) 0 0 =
+      A 0 0 * Complex.exp ((θ : ℂ) * Complex.I) := by
+  simp [rotZOp, Matrix.mul_apply]
 
 /-- The scalar part of the source phase conversion
 [GSLW19, BlockHam.tex:523-528]. -/
@@ -2216,18 +2639,18 @@ theorem I_pow_mul_terminal_phase (n : Nat) (last : ℝ) :
     Complex.I ^ (n + 1) * Complex.exp (((last - Real.pi / 4 : ℝ) : ℂ) * Complex.I) =
       Complex.exp (((last + n * (Real.pi / 2) + Real.pi / 4 : ℝ) : ℂ) *
         Complex.I) := by
-  have hstep (theta : ℝ) :
-      Complex.exp ((theta : ℂ) * Complex.I) * Complex.I =
-        Complex.exp (((theta + Real.pi / 2 : ℝ) : ℂ) * Complex.I) := by
+  have hstep (θ : ℝ) :
+      Complex.exp ((θ : ℂ) * Complex.I) * Complex.I =
+        Complex.exp (((θ + Real.pi / 2 : ℝ) : ℂ) * Complex.I) := by
     calc
-      Complex.exp ((theta : ℂ) * Complex.I) * Complex.I =
-          Complex.exp ((theta : ℂ) * Complex.I) *
+      Complex.exp ((θ : ℂ) * Complex.I) * Complex.I =
+          Complex.exp ((θ : ℂ) * Complex.I) *
             Complex.exp ((Real.pi : ℂ) / 2 * Complex.I) := by
             rw [exp_pi_div_two_mul_I]
-      _ = Complex.exp (((theta : ℂ) * Complex.I) +
+      _ = Complex.exp (((θ : ℂ) * Complex.I) +
             ((Real.pi : ℂ) / 2 * Complex.I)) := by
             rw [Complex.exp_add]
-      _ = Complex.exp (((theta + Real.pi / 2 : ℝ) : ℂ) * Complex.I) := by
+      _ = Complex.exp (((θ + Real.pi / 2 : ℝ) : ℂ) * Complex.I) := by
             congr 1
             norm_num
             ring_nf
@@ -2264,7 +2687,7 @@ theorem qspW_zero_zero_eq_rawProduct (φ₀ : ℝ) (init : List ℝ) (last x : �
       Complex.exp (((last + init.length * (Real.pi / 2) + Real.pi / 4 : ℝ) : ℂ) *
           Complex.I) * singularSignalRRawProduct φ₀ init x 0 0 := by
   rw [qspW_eq_I_pow_smul_rawProduct_mul_terminal]
-  simp [Matrix.mul_apply, rotZ, rotZOp]
+  simp [Matrix.mul_apply, rotZOp]
   change Complex.I ^ (init.length + 1) *
       (singularSignalRRawProduct φ₀ init x 0 0 *
         Complex.exp (((last : ℂ) - (Real.pi : ℂ) / 4) * Complex.I)) =
@@ -2302,7 +2725,8 @@ theorem singularSignalRProduct_first_phase_zero_zero
     singularSignalRProduct (a :: tail) x 0 0 =
       Complex.exp (((a : ℂ) - (b : ℂ)) * Complex.I) *
         singularSignalRProduct (b :: tail) x 0 0 := by
-  simp [singularSignalRProduct, rotZ, rotZOp, Matrix.mul_apply]
+  rw [singularSignalRProduct_cons, singularSignalRProduct_cons]
+  simp [rotZOp, Matrix.mul_apply, Matrix.vecMul, dotProduct]
   have h_exp :
       Complex.exp (((a : ℂ) - (b : ℂ)) * Complex.I) *
           Complex.exp ((b : ℂ) * Complex.I) =
@@ -2319,7 +2743,7 @@ theorem phaseProduct_eq_exp_sum (phases : List ℝ) :
   induction phases with
   | nil =>
       simp [phaseProduct]
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       rw [phaseProduct_cons, ih, ← Complex.exp_add]
       congr 1
       norm_num
@@ -2350,7 +2774,7 @@ phase sequence alternates between the right and left singular vectors and
 accumulates the product of the scalar projector phases [GSLW19,
 BlockHam.tex:655-671,738-849]. -/
 theorem sourceAlternating_applyVec_rightVec {N : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     ∀ phases : List ℝ,
       (phases.length % 2 = 0 →
@@ -2367,74 +2791,74 @@ theorem sourceAlternating_applyVec_rightVec {N : Nat}
         simp [sourceAlternatingPhaseModulation]
       · intro h
         norm_num at h
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       constructor
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 0 := by
           exact hlen
         have htail : phases.length % 2 = 1 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
               phaseProduct phases • block.leftVec :=
           ih.2 htail
-        rw [htail_action, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_smul]
         rw [SourceUnitSingularBlock.even_signal_on_leftVec block
           (remaining := phases.length + 1) hrem]
-        change (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+        change (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
             (phaseProduct phases • block.rightVec) =
-          phaseProduct (phi :: phases) • block.rightVec
-        rw [Gate.applyVec_smul]
+          phaseProduct (φ :: phases) • block.rightVec
+        rw [UnitaryCircuit.applyVec_smul]
         have hphase :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.rightVec =
-                Complex.exp (phi * Complex.I) • block.rightVec := by
+                Complex.exp (φ * Complex.I) • block.rightVec := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = right := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_even left right (L := phases.length + 1) hrem)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-            Complex.exp (phi * Complex.I) • block.rightVec
-          exact SourceUnitSingularBlock.right_phase_on_rightVec block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+            Complex.exp (φ * Complex.I) • block.rightVec
+          exact SourceUnitSingularBlock.right_phase_on_rightVec block φ
         rw [hphase]
         rw [phaseProduct_cons, smul_smul]
         have hmul :
-            phaseProduct phases * Complex.exp (phi * Complex.I) =
-              Complex.exp (phi * Complex.I) * phaseProduct phases := by ring
+            phaseProduct phases * Complex.exp (φ * Complex.I) =
+              Complex.exp (φ * Complex.I) * phaseProduct phases := by ring
         rw [hmul]
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 1 := by
           exact hlen
         have htail : phases.length % 2 = 0 := by omega
         have hrem_ne : (phases.length + 1) % 2 ≠ 0 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
               phaseProduct phases • block.rightVec :=
           ih.1 htail
-        rw [htail_action, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_smul]
         rw [SourceUnitSingularBlock.odd_signal_on_rightVec block
           (remaining := phases.length + 1) hrem_ne]
-        change (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+        change (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
             (phaseProduct phases • block.leftVec) =
-          phaseProduct (phi :: phases) • block.leftVec
-        rw [Gate.applyVec_smul]
+          phaseProduct (φ :: phases) • block.leftVec
+        rw [UnitaryCircuit.applyVec_smul]
         have hphase :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.leftVec =
-                Complex.exp (phi * Complex.I) • block.leftVec := by
+                Complex.exp (φ * Complex.I) • block.leftVec := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = left := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_odd left right (L := phases.length + 1) hrem_ne)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftVec =
-            Complex.exp (phi * Complex.I) • block.leftVec
-          exact SourceUnitSingularBlock.left_phase_on_leftVec block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
+            Complex.exp (φ * Complex.I) • block.leftVec
+          exact SourceUnitSingularBlock.left_phase_on_leftVec block φ
         rw [hphase]
         rw [phaseProduct_cons, smul_smul]
         have hmul :
-            phaseProduct phases * Complex.exp (phi * Complex.I) =
-              Complex.exp (phi * Complex.I) * phaseProduct phases := by ring
+            phaseProduct phases * Complex.exp (φ * Complex.I) =
+              Complex.exp (φ * Complex.I) * phaseProduct phases := by ring
         rw [hmul]
 
 end SourceUnitSingularBlock
@@ -2447,17 +2871,17 @@ product.  This is the local block computation used in
 `thm:singValTransformation` before projecting onto the singular-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
 theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct {N : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     ∀ phases : List ℝ,
       (phases.length % 2 = 0 →
         (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
-          singularSignalRProduct phases block.sigma 0 0 • block.rightVec +
-            singularSignalRProduct phases block.sigma 1 0 • block.rightPerp) ∧
+          singularSignalRProduct phases block.σ 0 0 • block.rightVec +
+            singularSignalRProduct phases block.σ 1 0 • block.rightPerp) ∧
       (phases.length % 2 = 1 →
         (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
-          singularSignalRProduct phases block.sigma 0 0 • block.leftVec +
-            singularSignalRProduct phases block.sigma 1 0 • block.leftPerp) := by
+          singularSignalRProduct phases block.σ 0 0 • block.leftVec +
+            singularSignalRProduct phases block.σ 1 0 • block.leftPerp) := by
   intro phases
   induction phases with
   | nil =>
@@ -2466,94 +2890,96 @@ theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct {N : Nat}
         simp [sourceAlternatingPhaseModulation]
       · intro h
         norm_num at h
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       constructor
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 0 := by
           exact hlen
         have htail : phases.length % 2 = 1 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
-              singularSignalRProduct phases block.sigma 0 0 • block.leftVec +
-                singularSignalRProduct phases block.sigma 1 0 • block.leftPerp :=
+              singularSignalRProduct phases block.σ 0 0 • block.leftVec +
+                singularSignalRProduct phases block.σ 1 0 • block.leftPerp :=
           ih.2 htail
-        rw [htail_action, Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_add,
+          UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul]
         rw [SourceTwoDimensionalSingularBlock.even_signal_on_leftVec block
           (remaining := phases.length + 1) hrem]
         rw [SourceTwoDimensionalSingularBlock.even_signal_on_leftPerp block
           (remaining := phases.length + 1) hrem]
-        rw [Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul,
-          Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul,
-          Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
+        rw [UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul,
+          UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul,
+          UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul]
         have hphase_right :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.rightVec =
-                Complex.exp (phi * Complex.I) • block.rightVec := by
+                Complex.exp (φ * Complex.I) • block.rightVec := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = right := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_even left right (L := phases.length + 1) hrem)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-            Complex.exp (phi * Complex.I) • block.rightVec
-          exact SourceTwoDimensionalSingularBlock.right_phase_on_rightVec block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+            Complex.exp (φ * Complex.I) • block.rightVec
+          exact SourceTwoDimensionalSingularBlock.right_phase_on_rightVec block φ
         have hphase_right_perp :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.rightPerp =
-                Complex.exp (-(phi * Complex.I)) • block.rightPerp := by
+                Complex.exp (-(φ * Complex.I)) • block.rightPerp := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = right := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_even left right (L := phases.length + 1) hrem)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightPerp =
-            Complex.exp (-(phi * Complex.I)) • block.rightPerp
-          exact SourceTwoDimensionalSingularBlock.right_phase_on_rightPerp block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
+            Complex.exp (-(φ * Complex.I)) • block.rightPerp
+          exact SourceTwoDimensionalSingularBlock.right_phase_on_rightPerp block φ
         rw [hphase_right, hphase_right_perp]
-        simp [singularSignalRProduct, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+        simp [singularSignalRProduct, singularSignalR, rotZOp, Matrix.mul_apply]
         module
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 1 := by
           exact hlen
         have htail : phases.length % 2 = 0 := by omega
         have hrem_ne : (phases.length + 1) % 2 ≠ 0 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
-              singularSignalRProduct phases block.sigma 0 0 • block.rightVec +
-                singularSignalRProduct phases block.sigma 1 0 • block.rightPerp :=
+              singularSignalRProduct phases block.σ 0 0 • block.rightVec +
+                singularSignalRProduct phases block.σ 1 0 • block.rightPerp :=
           ih.1 htail
-        rw [htail_action, Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_add,
+          UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul]
         rw [SourceTwoDimensionalSingularBlock.odd_signal_on_rightVec block
           (remaining := phases.length + 1) hrem_ne]
         rw [SourceTwoDimensionalSingularBlock.odd_signal_on_rightPerp block
           (remaining := phases.length + 1) hrem_ne]
-        rw [Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul,
-          Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul,
-          Gate.applyVec_add, Gate.applyVec_smul, Gate.applyVec_smul]
+        rw [UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul,
+          UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul,
+          UnitaryCircuit.applyVec_add, UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_smul]
         have hphase_left :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.leftVec =
-                Complex.exp (phi * Complex.I) • block.leftVec := by
+                Complex.exp (φ * Complex.I) • block.leftVec := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = left := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_odd left right (L := phases.length + 1) hrem_ne)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftVec =
-            Complex.exp (phi * Complex.I) • block.leftVec
-          exact SourceTwoDimensionalSingularBlock.left_phase_on_leftVec block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
+            Complex.exp (φ * Complex.I) • block.leftVec
+          exact SourceTwoDimensionalSingularBlock.left_phase_on_leftVec block φ
         have hphase_left_perp :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.leftPerp =
-                Complex.exp (-(phi * Complex.I)) • block.leftPerp := by
+                Complex.exp (-(φ * Complex.I)) • block.leftPerp := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = left := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_odd left right (L := phases.length + 1) hrem_ne)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftPerp =
-            Complex.exp (-(phi * Complex.I)) • block.leftPerp
-          exact SourceTwoDimensionalSingularBlock.left_phase_on_leftPerp block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
+            Complex.exp (-(φ * Complex.I)) • block.leftPerp
+          exact SourceTwoDimensionalSingularBlock.left_phase_on_leftPerp block φ
         rw [hphase_left, hphase_left_perp]
-        simp [singularSignalRProduct, singularSignalR, rotZ, rotZOp, Matrix.mul_apply]
+        simp [singularSignalRProduct, singularSignalR, rotZOp, Matrix.mul_apply]
         module
 
 end SourceTwoDimensionalSingularBlock
@@ -2566,7 +2992,7 @@ singular vector, and odd lengths land in the left-complement vector.  This is
 the zero-singular-value right-sector part of `thm:singValTransformation`
 [GSLW19, BlockHam.tex:599-611,655-716,768-849]. -/
 theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct_zero {N : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     ∀ phases : List ℝ,
       (phases.length % 2 = 0 →
@@ -2583,79 +3009,79 @@ theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct_zero {N : Nat
         simp [sourceAlternatingPhaseModulation]
       · intro h
         norm_num at h
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       constructor
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 0 := by
           exact hlen
         have htail : phases.length % 2 = 1 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
               singularSignalRProduct phases 0 1 0 • block.leftPerp :=
           ih.2 htail
-        rw [htail_action, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_smul]
         rw [SourceRightKernelSingularBlock.even_signal_on_leftPerp block
           (remaining := phases.length + 1) hrem]
-        rw [Gate.applyVec_smul]
+        rw [UnitaryCircuit.applyVec_smul]
         have hphase_right :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.rightVec =
-                Complex.exp (phi * Complex.I) • block.rightVec := by
+                Complex.exp (φ * Complex.I) • block.rightVec := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = right := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_even left right (L := phases.length + 1) hrem)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi right) block.rightVec =
-            Complex.exp (phi * Complex.I) • block.rightVec
-          exact SourceRightKernelSingularBlock.right_phase_on_rightVec block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
+            Complex.exp (φ * Complex.I) • block.rightVec
+          exact SourceRightKernelSingularBlock.right_phase_on_rightVec block φ
         rw [hphase_right]
-        simp [singularSignalRProduct, singularSignalR, rotZ, rotZOp, Matrix.mul_apply,
-          smul_smul, mul_comm, mul_assoc]
+        simp [singularSignalRProduct, singularSignalR, rotZOp, Matrix.mul_apply,
+          smul_smul, mul_comm]
       · intro hlen
         have hrem : (phases.length + 1) % 2 = 1 := by
           exact hlen
         have htail : phases.length % 2 = 0 := by omega
         have hrem_ne : (phases.length + 1) % 2 ≠ 0 := by omega
-        rw [sourceAlternatingPhaseModulation_cons, Gate.mul_applyVec, Gate.mul_applyVec]
+        rw [sourceAlternatingPhaseModulation_cons_applyVec]
         have htail_action :
             (sourceAlternatingPhaseModulation U left right phases).applyVec block.rightVec =
               singularSignalRProduct phases 0 0 0 • block.rightVec :=
           ih.1 htail
-        rw [htail_action, Gate.applyVec_smul]
+        rw [htail_action, UnitaryCircuit.applyVec_smul]
         rw [SourceRightKernelSingularBlock.odd_signal_on_rightVec block
           (remaining := phases.length + 1) hrem_ne]
-        rw [Gate.applyVec_smul]
+        rw [UnitaryCircuit.applyVec_smul]
         have hphase_left_perp :
-            (projectorPhase phi (sourcePhaseProjector left right (phases.length + 1))).applyVec
+            (projectorPhase φ (sourcePhaseProjector left right (phases.length + 1))).applyVec
               block.leftPerp =
-                Complex.exp (-(phi * Complex.I)) • block.leftPerp := by
+                Complex.exp (-(φ * Complex.I)) • block.leftPerp := by
           have hp : sourcePhaseProjector left right (phases.length + 1) = left := by
             simpa [sourcePhaseProjector] using
               (projectedOutputProjector_of_odd left right (L := phases.length + 1) hrem_ne)
           rw [hp]
-          change HilbertOperator.applyVec (projectorPhaseOp phi left) block.leftPerp =
-            Complex.exp (-(phi * Complex.I)) • block.leftPerp
-          exact SourceRightKernelSingularBlock.left_phase_on_leftPerp block phi
+          change HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
+            Complex.exp (-(φ * Complex.I)) • block.leftPerp
+          exact SourceRightKernelSingularBlock.left_phase_on_leftPerp block φ
         rw [hphase_left_perp]
-        simp [singularSignalRProduct, singularSignalR, rotZ, rotZOp, Matrix.mul_apply,
-          smul_smul, mul_comm, mul_assoc]
+        simp [singularSignalRProduct, singularSignalR, rotZOp, Matrix.mul_apply,
+          smul_smul, mul_comm]
 
 end SourceRightKernelSingularBlock
 
 /-- The source-level projected block `Π_out U_Φ Π_in` from the singular-value
 transformation theorem [GSLW19, BlockHam.tex:768-849]. -/
 noncomputable def sourceProjectedBlock {N : Nat} (output input : OrthogonalProjector N)
-    (V : Gate (Qubits N)) : HilbertOperator (Qubits N) :=
+    (V : UnitaryOperator (Qubits N)) : HilbertOperator (Qubits N) :=
   output.op * V * input.op
 
 /-- Vectors in the input-projector complement are killed by the projected block
 `Π_out V Π_in`. -/
 theorem sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support {N : Nat}
-    (output input : OrthogonalProjector N) (V : Gate (Qubits N))
-    (psi : StateVector (Qubits N))
-    (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement input) psi = psi) :
-    HilbertOperator.applyVec (sourceProjectedBlock output input V) psi = 0 := by
+    (output input : OrthogonalProjector N) (V : UnitaryOperator (Qubits N))
+    (ψ : HilbertVector (Qubits N))
+    (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement input) ψ = ψ) :
+    HilbertOperator.applyVec (sourceProjectedBlock output input V) ψ = 0 := by
   unfold sourceProjectedBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec,
     OrthogonalProjector.projector_applyVec_eq_zero_of_complement_applyVec_eq_self input hpsi]
@@ -2663,19 +3089,19 @@ theorem sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support {N : N
 
 /-- Applying a Hilbert operator commutes with a list-indexed vector sum. -/
 private theorem hilbertOperator_applyVec_list_sum {N : Nat}
-    (A : HilbertOperator (Qubits N)) (v : List (StateVector (Qubits N))) :
+    (A : HilbertOperator (Qubits N)) (v : List (HilbertVector (Qubits N))) :
     HilbertOperator.applyVec A v.sum =
-      (v.map fun psi => HilbertOperator.applyVec A psi).sum := by
+      (v.map fun ψ => HilbertOperator.applyVec A ψ).sum := by
   induction v with
   | nil =>
       simp [HilbertOperator.applyVec]
-  | cons psi rest ih =>
+  | cons ψ rest ih =>
       simp [HilbertOperator.applyVec_add, ih]
 
 /-- If two Hilbert operators agree on an indexed family, they agree on every
 finite linear combination of that family. -/
 private theorem hilbertOperator_applyVec_eq_on_list_linearCombination {N : Nat}
-    {ι : Type} (vec : ι -> StateVector (Qubits N))
+    {ι : Type} (vec : ι -> HilbertVector (Qubits N))
     {A B : HilbertOperator (Qubits N)}
     (h : ∀ i : ι, HilbertOperator.applyVec A (vec i) =
       HilbertOperator.applyVec B (vec i))
@@ -2694,9 +3120,9 @@ namespace SourceLeftKernelSingularBlock
 /-- Left-kernel input-side vectors lie in the right-projector complement, hence
 the source projected block kills them. -/
 theorem sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
-    {U : Gate (Qubits N)} {left right output : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right output : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right)
-    (V : Gate (Qubits N)) :
+    (V : UnitaryOperator (Qubits N)) :
     HilbertOperator.applyVec (sourceProjectedBlock output right V) block.rightPerp = 0 :=
   sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support output right V
     block.rightPerp block.right_perp_support
@@ -2708,9 +3134,9 @@ namespace SourceComplementSingularBlock
 /-- Fully complementary input-side vectors lie in the right-projector complement,
 hence the source projected block kills them. -/
 theorem sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
-    {U : Gate (Qubits N)} {left right output : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right output : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right)
-    (V : Gate (Qubits N)) :
+    (V : UnitaryOperator (Qubits N)) :
     HilbertOperator.applyVec (sourceProjectedBlock output right V) block.rightPerp = 0 :=
   sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support output right V
     block.rightPerp block.right_perp_support
@@ -2720,18 +3146,18 @@ end SourceComplementSingularBlock
 /-- Source-level singular-value correctness target for `U_Φ`, before adding the
 one-ancilla controlled implementation used by the public real-polynomial
 statement [GSLW19, BlockHam.tex:768-849]. -/
-def SourceProjectedQSVTBlockCorrectness {N : Nat} (U : Gate (Qubits N))
+def SourceProjectedQSVTBlockCorrectness {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (P : Polynomial ℂ)
     (phases : List ℝ) : Prop :=
   sourceProjectedBlock (projectedOutputProjector left right L) right
-      (sourceAlternatingPhaseModulation U left right phases) =
+      (sourceAlternatingPhaseModulation U left right phases).matrix =
     singularValuePolynomial right L P (projectedUnitaryBlock left right U)
 
 /-- Degree-one base case of the source-level projected QSVT theorem.  The
 single zero phase realizes the original projected block, corresponding to
 `P(X)=X`. -/
 theorem sourceProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) :
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     SourceProjectedQSVTBlockCorrectness U left right 1 (Polynomial.X : Polynomial ℂ) [0] := by
   unfold SourceProjectedQSVTBlockCorrectness sourceProjectedBlock
   simp [sourceAlternatingPhaseModulation, sourcePhaseProjector, projectedOutputProjector,
@@ -2740,7 +3166,7 @@ theorem sourceProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
 /-- Degree-zero source-level projected QSVT sanity case: the empty phase sequence
 realizes the constant polynomial `1` on the input projector. -/
 theorem sourceProjectedQSVTBlockCorrectness_one_nil {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) :
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     SourceProjectedQSVTBlockCorrectness U left right 0 (Polynomial.C 1 : Polynomial ℂ) [] := by
   unfold SourceProjectedQSVTBlockCorrectness sourceProjectedBlock singularValuePolynomial
     evenSingularValuePolynomial polynomialOperator
@@ -2750,7 +3176,7 @@ theorem sourceProjectedQSVTBlockCorrectness_one_nil {N : Nat}
 /-- Negate every source phase.  The controlled real-polynomial construction uses
 the direct sum of `U_Φ` and `U_{-Φ}` [GSLW19, BlockHam.tex:851-887]. -/
 def negPhases (phases : List ℝ) : List ℝ :=
-  phases.map fun phi => -phi
+  phases.map fun φ => -φ
 
 @[simp]
 theorem negPhases_length (phases : List ℝ) :
@@ -2767,46 +3193,49 @@ theorem phaseProduct_negPhases (phases : List ℝ) :
   induction phases with
   | nil =>
       simp [negPhases]
-  | cons phi phases ih =>
+  | cons φ phases ih =>
       simp only [negPhases, List.map_cons, phaseProduct_cons]
-      change Complex.exp ((-phi : ℝ) * Complex.I) *
+      change Complex.exp ((-φ : ℝ) * Complex.I) *
           phaseProduct (negPhases phases) =
-        star (Complex.exp (phi * Complex.I) * phaseProduct phases)
+        star (Complex.exp (φ * Complex.I) * phaseProduct phases)
       rw [ih]
       rw [star_mul]
-      rw [mul_comm (star (phaseProduct phases)) (star (Complex.exp (phi * Complex.I)))]
+      rw [mul_comm (star (phaseProduct phases)) (star (Complex.exp (φ * Complex.I)))]
       have hexp :
-          star (Complex.exp (phi * Complex.I)) =
-            Complex.exp ((-phi : ℝ) * Complex.I) := by
-        simpa using conj_exp_I phi
+          star (Complex.exp (φ * Complex.I)) =
+            Complex.exp ((-φ : ℝ) * Complex.I) := by
+        simpa using conj_exp_I φ
       rw [hexp]
 
 /-- Controlled direct sum of the source-level phase sequences `U_Φ` and
 `U_{-Φ}` used by the matching-parity real-polynomial corollary
 [GSLW19, BlockHam.tex:851-887]. -/
-noncomputable def sourceRealProjectedGate {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) (phases : List ℝ) : Gate (Qubits (1 + N)) :=
+noncomputable def sourceRealProjectedGate {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (phases : List ℝ) : UnitaryCircuit (Qubits (1 + N)) :=
   phaseControlledDirectSum
     (sourceAlternatingPhaseModulation U left right phases)
     (sourceAlternatingPhaseModulation U left right (negPhases phases))
 
 /-- The `|+⟩` block of the controlled real-projected gate is the average of
 the source phase sequence and its negated-phase companion. -/
-theorem phasePlusBlock_sourceRealProjectedGate {N : Nat} (U : Gate (Qubits N))
+theorem phasePlusBlock_sourceRealProjectedGate {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
-    phasePlusBlock (sourceRealProjectedGate U left right phases) =
+    phasePlusBlock (sourceRealProjectedGate U left right phases).matrix =
       (1 / 2 : ℂ) •
           (sourceAlternatingPhaseModulation U left right phases : HilbertOperator (Qubits N)) +
         (1 / 2 : ℂ) •
           (sourceAlternatingPhaseModulation U left right (negPhases phases) :
             HilbertOperator (Qubits N)) := by
-  simp [sourceRealProjectedGate, phasePlusBlock_phaseControlledDirectSum]
+  rw [sourceRealProjectedGate, phaseControlledDirectSum_matrix]
+  exact phasePlusBlock_phaseControlledDirectSum
+    (sourceAlternatingPhaseModulation U left right phases).matrix
+    (sourceAlternatingPhaseModulation U left right (negPhases phases)).matrix
 
 /-- Projected form of `phasePlusBlock_sourceRealProjectedGate`. -/
 theorem projectedPhasePlusBlock_sourceRealProjectedGate {N : Nat}
-    (U : Gate (Qubits N)) (output input left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (output input left right : OrthogonalProjector N)
     (phases : List ℝ) :
-    projectedPhasePlusBlock output input (sourceRealProjectedGate U left right phases) =
+    projectedPhasePlusBlock output input (sourceRealProjectedGate U left right phases).matrix =
       output.op *
         ((1 / 2 : ℂ) •
             (sourceAlternatingPhaseModulation U left right phases :
@@ -2815,133 +3244,392 @@ theorem projectedPhasePlusBlock_sourceRealProjectedGate {N : Nat}
             (sourceAlternatingPhaseModulation U left right (negPhases phases) :
               HilbertOperator (Qubits N))) *
         input.op := by
-  simp [projectedPhasePlusBlock, phasePlusBlock_sourceRealProjectedGate]
+  unfold projectedPhasePlusBlock
+  rw [phasePlusBlock_sourceRealProjectedGate]
 
 @[simp]
-theorem sourcePhaseSignal_of_odd {N : Nat} (U : Gate (Qubits N)) {remaining : ℕ}
+theorem sourcePhaseSignal_of_odd {N : Nat} (U : UnitaryOperator (Qubits N)) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
-    sourcePhaseSignal U remaining = U := by
+    sourcePhaseSignal U remaining = qsvtOracleGate U := by
   rw [sourcePhaseSignal, if_neg hremaining]
 
 @[simp]
-theorem sourcePhaseSignal_of_even {N : Nat} (U : Gate (Qubits N)) {remaining : ℕ}
+theorem sourcePhaseSignal_of_even {N : Nat} (U : UnitaryOperator (Qubits N)) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
-    sourcePhaseSignal U remaining = U.conjTranspose := by
+    sourcePhaseSignal U remaining = (qsvtOracleGate U).dagger := by
   rw [sourcePhaseSignal, if_pos hremaining]
 
 @[simp]
-theorem liftSourcePhaseSignal_of_odd {N : Nat} (U : Gate (Qubits N)) {remaining : ℕ}
+theorem liftSourcePhaseSignal_of_odd {N : Nat} (U : UnitaryOperator (Qubits N)) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
-    liftSourcePhaseSignal U remaining = liftSignalGate U := by
+    liftSourcePhaseSignal U remaining = liftSignalGate (qsvtOracleGate U) := by
   simp [liftSourcePhaseSignal, hremaining]
 
 @[simp]
-theorem liftSourcePhaseSignal_of_even {N : Nat} (U : Gate (Qubits N)) {remaining : ℕ}
+theorem liftSourcePhaseSignal_of_even {N : Nat} (U : UnitaryOperator (Qubits N)) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
-    liftSourcePhaseSignal U remaining = liftSignalGate U.conjTranspose := by
+    liftSourcePhaseSignal U remaining = liftSignalGate (qsvtOracleGate U).dagger := by
   simp [liftSourcePhaseSignal, hremaining]
 
 /-- Gate-level alternating phase modulation word over a projected-unitary
 encoding, following Definition `def:phaseSeq` in the source. -/
-noncomputable def alternatingPhaseModulation {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) : List ℝ → Gate (Qubits (1 + N))
-  | [] => 1
-  | phi :: phases =>
-      projectorPhaseGate phi (sourcePhaseProjector left right (phases.length + 1))
-        * liftSourcePhaseSignal U (phases.length + 1)
-        * alternatingPhaseModulation U left right phases
+noncomputable def alternatingPhaseModulation {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) : List ℝ → UnitaryCircuit (Qubits (1 + N))
+  | [] => UnitaryCircuit.identity (Qubits (1 + N)) (List.range (1 + N)) List.nodup_range
+  | φ :: phases => by
+      let remaining := phases.length + 1
+      let phase :=
+        projectorPhaseGate (2 * φ) (sourcePhaseProjector left right remaining)
+          (qsvtProjectorSide remaining)
+      let signal := liftSourcePhaseSignal U remaining
+      let tail := alternatingPhaseModulation U left right phases
+      exact UnitaryCircuit.seq (UnitaryCircuit.seq tail signal) phase
+
+/-- Standard `R_Z(2φ)` separates into the two phase-ancilla projectors. -/
+theorem rotZStd_two_eq_phase_projectors (φ : ℝ) :
+    (rotZStd (2 * φ) : HilbertOperator (Qubits 1)) =
+      Complex.exp (-(φ * Complex.I)) • HilbertOperator.proj0 +
+        Complex.exp (φ * Complex.I) • HilbertOperator.proj1 := by
+  rw [coe_rotZStd]
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [rotZStdOp, rotZOp, HilbertOperator.proj0, HilbertOperator.proj1]
+
+/-- Standard `R_Z(-2φ)` separates into the two phase-ancilla projectors. -/
+theorem rotZStd_neg_two_eq_phase_projectors (φ : ℝ) :
+    (rotZStd (-2 * φ) : HilbertOperator (Qubits 1)) =
+      Complex.exp (φ * Complex.I) • HilbertOperator.proj0 +
+        Complex.exp (-(φ * Complex.I)) • HilbertOperator.proj1 := by
+  rw [coe_rotZStd]
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [rotZStdOp, rotZOp, HilbertOperator.proj0, HilbertOperator.proj1] <;>
+    congr 1 <;> ring
+
+/-- The explicit two-query projector gadget realizes the controlled direct sum
+of the source projector phases `φ` and `-φ`. -/
+theorem projectorPhaseGate_two_eq_sourceDirectSum {N : Nat}
+    (φ : ℝ) (P : OrthogonalProjector N)
+    (side : QSVTProjectorSide) :
+    (projectorPhaseGate (2 * φ) P side : HilbertOperator (Qubits (1 + N))) =
+      (phaseControlledDirectSumOperator (projectorPhaseOp φ P)
+        (projectorPhaseOp (-φ) P) : HilbertOperator (Qubits (1 + N))) := by
+  have hneg : -(2 * φ) = -2 * φ := by ring
+  rw [projectorPhaseGate_eq_tensor_decomp (side := side), hneg,
+    rotZStd_neg_two_eq_phase_projectors, rotZStd_two_eq_phase_projectors,
+    phaseControlledDirectSum_eq_tensor_decomp, coe_projectorPhaseOp,
+    coe_projectorPhaseOp]
+  have hnegExp :
+      Complex.exp (((-φ : ℝ) : ℂ) * Complex.I) =
+        Complex.exp (-(φ * Complex.I)) := by
+    congr 1
+    push_cast
+    ring
+  have hnegNegExp :
+      Complex.exp (-(((-φ : ℝ) : ℂ) * Complex.I)) =
+        Complex.exp (φ * Complex.I) := by
+    congr 1
+    push_cast
+    ring
+  rw [hnegExp, hnegNegExp]
+  ext i j
+  simp only [HilbertOperator.tensor_apply, Matrix.add_apply,
+    Matrix.smul_apply, smul_eq_mul]
+  ring
+
+/-- Controlled direct sums multiply branchwise. -/
+theorem phaseControlledDirectSumOperator_mul {N : Nat}
+    (V0 V1 W0 W1 : UnitaryOperator (Qubits N)) :
+    (phaseControlledDirectSumOperator V0 V1 : HilbertOperator (Qubits (1 + N))) *
+        (phaseControlledDirectSumOperator W0 W1 : HilbertOperator (Qubits (1 + N))) =
+      (phaseControlledDirectSumOperator (V0 * W0) (V1 * W1) :
+        HilbertOperator (Qubits (1 + N))) := by
+  rw [phaseControlledDirectSum_eq_tensor_decomp,
+    phaseControlledDirectSum_eq_tensor_decomp,
+    phaseControlledDirectSum_eq_tensor_decomp]
+  rw [Matrix.add_mul, Matrix.mul_add, Matrix.mul_add]
+  repeat rw [HilbertOperator.tensor_mul_tensor]
+  have h00 : HilbertOperator.proj0 * HilbertOperator.proj0 =
+      HilbertOperator.proj0 := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [HilbertOperator.proj0, Matrix.mul_apply, Fin.sum_univ_two]
+  have h01 : HilbertOperator.proj0 * HilbertOperator.proj1 =
+      (0 : HilbertOperator (Qubits 1)) := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [HilbertOperator.proj0, HilbertOperator.proj1, Matrix.mul_apply,
+        Fin.sum_univ_two]
+  have h10 : HilbertOperator.proj1 * HilbertOperator.proj0 =
+      (0 : HilbertOperator (Qubits 1)) := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [HilbertOperator.proj0, HilbertOperator.proj1, Matrix.mul_apply,
+        Fin.sum_univ_two]
+  have h11 : HilbertOperator.proj1 * HilbertOperator.proj1 =
+      HilbertOperator.proj1 := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [HilbertOperator.proj1, Matrix.mul_apply, Fin.sum_univ_two]
+  rw [h00, h01, h10, h11]
+  simp
+
+/-- Lifting one signal circuit is the direct sum of the same signal on both
+phase-ancilla branches. -/
+theorem liftSignalGate_eq_sourceDirectSum {N : Nat} (V : UnitaryCircuit (Qubits N)) :
+    (liftSignalGate V : HilbertOperator (Qubits (1 + N))) =
+      (phaseControlledDirectSumOperator V.matrix V.matrix :
+        HilbertOperator (Qubits (1 + N))) := by
+  rw [liftSignalGate_matrix]
+  rw [phaseControlledDirectSum_eq_tensor_decomp]
+  change HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
+        (V : HilbertOperator (Qubits N)) =
+      HilbertOperator.tensor HilbertOperator.proj0 (V : HilbertOperator (Qubits N)) +
+        HilbertOperator.tensor HilbertOperator.proj1 (V : HilbertOperator (Qubits N))
+  rw [← HilbertOperator.add_tensor]
+  congr 1
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [HilbertOperator.proj0, HilbertOperator.proj1]
+
+set_option maxHeartbeats 800000 in
+-- The recursive proof normalizes two direct-sum branches at every phase slot.
+/-- The explicit projected-QSVT word has exactly the source controlled-direct-
+sum semantics; the equality is proved slot by slot rather than asserted by a
+composite metadata atom. -/
+theorem alternatingPhaseModulation_matrix_eq_sourceDirectSum {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (phases : List ℝ) :
+    (alternatingPhaseModulation U left right phases :
+        HilbertOperator (Qubits (1 + N))) =
+      (phaseControlledDirectSumOperator
+          (sourceAlternatingPhaseModulation U left right phases).matrix
+          (sourceAlternatingPhaseModulation U left right (negPhases phases)).matrix :
+        HilbertOperator (Qubits (1 + N))) := by
+  induction phases with
+  | nil =>
+      simp only [alternatingPhaseModulation, negPhases, List.map_nil,
+        sourceAlternatingPhaseModulation]
+      rw [phaseControlledDirectSum_eq_tensor_decomp]
+      change (1 : HilbertOperator (Qubits (1 + N))) =
+        HilbertOperator.tensor HilbertOperator.proj0 (1 : HilbertOperator (Qubits N)) +
+          HilbertOperator.tensor HilbertOperator.proj1 (1 : HilbertOperator (Qubits N))
+      rw [← HilbertOperator.add_tensor]
+      have hsum : HilbertOperator.proj0 + HilbertOperator.proj1 =
+          (1 : HilbertOperator (Qubits 1)) := by
+        ext i j
+        fin_cases i <;> fin_cases j <;>
+          simp [HilbertOperator.proj0, HilbertOperator.proj1]
+      rw [hsum, HilbertOperator.one_tensor_one]
+  | cons φ phases ih =>
+      rw [alternatingPhaseModulation]
+      rw [UnitaryCircuit.seq_matrix, UnitaryCircuit.seq_matrix]
+      rw [← Matrix.mul_assoc]
+      change
+        (projectorPhaseGate (2 * φ)
+              (sourcePhaseProjector left right (phases.length + 1))
+              (qsvtProjectorSide (phases.length + 1)) :
+            HilbertOperator (Qubits (1 + N))) *
+            (liftSourcePhaseSignal U (phases.length + 1) :
+              HilbertOperator (Qubits (1 + N))) *
+            (alternatingPhaseModulation U left right phases :
+              HilbertOperator (Qubits (1 + N))) = _
+      rw [projectorPhaseGate_two_eq_sourceDirectSum]
+      rw [show (liftSourcePhaseSignal U (phases.length + 1) :
+            HilbertOperator (Qubits (1 + N))) =
+          (phaseControlledDirectSumOperator
+              (sourcePhaseSignal U (phases.length + 1)).matrix
+              (sourcePhaseSignal U (phases.length + 1)).matrix :
+            HilbertOperator (Qubits (1 + N))) by
+        exact liftSignalGate_eq_sourceDirectSum
+          (sourcePhaseSignal U (phases.length + 1))]
+      rw [ih, phaseControlledDirectSumOperator_mul,
+        phaseControlledDirectSumOperator_mul]
+      rw [show negPhases (φ :: phases) = -φ :: negPhases phases by rfl]
+      have hpos :
+          projectorPhaseOp φ (sourcePhaseProjector left right (phases.length + 1)) *
+              (sourcePhaseSignal U (phases.length + 1)).matrix *
+              (sourceAlternatingPhaseModulation U left right phases).matrix =
+            (sourceAlternatingPhaseModulation U left right (φ :: phases)).matrix := by
+        apply Subtype.ext
+        exact (sourceAlternatingPhaseModulation_cons U left right φ phases).symm
+      have hneg :
+          projectorPhaseOp (-φ) (sourcePhaseProjector left right (phases.length + 1)) *
+              (sourcePhaseSignal U (phases.length + 1)).matrix *
+              (sourceAlternatingPhaseModulation U left right (negPhases phases)).matrix =
+            (sourceAlternatingPhaseModulation U left right
+              (-φ :: negPhases phases)).matrix := by
+        apply Subtype.ext
+        have h := (sourceAlternatingPhaseModulation_cons U left right (-φ)
+          (negPhases phases)).symm
+        rw [negPhases_length] at h
+        exact h
+      rw [hpos, hneg]
 
 /-! ### Projected QSVT circuit spine -/
 
-/-- Resource counters for the projected QSVT theorem of [GSLW19,
-BlockHam.tex:768-887].  These are intentionally more specific than the generic
-`ResourceProfile`: the public statement distinguishes signal-oracle queries,
-projector-controlled-NOT queries, controlled phase gates, and the single phase
-ancilla. -/
-structure ProjectedResourceProfile where
-  /-- Trusted count of signal-oracle queries. -/
+
+
+
+
+/-- Strict event ledger recursively read from the projected-QSVT circuit. -/
+def qsvtProjectedCircuitEventResource (N : ℕ) : ℕ → ResourcePool .quantum
+  | 0 => 0
+  | L + 1 =>
+      qsvtProjectedCircuitEventResource N L +
+        ResourcePool.singleton (qsvtOracleEvent N) +
+        ResourcePool.singleton (qsvtProjectorOracleEvent N (L + 1)) 2 +
+        ResourcePool.singleton qsvtControlledPhaseEvent
+
+/-- The projected-QSVT circuit exposes its literal signal, projector, and
+phase event coordinates without pooled conversion. -/
+@[simp] theorem alternatingPhaseModulation_eventCost {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (phases : List ℝ) :
+    (alternatingPhaseModulation U left right phases).eventCost =
+      qsvtProjectedCircuitEventResource N phases.length := by
+  induction phases with
+  | nil => rfl
+  | cons φ phases ih =>
+      rw [alternatingPhaseModulation]
+      simp only [UnitaryCircuit.seq_eventCost]
+      rw [ih]
+      by_cases hparity : (phases.length + 1) % 2 = 0 <;>
+        simp [liftSourcePhaseSignal, sourcePhaseSignal, hparity,
+          projectorPhaseGate, qsvtProjectorControlledNot,
+          qsvtProjectorControlledNotLeaf,
+          qsvtLeftProjectorControlledNotLeafAt,
+          qsvtRightProjectorControlledNotLeafAt,
+          qsvtProjectorSide, qsvtOracleGate, qsvtOracleLeaf,
+          qsvtOracleLeafAt, qsvtOracleEvent, liftSignalGate,
+          UnitaryCircuit.tensorQubits_eventCost, UnitaryCircuit.shiftPhysicalIdx_eventCost,
+          qsvtControlledPhase, qsvtControlledPhaseLeaf,
+          qsvtControlledPhaseLeafAt, qsvtControlledPhaseEvent,
+          qsvtProjectedCircuitEventResource, qsvtProjectorOracleEvent,
+          qsvtProjectorOracleLabel,
+          ResourcePool.singleton, Multiset.replicate_succ] <;>
+          simp only [← Multiset.singleton_add] <;> ac_rfl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/-- Readable projection of the strict projected-QSVT event ledger.  Storage is
+reported separately through the circuit's `SpacePool` interface. -/
+structure ProjectedEventProfile where
+  /-- Number of source signal-oracle queries. -/
   signalQueries : ℕ
-  /-- Trusted count of left-projector controlled-not queries. -/
+  /-- Number of controlled-NOT queries on the left projector. -/
   leftProjectorControlledNotQueries : ℕ
-  /-- Trusted count of right-projector controlled-not queries. -/
+  /-- Number of controlled-NOT queries on the right projector. -/
   rightProjectorControlledNotQueries : ℕ
-  /-- Trusted count of controlled phase gates. -/
+  /-- Number of non-signal controlled phase gates. -/
   controlledPhaseGates : ℕ
-  /-- Ancilla qubits used by the projected construction. -/
-  ancillaQubits : ℕ
 deriving DecidableEq
 
-namespace ProjectedResourceProfile
+namespace ProjectedEventProfile
 
-/-- The exact projected-QSVT resource profile for a phase list of length `L`. -/
-def ofLength (L : ℕ) : ProjectedResourceProfile where
+/-- Closed source counts for a projected word of length `L`. -/
+def ofLength (L : ℕ) : ProjectedEventProfile where
   signalQueries := L
-  leftProjectorControlledNotQueries := L
-  rightProjectorControlledNotQueries := L
+  leftProjectorControlledNotQueries := 2 * ((L + 1) / 2)
+  rightProjectorControlledNotQueries := 2 * (L / 2)
   controlledPhaseGates := L
-  ancillaQubits := 1
 
-/-- Exact counter claim used by the projected QSVT endpoint. -/
-def HasExactCounts (profile : ProjectedResourceProfile) (L : ℕ) : Prop :=
-  profile.signalQueries = L ∧
-    profile.leftProjectorControlledNotQueries = L ∧
-    profile.rightProjectorControlledNotQueries = L ∧
-    profile.controlledPhaseGates = L ∧
-    profile.ancillaQubits = 1
+/-- Project the named source coordinates from one strict event ledger. -/
+def ofEvents (N : ℕ) (events : ResourcePool .quantum) :
+    ProjectedEventProfile where
+  signalQueries := ResourcePool.count (qsvtOracleEvent N) events
+  leftProjectorControlledNotQueries :=
+    ResourcePool.count (qsvtLeftProjectorOracleEvent N) events
+  rightProjectorControlledNotQueries :=
+    ResourcePool.count (qsvtRightProjectorOracleEvent N) events
+  controlledPhaseGates := ResourcePool.count qsvtControlledPhaseEvent events
 
-@[simp]
-theorem ofLength_hasExactCounts (L : ℕ) :
-    HasExactCounts (ofLength L) L := by
-  simp [HasExactCounts, ofLength]
+/-- Exact projected-QSVT event claim, without legacy pooling. -/
+public def HasExactCounts (N L : ℕ) (events : ResourcePool .quantum) : Prop :=
+  events = qsvtProjectedCircuitEventResource N L
 
-end ProjectedResourceProfile
+/-- Even projected words use the two projector roles equally often. -/
+theorem even (k : ℕ) :
+    (ofLength (2 * k)).leftProjectorControlledNotQueries = 2 * k ∧
+      (ofLength (2 * k)).rightProjectorControlledNotQueries = 2 * k := by
+  simp [ofLength]
+  omega
 
-/-- Circuit wrapper for the source-aligned real projected-QSVT controlled
-construction.  The matrix is the controlled direct sum of `U_Φ` and `U_{-Φ}`,
-and the resource counters are tied to the same phase list [GSLW19,
-BlockHam.tex:851-887]. -/
-noncomputable def sourceRealProjectedCircuit {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) (phases : List ℝ) : Circuit (Qubits (1 + N)) :=
-  { history := CircuitHistory.atom "qsvt-real-projected"
-    matrix := sourceRealProjectedGate U left right phases
-    resources := { ResourceProfile.zero with
-      oracleQueries := phases.length
-      elementaryGates := phases.length }
-    depth := phases.length
-    queryDepth := phases.length }
+/-- Odd projected words contain two additional left-projector calls. -/
+theorem odd (k : ℕ) :
+    (ofLength (2 * k + 1)).leftProjectorControlledNotQueries = 2 * (k + 1) ∧
+      (ofLength (2 * k + 1)).rightProjectorControlledNotQueries = 2 * k := by
+  simp [ofLength]
+  omega
 
-@[simp]
-theorem sourceRealProjectedCircuit_matrix {N : Nat} (U : Gate (Qubits N))
+end ProjectedEventProfile
+
+/-- Explicit source-aligned real projected-QSVT circuit.  Its controlled-direct-
+sum semantics and parity-sensitive resource ledger are both derived from the
+same recursive implementation word. -/
+public noncomputable def sourceRealProjectedCircuit {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (phases : List ℝ) : UnitaryCircuit (Qubits (1 + N)) :=
+  alternatingPhaseModulation U left right phases
+
+theorem sourceRealProjectedCircuit_matrix {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ((sourceRealProjectedCircuit U left right phases).matrix :
         HilbertOperator (Qubits (1 + N))) =
-      sourceRealProjectedGate U left right phases := rfl
+      sourceRealProjectedGate U left right phases := by
+  rw [sourceRealProjectedCircuit]
+  calc
+    (alternatingPhaseModulation U left right phases :
+        HilbertOperator (Qubits (1 + N))) =
+        (phaseControlledDirectSumOperator
+          (sourceAlternatingPhaseModulation U left right phases).matrix
+          (sourceAlternatingPhaseModulation U left right (negPhases phases)).matrix :
+            HilbertOperator (Qubits (1 + N))) :=
+      alternatingPhaseModulation_matrix_eq_sourceDirectSum U left right phases
+    _ = sourceRealProjectedGate U left right phases := by
+      symm
+      simp [sourceRealProjectedGate]
 
-theorem sourceRealProjectedCircuit_resourceProfile {N : Nat} (U : Gate (Qubits N))
+@[simp]
+theorem sourceRealProjectedCircuit_matrix_unitary {N : Nat}
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
+    (phases : List ℝ) :
+    (sourceRealProjectedCircuit U left right phases).matrix =
+      (sourceRealProjectedGate U left right phases).matrix := by
+  apply Subtype.ext
+  exact sourceRealProjectedCircuit_matrix U left right phases
+
+theorem sourceRealProjectedCircuit_resourceProfile {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
-    ResourceProfile.HasExactCounts
-      (sourceRealProjectedCircuit U left right phases).resources
-      phases.length 0 phases.length 0 := by
-  simp [sourceRealProjectedCircuit, ResourceProfile.HasExactCounts,
-    ResourceProfile.zero]
+    ProjectedEventProfile.HasExactCounts N phases.length
+      (sourceRealProjectedCircuit U left right phases).eventCost := by
+  exact alternatingPhaseModulation_eventCost U left right phases
 
-theorem sourceRealProjectedCircuit_matrix_and_resources {N : Nat} (U : Gate (Qubits N))
+theorem sourceRealProjectedCircuit_matrix_and_resources {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ((sourceRealProjectedCircuit U left right phases).matrix :
         HilbertOperator (Qubits (1 + N))) =
-          sourceRealProjectedGate U left right phases ∧
-      ProjectedResourceProfile.HasExactCounts
-        (ProjectedResourceProfile.ofLength phases.length) phases.length ∧
-      ResourceProfile.HasExactCounts
-        (sourceRealProjectedCircuit U left right phases).resources
-        phases.length 0 phases.length 0 := by
-  exact ⟨rfl, ProjectedResourceProfile.ofLength_hasExactCounts phases.length,
+      sourceRealProjectedGate U left right phases ∧
+      ProjectedEventProfile.HasExactCounts N phases.length
+        (sourceRealProjectedCircuit U left right phases).eventCost := by
+  exact ⟨sourceRealProjectedCircuit_matrix U left right phases,
     sourceRealProjectedCircuit_resourceProfile U left right phases⟩
 
 /-- Public-real projected-QSVT correctness target: the `|+⟩` block of the same
 counted circuit equals the singular-value polynomial target
 [GSLW19, BlockHam.tex:851-887]. -/
-def RealProjectedQSVTBlockCorrectness {N : Nat} (U : Gate (Qubits N))
+def RealProjectedQSVTBlockCorrectness {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (P : Polynomial ℂ)
     (phases : List ℝ) : Prop :=
   projectedPhasePlusBlock (projectedOutputProjector left right L) right
@@ -2953,13 +3641,10 @@ def RealProjectedQSVTBlockCorrectness {N : Nat} (U : Gate (Qubits N))
 set_option linter.flexible false in
 /-- Degree-one base case for the public-real projected QSVT circuit. -/
 theorem realProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) :
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     RealProjectedQSVTBlockCorrectness U left right 1 (Polynomial.X : Polynomial ℂ) [0] := by
   unfold RealProjectedQSVTBlockCorrectness
-  change projectedPhasePlusBlock (projectedOutputProjector left right 1) right
-      (sourceRealProjectedGate U left right [0]) =
-    singularValuePolynomial right 1 (Polynomial.X : Polynomial ℂ)
-      (projectedUnitaryBlock left right U)
+  rw [sourceRealProjectedCircuit_matrix_unitary]
   rw [projectedPhasePlusBlock_sourceRealProjectedGate]
   simp [negPhases, sourceAlternatingPhaseModulation, sourcePhaseProjector,
     projectedOutputProjector, sourcePhaseSignal, singularValuePolynomial_X_one,
@@ -2978,13 +3663,10 @@ theorem realProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
 set_option linter.flexible false in
 /-- Degree-zero real-projected sanity case. -/
 theorem realProjectedQSVTBlockCorrectness_one_nil {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) :
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     RealProjectedQSVTBlockCorrectness U left right 0 (Polynomial.C 1 : Polynomial ℂ) [] := by
   unfold RealProjectedQSVTBlockCorrectness
-  change projectedPhasePlusBlock (projectedOutputProjector left right 0) right
-      (sourceRealProjectedGate U left right []) =
-    singularValuePolynomial right 0 (Polynomial.C 1 : Polynomial ℂ)
-      (projectedUnitaryBlock left right U)
+  rw [sourceRealProjectedCircuit_matrix_unitary]
   rw [projectedPhasePlusBlock_sourceRealProjectedGate]
   simp [negPhases, sourceAlternatingPhaseModulation, projectedOutputProjector,
     singularValuePolynomial, evenSingularValuePolynomial, polynomialOperator,
@@ -3003,7 +3685,7 @@ theorem realProjectedQSVTBlockCorrectness_one_nil {N : Nat}
 polynomial-side condition is exactly the averaged target supplied by the
 matching-parity real-polynomial corollary [GSLW19, BlockHam.tex:851-887]. -/
 theorem realProjectedQSVTBlockCorrectness_of_source_average {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (L : ℕ) (P Pneg Preal : Polynomial ℂ) (phases : List ℝ)
     (hpos : SourceProjectedQSVTBlockCorrectness U left right L P phases)
     (hneg : SourceProjectedQSVTBlockCorrectness U left right L Pneg (negPhases phases))
@@ -3015,9 +3697,7 @@ theorem realProjectedQSVTBlockCorrectness_of_source_average {N : Nat}
         singularValuePolynomial right L Preal (projectedUnitaryBlock left right U)) :
     RealProjectedQSVTBlockCorrectness U left right L Preal phases := by
   unfold RealProjectedQSVTBlockCorrectness
-  change projectedPhasePlusBlock (projectedOutputProjector left right L) right
-      (sourceRealProjectedGate U left right phases) =
-    singularValuePolynomial right L Preal (projectedUnitaryBlock left right U)
+  rw [sourceRealProjectedCircuit_matrix_unitary]
   rw [projectedPhasePlusBlock_sourceRealProjectedGate]
   unfold SourceProjectedQSVTBlockCorrectness sourceProjectedBlock at hpos hneg
   rw [Matrix.mul_add, Matrix.add_mul]
@@ -3025,27 +3705,49 @@ theorem realProjectedQSVTBlockCorrectness_of_source_average {N : Nat}
   rw [hpos, hneg, havg]
 
 /-- Same-circuit realization package for the public-real projected QSVT endpoint.
-The block equality and both resource records are attached to one
+The block equality and strict event record are attached to one
 `sourceRealProjectedCircuit`. -/
-structure RealProjectedQSVTRealization {N : Nat} (U : Gate (Qubits N))
+public structure RealProjectedQSVTRealization {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (target : HilbertOperator (Qubits N)) where
   /-- Projected phase list used by the public-real QSVT circuit. -/
   phases : List ℝ
   length_eq : phases.length = L
   /-- Counted circuit carrying the projected-QSVT block equality. -/
-  circuit : Circuit (Qubits (1 + N))
+  circuit : UnitaryCircuit (Qubits (1 + N))
   circuit_eq : circuit = sourceRealProjectedCircuit U left right phases
   block_eq : projectedPhasePlusBlock (projectedOutputProjector left right L) right
     circuit.matrix = target
-  resources_exact : ProjectedResourceProfile.HasExactCounts
-    (ProjectedResourceProfile.ofLength L) L
-  circuit_resources : ResourceProfile.HasExactCounts circuit.resources L 0 L 0
+  resources_exact :
+    ProjectedEventProfile.HasExactCounts N L circuit.eventCost
+
+/-- Canonical injective placement used by the typed QSVT interface views. -/
+def qsvtCanonicalQubitLayout (qubitCount : Nat) : QubitLayout qubitCount where
+  physical_idx := fun index => index
+  physical_idx_injective := Fin.val_injective
 
 namespace RealProjectedQSVTRealization
 
+/-- Live typed interface space of the projected realization.  The realization
+argument fixes the indexed interface while the layout depends only on `N`. -/
+@[nolint unusedArguments]
+public def liveSpace {N : Nat} {U : UnitaryOperator (Qubits N)}
+    {left right : OrthogonalProjector N} {L : ℕ}
+    {target : HilbertOperator (Qubits N)}
+    (_realization : RealProjectedQSVTRealization U left right L target) :
+    SpacePool .quantum :=
+  SpacePool.ofQuantumLayout (qsvtCanonicalQubitLayout (1 + N)).toQuantumLayout
+
+@[simp] theorem liveSpace_logicalQubits {N : Nat}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
+    {L : ℕ} {target : HilbertOperator (Qubits N)}
+    (realization : RealProjectedQSVTRealization U left right L target) :
+    SpacePool.count (.quantumSystems 2) realization.liveSpace = 1 + N := by
+  exact (QubitLayout.toQuantumLayout_dimensionCount
+    (qsvtCanonicalQubitLayout (1 + N)) 2).trans (if_pos rfl)
+
 /-- Build the public-real realization package from a proved block equality for
 the canonical source-aligned circuit. -/
-noncomputable def ofBlockCorrectness {N : Nat} (U : Gate (Qubits N))
+noncomputable def ofBlockCorrectness {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ)
     (target : HilbertOperator (Qubits N))
     (hblock : projectedPhasePlusBlock
@@ -3057,109 +3759,42 @@ noncomputable def ofBlockCorrectness {N : Nat} (U : Gate (Qubits N))
   circuit := sourceRealProjectedCircuit U left right phases
   circuit_eq := rfl
   block_eq := hblock
-  resources_exact := ProjectedResourceProfile.ofLength_hasExactCounts phases.length
-  circuit_resources := sourceRealProjectedCircuit_resourceProfile U left right phases
+  resources_exact := sourceRealProjectedCircuit_resourceProfile U left right phases
 
 end RealProjectedQSVTRealization
 
-/-- A typed circuit node for one projector-controlled phase block. -/
-noncomputable def projectorPhaseCircuit {N : Nat} (phi : ℝ)
-    (P : OrthogonalProjector N) : Circuit (Qubits (1 + N)) :=
-  Circuit.ofGate "qsvt-projector-phase" (projectorPhaseGate phi P)
-    { ResourceProfile.zero with elementaryGates := 1 } 1 0
+/-- Same-circuit implementation witness for the explicit alternating phase
+modulation word.  Its matrix and strict events derive from one typed Circuit. -/
+noncomputable def alternatingPhaseCircuit {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (phases : List ℝ) :
+    UnitaryCircuit (Qubits (1 + N)) :=
+  alternatingPhaseModulation U left right phases
 
 @[simp]
-theorem projectorPhaseCircuit_matrix {N : Nat} (phi : ℝ)
-    (P : OrthogonalProjector N) :
-    ((projectorPhaseCircuit phi P).matrix : HilbertOperator (Qubits (1 + N))) =
-      projectorPhaseGate phi P :=
-  rfl
+theorem alternatingPhaseCircuit_matrix {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (phases : List ℝ) :
+    ((alternatingPhaseCircuit U left right phases).matrix :
+        HilbertOperator (Qubits (1 + N))) =
+      alternatingPhaseModulation U left right phases := rfl
 
-/-- A typed circuit node for one signal-oracle use in the alternating sequence. -/
-def liftSignalCircuit {N : Nat} (U : Gate (Qubits N)) : Circuit (Qubits (1 + N)) :=
-  Circuit.ofGate "qsvt-signal" (liftSignalGate U)
-    { ResourceProfile.zero with oracleQueries := 1 } 1 1
 
-@[simp]
-theorem liftSignalCircuit_matrix {N : Nat} (U : Gate (Qubits N)) :
-    ((liftSignalCircuit U).matrix : HilbertOperator (Qubits (1 + N))) =
-      liftSignalGate U :=
-  rfl
 
-/-- A typed circuit node for the source-aligned signal use in one projected-QSVT
-phase slot.  The query counter is one whether the slot uses `U` or `U†`. -/
-def liftSourcePhaseSignalCircuit {N : Nat} (U : Gate (Qubits N)) (remaining : ℕ) :
-    Circuit (Qubits (1 + N)) :=
-  Circuit.ofGate "qsvt-signal" (liftSourcePhaseSignal U remaining)
-    { ResourceProfile.zero with oracleQueries := 1 } 1 1
+/-- Exact source-level query, controlled-phase, and ancilla counts read from
+the explicit alternating implementation circuit. -/
+theorem alternatingPhaseCircuit_resources_exact {N : Nat} (U : UnitaryOperator (Qubits N))
+    (left right : OrthogonalProjector N) (phases : List ℝ) :
+    ProjectedEventProfile.HasExactCounts N phases.length
+      (alternatingPhaseCircuit U left right phases).eventCost := by
+  exact alternatingPhaseModulation_eventCost U left right phases
 
-@[simp]
-theorem liftSourcePhaseSignalCircuit_matrix {N : Nat} (U : Gate (Qubits N))
-    (remaining : ℕ) :
-    ((liftSourcePhaseSignalCircuit U remaining).matrix : HilbertOperator (Qubits (1 + N))) =
-      liftSourcePhaseSignal U remaining :=
-  rfl
-
-/-- Circuit-level implementation gadget for alternating phase modulation.  This
-one-ancilla circuit implements the projector-controlled phase blocks used for
-resource accounting; source-level correctness is carried separately by
-`sourceAlternatingPhaseModulation` and `sourceRealProjectedCircuit`. -/
-noncomputable def alternatingPhaseCircuit {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) : List ℝ → Circuit (Qubits (1 + N))
-  | [] => Circuit.identity (Qubits (1 + N))
-  | phi :: phases =>
-      Circuit.seq
-        (Circuit.seq
-          (projectorPhaseCircuit phi (sourcePhaseProjector left right (phases.length + 1)))
-          (liftSourcePhaseSignalCircuit U (phases.length + 1)))
-        (alternatingPhaseCircuit U left right phases)
-
-@[simp]
-theorem alternatingPhaseCircuit_matrix {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) :
-    ∀ phases : List ℝ,
-      ((alternatingPhaseCircuit U left right phases).matrix :
-          HilbertOperator (Qubits (1 + N))) =
-        alternatingPhaseModulation U left right phases
-  | [] => by
-      simp [alternatingPhaseCircuit, alternatingPhaseModulation]
-  | phi :: phases => by
-      simp [alternatingPhaseCircuit, alternatingPhaseModulation,
-        alternatingPhaseCircuit_matrix U left right phases]
-
-/-- Coarse resource binding for the projected-QSVT alternating phase circuit:
-the same `Circuit` history whose matrix is `alternatingPhaseModulation` records
-one signal query and one controlled phase gate per phase slot.  The more
-specific left/right projector-controlled-NOT counters are tracked by
-`ProjectedResourceProfile`. -/
-theorem alternatingPhaseCircuit_resourceProfile {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) :
-    ∀ phases : List ℝ,
-      ResourceProfile.HasExactCounts
-        (alternatingPhaseCircuit U left right phases).resources
-        phases.length 0 phases.length 0
-  | [] => by
-      simp [alternatingPhaseCircuit, ResourceProfile.HasExactCounts,
-        Circuit.identity, ResourceProfile.zero]
-  | _ :: phases => by
-      have htail := alternatingPhaseCircuit_resourceProfile U left right phases
-      simp [alternatingPhaseCircuit, ResourceProfile.HasExactCounts,
-        projectorPhaseCircuit, liftSourcePhaseSignalCircuit, Circuit.seq, Circuit.ofGate,
-        Circuit.atom, ResourceProfile.sequential, ResourceProfile.zero] at htail ⊢
-      omega
-
-/-- Implementation-gadget word bundling the projector-controlled phase circuit
-with specialized counters.  It is kept as a resource implementation witness;
-the public-real projected theorem uses `sourceRealProjectedCircuit` for the
-same-circuit correctness carrier. -/
-structure ProjectedQSVTWord {N : Nat} (U : Gate (Qubits N))
+/-- Projected-QSVT word whose only stored witness is the typed circuit.  The
+source-facing event profile is computed from `circuit.eventCost` rather than
+stored independently. -/
+structure ProjectedQSVTWord {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) where
-  /-- Implementation-gadget circuit for the alternating projected-QSVT sequence. -/
-  circuit : Circuit (Qubits (1 + N))
+  /-- Circuit carrying both alternating-word semantics and typed resources. -/
+  circuit : UnitaryCircuit (Qubits (1 + N))
   circuit_eq : circuit = alternatingPhaseCircuit U left right phases
-  /-- Specialized projected-QSVT counters tied to the same phase list. -/
-  resources : ProjectedResourceProfile
-  resources_eq : resources = ProjectedResourceProfile.ofLength phases.length
 
 attribute [-simp] ProjectedQSVTWord.mk.injEq
 -- Generated structure lemma; keep the `simpNF` exception scoped to this
@@ -3167,54 +3802,61 @@ attribute [-simp] ProjectedQSVTWord.mk.injEq
 attribute [nolint simpNF] ProjectedQSVTWord.mk.injEq
 
 /-- The canonical projected-QSVT word for a phase sequence. -/
-noncomputable def projectedQSVTWord {N : Nat} (U : Gate (Qubits N))
+noncomputable def projectedQSVTWord {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ProjectedQSVTWord U left right phases where
   circuit := alternatingPhaseCircuit U left right phases
   circuit_eq := rfl
-  resources := ProjectedResourceProfile.ofLength phases.length
-  resources_eq := rfl
 
-theorem projectedQSVTWord_matrix {N : Nat} (U : Gate (Qubits N))
+/-- Canonical typed interface layout of a projected-QSVT word.  The word
+argument fixes the indexed carrier while the layout depends only on `N`. -/
+@[nolint unusedArguments]
+def ProjectedQSVTWord.interfaceLayout {N : Nat}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
+    {phases : List ℝ} (_word : ProjectedQSVTWord U left right phases) :
+    QubitLayout (1 + N) :=
+  qsvtCanonicalQubitLayout (1 + N)
+
+/-- Live interface space of the typed projected-QSVT carrier. -/
+def ProjectedQSVTWord.liveSpace {N : Nat}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
+    {phases : List ℝ} (word : ProjectedQSVTWord U left right phases) :
+    SpacePool .quantum :=
+  SpacePool.ofQuantumLayout word.interfaceLayout.toQuantumLayout
+
+@[simp] theorem ProjectedQSVTWord.liveSpace_logicalQubits {N : Nat}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
+    {phases : List ℝ} (word : ProjectedQSVTWord U left right phases) :
+    SpacePool.count (.quantumSystems 2) word.liveSpace = 1 + N := by
+  exact (QubitLayout.toQuantumLayout_dimensionCount word.interfaceLayout 2).trans (if_pos rfl)
+
+theorem projectedQSVTWord_matrix {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ((projectedQSVTWord U left right phases).circuit.matrix :
         HilbertOperator (Qubits (1 + N))) =
       alternatingPhaseModulation U left right phases := by
   simp [projectedQSVTWord]
 
-theorem projectedQSVTWord_resources_exact {N : Nat} (U : Gate (Qubits N))
+theorem projectedQSVTWord_resources_exact {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
-    ProjectedResourceProfile.HasExactCounts
-      (projectedQSVTWord U left right phases).resources phases.length := by
-  simp [projectedQSVTWord]
-
-/-- The generic `Circuit.resources` counters of the projected word are derived
-from the same circuit history as its matrix semantics. -/
-theorem projectedQSVTWord_circuitResourceProfile {N : Nat} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N) (phases : List ℝ) :
-    ResourceProfile.HasExactCounts
-      (projectedQSVTWord U left right phases).circuit.resources
-      phases.length 0 phases.length 0 := by
+    ProjectedEventProfile.HasExactCounts N phases.length
+      (projectedQSVTWord U left right phases).circuit.eventCost := by
   simpa [projectedQSVTWord] using
-    alternatingPhaseCircuit_resourceProfile U left right phases
+    alternatingPhaseCircuit_resources_exact U left right phases
 
 /-- Same-circuit binding for the projected QSVT word.  The matrix semantics and
 the specialized resource counters are both derived from the same constructed
-`Circuit`; this is the internal invariant needed by the public QSVT statements
+`UnitaryCircuit`; this is the internal invariant needed by the public QSVT statements
 [GSLW19, BlockHam.tex:883-887]. -/
-theorem projectedQSVTWord_matrix_and_resources {N : Nat} (U : Gate (Qubits N))
+theorem projectedQSVTWord_matrix_and_resources {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ((projectedQSVTWord U left right phases).circuit.matrix :
         HilbertOperator (Qubits (1 + N))) =
-          alternatingPhaseModulation U left right phases ∧
-      ProjectedResourceProfile.HasExactCounts
-        (projectedQSVTWord U left right phases).resources phases.length ∧
-      ResourceProfile.HasExactCounts
-        (projectedQSVTWord U left right phases).circuit.resources
-        phases.length 0 phases.length 0 := by
+      alternatingPhaseModulation U left right phases ∧
+      ProjectedEventProfile.HasExactCounts N phases.length
+        (projectedQSVTWord U left right phases).circuit.eventCost := by
   exact ⟨projectedQSVTWord_matrix U left right phases,
-    projectedQSVTWord_resources_exact U left right phases,
-    projectedQSVTWord_circuitResourceProfile U left right phases⟩
+    projectedQSVTWord_resources_exact U left right phases⟩
 
 /-- Convert the reflection-QSP phase list into the projected-QSVT phase list
 used by the source's singular-value transformation sequence.  For a source
@@ -3256,7 +3898,7 @@ theorem singularSignalRProduct_projectedPhases_zero_zero_eq_rawProduct
         init.map (fun φ => φ - Real.pi / 2) by
         induction init with
         | nil => simp [projectedPhasesFromQSPCertificate]
-        | cons phi init ih =>
+        | cons φ init ih =>
             simp [projectedPhasesFromQSPCertificate, List.reverse_append]]
   rw [singularSignalRProduct_first_phase_zero_zero
     (φ₀ + last + (init.length : ℝ) * (Real.pi / 2)) (φ₀ - Real.pi / 4)
@@ -3325,7 +3967,7 @@ theorem phaseProduct_projectedPhases_append_singleton (φ₀ : ℝ)
     induction init with
     | nil =>
         simp [projectedPhasesFromQSPCertificate]
-    | cons phi init ih =>
+    | cons φ init ih =>
         simp [projectedPhasesFromQSPCertificate, List.reverse_append]
         rw [list_sum_map_sub_const]
         ring_nf
@@ -3371,7 +4013,7 @@ the source alternating phase sequence by the scalar `P(1)` on the right vector
 [GSLW19, BlockHam.tex:655-671,768-849]. -/
 theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3393,7 +4035,7 @@ the source alternating phase sequence by the scalar `P(1)` on the left vector
 [GSLW19, BlockHam.tex:655-671,768-849]. -/
 theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3415,7 +4057,7 @@ projecting preserves the right-vector component [GSLW19, BlockHam.tex:655-671,
 768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3423,7 +4065,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
       P.eval (1 : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
@@ -3444,7 +4086,7 @@ projecting preserves the left-vector component [GSLW19, BlockHam.tex:655-671,
 768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3452,7 +4094,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
       P.eval (1 : Complex) • block.leftVec := by
   unfold sourceProjectedBlock
@@ -3473,7 +4115,7 @@ the scalar is `(conjP P)(1)`, matching the second half of the source real
 averaging construction [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3482,7 +4124,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
       (conjP P).eval (1 : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
@@ -3512,7 +4154,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
 [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3521,7 +4163,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
       (conjP P).eval (1 : Complex) • block.leftVec := by
   unfold sourceProjectedBlock
@@ -3556,7 +4198,7 @@ drives the right singular vector with scalar `P(σ)` on the right-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
 theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3564,10 +4206,10 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
     (sourceAlternatingPhaseModulation U left right
         (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).applyVec
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.rightVec +
+      P.eval (block.σ : Complex) • block.rightVec +
         singularSignalRProduct
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
-          block.sigma 1 0 • block.rightPerp := by
+          block.σ 1 0 • block.rightPerp := by
   have hlen :
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs).length % 2 = 0 := by
     rw [projectedPhasesFromQSPCertificate_length, certificate.length_eq, hd]
@@ -3578,12 +4220,12 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
   have hentry :
       singularSignalRProduct
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
-          block.sigma 0 0 =
-        P.eval (block.sigma : Complex) := by
+          block.σ 0 0 =
+        P.eval (block.σ : Complex) := by
     rw [hφs]
     rw [singularSignalRProduct_projectedPhases_zero_zero_eq_qspW]
     simpa [hφs] using
-      certificate.qspW_zero_zero (x := block.sigma) block.sigma_mem_unitInterval
+      certificate.qspW_zero_zero (x := block.σ) block.sigma_mem_unitInterval
   rw [hentry]
 
 /-- Nontrivial singular block, odd output side: the projected-QSVT phase list
@@ -3591,7 +4233,7 @@ drives the right singular vector with scalar `P(σ)` on the left-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
 theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3599,10 +4241,10 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
     (sourceAlternatingPhaseModulation U left right
         (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).applyVec
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.leftVec +
+      P.eval (block.σ : Complex) • block.leftVec +
         singularSignalRProduct
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
-          block.sigma 1 0 • block.leftPerp := by
+          block.σ 1 0 • block.leftPerp := by
   have hlen :
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs).length % 2 = 1 := by
     rw [projectedPhasesFromQSPCertificate_length, certificate.length_eq, hd]
@@ -3613,12 +4255,12 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
   have hentry :
       singularSignalRProduct
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
-          block.sigma 0 0 =
-        P.eval (block.sigma : Complex) := by
+          block.σ 0 0 =
+        P.eval (block.σ : Complex) := by
     rw [hφs]
     rw [singularSignalRProduct_projectedPhases_zero_zero_eq_qspW]
     simpa [hφs] using
-      certificate.qspW_zero_zero (x := block.sigma) block.sigma_mem_unitInterval
+      certificate.qspW_zero_zero (x := block.σ) block.sigma_mem_unitInterval
   rw [hentry]
 
 /-- Nontrivial singular block, even output side after the source projected block:
@@ -3626,7 +4268,7 @@ the perpendicular component is removed by the output projector, leaving the
 desired scalar `P(σ)` action [GSLW19, BlockHam.tex:655-735,768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3634,9 +4276,9 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.rightVec := by
+      P.eval (block.σ : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support]
   have hp : projectedOutputProjector left right d = right := by
@@ -3646,7 +4288,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
       ((sourceAlternatingPhaseModulation U left right
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).applyVec
         block.rightVec) =
-    P.eval (block.sigma : Complex) • block.rightVec
+    P.eval (block.σ : Complex) • block.rightVec
   rw [block.sourceAlternating_projectedPhases_applyVec_rightVec_even certificate init last hφs hd]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.right_support,
@@ -3659,7 +4301,7 @@ the perpendicular component is removed by the output projector, leaving the
 desired scalar `P(σ)` action [GSLW19, BlockHam.tex:655-735,768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3667,9 +4309,9 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
-      P.eval (block.sigma : Complex) • block.leftVec := by
+      P.eval (block.σ : Complex) • block.leftVec := by
   unfold sourceProjectedBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support]
   have hp : projectedOutputProjector left right d = left := by
@@ -3679,7 +4321,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
       ((sourceAlternatingPhaseModulation U left right
           (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).applyVec
         block.rightVec) =
-    P.eval (block.sigma : Complex) • block.leftVec
+    P.eval (block.σ : Complex) • block.leftVec
   rw [block.sourceAlternating_projectedPhases_applyVec_rightVec_odd certificate init last hφs hd]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.left_support,
@@ -3692,7 +4334,7 @@ list.  The perpendicular component is again removed by the output projector,
 leaving `(conjP P)(σ)` [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3701,9 +4343,9 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
-      (conjP P).eval (block.sigma : Complex) • block.rightVec := by
+      (conjP P).eval (block.σ : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support]
   have hp : projectedOutputProjector left right d = right := by
@@ -3714,7 +4356,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
           (negPhases
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).applyVec
         block.rightVec) =
-    (conjP P).eval (block.sigma : Complex) • block.rightVec
+    (conjP P).eval (block.σ : Complex) • block.rightVec
   have hlen :
       (negPhases
         (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).length % 2 = 0 := by
@@ -3729,10 +4371,10 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
       singularSignalRProduct
           (negPhases
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
-          block.sigma 0 0 =
-        (conjP P).eval (block.sigma : Complex) :=
+          block.σ 0 0 =
+        (conjP P).eval (block.σ : Complex) :=
     singularSignalRProduct_negProjectedPhases_zero_zero_eq_conjP
-      certificate init last block.sigma hφs block.sigma_mem_unitInterval
+      certificate init last block.σ hφs block.sigma_mem_unitInterval
   rw [hentry]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.right_support,
@@ -3744,7 +4386,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
 list [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3753,9 +4395,9 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
-      (conjP P).eval (block.sigma : Complex) • block.leftVec := by
+      (conjP P).eval (block.σ : Complex) • block.leftVec := by
   unfold sourceProjectedBlock
   rw [HilbertOperator.mul_applyVec, HilbertOperator.mul_applyVec, block.right_support]
   have hp : projectedOutputProjector left right d = left := by
@@ -3766,7 +4408,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
           (negPhases
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).applyVec
         block.rightVec) =
-    (conjP P).eval (block.sigma : Complex) • block.leftVec
+    (conjP P).eval (block.σ : Complex) • block.leftVec
   have hlen :
       (negPhases
         (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).length % 2 = 1 := by
@@ -3781,10 +4423,10 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
       singularSignalRProduct
           (negPhases
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
-          block.sigma 0 0 =
-        (conjP P).eval (block.sigma : Complex) :=
+          block.σ 0 0 =
+        (conjP P).eval (block.σ : Complex) :=
     singularSignalRProduct_negProjectedPhases_zero_zero_eq_conjP
-      certificate init last block.sigma hφs block.sigma_mem_unitInterval
+      certificate init last block.σ hφs block.sigma_mem_unitInterval
   rw [hentry]
   rw [HilbertOperator.applyVec_add, HilbertOperator.applyVec_smul,
     HilbertOperator.applyVec_smul, block.left_support,
@@ -3800,7 +4442,7 @@ namespace SourceRightKernelSingularBlock
 source QSP value `P(0)` [GSLW19, BlockHam.tex:599-611,655-716,768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3808,7 +4450,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
       P.eval (0 : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
@@ -3844,14 +4486,14 @@ in the left complement, so the output projector removes it [GSLW19,
 BlockHam.tex:599-611,655-716,768-849]. -/
 theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hd : d % 2 = 1) :
     HilbertOperator.applyVec
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
-            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+            (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
         block.rightVec =
       0 := by
   unfold sourceProjectedBlock
@@ -3879,7 +4521,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
 the scalar is `(conjP P)(0)` [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -3888,7 +4530,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
       (conjP P).eval (0 : Complex) • block.rightVec := by
   unfold sourceProjectedBlock
@@ -3928,7 +4570,7 @@ the local vector lies in the left complement, so the output projector removes
 it [GSLW19, BlockHam.tex:851-887]. -/
 theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hd : d % 2 = 1) :
@@ -3936,7 +4578,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
         (sourceProjectedBlock (projectedOutputProjector left right d) right
           (sourceAlternatingPhaseModulation U left right
             (negPhases
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
         block.rightVec =
       0 := by
   unfold sourceProjectedBlock
@@ -3964,7 +4606,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
       left block.left_perp_support]
   simp
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec = 0 := by
@@ -3975,7 +4617,7 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
   exact OrthogonalProjector.projector_applyVec_eq_zero_of_complement_applyVec_eq_self
     left block.left_perp_support
 
-theorem gram_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
+theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     HilbertOperator.applyVec
@@ -3987,7 +4629,7 @@ theorem gram_applyVec_rightVec {N : Nat} {U : Gate (Qubits N)}
   simp [HilbertOperator.applyVec]
 
 theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
     HilbertOperator.applyVec
@@ -4009,7 +4651,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
   rw [heven0]
 
 theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
-    {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (_hP : HasParity P L) :
     HilbertOperator.applyVec
@@ -4042,7 +4684,7 @@ interface, this shape matches the source proof, which works in the invariant
 singular-vector blocks before assembling the operator equality [GSLW19,
 BlockHam.tex:655-736,768-849]. -/
 structure SourceSingularInvariantBlockAssembly {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N))
+    (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate :
       ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) where
@@ -4057,7 +4699,7 @@ feeds the source-level QSVT target directly.  The remaining hard work is to
 construct the assembly from the blockwise scalar-QSP proof, not from standard
 matrix entries [GSLW19, BlockHam.tex:655-736,768-849]. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_invariantBlockAssembly {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate :
       ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -4070,12 +4712,12 @@ theorem sourceProjectedQSVTBlockCorrectness_of_invariantBlockAssembly {N d : Nat
 `thm:singValTransformation`: a source invariant-vector family is sufficient if
 it spans by operator action and each vector satisfies the local projected-QSVT
 action equality [GSLW19, BlockHam.tex:655-736,768-849]. -/
-structure SourceProjectedQSVTSpanningFamily {N d : Nat} (U : Gate (Qubits N))
+structure SourceProjectedQSVTSpanningFamily {N d : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (P : Polynomial ℂ) (phases : List ℝ) where
   /-- Index type for source invariant vectors. -/
   ι : Type
   /-- Source invariant vector selected by an index. -/
-  vec : ι -> StateVector (Qubits N)
+  vec : ι -> HilbertVector (Qubits N)
   ext :
     ∀ {A B : HilbertOperator (Qubits N)},
       (∀ i : ι, HilbertOperator.applyVec A (vec i) =
@@ -4084,7 +4726,7 @@ structure SourceProjectedQSVTSpanningFamily {N d : Nat} (U : Gate (Qubits N))
     ∀ i : ι,
       HilbertOperator.applyVec
           (sourceProjectedBlock (projectedOutputProjector left right d) right
-            (sourceAlternatingPhaseModulation U left right phases))
+            (sourceAlternatingPhaseModulation U left right phases).matrix)
           (vec i) =
         HilbertOperator.applyVec
           (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
@@ -4096,24 +4738,24 @@ vectors and a decomposition of every Gram-eigenbasis vector into that family.
 This is the form closest to `lemma:singInvDec` when zero singular subspaces are
 split into projector and complement parts [GSLW19, BlockHam.tex:583-613,
 655-736,768-849]. -/
-structure SourceProjectedQSVTBasisSpanFamily {N d : Nat} (U : Gate (Qubits N))
+structure SourceProjectedQSVTBasisSpanFamily {N d : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (P : Polynomial ℂ) (phases : List ℝ) where
   /-- Index type for the source vectors spanning the Gram eigenbasis. -/
   ι : Type
   /-- Source vector selected by an index. -/
-  vec : ι -> StateVector (Qubits N)
+  vec : ι -> HilbertVector (Qubits N)
   /-- Finite linear combination of source vectors for each Gram-eigenbasis vector. -/
   combination : (Qubits N).Index -> List (ℂ × ι)
   basis_eq :
     ∀ i : (Qubits N).Index,
       (projectedUnitaryBlockGramEigenbasis left right U i :
-          StateVector (Qubits N)) =
+          HilbertVector (Qubits N)) =
         ((combination i).map fun term => term.1 • vec term.2).sum
   action_eq :
     ∀ i : ι,
       HilbertOperator.applyVec
           (sourceProjectedBlock (projectedOutputProjector left right d) right
-            (sourceAlternatingPhaseModulation U left right phases))
+            (sourceAlternatingPhaseModulation U left right phases).matrix)
           (vec i) =
         HilbertOperator.applyVec
           (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
@@ -4121,7 +4763,7 @@ structure SourceProjectedQSVTBasisSpanFamily {N d : Nat} (U : Gate (Qubits N))
 
 /-- A basis-span source family gives the abstract spanning-family contract. -/
 noncomputable def sourceProjectedQSVTSpanningFamilyOfBasisSpanFamily {N d : Nat}
-    {P : Polynomial ℂ} {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {P : Polynomial ℂ} {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     {phases : List ℝ}
     (family : SourceProjectedQSVTBasisSpanFamily (d := d) U left right P phases) :
     SourceProjectedQSVTSpanningFamily (d := d) U left right P phases where
@@ -4141,7 +4783,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfBasisSpanFamily {N d : Nat}
 QSVT block equality.  The remaining source work is to build this family from
 `lemma:singInvDec`'s unit, nontrivial, kernel, and complement sectors. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_spanningFamily {N d : Nat}
-    {P : Polynomial ℂ} (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    {P : Polynomial ℂ} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (phases : List ℝ)
     (family : SourceProjectedQSVTSpanningFamily (d := d) U left right P phases) :
     SourceProjectedQSVTBlockCorrectness U left right d P phases := by
@@ -4150,7 +4792,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_spanningFamily {N d : Nat}
 
 /-- Basis-span source families prove the global projected-QSVT block equality. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_basisSpanFamily {N d : Nat}
-    {P : Polynomial ℂ} (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    {P : Polynomial ℂ} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (phases : List ℝ)
     (family : SourceProjectedQSVTBasisSpanFamily (d := d) U left right P phases) :
     SourceProjectedQSVTBlockCorrectness U left right d P phases :=
@@ -4161,7 +4803,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_basisSpanFamily {N d : Nat}
 vectors for unit, nontrivial, and right-kernel sectors, and right-complement
 vectors for the nontrivial, left-kernel, and fully complementary sectors
 [GSLW19, BlockHam.tex:583-613,655-736]. -/
-inductive SourceSingularInvariantVector {N : Nat} {U : Gate (Qubits N)}
+inductive SourceSingularInvariantVector {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (decomposition : SourceSingularInvariantDecomposition U left right) : Type where
   | unit : Fin decomposition.unitBlockCount -> SourceSingularInvariantVector decomposition
@@ -4180,9 +4822,9 @@ deriving Fintype
 namespace SourceSingularInvariantVector
 
 /-- The actual source input vector represented by a sector tag. -/
-def vec {N : Nat} {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+def vec {N : Nat} {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right} :
-    SourceSingularInvariantVector decomposition -> StateVector (Qubits N)
+    SourceSingularInvariantVector decomposition -> NormalizedVector (Qubits N)
   | unit i => (decomposition.unitBlock i).rightVec
   | twoRight i => (decomposition.twoDimensionalBlock i).rightVec
   | twoRightPerp i => (decomposition.twoDimensionalBlock i).rightPerp
@@ -4196,7 +4838,7 @@ end SourceSingularInvariantVector
 instead of a count-indexed decomposition.  This is the direct Lean analogue of
 the block list produced by `lemma:singInvDec` [GSLW19, BlockHam.tex:583-613,
 655-736]. -/
-inductive SourceSingularInvariantLocalVector {N : Nat} (U : Gate (Qubits N))
+inductive SourceSingularInvariantLocalVector {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) : Type where
   | unit : SourceUnitSingularBlock U left right ->
       SourceSingularInvariantLocalVector U left right
@@ -4206,33 +4848,47 @@ inductive SourceSingularInvariantLocalVector {N : Nat} (U : Gate (Qubits N))
       SourceSingularInvariantLocalVector U left right
   | rightKernel : SourceRightKernelSingularBlock U left right ->
       SourceSingularInvariantLocalVector U left right
+  | scaledRightKernel (coefficient : ℂ) :
+      SourceRightKernelSingularBlock U left right ->
+        SourceSingularInvariantLocalVector U left right
   | leftKernel : SourceLeftKernelSingularBlock U left right ->
       SourceSingularInvariantLocalVector U left right
+  | scaledLeftKernel (coefficient : ℂ) :
+      SourceLeftKernelSingularBlock U left right ->
+        SourceSingularInvariantLocalVector U left right
   | complement : SourceComplementSingularBlock U left right ->
       SourceSingularInvariantLocalVector U left right
-  | inputComplement (rightPerp : StateVector (Qubits N))
+  | scaledComplement (coefficient : ℂ) :
+      SourceComplementSingularBlock U left right ->
+        SourceSingularInvariantLocalVector U left right
+  | inputComplement (rightPerp : HilbertVector (Qubits N))
       (right_perp_support :
         HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp =
           rightPerp) :
       SourceSingularInvariantLocalVector U left right
+  | zero : SourceSingularInvariantLocalVector U left right
 
 namespace SourceSingularInvariantLocalVector
 
 /-- The source input vector represented by a local block tag. -/
-def vec {N : Nat} {U : Gate (Qubits N)} {left right : OrthogonalProjector N} :
-    SourceSingularInvariantLocalVector U left right -> StateVector (Qubits N)
+def vec {N : Nat} {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N} :
+    SourceSingularInvariantLocalVector U left right -> HilbertVector (Qubits N)
   | unit block => block.rightVec
   | twoRight block => block.rightVec
   | twoRightPerp block => block.rightPerp
   | rightKernel block => block.rightVec
+  | scaledRightKernel coefficient block => coefficient • block.rightVec
   | leftKernel block => block.rightPerp
+  | scaledLeftKernel coefficient block => coefficient • block.rightPerp
   | complement block => block.rightPerp
+  | scaledComplement coefficient block => coefficient • block.rightPerp
   | inputComplement rightPerp _ => rightPerp
+  | zero => 0
 
 /-- Forget a count-indexed source sector tag into the corresponding local block
 tag.  This lets the source direct-sum theorem feed the later local-sector
 coverage interface without duplicating action proofs. -/
-def ofDecompositionVector {N : Nat} {U : Gate (Qubits N)}
+def ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right} :
     SourceSingularInvariantVector decomposition ->
@@ -4251,19 +4907,19 @@ def ofDecompositionVector {N : Nat} {U : Gate (Qubits N)}
       SourceSingularInvariantLocalVector.complement (decomposition.complementBlock i)
 
 @[simp]
-theorem vec_ofDecompositionVector {N : Nat} {U : Gate (Qubits N)}
+theorem vec_ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right}
     (tag : SourceSingularInvariantVector decomposition) :
     vec (ofDecompositionVector (U := U) (left := left) (right := right) tag) =
-      SourceSingularInvariantVector.vec tag := by
+      (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N)) := by
   cases tag <;> rfl
 
 /-- Local source-sector action equality for every invariant vector in
 `lemma:singInvDec`, after the W-to-R phase conversion has produced the projected
 phase list [GSLW19, BlockHam.tex:655-736,768-849]. -/
 theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
     (init : List ℝ) (last : ℝ) (hφs : certificate.φs = init ++ [last]) :
@@ -4271,7 +4927,7 @@ theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
       HilbertOperator.applyVec
           (sourceProjectedBlock (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
           (vec tag) =
         HilbertOperator.applyVec
           (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
@@ -4314,12 +4970,12 @@ theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
         HilbertOperator.applyVec
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
             block.rightPerp = 0 :=
           sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support
             (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
             block.rightPerp block.right_perp_support
         _ =
             HilbertOperator.applyVec
@@ -4342,54 +4998,138 @@ theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
           sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd block certificate hdodd,
           SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_odd
             block P hdodd hP]
+  | scaledRightKernel coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
+              block.rightVec =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
+              block.rightVec := by
+        by_cases hd : d % 2 = 0
+        · open SourceRightKernelSingularBlock in
+          rw [
+            sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
+              block certificate init last hφs hd,
+            SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_even
+              block P hd hP]
+        · have hdodd : d % 2 = 1 := by omega
+          open SourceRightKernelSingularBlock in
+          rw [
+            sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd block certificate hdodd,
+            SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_odd
+              block P hdodd hP]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | leftKernel block =>
       dsimp [vec]
       calc
         HilbertOperator.applyVec
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
             block.rightPerp = 0 :=
           SourceLeftKernelSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
             block
             (sourceAlternatingPhaseModulation U left right
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
         _ =
             HilbertOperator.applyVec
               (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
               block.rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) P block.right_perp_support]
+  | scaledLeftKernel coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
+              block.rightPerp =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
+              block.rightPerp := by
+        calc
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
+              block.rightPerp = 0 :=
+            SourceLeftKernelSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
+              block
+              (sourceAlternatingPhaseModulation U left right
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
+          _ =
+              HilbertOperator.applyVec
+                (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
+                block.rightPerp := by
+            rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
+              (left := left) (right := right) (U := U) P block.right_perp_support]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | complement block =>
       dsimp [vec]
       calc
         HilbertOperator.applyVec
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
             block.rightPerp = 0 :=
           SourceComplementSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
             block
             (sourceAlternatingPhaseModulation U left right
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
         _ =
             HilbertOperator.applyVec
               (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
               block.rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) P block.right_perp_support]
+  | scaledComplement coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
+              block.rightPerp =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
+              block.rightPerp := by
+        calc
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
+              block.rightPerp = 0 :=
+            SourceComplementSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
+              block
+              (sourceAlternatingPhaseModulation U left right
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
+          _ =
+              HilbertOperator.applyVec
+                (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
+                block.rightPerp := by
+            rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
+              (left := left) (right := right) (U := U) P block.right_perp_support]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | inputComplement rightPerp hright_perp =>
       dsimp [vec]
       calc
         HilbertOperator.applyVec
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
             rightPerp = 0 :=
           sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support
             (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
-              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+              (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
             rightPerp hright_perp
         _ =
             HilbertOperator.applyVec
@@ -4397,12 +5137,14 @@ theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
               rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) P hright_perp]
+  | zero =>
+      simp [vec, HilbertOperator.applyVec]
 
 /-- Local source-sector action equality for the negated projected phase list.
 This is the source-level half of the `U_{-Φ}` branch used in
 `cor:matchingParity` [GSLW19, BlockHam.tex:851-887]. -/
 theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
     (init : List ℝ) (last : ℝ) (hφs : certificate.φs = init ++ [last]) :
@@ -4411,7 +5153,7 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
           (sourceProjectedBlock (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
               (negPhases
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
           (vec tag) =
         HilbertOperator.applyVec
           (singularValuePolynomial right d (conjP P) (projectedUnitaryBlock left right U))
@@ -4455,13 +5197,13 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
                 (negPhases
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
             block.rightPerp = 0 :=
           sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support
             (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
               (negPhases
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
             block.rightPerp block.right_perp_support
         _ =
             HilbertOperator.applyVec
@@ -4469,6 +5211,41 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
               block.rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) (conjP P) block.right_perp_support]
+  | scaledComplement coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (negPhases
+                    (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
+              block.rightPerp =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d (conjP P)
+                (projectedUnitaryBlock left right U))
+              block.rightPerp := by
+        calc
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (negPhases
+                    (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
+              block.rightPerp = 0 :=
+            SourceComplementSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
+              block
+              (sourceAlternatingPhaseModulation U left right
+                (negPhases
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
+          _ =
+              HilbertOperator.applyVec
+                (singularValuePolynomial right d (conjP P)
+                  (projectedUnitaryBlock left right U))
+                block.rightPerp := by
+            rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
+              (left := left) (right := right) (U := U) (conjP P)
+              block.right_perp_support]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | rightKernel block =>
       dsimp [vec]
       by_cases hd : d % 2 = 0
@@ -4484,6 +5261,35 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
           sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd block certificate hdodd,
           SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_odd
             block (conjP P) hdodd hP.conjP]
+  | scaledRightKernel coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (negPhases
+                    (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
+              block.rightVec =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d (conjP P)
+                (projectedUnitaryBlock left right U))
+              block.rightVec := by
+        by_cases hd : d % 2 = 0
+        · open SourceRightKernelSingularBlock in
+          rw [
+            sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
+              block certificate init last hφs hd,
+            SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_even
+              block (conjP P) hd hP.conjP]
+        · have hdodd : d % 2 = 1 := by omega
+          open SourceRightKernelSingularBlock in
+          rw [
+            sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
+              block certificate hdodd,
+            SourceRightKernelSingularBlock.singularValuePolynomial_applyVec_rightVec_of_odd
+              block (conjP P) hdodd hP.conjP]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | leftKernel block =>
       dsimp [vec]
       calc
@@ -4491,19 +5297,54 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
                 (negPhases
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
             block.rightPerp = 0 :=
           SourceLeftKernelSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
             block
             (sourceAlternatingPhaseModulation U left right
               (negPhases
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
         _ =
             HilbertOperator.applyVec
               (singularValuePolynomial right d (conjP P) (projectedUnitaryBlock left right U))
               block.rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) (conjP P) block.right_perp_support]
+  | scaledLeftKernel coefficient block =>
+      dsimp [vec]
+      have hblock :
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (negPhases
+                    (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
+              block.rightPerp =
+            HilbertOperator.applyVec
+              (singularValuePolynomial right d (conjP P)
+                (projectedUnitaryBlock left right U))
+              block.rightPerp := by
+        calc
+          HilbertOperator.applyVec
+              (sourceProjectedBlock (projectedOutputProjector left right d) right
+                (sourceAlternatingPhaseModulation U left right
+                  (negPhases
+                    (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
+              block.rightPerp = 0 :=
+            SourceLeftKernelSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
+              block
+              (sourceAlternatingPhaseModulation U left right
+                (negPhases
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
+          _ =
+              HilbertOperator.applyVec
+                (singularValuePolynomial right d (conjP P)
+                  (projectedUnitaryBlock left right U))
+                block.rightPerp := by
+            rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
+              (left := left) (right := right) (U := U) (conjP P)
+              block.right_perp_support]
+      simpa only [HilbertOperator.applyVec_smul] using
+        congrArg (fun v : HilbertVector (Qubits N) => coefficient • v) hblock
   | complement block =>
       dsimp [vec]
       calc
@@ -4511,13 +5352,13 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
                 (negPhases
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
             block.rightPerp = 0 :=
           SourceComplementSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
             block
             (sourceAlternatingPhaseModulation U left right
               (negPhases
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
         _ =
             HilbertOperator.applyVec
               (singularValuePolynomial right d (conjP P) (projectedUnitaryBlock left right U))
@@ -4531,13 +5372,13 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
             (sourceProjectedBlock (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
                 (negPhases
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix)
             rightPerp = 0 :=
           sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support
             (projectedOutputProjector left right d) right
             (sourceAlternatingPhaseModulation U left right
               (negPhases
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))).matrix
             rightPerp hright_perp
         _ =
             HilbertOperator.applyVec
@@ -4545,19 +5386,21 @@ theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
               rightPerp := by
           rw [singularValuePolynomial_applyVec_eq_zero_of_right_complement
             (left := left) (right := right) (U := U) (conjP P) hright_perp]
+  | zero =>
+      simp [vec, HilbertOperator.applyVec]
 
 end SourceSingularInvariantLocalVector
 
 /-- Basis-span coverage using directly carried source local blocks. -/
 structure SourceSingularInvariantLocalBasisSpanCoverage {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) where
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) where
   /-- Linear-combination coverage of every Gram-eigenbasis vector by local sectors. -/
   combination :
     (Qubits N).Index -> List (ℂ × SourceSingularInvariantLocalVector U left right)
   basis_eq :
     ∀ i : (Qubits N).Index,
       (projectedUnitaryBlockGramEigenbasis left right U i :
-          StateVector (Qubits N)) =
+          HilbertVector (Qubits N)) =
         ((combination i).map fun term =>
           term.1 • SourceSingularInvariantLocalVector.vec term.2).sum
 
@@ -4566,13 +5409,13 @@ This is the closest Lean interface to the source proof after the orthogonality
 checks in Table 2 and the final orthogonal-complement construction
 [GSLW19, BlockHam.tex:615-736]. -/
 structure SourceSingularInvariantLocalOrthonormalBasisCoverage {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) where
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) where
   /-- Index type for the orthonormal source-sector basis. -/
   ι : Type
   /-- Finiteness instance for the orthonormal source-sector basis. -/
   fintype : Fintype ι
   /-- Orthonormal basis whose vectors are tagged by source sectors. -/
-  basis : OrthonormalBasis ι ℂ (StateVector (Qubits N))
+  basis : OrthonormalBasis ι ℂ (HilbertVector (Qubits N))
   /-- Source-sector tag attached to each basis vector. -/
   tag : ι -> SourceSingularInvariantLocalVector U left right
   tag_vec_eq : ∀ i : ι, SourceSingularInvariantLocalVector.vec (tag i) = basis i
@@ -4582,21 +5425,25 @@ This is the precise Lean obligation left by the orthogonality table and final
 orthogonal-complement paragraph of `lemma:singInvDec` [GSLW19,
 BlockHam.tex:615-736]. -/
 structure SourceSingularInvariantOrthonormalDecomposition {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) where
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) where
   /-- Count-indexed source singular-invariant sector decomposition. -/
   decomposition : SourceSingularInvariantDecomposition U left right
   orthonormal :
     Orthonormal ℂ
-      (SourceSingularInvariantVector.vec (decomposition := decomposition))
+      (fun tag =>
+        (SourceSingularInvariantVector.vec (decomposition := decomposition) tag :
+          HilbertVector (Qubits N)))
   spans :
     ⊤ ≤ Submodule.span ℂ
       (Set.range
-        (SourceSingularInvariantVector.vec (decomposition := decomposition)))
+        (fun tag =>
+          (SourceSingularInvariantVector.vec (decomposition := decomposition) tag :
+            HilbertVector (Qubits N))))
 
 /-- An orthonormal source direct-sum decomposition supplies the local-sector
 orthonormal coverage interface used by projected QSVT. -/
 noncomputable def SourceSingularInvariantOrthonormalDecomposition.toLocalCoverage
-    {N : Nat} {U : Gate (Qubits N)} {left right : OrthogonalProjector N}
+    {N : Nat} {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (coverage :
       SourceSingularInvariantOrthonormalDecomposition U left right) :
     SourceSingularInvariantLocalOrthonormalBasisCoverage U left right where
@@ -4612,7 +5459,7 @@ noncomputable def SourceSingularInvariantOrthonormalDecomposition.toLocalCoverag
 /-- An orthonormal source local-sector basis gives the generic spanning-family
 contract for projected QSVT. -/
 noncomputable def sourceProjectedQSVTSpanningFamilyOfLocalOrthonormalBasisCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -4636,7 +5483,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfLocalOrthonormalBasisCovera
 /-- An orthonormal source local-sector basis proves the source-level projected
 QSVT block equality. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_localOrthonormalBasisCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -4653,7 +5500,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_localOrthonormalBasisCoverage
 projected QSVT block equality.  This is the compact handoff target for
 `lemma:singInvDec` [GSLW19, BlockHam.tex:615-736,768-849]. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_orthonormalDecomposition
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -4670,7 +5517,7 @@ polynomial.  This is the local-sector lift needed by the averaging step in
 `cor:matchingParity` [GSLW19, BlockHam.tex:851-887]. -/
 noncomputable def
     sourceProjectedQSVTSpanningFamilyNegProjectedPhasesOfLocalOrthonormalBasisCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -4695,7 +5542,7 @@ noncomputable def
 /-- Negated-phase source block equality for a completed orthonormal source
 direct-sum decomposition [GSLW19, BlockHam.tex:615-736,851-887]. -/
 theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_orthonormalDecomposition
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -4715,7 +5562,7 @@ it is either the unit singular block or the right vector of a two-dimensional
 singular block, according to the source `σ=1` / `0<σ<1` split
 [GSLW19, BlockHam.tex:583-613,655-735]. -/
 noncomputable def sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -4729,7 +5576,7 @@ noncomputable def sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
 /-- The nonzero-sector local vector is definitionally the corresponding Gram
 eigenbasis vector. -/
 theorem sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -4737,11 +5584,11 @@ theorem sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
         (sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
           left right U i hlambda) =
       (projectedUnitaryBlockGramEigenbasis left right U i :
-        StateVector (Qubits N)) := by
+        HilbertVector (Qubits N)) := by
   unfold sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
   unfold projectedUnitaryBlockNonzeroClassifiedSingularBlock
   by_cases hsigma :
-      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).sigma = 1
+      (projectedUnitaryBlockNonzeroSingularPair left right U i hlambda).σ = 1
   · simp [SourceSingularInvariantLocalVector.vec,
       projectedUnitaryBlockUnitSingularBlock,
       projectedUnitaryBlockNonzeroSingularPair,
@@ -4761,7 +5608,7 @@ theorem sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
 generated by the nonzero singular sectors alone.  The zero-eigenvalue version
 adds right-kernel, left-kernel, and fully complementary sectors. -/
 noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfNoZeroGramEigenvalues
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (hlambda :
       ∀ i : (Qubits N).Index,
         ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -4775,59 +5622,175 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfNoZeroGramEigen
     simp [sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
       left right U i (hlambda i)]
 
-/-- The right-projector component of a zero Gram eigenbasis vector is a
-right-kernel sector vector in `lemma:singInvDec` [GSLW19, BlockHam.tex:599-611,
-655-716]. -/
+/-- The right-projector component of a zero Gram eigenbasis vector is carried
+as either zero or a scalar multiple of a normalized right-kernel sector.  The
+projection can vanish, so the local spanning layer must not claim that this raw
+component is itself normalized [GSLW19, BlockHam.tex:599-611,655-716]. -/
 noncomputable def sourceRightKernelLocalVectorOfZeroGramEigenbasis
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0) :
     SourceSingularInvariantLocalVector U left right :=
-  SourceSingularInvariantLocalVector.rightKernel
-    (sourceRightKernelSingularBlockOfProjectedBlockEqZero U left right
-      (HilbertOperator.applyVec right.op
-        (projectedUnitaryBlockGramEigenbasis left right U i : StateVector (Qubits N)))
-      (by
-        rw [← HilbertOperator.mul_applyVec, right.idempotent])
-      (by
-        rw [projectedUnitaryBlock_applyVec_projector_applyVec]
-        exact projectedUnitaryBlock_applyVec_rightSingularVector_eq_zero_of_eigenvalue_zero
-          left right U i hlambda))
+  let rightComponent :=
+    HilbertOperator.applyVec right.op
+      (projectedUnitaryBlockGramEigenbasis left right U i : HilbertVector (Qubits N))
+  if hzero : rightComponent = 0 then
+    SourceSingularInvariantLocalVector.zero
+  else
+    have hsupport : HilbertOperator.applyVec right.op rightComponent = rightComponent := by
+      dsimp [rightComponent]
+      rw [← HilbertOperator.mul_applyVec, right.idempotent]
+    have hkernel :
+        HilbertOperator.applyVec (projectedUnitaryBlock left right U) rightComponent = 0 := by
+      dsimp [rightComponent]
+      rw [projectedUnitaryBlock_applyVec_projector_applyVec]
+      exact projectedUnitaryBlock_applyVec_rightSingularVector_eq_zero_of_eigenvalue_zero
+        left right U i hlambda
+    SourceSingularInvariantLocalVector.scaledRightKernel (‖rightComponent‖ : ℂ)
+      (sourceRightKernelSingularBlockOfProjectedBlockEqZero U left right
+        (NormalizedVector.ofNeZero rightComponent hzero)
+        (by
+          simpa [NormalizedVector.ofNeZero, HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖rightComponent‖ : ℂ)⁻¹ • ψ) hsupport)
+        (by
+          simpa [NormalizedVector.ofNeZero, HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖rightComponent‖ : ℂ)⁻¹ • ψ) hkernel))
 
 /-- The zero-eigenvalue right-kernel local vector is the right-projector
 component of the Gram eigenbasis vector. -/
 theorem sourceRightKernelLocalVectorOfZeroGramEigenbasis_vec
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
       (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0) :
     SourceSingularInvariantLocalVector.vec
         (sourceRightKernelLocalVectorOfZeroGramEigenbasis left right U i hlambda) =
       HilbertOperator.applyVec right.op
-        (projectedUnitaryBlockGramEigenbasis left right U i : StateVector (Qubits N)) := by
-  rfl
+        (projectedUnitaryBlockGramEigenbasis left right U i : HilbertVector (Qubits N)) := by
+  unfold sourceRightKernelLocalVectorOfZeroGramEigenbasis
+  dsimp only
+  split_ifs with hzero
+  · simpa [SourceSingularInvariantLocalVector.vec] using hzero.symm
+  · simpa [SourceSingularInvariantLocalVector.vec,
+      sourceRightKernelSingularBlockOfProjectedBlockEqZero] using
+        NormalizedVector.norm_smul_coe_ofNeZero
+          (HilbertOperator.applyVec right.op
+            (projectedUnitaryBlockGramEigenbasis left right U i :
+              HilbertVector (Qubits N))) hzero
+
+/-- The left-projector component of a zero output-side Gram eigenbasis vector
+is carried as either zero or a scalar multiple of a normalized left-kernel
+sector.  The projection may vanish, so the local spanning tag itself remains a
+raw-vector carrier [GSLW19, BlockHam.tex:599-611,655-716]. -/
+noncomputable def sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      (projectedUnitaryBlockLeftGram_isHermitian left right U).eigenvalues i = 0) :
+    SourceSingularInvariantLocalVector U left right :=
+  let leftComponent :=
+    HilbertOperator.applyVec left.op
+      (projectedUnitaryBlockLeftGramEigenbasis left right U i :
+        HilbertVector (Qubits N))
+  if hzero : leftComponent = 0 then
+    SourceSingularInvariantLocalVector.zero
+  else
+    have hsupport : HilbertOperator.applyVec left.op leftComponent = leftComponent := by
+      dsimp [leftComponent]
+      rw [← HilbertOperator.mul_applyVec, left.idempotent]
+    have hkernel :
+        HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
+          leftComponent = 0 := by
+      dsimp [leftComponent]
+      rw [projectedUnitaryBlock_conjTranspose_applyVec_projector_applyVec]
+      exact
+        projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_eq_zero_of_eigenvalue_zero
+          left right U i hlambda
+    SourceSingularInvariantLocalVector.scaledLeftKernel (‖leftComponent‖ : ℂ)
+      (sourceLeftKernelSingularBlockOfProjectedBlockConjTransposeEqZero
+        U left right (NormalizedVector.ofNeZero leftComponent hzero)
+        (by
+          simpa [NormalizedVector.ofNeZero, HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖leftComponent‖ : ℂ)⁻¹ • ψ) hsupport)
+        (by
+          simpa [NormalizedVector.ofNeZero, HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖leftComponent‖ : ℂ)⁻¹ • ψ) hkernel))
+
+/-- The zero output-side Gram local vector reconstructs the `U†`-preimage of
+the left-projector component, including the vanishing projection case. -/
+theorem sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis_vec
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (i : (Qubits N).Index)
+    (hlambda :
+      (projectedUnitaryBlockLeftGram_isHermitian left right U).eigenvalues i = 0) :
+    SourceSingularInvariantLocalVector.vec
+        (sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis left right U i hlambda) =
+      U.dagger.applyVec
+        (HilbertOperator.applyVec left.op
+          (projectedUnitaryBlockLeftGramEigenbasis left right U i :
+            HilbertVector (Qubits N))) := by
+  unfold sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis
+  dsimp only
+  split_ifs with hzero
+  · rw [hzero]
+    change 0 = U.dagger.applyVec (0 : HilbertVector (Qubits N))
+    symm
+    simpa using
+      (UnitaryOperator.applyVec_smul U.dagger (0 : ℂ)
+        (0 : HilbertVector (Qubits N)))
+  · change
+      (‖HilbertOperator.applyVec left.op
+          (projectedUnitaryBlockLeftGramEigenbasis left right U i :
+            HilbertVector (Qubits N))‖ : ℂ) •
+          U.dagger.applyVec
+            (NormalizedVector.ofNeZero
+              (HilbertOperator.applyVec left.op
+                (projectedUnitaryBlockLeftGramEigenbasis left right U i :
+                  HilbertVector (Qubits N))) hzero) =
+        U.dagger.applyVec
+          (HilbertOperator.applyVec left.op
+            (projectedUnitaryBlockLeftGramEigenbasis left right U i :
+              HilbertVector (Qubits N)))
+    rw [← UnitaryOperator.applyVec_smul,
+      NormalizedVector.norm_smul_coe_ofNeZero]
 
 /-- A right-complement vector whose image has no left-projector component is a
 fully complementary local sector of `lemma:singInvDec` [GSLW19,
 BlockHam.tex:607-613,718-735]. -/
 noncomputable def sourceComplementLocalVectorOfRightComplementProjectedZero
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
-    (rightPerp : StateVector (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (rightPerp : HilbertVector (Qubits N))
     (hright_perp :
       HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp =
         rightPerp)
     (hleft_zero : HilbertOperator.applyVec left.op (U.applyVec rightPerp) = 0) :
     SourceSingularInvariantLocalVector U left right :=
-  SourceSingularInvariantLocalVector.complement
-    (sourceComplementSingularBlockOfRightComplementProjectedZero
-      U left right rightPerp hright_perp hleft_zero)
+  if hzero : rightPerp = 0 then
+    SourceSingularInvariantLocalVector.zero
+  else
+    SourceSingularInvariantLocalVector.scaledComplement (‖rightPerp‖ : ℂ)
+      (sourceComplementSingularBlockOfRightComplementProjectedZero
+        U left right (NormalizedVector.ofNeZero rightPerp hzero)
+        (by
+          simpa [NormalizedVector.ofNeZero, HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖rightPerp‖ : ℂ)⁻¹ • ψ) hright_perp)
+        (by
+          simpa [NormalizedVector.ofNeZero, UnitaryOperator.applyVec_smul,
+            HilbertOperator.applyVec_smul] using
+            congrArg (fun ψ : HilbertVector (Qubits N) =>
+              (‖rightPerp‖ : ℂ)⁻¹ • ψ) hleft_zero))
 
 /-- The fully complementary local vector is definitionally the supplied
 right-complement vector. -/
 theorem sourceComplementLocalVectorOfRightComplementProjectedZero_vec
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
-    (rightPerp : StateVector (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
+    (rightPerp : HilbertVector (Qubits N))
     (hright_perp :
       HilbertOperator.applyVec (OrthogonalProjector.complement right) rightPerp =
         rightPerp)
@@ -4836,46 +5799,12 @@ theorem sourceComplementLocalVectorOfRightComplementProjectedZero_vec
         (sourceComplementLocalVectorOfRightComplementProjectedZero
           left right U rightPerp hright_perp hleft_zero) =
       rightPerp := by
-  rfl
-
-/-- The left-projector component of a zero output-side Gram eigenbasis vector is
-a left-kernel sector of `lemma:singInvDec` [GSLW19, BlockHam.tex:599-611,
-655-716]. -/
-noncomputable def sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
-    (i : (Qubits N).Index)
-    (hlambda :
-      (projectedUnitaryBlockLeftGram_isHermitian left right U).eigenvalues i = 0) :
-    SourceSingularInvariantLocalVector U left right :=
-  let hleft_zero :=
-    projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_eq_zero_of_eigenvalue_zero
-      left right U i hlambda
-  SourceSingularInvariantLocalVector.leftKernel
-    (sourceLeftKernelSingularBlockOfProjectedBlockConjTransposeEqZero
-      U left right
-      (HilbertOperator.applyVec left.op
-        (projectedUnitaryBlockLeftGramEigenbasis left right U i :
-          StateVector (Qubits N)))
-      (by
-        rw [← HilbertOperator.mul_applyVec, left.idempotent])
-      (by
-        rw [projectedUnitaryBlock_conjTranspose_applyVec_projector_applyVec]
-        exact hleft_zero))
-
-/-- The zero output-side Gram local vector is the `U†`-preimage of the
-left-projector component of the output eigenbasis vector. -/
-theorem sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis_vec
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
-    (i : (Qubits N).Index)
-    (hlambda :
-      (projectedUnitaryBlockLeftGram_isHermitian left right U).eigenvalues i = 0) :
-    SourceSingularInvariantLocalVector.vec
-        (sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis left right U i hlambda) =
-      U.conjTranspose.applyVec
-        (HilbertOperator.applyVec left.op
-          (projectedUnitaryBlockLeftGramEigenbasis left right U i :
-            StateVector (Qubits N))) := by
-  rfl
+  unfold sourceComplementLocalVectorOfRightComplementProjectedZero
+  split_ifs with hzero
+  · simpa [SourceSingularInvariantLocalVector.vec] using hzero.symm
+  · simpa [SourceSingularInvariantLocalVector.vec,
+      sourceComplementSingularBlockOfRightComplementProjectedZero] using
+        NormalizedVector.norm_smul_coe_ofNeZero rightPerp hzero
 
 /-- Reduce full local coverage to the remaining decomposition of the
 right-projector complement in the zero Gram eigenspaces.  Nonzero eigenvectors
@@ -4883,7 +5812,7 @@ are handled by the unit/two-dimensional split, while zero eigenvectors first
 contribute their `Π`-supported right-kernel component [GSLW19,
 BlockHam.tex:583-613,655-736]. -/
 noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementSplit
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (zeroComplementCombination :
       ∀ i : (Qubits N).Index,
         (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0 ->
@@ -4894,7 +5823,7 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementS
           (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0),
         HilbertOperator.applyVec (OrthogonalProjector.complement right)
             (projectedUnitaryBlockGramEigenbasis left right U i :
-              StateVector (Qubits N)) =
+              HilbertVector (Qubits N)) =
           ((zeroComplementCombination i hlambda).map fun term =>
             term.1 • SourceSingularInvariantLocalVector.vec term.2).sum) :
     SourceSingularInvariantLocalBasisSpanCoverage U left right where
@@ -4928,16 +5857,16 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementS
         Complex.ofReal_eq_zero.mp hzero_complex
       calc
         (projectedUnitaryBlockGramEigenbasis left right U i :
-            StateVector (Qubits N)) =
+            HilbertVector (Qubits N)) =
             HilbertOperator.applyVec right.op
                 (projectedUnitaryBlockGramEigenbasis left right U i :
-                  StateVector (Qubits N)) +
+                  HilbertVector (Qubits N)) +
               HilbertOperator.applyVec (OrthogonalProjector.complement right)
                 (projectedUnitaryBlockGramEigenbasis left right U i :
-                  StateVector (Qubits N)) := by
+                  HilbertVector (Qubits N)) := by
               exact (orthogonalProjector_applyVec_add_complement_applyVec right
                 (projectedUnitaryBlockGramEigenbasis left right U i :
-                  StateVector (Qubits N))).symm
+                  HilbertVector (Qubits N))).symm
         _ =
             (([(1,
               sourceRightKernelLocalVectorOfZeroGramEigenbasis left right U i hzero)] ++
@@ -4948,13 +5877,15 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementS
                 left right U i hzero, zeroComplement_basis_eq i hzero]
         _ =
             ((if hlambda :
-                ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0 then
+                ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i :
+                  ℂ) ≠ 0 then
               [(1,
                 sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
                   left right U i hlambda)]
             else
               have hzero_complex :
-                  ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) = 0 :=
+                  ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i :
+                    ℂ) = 0 :=
                 not_not.mp hlambda
               have hzero :
                   (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0 :=
@@ -4972,7 +5903,7 @@ both the projected source block and the target `P^{(SV)}` annihilate it.  This
 is the projected-theorem specialization of the source direct-sum split in
 `lemma:singInvDec` [GSLW19, BlockHam.tex:599-613,655-736]. -/
 noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfProjectorComplementSplit
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N)) :
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     SourceSingularInvariantLocalBasisSpanCoverage U left right :=
   sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementSplit left right U
     (fun i _ =>
@@ -4980,7 +5911,7 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfProjectorComple
         SourceSingularInvariantLocalVector.inputComplement
           (HilbertOperator.applyVec (OrthogonalProjector.complement right)
             (projectedUnitaryBlockGramEigenbasis left right U i :
-              StateVector (Qubits N)))
+              HilbertVector (Qubits N)))
           (by
             rw [← HilbertOperator.mul_applyVec, OrthogonalProjector.complement_sq]))])
     (by
@@ -4992,7 +5923,7 @@ right-complement component is fully complementary.  The general source proof
 adds the left-kernel part before applying this fully-complementary case
 [GSLW19, BlockHam.tex:607-613,718-735]. -/
 noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementFullyComplementary
-    {N : Nat} (left right : OrthogonalProjector N) (U : Gate (Qubits N))
+    {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (hleft_zero :
       ∀ (i : (Qubits N).Index)
         (_ :
@@ -5001,7 +5932,7 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementF
             (U.applyVec
               (HilbertOperator.applyVec (OrthogonalProjector.complement right)
                 (projectedUnitaryBlockGramEigenbasis left right U i :
-                  StateVector (Qubits N)))) = 0) :
+                  HilbertVector (Qubits N)))) = 0) :
     SourceSingularInvariantLocalBasisSpanCoverage U left right :=
   sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementSplit left right U
     (fun i hlambda =>
@@ -5009,7 +5940,7 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementF
         sourceComplementLocalVectorOfRightComplementProjectedZero left right U
           (HilbertOperator.applyVec (OrthogonalProjector.complement right)
             (projectedUnitaryBlockGramEigenbasis left right U i :
-              StateVector (Qubits N)))
+              HilbertVector (Qubits N)))
           (by
             rw [← HilbertOperator.mul_applyVec, OrthogonalProjector.complement_sq])
           (hleft_zero i hlambda))])
@@ -5020,7 +5951,7 @@ noncomputable def sourceSingularInvariantLocalBasisSpanCoverageOfZeroComplementF
 /-- Direct local-block coverage feeds the generic basis-span family used by the
 global projected-QSVT theorem. -/
 noncomputable def sourceProjectedQSVTBasisSpanFamilyOfLocalCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5038,7 +5969,7 @@ noncomputable def sourceProjectedQSVTBasisSpanFamilyOfLocalCoverage
 /-- Local-block basis-span coverage proves the source-level projected-QSVT block
 equality. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_localBasisSpanCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5055,7 +5986,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_localBasisSpanCoverage
 the local form of the `U_{-\Phi}` branch used in the real-polynomial averaging
 step of `cor:matchingParity` [GSLW19, BlockHam.tex:851-887]. -/
 noncomputable def sourceProjectedQSVTBasisSpanFamilyNegProjectedPhasesOfLocalCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5075,7 +6006,7 @@ noncomputable def sourceProjectedQSVTBasisSpanFamilyNegProjectedPhasesOfLocalCov
 /-- Local-block basis-span coverage proves the negated-phase source-level
 projected-QSVT block equality. -/
 theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_localBasisSpanCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5095,7 +6026,7 @@ zero eigenvalues.  This packages the nonzero part of `lemma:singInvDec`; the
 general theorem adds the zero-sector right-kernel, left-kernel, and fully
 complementary blocks [GSLW19, BlockHam.tex:583-613,655-736,768-849]. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_noZeroGramEigenvalues
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5114,7 +6045,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_noZeroGramEigenvalues
 /-- Source projected-QSVT reduced to the final zero-complement decomposition
 piece of `lemma:singInvDec`. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_zeroComplementSplit
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5128,7 +6059,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_zeroComplementSplit
           (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i = 0),
         HilbertOperator.applyVec (OrthogonalProjector.complement right)
             (projectedUnitaryBlockGramEigenbasis left right U i :
-              StateVector (Qubits N)) =
+              HilbertVector (Qubits N)) =
           ((zeroComplementCombination i hlambda).map fun term =>
             term.1 • SourceSingularInvariantLocalVector.vec term.2).sum)
     (init : List ℝ) (last : ℝ) (hφs : certificate.φs = init ++ [last]) :
@@ -5144,22 +6075,24 @@ theorem sourceProjectedQSVTBlockCorrectness_of_zeroComplementSplit
 source-side vectors are extensionally complete for operator equalities.  This
 is the direct-sum/spanning obligation left by `lemma:singInvDec`
 [GSLW19, BlockHam.tex:583-613,655-736]. -/
-structure SourceSingularInvariantCoverage {N : Nat} (U : Gate (Qubits N))
+structure SourceSingularInvariantCoverage {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Source singular-invariant sector decomposition used by the coverage proof. -/
   decomposition : SourceSingularInvariantDecomposition U left right
   ext :
     ∀ {A B : HilbertOperator (Qubits N)},
       (∀ tag : SourceSingularInvariantVector decomposition,
-        HilbertOperator.applyVec A (SourceSingularInvariantVector.vec tag) =
-          HilbertOperator.applyVec B (SourceSingularInvariantVector.vec tag)) ->
+        HilbertOperator.applyVec A
+            (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N)) =
+          HilbertOperator.applyVec B
+            (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N))) ->
       A = B
 
 /-- A concrete way to prove `SourceSingularInvariantCoverage`: classify every
 Gram-eigenbasis vector into one of the source singular-invariant sector tags.
 This is the Lean form of the source direct-sum classification in
 `lemma:singInvDec` [GSLW19, BlockHam.tex:583-613,655-736]. -/
-structure SourceSingularInvariantBasisCoverage {N : Nat} (U : Gate (Qubits N))
+structure SourceSingularInvariantBasisCoverage {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Source singular-invariant sector decomposition used by the basis classification. -/
   decomposition : SourceSingularInvariantDecomposition U left right
@@ -5168,15 +6101,15 @@ structure SourceSingularInvariantBasisCoverage {N : Nat} (U : Gate (Qubits N))
     (Qubits N).Index -> SourceSingularInvariantVector decomposition
   tag_vec_eq :
     ∀ i : (Qubits N).Index,
-      SourceSingularInvariantVector.vec (tagOfBasis i) =
+      (SourceSingularInvariantVector.vec (tagOfBasis i) : HilbertVector (Qubits N)) =
         (projectedUnitaryBlockGramEigenbasis left right U i :
-          StateVector (Qubits N))
+          HilbertVector (Qubits N))
 
 namespace SourceSingularInvariantBasisCoverage
 
 /-- A Gram-eigenbasis sector classification gives the extensional source
 coverage required by the projected-QSVT assembly theorem. -/
-noncomputable def toCoverage {N : Nat} {U : Gate (Qubits N)}
+noncomputable def toCoverage {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (coverage : SourceSingularInvariantBasisCoverage U left right) :
     SourceSingularInvariantCoverage U left right where
@@ -5196,7 +6129,7 @@ a finite linear combination of source singular-invariant sector vectors.  This
 matches the source direct-sum construction in the zero-singular-value sectors,
 where a Gram basis vector is split into its right-projector and complementary
 parts [GSLW19, BlockHam.tex:583-613,655-736]. -/
-structure SourceSingularInvariantBasisSpanCoverage {N : Nat} (U : Gate (Qubits N))
+structure SourceSingularInvariantBasisSpanCoverage {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) where
   /-- Source singular-invariant sector decomposition used by the span coverage. -/
   decomposition : SourceSingularInvariantDecomposition U left right
@@ -5206,25 +6139,30 @@ structure SourceSingularInvariantBasisSpanCoverage {N : Nat} (U : Gate (Qubits N
   basis_eq :
     ∀ i : (Qubits N).Index,
       (projectedUnitaryBlockGramEigenbasis left right U i :
-          StateVector (Qubits N)) =
+          HilbertVector (Qubits N)) =
         ((combination i).map fun term =>
-          term.1 • SourceSingularInvariantVector.vec term.2).sum
+          term.1 • (SourceSingularInvariantVector.vec term.2 :
+            HilbertVector (Qubits N))).sum
 
 namespace SourceSingularInvariantBasisSpanCoverage
 
-private theorem applyVec_eq_on_combination {N : Nat} {U : Gate (Qubits N)}
+private theorem applyVec_eq_on_combination {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right}
     {A B : HilbertOperator (Qubits N)}
     (h :
       ∀ tag : SourceSingularInvariantVector decomposition,
-        HilbertOperator.applyVec A (SourceSingularInvariantVector.vec tag) =
-          HilbertOperator.applyVec B (SourceSingularInvariantVector.vec tag))
+        HilbertOperator.applyVec A
+            (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N)) =
+          HilbertOperator.applyVec B
+            (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N)))
     (terms : List (ℂ × SourceSingularInvariantVector decomposition)) :
     HilbertOperator.applyVec A
-        ((terms.map fun term => term.1 • SourceSingularInvariantVector.vec term.2).sum) =
+        ((terms.map fun term => term.1 • (SourceSingularInvariantVector.vec term.2 :
+          HilbertVector (Qubits N))).sum) =
       HilbertOperator.applyVec B
-        ((terms.map fun term => term.1 • SourceSingularInvariantVector.vec term.2).sum) := by
+        ((terms.map fun term => term.1 • (SourceSingularInvariantVector.vec term.2 :
+          HilbertVector (Qubits N))).sum) := by
   induction terms with
   | nil =>
       simp [HilbertOperator.applyVec]
@@ -5235,7 +6173,7 @@ private theorem applyVec_eq_on_combination {N : Nat} {U : Gate (Qubits N)}
 /-- A finite linear-combination classification of every Gram-eigenbasis vector
 gives the extensional source coverage required by the projected-QSVT assembly
 theorem. -/
-noncomputable def toCoverage {N : Nat} {U : Gate (Qubits N)}
+noncomputable def toCoverage {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (coverage : SourceSingularInvariantBasisSpanCoverage U left right) :
     SourceSingularInvariantCoverage U left right where
@@ -5255,7 +6193,7 @@ spanning family required for the global `thm:singValTransformation` equality,
 provided each source sector is evaluated by the local block lemmas
 [GSLW19, BlockHam.tex:655-736,768-849]. -/
 noncomputable def sourceProjectedQSVTSpanningFamilyOfCoverage {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5265,7 +6203,8 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfCoverage {N d : Nat}
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs) := by
   refine
     { ι := SourceSingularInvariantVector coverage.decomposition
-      vec := fun tag => SourceSingularInvariantVector.vec tag
+      vec := fun tag =>
+        (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N))
       ext := ?_
       action_eq := ?_ }
   · intro A B h
@@ -5311,12 +6250,12 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfCoverage {N d : Nat}
           HilbertOperator.applyVec
               (sourceProjectedBlock (projectedOutputProjector left right d) right
                 (sourceAlternatingPhaseModulation U left right
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
               block.rightPerp = 0 :=
             sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support
               (projectedOutputProjector left right d) right
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
               block.rightPerp block.right_perp_support
           _ =
               HilbertOperator.applyVec
@@ -5347,12 +6286,12 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfCoverage {N d : Nat}
           HilbertOperator.applyVec
               (sourceProjectedBlock (projectedOutputProjector left right d) right
                 (sourceAlternatingPhaseModulation U left right
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
               block.rightPerp = 0 :=
             SourceLeftKernelSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
               block
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
           _ =
               HilbertOperator.applyVec
                 (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
@@ -5366,12 +6305,12 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfCoverage {N d : Nat}
           HilbertOperator.applyVec
               (sourceProjectedBlock (projectedOutputProjector left right d) right
                 (sourceAlternatingPhaseModulation U left right
-                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)))
+                  (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix)
               block.rightPerp = 0 :=
             SourceComplementSingularBlock.sourceProjectedBlock_applyVec_rightPerp_eq_zero
               block
               (sourceAlternatingPhaseModulation U left right
-                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs))
+                (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)).matrix
           _ =
               HilbertOperator.applyVec
                 (singularValuePolynomial right d P (projectedUnitaryBlock left right U))
@@ -5385,7 +6324,7 @@ to construct `SourceSingularInvariantCoverage` from the spectral direct-sum
 decomposition of `lemma:singInvDec` [GSLW19, BlockHam.tex:583-613,655-736,
 768-849]. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_coverage {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5401,7 +6340,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_coverage {N d : Nat}
 /-- Basis-level sector classification is enough to prove the source-level
 projected-QSVT block equality. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_basisCoverage {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5418,7 +6357,7 @@ direct-sum proof because zero-singular-value Gram basis vectors split into
 projector and complementary pieces [GSLW19, BlockHam.tex:583-613,655-736,
 768-849]. -/
 theorem sourceProjectedQSVTBlockCorrectness_of_basisSpanCoverage {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5434,7 +6373,7 @@ coefficient-conjugate source-level projected-QSVT block equality.  This is the
 coverage-level `U_{-\Phi}` branch used by the averaging proof of
 `cor:matchingParity` [GSLW19, BlockHam.tex:655-736,851-887]. -/
 noncomputable def sourceProjectedQSVTSpanningFamilyNegProjectedPhasesOfCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5445,7 +6384,8 @@ noncomputable def sourceProjectedQSVTSpanningFamilyNegProjectedPhasesOfCoverage
         (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)) := by
   refine
     { ι := SourceSingularInvariantVector coverage.decomposition
-      vec := fun tag => SourceSingularInvariantVector.vec tag
+      vec := fun tag =>
+        (SourceSingularInvariantVector.vec tag : HilbertVector (Qubits N))
       ext := ?_
       action_eq := ?_ }
   · intro A B h
@@ -5459,7 +6399,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyNegProjectedPhasesOfCoverage
 /-- Coverage-level negated-phase source block equality for the
 coefficient-conjugate polynomial [GSLW19, BlockHam.tex:655-736,851-887]. -/
 theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_coverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5477,7 +6417,7 @@ theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_coverage
 /-- Span-level sector classification is also enough for the negated-phase
 branch used in the real-polynomial averaging proof. -/
 theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_basisSpanCoverage
-    {N d : Nat} {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5494,50 +6434,36 @@ theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_basisSpanCover
 /-- The source-aligned real-projected circuit determined by a reflection-QSP
 phase certificate. -/
 noncomputable def sourceRealProjectedCircuitOfPhaseCertificate {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    Circuit (Qubits (1 + N)) :=
+    UnitaryCircuit (Qubits (1 + N)) :=
   sourceRealProjectedCircuit U left right
     (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
 
 theorem sourceRealProjectedCircuitOfPhaseCertificate_resources {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ResourceProfile.HasExactCounts
-      (sourceRealProjectedCircuitOfPhaseCertificate U left right certificate).resources
-      d 0 d 0 := by
+    ProjectedEventProfile.HasExactCounts N d
+      (sourceRealProjectedCircuitOfPhaseCertificate U left right certificate).eventCost := by
   simpa [sourceRealProjectedCircuitOfPhaseCertificate,
     projectedPhasesFromQSPCertificate_length, certificate.length_eq] using
     sourceRealProjectedCircuit_resourceProfile U left right
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
 
-theorem sourceRealProjectedCircuitOfPhaseCertificate_projectedResources {N d : Nat}
-    {P Q : Polynomial ℂ} (_U : Gate (Qubits N))
-    (_left _right : OrthogonalProjector N)
-    (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ProjectedResourceProfile.HasExactCounts
-      (ProjectedResourceProfile.ofLength
-        (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs).length) d := by
-  simp [projectedPhasesFromQSPCertificate_length, certificate.length_eq]
-
 theorem sourceRealProjectedCircuitOfPhaseCertificate_matrix_and_resources {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
     ((sourceRealProjectedCircuitOfPhaseCertificate U left right certificate).matrix :
         HilbertOperator (Qubits (1 + N))) =
           sourceRealProjectedGate U left right
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs) ∧
-      ProjectedResourceProfile.HasExactCounts
-        (ProjectedResourceProfile.ofLength
-          (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs).length) d ∧
-      ResourceProfile.HasExactCounts
-        (sourceRealProjectedCircuitOfPhaseCertificate U left right certificate).resources
-        d 0 d 0 := by
-  exact ⟨rfl,
-    sourceRealProjectedCircuitOfPhaseCertificate_projectedResources U left right certificate,
+      ProjectedEventProfile.HasExactCounts N d
+        (sourceRealProjectedCircuitOfPhaseCertificate U left right certificate).eventCost := by
+  exact ⟨by
+      simp [sourceRealProjectedCircuitOfPhaseCertificate],
     sourceRealProjectedCircuitOfPhaseCertificate_resources U left right certificate⟩
 
 namespace RealProjectedQSVTRealization
@@ -5546,7 +6472,7 @@ namespace RealProjectedQSVTRealization
 equality for the projected phase list, the phase certificate yields a same-circuit
 public-real projected-QSVT realization. -/
 noncomputable def ofPhaseCertificateWithBlockCorrectness {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hblock :
@@ -5560,15 +6486,14 @@ noncomputable def ofPhaseCertificateWithBlockCorrectness {N d : Nat}
   circuit := sourceRealProjectedCircuitOfPhaseCertificate U left right certificate
   circuit_eq := rfl
   block_eq := hblock
-  resources_exact := ProjectedResourceProfile.ofLength_hasExactCounts d
-  circuit_resources :=
+  resources_exact :=
     sourceRealProjectedCircuitOfPhaseCertificate_resources U left right certificate
 
 /-- Build the public-real realization package from the two source-level
 singular-value block equalities for `Φ` and `-Φ`, plus the averaged polynomial
 identity supplied by the matching-parity real-polynomial theorem. -/
 noncomputable def ofPhaseCertificateSourceAverage {N d : Nat}
-    {P Q Pneg Preal : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q Pneg Preal : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hpos :
@@ -5595,8 +6520,7 @@ noncomputable def ofPhaseCertificateSourceAverage {N d : Nat}
       U left right d P Pneg Preal
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
       hpos hneg havg
-  resources_exact := ProjectedResourceProfile.ofLength_hasExactCounts d
-  circuit_resources :=
+  resources_exact :=
     sourceRealProjectedCircuitOfPhaseCertificate_resources U left right certificate
 
 /-- Matching-parity projected QSVT from source phase certificates and the
@@ -5606,7 +6530,7 @@ certificate is connected by the displayed `negPhases` equality.  This packages
 the circuit/resource part of `cor:matchingParity` [GSLW19,
 BlockHam.tex:851-887]. -/
 noncomputable def ofPhaseCertificatesAndOrthonormalDecomposition {N d : Nat}
-    {P Q Pneg Qneg Preal : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q Pneg Qneg Preal : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (negativeCertificate :
@@ -5644,7 +6568,7 @@ second branch of the same counted circuit uses the negated projected phase list,
 which the source averaging construction identifies with the coefficient
 conjugate polynomial [GSLW19, BlockHam.tex:851-887]. -/
 noncomputable def ofPhaseCertificateAndConjugateOrthonormalDecomposition {N d : Nat}
-    {P Q Preal : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q Preal : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -5671,7 +6595,7 @@ the completion polynomial `P` and its coefficient conjugate are averaged back
 to the original real target, while both branches are carried by the same
 counted source-projected circuit [GSLW19, BlockHam.tex:544-557,851-887]. -/
 noncomputable def ofRealBoundedPhaseCertificateAndOrthonormalDecomposition
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantOrthonormalDecomposition U left right)
@@ -5692,7 +6616,7 @@ noncomputable def ofRealBoundedPhaseCertificateAndOrthonormalDecomposition
 `ofRealBoundedPhaseCertificateAndOrthonormalDecomposition` that extracts the
 final source phase slot from the phase certificate itself. -/
 noncomputable def ofRealBoundedPhaseCertificateAndOrthonormalDecompositionOfPositiveDegree
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantOrthonormalDecomposition U left right)
@@ -5714,7 +6638,7 @@ zero-singular-value Gram vectors may be finite linear combinations of
 right-kernel, left-kernel, and complementary source sectors [GSLW19,
 BlockHam.tex:583-613,655-736,851-887]. -/
 noncomputable def ofRealBoundedPhaseCertificateAndBasisSpanCoverage
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantBasisSpanCoverage U left right)
@@ -5738,7 +6662,7 @@ noncomputable def ofRealBoundedPhaseCertificateAndBasisSpanCoverage
 /-- Positive-degree basis-span version, extracting the final source phase slot
 from the phase certificate itself. -/
 noncomputable def ofRealBoundedPhaseCertificateAndBasisSpanCoverageOfPositiveDegree
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantBasisSpanCoverage U left right)
@@ -5760,7 +6684,7 @@ enough for the projected theorem because input-complement vectors are
 annihilated by both sides of the projected equality [GSLW19,
 BlockHam.tex:599-613,655-736,851-887]. -/
 noncomputable def ofRealBoundedPhaseCertificateAndLocalBasisSpanCoverage
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantLocalBasisSpanCoverage U left right)
@@ -5784,7 +6708,7 @@ noncomputable def ofRealBoundedPhaseCertificateAndLocalBasisSpanCoverage
 /-- Positive-degree local-coverage version, extracting the final source phase
 slot from the phase certificate itself. -/
 noncomputable def ofRealBoundedPhaseCertificateAndLocalBasisSpanCoverageOfPositiveDegree
-    {N d : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N d : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe)
     (coverage : SourceSingularInvariantLocalBasisSpanCoverage U left right)
@@ -5808,7 +6732,7 @@ the completed Lemma-6-through-Corollary-10 real-polynomial QSP chain; the same
 constructed projected circuit supplies both correctness and resources
 [GSLW19, BlockHam.tex:544-557,583-613,655-736,851-887]. -/
 noncomputable def realProjectedQSVTOfMatchingParityAndBasisSpanCoverage
-    {N L : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N L : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (coverage : SourceSingularInvariantBasisSpanCoverage U left right)
@@ -5827,7 +6751,7 @@ Corollary 10 supply the phase certificate, while the projected form of
 `thm:singValTransformation` supplies the same-circuit block equality and exact
 resources [GSLW19, BlockHam.tex:544-557,599-613,655-736,851-887]. -/
 noncomputable def realProjectedQSVTOfMatchingParity
-    {N L : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+    {N L : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (hL : 0 < L) :
@@ -5847,7 +6771,7 @@ namespace Decomposition.Projected
 /-- Projected real-polynomial QSVT in the source statement form: the same
 constructed circuit supplies the singular-value block equality and the exact
 resource counters [GSLW19, BlockHam.tex:544-557,747-887]. -/
-theorem sourceMain {N L : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
+theorem sourceMain {N L : Nat} {PRe : Polynomial ℝ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (hL : 0 < L) :
@@ -5855,22 +6779,18 @@ theorem sourceMain {N L : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
         RealProjectedQSVTRealization U left right L
           (singularValuePolynomial right L (realPolynomialToComplex PRe)
             (projectedUnitaryBlock left right U)),
-      ProjectedResourceProfile.HasExactCounts
-        (ProjectedResourceProfile.ofLength L) L ∧
-        ResourceProfile.HasExactCounts realization.circuit.resources L 0 L 0 := by
+      ProjectedEventProfile.HasExactCounts N L realization.circuit.eventCost := by
   let realization := realProjectedQSVTOfMatchingParity U left right hP hL
-  refine ⟨realization, ?_, ?_⟩
-  · exact ProjectedResourceProfile.ofLength_hasExactCounts L
-  · exact realization.circuit_resources
+  exact ⟨realization, realization.resources_exact⟩
 
 end Decomposition.Projected
 
 /-- Construct the projected-QSVT word from a reflection-QSP phase certificate.
 The phase certificate supplies the source phase list; the resulting word's
-matrix and resource counters are then both read from the same `Circuit`
+matrix and resource counters are then both read from the same `UnitaryCircuit`
 history [GSLW19, BlockHam.tex:851-887]. -/
 noncomputable def projectedQSVTWordOfPhaseCertificate {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
     ProjectedQSVTWord U left right
@@ -5879,50 +6799,34 @@ noncomputable def projectedQSVTWordOfPhaseCertificate {N d : Nat}
     (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
 
 theorem projectedQSVTWordOfPhaseCertificate_resources_exact {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ProjectedResourceProfile.HasExactCounts
-      (projectedQSVTWordOfPhaseCertificate U left right certificate).resources d := by
+    ProjectedEventProfile.HasExactCounts N d
+      (projectedQSVTWordOfPhaseCertificate U left right certificate).circuit.eventCost := by
   simpa [projectedQSVTWordOfPhaseCertificate,
     projectedPhasesFromQSPCertificate_length, certificate.length_eq] using
     projectedQSVTWord_resources_exact U left right
       (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
 
-theorem projectedQSVTWordOfPhaseCertificate_circuitResourceProfile {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N)
-    (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ResourceProfile.HasExactCounts
-      (projectedQSVTWordOfPhaseCertificate U left right certificate).circuit.resources
-      d 0 d 0 := by
-  simpa [projectedQSVTWordOfPhaseCertificate,
-    projectedPhasesFromQSPCertificate_length, certificate.length_eq] using
-    projectedQSVTWord_circuitResourceProfile U left right
-      (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs)
-
 theorem projectedQSVTWordOfPhaseCertificate_matrix_and_resources {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
     ((projectedQSVTWordOfPhaseCertificate U left right certificate).circuit.matrix :
         HilbertOperator (Qubits (1 + N))) =
           alternatingPhaseModulation U left right
             (projectedPhasesFromQSPCertificate certificate.φ₀ certificate.φs) ∧
-      ProjectedResourceProfile.HasExactCounts
-        (projectedQSVTWordOfPhaseCertificate U left right certificate).resources d ∧
-      ResourceProfile.HasExactCounts
-        (projectedQSVTWordOfPhaseCertificate U left right certificate).circuit.resources
-        d 0 d 0 := by
+      ProjectedEventProfile.HasExactCounts N d
+        (projectedQSVTWordOfPhaseCertificate U left right certificate).circuit.eventCost := by
   exact ⟨by
       simp [projectedQSVTWordOfPhaseCertificate, projectedQSVTWord_matrix],
-    projectedQSVTWordOfPhaseCertificate_resources_exact U left right certificate,
-    projectedQSVTWordOfPhaseCertificate_circuitResourceProfile U left right certificate⟩
+    projectedQSVTWordOfPhaseCertificate_resources_exact U left right certificate⟩
 
 /-- Implementation-gadget projected block target.  This is retained for local
 sanity checks of the projector-controlled implementation, but the source-level
 public theorem target is `RealProjectedQSVTBlockCorrectness` above. -/
-def ProjectedQSVTBlockCorrectness {N : Nat} (U : Gate (Qubits N))
+def ProjectedQSVTBlockCorrectness {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (P : Polynomial ℂ)
     (phases : List ℝ) (word : ProjectedQSVTWord U left right phases) : Prop :=
   projectedPhasePlusBlock (projectedOutputProjector left right L) right
@@ -5934,25 +6838,39 @@ sequence with phase `0` realizes `P(X)=X`, hence the original projected block
 `Π_left U Π_right`.  This is the smallest nontrivial instance of the source
 singular-value transformation theorem [GSLW19, BlockHam.tex:747-887]. -/
 theorem projectedQSVTBlockCorrectness_X_single_zero {N : Nat}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N) :
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     ProjectedQSVTBlockCorrectness U left right 1 (Polynomial.X : Polynomial ℂ) [0]
       (projectedQSVTWord U left right [0]) := by
   unfold ProjectedQSVTBlockCorrectness
-  have hgate :
-      (projectedQSVTWord U left right [0]).circuit.matrix =
-        alternatingPhaseModulation U left right [0] := by
-    apply Gate.ext
-    intro i j
-    rw [projectedQSVTWord_matrix]
-  rw [hgate]
-  simp [projectedOutputProjector, alternatingPhaseModulation, liftSourcePhaseSignal,
-    sourcePhaseSignal, singularValuePolynomial_X_one]
+  have hword :
+      ((projectedQSVTWord U left right [0]).circuit.matrix :
+          HilbertOperator (Qubits (1 + N))) =
+        (alternatingPhaseModulation U left right [0] :
+          HilbertOperator (Qubits (1 + N))) :=
+    projectedQSVTWord_matrix U left right [0]
+  have halternating :
+      (alternatingPhaseModulation U left right [0] :
+          HilbertOperator (Qubits (1 + N))) =
+        (liftSignalGate (qsvtOracleGate U) :
+          HilbertOperator (Qubits (1 + N))) := by
+    simp [alternatingPhaseModulation, liftSourcePhaseSignal, sourcePhaseSignal]
+  have houtput : projectedOutputProjector left right 1 = left := by
+    simp [projectedOutputProjector]
+  rw [houtput, singularValuePolynomial_X_one]
+  have hblock :
+      projectedPhasePlusBlock left right
+          (projectedQSVTWord U left right [0]).circuit.matrix =
+        projectedPhasePlusBlock left right (liftSignalGate (qsvtOracleGate U)).matrix := by
+    unfold projectedPhasePlusBlock phasePlusBlock
+    rw [hword, halternating]
+  rw [hblock, projectedPhasePlusBlock_liftSignalGate]
+  simp [projectedUnitaryBlock]
 
 /-- A projected-QSVT endpoint package whose correctness block equality and
 resource counters are read from the same `ProjectedQSVTWord`.  This is the
 internal shape used before the public statement names the target as
 `P^{(SV)}(A)` [GSLW19, BlockHam.tex:851-887]. -/
-structure ProjectedQSVTRealization {N : Nat} (U : Gate (Qubits N))
+structure ProjectedQSVTRealization {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (target : HilbertOperator (Qubits N)) where
   /-- Projected phase list used by the realization word. -/
   phases : List ℝ
@@ -5962,14 +6880,14 @@ structure ProjectedQSVTRealization {N : Nat} (U : Gate (Qubits N))
   block_eq :
     projectedPhasePlusBlock (projectedOutputProjector left right L) right
       word.circuit.matrix = target
-  resources_exact : ProjectedResourceProfile.HasExactCounts word.resources L
-  circuit_resources : ResourceProfile.HasExactCounts word.circuit.resources L 0 L 0
+  resources_exact :
+    ProjectedEventProfile.HasExactCounts N L word.circuit.eventCost
 
 namespace ProjectedQSVTRealization
 
 /-- Build a realization package from a canonical word once the projected block
 correctness equality has been proved for that same word. -/
-noncomputable def ofWord {N : Nat} (U : Gate (Qubits N))
+noncomputable def ofWord {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ)
     (target : HilbertOperator (Qubits N))
     (hblock :
@@ -5981,7 +6899,6 @@ noncomputable def ofWord {N : Nat} (U : Gate (Qubits N))
   word := projectedQSVTWord U left right phases
   block_eq := hblock
   resources_exact := projectedQSVTWord_resources_exact U left right phases
-  circuit_resources := projectedQSVTWord_circuitResourceProfile U left right phases
 
 /-- A phase certificate already determines a concrete projected-QSVT circuit and
 the exact resource counters of that same circuit.  This constructor deliberately
@@ -5989,7 +6906,7 @@ uses the circuit block itself as the target; the source theorem later supplies
 the separate equality identifying this block with `P^{(SV)}(A)` [GSLW19,
 BlockHam.tex:851-887]. -/
 noncomputable def ofPhaseCertificate {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
     ProjectedQSVTRealization U left right d
       (projectedPhasePlusBlock (projectedOutputProjector left right d) right
@@ -6000,14 +6917,12 @@ noncomputable def ofPhaseCertificate {N d : Nat} {P Q : Polynomial ℂ}
   word := projectedQSVTWordOfPhaseCertificate U left right certificate
   block_eq := rfl
   resources_exact := projectedQSVTWordOfPhaseCertificate_resources_exact U left right certificate
-  circuit_resources :=
-    projectedQSVTWordOfPhaseCertificate_circuitResourceProfile U left right certificate
 
 /-- Once the source singular-value theorem identifies the projected block with
 `P^{(SV)}(Π_left U Π_right)`, the phase certificate yields the final
 same-circuit realization package. -/
 noncomputable def ofPhaseCertificateWithBlockCorrectness {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hblock :
@@ -6022,29 +6937,19 @@ noncomputable def ofPhaseCertificateWithBlockCorrectness {N d : Nat}
   word := projectedQSVTWordOfPhaseCertificate U left right certificate
   block_eq := hblock
   resources_exact := projectedQSVTWordOfPhaseCertificate_resources_exact U left right certificate
-  circuit_resources :=
-    projectedQSVTWordOfPhaseCertificate_circuitResourceProfile U left right certificate
 
 theorem ofPhaseCertificate_resources_exact {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ProjectedResourceProfile.HasExactCounts
-      (ofPhaseCertificate U left right certificate).word.resources d :=
+    ProjectedEventProfile.HasExactCounts N d
+      (ofPhaseCertificate U left right certificate).word.circuit.eventCost :=
   projectedQSVTWordOfPhaseCertificate_resources_exact U left right certificate
-
-theorem ofPhaseCertificate_circuit_resources {N d : Nat} {P Q : Polynomial ℂ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
-    (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
-    ResourceProfile.HasExactCounts
-      (ofPhaseCertificate U left right certificate).word.circuit.resources
-      d 0 d 0 :=
-  projectedQSVTWordOfPhaseCertificate_circuitResourceProfile U left right certificate
 
 /-- Real-polynomial QSP completion data produces the same-circuit projected
 QSVT realization whose block is later identified with `P^{(SV)}(A)` by the
 projected singular-value theorem [GSLW19, BlockHam.tex:544-557,851-887]. -/
 noncomputable def ofRealBoundedPhaseCertificate {N d : Nat} {PRe : Polynomial ℝ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate :
       ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate d PRe) :
     ProjectedQSVTRealization U left right d
@@ -6056,11 +6961,11 @@ noncomputable def ofRealBoundedPhaseCertificate {N d : Nat} {PRe : Polynomial �
 /-- A source root-class factorization of `1 - P_re^2` determines the same
 projected-QSVT circuit package as the corresponding real-bounded phase
 certificate.  The correctness block and all resource counters still come from
-the constructed `Circuit`; this declaration only composes the source-aligned
+the constructed `UnitaryCircuit`; this declaration only composes the source-aligned
 completion handoff with the projected-QSVT word constructor [GSLW19,
 BlockHam.tex:436-480,544-557,851-887]. -/
 noncomputable def ofSourceRootClassFactorization {N d : Nat} {PRe : Polynomial ℝ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe)
     (roots :
       Complement.Interval.SourceRootClassFactorization
@@ -6080,7 +6985,7 @@ noncomputable def ofSourceRootClassFactorization {N d : Nat} {PRe : Polynomial �
 same-circuit projected-QSVT word constructor [GSLW19, BlockHam.tex:436-480,
 544-557,851-887]. -/
 noncomputable def ofSquareTargetNatDegreeZero {N d : Nat} {PRe : Polynomial ℝ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe)
     (hdeg :
       (ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity.squareTarget PRe).natDegree = 0) :
@@ -6097,7 +7002,7 @@ noncomputable def ofSquareTargetNatDegreeZero {N d : Nat} {PRe : Polynomial ℝ}
 realization.  This is the final handoff shape expected after the general
 root-grouping proof is complete [GSLW19, BlockHam.tex:436-480,544-557,851-887]. -/
 noncomputable def ofSourceRootClassCoverage {N d : Nat} {PRe : Polynomial ℝ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe)
     {data :
       Complement.Interval.SourceRootProductData
@@ -6116,9 +7021,9 @@ noncomputable def ofSourceRootClassCoverage {N d : Nat} {PRe : Polynomial ℝ}
 the same-circuit projected-QSVT realization.  This is the handoff shape used
 once the root-class grouping proof from [GSLW19, BlockHam.tex:469-480] is
 complete; correctness and resources still come from the same constructed
-`Circuit` [GSLW19, BlockHam.tex:544-557,851-887]. -/
+`UnitaryCircuit` [GSLW19, BlockHam.tex:544-557,851-887]. -/
 noncomputable def ofSourceRootProductAndDegreeLe {N d : Nat} {PRe : Polynomial ℝ}
-    (U : Gate (Qubits N)) (left right : OrthogonalProjector N)
+    (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe)
     {data :
       Complement.Interval.SourceRootProductData
@@ -6158,28 +7063,30 @@ end QSVT
 
 namespace QSVT.Decomposition
 
-/-- Namespace-local spelling of projected-QSVT resource counters. -/
-abbrev ProjectedResourceProfile :=
-  QuantumAlg.QSP.MultiQubit.QSVT.ProjectedResourceProfile
+
+
+/-- Namespace-local spelling of strict projected-QSVT event counters. -/
+abbrev ProjectedEventProfile :=
+  QuantumAlg.QSP.MultiQubit.QSVT.ProjectedEventProfile
 
 /-- Namespace-local spelling of the public-real projected-QSVT realization. -/
-abbrev RealProjectedQSVTRealization {N : Nat} (U : Gate (Qubits N))
+abbrev RealProjectedQSVTRealization {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (target : HilbertOperator (Qubits N)) :=
   QuantumAlg.QSP.MultiQubit.QSVT.RealProjectedQSVTRealization U left right L target
 
 /-- Namespace-local spelling of an implementation-gadget projected-QSVT word. -/
-abbrev ProjectedQSVTWord {N : Nat} (U : Gate (Qubits N))
+abbrev ProjectedQSVTWord {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :=
   QuantumAlg.QSP.MultiQubit.QSVT.ProjectedQSVTWord U left right phases
 
 /-- Namespace-local spelling of an internal projected-QSVT realization. -/
-abbrev ProjectedQSVTRealization {N : Nat} (U : Gate (Qubits N))
+abbrev ProjectedQSVTRealization {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : ℕ) (target : HilbertOperator (Qubits N)) :=
   QuantumAlg.QSP.MultiQubit.QSVT.ProjectedQSVTRealization U left right L target
 
 /-- Namespace-local constructor for a projected-QSVT word from a phase certificate. -/
 noncomputable abbrev projectedQSVTWordOfPhaseCertificate {N d : Nat}
-    {P Q : Polynomial ℂ} (U : Gate (Qubits N))
+    {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q) :
     QuantumAlg.QSP.MultiQubit.QSVT.ProjectedQSVTWord U left right
@@ -6192,3 +7099,5 @@ end QSVT.Decomposition
 end QSP.MultiQubit
 
 end QuantumAlg
+
+end

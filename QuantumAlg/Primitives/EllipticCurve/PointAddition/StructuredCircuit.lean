@@ -6,24 +6,23 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Core.Components.BaseGateRealization
-public import QuantumAlg.Core.Components.EncodedBitGates
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
+import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
 
 /-!
-# Encoded base-gate point-addition witnesses
+# Encoded point-addition circuits
 
-This module provides the point-addition-facing wrapper for future concrete
+This module provides point-addition-facing actual circuits for concrete
 Toffoli/CNOT/X generic and controlled ECADD programs.  The generic affine route
 follows Proos--Zalka [PZ03, ecc.tex:525-640], and the controlled-addition
-boundary follows RNSL17 [RNSL17, ECDLP.tex:488-580,650-696].  A closing witness
-must supply a binary label encoding and a `BaseGateProgram` whose label action
-implements the corresponding coordinate-target update.  The folded `Circuit` is
-then the same object used for encoded-basis correctness and resource accounting.
+boundary follows RNSL17 [RNSL17, ECDLP.tex:488-580,650-696].  Each domain
+witness carries an actual `UnitaryCircuit` whose normalized encoded-basis action
+implements the corresponding coordinate-target update, so the same object is
+used for correctness and resource accounting.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
@@ -52,7 +51,7 @@ structure DecomposedState (E : PrimeFieldShortWeierstrass p)
   /-- Scratch value holding the computed result `y` coordinate. -/
   resultY : ZMod p
   /-- Modular-division substate used to compute the affine slope. -/
-  division : ModularDivision.Data p
+  division : MAU.Division.Data p
   /-- Temporary cleanup flag carried by the point-addition endpoint. -/
   flag : Bool
 deriving DecidableEq
@@ -66,10 +65,9 @@ namespace DecomposedState
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 
-/-- Product layout with the division substate isolated as the right component,
-matching `BaseGateSameCircuitWitness.prodRight`. -/
+/-- Product layout with the division substate isolated as the right component. -/
 def layout (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E) :
-    DecomposedState E Q ≃ DecomposedRest E Q × ModularDivision.Data p where
+    DecomposedState E Q ≃ DecomposedRest E Q × MAU.Division.Data p where
   toFun := fun s =>
     ((s.input, s.targetX, s.targetY, s.resultX, s.resultY, s.flag), s.division)
   invFun := fun x =>
@@ -187,13 +185,13 @@ def stageSteps : List (DecomposedState E Q -> DecomposedState E Q) :=
 
 /-- Folded semantic action of the decomposed generic ECADD stage list. -/
 def fullStep : DecomposedState E Q -> DecomposedState E Q :=
-  BaseGateProgram.Realizes.stepList stageSteps
+  UnitaryCircuit.Realizes.stepList stageSteps
 
 @[simp] theorem slopeStep_unslopeStep (s : DecomposedState E Q) :
     slopeStep (unslopeStep s) = s := by
   cases s
-  simp [slopeStep, unslopeStep, ModularDivision.Data.addQuotientIntoTarget,
-    ModularDivision.Data.subQuotientFromTarget, sub_eq_add_neg, add_assoc]
+  simp [slopeStep, unslopeStep, MAU.Division.Data.addQuotientIntoTarget,
+    MAU.Division.Data.subQuotientFromTarget, sub_eq_add_neg, add_assoc]
 
 @[simp] theorem coordinateStep_uncoordinateStep (s : DecomposedState E Q) :
     coordinateStep (uncoordinateStep s) = s := by
@@ -204,10 +202,10 @@ def fullStep : DecomposedState E Q -> DecomposedState E Q :=
 cleans both point-operation scratch and the modular-division target. -/
 theorem fullStep_initial (P : Input E Q) (targetX targetY : ZMod p) :
     fullStep (initial P targetX targetY) = cleanOutput P targetX targetY := by
-  simp [fullStep, stageSteps, BaseGateProgram.Realizes.stepList, initial,
+  simp [fullStep, stageSteps, UnitaryCircuit.Realizes.stepList, initial,
     cleanOutput, slopeStep, coordinateStep, targetStep, uncoordinateStep,
-    unslopeStep, ModularDivision.Data.addQuotientIntoTarget,
-    ModularDivision.Data.subQuotientFromTarget,
+    unslopeStep, MAU.Division.Data.addQuotientIntoTarget,
+    MAU.Division.Data.subQuotientFromTarget,
     genericAddSlope_eq_quotientResidue E P.1 Q P.2, genericAddX, genericAddY]
 
 @[simp] theorem cleanOutput_toData (P : Input E Q) (targetX targetY : ZMod p) :
@@ -249,23 +247,38 @@ encoding already carried by the structured MAU division witness. -/
 def decomposedEncoding {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E}
     (restEncoding : BinaryLabelEncoding (DecomposedRest E Q))
-    (divisionWitness : ModularDivision.StructuredCircuitWitness p) :
+    (divisionWitness : MAU.Division.StructuredCircuitWitness p) :
     BinaryLabelEncoding (DecomposedState E Q) :=
   (BinaryLabelEncoding.prod restEncoding divisionWitness.encoding).relabel
     (DecomposedState.layout E Q)
 
-/-- Lift a structured modular-division witness into the explicit slope substate
+/-- Lift the actual modular-division circuit into the explicit slope substate
 of a decomposed generic ECADD label. -/
-def slopeSameCircuit {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+def slopeProgram {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E}
     (restEncoding : BinaryLabelEncoding (DecomposedRest E Q))
-    (divisionWitness : ModularDivision.StructuredCircuitWitness p) :
-    BaseGateSameCircuitWitness (DecomposedState E Q) DecomposedState.slopeStep :=
-  ((BaseGateSameCircuitWitness.prodRight restEncoding divisionWitness).relabel
-    (DecomposedState.layout E Q)).congrStep (by
-      intro s
-      cases s
-      rfl)
+    (divisionWitness : MAU.Division.StructuredCircuitWitness p) :
+    UnitaryCircuit (Qubits
+      (decomposedEncoding restEncoding divisionWitness).width) :=
+  UnitaryCircuit.prodRight (m := restEncoding.width) divisionWitness.circuit
+
+/-- The lifted modular-division circuit realizes the slope update. -/
+theorem slope_realizes {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+    {Q : AffinePoint E}
+    (restEncoding : BinaryLabelEncoding (DecomposedRest E Q))
+    (divisionWitness : MAU.Division.StructuredCircuitWitness p) :
+    UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
+      (slopeProgram restEncoding divisionWitness)
+      DecomposedState.slopeStep := by
+  have hproduct := UnitaryCircuit.Realizes.prodRight
+    (left := restEncoding) (right := divisionWitness.encoding)
+    divisionWitness.realizes
+  have hrelabel := UnitaryCircuit.Realizes.relabel
+    (DecomposedState.layout E Q) hproduct
+  exact hrelabel.congrStep (by
+    intro s
+    cases s
+    rfl)
 
 /-- A decomposed generic ECADD witness assembled from one structured MAU
 division subcircuit and point-operation coordinate/target programs over the
@@ -275,21 +288,38 @@ structure DecomposedWitness (E : PrimeFieldShortWeierstrass p)
   /-- Encoding for the non-division point-operation fields. -/
   restEncoding : BinaryLabelEncoding (DecomposedRest E Q)
   /-- Structured MAU division witness used for the slope stage. -/
-  divisionWitness : ModularDivision.StructuredCircuitWitness p
+  divisionWitness : MAU.Division.StructuredCircuitWitness p
   /-- Program computing affine coordinates from the slope into result scratch. -/
   coordinateProgram :
-    BaseGateProgram (slopeSameCircuit restEncoding divisionWitness).encoding.width
+    UnitaryCircuit (Qubits (decomposedEncoding restEncoding divisionWitness).width)
   /-- Correctness of the coordinate program under the decomposed encoding. -/
   coordinateRealizes :
-    BaseGateProgram.Realizes (slopeSameCircuit restEncoding divisionWitness).encoding
+    UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
       coordinateProgram DecomposedState.coordinateStep
   /-- Program adding result-coordinate scratch into the public targets. -/
   targetProgram :
-    BaseGateProgram (slopeSameCircuit restEncoding divisionWitness).encoding.width
+    UnitaryCircuit (Qubits (decomposedEncoding restEncoding divisionWitness).width)
   /-- Correctness of the target-write program under the decomposed encoding. -/
   targetRealizes :
-    BaseGateProgram.Realizes (slopeSameCircuit restEncoding divisionWitness).encoding
+    UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
       targetProgram DecomposedState.targetStep
+  /-- Exact primitive gate list underlying the complete five-stage program. -/
+  fullGates :
+    List (EncodedBit.GateSpec
+      (decomposedEncoding restEncoding divisionWitness))
+  /-- Provenance tying the actual stage-folded program to the primitive list
+  consumed by outer control lifting. -/
+  fullProgram_eq_programList :
+    [ slopeProgram restEncoding divisionWitness,
+        coordinateProgram,
+        targetProgram,
+        coordinateProgram.dagger,
+        (slopeProgram restEncoding divisionWitness).dagger ].foldr
+      UnitaryCircuit.seq
+        (UnitaryCircuit.identity
+          (Qubits (decomposedEncoding restEncoding divisionWitness).width)
+          [] (by simp)) =
+      EncodedBit.GateSpec.programList fullGates
 
 namespace DecomposedWitness
 
@@ -297,54 +327,51 @@ variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 
 /-- The common encoding used by every subprogram in the decomposed ECADD
 witness. -/
-def encoding (w : DecomposedWitness E Q) :
+abbrev encoding (w : DecomposedWitness E Q) :
     BinaryLabelEncoding (DecomposedState E Q) :=
-  (slopeSameCircuit w.restEncoding w.divisionWitness).encoding
-
-/-- The structured slope subcircuit lifted from modular division. -/
-def slopeWitness (w : DecomposedWitness E Q) :
-    BaseGateSameCircuitWitness (DecomposedState E Q) DecomposedState.slopeStep :=
-  slopeSameCircuit w.restEncoding w.divisionWitness
-
-@[simp] theorem slopeWitness_encoding (w : DecomposedWitness E Q) :
-    w.slopeWitness.encoding = w.encoding :=
-  rfl
+  decomposedEncoding w.restEncoding w.divisionWitness
 
 /-- Folded program for the decomposed generic ECADD witness. -/
 def program (w : DecomposedWitness E Q) :
-    BaseGateProgram w.encoding.width :=
-  BaseGateProgram.appendList
-    [ w.slopeWitness.program,
+    UnitaryCircuit (Qubits w.encoding.width) :=
+  [ slopeProgram w.restEncoding w.divisionWitness,
       w.coordinateProgram,
       w.targetProgram,
-      BaseGateProgram.inverse w.coordinateProgram,
-      BaseGateProgram.inverse w.slopeWitness.program ]
+      w.coordinateProgram.dagger,
+      (slopeProgram w.restEncoding w.divisionWitness).dagger ].foldr
+    UnitaryCircuit.seq (UnitaryCircuit.identity (Qubits w.encoding.width) [] (by simp))
+
+/-- The actual five-stage generic ECADD program is exactly the circuit folded
+from its recorded primitive gate list. -/
+theorem program_eq_programList (w : DecomposedWitness E Q) :
+    w.program = EncodedBit.GateSpec.programList w.fullGates := by
+  simpa only [program] using w.fullProgram_eq_programList
 
 /-- The folded decomposed program realizes the five-stage ECADD semantic
 action. -/
 theorem realizes (w : DecomposedWitness E Q) :
-    BaseGateProgram.Realizes w.encoding w.program DecomposedState.fullStep := by
-  dsimp [program, encoding, DecomposedState.fullStep, DecomposedState.stageSteps,
-    slopeWitness]
+    UnitaryCircuit.Realizes w.encoding w.program DecomposedState.fullStep := by
+  dsimp [program, DecomposedState.fullStep, DecomposedState.stageSteps]
   have huncoordinate :
-      BaseGateProgram.Realizes (slopeSameCircuit w.restEncoding w.divisionWitness).encoding
-        (BaseGateProgram.inverse w.coordinateProgram) DecomposedState.uncoordinateStep :=
-    BaseGateProgram.Realizes.inverse_of_rightInverse
+      UnitaryCircuit.Realizes w.encoding w.coordinateProgram.dagger
+        DecomposedState.uncoordinateStep :=
+    UnitaryCircuit.Realizes.dagger_of_rightInverse
       w.coordinateRealizes DecomposedState.coordinateStep_uncoordinateStep
   have hunslope :
-      BaseGateProgram.Realizes (slopeSameCircuit w.restEncoding w.divisionWitness).encoding
-        (BaseGateProgram.inverse w.slopeWitness.program) DecomposedState.unslopeStep := by
+      UnitaryCircuit.Realizes w.encoding
+        (slopeProgram w.restEncoding w.divisionWitness).dagger
+        DecomposedState.unslopeStep := by
     exact
-      BaseGateProgram.Realizes.inverse_of_rightInverse
-        w.slopeWitness.realizes DecomposedState.slopeStep_unslopeStep
+      UnitaryCircuit.Realizes.dagger_of_rightInverse
+        (slope_realizes w.restEncoding w.divisionWitness)
+        DecomposedState.slopeStep_unslopeStep
   exact
-    BaseGateProgram.Realizes.appendList
-      (slopeSameCircuit w.restEncoding w.divisionWitness).encoding
-      [ w.slopeWitness.program,
+    UnitaryCircuit.Realizes.appendList w.encoding
+      [ slopeProgram w.restEncoding w.divisionWitness,
         w.coordinateProgram,
         w.targetProgram,
-        BaseGateProgram.inverse w.coordinateProgram,
-        BaseGateProgram.inverse w.slopeWitness.program ]
+        w.coordinateProgram.dagger,
+        (slopeProgram w.restEncoding w.divisionWitness).dagger ]
       [ DecomposedState.slopeStep,
         DecomposedState.coordinateStep,
         DecomposedState.targetStep,
@@ -352,7 +379,7 @@ theorem realizes (w : DecomposedWitness E Q) :
         DecomposedState.unslopeStep ]
       (by
         constructor
-        · exact (slopeSameCircuit w.restEncoding w.divisionWitness).realizes
+        · exact slope_realizes w.restEncoding w.divisionWitness
         constructor
         · exact w.coordinateRealizes
         constructor
@@ -363,40 +390,39 @@ theorem realizes (w : DecomposedWitness E Q) :
         · exact hunslope
         · constructor)
 
-/-- Same-Circuit witness for the full decomposed generic ECADD program. -/
-def sameCircuit (w : DecomposedWitness E Q) :
-    BaseGateSameCircuitWitness (DecomposedState E Q) DecomposedState.fullStep where
-  encoding := w.encoding
-  program := w.program
-  realizes := w.realizes
-
-/-- The decomposed generic ECADD circuit history bottoms out in base gates. -/
-theorem structured (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w.sameCircuit
+/-- The recorded primitive list has the same folded semantic action as the
+actual generic ECADD program. -/
+theorem fullGates_step (w : DecomposedWitness E Q)
+    (x : DecomposedState E Q) :
+    EncodedBit.GateSpec.stepList w.fullGates x =
+      DecomposedState.fullStep x := by
+  have hlist :=
+    (EncodedBit.GateSpec.realizesList w.fullGates).apply_encoded_ket x
+  have hfull :
+      UnitaryCircuit.Realizes w.encoding
+        (EncodedBit.GateSpec.programList w.fullGates)
+        DecomposedState.fullStep := by
+    rw [← w.program_eq_programList]
+    exact w.realizes
+  have hket := hlist.symm.trans (hfull.apply_encoded_ket x)
+  exact w.encoding.encode_injective (NormalizedVector.ket_injective hket)
 
 /-- Encoded-basis correctness for all decomposed generic ECADD labels. -/
 theorem apply_ket (w : DecomposedWitness E Q) (x : DecomposedState E Q) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.fullStep x)) :
-        StateVector (Qubits w.encoding.width)) :=
-  BaseGateSameCircuitWitness.apply_encoded_ket w.sameCircuit x
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (DecomposedState.fullStep x)) :=
+  w.realizes.apply_encoded_ket x
 
 /-- Clean encoded-basis action for the decomposed generic ECADD program. -/
 theorem apply_clean_ket (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P targetX targetY)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P targetX targetY)) :
-        StateVector (Qubits w.encoding.width)) := by
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (w.encoding.encode (DecomposedState.initial P targetX targetY))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (DecomposedState.cleanOutput P targetX targetY)) := by
   simpa [DecomposedState.fullStep_initial] using
     apply_ket w (DecomposedState.initial P targetX targetY)
 
@@ -421,46 +447,6 @@ theorem cleanOutput_toData_eq_addIntoTarget
          flag := false } : Data E Q).addIntoTarget :=
   rfl
 
-/-- Resource counters are projected from the same decomposed generic ECADD
-circuit used for correctness. -/
-theorem resources_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w.sameCircuit
-
-/-- Circuit depth is projected from the same decomposed generic ECADD circuit. -/
-theorem depth_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w.sameCircuit
-
-/-- Query depth is projected from the same decomposed generic ECADD circuit. -/
-theorem queryDepth_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w.sameCircuit
-
-/-- Resource-correct witness for the clean decomposed generic ECADD endpoint. -/
-def cleanResourceCorrectWitness (w : DecomposedWitness E Q) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ P : Input E Q, ∀ targetX targetY : ZMod p,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-          ((PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode (DecomposedState.initial P targetX targetY)) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode (DecomposedState.cleanOutput P targetX targetY)) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w.sameCircuit
-  correctness := fun P targetX targetY => apply_clean_ket w P targetX targetY
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end DecomposedWitness
 
@@ -469,94 +455,52 @@ abbrev encodedStep {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E} : Data E Q -> Data E Q :=
   Data.addIntoTarget
 
-/-- Gate-structured encoded generic ECADD witness. -/
-abbrev StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
-    [Fact p.Prime] (Q : AffinePoint E) :=
-  BaseGateSameCircuitWitness (Data E Q) (encodedStep (E := E) (Q := Q))
+/-- Domain-specific generic ECADD witness tied to one actual circuit and its
+public encoded-basis endpoint. -/
+structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
+    [Fact p.Prime] (Q : AffinePoint E) where
+  /-- Faithful encoding of generic ECADD labels. -/
+  encoding : BinaryLabelEncoding (Data E Q)
+  /-- Actual generic ECADD circuit. -/
+  circuit : UnitaryCircuit (Qubits encoding.width)
+  /-- Direct realization of the public generic ECADD update. -/
+  realizes : UnitaryCircuit.Realizes encoding circuit
+    (encodedStep (E := E) (Q := Q))
 
 namespace StructuredCircuitWitness
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 
-/-- The structured generic ECADD circuit history bottoms out in X/CNOT/Toffoli atoms. -/
-theorem structured (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w
-
 /-- Encoded-basis correctness for all generic ECADD data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget) :
-        StateVector (Qubits w.encoding.width)) :=
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode x.addIntoTarget) :=
   by
-    simpa [encodedStep] using BaseGateSameCircuitWitness.apply_encoded_ket w x
+    simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
 /-- Clean public-form encoded-basis action for generic ECADD. -/
 theorem apply_clean_ket (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width)
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
           (w.encoding.encode
             ({ input := P
                targetX := targetX
                targetY := targetY
-               flag := false } : Data E Q)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+               flag := false } : Data E Q))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
           ({ input := P
              targetX := targetX + genericAddX E P.1 Q
              targetY := targetY + genericAddY E P.1 Q
-             flag := false } : Data E Q)) :
-        StateVector (Qubits w.encoding.width)) := by
+             flag := false } : Data E Q)) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P, targetX := targetX, targetY := targetY, flag := false } :
         Data E Q)
 
-/-- Resource counters are projected from the same structured generic ECADD circuit. -/
-theorem resources_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).resources =
-      (BaseGateSameCircuitWitness.profile w).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w
-
-/-- Circuit depth is projected from the same structured generic ECADD circuit. -/
-theorem depth_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).depth =
-      (BaseGateSameCircuitWitness.profile w).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w
-
-/-- Query depth is projected from the same structured generic ECADD circuit. -/
-theorem queryDepth_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).queryDepth =
-      (BaseGateSameCircuitWitness.profile w).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w
-
-/-- Resource-correct witness for the encoded generic ECADD statement. -/
-def resourceCorrectWitness (w : StructuredCircuitWitness E Q) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ x : Data E Q,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-          ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode x.addIntoTarget) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w).resources =
-          (BaseGateSameCircuitWitness.profile w).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w).depth =
-          (BaseGateSameCircuitWitness.profile w).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w).queryDepth =
-          (BaseGateSameCircuitWitness.profile w).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w
-  correctness := apply_ket w
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end StructuredCircuitWitness
 
@@ -578,6 +522,15 @@ deriving DecidableEq
 namespace DecomposedState
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
+
+/-- Product layout exposing the leading control and generic decomposed state. -/
+def layout (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E) :
+    DecomposedState E Q ≃
+      Bool × GenericPointAddition.DecomposedState E Q where
+  toFun := fun s => (s.control, s.generic)
+  invFun := fun x => { control := x.1, generic := x.2 }
+  left_inv := by intro s; cases s; rfl
+  right_inv := by intro x; cases x; rfl
 
 /-- Public controlled-ECADD endpoint projection from the decomposed state. -/
 def toData (s : DecomposedState E Q) : Data E Q where
@@ -698,9 +651,8 @@ theorem fullStep_initial_true_toData_eq_addIntoTarget (P : Input E Q)
 end DecomposedState
 
 /-- Decomposed controlled ECADD witness.  The controlled program is derived
-mechanically from the MAU-backed generic ECADD witness by lifting the generic
-program between a control bit and a hidden clean work bit, then applying the
-raw clean-work control decomposition. -/
+mechanically from the MAU-backed generic ECADD gate list by lifting it between
+an outer control bit and a hidden clean work bit. -/
 structure DecomposedWitness (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) where
   /-- MAU-backed generic ECADD witness used by the active branch. -/
@@ -710,22 +662,9 @@ namespace DecomposedWitness
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 
-/-- Uncontrolled generic ECADD witness lifted between the outer control bit
-and a hidden clean work bit. -/
-def genericLiftedWitness (w : DecomposedWitness E Q) :
-    BaseGateSameCircuitWitness
-      ((Bool × GenericPointAddition.DecomposedState E Q) × Bool)
-      (fun x =>
-        ((x.1.1, GenericPointAddition.DecomposedState.fullStep x.1.2),
-          x.2)) :=
-  BaseGateSameCircuitWitness.prodLeft
-    (BaseGateSameCircuitWitness.prodRight BinaryLabelEncoding.bool
-      w.genericWitness.sameCircuit)
-    BinaryLabelEncoding.bool
-
-/-- Exact physical encoding used by the controlled decomposed circuit, including
-the hidden clean work bit. -/
-def baseEncoding (w : DecomposedWitness E Q) :
+/-- Exact physical encoding used by the controlled decomposed circuit,
+including the trailing hidden clean work bit. -/
+abbrev baseEncoding (w : DecomposedWitness E Q) :
     BinaryLabelEncoding
       ((Bool × GenericPointAddition.DecomposedState E Q) × Bool) :=
   BinaryLabelEncoding.prod
@@ -733,18 +672,25 @@ def baseEncoding (w : DecomposedWitness E Q) :
       w.genericWitness.encoding)
     BinaryLabelEncoding.bool
 
-/-- Semantic controlled-state encoding.  The final Boolean component is an
-internal clean work bit that is always initialized to `false` for semantic
-labels. -/
-def encoding (w : DecomposedWitness E Q) :
+/-- Embed a semantic controlled state into the physical carrier with clean
+hidden work. -/
+def cleanCarrier (s : DecomposedState E Q) :
+    (Bool × GenericPointAddition.DecomposedState E Q) × Bool :=
+  ((s.control, s.generic), false)
+
+/-- Semantic controlled-state encoding.  The final physical Boolean is hidden
+from the semantic label and is always encoded as clean. -/
+abbrev encoding (w : DecomposedWitness E Q) :
     BinaryLabelEncoding (DecomposedState E Q) where
   width := w.baseEncoding.width
-  encode := fun s => w.baseEncoding.encode ((s.control, s.generic), false)
+  encode := fun s => w.baseEncoding.encode (cleanCarrier s)
   encode_injective := by
     intro x y h
     have hxy := w.baseEncoding.encode_injective h
-    cases x
-    cases y
+    rcases x with ⟨xControl, xGeneric⟩
+    rcases y with ⟨yControl, yGeneric⟩
+    change ((xControl, xGeneric), false) =
+      ((yControl, yGeneric), false) at hxy
     cases hxy
     rfl
 
@@ -758,7 +704,7 @@ def controlBit (w : DecomposedWitness E Q) :
     (BinaryLabelEncoding.prodLeftBit BinaryLabelEncoding.bool
       w.genericWitness.encoding BinaryLabelEncoding.boolBit)
 
-/-- Hidden clean work bit used to control-lift Toffoli stages. -/
+/-- Hidden clean work bit used by the exact Toffoli control expansion. -/
 def workBit (w : DecomposedWitness E Q) :
     EncodedBit w.baseEncoding :=
   BinaryLabelEncoding.prodRightBit
@@ -774,77 +720,96 @@ def controlWire (w : DecomposedWitness E Q) : Fin w.baseEncoding.width :=
 def workWire (w : DecomposedWitness E Q) : Fin w.baseEncoding.width :=
   w.workBit.wire
 
-/-- Generic ECADD program lifted into the middle field between control and work. -/
-def genericLiftedProgram (w : DecomposedWitness E Q) :
-    BaseGateProgram w.baseEncoding.width :=
-  BaseGateProgram.prodLeft (n := 1)
-    (BaseGateProgram.prodRight (m := 1) w.genericWitness.program)
+/-- Generic primitive gates lifted into the middle field between the outer
+control and hidden work bits. -/
+def genericLiftedGates (w : DecomposedWitness E Q) :
+    List (EncodedBit.GateSpec w.baseEncoding) :=
+  (w.genericWitness.fullGates.map
+    (EncodedBit.GateSpec.prodRight BinaryLabelEncoding.bool)).map
+      (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)
 
-/-- The outer control wire and hidden work wire are physically distinct. -/
+/-- The outer control bit and hidden work bit are physically distinct. -/
+theorem controlBit_workBit_ne (w : DecomposedWitness E Q) :
+    w.controlBit.wire ≠ w.workBit.wire := by
+  simpa only [controlBit, workBit] using
+    (EncodedBit.GateSpec.prodRightBit_wire_ne_prodLeftBit_wire
+      (BinaryLabelEncoding.prod BinaryLabelEncoding.bool
+        w.genericWitness.encoding)
+      BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit
+      (BinaryLabelEncoding.prodLeftBit BinaryLabelEncoding.bool
+        w.genericWitness.encoding BinaryLabelEncoding.boolBit)).symm
+
+/-- Physical-wire form of control/work separation. -/
 theorem controlWork_ne (w : DecomposedWitness E Q) :
     w.controlWire ≠ w.workWire := by
-  intro h
-  have hv := congrArg Fin.val h
-  simp [controlWire, workWire, controlBit, workBit, baseEncoding,
-    BinaryLabelEncoding.prodLeftBit,
-    BinaryLabelEncoding.prodRightBit, BinaryLabelEncoding.prodLeftWire,
-    BinaryLabelEncoding.prodRightWire] at hv
-  omega
+  simpa only [controlWire, workWire] using w.controlBit_workBit_ne
 
-/-- The lifted generic program never reads or writes the outer control wire. -/
+/-- Every lifted generic gate is disjoint from the outer control bit. -/
 theorem controlDisjoint (w : DecomposedWitness E Q) :
-    ∀ op, op ∈ w.genericLiftedProgram ->
-      BaseGateOp.wireDisjoint w.controlWire op := by
-  intro op hop
-  simp only [genericLiftedProgram, BaseGateProgram.prodLeft,
-    BaseGateProgram.prodRight] at hop
-  rcases List.mem_map.mp hop with ⟨innerOp, hinnerMem, hopEq⟩
-  subst op
-  rcases List.mem_map.mp hinnerMem with ⟨sourceOp, _hsource, hinnerEq⟩
-  subst innerOp
-  have hinner :
-      BaseGateOp.wireDisjoint
-        (BaseGateOp.prodLeftWire
-          (n := w.genericWitness.encoding.width)
-          BinaryLabelEncoding.boolBit.wire)
-        (BaseGateOp.prodRight (m := 1) sourceOp) :=
-    BaseGateOp.wireDisjoint_prodRight_leftWire
-      BinaryLabelEncoding.boolBit.wire sourceOp
-  simpa [controlWire, controlBit, baseEncoding, genericLiftedWitness,
-    BaseGateSameCircuitWitness.prodLeft, BaseGateSameCircuitWitness.prodRight,
-    BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodLeftWire,
-    BaseGateOp.prodLeftWire] using
-      BaseGateOp.wireDisjoint_prodLeft_of_wireDisjoint
-        (n := 1) hinner
+    ∀ gate, gate ∈ w.genericLiftedGates →
+      EncodedBit.GateSpec.bitDisjoint w.controlBit gate := by
+  intro gate hgate
+  unfold genericLiftedGates at hgate
+  rcases List.mem_map.mp hgate with ⟨innerGate, hinner, rfl⟩
+  rcases List.mem_map.mp hinner with ⟨sourceGate, _hsource, rfl⟩
+  have hright := EncodedBit.GateSpec.bitDisjoint_prodRight_leftBit
+    BinaryLabelEncoding.bool w.genericWitness.encoding
+    BinaryLabelEncoding.boolBit sourceGate
+  simpa only [controlBit] using
+    EncodedBit.GateSpec.bitDisjoint_prodLeft_of_bitDisjoint
+      BinaryLabelEncoding.bool
+      (BinaryLabelEncoding.prodLeftBit BinaryLabelEncoding.bool
+        w.genericWitness.encoding BinaryLabelEncoding.boolBit)
+      (EncodedBit.GateSpec.prodRight BinaryLabelEncoding.bool sourceGate)
+      hright
 
-/-- The lifted generic program never reads or writes the hidden clean work wire. -/
+/-- Every lifted generic gate is disjoint from the hidden clean work bit. -/
 theorem workDisjoint (w : DecomposedWitness E Q) :
-    ∀ op, op ∈ w.genericLiftedProgram ->
-      BaseGateOp.wireDisjoint w.workWire op := by
-  intro op hop
-  simp only [genericLiftedProgram, BaseGateProgram.prodLeft,
-    BaseGateProgram.prodRight] at hop
-  rcases List.mem_map.mp hop with ⟨innerOp, hinnerMem, hopEq⟩
-  subst op
-  rcases List.mem_map.mp hinnerMem with ⟨sourceOp, _hsource, hinnerEq⟩
-  subst innerOp
-  simpa [workWire, workBit, baseEncoding, genericLiftedWitness,
-    BaseGateSameCircuitWitness.prodLeft, BaseGateSameCircuitWitness.prodRight,
-    GenericPointAddition.DecomposedWitness.sameCircuit,
-    GenericPointAddition.DecomposedWitness.encoding,
-    BinaryLabelEncoding.prodRightBit, BinaryLabelEncoding.prodRightWire,
-    BaseGateOp.prodRightWire] using
-      BaseGateOp.wireDisjoint_prodLeft_rightWire
-        (m := 1 + w.genericWitness.encoding.width)
-        BinaryLabelEncoding.boolBit.wire
-        (BaseGateOp.prodRight (m := 1) sourceOp)
+    ∀ gate, gate ∈ w.genericLiftedGates →
+      EncodedBit.GateSpec.bitDisjoint w.workBit gate := by
+  intro gate hgate
+  unfold genericLiftedGates at hgate
+  rcases List.mem_map.mp hgate with ⟨innerGate, hinner, rfl⟩
+  rcases List.mem_map.mp hinner with ⟨sourceGate, _hsource, rfl⟩
+  simpa only [workBit] using
+    EncodedBit.GateSpec.bitDisjoint_prodLeft_rightBit
+      (BinaryLabelEncoding.prod BinaryLabelEncoding.bool
+        w.genericWitness.encoding)
+      BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit
+      (EncodedBit.GateSpec.prodRight BinaryLabelEncoding.bool sourceGate)
 
-/-- Controlled folded program derived mechanically from the lifted generic
-ECADD program. -/
+/-- Lifting the generic gate list preserves its folded action in the middle
+register and preserves both surrounding Boolean fields. -/
+theorem genericLiftedGates_step (w : DecomposedWitness E Q)
+    (x : (Bool × GenericPointAddition.DecomposedState E Q) × Bool) :
+    EncodedBit.GateSpec.stepList w.genericLiftedGates x =
+      ((x.1.1,
+        GenericPointAddition.DecomposedState.fullStep x.1.2), x.2) := by
+  unfold genericLiftedGates
+  rw [EncodedBit.GateSpec.stepList_prodLeft]
+  rw [EncodedBit.GateSpec.stepList_prodRight]
+  rw [w.genericWitness.fullGates_step]
+
+/-- Exact clean-work control expansion of the lifted generic gate list. -/
+def gates (w : DecomposedWitness E Q) :
+    List (EncodedBit.GateSpec w.baseEncoding) :=
+  EncodedBit.GateSpec.controlledListWithWorkGates
+    w.controlBit w.workBit w.genericLiftedGates
+    w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
+
+/-- Folded semantic action of the exact controlled gate list on the complete
+physical carrier. -/
+def baseStep (w : DecomposedWitness E Q) :
+    ((Bool × GenericPointAddition.DecomposedState E Q) × Bool) →
+      ((Bool × GenericPointAddition.DecomposedState E Q) × Bool) :=
+  EncodedBit.GateSpec.controlledListWithWorkStep
+    w.controlBit w.workBit w.genericLiftedGates
+    w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
+
+/-- Controlled program compiled directly from the exact expanded gate list. -/
 def program (w : DecomposedWitness E Q) :
-    BaseGateProgram w.encoding.width :=
-  BaseGateProgram.controlledWithCleanWork w.controlWire w.workWire
-    w.genericLiftedProgram w.controlDisjoint w.workDisjoint w.controlWork_ne
+    UnitaryCircuit (Qubits w.baseEncoding.width) :=
+  EncodedBit.GateSpec.programList w.gates
 
 /-- The semantic encoding exposes the state control field on the outer control
 wire. -/
@@ -853,201 +818,127 @@ theorem controlBit_get_encode (w : DecomposedWitness E Q)
     (w.encoding.encode s).val.testBit
         (WireAddress.bitIndex w.controlWire).val =
       s.control := by
-  simpa [encoding, controlWire, controlBit, baseEncoding,
+  simpa [encoding, cleanCarrier, controlWire, controlBit,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.boolBit] using
-    w.controlBit.get_eq ((s.control, s.generic), false)
+    w.controlBit.get_eq (cleanCarrier s)
 
-/-- The hidden work bit is clean on every semantic encoded label. -/
+/-- Every semantic label initializes the hidden work wire to `false`. -/
 theorem workBit_get_encode (w : DecomposedWitness E Q)
     (s : DecomposedState E Q) :
     (w.encoding.encode s).val.testBit
-        (WireAddress.bitIndex w.workWire).val =
-      false := by
-  simpa [encoding, workWire, workBit, baseEncoding,
+        (WireAddress.bitIndex w.workWire).val = false := by
+  simpa [encoding, cleanCarrier, workWire, workBit,
     BinaryLabelEncoding.prodRightBit, BinaryLabelEncoding.boolBit] using
-    w.workBit.get_eq ((s.control, s.generic), false)
+    w.workBit.get_eq (cleanCarrier s)
 
-/-- The lifted generic program applies the generic decomposed ECADD step in the
-middle register while preserving the outer control and hidden work bits. -/
-theorem genericLiftedProgram_applyLabel (w : DecomposedWitness E Q)
-    (control : Bool) (generic : GenericPointAddition.DecomposedState E Q) :
-    BaseGateProgram.applyLabel w.genericLiftedProgram
-        (w.baseEncoding.encode ((control, generic), false)) =
-      w.baseEncoding.encode
-        ((control, GenericPointAddition.DecomposedState.fullStep generic),
-          false) := by
-  have hright :
-      BaseGateProgram.Realizes
-        (BinaryLabelEncoding.prod BinaryLabelEncoding.bool
-          w.genericWitness.encoding)
-        (BaseGateProgram.prodRight (m := 1) w.genericWitness.program)
-        (fun x : Bool × GenericPointAddition.DecomposedState E Q =>
-          (x.1, GenericPointAddition.DecomposedState.fullStep x.2)) :=
-    BaseGateProgram.Realizes.prodRight
-      (left := BinaryLabelEncoding.bool)
-      (right := w.genericWitness.encoding)
-      w.genericWitness.realizes
-  have hleft :
-      BaseGateProgram.Realizes w.baseEncoding w.genericLiftedProgram
-        (fun x :
-          (Bool × GenericPointAddition.DecomposedState E Q) × Bool =>
-          ((x.1.1, GenericPointAddition.DecomposedState.fullStep x.1.2),
-            x.2)) :=
-    BaseGateProgram.Realizes.prodLeft
-      (left := BinaryLabelEncoding.prod BinaryLabelEncoding.bool
-        w.genericWitness.encoding)
-      (right := BinaryLabelEncoding.bool)
-      hright
-  simpa [genericLiftedProgram, baseEncoding] using
-    hleft.applyLabel_eq ((control, generic), false)
+/-- Correctness of the exact controlled gate list on the complete physical
+carrier. -/
+theorem base_realizes (w : DecomposedWitness E Q) :
+    UnitaryCircuit.Realizes w.baseEncoding w.program w.baseStep := by
+  simpa only [program, gates, baseStep] using
+    EncodedBit.GateSpec.controlledListWithWorkWitness
+      w.controlBit w.workBit w.genericLiftedGates
+      w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
 
-/-- Correctness of the mechanically control-lifted decomposed controlled ECADD
-program under the semantic encoding with hidden clean work. -/
+/-- On a clean hidden-work input, the exact controlled list either preserves
+the complete carrier or runs the lifted generic gate list and restores work. -/
+theorem baseStep_clean (w : DecomposedWitness E Q)
+    (control : Bool)
+    (generic : GenericPointAddition.DecomposedState E Q) :
+    w.baseStep ((control, generic), false) =
+      ((control,
+        if control then
+          GenericPointAddition.DecomposedState.fullStep generic
+        else generic), false) := by
+  cases control
+  · change w.baseStep ((false, generic), false) = ((false, generic), false)
+    simpa only [baseStep] using
+      EncodedBit.GateSpec.controlledListWithWorkStep_eq_self_of_control_false
+        w.controlBit w.workBit w.genericLiftedGates
+        w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
+        ((false, generic), false) (by rfl)
+  · change w.baseStep ((true, generic), false) =
+      ((true, GenericPointAddition.DecomposedState.fullStep generic), false)
+    calc
+      w.baseStep ((true, generic), false) =
+          EncodedBit.GateSpec.stepList w.genericLiftedGates
+            ((true, generic), false) :=
+        by
+          simpa only [baseStep] using
+            EncodedBit.GateSpec.controlledListWithWorkStep_eq_stepList_of_control_true
+              w.controlBit w.workBit w.genericLiftedGates
+              w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
+              ((true, generic), false) (by rfl) (by rfl)
+      _ = ((true,
+          GenericPointAddition.DecomposedState.fullStep generic), false) :=
+        w.genericLiftedGates_step ((true, generic), false)
+
+/-- Correctness of the mechanically control-lifted decomposed ECADD program
+under the semantic encoding with hidden clean work. -/
 theorem realizes (w : DecomposedWitness E Q) :
-    BaseGateProgram.Realizes w.encoding w.program DecomposedState.fullStep where
-  applyLabel_eq := by
+    UnitaryCircuit.Realizes w.encoding w.program DecomposedState.fullStep where
+  apply_encoded_ket := by
     intro s
-    cases hcontrol : s.control
-    · have hfalse :=
-        BaseGateProgram.applyLabel_controlledWithCleanWork_of_control_false
-          w.controlWire w.workWire w.genericLiftedProgram
-          w.controlDisjoint w.workDisjoint w.controlWork_ne
-          (w.encoding.encode s)
-          (by
-            have hread := w.controlBit_get_encode s
-            simpa [hcontrol] using hread)
-      calc
-        BaseGateProgram.applyLabel w.program (w.encoding.encode s) =
-            w.encoding.encode s := by
-          simpa [program, encoding] using hfalse
-        _ = w.encoding.encode (DecomposedState.fullStep s) := by
-          simp [DecomposedState.fullStep, hcontrol]
-    · have htrue :=
-        BaseGateProgram.applyLabel_controlledWithCleanWork_of_control_true
-          w.controlWire w.workWire w.genericLiftedProgram
-          w.controlDisjoint w.workDisjoint w.controlWork_ne
-          (w.encoding.encode s)
-          (by
-            have hread := w.controlBit_get_encode s
-            simpa [hcontrol] using hread)
-          (by
-            simpa using w.workBit_get_encode s)
-      have hgeneric := w.genericLiftedProgram_applyLabel s.control s.generic
-      have htrue' :
-          BaseGateProgram.applyLabel w.program (w.encoding.encode s) =
-            BaseGateProgram.applyLabel w.genericLiftedProgram
-              (w.encoding.encode s) := by
-        simpa [program, encoding] using htrue
-      have hgeneric' :
-          BaseGateProgram.applyLabel w.genericLiftedProgram
-              (w.encoding.encode s) =
-            w.encoding.encode (DecomposedState.fullStep s) := by
-        simpa [encoding, DecomposedState.fullStep, hcontrol] using hgeneric
-      exact htrue'.trans hgeneric'
-
-/-- Same-Circuit witness for the decomposed controlled ECADD program. -/
-def sameCircuit (w : DecomposedWitness E Q) :
-    BaseGateSameCircuitWitness (DecomposedState E Q) DecomposedState.fullStep where
-  encoding := w.encoding
-  program := w.program
-  realizes := w.realizes
-
-/-- The decomposed controlled ECADD circuit history bottoms out in base gates. -/
-theorem structured (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w.sameCircuit
+    change
+      w.program.applyNormalized
+          (NormalizedVector.ket
+            (w.baseEncoding.encode (cleanCarrier s))) =
+        NormalizedVector.ket
+          (w.baseEncoding.encode
+            (cleanCarrier (DecomposedState.fullStep s)))
+    calc
+      w.program.applyNormalized
+          (NormalizedVector.ket
+            (w.baseEncoding.encode (cleanCarrier s))) =
+        NormalizedVector.ket
+          (w.baseEncoding.encode (w.baseStep (cleanCarrier s))) :=
+        w.base_realizes.apply_encoded_ket (cleanCarrier s)
+      _ = NormalizedVector.ket
+          (w.baseEncoding.encode
+            (cleanCarrier (DecomposedState.fullStep s))) := by
+        apply congrArg (fun carrier =>
+          NormalizedVector.ket (R := Qubits w.baseEncoding.width)
+            (w.baseEncoding.encode carrier))
+        rcases s with ⟨control, generic⟩
+        cases control
+        · change w.baseStep ((false, generic), false) =
+            ((false, generic), false)
+          exact w.baseStep_clean false generic
+        · change w.baseStep ((true, generic), false) =
+            ((true,
+              GenericPointAddition.DecomposedState.fullStep generic), false)
+          exact w.baseStep_clean true generic
 
 /-- Encoded-basis correctness for all decomposed controlled ECADD labels. -/
 theorem apply_ket (w : DecomposedWitness E Q) (x : DecomposedState E Q) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.fullStep x)) :
-        StateVector (Qubits w.encoding.width)) :=
-  BaseGateSameCircuitWitness.apply_encoded_ket w.sameCircuit x
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (DecomposedState.fullStep x)) :=
+  w.realizes.apply_encoded_ket x
 
 /-- Encoded zero-control branch for the decomposed controlled ECADD program. -/
 theorem apply_zero_branch (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P false targetX targetY)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P false targetX targetY)) :
-        StateVector (Qubits w.encoding.width)) := by
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (w.encoding.encode (DecomposedState.initial P false targetX targetY))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (DecomposedState.cleanOutput P false targetX targetY)) := by
   simpa [DecomposedState.fullStep_initial_false] using
     apply_ket w (DecomposedState.initial P false targetX targetY)
 
 /-- Encoded one-control branch for the decomposed controlled ECADD program. -/
 theorem apply_one_branch (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P true targetX targetY)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P true targetX targetY)) :
-        StateVector (Qubits w.encoding.width)) := by
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (w.encoding.encode (DecomposedState.initial P true targetX targetY))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (DecomposedState.cleanOutput P true targetX targetY)) := by
   simpa [DecomposedState.fullStep_initial_true] using
     apply_ket w (DecomposedState.initial P true targetX targetY)
 
-/-- Resource counters are projected from the same decomposed controlled ECADD
-circuit used for branch correctness. -/
-theorem resources_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w.sameCircuit
-
-/-- Circuit depth is projected from the same decomposed controlled ECADD circuit. -/
-theorem depth_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w.sameCircuit
-
-/-- Query depth is projected from the same decomposed controlled ECADD circuit. -/
-theorem queryDepth_eq (w : DecomposedWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w.sameCircuit
-
-/-- Resource-correct witness for the decomposed controlled ECADD branch
-statements. -/
-def branchResourceCorrectWitness (w : DecomposedWitness E Q) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      ((∀ P : Input E Q, ∀ targetX targetY : ZMod p,
-          Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-            ((PureState.ket (R := Qubits w.encoding.width)
-              (w.encoding.encode (DecomposedState.initial P false targetX targetY)) :
-              PureState (Qubits w.encoding.width)) :
-              StateVector (Qubits w.encoding.width)) =
-            (PureState.ket (R := Qubits w.encoding.width)
-              (w.encoding.encode (DecomposedState.cleanOutput P false targetX targetY)) :
-              StateVector (Qubits w.encoding.width))) ∧
-        (∀ P : Input E Q, ∀ targetX targetY : ZMod p,
-          Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-            ((PureState.ket (R := Qubits w.encoding.width)
-              (w.encoding.encode (DecomposedState.initial P true targetX targetY)) :
-              PureState (Qubits w.encoding.width)) :
-              StateVector (Qubits w.encoding.width)) =
-            (PureState.ket (R := Qubits w.encoding.width)
-              (w.encoding.encode (DecomposedState.cleanOutput P true targetX targetY)) :
-              StateVector (Qubits w.encoding.width))))
-      ((BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w.sameCircuit
-  correctness :=
-    ⟨fun P targetX targetY => apply_zero_branch w P targetX targetY,
-      fun P targetX targetY => apply_one_branch w P targetX targetY⟩
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end DecomposedWitness
 
@@ -1056,53 +947,49 @@ abbrev encodedStep {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E} : Data E Q -> Data E Q :=
   Data.addIntoTarget
 
-/-- Gate-structured encoded controlled ECADD witness. -/
-abbrev StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
-    [Fact p.Prime] (Q : AffinePoint E) :=
-  BaseGateSameCircuitWitness (Data E Q) (encodedStep (E := E) (Q := Q))
+/-- Domain-specific controlled ECADD witness tied to one actual circuit and its
+public encoded-basis endpoint. -/
+structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
+    [Fact p.Prime] (Q : AffinePoint E) where
+  /-- Faithful encoding of controlled ECADD labels. -/
+  encoding : BinaryLabelEncoding (Data E Q)
+  /-- Actual controlled ECADD circuit. -/
+  circuit : UnitaryCircuit (Qubits encoding.width)
+  /-- Direct realization of the public controlled ECADD update. -/
+  realizes : UnitaryCircuit.Realizes encoding circuit
+    (encodedStep (E := E) (Q := Q))
 
 namespace StructuredCircuitWitness
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 
-/-- The structured controlled ECADD circuit history bottoms out in X/CNOT/Toffoli atoms. -/
-theorem structured (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w
-
 /-- Encoded-basis correctness for all controlled ECADD data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget) :
-        StateVector (Qubits w.encoding.width)) :=
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode x.addIntoTarget) :=
   by
-    simpa [encodedStep] using BaseGateSameCircuitWitness.apply_encoded_ket w x
+    simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
 /-- Encoded zero-control branch: target registers are unchanged. -/
 theorem apply_zero_branch (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width)
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
           (w.encoding.encode
             ({ input := P
                control := false
                targetX := targetX
                targetY := targetY
-               flag := false } : Data E Q)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+               flag := false } : Data E Q))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
           ({ input := P
              control := false
              targetX := targetX
              targetY := targetY
-             flag := false } : Data E Q)) :
-        StateVector (Qubits w.encoding.width)) := by
+             flag := false } : Data E Q)) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P
@@ -1114,24 +1001,21 @@ theorem apply_zero_branch (w : StructuredCircuitWitness E Q)
 /-- Encoded one-control branch: the generic affine update is applied. -/
 theorem apply_one_branch (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width)
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
           (w.encoding.encode
             ({ input := P
                control := true
                targetX := targetX
                targetY := targetY
-               flag := false } : Data E Q)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+               flag := false } : Data E Q))) =
+      NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
           ({ input := P
              control := true
              targetX := targetX + genericAddX E P.1 Q
              targetY := targetY + genericAddY E P.1 Q
-             flag := false } : Data E Q)) :
-        StateVector (Qubits w.encoding.width)) := by
+             flag := false } : Data E Q)) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P
@@ -1140,44 +1024,6 @@ theorem apply_one_branch (w : StructuredCircuitWitness E Q)
          targetY := targetY
          flag := false } : Data E Q)
 
-/-- Resource counters are projected from the same structured controlled ECADD circuit. -/
-theorem resources_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).resources =
-      (BaseGateSameCircuitWitness.profile w).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w
-
-/-- Circuit depth is projected from the same structured controlled ECADD circuit. -/
-theorem depth_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).depth =
-      (BaseGateSameCircuitWitness.profile w).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w
-
-/-- Query depth is projected from the same structured controlled ECADD circuit. -/
-theorem queryDepth_eq (w : StructuredCircuitWitness E Q) :
-    (BaseGateSameCircuitWitness.circuit w).queryDepth =
-      (BaseGateSameCircuitWitness.profile w).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w
-
-/-- Resource-correct witness for the encoded controlled ECADD statement. -/
-def resourceCorrectWitness (w : StructuredCircuitWitness E Q) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ x : Data E Q,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-          ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode x.addIntoTarget) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w).resources =
-          (BaseGateSameCircuitWitness.profile w).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w).depth =
-          (BaseGateSameCircuitWitness.profile w).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w).queryDepth =
-          (BaseGateSameCircuitWitness.profile w).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w
-  correctness := apply_ket w
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end StructuredCircuitWitness
 
@@ -1188,3 +1034,5 @@ end
 end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
+
+end

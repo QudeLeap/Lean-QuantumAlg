@@ -7,18 +7,13 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Algorithms.EllipticCurve.Resources
 public import QuantumAlg.Algorithms.EllipticCurve.DLP
-public import QuantumAlg.Algorithms.EllipticCurve.SuccessResources
-public import QuantumAlg.Algorithms.EllipticCurve.PublicPolynomial
 public import QuantumAlg.Algorithms.EllipticCurve.P256
+public import QuantumAlg.Algorithms.EllipticCurve.Example.Endpoint
 
 /-!
 # Elliptic-curve algorithm endpoints
 
-This module re-exports the grouped elliptic-curve algorithm endpoints and
-resource-support modules.
+This module exposes the proved generic ECDLP endpoint, the fixed P-256
+resource endpoint, and a complete concrete small-curve ECDLP example.
 -/
-
-@[expose] public section
-

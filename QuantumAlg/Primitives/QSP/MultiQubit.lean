@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Primitives.QSP.MultiQubit.QPP
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT
 
@@ -17,4 +17,6 @@ This module re-exports the multi-qubit QSP family: quantum phase processing
 for unitary polynomial transformations and quantum singular value transformation.
 -/
 
-@[expose] public section
+section
+
+end

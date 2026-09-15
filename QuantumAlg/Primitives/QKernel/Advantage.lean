@@ -6,45 +6,50 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Primitives.QKernel.DiscreteLogConcept
-public import Mathlib.Data.Real.Basic
-public import Mathlib.Tactic
+import all QuantumAlg.Primitives.QKernel.DiscreteLogConcept
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
 
 /-!
-# Quantum-kernel learning advantage [LAT21]
+# Conditional quantum-kernel learning advantage
 
-A *genuine conditional separation* over the discrete-log concept class: under the hardness of
-the discrete-logarithm problem, a support-vector machine with quantum-kernel estimation provably
-separates a concept class that no efficient classical learner can. The classical accuracy ceiling
-is **derived** (not assumed) by a contrapositive that consumes the proved secret-homogeneity
-`acc_shift` (in `QuantumAlg.Primitives.QKernel.DiscreteLogConcept`); the deep crypto/learning
-facts (DLP hardness, the efficient reduction, the SVM-QKE margin floor) are named hypothesis
-fields citing [LAT21], NOT axioms.
+The source proves a conditional learning separation for a discrete-log concept
+class over a prime-field multiplicative group [LAT21, arxiv.tex:263-287,332-334].
+This file abstracts its reduction strategy to a finite cyclic group under
+named hardness, reduction, and quantum-accuracy hypotheses. The classical
+accuracy ceiling follows by contrapositive using the proved secret-homogeneity
+`acc_shift` in `QuantumAlg.Primitives.QKernel.DiscreteLogConcept`, corresponding
+to the source's shift-of-concept reduction [LAT21, arxiv.tex:431-455].
+The hardness proposition and quantum accuracy floor are supplied data; this
+structure does not itself construct the source learner or prove its efficiency.
 
 The expressivity (density-matrix EQK realization) half lives in
 `QuantumAlg.Primitives.QKernel.Expressivity`; the fidelity-kernel PSD foundation is in
 `QuantumAlg.Primitives.QKernel.Fidelity`.
 
 Source: Liu, Arunachalam & Temme (2021), *A rigorous and robust quantum speed-up in supervised
-machine learning* [LAT21].
+machine learning* [LAT21, arxiv.tex:283-287,332-336].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
-/-- **Provable quantum-kernel learning advantage** [LAT21], as a
-*genuine conditional separation* over the discrete-log concept class on a finite cyclic
-group `G`. The classical ceiling is **derived** (not assumed) by a contrapositive that
-consumes the proved secret-homogeneity `acc_shift`: a learner beating `1/2 + ε`, transported
-to the fixed concept `f_1`, would solve the discrete-log problem.
+/-- **Conditional quantum-kernel learning advantage**, abstracting the source
+separation [LAT21, arxiv.tex:263-287,332-334] to a finite cyclic group `G` under
+explicit hypotheses. The classical ceiling is derived by contrapositive using
+`acc_shift`: a predictor beating `1/2 + ε`, transported to the fixed concept
+`f_1`, implies the supplied proposition `ClassicalSolvesDLP` through
+`singleConceptReduction`.
 
-The genuinely deep crypto/learning facts are named hypothesis fields citing [LAT21] (NOT axioms):
-`ClassicalSolvesDLP`/`dlpHard` (DLP hardness — equivalent to a P≠ statement, unprovable in
-principle), `singleConceptReduction` (the efficient reduction; its algebraic step is the
-proved `dlogConcept_reduction`), and `quantumFloor` (the SVM-QKE margin generalization). -/
-structure QuantumKernelAdvantage (G : Type*) [Group G] [Fintype G] [IsCyclic G] where
+The named fields model classical DLP hardness, the learning-to-DLP reduction
+[LAT21, arxiv.tex:431-455], and the SVM-QKE accuracy guarantee
+[LAT21, arxiv.tex:332-334]. Their concrete algorithmic and complexity content
+remains an input to this structure; the algebraic shift step is proved by
+`dlogConcept_reduction`. -/
+public structure QuantumKernelAdvantage (G : Type*) [Group G] [Fintype G] [IsCyclic G] where
   /-- A generator of the cyclic group. -/
   g : G
   /-- `g` generates `G`. -/
@@ -91,8 +96,9 @@ theorem QuantumKernelAdvantage.classical_ceiling {G : Type*} [Group G] [Fintype 
   rw [acc_shift, ← M.classicalAcc_def]
   exact h
 
-/-- The quantum-kernel learner strictly outperforms every classical learner. -/
-theorem QuantumKernelAdvantage.main {G : Type*} [Group G] [Fintype G] [IsCyclic G]
+/-- Under the supplied hardness, reduction, and quantum-floor hypotheses, the
+quantum accuracy exceeds the accuracy of the classical predictor in `M`. -/
+public theorem QuantumKernelAdvantage.main {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (M : QuantumKernelAdvantage G) : M.classicalAcc < M.quantumAcc :=
   lt_of_le_of_lt M.classical_ceiling (lt_of_lt_of_le M.hε_lt M.quantumFloor)
 
@@ -122,3 +128,5 @@ private theorem qka_nonempty : Nonempty (QuantumKernelAdvantage (Multiplicative 
   norm_num at h
 
 end QuantumAlg
+
+end

@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.ResidueEncoding
+import QuantumAlg.Init
+import all QuantumAlg.Util.ResidueEncoding
 
 /-!
 # Modular multiplication domain choice
@@ -25,7 +25,7 @@ multiplication unitary in order finding [Sho95, source.tex:1124-1134] [dW19,
 qcnotes.tex:2469-2475].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -158,3 +158,5 @@ theorem decode_canonicalLabel {N n : ℕ} (D : ModularMultiplicationDomain N n)
 end ModularMultiplicationDomain
 
 end QuantumAlg
+
+end

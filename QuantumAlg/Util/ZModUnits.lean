@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.ResidueEncoding
+import QuantumAlg.Init
+import all QuantumAlg.Util.ResidueEncoding
 
 /-!
 # Unit actions on `ZMod`
@@ -18,7 +18,7 @@ the primitive layer; the residue/unit arithmetic itself is reusable utility
 material.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace ModularMultiplication
@@ -84,3 +84,5 @@ end Encoded
 
 end ModularMultiplication
 end QuantumAlg
+
+end

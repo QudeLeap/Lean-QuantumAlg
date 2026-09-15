@@ -6,7 +6,6 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
 public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev
 public import QuantumAlg.Primitives.QSP.SingleQubit.Fourier
 public import QuantumAlg.Primitives.QSP.SingleQubit.Bridge
@@ -21,4 +20,6 @@ bridge, and source phase-synthesis developments used by both standalone QSP
 targets and multi-qubit QPP/QSVT lifts.
 -/
 
-@[expose] public section
+section
+
+end

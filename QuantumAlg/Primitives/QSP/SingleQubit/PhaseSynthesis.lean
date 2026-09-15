@@ -6,9 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Witness
+import QuantumAlg.Init
+public import QuantumAlg.Util.Polynomial.Basic
+public import QuantumAlg.Util.Polynomial.Complement.Interval.Problem
+import all QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Witness
 
 /-!
 # QSP phase-synthesis certificates
@@ -20,7 +22,7 @@ Gilyen--Su--Low--Wiebe [GSLW19, BlockHam.tex:544-557] to the existing
 reflection-QSP completeness theorem.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -31,7 +33,7 @@ namespace ReflectionQSPPhaseSynthesis
 /-- The source-facing hypotheses of the real-polynomial QSP corollary
 [GSLW19, BlockHam.tex:544-557]: a real degree-`d` polynomial with matching
 parity and `|P(x)| <= 1` on `[-1,1]`. -/
-structure RealBoundedMatchingParity (d : ℕ) (PRe : ℝ[X]) where
+public structure RealBoundedMatchingParity (d : ℕ) (PRe : ℝ[X]) where
   degree_le : PRe.natDegree ≤ d
   parity : Complement.Interval.HasRealParity PRe d
   bounded : Complement.Interval.BoundedByOneOnUnitInterval PRe
@@ -352,12 +354,12 @@ theorem realBoundedMatchingParity_imagOddPart_of_normSq_le_pred_of_even_bound
 
 /-- Degree used for the even branch in arbitrary-parity reductions. If the
 ambient degree has odd parity, the even branch has degree at most `L-1`. -/
-def evenBranchDegree (L : ℕ) : ℕ :=
+public def evenBranchDegree (L : ℕ) : ℕ :=
   if L % 2 = 0 then L else L - 1
 
 /-- Degree used for the odd branch in arbitrary-parity reductions. For
 `L = 0` the odd branch is handled separately as the zero component. -/
-def oddBranchDegree (L : ℕ) : ℕ :=
+public def oddBranchDegree (L : ℕ) : ℕ :=
   if L % 2 = 1 then L else L - 1
 
 theorem evenBranchDegree_le (L : ℕ) : evenBranchDegree L ≤ L := by
@@ -1239,3 +1241,5 @@ noncomputable def chooseRealBoundedPhaseCertificateOfSquareTargetNatDegreeZero
 end ReflectionQSPPhaseSynthesis
 
 end QuantumAlg
+
+end

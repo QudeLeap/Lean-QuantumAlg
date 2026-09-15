@@ -6,17 +6,19 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.Arithmetic.BitSlice
-public import QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
-public import Mathlib.Data.List.TakeDrop
-public import Mathlib.GroupTheory.Perm.Finite
+import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
+import all QuantumAlg.Primitives.Arithmetic.BitSlice
+import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
+import all QuantumAlg.Util.Nat.Binary.Arithmetic
+import Mathlib.Data.List.TakeDrop
+import Mathlib.GroupTheory.Perm.Finite
 
 /-!
 # Folded plain-adder schedule shells
 
 This module assembles already-certified encoded bit-slice blocks into folded
-`BaseGateProgram`/semantic-step objects.  It deliberately does not prove that a
+actual-Circuit/semantic-step objects.  It deliberately does not prove that a
 folded step is the word-level `PlainAdder.Data.addIntoRight` map.  A closing
 word-level adder proof must still supply the carry invariant connecting the
 selected schedule and layout to the `ZMod (2^n)` endpoint.
@@ -26,7 +28,7 @@ network, whose full schedule uses a temporary carry register rather than the
 single-carry shell below [VBE95, 9511018.tex:237-264,596-618].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace PlainAdder
@@ -34,12 +36,41 @@ namespace Schedule
 
 noncomputable section
 
+open Nat.BinaryArithmetic
+
 variable {Carrier : Type} {encoding : BinaryLabelEncoding Carrier}
 
 /-- Concatenate staged encoded-bit gate lists while preserving stage order. -/
 def concatStages (stages : List (List (EncodedBit.GateSpec encoding))) :
     List (EncodedBit.GateSpec encoding) :=
   stages.foldr (fun gates rest => gates ++ rest) []
+
+/-- Concatenating stages preserves the sum of their physical gate counts. -/
+@[simp] theorem length_concatStages
+    (stages : List (List (EncodedBit.GateSpec encoding))) :
+    (concatStages stages).length = (stages.map List.length).sum := by
+  induction stages with
+  | nil => rfl
+  | cons stage rest ih =>
+      change
+        (stage ++ concatStages rest).length =
+          stage.length + (rest.map List.length).sum
+      simp [ih]
+
+/-- Concatenating stages preserves every additive gate-list coordinate. -/
+theorem sum_map_concatStages
+    (multiplicity : EncodedBit.GateSpec encoding → Nat)
+    (stages : List (List (EncodedBit.GateSpec encoding))) :
+    ((concatStages stages).map multiplicity).sum =
+      (stages.map fun stage => (stage.map multiplicity).sum).sum := by
+  induction stages with
+  | nil => rfl
+  | cons stage rest ih =>
+      change
+        ((stage ++ concatStages rest).map multiplicity).sum =
+          (stage.map multiplicity).sum +
+            (rest.map fun block => (block.map multiplicity).sum).sum
+      rw [List.map_append, List.sum_append, ih]
 
 /-- Membership in concatenated stages is membership in one component stage. -/
 theorem mem_concatStages
@@ -137,7 +168,7 @@ def gates : List (EncodedBit.GateSpec encoding) :=
   majorityStage layout ++ sumStage layout ++ reverseCleanupStage layout
 
 /-- Base-gate program for the folded schedule shell. -/
-def program : BaseGateProgram encoding.width :=
+def program : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (gates layout)
 
 /-- Folded semantic action of the schedule shell. -/
@@ -147,14 +178,8 @@ def step : Carrier -> Carrier :=
 /-- The folded schedule shell is realized by the same base-gate program object
 whose resource profile is later projected. -/
 theorem realizes :
-    BaseGateProgram.Realizes encoding (program layout) (step layout) :=
+    UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
   EncodedBit.GateSpec.realizesList (gates layout)
-
-/-- Same-Circuit witness for the folded schedule shell. -/
-def sameCircuit : BaseGateSameCircuitWitness Carrier (step layout) where
-  encoding := encoding
-  program := program layout
-  realizes := realizes layout
 
 /-- Package this folded schedule as a plain-adder structured witness once a
 separate word-level invariant proves that its folded step is `addIntoRight`. -/
@@ -2457,6 +2482,248 @@ resources and semantics will be connected by later invariants [VBE95,
 def cleanCarrySumGates : List (EncodedBit.GateSpec encoding) :=
   carryStage layout ++ cleanupSumStage layout
 
+/-- Each local carry-output block consists of three Toffoli gates. -/
+@[simp] theorem carryOutGatesAt_length (j : Fin (n - 1)) :
+    (carryOutGatesAt layout j).length = 3 := by
+  simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
+
+/-- Each reverse carry cleanup block consists of the same three gates. -/
+@[simp] theorem carryOutCleanupGatesAt_length (j : Fin (n - 1)) :
+    (carryOutCleanupGatesAt layout j).length = 3 := by
+  simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
+    BitSlice.Encoded.carryOutGates]
+
+/-- Each local sum block consists of two CNOT gates. -/
+@[simp] theorem sumGatesAt_length (i : Fin n) :
+    (sumGatesAt layout i).length = 2 := by
+  simp [sumGatesAt, BitSlice.Encoded.sumGates]
+
+/-- A cleanup-aware sum block uses at most two sum gates and three carry
+cleanup gates. -/
+theorem cleanupSumGatesAt_length_le_five (i : Fin n) :
+    (cleanupSumGatesAt layout i).length ≤ 5 := by
+  unfold cleanupSumGatesAt
+  split <;> simp
+
+/-- The increasing carry pass uses exactly three gates per temporary carry
+wire. -/
+theorem carryStage_length :
+    (carryStage layout).length = 3 * (n - 1) := by
+  rw [carryStage, length_concatStages]
+  unfold carryStageStages
+  rw [List.map_map]
+  change
+    ((carryStageIndices (n := n)).map
+      fun j => (carryOutGatesAt layout j).length).sum =
+        3 * (n - 1)
+  simp_rw [carryOutGatesAt_length]
+  simp [carryStageIndices, Function.comp_def, Nat.mul_comm]
+
+private theorem sum_stage_lengths_le
+    (indices : List (Fin n)) :
+    (indices.map fun i => (cleanupSumGatesAt layout i).length).sum ≤
+      5 * indices.length := by
+  induction indices with
+  | nil => simp
+  | cons i rest ih =>
+      simp only [List.map_cons, List.sum_cons, List.length_cons]
+      have hi := cleanupSumGatesAt_length_le_five layout i
+      omega
+
+/-- The decreasing sum-and-cleanup pass uses at most five gates per data bit. -/
+theorem cleanupSumStage_length_le :
+    (cleanupSumStage layout).length ≤ 5 * n := by
+  rw [cleanupSumStage, length_concatStages]
+  unfold cleanupSumStageStages
+  rw [List.map_map]
+  calc
+    ((cleanupSumStageIndices (n := n)).map
+        fun i => (cleanupSumGatesAt layout i).length).sum ≤
+        5 * (cleanupSumStageIndices (n := n)).length :=
+      sum_stage_lengths_le layout _
+    _ = 5 * n := by simp
+
+/-- The canonical clean carry/sum schedule has at most eight physical
+X/CNOT/Toffoli leaves per data bit. -/
+theorem cleanCarrySumGates_length_le :
+    (cleanCarrySumGates layout).length ≤ 8 * n := by
+  rw [cleanCarrySumGates, List.length_append, carryStage_length]
+  have hcleanup := cleanupSumStage_length_le layout
+  omega
+
+@[simp] theorem carryOutGatesAt_toffoliMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutGatesAt layout j).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
+  simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
+
+@[simp] theorem carryOutGatesAt_cnotMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutGatesAt layout j).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+  simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
+
+@[simp] theorem carryOutGatesAt_xMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutGatesAt layout j).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+  simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
+
+@[simp] theorem sumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
+    ((sumGatesAt layout i).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
+  simp [sumGatesAt, BitSlice.Encoded.sumGates]
+
+@[simp] theorem sumGatesAt_cnotMultiplicity_sum (i : Fin n) :
+    ((sumGatesAt layout i).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 2 := by
+  simp [sumGatesAt, BitSlice.Encoded.sumGates]
+
+@[simp] theorem sumGatesAt_xMultiplicity_sum (i : Fin n) :
+    ((sumGatesAt layout i).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+  simp [sumGatesAt, BitSlice.Encoded.sumGates]
+
+@[simp] theorem carryOutCleanupGatesAt_toffoliMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutCleanupGatesAt layout j).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
+  simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
+    BitSlice.Encoded.carryOutGates]
+
+@[simp] theorem carryOutCleanupGatesAt_cnotMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutCleanupGatesAt layout j).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+  simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
+    BitSlice.Encoded.carryOutGates]
+
+@[simp] theorem carryOutCleanupGatesAt_xMultiplicity_sum
+    (j : Fin (n - 1)) :
+    ((carryOutCleanupGatesAt layout j).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+  simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
+    BitSlice.Encoded.carryOutGates]
+
+theorem cleanupSumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
+    ((cleanupSumGatesAt layout i).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum =
+      if i.val = 0 then 0 else 3 := by
+  unfold cleanupSumGatesAt
+  split <;> simp_all
+
+@[simp] theorem cleanupSumGatesAt_cnotMultiplicity_sum (i : Fin n) :
+    ((cleanupSumGatesAt layout i).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 2 := by
+  unfold cleanupSumGatesAt
+  split <;> simp_all
+
+@[simp] theorem cleanupSumGatesAt_xMultiplicity_sum (i : Fin n) :
+    ((cleanupSumGatesAt layout i).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+  unfold cleanupSumGatesAt
+  split <;> simp_all
+
+private theorem fin_nonzero_three_sum (n : Nat) :
+    (∑ i : Fin n, if i.val = 0 then 0 else 3) = 3 * (n - 1) := by
+  cases n with
+  | zero => simp
+  | succ n =>
+      rw [Fin.sum_univ_succ]
+      simp [Nat.mul_comm]
+
+/-- The exact clean-carry adder schedule contains six Toffolis per temporary
+carry wire: three in the forward carry pass and three in reverse cleanup. -/
+theorem cleanCarrySumGates_toffoliMultiplicity_sum :
+    ((cleanCarrySumGates layout).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum =
+      6 * (n - 1) := by
+  rw [cleanCarrySumGates, List.map_append, List.sum_append]
+  have hcarry :
+      ((carryStage layout).map
+          EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 * (n - 1) := by
+    rw [carryStage, sum_map_concatStages]
+    unfold carryStageStages carryStageIndices
+    simp [Function.comp_def, Nat.mul_comm]
+  have hcleanup :
+      ((cleanupSumStage layout).map
+          EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 * (n - 1) := by
+    rw [cleanupSumStage, sum_map_concatStages]
+    unfold cleanupSumStageStages cleanupSumStageIndices sumStageIndices
+    rw [List.map_map, List.map_reverse, List.sum_reverse]
+    rw [List.map_ofFn]
+    change
+      (List.ofFn (fun i : Fin n =>
+        ((cleanupSumGatesAt layout i).map
+          EncodedBit.GateSpec.toffoliMultiplicity).sum)).sum =
+        3 * (n - 1)
+    simp_rw [cleanupSumGatesAt_toffoliMultiplicity_sum]
+    rw [List.sum_ofFn, fin_nonzero_three_sum]
+  rw [hcarry, hcleanup]
+  omega
+
+/-- The exact clean-carry adder schedule has two CNOT sum gates per data bit. -/
+theorem cleanCarrySumGates_cnotMultiplicity_sum :
+    ((cleanCarrySumGates layout).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
+  rw [cleanCarrySumGates, List.map_append, List.sum_append]
+  have hcarry :
+      ((carryStage layout).map
+          EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+    rw [carryStage, sum_map_concatStages]
+    unfold carryStageStages carryStageIndices
+    simp [Function.comp_def]
+  have hcleanup :
+      ((cleanupSumStage layout).map
+          EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
+    rw [cleanupSumStage, sum_map_concatStages]
+    unfold cleanupSumStageStages cleanupSumStageIndices sumStageIndices
+    rw [List.map_map, List.map_reverse, List.sum_reverse]
+    rw [List.map_ofFn]
+    change
+      (List.ofFn (fun i : Fin n =>
+        ((cleanupSumGatesAt layout i).map
+          EncodedBit.GateSpec.cnotMultiplicity).sum)).sum = 2 * n
+    simp_rw [cleanupSumGatesAt_cnotMultiplicity_sum]
+    simp [Nat.mul_comm]
+  rw [hcarry, hcleanup, Nat.zero_add]
+
+/-- The clean-carry adder schedule contains no X gates. -/
+theorem cleanCarrySumGates_xMultiplicity_sum :
+    ((cleanCarrySumGates layout).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+  rw [cleanCarrySumGates, List.map_append, List.sum_append]
+  have hcarry :
+      ((carryStage layout).map
+          EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+    rw [carryStage, sum_map_concatStages]
+    unfold carryStageStages carryStageIndices
+    simp [Function.comp_def]
+  have hcleanup :
+      ((cleanupSumStage layout).map
+          EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
+    rw [cleanupSumStage, sum_map_concatStages]
+    unfold cleanupSumStageStages cleanupSumStageIndices sumStageIndices
+    rw [List.map_map, List.map_reverse, List.sum_reverse]
+    rw [List.map_ofFn]
+    change
+      (List.ofFn (fun i : Fin n =>
+        ((cleanupSumGatesAt layout i).map
+          EncodedBit.GateSpec.xMultiplicity).sum)).sum = 0
+    simp_rw [cleanupSumGatesAt_xMultiplicity_sum]
+    simp
+  rw [hcarry, hcleanup, Nat.zero_add]
+
+/-- Exact physical length of the canonical clean-carry schedule.  The formula
+is valid also at width zero and avoids a separate positivity side condition. -/
+theorem cleanCarrySumGates_length :
+    (cleanCarrySumGates layout).length = 6 * (n - 1) + 2 * n := by
+  rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
+    cleanCarrySumGates_xMultiplicity_sum,
+    cleanCarrySumGates_cnotMultiplicity_sum,
+    cleanCarrySumGates_toffoliMultiplicity_sum]
+  omega
+
 /-- A carry input is disjoint from an observed bit when both the data carry and
 all temporary carry-work bits are disjoint from it. -/
 theorem carryInput_wire_ne_of_observed
@@ -2637,7 +2904,7 @@ theorem cleanCarrySumGates_bitDisjoint
       hwork gate hsum
 
 /-- Base-gate program for the cleanup-aware carry/sum schedule object. -/
-def cleanCarrySumProgram : BaseGateProgram encoding.width :=
+def cleanCarrySumProgram : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (cleanCarrySumGates layout)
 
 /-- Folded semantic action of the cleanup-aware carry/sum schedule object. -/
@@ -2739,7 +3006,7 @@ theorem cleanCarrySumGates_reverse_get_workCarry_clean
   }
   let cleanSet : Set Carrier :=
     {y | ∀ k : Fin (n - 1), (layout.workCarry.bit k).get y = false}
-  haveI : Finite Carrier :=
+  let _ : Finite Carrier :=
     Finite.of_injective encoding.encode encoding.encode_injective
   have hmap : Set.MapsTo perm cleanSet cleanSet := by
     intro y hy k
@@ -2751,16 +3018,9 @@ theorem cleanCarrySumGates_reverse_get_workCarry_clean
 /-- The cleanup-aware carry/sum schedule realizes its folded bit-lens action
 with the same base-gate program object used for resources. -/
 theorem cleanCarrySum_realizes :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (cleanCarrySumProgram layout) (cleanCarrySumStep layout) :=
   EncodedBit.GateSpec.realizesList (cleanCarrySumGates layout)
-
-/-- Same-Circuit witness for the cleanup-aware carry/sum schedule object. -/
-def cleanCarrySumSameCircuit :
-    BaseGateSameCircuitWitness Carrier (cleanCarrySumStep layout) where
-  encoding := encoding
-  program := cleanCarrySumProgram layout
-  realizes := cleanCarrySum_realizes layout
 
 /-- Folded carry/sum gate list for the carry-work layout.  This leaves the
 temporary carry-work register dirty; a correct reverse-cleanup schedule cannot
@@ -2802,7 +3062,7 @@ theorem carryAndSumGates_get_right (i : Fin n) (x : Carrier) :
   rw [carryStage_get_right, carryStage_get_left]
 
 /-- Base-gate program for the folded dirty-work carry/sum schedule object. -/
-def program : BaseGateProgram encoding.width :=
+def program : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (carryAndSumGates layout)
 
 /-- Folded semantic action of the dirty-work carry/sum schedule object. -/
@@ -2812,21 +3072,15 @@ def step : Carrier -> Carrier :=
 /-- The dirty-work carry/sum schedule realizes its folded bit-lens action with
 the same base-gate program object used for resources. -/
 theorem realizes :
-    BaseGateProgram.Realizes encoding (program layout) (step layout) :=
+    UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
   EncodedBit.GateSpec.realizesList (carryAndSumGates layout)
-
-/-- Same-Circuit witness for the dirty-work carry/sum schedule object. -/
-def sameCircuit : BaseGateSameCircuitWitness Carrier (step layout) where
-  encoding := encoding
-  program := program layout
-  realizes := realizes layout
 
 end CarryWorkLayout
 
 namespace PowerOfTwo
-
+-- Declaration-scoped exception: a transparent named encoding parameter for circuit construction.
+set_option linter.defProp false in
 /-- Canonical power-of-two residue encoding used by plain-adder word fields. -/
-@[nolint defLemma]
 def residueEncoding (n : Nat) : BinaryResidueEncoding (2 ^ n) n where
   modulus_pos := by
     exact pow_pos (by decide : (0 : Nat) < 2) n
@@ -2861,80 +3115,6 @@ def wordBit (n : Nat) (bit : Fin n) : EncodedBit (wordEncoding n) :=
       x.val.testBit bit.val
   rw [WireAddress.bitIndex_littleEndianWire]
   rfl
-
-/-- Boolean carry sequence for natural-number addition, ordered from least
-significant to most significant bit.  This is the pure arithmetic recurrence
-mirrored by the VBE carry-work stage [VBE95, 9511018.tex:248-253,591-618]. -/
-def natAddCarry (a b : Nat) : Nat -> Bool
-  | 0 => false
-  | i + 1 => Bool.carry (a.testBit i) (b.testBit i) (natAddCarry a b i)
-
-theorem bool_carry_comm (a b c : Bool) :
-    Bool.carry a b c = Bool.carry b a c := by
-  cases a <;> cases b <;> cases c <;> rfl
-
-theorem natAddCarry_comm (a b i : Nat) :
-    natAddCarry a b i = natAddCarry b a i := by
-  induction i with
-  | zero =>
-      rfl
-  | succ i ih =>
-      simp [natAddCarry, ih, bool_carry_comm]
-
-/-- One-step numeric identity for adding two `Nat.bit` decompositions plus an
-incoming carry bit. -/
-theorem bit_add_bit (a b c : Bool) (ah bh : Nat) :
-    Nat.bit a ah + Nat.bit b bh + c.toNat =
-      Nat.bit ((a ^^ b) ^^ c) (ah + bh + (Bool.carry a b c).toNat) := by
-  cases a <;> cases b <;> cases c <;>
-    simp [Nat.bit, Bool.carry] <;> omega
-
-/-- Shifting away the first `i` bits of `a + b` leaves the shifted addends plus
-the carry propagated through the low `i` bits. -/
-theorem shifted_add_decomp (a b i : Nat) :
-    (a + b) >>> i = (a >>> i) + (b >>> i) + (natAddCarry a b i).toNat := by
-  induction i with
-  | zero =>
-      simp [natAddCarry]
-  | succ i ih =>
-      rw [show i + 1 = i + 1 by rfl]
-      rw [Nat.shiftRight_add]
-      rw [ih]
-      have hbit := bit_add_bit ((a >>> i).testBit 0) ((b >>> i).testBit 0)
-        (natAddCarry a b i) ((a >>> i) >>> 1) ((b >>> i) >>> 1)
-      have ha :
-          Nat.bit ((a >>> i).testBit 0) ((a >>> i) >>> 1) = a >>> i :=
-        Nat.bit_testBit_zero_shiftRight_one (a >>> i)
-      have hb :
-          Nat.bit ((b >>> i).testBit 0) ((b >>> i) >>> 1) = b >>> i :=
-        Nat.bit_testBit_zero_shiftRight_one (b >>> i)
-      rw [ha, hb] at hbit
-      rw [hbit]
-      rw [Nat.bit_shiftRight_one]
-      simp [natAddCarry, Nat.shiftRight_add, Nat.add_assoc]
-
-/-- Low-bit addition formula with an explicit incoming carry bit. -/
-theorem testBit_zero_add_with_carry (a b : Nat) (c : Bool) :
-    (a + b + c.toNat).testBit 0 = ((a.testBit 0 ^^ b.testBit 0) ^^ c) := by
-  have ha : Nat.bit (a.testBit 0) (a >>> 1) = a :=
-    Nat.bit_testBit_zero_shiftRight_one a
-  have hb : Nat.bit (b.testBit 0) (b >>> 1) = b :=
-    Nat.bit_testBit_zero_shiftRight_one b
-  rw [ha.symm, hb.symm]
-  rw [bit_add_bit (a.testBit 0) (b.testBit 0) c (a >>> 1) (b >>> 1)]
-  cases ha0 : a.testBit 0 <;> cases hb0 : b.testBit 0 <;> cases c <;>
-    simp
-
-/-- Each bit of `a + b` is the xor of the two input bits and the propagated
-incoming carry at that bit. -/
-theorem testBit_add_eq_xor3 (a b i : Nat) :
-    (a + b).testBit i = ((a.testBit i ^^ b.testBit i) ^^ natAddCarry a b i) := by
-  rw [show (a + b).testBit i = ((a + b) >>> i).testBit 0 by
-    rw [Nat.testBit_shiftRight]
-    rfl]
-  rw [shifted_add_decomp a b i]
-  rw [testBit_zero_add_with_carry]
-  simp
 
 /-- Two power-of-two words are equal when all in-range value bits agree. -/
 theorem word_eq_of_testBit_eq {n : Nat} {a b : Word n}
@@ -3633,8 +3813,10 @@ def carryWorkCleanCarrySumGates (n : Nat) :
 
 /-- Base-gate program for the canonical cleanup-aware carry-work schedule. -/
 def carryWorkCleanCarrySumProgram (n : Nat) :
-    BaseGateProgram (dataWithCarryWorkEncoding n).width :=
+    UnitaryCircuit (Qubits (dataWithCarryWorkEncoding n).width) :=
   CarryWorkLayout.cleanCarrySumProgram (carryWorkLayout n)
+
+
 
 /-- Folded semantic action of the canonical cleanup-aware carry-work schedule. -/
 def carryWorkCleanCarrySumStep (n : Nat) :
@@ -3644,15 +3826,9 @@ def carryWorkCleanCarrySumStep (n : Nat) :
 /-- The canonical cleanup-aware carry-work schedule realizes its folded
 bit-lens action with the same base-gate program object used for resources. -/
 theorem carryWorkCleanCarrySum_realizes (n : Nat) :
-    BaseGateProgram.Realizes (dataWithCarryWorkEncoding n)
+    UnitaryCircuit.Realizes (dataWithCarryWorkEncoding n)
       (carryWorkCleanCarrySumProgram n) (carryWorkCleanCarrySumStep n) :=
   CarryWorkLayout.cleanCarrySum_realizes (carryWorkLayout n)
-
-/-- Same-Circuit witness for the canonical cleanup-aware carry-work schedule. -/
-def carryWorkCleanCarrySumSameCircuit (n : Nat) :
-    BaseGateSameCircuitWitness
-      (Data n × CarryWork n) (carryWorkCleanCarrySumStep n) :=
-  CarryWorkLayout.cleanCarrySumSameCircuit (carryWorkLayout n)
 
 /-- The canonical cleanup-aware carry-work schedule preserves the left/source
 word [VBE95, 9511018.tex:237-264,596-618]. -/
@@ -3813,7 +3989,7 @@ def gates (n : Nat) : List (EncodedBit.GateSpec (dataEncoding n)) :=
   SingleCarryLayout.gates (singleCarryLayout n)
 
 /-- Base-gate program for the canonical single-carry schedule shell. -/
-def program (n : Nat) : BaseGateProgram (dataEncoding n).width :=
+def program (n : Nat) : UnitaryCircuit (Qubits (dataEncoding n).width) :=
   SingleCarryLayout.program (singleCarryLayout n)
 
 /-- Folded semantic action of the canonical single-carry schedule shell. -/
@@ -3823,12 +3999,8 @@ def step (n : Nat) : Data n -> Data n :=
 /-- The canonical single-carry schedule shell realizes its folded bit-lens
 action with the same base-gate program object. -/
 theorem realizes (n : Nat) :
-    BaseGateProgram.Realizes (dataEncoding n) (program n) (step n) :=
+    UnitaryCircuit.Realizes (dataEncoding n) (program n) (step n) :=
   SingleCarryLayout.realizes (singleCarryLayout n)
-
-/-- Same-Circuit witness for the canonical single-carry schedule shell. -/
-def sameCircuit (n : Nat) : BaseGateSameCircuitWitness (Data n) (step n) :=
-  SingleCarryLayout.sameCircuit (singleCarryLayout n)
 
 /-- Package any proved canonical data-plus-carry-work gate list as the clean
 plain-adder witness expected by downstream modular-arithmetic code.  The proof
@@ -3852,7 +4024,7 @@ def structuredWithCarryWorkWitness (n : Nat)
 
 /-- Structured clean-work plain-adder witness built from the canonical
 cleanup-aware carry-work gate list.  Correctness and resources are tied to the
-same folded `BaseGateProgram` object [VBE95, 9511018.tex:237-264,591-618]. -/
+same folded actual circuit [VBE95, 9511018.tex:237-264,591-618]. -/
 def carryWorkStructuredWitness (n : Nat) :
     StructuredWithWorkWitness n (CarryWork n) :=
   structuredWithCarryWorkWitness n (carryWorkCleanCarrySumGates n)
@@ -3862,6 +4034,64 @@ def carryWorkStructuredWitness (n : Nat) :
         CarryWorkLayout.cleanCarrySumStep] using
           carryWorkCleanCarrySumStep_cleanEndpoint n x hcarry)
 
+/-- The canonical plain-adder circuit obtained from the proved cleanup-aware
+carry-work program. This one object carries both endpoint semantics and
+resource metadata. -/
+def carryWorkCircuit (n : Nat) :
+    UnitaryCircuit (Qubits (dataWithCarryWorkEncoding n).width) :=
+  (carryWorkStructuredWitness n).program
+
+/-- Ordered strict event trace derived from the canonical carry-work circuit. -/
+def carryWorkEventTrace (n : Nat) : List (Resource.Event .quantum) :=
+  (carryWorkCircuit n).eventTrace
+
+/-- Strict event pool derived from the canonical carry-work circuit. -/
+def carryWorkEventCost (n : Nat) : ResourcePool .quantum :=
+  (carryWorkCircuit n).eventCost
+
+/-- Strict symbolic event critical path of the canonical carry-work circuit. -/
+def carryWorkEventDepth (n : Nat) :
+    DepthExpr (Resource.Event .quantum) :=
+  (carryWorkCircuit n).eventDepth
+
+/-- Literal depth of one strict event coordinate in the carry-work circuit. -/
+def carryWorkEventQueryDepth (n : Nat)
+    (focus : Resource.Event .quantum) : Nat :=
+  (carryWorkCircuit n).eventQueryDepth focus
+
+/-- Exact multiplicity of one gate coordinate in the carry-work event pool. -/
+def carryWorkEventGateCount (n : Nat) (label : Resource.GateLabel) : Nat :=
+  ResourcePool.count (.gate label) (carryWorkCircuit n).eventCost
+
+
+
+
+
+
+
+/-- The canonical circuit realizes clean plain addition while intrinsically
+preserving normalization. -/
+theorem carryWorkCircuit_applyNormalized_clean_ket
+    (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
+    (carryWorkCircuit n).applyNormalized
+        (NormalizedVector.ket
+          ((dataWithCarryWorkEncoding n).encode (x, cleanCarryWork n))) =
+      NormalizedVector.ket
+        ((dataWithCarryWorkEncoding n).encode
+          (Data.addIntoRight x, cleanCarryWork n)) :=
+  StructuredWithWorkWitness.applyNormalized_clean_ket
+    (carryWorkStructuredWitness n) x hcarry
+
+
+
+/-- Linearizing the canonical carry-work event depth recovers its exact strict
+event pool. -/
+theorem carryWorkCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :
+    (carryWorkCircuit n).resourcesFromEventDepth =
+      (carryWorkCircuit n).eventCost :=
+  StructuredWithWorkWitness.resourcesFromEventDepth_eq_eventCost
+    (carryWorkStructuredWitness n)
+
 end PowerOfTwo
 
 end
@@ -3869,3 +4099,5 @@ end
 end Schedule
 end PlainAdder
 end QuantumAlg
+
+end

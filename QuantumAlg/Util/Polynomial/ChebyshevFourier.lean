@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Laurent
-public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Chebyshev.Basic
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Laurent
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Chebyshev.Basic
 
 /-!
 # Chebyshev-Fourier polynomial bridge
@@ -17,7 +17,7 @@ Quantum-free coefficient and normalization maps connecting Chebyshev-basis
 polynomials with the Fourier/Laurent representation used by QSP.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -212,3 +212,5 @@ theorem fourierToChebyshevPoly_eval (d : ℕ) (A : ℂ[X]) :
 end
 
 end QuantumAlg
+
+end

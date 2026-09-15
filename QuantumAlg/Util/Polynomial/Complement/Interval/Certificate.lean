@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Product
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Product
 
 /-!
 # Interval complement certificates
@@ -15,7 +15,7 @@ public import QuantumAlg.Util.Polynomial.Complement.Interval.Product
 Stage module for interval-complement degree, parity, and product certificates.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -59,3 +59,5 @@ structure DegreeParityCertificate (A : ℝ[X]) (k : ℕ) where
 end Complement.Interval.Certificate
 
 end QuantumAlg
+
+end

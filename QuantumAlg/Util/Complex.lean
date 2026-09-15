@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import Mathlib.Analysis.SpecialFunctions.Complex.Log
-public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+import QuantumAlg.Init
+import Mathlib.Analysis.SpecialFunctions.Complex.Log
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 
 /-!
 # Complex exponential and unit-circle helper lemmas (quantum-free)
@@ -23,7 +23,7 @@ SU(2)/unit-circle parameterizations (`mul_conj_eq_norm_sq`, `exists_unit_mul`,
 These are upstream candidates for Mathlib; nothing here mentions `Gate`/`PureState`.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -145,6 +145,67 @@ theorem two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
       ‖Complex.exp (x * Complex.I) - 1‖ := by
   simpa [mul_comm] using
     (two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one (x := x) hx)
+
+/-- A nontrivial finite unit-circle geometric sum is controlled by the
+reciprocal principal phase distance.  This is the quantum-independent chord
+estimate used for the `zeta` bound in the short-DLP analysis
+[E23, arxiv-v5.tex:549-579]. -/
+theorem norm_sum_range_exp_two_pi_mul_nat_mul_I_le
+    {θ : Real} {m : Nat}
+    (hprincipal : |θ| ≤ 1 / 2)
+    (hphase : 0 < |θ|) :
+    ‖(Finset.range m).sum
+        (fun b => Complex.exp (2 * Real.pi *
+          (((b : Real) * θ : Real) : Complex) * Complex.I))‖ ≤
+      1 / (2 * |θ|) := by
+  have harg : |2 * Real.pi * θ| ≤ Real.pi := by
+    rw [abs_mul, abs_mul,
+      abs_of_nonneg (by norm_num : (0 : Real) ≤ 2),
+      abs_of_nonneg Real.pi_pos.le]
+    nlinarith [Real.pi_pos]
+  have hden :=
+    two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one harg
+  have hden' :
+      4 * |θ| ≤
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+    calc
+      4 * |θ| = (2 / Real.pi) * |2 * Real.pi * θ| := by
+        rw [abs_mul, abs_mul,
+          abs_of_pos (by norm_num : (0 : Real) < 2),
+          abs_of_pos Real.pi_pos]
+        field_simp [Real.pi_ne_zero]
+        ring
+      _ ≤ ‖Complex.exp
+          (((2 * Real.pi * θ : Real) : Complex) * Complex.I) - 1‖ := hden
+      _ = ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ := by
+        congr 3
+        push_cast
+        ring
+  have hdenPos :
+      0 < ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ :=
+    (mul_pos (by norm_num) hphase).trans_le hden'
+  have hbase : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1 := by
+    exact sub_ne_zero.mp (norm_pos_iff.mp hdenPos)
+  have hnum :
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ ≤ 2 := by
+    have hexpNorm : ‖Complex.exp (2 * Real.pi * θ * Complex.I)‖ = 1 := by
+      rw [Complex.norm_exp]
+      norm_num
+    calc
+      ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ ≤
+          ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m‖ +
+            ‖(1 : Complex)‖ := norm_sub_le _ _
+      _ = 2 := by rw [norm_pow, hexpNorm, one_pow, norm_one]; norm_num
+  rw [sum_range_exp_two_pi_mul_nat_mul_I_eq_geom_closed hbase, norm_div]
+  calc
+    ‖Complex.exp (2 * Real.pi * θ * Complex.I) ^ m - 1‖ /
+        ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ ≤
+      2 / (4 * |θ|) :=
+        div_le_div₀ (by norm_num) hnum
+          (mul_pos (by norm_num) hphase) hden'
+    _ = 1 / (2 * |θ|) := by
+      field_simp [ne_of_gt hphase]
+      ring
 
 /-- Denominator bound for the `2πθ` unit-circle base. -/
 theorem norm_exp_two_pi_mul_I_sub_one_le (θ : ℝ) :
@@ -299,6 +360,27 @@ theorem geometric_phase_norm_ratio_lower_bound_of_angle_le
     field_simp [abs_ne_zero.mpr hθ_ne, ne_of_gt hApos, ne_of_gt Real.pi_pos]
   rw [← hleft]
   exact hratio
+
+/-- The `π/4` secant slope used for a quarter-circle phase sector has squared
+magnitude at least one half. -/
+theorem one_half_le_sq_sin_pi_div_four_div :
+    (1 / 2 : Real) ≤
+      (Real.sin (Real.pi / 4) / (Real.pi / 4)) ^ 2 := by
+  have hsqrt : 0 < Real.sqrt 2 := Real.sqrt_pos.2 (by norm_num)
+  have hpi : 0 < Real.pi := Real.pi_pos
+  have hfactor :
+      Real.sqrt 2 / 2 ≤
+        Real.sin (Real.pi / 4) / (Real.pi / 4) := by
+    rw [Real.sin_pi_div_four]
+    rw [div_div]
+    field_simp [ne_of_gt hpi]
+    nlinarith [Real.pi_le_four]
+  have hfactorNonneg :
+      0 ≤ Real.sin (Real.pi / 4) / (Real.pi / 4) := by
+    rw [Real.sin_pi_div_four]
+    positivity
+  have hsqrtSq : (Real.sqrt 2) ^ 2 = 2 := by norm_num
+  nlinarith
 
 theorem exp_pi_div_two_mul_I :
     Complex.exp ((Real.pi : ℂ) / 2 * Complex.I) = Complex.I := by
@@ -561,3 +643,5 @@ theorem exists_cos_sin {v w : ℝ} (hvw : v ^ 2 + w ^ 2 = 1) :
     simp
 
 end QuantumAlg
+
+end

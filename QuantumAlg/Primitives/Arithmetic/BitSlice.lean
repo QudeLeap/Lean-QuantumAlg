@@ -6,9 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Core.Components.EncodedBitGates
-
+import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
 /-!
 # Encoded bit-slice arithmetic blocks
 
@@ -16,12 +15,12 @@ This module packages small X/CNOT/Toffoli bit-slice blocks that later plain and
 modular arithmetic circuits can fold into larger word-level programs.  VBE's
 plain-adder route decomposes addition into carry calculation, reverse cleanup,
 and sum operations [VBE95, 9511018.tex:244-264,591-618].  The declarations here
-only provide same-`BaseGateProgram` witnesses for local encoded-bit gate lists;
-word-level arithmetic correctness is supplied by the modules that instantiate
-these blocks into a full schedule.
+only provide actual circuits and direct realization theorems for local
+encoded-bit gate lists; word-level arithmetic correctness is supplied by the
+modules that instantiate these blocks into a full schedule.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace BitSlice
@@ -36,13 +35,14 @@ def targetAdd2Program {width : Nat}
     (srcLo tgtLo srcHi tgtHi : Fin width)
     (hSrcLoTgtLo : srcLo ≠ tgtLo) (hSrcLoTgtHi : srcLo ≠ tgtHi)
     (hTgtLoTgtHi : tgtLo ≠ tgtHi) (hSrcHiTgtHi : srcHi ≠ tgtHi) :
-    BaseGateProgram width :=
-  BaseGateProgram.append
-    (BaseGateProgram.toffoli srcLo tgtLo tgtHi
-      hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi)
-    (BaseGateProgram.append
-      (BaseGateProgram.cnot srcHi tgtHi hSrcHiTgtHi)
-      (BaseGateProgram.cnot srcLo tgtLo hSrcLoTgtLo))
+    UnitaryCircuit (Qubits width) :=
+  UnitaryCircuit.seq
+    (QubitPrimitive.circuit
+      (.toffoli srcLo tgtLo tgtHi
+        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi))
+    (UnitaryCircuit.seq
+      (QubitPrimitive.circuit (.cnot srcHi tgtHi hSrcHiTgtHi))
+      (QubitPrimitive.circuit (.cnot srcLo tgtLo hSrcLoTgtLo)))
 
 /-- Raw basis-label action of `targetAdd2Program`. -/
 def targetAdd2Step {width : Nat}
@@ -50,22 +50,13 @@ def targetAdd2Step {width : Nat}
     (hSrcLoTgtLo : srcLo ≠ tgtLo) (hSrcLoTgtHi : srcLo ≠ tgtHi)
     (hTgtLoTgtHi : tgtLo ≠ tgtHi) (hSrcHiTgtHi : srcHi ≠ tgtHi) :
     Fin (2 ^ width) → Fin (2 ^ width) :=
-  BaseGateProgram.applyLabel
-    (targetAdd2Program srcLo tgtLo srcHi tgtHi
-      hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
-
-/-- Same-Circuit witness for the raw two-bit target-add block under the
-identity basis-label encoding. -/
-def targetAdd2SameCircuit {width : Nat}
-    (srcLo tgtLo srcHi tgtHi : Fin width)
-    (hSrcLoTgtLo : srcLo ≠ tgtLo) (hSrcLoTgtHi : srcLo ≠ tgtHi)
-    (hTgtLoTgtHi : tgtLo ≠ tgtHi) (hSrcHiTgtHi : srcHi ≠ tgtHi) :
-    BaseGateSameCircuitWitness (Fin (2 ^ width))
-      (targetAdd2Step srcLo tgtLo srcHi tgtHi
-        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi) :=
-  BaseGateSameCircuitWitness.finIdentityProgram
-    (targetAdd2Program srcLo tgtLo srcHi tgtHi
-      hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
+  fun label =>
+    QubitPrimitive.applyLabel (.cnot srcLo tgtLo hSrcLoTgtLo)
+      (QubitPrimitive.applyLabel (.cnot srcHi tgtHi hSrcHiTgtHi)
+        (QubitPrimitive.applyLabel
+          (.toffoli srcLo tgtLo tgtHi
+            hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi)
+          label))
 
 end Raw
 
@@ -118,7 +109,7 @@ theorem sumGates_bitDisjoint
 /-- Base-gate program for the local two-control xor/sum block. -/
 def sumProgram (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
-    BaseGateProgram encoding.width :=
+    UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (sumGates left carry target hlt hct)
 
 /-- Folded semantic action of the local two-control xor/sum block. -/
@@ -168,17 +159,9 @@ theorem sumStep_get_of_target_ne
 /-- The local two-control xor/sum program realizes its folded bit semantics. -/
 theorem sum_realizes (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
-    BaseGateProgram.Realizes encoding (sumProgram left carry target hlt hct)
+    UnitaryCircuit.Realizes encoding (sumProgram left carry target hlt hct)
       (sumStep left carry target hlt hct) :=
   EncodedBit.GateSpec.realizesList (sumGates left carry target hlt hct)
-
-/-- Same-Circuit witness for the local two-control xor/sum block. -/
-def sumWitness (left carry target : EncodedBit encoding)
-    (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
-    BaseGateSameCircuitWitness Data (sumStep left carry target hlt hct) where
-  encoding := encoding
-  program := sumProgram left carry target hlt hct
-  realizes := sum_realizes left carry target hlt hct
 
 /-- Three Toffoli gates that xor the pairwise-control products
 `left ∧ right`, `left ∧ carryIn`, and `right ∧ carryIn` into a separate
@@ -234,7 +217,7 @@ def carryOutProgram (left right carryIn carryOut : EncodedBit encoding)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
     (hrco : right.wire ≠ carryOut.wire)
     (hcico : carryIn.wire ≠ carryOut.wire) :
-    BaseGateProgram encoding.width :=
+    UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList
     (carryOutGates left right carryIn carryOut
       hlr hlci hlco hrci hrco hcico)
@@ -307,6 +290,61 @@ def borrowOutGates
     hms hmbi hmbo hsbi hsbo hbibo ++
   [EncodedBit.GateSpec.x minuend]
 
+/-- One subtract-borrow block has two X gates around three Toffoli gates. -/
+@[simp] theorem borrowOutGates_length
+    (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
+    (hms : minuend.wire ≠ subtrahend.wire)
+    (hmbi : minuend.wire ≠ borrowIn.wire)
+    (hmbo : minuend.wire ≠ borrowOut.wire)
+    (hsbi : subtrahend.wire ≠ borrowIn.wire)
+    (hsbo : subtrahend.wire ≠ borrowOut.wire)
+    (hbibo : borrowIn.wire ≠ borrowOut.wire) :
+    (borrowOutGates minuend subtrahend borrowIn borrowOut
+      hms hmbi hmbo hsbi hsbo hbibo).length = 5 := by
+  simp [borrowOutGates, carryOutGates]
+
+/-- Exact X coordinate of one subtract-borrow block. -/
+@[simp] theorem borrowOutGates_xMultiplicity_sum
+    (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
+    (hms : minuend.wire ≠ subtrahend.wire)
+    (hmbi : minuend.wire ≠ borrowIn.wire)
+    (hmbo : minuend.wire ≠ borrowOut.wire)
+    (hsbi : subtrahend.wire ≠ borrowIn.wire)
+    (hsbo : subtrahend.wire ≠ borrowOut.wire)
+    (hbibo : borrowIn.wire ≠ borrowOut.wire) :
+    ((borrowOutGates minuend subtrahend borrowIn borrowOut
+      hms hmbi hmbo hsbi hsbo hbibo).map
+        EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
+  simp [borrowOutGates, carryOutGates]
+
+/-- One subtract-borrow block contains no CNOT gate. -/
+@[simp] theorem borrowOutGates_cnotMultiplicity_sum
+    (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
+    (hms : minuend.wire ≠ subtrahend.wire)
+    (hmbi : minuend.wire ≠ borrowIn.wire)
+    (hmbo : minuend.wire ≠ borrowOut.wire)
+    (hsbi : subtrahend.wire ≠ borrowIn.wire)
+    (hsbo : subtrahend.wire ≠ borrowOut.wire)
+    (hbibo : borrowIn.wire ≠ borrowOut.wire) :
+    ((borrowOutGates minuend subtrahend borrowIn borrowOut
+      hms hmbi hmbo hsbi hsbo hbibo).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+  simp [borrowOutGates, carryOutGates]
+
+/-- Exact Toffoli coordinate of one subtract-borrow block. -/
+@[simp] theorem borrowOutGates_toffoliMultiplicity_sum
+    (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
+    (hms : minuend.wire ≠ subtrahend.wire)
+    (hmbi : minuend.wire ≠ borrowIn.wire)
+    (hmbo : minuend.wire ≠ borrowOut.wire)
+    (hsbi : subtrahend.wire ≠ borrowIn.wire)
+    (hsbo : subtrahend.wire ≠ borrowOut.wire)
+    (hbibo : borrowIn.wire ≠ borrowOut.wire) :
+    ((borrowOutGates minuend subtrahend borrowIn borrowOut
+      hms hmbi hmbo hsbi hsbo hbibo).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
+  simp [borrowOutGates, carryOutGates]
+
 /-- The local borrow-output gate list is disjoint from an observed bit when all
 four participating wires are disjoint from it. -/
 theorem borrowOutGates_bitDisjoint
@@ -346,7 +384,7 @@ def borrowOutProgram
     (hsbi : subtrahend.wire ≠ borrowIn.wire)
     (hsbo : subtrahend.wire ≠ borrowOut.wire)
     (hbibo : borrowIn.wire ≠ borrowOut.wire) :
-    BaseGateProgram encoding.width :=
+    UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList
     (borrowOutGates minuend subtrahend borrowIn borrowOut
       hms hmbi hmbo hsbi hsbo hbibo)
@@ -374,7 +412,7 @@ theorem borrowOut_realizes
     (hsbi : subtrahend.wire ≠ borrowIn.wire)
     (hsbo : subtrahend.wire ≠ borrowOut.wire)
     (hbibo : borrowIn.wire ≠ borrowOut.wire) :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (borrowOutProgram minuend subtrahend borrowIn borrowOut
         hms hmbi hmbo hsbi hsbo hbibo)
       (borrowOutStep minuend subtrahend borrowIn borrowOut
@@ -382,26 +420,6 @@ theorem borrowOut_realizes
   EncodedBit.GateSpec.realizesList
     (borrowOutGates minuend subtrahend borrowIn borrowOut
       hms hmbi hmbo hsbi hsbo hbibo)
-
-/-- Same-Circuit witness for the local separate-output borrow block. -/
-def borrowOutWitness
-    (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
-    (hms : minuend.wire ≠ subtrahend.wire)
-    (hmbi : minuend.wire ≠ borrowIn.wire)
-    (hmbo : minuend.wire ≠ borrowOut.wire)
-    (hsbi : subtrahend.wire ≠ borrowIn.wire)
-    (hsbo : subtrahend.wire ≠ borrowOut.wire)
-    (hbibo : borrowIn.wire ≠ borrowOut.wire) :
-    BaseGateSameCircuitWitness Data
-      (borrowOutStep minuend subtrahend borrowIn borrowOut
-        hms hmbi hmbo hsbi hsbo hbibo) where
-  encoding := encoding
-  program :=
-    borrowOutProgram minuend subtrahend borrowIn borrowOut
-      hms hmbi hmbo hsbi hsbo hbibo
-  realizes :=
-    borrowOut_realizes minuend subtrahend borrowIn borrowOut
-      hms hmbi hmbo hsbi hsbo hbibo
 
 /-- Closed-form output readout of the local separate-output borrow block. -/
 theorem borrowOutStep_get_borrowOut
@@ -786,7 +804,7 @@ theorem carryOut_realizes (left right carryIn carryOut : EncodedBit encoding)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
     (hrco : right.wire ≠ carryOut.wire)
     (hcico : carryIn.wire ≠ carryOut.wire) :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (carryOutProgram left right carryIn carryOut
         hlr hlci hlco hrci hrco hcico)
       (carryOutStep left right carryIn carryOut
@@ -794,21 +812,6 @@ theorem carryOut_realizes (left right carryIn carryOut : EncodedBit encoding)
   EncodedBit.GateSpec.realizesList
     (carryOutGates left right carryIn carryOut
       hlr hlci hlco hrci hrco hcico)
-
-/-- Same-Circuit witness for the local separate-output carry block. -/
-def carryOutWitness (left right carryIn carryOut : EncodedBit encoding)
-    (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
-    (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
-    (hrco : right.wire ≠ carryOut.wire)
-    (hcico : carryIn.wire ≠ carryOut.wire) :
-    BaseGateSameCircuitWitness Data
-      (carryOutStep left right carryIn carryOut
-        hlr hlci hlco hrci hrco hcico) where
-  encoding := encoding
-  program := carryOutProgram left right carryIn carryOut
-    hlr hlci hlco hrci hrco hcico
-  realizes := carryOut_realizes left right carryIn carryOut
-    hlr hlci hlco hrci hrco hcico
 
 /-- Local encoded two-bit target-add block: compute the low-bit carry into the
 high target bit, then xor the high and low source bits into the target pair.
@@ -831,7 +834,7 @@ def targetAdd2Program (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
     (hSrcLoTgtHi : srcLo.wire ≠ tgtHi.wire)
     (hTgtLoTgtHi : tgtLo.wire ≠ tgtHi.wire)
     (hSrcHiTgtHi : srcHi.wire ≠ tgtHi.wire) :
-    BaseGateProgram encoding.width :=
+    UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList
     (targetAdd2Gates srcLo tgtLo srcHi tgtHi
       hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
@@ -854,7 +857,7 @@ theorem targetAdd2_realizes (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
     (hSrcLoTgtHi : srcLo.wire ≠ tgtHi.wire)
     (hTgtLoTgtHi : tgtLo.wire ≠ tgtHi.wire)
     (hSrcHiTgtHi : srcHi.wire ≠ tgtHi.wire) :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (targetAdd2Program srcLo tgtLo srcHi tgtHi
         hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
       (targetAdd2Step srcLo tgtLo srcHi tgtHi
@@ -862,21 +865,6 @@ theorem targetAdd2_realizes (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
   EncodedBit.GateSpec.realizesList
     (targetAdd2Gates srcLo tgtLo srcHi tgtHi
       hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
-
-/-- Same-Circuit witness for the local encoded two-bit target-add block. -/
-def targetAdd2Witness (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
-    (hSrcLoTgtLo : srcLo.wire ≠ tgtLo.wire)
-    (hSrcLoTgtHi : srcLo.wire ≠ tgtHi.wire)
-    (hTgtLoTgtHi : tgtLo.wire ≠ tgtHi.wire)
-    (hSrcHiTgtHi : srcHi.wire ≠ tgtHi.wire) :
-    BaseGateSameCircuitWitness Data
-      (targetAdd2Step srcLo tgtLo srcHi tgtHi
-        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi) where
-  encoding := encoding
-  program := targetAdd2Program srcLo tgtLo srcHi tgtHi
-    hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi
-  realizes := targetAdd2_realizes srcLo tgtLo srcHi tgtHi
-    hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi
 
 /-- A three-gate majority-style carry-propagation block.  The exact Boolean
 meaning is the folded action of the listed encoded-bit gates; full adder
@@ -909,14 +897,14 @@ def unmajorityGates (left right carry : EncodedBit encoding)
 /-- Base-gate program for the local majority-style block. -/
 def majorityProgram (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) : BaseGateProgram encoding.width :=
+    (hrc : right.wire ≠ carry.wire) : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList
     (majorityGates left right carry hlr hlc hrc)
 
 /-- Base-gate program for the reverse cleanup block. -/
 def unmajorityProgram (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) : BaseGateProgram encoding.width :=
+    (hrc : right.wire ≠ carry.wire) : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList
     (unmajorityGates left right carry hlr hlc hrc)
 
@@ -938,7 +926,7 @@ def unmajorityStep (left right carry : EncodedBit encoding)
 theorem majority_realizes (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
     (hrc : right.wire ≠ carry.wire) :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (majorityProgram left right carry hlr hlc hrc)
       (majorityStep left right carry hlr hlc hrc) :=
   EncodedBit.GateSpec.realizesList
@@ -948,31 +936,11 @@ theorem majority_realizes (left right carry : EncodedBit encoding)
 theorem unmajority_realizes (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
     (hrc : right.wire ≠ carry.wire) :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (unmajorityProgram left right carry hlr hlc hrc)
       (unmajorityStep left right carry hlr hlc hrc) :=
   EncodedBit.GateSpec.realizesList
     (unmajorityGates left right carry hlr hlc hrc)
-
-/-- Same-Circuit witness for the local majority-style block. -/
-def majorityWitness (left right carry : EncodedBit encoding)
-    (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) :
-    BaseGateSameCircuitWitness Data
-      (majorityStep left right carry hlr hlc hrc) where
-  encoding := encoding
-  program := majorityProgram left right carry hlr hlc hrc
-  realizes := majority_realizes left right carry hlr hlc hrc
-
-/-- Same-Circuit witness for the reverse cleanup block. -/
-def unmajorityWitness (left right carry : EncodedBit encoding)
-    (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) :
-    BaseGateSameCircuitWitness Data
-      (unmajorityStep left right carry hlr hlc hrc) where
-  encoding := encoding
-  program := unmajorityProgram left right carry hlr hlc hrc
-  realizes := unmajority_realizes left right carry hlr hlc hrc
 
 end Encoded
 
@@ -980,3 +948,5 @@ end
 
 end BitSlice
 end QuantumAlg
+
+end

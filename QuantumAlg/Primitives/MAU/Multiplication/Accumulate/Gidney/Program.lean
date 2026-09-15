@@ -1,0 +1,159 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Stages
+import all QuantumAlg.Util.Nat.FixedWidth.Modular.Word.Accumulate
+
+/-!
+# Actual all-width modular multiply-accumulate
+
+The source is scanned from least significant to most significant bit. Each
+actual stage adds the independently precomputed residue `a * 2^i mod N`.
+This combines the proved pivot-flip offset [G17, paper.tex:319-334] with
+the binary selected-add recurrence [VBE95, 9511018.tex:333-367]. The source
+and target are the only quantum words, and both are retained at the output.
+Zero coefficients, even moduli, and modulus one require no special input state.
+-/
+
+namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
+
+noncomputable section
+
+open Nat.FixedWidth
+
+/-- Execute the first in-bounds source-bit stages in their actual sequential order. -/
+def prefixProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
+    (count : Nat) → count ≤ width → UnitaryCircuit (Qubits (encoding width).width)
+  | 0, _ => UnitaryCircuit.identity (Qubits (encoding width).width) [] (by simp)
+  | index + 1, within => (prefixProgram width modulus coefficient index (by omega)).seq
+      (stageProgram width ⟨index, by omega⟩ modulus
+        (accumulateConstant modulus coefficient index))
+
+/-- Independent arithmetic output of an executed prefix. -/
+def prefixOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat)
+    (state : Registers width) : Registers width :=
+  (state.1, accumulateWordPrefix modulus coefficient state.1 state.2 count)
+
+theorem gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient count : Nat) (within : count ≤ width) :
+    UnitaryCircuit.Realizes (encoding width)
+      (prefixProgram width modulus coefficient count within)
+      (prefixOutput modulus coefficient count) := by
+  induction count with
+  | zero =>
+      apply (UnitaryCircuit.Realizes.identity (encoding width)).congrStep
+      rintro ⟨source, target⟩
+      rfl
+  | succ index ih =>
+      apply ((ih (by omega)).seq
+        (gidneyStage_realizes width ⟨index, by omega⟩ modulus
+          (accumulateConstant modulus coefficient index))).congrStep
+      rintro ⟨source, target⟩
+      rfl
+
+theorem gidneyAccumulatePrefix_physical_range (width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width) :
+    (prefixProgram width modulus coefficient count within).physical_idx ⊆
+      List.range (2 * width) := by
+  induction count with
+  | zero =>
+      intro wire membership
+      cases membership
+  | succ index ih =>
+      exact UnitaryCircuit.seq_physical_idx_subset _ _ (ih (by omega))
+        (gidneyStage_physical_range width ⟨index, by omega⟩ modulus
+          (accumulateConstant modulus coefficient index))
+
+/-- The circuit-facing independent event envelope is linear in the number of scanned bits. -/
+theorem gidneyAccumulatePrefix_event_count_bound (width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width) :
+    (prefixProgram width modulus coefficient count within).eventCost.card ≤
+      count * stageEventBound width := by
+  induction count with
+  | zero =>
+      change 0 ≤ 0 * stageEventBound width
+      omega
+  | succ index ih =>
+      change ((prefixProgram width modulus coefficient index (by omega)).seq
+        (stageProgram width ⟨index, by omega⟩ modulus
+          (accumulateConstant modulus coefficient index))).eventCost.card ≤ _
+      rw [UnitaryCircuit.seq_eventCost, Multiset.card_add, Nat.succ_mul]
+      have hprefix := ih (by omega)
+      have hstage := gidneyStage_event_count_bound width ⟨index, by omega⟩ modulus
+        (accumulateConstant modulus coefficient index)
+      omega
+
+/-- The final zero-event identity declares the complete existing source and target carrier. -/
+def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
+    UnitaryCircuit (Qubits (encoding width).width) :=
+  (prefixProgram width modulus coefficient width (Nat.le_refl width)).seq
+    (UnitaryCircuit.identity (Qubits (encoding width).width) (List.range (2 * width))
+      List.nodup_range)
+
+/-- Exact all-label coherent action of the actual complete multiply-accumulate program. -/
+theorem gidneyAccumulate_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient)
+      (prefixOutput modulus coefficient width) := by
+  apply ((gidneyAccumulatePrefix_realizes width modulus coefficient width (Nat.le_refl width)).seq
+    (UnitaryCircuit.Realizes.identityAt (encoding width) (List.range (2 * width))
+      List.nodup_range)).congrStep
+  intro state
+  rfl
+
+/-- Every original source and target wire is present; no external borrowed bit is allocated. -/
+theorem gidneyAccumulate_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) :
+    (program width modulus coefficient).physical_idx = List.range (2 * width) := by
+  change (prefixProgram width modulus coefficient width (Nat.le_refl width)).physical_idx ∪
+    List.range (2 * width) = List.range (2 * width)
+  exact (gidneyAccumulatePrefix_physical_range width modulus coefficient width
+    (Nat.le_refl width)).union_eq_right
+
+/-- Complete source preservation is part of the independent output on every label. -/
+theorem gidneyAccumulate_source (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (state : Registers width) :
+    (prefixOutput modulus coefficient width state).1 = state.1 := rfl
+
+/-- On canonical accumulators, the exact output is `y + a*x mod N` for every source word. -/
+theorem gidneyAccumulate_valid (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (state : Registers width) (valid : state.2.val < modulus.val) :
+    (prefixOutput modulus coefficient width state).2.val =
+      (state.2.val + coefficient * state.1.val) % modulus.val :=
+  accumulateWordPrefix_full modulus coefficient state.1 state.2 valid
+
+/-- The exact extension fixes all noncanonical accumulator labels and preserves the source. -/
+theorem gidneyAccumulate_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (state : Registers width) (outside : modulus.val ≤ state.2.val) :
+    prefixOutput modulus coefficient width state = state := by
+  rcases state with ⟨source, target⟩
+  exact congrArg (fun word => (source, word))
+    (accumulateWordPrefix_outside modulus coefficient source target outside width)
+
+/-- The actual full program meets the independently stated numerical event envelope. -/
+theorem gidneyAccumulate_event_count_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) :
+    (program width modulus coefficient).eventCost.card ≤ width * stageEventBound width := by
+  change ((prefixProgram width modulus coefficient width (Nat.le_refl width)).seq
+    (UnitaryCircuit.identity (Qubits (encoding width).width)
+      (List.range (2 * width)) List.nodup_range)).eventCost.card ≤ _
+  rw [UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
+  exact gidneyAccumulatePrefix_event_count_bound width modulus coefficient width (Nat.le_refl width)
+
+/-- External encoded references are preserved jointly by the exact two-word circuit. -/
+theorem gidneyAccumulate_realizes_with_reference {Reference : Type}
+    (reference : BinaryLabelEncoding Reference) (width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
+    UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
+      (UnitaryCircuit.prodLeft (n := reference.width) (program width modulus coefficient))
+      (fun state => (prefixOutput modulus coefficient width state.1, state.2)) :=
+  (gidneyAccumulate_realizes width modulus coefficient).prodLeft
+
+end
+
+end QuantumAlg.MAU.Multiplication.Accumulate.Gidney

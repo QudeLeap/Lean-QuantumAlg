@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import Mathlib.Data.ZMod.Basic
+import QuantumAlg.Init
+import Mathlib.Data.ZMod.Basic
 
 /-!
 # Binary residue-register encoding
@@ -23,7 +23,7 @@ modular addition, multiplication, and exponentiation [VBE95,
 9511018.tex:107-115, 276-286] [Bea02, arxivfact.tex:97-118].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -72,14 +72,20 @@ theorem decode_val {N n : ℕ} (E : BinaryResidueEncoding N n) (x : Fin (2 ^ n))
 /-- Encoding always produces a canonical register label. -/
 theorem encode_isValid {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
     E.IsValid (E.encode z) := by
-  haveI : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
+  let _ : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
   simpa [IsValid, encode] using ZMod.val_lt z
 
 @[simp]
 theorem decode_encode {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
     E.decode (E.encode z) = z := by
-  haveI : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
+  let _ : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
   simp [decode, encode]
+
+/-- Canonical binary encoding does not identify distinct residues. -/
+theorem encode_injective {N n : ℕ} (E : BinaryResidueEncoding N n) :
+    Function.Injective E.encode := by
+  intro left right h
+  rw [← E.decode_encode left, ← E.decode_encode right, h]
 
 /-- Valid canonical labels round-trip through `decode` and `encode`. -/
 theorem encode_decode_of_valid {N n : ℕ} (E : BinaryResidueEncoding N n)
@@ -92,3 +98,5 @@ theorem encode_decode_of_valid {N n : ℕ} (E : BinaryResidueEncoding N n)
 end BinaryResidueEncoding
 
 end QuantumAlg
+
+end

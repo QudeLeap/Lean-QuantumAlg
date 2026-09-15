@@ -6,8 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.ResidueEncoding
+import QuantumAlg.Init
+import all QuantumAlg.Util.ResidueEncoding
+public import Mathlib.Algebra.Field.ZMod
 public import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
 
 /-!
@@ -22,14 +23,14 @@ prime-field elliptic-curve discrete-logarithm setup used by Proos--Zalka
 [RNSL17, ECDLP.tex:129-194].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
 
 /-- A short-Weierstrass curve `y^2 = x^3 + ax + b` over `ZMod p`, with the
 prime-field and nonsingularity assumptions kept explicit. -/
-structure PrimeFieldShortWeierstrass (p : ℕ) where
+public structure PrimeFieldShortWeierstrass (p : ℕ) where
   /-- The field characteristic is prime. -/
   prime : p.Prime
   /-- Circuit targets use the short-Weierstrass form away from characteristics 2 and 3. -/
@@ -47,7 +48,7 @@ variable {p n : ℕ} (E : PrimeFieldShortWeierstrass p)
 
 /-- The corresponding Mathlib Weierstrass curve with `a₁=a₂=a₃=0`, `a₄=a`,
 and `a₆=b`. -/
-def toWeierstrassCurve : WeierstrassCurve (ZMod p) where
+public def toWeierstrassCurve : WeierstrassCurve (ZMod p) where
   a₁ := 0
   a₂ := 0
   a₃ := 0
@@ -123,8 +124,32 @@ end FinitePoint
 /-- Mathlib's nonsingular affine point type for the associated Weierstrass curve.
 This is the bridge to the established affine group-law API; the local `Point`
 type stays as the lightweight circuit-target representation policy. -/
-abbrev MathlibPoint : Type :=
+public abbrev MathlibPoint : Type :=
   E.toWeierstrassCurve.toAffine.Point
+
+/-- Multiplicative wrapper around Mathlib's affine elliptic-curve group.  The
+curve stored in the type supplies the prime-field instance internally, so
+downstream ECDLP statements use the actual group law without an additional
+`Fact p.Prime` assumption. -/
+public structure GroupPoint (E : PrimeFieldShortWeierstrass p) where
+  /-- Underlying Mathlib point, including the point at infinity. -/
+  toMathlib : E.MathlibPoint
+deriving DecidableEq
+
+/-- The representation equivalence used to transport Mathlib's additive group
+law to the multiplicative convention expected by finite-cyclic DLP. -/
+public def groupPointEquiv (E : PrimeFieldShortWeierstrass p) :
+    GroupPoint E ≃ Multiplicative E.MathlibPoint where
+  toFun := fun P => Multiplicative.ofAdd P.toMathlib
+  invFun := fun P => ⟨Multiplicative.toAdd P⟩
+  left_inv := fun _ => rfl
+  right_inv := fun _ => rfl
+
+/-- Actual elliptic-curve group structure, transported from Mathlib. -/
+public noncomputable instance instGroupGroupPoint (E : PrimeFieldShortWeierstrass p) :
+    Group (GroupPoint E) := by
+  letI : Fact p.Prime := ⟨E.prime⟩
+  exact (groupPointEquiv E).group
 
 /-- A finite-point encoding convention for affine curve points. The point at
 infinity is intentionally outside this pair encoding and must be represented by
@@ -198,32 +223,151 @@ theorem encodeFinite_injective {E : PrimeFieldShortWeierstrass p}
 
 end PointEncoding
 
+/-- A nonsingular finite affine point on the selected prime-field curve.  This
+is the canonical finite-point carrier shared by the mathematical ECDLP model
+and the reusable circuit layer. -/
+public structure AffinePoint (E : PrimeFieldShortWeierstrass p) where
+  /-- Affine `x` coordinate over the prime field. -/
+  x : ZMod p
+  /-- Affine `y` coordinate over the prime field. -/
+  y : ZMod p
+  /-- Nonsingularity proof for the coordinate pair on the selected curve. -/
+  nonsingular : E.toWeierstrassCurve.toAffine.Nonsingular x y
+deriving DecidableEq
+
+noncomputable instance instFintypeAffinePoint
+    (E : PrimeFieldShortWeierstrass p) [NeZero p] :
+    Fintype (AffinePoint E) := by
+  classical
+  let e :
+      AffinePoint E ≃
+        {xy : ZMod p × ZMod p //
+          E.toWeierstrassCurve.toAffine.Nonsingular xy.1 xy.2} := {
+    toFun := fun P => ⟨(P.x, P.y), P.nonsingular⟩
+    invFun := fun P => { x := P.1.1, y := P.1.2, nonsingular := P.2 }
+    left_inv := by
+      intro P
+      cases P
+      rfl
+    right_inv := by
+      intro P
+      rcases P with ⟨xy, hxy⟩
+      rcases xy with ⟨x, y⟩
+      rfl
+  }
+  exact Fintype.ofEquiv
+    {xy : ZMod p × ZMod p //
+      E.toWeierstrassCurve.toAffine.Nonsingular xy.1 xy.2} e.symm
+
+namespace AffinePoint
+
+/-- Coordinate extensionality for finite affine points. -/
+theorem ext_coordinates {E : PrimeFieldShortWeierstrass p}
+    (P Q : AffinePoint E) (hx : P.x = Q.x) (hy : P.y = Q.y) :
+    P = Q := by
+  cases P with
+  | mk px py pnonsingular =>
+      cases Q with
+      | mk qx qy qnonsingular =>
+          cases hx
+          cases hy
+          congr
+
+/-- View a finite affine point as Mathlib's nonsingular affine point. -/
+public def toMathlib {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
+    E.MathlibPoint :=
+  .some P.x P.y P.nonsingular
+
+/-- View a finite affine point in the actual multiplicative elliptic-curve
+group used by the finite-cyclic DLP reduction. -/
+public def toGroupPoint {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
+    GroupPoint E :=
+  ⟨P.toMathlib⟩
+
+/-- Forget the nonsingularity witness and keep the finite-point equation. -/
+def toFinitePoint {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
+    FinitePoint E where
+  x := P.x
+  y := P.y
+  equation := (E.affineEquation_iff_mathlib_equation P.x P.y).mp P.nonsingular.1
+
+/-- View a finite affine point as the finite branch of the lightweight curve
+point type. -/
+def toCurvePoint {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
+    Point E :=
+  P.toFinitePoint.toPoint
+
+@[simp] theorem toCurvePoint_isFinite {E : PrimeFieldShortWeierstrass p}
+    (P : AffinePoint E) :
+    Point.IsFinite E P.toCurvePoint :=
+  trivial
+
+@[simp] theorem toCurvePoint_not_infinity {E : PrimeFieldShortWeierstrass p}
+    (P : AffinePoint E) :
+    ¬ Point.IsInfinity E P.toCurvePoint := by
+  simp [toCurvePoint, FinitePoint.toPoint, Point.IsInfinity]
+
+/-- Encode a finite affine point by its canonical residue coordinates. -/
+def encode {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+    (encoding : PointEncoding E n) (P : AffinePoint E) :
+    Fin (2 ^ n) × Fin (2 ^ n) :=
+  encoding.encodeFinite P.toFinitePoint
+
+theorem encode_isValid {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+    (encoding : PointEncoding E n) (P : AffinePoint E) :
+    encoding.IsValidFiniteEncoding (P.encode encoding) :=
+  encoding.encodeFinite_isValid P.toFinitePoint
+
+theorem decodeFiniteCoordinates_encode
+    {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+    (encoding : PointEncoding E n) (P : AffinePoint E) :
+    encoding.decodeFiniteCoordinates (P.encode encoding) = (P.x, P.y) := by
+  simp [encode, PointEncoding.decodeFiniteCoordinates,
+    PointEncoding.encodeFinite, toFinitePoint]
+
+theorem encode_ext {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+    (encoding : PointEncoding E n) {P Q : AffinePoint E}
+    (h : P.encode encoding = Q.encode encoding) :
+    P.x = Q.x ∧ P.y = Q.y :=
+  encoding.encodeFinite_ext h
+
+theorem encode_injective {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+    (encoding : PointEncoding E n) :
+    Function.Injective (fun P : AffinePoint E => P.encode encoding) := by
+  intro P Q h
+  exact ext_coordinates P Q (encode_ext encoding h).1 (encode_ext encoding h).2
+
+end AffinePoint
+
 /-- An elliptic-curve discrete-logarithm instance over the selected finite
-short-Weierstrass curve. The scalar-multiplication map is supplied as the
-mathematical bridge to later finite-cyclic DLP endpoints; reversible circuit
-implementations live in the primitive layer. -/
-structure ECDLPInstance (E : PrimeFieldShortWeierstrass p) where
+short-Weierstrass curve.  Its subgroup and target promises are stated directly
+in the actual Mathlib elliptic-curve group; reversible circuit implementations
+remain in the primitive layer. -/
+public structure ECDLPInstance (E : PrimeFieldShortWeierstrass p) where
   /-- Order of the cyclic subgroup generated by the base point. -/
   subgroupOrder : ℕ
   /-- The subgroup order is positive. -/
   subgroupOrder_pos : 0 < subgroupOrder
+  /-- The public ECDLP subgroup order is prime. -/
+  subgroupOrder_prime : subgroupOrder.Prime
   /-- Base point whose multiples define the subgroup. -/
-  basePoint : FinitePoint E
+  basePoint : AffinePoint E
   /-- Target point promised to lie in the subgroup generated by `basePoint`. -/
-  targetPoint : FinitePoint E
-  /-- Scalar multiplication by residues modulo the subgroup order. -/
-  scalarMultiplication : ZMod subgroupOrder → FinitePoint E
-  /-- Scalar one recovers the base point. -/
-  scalar_one : scalarMultiplication 1 = basePoint
-  /-- The target point lies in the image of the scalar-multiplication map. -/
-  target_mem_span : ∃ m : ZMod subgroupOrder, scalarMultiplication m = targetPoint
+  targetPoint : AffinePoint E
+  /-- The declared subgroup order is the actual order of the base point. -/
+  subgroupOrder_eq_orderOf :
+    subgroupOrder = orderOf basePoint.toGroupPoint
+  /-- The target lies in the actual cyclic subgroup generated by the base. -/
+  target_mem_span :
+    ∃ m : ZMod subgroupOrder,
+      basePoint.toGroupPoint ^ m.val = targetPoint.toGroupPoint
 
 namespace ECDLPInstance
 
 /-- Candidate scalars for an elliptic-curve discrete-logarithm instance. -/
 def CandidateScalar {E : PrimeFieldShortWeierstrass p}
     (I : ECDLPInstance E) (m : ZMod I.subgroupOrder) : Prop :=
-  I.scalarMultiplication m = I.targetPoint
+  I.basePoint.toGroupPoint ^ m.val = I.targetPoint.toGroupPoint
 
 /-- The stored subgroup promise gives at least one candidate scalar. -/
 theorem exists_candidateScalar {E : PrimeFieldShortWeierstrass p}
@@ -237,3 +381,5 @@ end PrimeFieldShortWeierstrass
 
 end EllipticCurve
 end QuantumAlg
+
+end

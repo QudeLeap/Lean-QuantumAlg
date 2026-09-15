@@ -6,11 +6,12 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Algebra.Polynomial.Degree.Lemmas
-public import Mathlib.Algebra.Polynomial.Roots
-public import Mathlib.Order.Interval.Set.Infinite
-public import QuantumAlg.Util.Complex
+public import Mathlib.Data.Complex.Basic
+import Mathlib.Algebra.Polynomial.Roots
+import Mathlib.Order.Interval.Set.Infinite
+import all QuantumAlg.Util.Complex
 
 /-!
 # Polynomial helper lemmas (quantum-free)
@@ -30,7 +31,7 @@ no dependency on the quantum framework:
 These are upstream candidates for Mathlib; nothing here mentions `Gate`/`PureState`.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -39,7 +40,7 @@ open Polynomial Complex
 /-! ### Real-to-complex coefficient lift -/
 
 /-- Lift a real-coefficient polynomial to complex coefficients. -/
-noncomputable def realPolynomialToComplex (P : ℝ[X]) : ℂ[X] :=
+public noncomputable def realPolynomialToComplex (P : ℝ[X]) : ℂ[X] :=
   P.map (algebraMap ℝ ℂ)
 
 @[simp]
@@ -110,11 +111,13 @@ theorem realPolynomialToComplex_coeff_eq_zero_of_natDegree_lt {P : ℝ[X]} {m : 
 
 /-- Real part of a complex-coefficient polynomial, taken coefficientwise. -/
 noncomputable def complexPolynomialRealPart (P : ℂ[X]) : ℝ[X] :=
-  Polynomial.ofFinsupp (P.toFinsupp.mapRange Complex.re (by simp))
+  Polynomial.ofFinsupp (.ofCoeff <|
+    P.toFinsupp.coeff.mapRange Complex.re (by simp))
 
 /-- Imaginary part of a complex-coefficient polynomial, taken coefficientwise. -/
 noncomputable def complexPolynomialImagPart (P : ℂ[X]) : ℝ[X] :=
-  Polynomial.ofFinsupp (P.toFinsupp.mapRange Complex.im (by simp))
+  Polynomial.ofFinsupp (.ofCoeff <|
+    P.toFinsupp.coeff.mapRange Complex.im (by simp))
 
 @[simp]
 theorem complexPolynomialRealPart_coeff (P : ℂ[X]) (n : ℕ) :
@@ -178,11 +181,13 @@ theorem complexPolynomialImagPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
 
 /-- Even coefficient part of a real polynomial. -/
 noncomputable def realPolynomialEvenPart (P : ℝ[X]) : ℝ[X] :=
-  Polynomial.ofFinsupp (P.toFinsupp.filter fun n => n % 2 = 0)
+  Polynomial.ofFinsupp (.ofCoeff <|
+    P.toFinsupp.coeff.filter fun n => n % 2 = 0)
 
 /-- Odd coefficient part of a real polynomial. -/
 noncomputable def realPolynomialOddPart (P : ℝ[X]) : ℝ[X] :=
-  Polynomial.ofFinsupp (P.toFinsupp.filter fun n => n % 2 = 1)
+  Polynomial.ofFinsupp (.ofCoeff <|
+    P.toFinsupp.coeff.filter fun n => n % 2 = 1)
 
 @[simp]
 theorem realPolynomialEvenPart_coeff (P : ℝ[X]) (n : ℕ) :
@@ -739,7 +744,7 @@ theorem realPolynomialToComplex_rootMultiplicity_ofReal (P : ℝ[X]) (x : ℝ) :
 
 /-- `conjP P` conjugates every coefficient of `P : ℂ[X]`; this is the `P*` of
 the QSP literature (for real `x`, `(conjP P).eval x = conj (P.eval x)`). -/
-noncomputable def conjP (P : ℂ[X]) : ℂ[X] := P.map (starRingEnd ℂ)
+public noncomputable def conjP (P : ℂ[X]) : ℂ[X] := P.map (starRingEnd ℂ)
 
 @[simp]
 theorem conjP_coeff (P : ℂ[X]) (k : ℕ) :
@@ -810,7 +815,7 @@ congruent to `p` modulo `2` ("`P` has parity `p mod 2`" in
 [Lin22, hermfunc.tex:1132]). The zero polynomial has every parity. -/
 
 /-- All nonzero coefficients of `P` are in degrees `≡ p (mod 2)`. -/
-def HasParity (P : ℂ[X]) (p : ℕ) : Prop :=
+public def HasParity (P : ℂ[X]) (p : ℕ) : Prop :=
   ∀ k, P.coeff k ≠ 0 → k % 2 = p % 2
 
 theorem HasParity.coeff_eq_zero {P : ℂ[X]} {p : ℕ} (h : HasParity P p) {k : ℕ}
@@ -1227,3 +1232,5 @@ theorem eq_of_circle_eval_eq {F G : ℂ[X]}
   exact h x
 
 end QuantumAlg
+
+end

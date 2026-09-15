@@ -6,8 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Util.Polynomial.Basic
+import all QuantumAlg.Util.Polynomial.Basic
 
 /-!
 # Laurent polynomial evaluation helpers
@@ -15,7 +16,7 @@ public import QuantumAlg.Util.Polynomial.Basic
 Quantum-free helpers for the Fourier/Laurent representation used by QSP.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -25,7 +26,7 @@ noncomputable section
 
 /-- `e^{-iLx/2}·F(e^{ix})`: the value at `z = e^{ix/2}` of the Laurent
 polynomial `z^{-L}·F(z²)` encoded by `F : ℂ[X]`. -/
-def lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) : ℂ :=
+public def lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) : ℂ :=
   Complex.exp (-((L * x / 2 : ℝ) * Complex.I)) *
     F.eval (Complex.exp ((x : ℂ) * Complex.I))
 
@@ -180,3 +181,5 @@ theorem lEval_mul_conj {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ)
 end
 
 end QuantumAlg
+
+end

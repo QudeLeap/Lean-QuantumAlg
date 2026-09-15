@@ -6,18 +6,18 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Certificate
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Complex
-public import QuantumAlg.Util.Polynomial.Basic
-public import Mathlib.Algebra.Polynomial.Degree.Lemmas
-public import Mathlib.Algebra.Polynomial.Roots
-public import Mathlib.Algebra.BigOperators.Group.List.Lemmas
-public import Mathlib.Analysis.Complex.Polynomial.Basic
-public import Mathlib.Data.Real.Basic
-public import Mathlib.Analysis.Real.Sqrt
-public import Mathlib.Topology.Algebra.Polynomial
-public import Mathlib.FieldTheory.IsAlgClosed.Basic
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Certificate
+import QuantumAlg.Init
+import all QuantumAlg.Util.Complex
+import all QuantumAlg.Util.Polynomial.Basic
+import Mathlib.Algebra.Polynomial.Degree.Lemmas
+import Mathlib.Algebra.Polynomial.Roots
+import Mathlib.Algebra.BigOperators.Group.List.Lemmas
+import Mathlib.Analysis.Complex.Polynomial.Basic
+import Mathlib.Data.Real.Basic
+import Mathlib.Analysis.Real.Sqrt
+import Mathlib.Topology.Algebra.Polynomial
+import Mathlib.FieldTheory.IsAlgClosed.Basic
 
 /-!
 # Interval square decompositions
@@ -27,7 +27,7 @@ path.  The source-facing target is the even interval-nonnegative decomposition
 in Gilyen--Su--Low--Wiebe [GSLW19, BlockHam.tex:436-480].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -248,16 +248,6 @@ private theorem exists_Ioo_not_root_of_ne_zero {P : ℝ[X]} (hP : P ≠ 0)
   exact hx.2 (by
     rw [Finset.mem_coe, Multiset.mem_toFinset]
     exact hmem_roots)
-
-private theorem list_count_flatMap {α β : Type*} [BEq β] [LawfulBEq β]
-    (roots : List α) (items : α → List β) (target : β) :
-    (roots.flatMap items).count target =
-      (roots.map fun z => (items z).count target).sum := by
-  induction roots with
-  | nil =>
-      simp
-  | cons z zs ih =>
-      simp [ih]
 
 private theorem list_count_flatMap_replicate_self {α : Type*}
     [BEq α] [LawfulBEq α] (roots : List α) (count : α → ℕ) (target : α)
@@ -8230,3 +8220,5 @@ theorem real_norm_plus_intervalComplexForm_norm_eq_one {P : ℝ[X]}
 end Complement.Interval
 
 end QuantumAlg
+
+end

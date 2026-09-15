@@ -4,19 +4,21 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: QudeLeap Team
 -/
 
-
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Algorithms.EllipticCurve.P256.DomainParameters
-public import QuantumAlg.Algorithms.EllipticCurve.P256.PrimeFieldBridge
 public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources
 
 /-!
-# P-256 ECDLP interface, prime-field MAU bridge, and logical-resource baseline
+# P-256 ECDLP same-run correctness and resources
 
-This file is the stable re-export for the P-256 ECDLP domain and resource
-statement modules.
+This aggregate exposes the original certified P-256 domain and the public
+`Algorithm.Solves` endpoint for one complete actual execution. Its 4,714 rounds
+reuse the quantum bank through charged measurement and correction, run the
+measured controlled point additions and Fourier readout, and check each
+recovered scalar before retaining the first accepted result. The original
+one-percent failure target and arbitrary external reference remain intact.
+
+The same independent problem supplies the public quantum-space coordinates,
+classical-memory ceilings, native-event bound and complete unit-depth bound.
+The numerical ceilings are conservative allowances for this implementation.
 -/
-
-@[expose] public section

@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Complex
-public import QuantumAlg.Util.Polynomial.Laurent
+import QuantumAlg.Init
+import all QuantumAlg.Util.Complex
+import all QuantumAlg.Util.Polynomial.Laurent
 
 /-!
 # Laurent complement problems
@@ -16,7 +16,7 @@ public import QuantumAlg.Util.Polynomial.Laurent
 Stage module for Laurent norm, residual, and bounded-on-circle problems.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -53,3 +53,5 @@ end Complement.Laurent.Problem
 end
 
 end QuantumAlg
+
+end

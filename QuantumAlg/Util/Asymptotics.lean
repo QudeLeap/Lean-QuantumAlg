@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Analysis.Asymptotics.Defs
 public import Mathlib.Order.Filter.AtTopBot.Basic
 
@@ -17,13 +17,13 @@ This module contains small asymptotic wrappers that do not depend on the
 quantum `Gate` or `HilbertOperator` layers.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
 /-- Natural-number resource functions compared by Mathlib's real-valued
 `Asymptotics.IsBigO` relation at infinity. -/
-def NatBigO (f g : ℕ → ℕ) : Prop :=
+public def NatBigO (f g : ℕ → ℕ) : Prop :=
   Asymptotics.IsBigO Filter.atTop
     (fun n : ℕ => (f n : ℝ))
     (fun n : ℕ => (g n : ℝ))
@@ -43,7 +43,17 @@ theorem const_mul_left (c : ℕ) (f : ℕ → ℕ) :
   filter_upwards with n
   simp [norm_mul]
 
+/-- An eventual pointwise natural-number bound supplies the corresponding
+real-valued `NatBigO` certificate. -/
+theorem of_eventually_le_const_mul {f g : ℕ → ℕ} (c : ℕ)
+    (h : ∀ᶠ n in Filter.atTop, f n ≤ c * g n) : NatBigO f g := by
+  refine Asymptotics.IsBigO.of_bound (c : ℝ) ?_
+  filter_upwards [h] with n hn
+  simpa only [Real.norm_natCast, Nat.cast_mul] using (Nat.cast_le.2 hn :
+    (f n : ℝ) ≤ ((c * g n : Nat) : ℝ))
+
 end NatBigO
 
 end QuantumAlg
 
+end

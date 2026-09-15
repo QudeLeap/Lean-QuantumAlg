@@ -6,16 +6,28 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Signal
+import QuantumAlg.Init
+import QuantumAlg.Core.Base
+import QuantumAlg.Core.Base.Accounting.Space
+import QuantumAlg.Components.Oracle.Reflection
+import QuantumAlg.Components.Oracle.BlockEncoding
+import QuantumAlg.Util.Polynomial.Basic
+import QuantumAlg.Util.Asymptotics
+import QuantumAlg.Primitives.QSP.SingleQubit.PhaseSynthesis
+import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Complement
+import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Decomposition
+import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Signal
+import Mathlib.LinearAlgebra.Matrix.Hermitian
+import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Decomposition
+import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Signal
 
 /-!
-# QSVT public witnesses
+# Internal Hermitian QSVT witness
 
-Registry-facing staged endpoints for projected and Hermitian QSVT.
+The arbitrary-real construction is an internal consequence of the signal implementation.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -25,52 +37,11 @@ open scoped Matrix.Norms.L2Operator ComplexOrder
 
 namespace QSVT.Witness
 
-namespace Projected
-
-/-- Staged public projected-QSVT endpoint. -/
-theorem main {N L : Nat} {PRe : Polynomial ℝ} (U : Gate (Qubits N))
-    (left right : OrthogonalProjector N)
-    (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
-    (hL : 0 < L) :
-    ∃ realization :
-        RealProjectedQSVTRealization U left right L
-          (singularValuePolynomial right L (realPolynomialToComplex PRe)
-            (projectedUnitaryBlock left right U)),
-      ProjectedResourceProfile.HasExactCounts
-        (ProjectedResourceProfile.ofLength L) L ∧
-        ResourceProfile.HasExactCounts realization.circuit.resources L 0 L 0 := by
-  exact QSVT.Decomposition.Projected.sourceMain U left right hP hL
-
-end Projected
-
-namespace HermitianRealParity
-
-/-- Staged public real matching-parity Hermitian QSVT endpoint. -/
-theorem main {m n L : Nat} {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
-    (hLpos : 0 < L) :
-    ∃ word : HermitianQSVTWord m (1 + m) n A,
-      word.UsesSignal U ∧
-        ExactBlockEncoding (1 + m) n word.output
-          (polynomialOperator (realPolynomialToComplex PRe) A) ∧
-        word.totalBlockAncilla = m + 1 ∧
-        word.resources = realParityResources m L ∧
-        (realPolynomialToComplex PRe).natDegree ≤ L ∧
-        HasParity (realPolynomialToComplex PRe) L ∧
-        HermitianResourceProfile.HasExactCounts word.resources L 0 1 ((m + 1) * L) ∧
-        NatBigO (fun d : ℕ => (realParityResources m d).oracleQueries) (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (realParityResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
-  exact QSVT.Signal.HermitianRealParity.sourceMain PRe hbe hA hP hLpos
-
-end HermitianRealParity
-
 namespace HermitianRealArbitrary
 
 /-- Staged internal real arbitrary-parity Hermitian QSVT endpoint. -/
 theorem main {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
     (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
     (hdegree : PRe.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |PRe.eval x| ≤ (1 / 2 : ℝ)) :
@@ -79,46 +50,44 @@ theorem main {m n L : Nat}
         ExactBlockEncoding (1 + (1 + m)) n word.output
           (polynomialOperator (realPolynomialToComplex PRe) A) ∧
         word.totalBlockAncilla = m + 2 ∧
-        word.resources = hermitianComplexResources m L ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).oracleQueries)
+        word.eventProfile = hermitianComplexEventProfile m L ∧
+        HermitianEventProfile.HasExactEvents word.eventProfile
+          word.circuit.eventCost ∧
+        SpacePool.count (.quantumSystems 2) word.extraAncillaSpace = 2 ∧
+        SpacePool.count (.quantumSystems 2) word.liveSpace = (1 + (1 + m)) + n ∧
+        HermitianEventProfile.HasExactCounts word.eventProfile
+          (2 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+            ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+          (ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+            ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+          (2 * matchingParityElementaryGates
+              (ReflectionQSPPhaseSynthesis.evenBranchDegree L) +
+            matchingParityElementaryGates
+              (ReflectionQSPPhaseSynthesis.oddBranchDegree L) + 2) ∧
+        NatBigO (fun d : ℕ => (hermitianComplexEventProfile m d).oracleQueries)
           (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).elementaryGates)
+        NatBigO
+          (fun d : ℕ => (hermitianComplexEventProfile m d).elementaryEvents)
           (fun d : ℕ => (m + 1) * d) := by
-  exact QSVT.Signal.HermitianRealArbitrary.sourceMain PRe hbe hA hdegree hbound
+  rcases QSVT.Signal.HermitianRealArbitrary.sourceMain PRe hbe hA hdegree hbound with
+    ⟨word, huses, henc, htotal, hevents⟩
+  have hcounts := hermitianComplexEventProfile_exact m L
+  rw [← hevents] at hcounts
+  have hextra : word.extraAncillaQubits = 2 := by
+    have hfield := word.totalBlockAncilla_eq
+    omega
+  exact ⟨word, huses, henc, htotal, hevents, word.circuit_events,
+    by simp [hextra],
+    word.liveSpace_logicalQubits, hcounts,
+    hermitianComplexEventOracleQueries_bigO m,
+    hermitianComplexElementaryEvents_bigO m⟩
 
 end HermitianRealArbitrary
-
-namespace HermitianComplex
-
-/-- Staged public complex Hermitian QSVT endpoint. -/
-theorem main {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (P : Polynomial ℂ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hdegree : P.natDegree ≤ L)
-    (hbound :
-      ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
-        Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
-    ∃ word : HermitianQSVTWord m (1 + (1 + (1 + m))) n A,
-      word.UsesSignal U ∧
-        BlockEncoding 4 (1 + (1 + (1 + m))) n 0 word.output
-          (polynomialOperator P A) ∧
-        word.totalBlockAncilla = m + 3 ∧
-        word.resources = hermitianComplexFourBranchResources m L ∧
-        P.natDegree ≤ L ∧
-        HermitianResourceProfile.HasExactCounts word.resources
-          (4 * L) 4 3 (4 * ((m + 1) * L)) ∧
-        NatBigO (fun d : ℕ =>
-            (hermitianComplexFourBranchResources m d).oracleQueries)
-          (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ =>
-            (hermitianComplexFourBranchResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
-  exact QSVT.Signal.HermitianComplex.sourceMain P hbe hA hdegree hbound
-
-end HermitianComplex
 
 end QSVT.Witness
 
 end QSP.MultiQubit
 
 end QuantumAlg
+
+end

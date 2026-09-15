@@ -1,0 +1,161 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
+import all QuantumAlg.Primitives.WalshHadamard.Readout.Storage
+import all QuantumAlg.Primitives.WalshHadamard.Readout.Execution
+import all QuantumAlg.Core.Execution.Measurement.Cells
+import all QuantumAlg.Core.Execution.Measurement.Cells.Bounds
+import all QuantumAlg.Core.Execution.Measurement.Sequence
+import all QuantumAlg.Core.Execution.Trace.Bounds
+import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Base.Accounting.Space
+import all QuantumAlg.Core.Base.Accounting.Shape
+import all QuantumAlg.Core.Base.Layout.Qubit.Quantum
+
+/-!
+# Actual complete live storage of Walsh-Hadamard query readout
+
+Every prepared quantum system remains live, including the unmeasured target.
+The actual finite measurement cells and the separately retained packed bit
+string each use n classical bits. There are no released workspaces or hidden
+measurement results. These calculations compare actual visited contexts with
+the independent dimension-indexed problem budget.
+-/
+
+namespace QuantumAlg.WalshHadamard.Readout
+
+noncomputable section
+
+open QuantumAlg.Execution
+
+/-- Closed native capacity formula, independent of every circuit and execution. -/
+private def spaceFormula (n : Nat) : SpacePool .quantum
+  | .classicalBits => 2 * n
+  | .quantumSystems dimension => if (2 : ℕ+) = dimension then n + 1 else 0
+
+private theorem pre_residentSpace : pre.residentSpace = 0 := by
+  ext axis
+  cases axis <;> rfl
+
+private theorem pre_auxiliarySpace : pre.auxiliarySpace = 0 := rfl
+
+private theorem prepared_residentSpace (n : Nat) :
+    (preparedContext n).residentSpace = SpacePool.ofQuantumLayout (runtimeLayout n) := by
+  rw [preparedContext, RuntimeCtx.residentSpace_addOwnedLayout, pre_residentSpace, add_zero]
+
+private theorem prepared_auxiliarySpace (n : Nat) :
+    (preparedContext n).auxiliarySpace = SpacePool.ofQuantumLayout (runtimeLayout n) := by
+  rw [preparedContext, RuntimeCtx.auxiliarySpace_addOwnedLayout, pre_auxiliarySpace, add_zero]
+
+private theorem finiteTwo_bits : CShape.bitWidth (.finite 2) = 1 := by decide
+
+/-- The complete final resident frame has exactly the independently stated native capacities. -/
+theorem post_residentSpace (n : Nat) : (post n).residentSpace = spaceFormula n := by
+  rw [post, MeasurementCells.context_residentSpace, resultContext,
+    RuntimeCtx.residentSpace_addRetained, prepared_residentSpace]
+  ext axis
+  cases axis with
+  | classicalBits =>
+      change n • CShape.bitWidth (.finite 2) + (n + 0) = 2 * n
+      rw [finiteTwo_bits, Nat.nsmul_eq_mul]
+      omega
+  | quantumSystems dimension =>
+      change n • 0 + (0 + (runtimeLayout n).dimensionCount dimension) = _
+      rw [smul_zero, zero_add, zero_add]
+      exact (layout n).toQuantumLayout_dimensionCount dimension
+
+/-- All newly created entries have owned or retained roles and count toward auxiliary capacity. -/
+theorem post_auxiliarySpace (n : Nat) : (post n).auxiliarySpace = spaceFormula n := by
+  rw [post, MeasurementCells.context_auxiliarySpace, resultContext,
+    RuntimeCtx.auxiliarySpace_addRetained, prepared_auxiliarySpace]
+  ext axis
+  cases axis with
+  | classicalBits =>
+      change n • CShape.bitWidth (.finite 2) + (n + 0) = 2 * n
+      rw [finiteTwo_bits, Nat.nsmul_eq_mul]
+      omega
+  | quantumSystems dimension =>
+      change n • 0 + (0 + (runtimeLayout n).dimensionCount dimension) = _
+      rw [smul_zero, zero_add, zero_add]
+      exact (layout n).toQuantumLayout_dimensionCount dimension
+
+private theorem pre_spaces (n : Nat) :
+    pre.residentSpace ≤ spaceFormula n ∧ pre.auxiliarySpace ≤ spaceFormula n := by
+  rw [pre_residentSpace, pre_auxiliarySpace]
+  exact ⟨fun _ => Nat.zero_le _, fun _ => Nat.zero_le _⟩
+
+private theorem prepared_spaces (n : Nat) :
+    (preparedContext n).residentSpace ≤ spaceFormula n ∧
+      (preparedContext n).auxiliarySpace ≤ spaceFormula n := by
+  rw [prepared_residentSpace, prepared_auxiliarySpace]
+  have bounded : SpacePool.ofQuantumLayout (runtimeLayout n) ≤ spaceFormula n := by
+    intro axis
+    cases axis with
+    | classicalBits => exact Nat.zero_le _
+    | quantumSystems dimension =>
+        exact le_of_eq ((layout n).toQuantumLayout_dimensionCount dimension)
+  exact ⟨bounded, bounded⟩
+
+private theorem allocated_spaces (n used : Nat) (bounded : used ≤ n) :
+    (MeasurementCells.context (resultContext n) 2 used).residentSpace ≤ spaceFormula n ∧
+      (MeasurementCells.context (resultContext n) 2 used).auxiliarySpace ≤ spaceFormula n := by
+  constructor
+  · exact (MeasurementCells.context_residentSpace_mono (resultContext n) 2 bounded).trans_eq
+      (post_residentSpace n)
+  · exact (MeasurementCells.context_auxiliarySpace_mono (resultContext n) 2 bounded).trans_eq
+      (post_auxiliarySpace n)
+
+private theorem visited_spaces {n : Nat} (f : WalshHadamard.Oracle n)
+    (path : (code f).Path) (frame : RuntimeCtx .quantum)
+    (present : frame ∈ (code f).visitedContexts path) :
+    frame.residentSpace ≤ spaceFormula n ∧ frame.auxiliarySpace ≤ spaceFormula n := by
+  change frame ∈
+    ([pre, preparedContext n] ++
+      ([preparedContext n] ++ ([preparedContext n, resultContext n] ++
+        (MeasurementCells.allocate (resultContext n) 2 n).visitedContexts path.1.2.2.2))) ++
+      ((Circuit.measurementSequence (readouts n)).visitedContexts path.2.1 ++ [post n]) at present
+  simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
+    or_false] at present
+  rcases present with ((same | same) | (same | ((same | same) | allocated))) |
+    (measured | same)
+  · subst frame
+    exact pre_spaces n
+  · subst frame
+    exact prepared_spaces n
+  · subst frame
+    exact prepared_spaces n
+  · subst frame
+    exact prepared_spaces n
+  · subst frame
+    exact allocated_spaces n 0 (Nat.zero_le n)
+  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts
+      (resultContext n) 2 n path.1.2.2.2 frame allocated
+    exact allocated_spaces n used bounded
+  · rw [Circuit.measurementSequence_visitedContexts] at measured
+    have same := (List.mem_replicate.mp measured).2
+    subst frame
+    exact allocated_spaces n n le_rfl
+  · subst frame
+    exact allocated_spaces n n le_rfl
+
+/-- Every actual path respects the independent complete resident-space budget. -/
+theorem code_residentSpace {n : Nat} (f : WalshHadamard.Oracle n) (path : (code f).Path) :
+    (code f).peakResidentSpace path ≤ spaceFormula n :=
+  Circuit.peakResidentSpace_le_of_visited (code f) path (spaceFormula n)
+    (fun frame present => (visited_spaces f path frame present).1)
+
+/-- Every actual path respects the independent auxiliary-role budget without releasing storage. -/
+theorem code_auxiliarySpace {n : Nat} (f : WalshHadamard.Oracle n) (path : (code f).Path) :
+    (code f).peakAuxiliarySpace path ≤ spaceFormula n :=
+  Circuit.peakAuxiliarySpace_le_of_visited (code f) path (spaceFormula n)
+    (fun frame present => (visited_spaces f path frame present).2)
+
+end
+
+end QuantumAlg.WalshHadamard.Readout

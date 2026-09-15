@@ -6,8 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Data.Fintype.Prod
+public import Mathlib.Data.PNat.Defs
 
 /-!
 # Finite quantum registers
@@ -17,12 +18,12 @@ operators, measurements, and circuits.  `Qubits n` is the specialization whose
 basis labels are the current big-endian `Fin (2^n)` computational basis.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
 /-- A finite-dimensional quantum register. -/
-structure Register where
+public structure Register where
   /-- Basis labels for the register. -/
   Index : Type
   /-- The basis is finite. -/
@@ -35,7 +36,8 @@ attribute [instance] Register.fintype Register.decEq
 namespace Register
 
 /-- Product/tensor register. -/
-def prod (left right : Register) : Register := by
+@[expose, implicit_reducible]
+public def prod (left right : Register) : Register := by
   letI : Fintype left.Index := left.fintype
   letI : DecidableEq left.Index := left.decEq
   letI : Fintype right.Index := right.fintype
@@ -45,12 +47,29 @@ def prod (left right : Register) : Register := by
       fintype := inferInstance
       decEq := inferInstance }
 
+/-- The explicit product type is canonically equivalent to the index type of
+the product register. -/
+@[expose]
+public def prodIndexEquiv (left right : Register) :
+    left.Index × right.Index ≃ (prod left right).Index := by
+  unfold prod
+  exact Equiv.refl _
+
 end Register
 
+/-- One positive-dimensional quantum system with its computational basis.
+The dimension labels one physical system; it is not a number of qubits. -/
+public abbrev Qudit (dimension : ℕ+) : Register where
+  Index := Fin dimension
+  fintype := inferInstance
+  decEq := inferInstance
+
 /-- The `n`-qubit register with big-endian computational basis labels. -/
-abbrev Qubits (n : Nat) : Register where
+public abbrev Qubits (n : Nat) : Register where
   Index := Fin (2 ^ n)
   fintype := inferInstance
   decEq := inferInstance
 
 end QuantumAlg
+
+end

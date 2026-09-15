@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Roots
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Roots
 
 /-!
 # Laurent complement products
@@ -15,7 +15,7 @@ public import QuantumAlg.Util.Polynomial.Complement.Laurent.Roots
 Stage module for selected reciprocal roots and scalar-quotient product data.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -90,3 +90,5 @@ end Complement.Laurent.Product
 end
 
 end QuantumAlg
+
+end

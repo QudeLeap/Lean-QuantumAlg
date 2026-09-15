@@ -6,9 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.EllipticCurve.CleanComposition
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.EllipticCurve.CleanComposition
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Basic
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
+import all QuantumAlg.Util.EllipticCurve
 
 /-!
 # Scalar-multiplication schedule certificates
@@ -27,7 +29,7 @@ HJN+20, elliptic-curves.tex:8-9].
 The declarations here do not define a full scalar-multiplication circuit.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
@@ -701,105 +703,6 @@ theorem active_accumulator_y
   rw [active_accumulator run i hcontrol]
   rfl
 
-/-- Circuit-facing bridge for the zero-control branch of one certified
-schedule step. -/
-theorem controlledCircuit_apply_certified_zero
-    [NeZero p] (run : Run E schedule) (i : Fin schedule.length)
-    (params : ControlledPointAddition.ResourceParameters)
-    (hcontrol : run.controls i = false) :
-    Circuit.apply
-        (ControlledPointAddition.controlledCircuit E (schedule.addend i) params)
-        (PureState.ket
-          (R := ControlledPointAddition.register E (schedule.addend i))
-          (run.controlledStepData i) :
-          StateVector (ControlledPointAddition.register E (schedule.addend i))) =
-      (PureState.ket
-        (R := ControlledPointAddition.register E (schedule.addend i))
-        ({ input := run.stepInput i
-           control := false
-           targetX := 0
-           targetY := 0
-           flag := false } : ControlledPointAddition.Data E (schedule.addend i)) :
-        StateVector (ControlledPointAddition.register E (schedule.addend i))) := by
-  dsimp [controlledStepData]
-  rw [hcontrol]
-  exact
-    ControlledPointAddition.controlledCircuit_apply_zero_branch
-      E (schedule.addend i) params (run.stepInput i)
-
-/-- Homogeneous-data bridge for the zero-control branch of one certified
-schedule step.  This is the same lower-level theorem as
-`controlledCircuit_apply_certified_zero`, but with the schedule-wide wrapper as
-the source of the per-addend ECADD data. -/
-theorem controlledCircuit_apply_homogeneous_zero
-    [NeZero p] (run : Run E schedule) (i : Fin schedule.length)
-    (params : ControlledPointAddition.ResourceParameters)
-    (hcontrol : run.controls i = false) :
-    Circuit.apply
-        (ControlledPointAddition.controlledCircuit E (schedule.addend i) params)
-        (PureState.ket
-          (R := ControlledPointAddition.register E (schedule.addend i))
-          ((run.homogeneousStepData i).toControlled) :
-          StateVector (ControlledPointAddition.register E (schedule.addend i))) =
-      (PureState.ket
-        (R := ControlledPointAddition.register E (schedule.addend i))
-        ({ input := run.stepInput i
-           control := false
-           targetX := 0
-           targetY := 0
-           flag := false } : ControlledPointAddition.Data E (schedule.addend i)) :
-        StateVector (ControlledPointAddition.register E (schedule.addend i))) := by
-  simpa using controlledCircuit_apply_certified_zero run i params hcontrol
-
-/-- Circuit-facing bridge for the one-control branch of one certified schedule
-step. -/
-theorem controlledCircuit_apply_certified_one
-    [NeZero p] (run : Run E schedule) (i : Fin schedule.length)
-    (params : ControlledPointAddition.ResourceParameters)
-    (hcontrol : run.controls i = true) :
-    Circuit.apply
-        (ControlledPointAddition.controlledCircuit E (schedule.addend i) params)
-        (PureState.ket
-          (R := ControlledPointAddition.register E (schedule.addend i))
-          (run.controlledStepData i) :
-          StateVector (ControlledPointAddition.register E (schedule.addend i))) =
-      (PureState.ket
-        (R := ControlledPointAddition.register E (schedule.addend i))
-        ({ input := run.stepInput i
-           control := true
-           targetX := genericAddX E (run.stepInput i).1 (schedule.addend i)
-           targetY := genericAddY E (run.stepInput i).1 (schedule.addend i)
-           flag := false } : ControlledPointAddition.Data E (schedule.addend i)) :
-        StateVector (ControlledPointAddition.register E (schedule.addend i))) := by
-  dsimp [controlledStepData]
-  rw [hcontrol]
-  exact
-    ControlledPointAddition.controlledCircuit_apply_one_branch
-      E (schedule.addend i) params (run.stepInput i)
-
-/-- Homogeneous-data bridge for the one-control branch of one certified
-schedule step.  The common wrapper transports back to the per-addend controlled
-ECADD data before applying the existing endpoint theorem. -/
-theorem controlledCircuit_apply_homogeneous_one
-    [NeZero p] (run : Run E schedule) (i : Fin schedule.length)
-    (params : ControlledPointAddition.ResourceParameters)
-    (hcontrol : run.controls i = true) :
-    Circuit.apply
-        (ControlledPointAddition.controlledCircuit E (schedule.addend i) params)
-        (PureState.ket
-          (R := ControlledPointAddition.register E (schedule.addend i))
-          ((run.homogeneousStepData i).toControlled) :
-          StateVector (ControlledPointAddition.register E (schedule.addend i))) =
-      (PureState.ket
-        (R := ControlledPointAddition.register E (schedule.addend i))
-        ({ input := run.stepInput i
-           control := true
-           targetX := genericAddX E (run.stepInput i).1 (schedule.addend i)
-           targetY := genericAddY E (run.stepInput i).1 (schedule.addend i)
-           flag := false } : ControlledPointAddition.Data E (schedule.addend i)) :
-        StateVector (ControlledPointAddition.register E (schedule.addend i))) := by
-  simpa using controlledCircuit_apply_certified_one run i params hcontrol
-
 /-- The lifted clean map for a certified schedule step agrees with the existing
 per-addend controlled ECADD endpoint and preserves the external work label. -/
 theorem controlledStepCleanMap_apply_certified
@@ -946,3 +849,5 @@ end ScalarMultiplication
 end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
+
+end

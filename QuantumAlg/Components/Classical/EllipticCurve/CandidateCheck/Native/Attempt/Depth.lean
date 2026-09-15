@@ -1,0 +1,206 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Attempt.Cardinality
+
+/-!
+# Unit duration of the original independent attempt allowance
+
+The original duration definitions and native pools follow the same serial
+stages and conditional branches. Unit duration sums are bounded by those
+same pool cardinalities; the result is not inferred from the cost of a
+particular execution path. Every loader and both checked flags remain charged.
+-/
+
+namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
+
+open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
+open NumberTheory.XGCD.Native NumberTheory.Checked.Native
+open NumberTheory.Checked.SignedReduction.Native
+open FiniteCyclicDLP.RawRecovery.Native Field.Native Add.Native
+
+variable {kind : ProblemKind} {width scalarWidth : Nat}
+
+private theorem list_unit {α : Type} (events : List α) :
+    (events.map (fun _ => (1 : Nat))).sum = events.length := by simp
+
+private theorem max_card (left right : ResourcePool kind) :
+    max left.card right.card ≤ (ResourcePool.max left right).card :=
+  max_le (Multiset.card_le_card (ResourcePool.le_max_left left right))
+    (Multiset.card_le_card (ResourcePool.le_max_right left right))
+
+private theorem combine_card {left right : Nat} (first second : ResourcePool kind)
+    (firstBound : left ≤ first.card) (secondBound : right ≤ second.card) :
+    max left right ≤ (ResourcePool.max first second).card :=
+  (max_le_max firstBound secondBound).trans (max_card first second)
+
+private theorem raw_unit (width : Nat) :
+    rawDepthLimit width (fun _ : Resource.Event kind => 1) =
+      (rawEnvelope kind width).card :=
+  (xgcdNativeRawDepthLimit_unit kind width).trans (rawEnvelope_card kind width).symm
+
+private theorem signed_unit (width : Nat) :
+    signedReductionDepthLimit width (fun _ : Resource.Event kind => 1) ≤
+      (signedReductionEnvelope kind width).card := by
+  have magnitude := max_card
+    (ResourcePool.ofList (signedMagnitudeEvents kind width true))
+    (ResourcePool.ofList (signedMagnitudeEvents kind width false))
+  have correction := max_card
+    (ResourcePool.ofList (finalCorrectionEvents kind width true))
+    (ResourcePool.ofList (finalCorrectionEvents kind width false))
+  simp only [ResourcePool.ofList, Multiset.coe_card] at magnitude correction
+  simp only [signedReductionDepthLimit, signedReductionEnvelope, list_unit,
+    Multiset.card_add, ResourcePool.ofList, Multiset.coe_card]
+  omega
+
+private theorem coefficient_unit (spec : ModulusSpec width) :
+    coefficientDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (coefficientEnvelope kind spec).card := by
+  have raw := raw_unit (kind := kind) (width + 1)
+  have signed := signed_unit (kind := kind) width
+  simp only [coefficientDepthLimit, coefficientEnvelope, list_unit, Multiset.card_add,
+    ResourcePool.ofList, Multiset.coe_card, List.length_cons, List.length_nil]
+  omega
+
+private theorem affine_unit (spec : ModulusSpec width) :
+    affineDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (affineEnvelope kind spec).card := by
+  have coefficient := coefficient_unit (kind := kind) spec
+  simp only [affineDepthLimit, affineStageDepthLimit, affineEnvelope, affineStageEnvelope,
+    Fin.sum_univ_succ, Matrix.cons_val_zero, Matrix.cons_val_succ, Fin.sum_univ_zero,
+    add_zero, Multiset.card_add, list_unit, ResourcePool.ofList, Multiset.coe_card,
+    List.length_cons, List.length_nil]
+  omega
+
+private theorem generic_unit (spec : ModulusSpec width) :
+    genericDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (genericEnvelope kind spec).card := by
+  have affine := affine_unit (kind := kind) spec
+  simp only [genericDepthLimit, genericEnvelope, list_unit, Multiset.card_add,
+    ResourcePool.ofList, Multiset.coe_card]
+  omega
+
+private theorem doubling_unit (spec : CurveSpec width) :
+    doublingDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (doublingEnvelope kind spec).card := by
+  have affine := affine_unit (kind := kind) spec.field
+  simp only [doublingDepthLimit, doublingStageDepthLimit, doublingEnvelope,
+    doublingStageEnvelope, Fin.sum_univ_succ, Matrix.cons_val_zero, Matrix.cons_val_succ,
+    Fin.sum_univ_zero, add_zero, Multiset.card_add, list_unit,
+    ResourcePool.ofList, Multiset.coe_card]
+  omega
+
+private theorem addition_arm_unit (spec : CurveSpec width) (selected : Case) :
+    additionArmDepthLimit spec (fun _ : Resource.Event kind => 1) selected ≤
+      (additionArmEnvelope kind spec selected).card := by
+  cases selected with
+  | generic => exact generic_unit spec.field
+  | doubling => exact doubling_unit spec
+  | vertical => exact Nat.le_refl _
+  | leftInfinity => exact Nat.le_refl _
+  | rightInfinity => exact Nat.le_refl _
+
+private theorem addition_unit (spec : CurveSpec width) :
+    additionDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (additionEnvelope kind spec).card := by
+  have branch : caseMaximum Nat.max
+      (additionArmDepthLimit spec (fun _ : Resource.Event kind => 1)) ≤
+        (additionBranchEnvelope kind spec).card := by
+    unfold additionBranchEnvelope caseMaximum
+    exact combine_card _ _ (addition_arm_unit spec .leftInfinity)
+      (combine_card _ _ (addition_arm_unit spec .rightInfinity)
+        (combine_card _ _
+          (combine_card _ _
+            (combine_card _ _ (addition_arm_unit spec .vertical)
+              (addition_arm_unit spec .doubling))
+            (addition_arm_unit spec .vertical))
+          (addition_arm_unit spec .generic)))
+  simp only [additionDepthLimit, additionEnvelope, list_unit, Multiset.card_add,
+    ResourcePool.ofList, Multiset.coe_card]
+  exact Nat.add_le_add_left branch _
+
+private theorem scalar_unit (spec : CurveSpec width) (count : Nat) :
+    ScalarMul.Native.scalarDepthLimit spec count (fun _ : Resource.Event kind => 1) ≤
+      (ScalarMul.Native.scalarEnvelope kind spec count).card := by
+  have addition := addition_unit (kind := kind) spec
+  simp only [ScalarMul.Native.scalarDepthLimit, ScalarMul.Native.scalarEnvelope,
+    list_unit, Multiset.card_add, ResourcePool.scale, Multiset.card_nsmul,
+    ResourcePool.ofList, Multiset.coe_card]
+  exact Nat.add_le_add_left (Nat.mul_le_mul_left count (Nat.add_le_add addition addition)) _
+
+private theorem verification_unit (spec : CurveSpec width) (count : Nat) :
+    verificationDepthLimit spec count (fun _ : Resource.Event kind => 1) ≤
+      (verificationEnvelope kind spec count).card := by
+  have scalar := scalar_unit (kind := kind) spec count
+  simp only [verificationDepthLimit, verificationStageDepthLimit, verificationEnvelope,
+    verificationStageEnvelope, Fin.sum_univ_succ, Matrix.cons_val_zero,
+    Matrix.cons_val_succ, Fin.sum_univ_zero, add_zero, Multiset.card_add,
+    list_unit, PointEquality.coreEnvelope, ResourcePool.ofList, Multiset.coe_card,
+    List.length_cons, List.length_nil]
+  omega
+
+private theorem checked_unit (spec : ModulusSpec width) :
+    checkedInverseDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (checkedInverseEnvelope kind spec).card := by
+  have raw := raw_unit (kind := kind) (width + 1)
+  have signed := signed_unit (kind := kind) width
+  simp only [checkedInverseDepthLimit, checkedInverseEnvelope, checkedSelectionDepthLimit,
+    checkedSelectionEnvelope, ResourcePool.max, Multiset.union_zero, list_unit,
+    Multiset.card_add, ResourcePool.ofList, Multiset.coe_card,
+    checkedDecisionEvents, List.length_cons, List.length_nil]
+  omega
+
+private theorem preparation_unit (spec : ModulusSpec width) :
+    preparationDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (preparationEnvelope kind spec).card := by
+  have selected := Multiset.card_le_card (ResourcePool.le_max_left
+    (ResourcePool.ofList (negateEvents kind width true))
+    (ResourcePool.ofList (negateEvents kind width false)))
+  change 2 ≤ (ResourcePool.max _ _).card at selected
+  simp only [ResourcePool.ofList] at selected
+  simp only [preparationDepthLimit, preparationEnvelope, preparationFinalEnvelope,
+    measuredDecodeEnvelope, TerminalDecode.envelope, TerminalDecode.bitEnvelope,
+    ResourcePool.scale, ResourcePool.singleton, Multiset.card_add, Multiset.card_nsmul,
+    Multiset.card_replicate, list_unit, ResourcePool.ofList, Multiset.coe_card,
+    List.length_cons, List.length_nil]
+  omega
+
+private theorem selected_unit (width : Nat) :
+    selectedExposureDepthLimit width (fun _ : Resource.Event kind => 1) =
+      (ResourcePool.ofList (selectedExposureEvents kind width true)).card := rfl
+
+private theorem exposure_unit (spec : ModulusSpec width) :
+    singleExposureDepthLimit spec (fun _ : Resource.Event kind => 1) ≤
+      (singleExposureEnvelope kind spec).card := by
+  have preparation := preparation_unit (kind := kind) spec
+  have checked := checked_unit (kind := kind) spec
+  have selected := selected_unit (kind := kind) width
+  simp only [singleExposureDepthLimit, checkedExposureDepthLimit, singleExposureEnvelope,
+    checkedExposureEnvelope, Multiset.card_add]
+  omega
+
+/-- Unit durations of the original attempt allowance are bounded by that same native pool. -/
+theorem attemptDepthLimit_unit_le_card (curve : CurveSpec width)
+    (modulus : ModulusSpec scalarWidth) :
+    attemptDepthLimit curve modulus (fun _ : Resource.Event kind => 1) ≤
+      (attemptEnvelope kind curve modulus).card := by
+  have exposure := exposure_unit (kind := kind) modulus
+  have verification := verification_unit (kind := kind) curve scalarWidth
+  simp only [attemptDepthLimit, attemptEnvelope, FirstAccepted.nativeEnvelope,
+    List.map_append, List.sum_append, list_unit, Multiset.card_add,
+    ResourcePool.ofList, Multiset.coe_card]
+  omega
+
+/-- The complete serial unit-duration allowance retains the original numerical ceiling. -/
+theorem attemptDepthLimit_unit_le (curve : CurveSpec width)
+    (modulus : ModulusSpec scalarWidth) :
+    attemptDepthLimit curve modulus (fun _ : Resource.Event kind => 1) ≤
+      42 * scalarWidth + scalarWidth * (248 * width + 644) + 119 :=
+  (attemptDepthLimit_unit_le_card curve modulus).trans (attemptEnvelope_card_le kind curve modulus)
+
+end QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native

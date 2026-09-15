@@ -6,20 +6,20 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.Arithmetic.BitSlice
-public import Mathlib.Data.List.TakeDrop
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.Arithmetic.BitSlice
+import Mathlib.Data.List.TakeDrop
 
 /-!
 # Borrow-chain comparator schedule shells
 
 This module assembles local subtract-borrow bit slices into reusable schedule
 shells for future word-comparison circuits. It deliberately stops at folded
-`BaseGateProgram` and bit-lens endpoint facts; the word-level comparator
+actual circuits and bit-lens endpoint facts; the word-level comparator
 invariant is supplied by downstream modules that instantiate a concrete layout.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace Comparator
@@ -82,6 +82,20 @@ theorem natBorrow_eq_decide_lt_of_lt_two_pow
 def concatStages (stages : List (List (EncodedBit.GateSpec encoding))) :
     List (EncodedBit.GateSpec encoding) :=
   stages.foldr (fun gates rest => gates ++ rest) []
+
+private theorem sum_map_concatStages
+    (multiplicity : EncodedBit.GateSpec encoding → Nat)
+    (stages : List (List (EncodedBit.GateSpec encoding))) :
+    ((concatStages stages).map multiplicity).sum =
+      (stages.map fun stage => (stage.map multiplicity).sum).sum := by
+  induction stages with
+  | nil => rfl
+  | cons stage rest ih =>
+      change
+        ((stage ++ concatStages rest).map multiplicity).sum =
+          (stage.map multiplicity).sum +
+            (rest.map fun block => (block.map multiplicity).sum).sum
+      rw [List.map_append, List.sum_append, ih]
 
 /-- The semantic action of concatenated stages is the left-to-right fold of
 the individual stage actions. -/
@@ -218,6 +232,29 @@ def borrowOutGatesAt (j : Fin n) :
     (layout.subtrahendWork_ne j j)
     (borrowInput_work_ne layout j)
 
+/-- One scheduled borrow slice contains five physical leaves. -/
+@[simp] theorem borrowOutGatesAt_length (j : Fin n) :
+    (borrowOutGatesAt layout j).length = 5 := by
+  simp [borrowOutGatesAt]
+
+/-- Exact X coordinate of one scheduled borrow slice. -/
+@[simp] theorem borrowOutGatesAt_xMultiplicity_sum (j : Fin n) :
+    ((borrowOutGatesAt layout j).map
+      EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
+  simp [borrowOutGatesAt]
+
+/-- A scheduled borrow slice contains no CNOT gate. -/
+@[simp] theorem borrowOutGatesAt_cnotMultiplicity_sum (j : Fin n) :
+    ((borrowOutGatesAt layout j).map
+      EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+  simp [borrowOutGatesAt]
+
+/-- Exact Toffoli coordinate of one scheduled borrow slice. -/
+@[simp] theorem borrowOutGatesAt_toffoliMultiplicity_sum (j : Fin n) :
+    ((borrowOutGatesAt layout j).map
+      EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
+  simp [borrowOutGatesAt]
+
 /-- A local borrow-output stage is disjoint from an observed bit when all of
 its participating wires are disjoint from that bit. -/
 theorem borrowOutGatesAt_bitDisjoint
@@ -241,7 +278,7 @@ theorem borrowOutGatesAt_bitDisjoint
       hminuend hsubtrahend hborrowInput hwork
 
 /-- Base-gate program computing the borrow output for stage `j`. -/
-def borrowOutProgramAt (j : Fin n) : BaseGateProgram encoding.width :=
+def borrowOutProgramAt (j : Fin n) : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (borrowOutGatesAt layout j)
 
 /-- State transformer induced by the borrow-output program at stage `j`. -/
@@ -249,16 +286,9 @@ def borrowOutStepAt (j : Fin n) : Carrier → Carrier :=
   EncodedBit.GateSpec.stepList (borrowOutGatesAt layout j)
 
 theorem borrowOut_realizesAt (j : Fin n) :
-    BaseGateProgram.Realizes encoding (borrowOutProgramAt layout j)
+    UnitaryCircuit.Realizes encoding (borrowOutProgramAt layout j)
       (borrowOutStepAt layout j) :=
   EncodedBit.GateSpec.realizesList (borrowOutGatesAt layout j)
-
-/-- Same-circuit witness for the borrow-output stage at bit `j`. -/
-def borrowOutSameCircuitAt (j : Fin n) :
-    BaseGateSameCircuitWitness Carrier (borrowOutStepAt layout j) where
-  encoding := encoding
-  program := borrowOutProgramAt layout j
-  realizes := borrowOut_realizesAt layout j
 
 theorem borrowOutGatesAt_get_workBorrow_clean
     (j : Fin n) (x : Carrier)
@@ -394,6 +424,37 @@ def borrowStageStages : List (List (EncodedBit.GateSpec encoding)) :=
 def borrowStage : List (EncodedBit.GateSpec encoding) :=
   concatStages (borrowStageStages layout)
 
+/-- Exact X coordinate of the complete forward borrow stage. -/
+theorem borrowStage_xMultiplicity_sum :
+    ((borrowStage layout).map EncodedBit.GateSpec.xMultiplicity).sum =
+      2 * n := by
+  rw [borrowStage, sum_map_concatStages]
+  unfold borrowStageStages borrowStageIndices
+  simp [Function.comp_def, Nat.mul_comm]
+
+/-- The complete forward borrow stage contains no CNOT gate. -/
+theorem borrowStage_cnotMultiplicity_sum :
+    ((borrowStage layout).map EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
+  rw [borrowStage, sum_map_concatStages]
+  unfold borrowStageStages borrowStageIndices
+  simp [Function.comp_def]
+
+/-- Exact Toffoli coordinate of the complete forward borrow stage. -/
+theorem borrowStage_toffoliMultiplicity_sum :
+    ((borrowStage layout).map EncodedBit.GateSpec.toffoliMultiplicity).sum =
+      3 * n := by
+  rw [borrowStage, sum_map_concatStages]
+  unfold borrowStageStages borrowStageIndices
+  simp [Function.comp_def, Nat.mul_comm]
+
+/-- Exact physical length of the complete forward borrow stage. -/
+theorem borrowStage_length :
+    (borrowStage layout).length = 5 * n := by
+  rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
+    borrowStage_xMultiplicity_sum, borrowStage_cnotMultiplicity_sum,
+    borrowStage_toffoliMultiplicity_sum]
+  omega
+
 /-- The folded borrow-stage gate list is disjoint from an observed bit when the
 minuend, subtrahend, initial-borrow, and work-borrow wires are all disjoint
 from that bit. -/
@@ -423,7 +484,7 @@ theorem borrowStage_bitDisjoint
     (hminuend j) (hsubtrahend j) (hborrowInput j) (hwork j) gate hgate
 
 /-- Base-gate program for the folded forward borrow stage. -/
-def borrowStageProgram : BaseGateProgram encoding.width :=
+def borrowStageProgram : UnitaryCircuit (Qubits encoding.width) :=
   EncodedBit.GateSpec.programList (borrowStage layout)
 
 /-- Folded semantic action of the forward borrow stage over the index list. -/
@@ -443,16 +504,9 @@ def borrowStageStep : Carrier -> Carrier :=
 
 /-- The folded forward borrow stage is a concrete base-gate realization. -/
 theorem borrowStage_realizes :
-    BaseGateProgram.Realizes encoding (borrowStageProgram layout)
+    UnitaryCircuit.Realizes encoding (borrowStageProgram layout)
       (borrowStageStep layout) :=
   EncodedBit.GateSpec.realizesList (borrowStage layout)
-
-/-- Same-Circuit witness for the folded forward borrow stage. -/
-def borrowStageSameCircuit :
-    BaseGateSameCircuitWitness Carrier (borrowStageStep layout) where
-  encoding := encoding
-  program := borrowStageProgram layout
-  realizes := borrowStage_realizes layout
 
 /-- Folded semantic action of the forward borrow stage as a fold over its
 local stage actions. -/
@@ -887,3 +941,5 @@ end
 
 end Comparator
 end QuantumAlg
+
+end

@@ -6,17 +6,21 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Algorithms.Factoring.Common
 public import QuantumAlg.Algorithms.Factoring.ShorStyle
+import QuantumAlg.Algorithms.Factoring.Example
 public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle
-public import QuantumAlg.Algorithms.Factoring.FormulaEnvelope
+public import QuantumAlg.Algorithms.Factoring.RSA
+public import QuantumAlg.Algorithms.Factoring.RSA2048
 
 /-!
 # RSA-style factoring resource adapters
 
-This module re-exports the common, Shor-style, Ekera-Hastad, and formula-envelope
-RSA factoring resource adapter modules.
+This module re-exports the common factoring APIs, a complete factor-15 example,
+and the concrete RSA factoring algorithm modules.
 -/
 
-@[expose] public section
+section
+
+end

@@ -6,8 +6,16 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
+public import QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Accounting.Space
+import all QuantumAlg.Core.Base.Layout.Qubit.Quantum
+public import QuantumAlg.Components.Oracle.BlockEncoding
+public import QuantumAlg.Util.Asymptotics
+public import QuantumAlg.Primitives.QSP.SingleQubit.PhaseSynthesis
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Decomposition
+import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Decomposition
+import all QuantumAlg.Util.Asymptotics
 
 /-!
 # Hermitian QSVT endpoints
@@ -15,7 +23,7 @@ public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Decomposition
 Hermitian block-encoding endpoints derived from projected QSVT.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -26,280 +34,869 @@ open ReflectionQSPPhaseSynthesis
 
 namespace QSVT
 
-/-- Resource counters for Hermitian block-encoding QSVT constructions. -/
-structure HermitianResourceProfile where
-  /-- Trusted count of base block-encoding oracle queries. -/
+
+
+/-- Stable signal-oracle family for Hermitian QSVT resource accounting. -/
+def hermitianQSVTOracleLabel : Resource.SubroutineLabel :=
+  { family := "qsvt"
+    name := "qsvt-hermitian-signal" }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/-- Source-facing Hermitian QSVT counters projected only from strict events.
+Live qubits are deliberately absent and are reported through `SpacePool`. -/
+public structure HermitianEventProfile where
+  /-- Number of source Hermitian-oracle queries. -/
   oracleQueries : ℕ
-  /-- Trusted count of controlled-oracle queries. -/
+  /-- Number of controlled Hermitian-oracle queries. -/
   controlledOracleQueries : ℕ
-  /-- Ancilla qubits used by the Hermitian QSVT construction. -/
-  ancillaQubits : ℕ
-  /-- Trusted count of elementary gates outside oracle calls. -/
-  elementaryGates : ℕ
+  /-- Number of elementary non-oracle events. -/
+  elementaryEvents : ℕ
 deriving DecidableEq
 
-namespace HermitianResourceProfile
+namespace HermitianEventProfile
 
-/-- Exact counter claim for Hermitian QSVT resource profiles. -/
-def HasExactCounts (profile : HermitianResourceProfile)
-    (oracleQueries controlledOracleQueries ancillaQubits elementaryGates : ℕ) : Prop :=
+@[ext] theorem ext (left right : HermitianEventProfile)
+    (horacle : left.oracleQueries = right.oracleQueries)
+    (hcontrolled : left.controlledOracleQueries = right.controlledOracleQueries)
+    (helementary : left.elementaryEvents = right.elementaryEvents) :
+    left = right := by
+  cases left
+  cases right
+  simp_all
+
+/-- Recognize the structural QSVT signal family and return its explicit list
+of control-register dimensions. -/
+def signalControlDimensions : Resource.Event .quantum → Option (List ℕ)
+  | .quantumSubroutine label =>
+      if label.base.family = "qsvt" ∧ label.base.name = "qsvt-signal-unitary"
+      then some label.controlDimensions else none
+  | _ => none
+
+/-- One for every direct, daggered, or structurally controlled signal event. -/
+def signalQueryWeight (event : Resource.Event .quantum) : ℕ :=
+  if (signalControlDimensions event).isSome then 1 else 0
+
+/-- One exactly for a signal event carrying at least one control register. -/
+def controlledSignalQueryWeight (event : Resource.Event .quantum) : ℕ :=
+  match signalControlDimensions event with
+  | some [] => 0
+  | some (_ :: _) => 1
+  | none => 0
+
+/-- Every non-signal execution event contributes one local elementary-event
+unit.  This is a QSVT-local projection, not a global resource conversion. -/
+def elementaryEventWeight (event : Resource.Event .quantum) : ℕ :=
+  if (signalControlDimensions event).isSome then 0 else 1
+
+/-- Evaluate one explicitly supplied local event weight on a strict pool. -/
+def weightedTotal (weight : Resource.Event .quantum → ℕ)
+    (events : ResourcePool .quantum) : ℕ :=
+  (events.map weight).sum
+
+@[simp] theorem weightedTotal_zero (weight : Resource.Event .quantum → ℕ) :
+    weightedTotal weight (0 : ResourcePool .quantum) = 0 := rfl
+
+@[simp] theorem weightedTotal_add (weight : Resource.Event .quantum → ℕ)
+    (left right : ResourcePool .quantum) :
+    weightedTotal weight (left + right) =
+      weightedTotal weight left + weightedTotal weight right := by
+  simp [weightedTotal]
+
+@[simp] theorem weightedTotal_singleton
+    (weight : Resource.Event .quantum → ℕ)
+    (event : Resource.Event .quantum) (multiplicity : ℕ) :
+    weightedTotal weight (ResourcePool.singleton event multiplicity) =
+      multiplicity * weight event := by
+  simp [weightedTotal, ResourcePool.singleton]
+
+@[simp] theorem signalQueryWeight_controlForDimension
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    signalQueryWeight (event.controlForDimension dimension) =
+      signalQueryWeight event := by
+  cases event with
+  | quantumSubroutine label =>
+      by_cases hsignal :
+          label.base.family = "qsvt" ∧ label.base.name = "qsvt-signal-unitary"
+      <;> simp [signalQueryWeight, signalControlDimensions,
+        Resource.Event.controlForDimension,
+        Resource.Event.controlForDimensions,
+        Resource.QuantumSubroutineLabel.controlForDimensions, hsignal]
+  | classicalOperation | classicalSubroutine | gate | preparation | measurement =>
+      simp [signalQueryWeight, signalControlDimensions,
+        Resource.Event.controlForDimension,
+        Resource.Event.controlForDimensions]
+
+@[simp] theorem controlledSignalQueryWeight_controlForDimension
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    controlledSignalQueryWeight (event.controlForDimension dimension) =
+      signalQueryWeight event := by
+  cases event with
+  | quantumSubroutine label =>
+      by_cases hsignal :
+          label.base.family = "qsvt" ∧ label.base.name = "qsvt-signal-unitary"
+      · have hnonempty : label.controlDimensions ++ [dimension] ≠ [] := by simp
+        simp only [Resource.Event.controlForDimension,
+          Resource.Event.controlForDimensions,
+          Resource.QuantumSubroutineLabel.controlForDimensions,
+          controlledSignalQueryWeight, signalQueryWeight,
+          signalControlDimensions, hsignal, and_self, ↓reduceIte,
+          Option.isSome_some]
+        cases hcontrols : label.controlDimensions ++ [dimension] with
+        | nil => exact (hnonempty hcontrols).elim
+        | cons head tail => rfl
+      · simp [controlledSignalQueryWeight, signalQueryWeight,
+          signalControlDimensions, Resource.Event.controlForDimension,
+          Resource.Event.controlForDimensions,
+          Resource.QuantumSubroutineLabel.controlForDimensions, hsignal]
+  | classicalOperation | classicalSubroutine | gate | preparation | measurement =>
+      simp [controlledSignalQueryWeight, signalQueryWeight,
+        signalControlDimensions, Resource.Event.controlForDimension,
+        Resource.Event.controlForDimensions]
+
+@[simp] theorem signalQueryWeight_controlForDimensions_singleton
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    signalQueryWeight (event.controlForDimensions [dimension]) =
+      signalQueryWeight event := by
+  simpa only [Resource.Event.controlForDimension] using
+    signalQueryWeight_controlForDimension event dimension
+
+@[simp] theorem controlledSignalQueryWeight_controlForDimensions_singleton
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    controlledSignalQueryWeight (event.controlForDimensions [dimension]) =
+      signalQueryWeight event := by
+  simpa only [Resource.Event.controlForDimension] using
+    controlledSignalQueryWeight_controlForDimension event dimension
+
+@[simp] theorem elementaryEventWeight_controlForDimension
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    elementaryEventWeight (event.controlForDimension dimension) =
+      elementaryEventWeight event := by
+  cases event with
+  | quantumSubroutine label =>
+      by_cases hsignal :
+          label.base.family = "qsvt" ∧ label.base.name = "qsvt-signal-unitary"
+      <;> simp [elementaryEventWeight, signalControlDimensions,
+        Resource.Event.controlForDimension,
+        Resource.Event.controlForDimensions,
+        Resource.QuantumSubroutineLabel.controlForDimensions, hsignal]
+  | classicalOperation | classicalSubroutine | gate | preparation | measurement =>
+      simp [elementaryEventWeight, signalControlDimensions,
+        Resource.Event.controlForDimension,
+        Resource.Event.controlForDimensions]
+
+@[simp] theorem elementaryEventWeight_controlForDimensions_singleton
+    (event : Resource.Event .quantum) (dimension : ℕ) :
+    elementaryEventWeight (event.controlForDimensions [dimension]) =
+      elementaryEventWeight event := by
+  simpa only [Resource.Event.controlForDimension] using
+    elementaryEventWeight_controlForDimension event dimension
+
+@[simp] theorem weightedTotal_signalQueryWeight_controlForDimension
+    (dimension : ℕ) (events : ResourcePool .quantum) :
+    weightedTotal signalQueryWeight
+        (ResourcePool.controlForDimension dimension events) =
+      weightedTotal signalQueryWeight events := by
+  simp only [weightedTotal, ResourcePool.controlForDimension,
+    ResourcePool.controlForDimensions, Multiset.map_map,
+    Function.comp_apply, signalQueryWeight_controlForDimensions_singleton]
+
+@[simp] theorem weightedTotal_controlledSignalQueryWeight_controlForDimension
+    (dimension : ℕ) (events : ResourcePool .quantum) :
+    weightedTotal controlledSignalQueryWeight
+        (ResourcePool.controlForDimension dimension events) =
+      weightedTotal signalQueryWeight events := by
+  simp only [weightedTotal, ResourcePool.controlForDimension,
+    ResourcePool.controlForDimensions, Multiset.map_map,
+    Function.comp_apply,
+    controlledSignalQueryWeight_controlForDimensions_singleton]
+
+@[simp] theorem weightedTotal_elementaryEventWeight_controlForDimension
+    (dimension : ℕ) (events : ResourcePool .quantum) :
+    weightedTotal elementaryEventWeight
+        (ResourcePool.controlForDimension dimension events) =
+      weightedTotal elementaryEventWeight events := by
+  simp only [weightedTotal, ResourcePool.controlForDimension,
+    ResourcePool.controlForDimensions, Multiset.map_map,
+    Function.comp_apply, elementaryEventWeight_controlForDimensions_singleton]
+
+/-- Read the Hermitian counters from the typed circuit's strict event pool. -/
+def ofEvents (events : ResourcePool .quantum) : HermitianEventProfile where
+  oracleQueries := weightedTotal signalQueryWeight events
+  controlledOracleQueries := weightedTotal controlledSignalQueryWeight events
+  elementaryEvents := weightedTotal elementaryEventWeight events
+
+/-- Exact same-circuit binding for a readable strict-event profile. -/
+public def HasExactEvents (profile : HermitianEventProfile)
+    (events : ResourcePool .quantum) : Prop :=
+  ofEvents events = profile
+
+/-- Exact closed counter claim for a strict-event profile. -/
+public def HasExactCounts (profile : HermitianEventProfile)
+    (oracleQueries controlledOracleQueries elementaryEvents : ℕ) : Prop :=
   profile.oracleQueries = oracleQueries ∧
     profile.controlledOracleQueries = controlledOracleQueries ∧
-    profile.ancillaQubits = ancillaQubits ∧
-    profile.elementaryGates = elementaryGates
+    profile.elementaryEvents = elementaryEvents
 
-/-- The portion of a Hermitian QSVT resource profile represented by the generic
-typed-circuit counters.  Controlled-oracle and ancilla counts remain in the
-Hermitian-specific profile. -/
-def toCircuitResourceProfile (profile : HermitianResourceProfile) : ResourceProfile where
+theorem ofEvents_hasExactEvents (events : ResourcePool .quantum) :
+    HasExactEvents (ofEvents events) events := rfl
+
+/-- Event-profile transformation induced by the explicit binary selector. -/
+def binarySelector (left right : HermitianEventProfile) :
+    HermitianEventProfile where
+  oracleQueries := 2 * left.oracleQueries + right.oracleQueries
+  controlledOracleQueries :=
+    left.controlledOracleQueries + left.oracleQueries + right.oracleQueries
+  elementaryEvents := 2 * left.elementaryEvents + right.elementaryEvents + 2
+
+/-- Adding one closed non-signal phase event changes only the local elementary
+projection. -/
+def addElementaryEvent (profile : HermitianEventProfile) :
+    HermitianEventProfile where
   oracleQueries := profile.oracleQueries
-  hadamardGates := 0
-  elementaryGates := profile.elementaryGates
-  classicalOps := 0
+  controlledOracleQueries := profile.controlledOracleQueries
+  elementaryEvents := profile.elementaryEvents + 1
 
-theorem toCircuitResourceProfile_exact (profile : HermitianResourceProfile) :
-    ResourceProfile.HasExactCounts profile.toCircuitResourceProfile
-      profile.oracleQueries 0 profile.elementaryGates 0 := by
-  simp [toCircuitResourceProfile, ResourceProfile.HasExactCounts]
+end HermitianEventProfile
 
-end HermitianResourceProfile
+/-- Number of non-signal declared leaves in one structural matching-parity
+branch.  Degree zero is the sealed scalar-dilation leaf; a positive branch has
+two wrapper Hadamards and three non-signal leaves per phase slot. -/
+public def matchingParityElementaryGates (L : Nat) : Nat :=
+  if L = 0 then 1 else 3 * L + 2
 
-/-- Resource target for the real matching-parity Hermitian QSVT specialization:
-`L` uses of `U`/`U†`, one extra ancilla qubit, and `(m+1)L` elementary gates. -/
-def realParityResources (m L : ℕ) : HermitianResourceProfile where
+
+
+
+
+
+
+
+
+/-- Strict-event target for one matching-parity Hermitian branch. -/
+@[nolint unusedArguments]
+def matchingParityEventProfile (_m L : Nat) : HermitianEventProfile where
   oracleQueries := L
   controlledOracleQueries := 0
-  ancillaQubits := 1
-  elementaryGates := (m + 1) * L
+  elementaryEvents := matchingParityElementaryGates L
 
-/-- Resource target for the shared-control complex Hermitian QSVT support shape:
-linear ordinary queries, one controlled-`U`, two extra ancilla qubits, and
-`(m+1)L` elementary gates. -/
-def hermitianComplexResources (m L : ℕ) : HermitianResourceProfile where
+/-- Strict-event target for the real matching-parity endpoint. -/
+@[nolint unusedArguments]
+public def realParityEventProfile (_m L : ℕ) : HermitianEventProfile where
   oracleQueries := L
-  controlledOracleQueries := 1
-  ancillaQubits := 2
-  elementaryGates := (m + 1) * L
+  controlledOracleQueries := 0
+  elementaryEvents := 3 * L + 2
 
-/-- Conservative public resource target for the complex Hermitian QSVT
-specialization proved in this module.
+/-- Strict-event target for the shared-control complex support shape. -/
+@[nolint unusedArguments]
+def hermitianComplexEventProfile (_m L : ℕ) : HermitianEventProfile where
+  oracleQueries :=
+    2 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+      ReflectionQSPPhaseSynthesis.oddBranchDegree L
+  controlledOracleQueries :=
+    ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+      ReflectionQSPPhaseSynthesis.oddBranchDegree L
+  elementaryEvents :=
+    2 * matchingParityElementaryGates
+        (ReflectionQSPPhaseSynthesis.evenBranchDegree L) +
+      matchingParityElementaryGates
+        (ReflectionQSPPhaseSynthesis.oddBranchDegree L) + 2
 
-The public endpoint uses the source-supported four-real-branch construction:
-real/imaginary and even/odd branches are synthesized separately and combined by
-selector block encodings.  This keeps the statement honest with three extra
-ancillas and constant-factor overheads in the same asymptotic classes. -/
-def hermitianComplexFourBranchResources (m L : ℕ) : HermitianResourceProfile where
-  oracleQueries := 4 * L
-  controlledOracleQueries := 4
-  ancillaQubits := 3
-  elementaryGates := 4 * ((m + 1) * L)
+/-- Strict-event target for the four-real-branch complex endpoint. -/
+@[nolint unusedArguments]
+public def hermitianComplexFourBranchEventProfile (_m L : ℕ) :
+    HermitianEventProfile where
+  oracleQueries :=
+    6 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+      3 * ReflectionQSPPhaseSynthesis.oddBranchDegree L
+  controlledOracleQueries :=
+    5 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+      3 * ReflectionQSPPhaseSynthesis.oddBranchDegree L
+  elementaryEvents :=
+    6 * matchingParityElementaryGates
+        (ReflectionQSPPhaseSynthesis.evenBranchDegree L) +
+      3 * matchingParityElementaryGates
+        (ReflectionQSPPhaseSynthesis.oddBranchDegree L) + 11
 
-theorem realParityResources_exact (m L : ℕ) :
-    HermitianResourceProfile.HasExactCounts
-      (realParityResources m L) L 0 1 ((m + 1) * L) := by
-  simp [HermitianResourceProfile.HasExactCounts, realParityResources]
 
-theorem hermitianComplexResources_exact (m L : ℕ) :
-    HermitianResourceProfile.HasExactCounts
-      (hermitianComplexResources m L) L 1 2 ((m + 1) * L) := by
-  simp [HermitianResourceProfile.HasExactCounts, hermitianComplexResources]
 
-theorem hermitianComplexFourBranchResources_exact (m L : ℕ) :
-    HermitianResourceProfile.HasExactCounts
-      (hermitianComplexFourBranchResources m L)
-      (4 * L) 4 3 (4 * ((m + 1) * L)) := by
-  simp [HermitianResourceProfile.HasExactCounts, hermitianComplexFourBranchResources]
 
-theorem realParityOracleQueries_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (realParityResources m L).oracleQueries)
+
+
+
+theorem realParityEventProfile_exact (m L : ℕ) :
+    HermitianEventProfile.HasExactCounts
+      (realParityEventProfile m L) L 0 (3 * L + 2) := by
+  simp [HermitianEventProfile.HasExactCounts, realParityEventProfile]
+
+theorem hermitianComplexEventProfile_exact (m L : ℕ) :
+    HermitianEventProfile.HasExactCounts
+      (hermitianComplexEventProfile m L)
+      (2 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+        ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+      (ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+        ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+      (2 * matchingParityElementaryGates
+          (ReflectionQSPPhaseSynthesis.evenBranchDegree L) +
+        matchingParityElementaryGates
+          (ReflectionQSPPhaseSynthesis.oddBranchDegree L) + 2) := by
+  simp [HermitianEventProfile.HasExactCounts, hermitianComplexEventProfile]
+
+theorem hermitianComplexFourBranchEventProfile_exact (m L : ℕ) :
+    HermitianEventProfile.HasExactCounts
+      (hermitianComplexFourBranchEventProfile m L)
+      (6 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+        3 * ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+      (5 * ReflectionQSPPhaseSynthesis.evenBranchDegree L +
+        3 * ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+      (6 * matchingParityElementaryGates
+          (ReflectionQSPPhaseSynthesis.evenBranchDegree L) +
+        3 * matchingParityElementaryGates
+          (ReflectionQSPPhaseSynthesis.oddBranchDegree L) + 11) := by
+  simp [HermitianEventProfile.HasExactCounts,
+    hermitianComplexFourBranchEventProfile]
+
+
+
+
+
+
+
+theorem matchingParityElementaryGates_le (L : Nat) :
+    matchingParityElementaryGates L ≤ 3 * L + 2 := by
+  simp only [matchingParityElementaryGates]
+  split <;> omega
+
+
+
+theorem matchingParityEventProfile_eq_realParityEventProfile {m L : Nat}
+    (hL : 0 < L) :
+    matchingParityEventProfile m L = realParityEventProfile m L := by
+  apply HermitianEventProfile.ext <;>
+    simp [matchingParityEventProfile, realParityEventProfile,
+      matchingParityElementaryGates, Nat.ne_of_gt hL]
+
+
+
+
+
+
+
+theorem realParityEventOracleQueries_bigO (m : ℕ) :
+    NatBigO (fun L : ℕ => (realParityEventProfile m L).oracleQueries)
       (fun L : ℕ => L) := by
-  simpa [NatBigO, realParityResources, Function.id_def] using
+  simpa [NatBigO, realParityEventProfile, Function.id_def] using
     (NatBigO.refl (fun L : ℕ => L))
 
-theorem hermitianComplexOracleQueries_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (hermitianComplexResources m L).oracleQueries)
+theorem hermitianComplexEventOracleQueries_bigO (m : ℕ) :
+    NatBigO (fun L : ℕ => (hermitianComplexEventProfile m L).oracleQueries)
       (fun L : ℕ => L) := by
-  simpa [NatBigO, hermitianComplexResources, Function.id_def] using
-    (NatBigO.refl (fun L : ℕ => L))
+  apply NatBigO.of_eventually_le_const_mul 3
+  filter_upwards with L
+  simp only [hermitianComplexEventProfile]
+  have he := ReflectionQSPPhaseSynthesis.evenBranchDegree_le L
+  have ho := ReflectionQSPPhaseSynthesis.oddBranchDegree_le L
+  omega
 
-theorem hermitianComplexFourBranchOracleQueries_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (hermitianComplexFourBranchResources m L).oracleQueries)
+theorem hermitianComplexFourBranchEventOracleQueries_bigO (m : ℕ) :
+    NatBigO
+      (fun L : ℕ => (hermitianComplexFourBranchEventProfile m L).oracleQueries)
       (fun L : ℕ => L) := by
-  simpa [hermitianComplexFourBranchResources] using
-    (NatBigO.const_mul_left 4 (fun L : ℕ => L))
+  apply NatBigO.of_eventually_le_const_mul 9
+  filter_upwards with L
+  simp only [hermitianComplexFourBranchEventProfile]
+  have he := ReflectionQSPPhaseSynthesis.evenBranchDegree_le L
+  have ho := ReflectionQSPPhaseSynthesis.oddBranchDegree_le L
+  omega
 
-theorem realParityElementaryGates_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (realParityResources m L).elementaryGates)
+theorem realParityElementaryEvents_bigO (m : ℕ) :
+    NatBigO (fun L : ℕ => (realParityEventProfile m L).elementaryEvents)
       (fun L : ℕ => (m + 1) * L) := by
-  simpa [NatBigO, realParityResources] using
-    (NatBigO.refl (fun L : ℕ => (m + 1) * L))
+  apply NatBigO.of_eventually_le_const_mul 5
+  filter_upwards [Filter.eventually_ge_atTop (1 : Nat)] with L hL
+  simp only [realParityEventProfile]
+  have hm : 1 ≤ m + 1 := by omega
+  have hscale : L ≤ (m + 1) * L := by
+    simpa using Nat.mul_le_mul_right L hm
+  omega
 
-theorem hermitianComplexElementaryGates_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (hermitianComplexResources m L).elementaryGates)
+theorem hermitianComplexElementaryEvents_bigO (m : ℕ) :
+    NatBigO
+      (fun L : ℕ => (hermitianComplexEventProfile m L).elementaryEvents)
       (fun L : ℕ => (m + 1) * L) := by
-  simpa [NatBigO, hermitianComplexResources] using
-    (NatBigO.refl (fun L : ℕ => (m + 1) * L))
+  apply NatBigO.of_eventually_le_const_mul 17
+  filter_upwards [Filter.eventually_ge_atTop (1 : Nat)] with L hL
+  simp only [hermitianComplexEventProfile]
+  have he := ReflectionQSPPhaseSynthesis.evenBranchDegree_le L
+  have ho := ReflectionQSPPhaseSynthesis.oddBranchDegree_le L
+  have hge := matchingParityElementaryGates_le
+    (ReflectionQSPPhaseSynthesis.evenBranchDegree L)
+  have hgo := matchingParityElementaryGates_le
+    (ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+  have hm : 1 ≤ m + 1 := by omega
+  have hscale : L ≤ (m + 1) * L := by
+    simpa using Nat.mul_le_mul_right L hm
+  omega
 
-theorem hermitianComplexFourBranchElementaryGates_bigO (m : ℕ) :
-    NatBigO (fun L : ℕ => (hermitianComplexFourBranchResources m L).elementaryGates)
+theorem hermitianComplexFourBranchElementaryEvents_bigO (m : ℕ) :
+    NatBigO
+      (fun L : ℕ =>
+        (hermitianComplexFourBranchEventProfile m L).elementaryEvents)
       (fun L : ℕ => (m + 1) * L) := by
-  simpa [hermitianComplexFourBranchResources] using
-    (NatBigO.const_mul_left 4 (fun L : ℕ => (m + 1) * L))
+  apply NatBigO.of_eventually_le_const_mul 56
+  filter_upwards [Filter.eventually_ge_atTop (1 : Nat)] with L hL
+  simp only [hermitianComplexFourBranchEventProfile]
+  have he := ReflectionQSPPhaseSynthesis.evenBranchDegree_le L
+  have ho := ReflectionQSPPhaseSynthesis.oddBranchDegree_le L
+  have hge := matchingParityElementaryGates_le
+    (ReflectionQSPPhaseSynthesis.evenBranchDegree L)
+  have hgo := matchingParityElementaryGates_le
+    (ReflectionQSPPhaseSynthesis.oddBranchDegree L)
+  have hm : 1 ≤ m + 1 := by omega
+  have hscale : L ≤ (m + 1) * L := by
+    simpa using Nat.mul_le_mul_right L hm
+  omega
 
-theorem realParityAncillaQubits_exact (m L : ℕ) :
-    (realParityResources m L).ancillaQubits = 1 := rfl
 
-theorem hermitianComplexAncillaQubits_exact (m L : ℕ) :
-    (hermitianComplexResources m L).ancillaQubits = 2 := rfl
 
-theorem hermitianComplexFourBranchAncillaQubits_exact (m L : ℕ) :
-    (hermitianComplexFourBranchResources m L).ancillaQubits = 3 := rfl
 
-theorem hermitianComplexControlledQueries_exact (m L : ℕ) :
-    (hermitianComplexResources m L).controlledOracleQueries = 1 := rfl
 
-theorem hermitianComplexFourBranchControlledQueries_exact (m L : ℕ) :
-    (hermitianComplexFourBranchResources m L).controlledOracleQueries = 4 := rfl
+
+
+
+
+
 
 /-! ### Hermitian QSVT endpoint contracts -/
 
-/-- A lightweight source-level Hermitian QSVT gate word.
+/-- A lightweight source-level Hermitian QSVT circuit word.
 
-The `signal` field is the source block-encoding oracle, `output` is the
-constructed output gate whose projected block is proved below, and `resources`
-records the trusted query and elementary-gate counters used by the public
-theorem nodes.  The certificate also keeps the source block-encoding proof and
-the public total-ancilla accounting (`m` source ancillas plus `a` transformation
-ancillas) with the word, so the endpoint theorems cannot silently forget the
-input oracle. -/
-structure HermitianQSVTWord (m a n : Nat) (A : HilbertOperator (Qubits n)) where
+The `signal` field is the source block-encoding oracle, while the output operator is
+derived from `circuit.matrix`.  The canonical readable event profile is certified
+against that same circuit's strict event ledger.  The certificate also keeps the source
+block-encoding proof and public total-ancilla accounting (`m` source ancillas
+plus `a` transformation ancillas), so endpoint theorems cannot silently forget
+the input oracle. -/
+public structure HermitianQSVTWord (m a n : Nat) (A : HilbertOperator (Qubits n)) where
   /-- Source block-encoding oracle used as the Hermitian QSVT signal. -/
-  signal : Gate (Qubits (m + n))
-  /-- Output gate whose projected block is certified by the endpoint. -/
-  output : Gate (Qubits (a + n))
-  /-- Typed output circuit carrying the trusted resource profile. -/
-  circuit : Circuit (Qubits (a + n))
-  output_matrix_eq :
-    (output : HilbertOperator (Qubits (a + n))) =
-      (circuit.matrix : HilbertOperator (Qubits (a + n)))
-  /-- Hermitian-QSVT-specific trusted query and gate counters. -/
-  resources : HermitianResourceProfile
-  circuit_resources :
-    ResourceProfile.HasExactCounts circuit.resources
-      resources.oracleQueries 0 resources.elementaryGates 0
+  signal : UnitaryOperator (Qubits (m + n))
+  /-- Typed output circuit carrying both semantics and resources. -/
+  circuit : UnitaryCircuit (Qubits (a + n))
   sourceBlockEncoding : ExactBlockEncoding m n signal A
   /-- Transformation ancillas added on top of the source block-encoding ancillas. -/
   extraAncillaQubits : Nat
   /-- Total block ancillas exposed by the output block encoding. -/
   totalBlockAncilla : Nat
   totalBlockAncilla_eq : totalBlockAncilla = m + extraAncillaQubits
+  /-- The output circuit's typed ancilla width is the advertised total. -/
+  totalBlockAncilla_eq_a : totalBlockAncilla = a
 
 namespace HermitianQSVTWord
 
+/-- Canonical typed layout of the output circuit interface.  The word argument
+fixes the indexed carrier while the layout depends only on its output width. -/
+@[nolint unusedArguments]
+def outputLayout {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (_word : HermitianQSVTWord m a n A) : QubitLayout (a + n) :=
+  qsvtCanonicalQubitLayout (a + n)
+
+/-- Live space of the typed output interface, kept separate from execution
+events. -/
+public def liveSpace {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) : SpacePool .quantum :=
+  SpacePool.ofQuantumLayout word.outputLayout.toQuantumLayout
+
+/-- Canonical typed layout of only the transformation ancillas. -/
+def extraAncillaLayout {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) :
+    QubitLayout word.extraAncillaQubits :=
+  qsvtCanonicalQubitLayout word.extraAncillaQubits
+
+/-- Transformation-ancilla capacity, never an event coordinate. -/
+public def extraAncillaSpace {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) : SpacePool .quantum :=
+  SpacePool.ofQuantumLayout word.extraAncillaLayout.toQuantumLayout
+
+@[simp] theorem liveSpace_logicalQubits {m a n : Nat}
+    {A : HilbertOperator (Qubits n)} (word : HermitianQSVTWord m a n A) :
+    SpacePool.count (.quantumSystems 2) word.liveSpace = a + n := by
+  exact (QubitLayout.toQuantumLayout_dimensionCount word.outputLayout 2).trans (if_pos rfl)
+
+@[simp] theorem extraAncillaSpace_logicalQubits {m a n : Nat}
+    {A : HilbertOperator (Qubits n)} (word : HermitianQSVTWord m a n A) :
+    SpacePool.count (.quantumSystems 2) word.extraAncillaSpace =
+      word.extraAncillaQubits := by
+  exact (QubitLayout.toQuantumLayout_dimensionCount word.extraAncillaLayout 2).trans (if_pos rfl)
+
+/-- The circuit carrier's ancilla width is exactly the source width plus the
+proved transformation workspace. -/
+theorem outputAncillaWidth_eq {m a n : Nat}
+    {A : HilbertOperator (Qubits n)} (word : HermitianQSVTWord m a n A) :
+    a = m + word.extraAncillaQubits := by
+  calc
+    a = word.totalBlockAncilla := word.totalBlockAncilla_eq_a.symm
+    _ = m + word.extraAncillaQubits := word.totalBlockAncilla_eq
+
+/-- Canonical readable counters projected from the stored circuit's strict
+event ledger. -/
+public def eventProfile {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) : HermitianEventProfile :=
+  HermitianEventProfile.ofEvents word.circuit.eventCost
+
+/-- The canonical profile is tied definitionally to the same typed circuit. -/
+theorem circuit_events {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) :
+    HermitianEventProfile.HasExactEvents word.eventProfile
+      word.circuit.eventCost := rfl
+
+
+
+
+
 /-- The word uses the registered source block encoding as its signal oracle. -/
-def UsesSignal {m a n : Nat} {A : HilbertOperator (Qubits n)} (word : HermitianQSVTWord m a n A)
-    (U : Gate (Qubits (m + n))) : Prop :=
+public def UsesSignal {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A)
+    (U : UnitaryOperator (Qubits (m + n))) : Prop :=
   word.signal = U
 
-/-- The output gate is the mathematical matrix of the typed circuit stored in
-the Hermitian QSVT word. -/
+/-- Output semantics are derived, never stored independently. -/
+def output {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) : UnitaryOperator (Qubits (a + n)) :=
+  word.circuit.matrix
+
+theorem output_matrix_eq {m a n : Nat} {A : HilbertOperator (Qubits n)}
+    (word : HermitianQSVTWord m a n A) :
+    (word.output : HilbertOperator (Qubits (a + n))) =
+      (word.circuit.matrix : HilbertOperator (Qubits (a + n))) := rfl
+
+/-- The derived output operator is the mathematical matrix of the stored circuit. -/
 theorem output_eq_circuit_matrix {m a n : Nat} {A : HilbertOperator (Qubits n)}
     (word : HermitianQSVTWord m a n A) :
     (word.output : HilbertOperator (Qubits (a + n))) =
-      (word.circuit.matrix : HilbertOperator (Qubits (a + n))) :=
-  word.output_matrix_eq
+      (word.circuit.matrix : HilbertOperator (Qubits (a + n))) := rfl
 
 end HermitianQSVTWord
 
 /-- Circuit-level wrapper for the Hadamard phase ancilla and reassociation used
 by Hermitian real-parity endpoints. The history keeps the projected-QSVT circuit
-as a subhistory, instead of replacing it by an unrelated opaque output gate. -/
+as a subhistory, instead of replacing it by an unrelated opaque output circuit. -/
 noncomputable def phaseHadamardReassociateCircuit {m n : Nat}
-    (body : Circuit (Qubits (1 + (m + n)))) (profile : HermitianResourceProfile) :
-    Circuit (Qubits ((1 + m) + n)) where
-  history := CircuitHistory.seq body.history
-    (CircuitHistory.atom "qsvt-phase-hadamard-reassociate")
-  matrix := reassociatePhaseAncillaGate (m := m) (n := n)
-    (phaseHadamardWrapper body.matrix)
-  resources := profile.toCircuitResourceProfile
-  depth := body.depth + 1
-  queryDepth := body.queryDepth
+    (body : UnitaryCircuit (Qubits (1 + (m + n)))) :
+    UnitaryCircuit (Qubits ((1 + m) + n)) :=
+  reassociatePhaseAncillaGate (m := m) (n := n) (phaseHadamardWrapper body)
 
 @[simp]
 theorem phaseHadamardReassociateCircuit_matrix {m n : Nat}
-    (body : Circuit (Qubits (1 + (m + n)))) (profile : HermitianResourceProfile) :
-    ((phaseHadamardReassociateCircuit (m := m) (n := n) body profile).matrix :
-      HilbertOperator (Qubits ((1 + m) + n))) =
-      (reassociatePhaseAncillaGate (m := m) (n := n)
-        (phaseHadamardWrapper body.matrix) :
-        HilbertOperator (Qubits ((1 + m) + n))) := rfl
+    (body : UnitaryCircuit (Qubits (1 + (m + n)))) :
+    (phaseHadamardReassociateCircuit (m := m) (n := n) body).matrix =
+      reassociatePhaseAncillaOperator (m := m) (n := n)
+        (phaseHadamardWrapperOperator body.matrix) := by
+  simp [phaseHadamardReassociateCircuit]
 
-theorem phaseHadamardReassociateCircuit_resources_exact {m n : Nat}
-    (body : Circuit (Qubits (1 + (m + n)))) (profile : HermitianResourceProfile) :
-    ResourceProfile.HasExactCounts
-      (phaseHadamardReassociateCircuit (m := m) (n := n) body profile).resources
-      profile.oracleQueries 0 profile.elementaryGates 0 := by
-  simpa [phaseHadamardReassociateCircuit] using
-    HermitianResourceProfile.toCircuitResourceProfile_exact profile
+
+
+/-- Reassociation preserves the literal events and the wrapper contributes
+the two actual Hadamard coordinates. -/
+@[simp] theorem phaseHadamardReassociateCircuit_eventCost {m n : Nat}
+    (body : UnitaryCircuit (Qubits (1 + (m + n)))) :
+    (phaseHadamardReassociateCircuit (m := m) (n := n) body).eventCost =
+      ResourcePool.singleton (.gate (.builtin "hadamard")) + body.eventCost +
+        ResourcePool.singleton (.gate (.builtin "hadamard")) := by
+  rw [phaseHadamardReassociateCircuit, reassociatePhaseAncillaGate,
+    UnitaryCircuit.reindex_eventCost]
+  simp [phaseHadamardWrapper, Gate.H, Gate.hadamardLeaf,
+    Gate.hadamardLeafAt]
+
+
+
+/-- Closed strict-event formula for the positive-degree real-parity circuit. -/
+def realParityCircuitEvents (N L : Nat) : ResourcePool .quantum :=
+  ResourcePool.singleton (.gate (.builtin "hadamard")) +
+    qsvtProjectedCircuitEventResource N L +
+    ResourcePool.singleton (.gate (.builtin "hadamard"))
+
+
+
+
+
+
+
+/-- The strict projected-QSVT ledger contains one signal event per slot. -/
+theorem qsvtProjectedCircuitEventResource_signalQueries (N L : Nat) :
+    HermitianEventProfile.weightedTotal HermitianEventProfile.signalQueryWeight
+        (qsvtProjectedCircuitEventResource N L) = L := by
+  induction L with
+  | zero => rfl
+  | succ L ih =>
+      rw [qsvtProjectedCircuitEventResource]
+      by_cases hparity : (L + 1) % 2 = 0 <;>
+        simp [HermitianEventProfile.signalQueryWeight,
+          HermitianEventProfile.signalControlDimensions,
+          qsvtOracleEvent, qsvtOracleLabel, qsvtProjectorOracleEvent,
+          qsvtProjectorOracleLabel, qsvtLeftProjectorOracleLabel,
+          qsvtRightProjectorOracleLabel, qsvtControlledPhaseEvent,
+          qsvtControlledPhaseLabel, hparity, ih]
+
+/-- Projected matching-parity words do not structurally control the signal
+event; projector subroutines remain separate coordinates. -/
+theorem qsvtProjectedCircuitEventResource_controlledSignalQueries (N L : Nat) :
+    HermitianEventProfile.weightedTotal
+        HermitianEventProfile.controlledSignalQueryWeight
+        (qsvtProjectedCircuitEventResource N L) = 0 := by
+  induction L with
+  | zero => rfl
+  | succ L ih =>
+      rw [qsvtProjectedCircuitEventResource]
+      by_cases hparity : (L + 1) % 2 = 0 <;>
+        simp [HermitianEventProfile.controlledSignalQueryWeight,
+          HermitianEventProfile.signalControlDimensions,
+          qsvtOracleEvent, qsvtOracleLabel, qsvtProjectorOracleEvent,
+          qsvtProjectorOracleLabel, qsvtLeftProjectorOracleLabel,
+          qsvtRightProjectorOracleLabel, qsvtControlledPhaseEvent,
+          qsvtControlledPhaseLabel, hparity, ih]
+
+/-- Each projected slot has two projector events and one phase event outside
+the signal family. -/
+theorem qsvtProjectedCircuitEventResource_elementaryEvents (N L : Nat) :
+    HermitianEventProfile.weightedTotal
+        HermitianEventProfile.elementaryEventWeight
+        (qsvtProjectedCircuitEventResource N L) = 3 * L := by
+  induction L with
+  | zero => rfl
+  | succ L ih =>
+      rw [qsvtProjectedCircuitEventResource]
+      by_cases hparity : (L + 1) % 2 = 0 <;>
+        simp [HermitianEventProfile.elementaryEventWeight,
+          HermitianEventProfile.signalControlDimensions,
+          qsvtOracleEvent, qsvtOracleLabel, qsvtProjectorOracleEvent,
+          qsvtProjectorOracleLabel, qsvtLeftProjectorOracleLabel,
+          qsvtRightProjectorOracleLabel, qsvtControlledPhaseEvent,
+          qsvtControlledPhaseLabel, hparity, ih] <;> omega
+
+
+
+/-- The real-parity source profile is computed from the strict events of the
+explicit wrapper and projected word. -/
+theorem realParityCircuitEvents_profile (m n L : Nat) :
+    HermitianEventProfile.ofEvents (realParityCircuitEvents (m + n) L) =
+      realParityEventProfile m L := by
+  apply HermitianEventProfile.ext <;>
+    simp [realParityCircuitEvents, realParityEventProfile,
+      HermitianEventProfile.ofEvents,
+      HermitianEventProfile.signalQueryWeight,
+      HermitianEventProfile.controlledSignalQueryWeight,
+      HermitianEventProfile.elementaryEventWeight,
+      HermitianEventProfile.signalControlDimensions,
+      qsvtProjectedCircuitEventResource_signalQueries,
+      qsvtProjectedCircuitEventResource_controlledSignalQueries,
+      qsvtProjectedCircuitEventResource_elementaryEvents]
+  all_goals omega
+
+
 
 /-- Circuit-level selector average of two branch circuits. -/
 noncomputable def averageProjectedBlockCircuit {a n : Nat}
-    (left right : Circuit (Qubits (a + n))) (profile : HermitianResourceProfile) :
-    Circuit (Qubits ((1 + a) + n)) where
-  history := CircuitHistory.seq
-    (CircuitHistory.seq left.history right.history)
-    (CircuitHistory.atom "qsvt-selector-average")
-  matrix := averageProjectedBlockGate (a := a) (n := n) left.matrix right.matrix
-  resources := profile.toCircuitResourceProfile
-  depth := max left.depth right.depth + 1
-  queryDepth := max left.queryDepth right.queryDepth
+    (left right : UnitaryCircuit (Qubits (a + n))) :
+    UnitaryCircuit (Qubits ((1 + a) + n)) :=
+  averageProjectedBlockGate (a := a) (n := n) left right
 
 @[simp]
 theorem averageProjectedBlockCircuit_matrix {a n : Nat}
-    (left right : Circuit (Qubits (a + n))) (profile : HermitianResourceProfile) :
-    ((averageProjectedBlockCircuit (a := a) (n := n) left right profile).matrix :
-      HilbertOperator (Qubits ((1 + a) + n))) =
-      (averageProjectedBlockGate (a := a) (n := n) left.matrix right.matrix :
-        HilbertOperator (Qubits ((1 + a) + n))) := rfl
+    (left right : UnitaryCircuit (Qubits (a + n))) :
+    (averageProjectedBlockCircuit (a := a) (n := n) left right).matrix =
+      averageProjectedBlockOperator (a := a) (n := n) left.matrix right.matrix := by
+  simp [averageProjectedBlockCircuit]
 
-theorem averageProjectedBlockCircuit_resources_exact {a n : Nat}
-    (left right : Circuit (Qubits (a + n))) (profile : HermitianResourceProfile) :
-    ResourceProfile.HasExactCounts
-      (averageProjectedBlockCircuit (a := a) (n := n) left right profile).resources
-      profile.oracleQueries 0 profile.elementaryGates 0 := by
-  simpa [averageProjectedBlockCircuit] using
-    HermitianResourceProfile.toCircuitResourceProfile_exact profile
+
+
+/-- Exact strict-event ledger of the binary selector average. -/
+@[simp] theorem averageProjectedBlockCircuit_eventCost {a n : Nat}
+    (left right : UnitaryCircuit (Qubits (a + n))) :
+    (averageProjectedBlockCircuit (a := a) (n := n) left right).eventCost =
+      ResourcePool.singleton (.gate (.builtin "hadamard")) +
+        (left.eventCost +
+          ResourcePool.controlForDimension 2 (left.eventCost + right.eventCost)) +
+        ResourcePool.singleton (.gate (.builtin "hadamard")) := by
+  rw [averageProjectedBlockCircuit, averageProjectedBlockGate,
+    reassociatePhaseAncillaGate, UnitaryCircuit.reindex_eventCost]
+  simp [phaseHadamardWrapper, Gate.H, Gate.hadamardLeaf,
+    Gate.hadamardLeafAt]
+
+
+
+/-- The selector's readable counters are projected from its actual strict
+events, preserving controlled signal coordinates. -/
+theorem averageProjectedBlockCircuit_eventProfile {a n : Nat}
+    (left right : UnitaryCircuit (Qubits (a + n))) :
+    HermitianEventProfile.ofEvents
+        (averageProjectedBlockCircuit (a := a) (n := n) left right).eventCost =
+      HermitianEventProfile.binarySelector
+        (HermitianEventProfile.ofEvents left.eventCost)
+        (HermitianEventProfile.ofEvents right.eventCost) := by
+  rw [averageProjectedBlockCircuit_eventCost]
+  apply HermitianEventProfile.ext <;>
+    simp [HermitianEventProfile.ofEvents,
+      HermitianEventProfile.binarySelector,
+      HermitianEventProfile.signalQueryWeight,
+      HermitianEventProfile.controlledSignalQueryWeight,
+      HermitianEventProfile.elementaryEventWeight,
+      HermitianEventProfile.signalControlDimensions] <;>
+    omega
+
+
+
+
+
+/-- One explicit global phase primitive. -/
+noncomputable def qsvtBranchPhase {R : Register} (ζ : ℂ)
+    (hζ : Complex.normSq ζ = 1) : UnitaryCircuit R :=
+  UnitaryCircuit.ofLeaf (qsvtBranchPhaseLeaf ζ hζ) (by
+    simp [qsvtBranchPhaseLeaf, qsvtBranchPhaseLeafAt])
+
+/-- The degree-zero scalar dilation is a sealed primitive with one fixed unit;
+callers cannot attach an arbitrary resource profile to the semantic operator. -/
+noncomputable def qsvtScalarDilationLeaf {m n : Nat} (c : ℂ)
+    (hc : Complex.normSq c ≤ 1) : UnitaryLeaf (Qubits ((1 + m) + n)) :=
+  qsvtScalarDilationLeafAt (m := m) (n := n) c hc
+    (List.range ((1 + m) + n))
+
+
+
+/-- One closed scalar-dilation circuit. -/
+noncomputable def qsvtScalarDilationCircuit {m n : Nat} (c : ℂ)
+    (hc : Complex.normSq c ≤ 1) : UnitaryCircuit (Qubits ((1 + m) + n)) :=
+  UnitaryCircuit.ofLeaf (qsvtScalarDilationLeaf (m := m) (n := n) c hc) (by
+    simpa only [qsvtScalarDilationLeaf, qsvtScalarDilationLeafAt,
+      UnitaryLeaf.gate_systemIdx] using
+      (List.nodup_range : (List.range ((1 + m) + n)).Nodup))
+
+
+
+/-- The degree-zero scalar dilation contributes its one literal non-signal
+event and no signal query. -/
+theorem qsvtScalarDilationCircuit_eventProfile {m n : Nat} (c : ℂ)
+    (hc : Complex.normSq c ≤ 1) :
+    HermitianEventProfile.ofEvents
+        (qsvtScalarDilationCircuit (m := m) (n := n) c hc).eventCost =
+      matchingParityEventProfile m 0 := by
+  apply HermitianEventProfile.ext <;>
+    simp [qsvtScalarDilationCircuit, qsvtScalarDilationLeaf,
+      qsvtScalarDilationLeafAt,
+      matchingParityEventProfile, matchingParityElementaryGates,
+      HermitianEventProfile.ofEvents,
+      HermitianEventProfile.signalQueryWeight,
+      HermitianEventProfile.controlledSignalQueryWeight,
+      HermitianEventProfile.elementaryEventWeight,
+      HermitianEventProfile.signalControlDimensions]
 
 /-- Circuit-level global phase applied to one branch. -/
 noncomputable def phaseScaledCircuit {R : Register} (ζ : ℂ)
-    (hζ : Complex.normSq ζ = 1) (body : Circuit R) :
-    Circuit R where
-  history := CircuitHistory.seq body.history (CircuitHistory.atom "qsvt-branch-phase")
-  matrix := phaseScaledGate ζ hζ body.matrix
-  resources := body.resources
-  depth := body.depth + 1
-  queryDepth := body.queryDepth
+    (hζ : Complex.normSq ζ = 1) (body : UnitaryCircuit R) :
+    UnitaryCircuit R :=
+  UnitaryCircuit.seq body (qsvtBranchPhase ζ hζ)
+
+
+
+/-- A branch phase adds its literal strict event. -/
+@[simp] theorem phaseScaledCircuit_eventCost {R : Register} (ζ : ℂ)
+    (hζ : Complex.normSq ζ = 1) (body : UnitaryCircuit R) :
+    (phaseScaledCircuit ζ hζ body).eventCost =
+      body.eventCost + ResourcePool.singleton qsvtBranchPhaseEvent := by
+  simp [phaseScaledCircuit, qsvtBranchPhase, qsvtBranchPhaseLeaf,
+    qsvtBranchPhaseLeafAt, qsvtBranchPhaseEvent]
+
+
+
+/-- The strict profile of a phased branch increments only the local
+non-signal-event projection. -/
+theorem phaseScaledCircuit_eventProfile {R : Register}
+    (ζ : ℂ) (hζ : Complex.normSq ζ = 1) (body : UnitaryCircuit R) :
+    HermitianEventProfile.ofEvents (phaseScaledCircuit ζ hζ body).eventCost =
+      HermitianEventProfile.addElementaryEvent
+        (HermitianEventProfile.ofEvents body.eventCost) := by
+  rw [phaseScaledCircuit_eventCost]
+  apply HermitianEventProfile.ext <;>
+    simp [HermitianEventProfile.ofEvents,
+      HermitianEventProfile.addElementaryEvent,
+      HermitianEventProfile.signalQueryWeight,
+      HermitianEventProfile.controlledSignalQueryWeight,
+      HermitianEventProfile.elementaryEventWeight,
+      HermitianEventProfile.signalControlDimensions,
+      qsvtBranchPhaseEvent, qsvtBranchPhaseLabel]
 
 @[simp]
 theorem phaseScaledCircuit_matrix {R : Register} (ζ : ℂ)
-    (hζ : Complex.normSq ζ = 1) (body : Circuit R) :
-    ((phaseScaledCircuit ζ hζ body).matrix : HilbertOperator R) =
-      (phaseScaledGate ζ hζ body.matrix : HilbertOperator R) := rfl
+    (hζ : Complex.normSq ζ = 1) (body : UnitaryCircuit R) :
+    (phaseScaledCircuit ζ hζ body).matrix =
+      phaseScaledOperator ζ hζ body.matrix := by
+  apply Subtype.ext
+  simp [phaseScaledCircuit, qsvtBranchPhase, qsvtBranchPhaseLeaf,
+    qsvtBranchPhaseLeafAt, qsvtBranchPhaseOp, phaseScaledOperatorRaw]
 
 /-- Circuit-level carrier for the source alternating phase sequence `U_Φ`. -/
-noncomputable def sourceAlternatingPhaseCircuit {N : Nat} (U : Gate (Qubits N))
+noncomputable def sourceAlternatingPhaseCircuit {N : Nat}
+    (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
-    Circuit (Qubits N) where
-  history := CircuitHistory.atom "qsvt-source-alternating-phase"
-  matrix := sourceAlternatingPhaseModulation U left right phases
-  resources := { ResourceProfile.zero with
-    oracleQueries := phases.length
-    elementaryGates := phases.length }
-  depth := phases.length
-  queryDepth := phases.length
+    UnitaryCircuit (Qubits N) :=
+  sourceAlternatingPhaseModulation U left right phases
 
 @[simp]
-theorem sourceAlternatingPhaseCircuit_matrix {N : Nat} (U : Gate (Qubits N))
+theorem sourceAlternatingPhaseCircuit_matrix {N : Nat}
+    (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (phases : List ℝ) :
     ((sourceAlternatingPhaseCircuit U left right phases).matrix :
       HilbertOperator (Qubits N)) =
@@ -308,46 +905,199 @@ theorem sourceAlternatingPhaseCircuit_matrix {N : Nat} (U : Gate (Qubits N))
 
 /-- Circuit-level selector average of four branch circuits. -/
 noncomputable def fourWayAverageProjectedBlockCircuit {a n : Nat}
-    (c00 c01 c10 c11 : Circuit (Qubits (a + n)))
-    (profile : HermitianResourceProfile) :
-    Circuit (Qubits ((1 + (1 + a)) + n)) where
-  history := CircuitHistory.seq
-    (CircuitHistory.seq
-      (CircuitHistory.seq c00.history c01.history)
-      (CircuitHistory.seq c10.history c11.history))
-    (CircuitHistory.atom "qsvt-four-way-selector-average")
-  matrix := fourWayAverageProjectedBlockGate (a := a) (n := n)
-    c00.matrix c01.matrix c10.matrix c11.matrix
-  resources := profile.toCircuitResourceProfile
-  depth := max (max c00.depth c01.depth) (max c10.depth c11.depth) + 1
-  queryDepth := max (max c00.queryDepth c01.queryDepth) (max c10.queryDepth c11.queryDepth)
+    (c00 c01 c10 c11 : UnitaryCircuit (Qubits (a + n))) :
+    UnitaryCircuit (Qubits ((1 + (1 + a)) + n)) :=
+  fourWayAverageProjectedBlockGate (a := a) (n := n) c00 c01 c10 c11
 
 @[simp]
 theorem fourWayAverageProjectedBlockCircuit_matrix {a n : Nat}
-    (c00 c01 c10 c11 : Circuit (Qubits (a + n)))
-    (profile : HermitianResourceProfile) :
-    ((fourWayAverageProjectedBlockCircuit (a := a) (n := n)
-      c00 c01 c10 c11 profile).matrix :
-      HilbertOperator (Qubits ((1 + (1 + a)) + n))) =
-      (fourWayAverageProjectedBlockGate (a := a) (n := n)
-        c00.matrix c01.matrix c10.matrix c11.matrix :
-        HilbertOperator (Qubits ((1 + (1 + a)) + n))) := rfl
+    (c00 c01 c10 c11 : UnitaryCircuit (Qubits (a + n))) :
+    (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
+      c00 c01 c10 c11).matrix =
+      fourWayAverageProjectedBlockOperator (a := a) (n := n)
+        c00.matrix c01.matrix c10.matrix c11.matrix := by
+  unfold fourWayAverageProjectedBlockCircuit fourWayAverageProjectedBlockGate
+    fourWayAverageProjectedBlockOperator
+  rw [averageProjectedBlockGate_matrix, averageProjectedBlockGate_matrix,
+    averageProjectedBlockGate_matrix]
 
-theorem fourWayAverageProjectedBlockCircuit_resources_exact {a n : Nat}
-    (c00 c01 c10 c11 : Circuit (Qubits (a + n)))
-    (profile : HermitianResourceProfile) :
-    ResourceProfile.HasExactCounts
+
+
+/-- The nested four-way selector profile is projected from its strict event
+ledger at each selector layer. -/
+theorem fourWayAverageProjectedBlockCircuit_eventProfile {a n : Nat}
+    (c00 c01 c10 c11 : UnitaryCircuit (Qubits (a + n))) :
+    HermitianEventProfile.ofEvents
+        (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
+          c00 c01 c10 c11).eventCost =
+      HermitianEventProfile.binarySelector
+        (HermitianEventProfile.binarySelector
+          (HermitianEventProfile.ofEvents c00.eventCost)
+          (HermitianEventProfile.ofEvents c01.eventCost))
+        (HermitianEventProfile.binarySelector
+          (HermitianEventProfile.ofEvents c10.eventCost)
+          (HermitianEventProfile.ofEvents c11.eventCost)) := by
+  change HermitianEventProfile.ofEvents
+      (averageProjectedBlockCircuit (a := 1 + a) (n := n)
+        (averageProjectedBlockCircuit (a := a) (n := n) c00 c01)
+        (averageProjectedBlockCircuit (a := a) (n := n) c10 c11)).eventCost = _
+  rw [averageProjectedBlockCircuit_eventProfile,
+    averageProjectedBlockCircuit_eventProfile,
+    averageProjectedBlockCircuit_eventProfile]
+
+
+
+/-- Circuit-level selector averaging preserves the complex even/odd block
+encoding theorem while keeping the implementation carrier explicit. -/
+theorem exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockCircuit
+    {a n : Nat} (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
+    (evenCircuit oddCircuit : UnitaryCircuit (Qubits (a + n)))
+    (hEven : ExactBlockEncoding a n evenCircuit.matrix
+      (polynomialOperator ((2 : ℂ) • complexPolynomialEvenPart P) A))
+    (hOdd : ExactBlockEncoding a n oddCircuit.matrix
+      (polynomialOperator ((2 : ℂ) • complexPolynomialOddPart P) A)) :
+    ExactBlockEncoding (1 + a) n
+      (averageProjectedBlockCircuit (a := a) (n := n)
+        evenCircuit oddCircuit).matrix
+      (polynomialOperator P A) := by
+  rw [averageProjectedBlockCircuit_matrix]
+  exact exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockOperator
+    (a := a) (n := n) P A hEven hOdd
+
+/-- Circuit-level four-way selector averaging for the real/imaginary,
+even/odd decomposition of a complex polynomial. -/
+theorem exactBlockEncoding_complexFourPartAverageProjectedBlockCircuit
+    {a n : Nat} (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
+    (reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit :
+      UnitaryCircuit (Qubits (a + n)))
+    (hReEven : ExactBlockEncoding a n reEvenCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialEvenPart (complexPolynomialRealPart P))) A))
+    (hReOdd : ExactBlockEncoding a n reOddCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialOddPart (complexPolynomialRealPart P))) A))
+    (hImEven : ExactBlockEncoding a n imEvenCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialEvenPart (complexPolynomialImagPart P))) A))
+    (hImOdd : ExactBlockEncoding a n imOddCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialOddPart (complexPolynomialImagPart P))) A)) :
+    ExactBlockEncoding (1 + (1 + a)) n
       (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
-        c00 c01 c10 c11 profile).resources
-      profile.oracleQueries 0 profile.elementaryGates 0 := by
-  simpa [fourWayAverageProjectedBlockCircuit] using
-    HermitianResourceProfile.toCircuitResourceProfile_exact profile
+        reEvenCircuit reOddCircuit
+        (phaseScaledCircuit Complex.I complex_normSq_I imEvenCircuit)
+        (phaseScaledCircuit Complex.I complex_normSq_I imOddCircuit)).matrix
+      ((1 / 4 : ℂ) • polynomialOperator P A) := by
+  have hImEvenScaled :
+      ExactBlockEncoding a n
+        (phaseScaledCircuit Complex.I complex_normSq_I imEvenCircuit).matrix
+        (Complex.I • polynomialOperator
+          (realPolynomialToComplex
+            (realPolynomialEvenPart (complexPolynomialImagPart P))) A) := by
+    rw [phaseScaledCircuit_matrix]
+    exact exactBlockEncoding_phaseScaledOperator
+      Complex.I complex_normSq_I hImEven
+  have hImOddScaled :
+      ExactBlockEncoding a n
+        (phaseScaledCircuit Complex.I complex_normSq_I imOddCircuit).matrix
+        (Complex.I • polynomialOperator
+          (realPolynomialToComplex
+            (realPolynomialOddPart (complexPolynomialImagPart P))) A) := by
+    rw [phaseScaledCircuit_matrix]
+    exact exactBlockEncoding_phaseScaledOperator
+      Complex.I complex_normSq_I hImOdd
+  have hAverage :=
+    exactBlockEncoding_fourWayAverageProjectedBlockOperator
+      (a := a) (n := n) hReEven hReOdd hImEvenScaled hImOddScaled
+  have hCircuit :
+      ExactBlockEncoding (1 + (1 + a)) n
+        (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
+          reEvenCircuit reOddCircuit
+          (phaseScaledCircuit Complex.I complex_normSq_I imEvenCircuit)
+          (phaseScaledCircuit Complex.I complex_normSq_I imOddCircuit)).matrix
+        ((1 / 4 : ℂ) • polynomialOperator
+            (realPolynomialToComplex
+              (realPolynomialEvenPart (complexPolynomialRealPart P))) A +
+          (1 / 4 : ℂ) • polynomialOperator
+            (realPolynomialToComplex
+              (realPolynomialOddPart (complexPolynomialRealPart P))) A +
+          ((1 / 4 : ℂ) • Complex.I • polynomialOperator
+              (realPolynomialToComplex
+                (realPolynomialEvenPart (complexPolynomialImagPart P))) A +
+            (1 / 4 : ℂ) • Complex.I • polynomialOperator
+              (realPolynomialToComplex
+                (realPolynomialOddPart (complexPolynomialImagPart P))) A)) := by
+    rw [fourWayAverageProjectedBlockCircuit_matrix]
+    exact hAverage
+  have htarget :
+      (1 / 4 : ℂ) • polynomialOperator
+          (realPolynomialToComplex
+            (realPolynomialEvenPart (complexPolynomialRealPart P))) A +
+        (1 / 4 : ℂ) • polynomialOperator
+          (realPolynomialToComplex
+            (realPolynomialOddPart (complexPolynomialRealPart P))) A +
+        ((1 / 4 : ℂ) • Complex.I • polynomialOperator
+            (realPolynomialToComplex
+              (realPolynomialEvenPart (complexPolynomialImagPart P))) A +
+          (1 / 4 : ℂ) • Complex.I • polynomialOperator
+            (realPolynomialToComplex
+              (realPolynomialOddPart (complexPolynomialImagPart P))) A) =
+        (1 / 4 : ℂ) • polynomialOperator P A := by
+    simpa [smul_smul] using polynomialOperator_complex_fourPart_average_recompose P A
+  constructor
+  intro i j
+  exact (hCircuit.block_entry i j).trans (congrFun (congrFun htarget i) j)
+
+/-- Normalization-four block-encoding view of the same four-branch circuit. -/
+theorem blockEncoding_complexFourPartAverageProjectedBlockCircuit
+    {a n : Nat} (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
+    (reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit :
+      UnitaryCircuit (Qubits (a + n)))
+    (hReEven : ExactBlockEncoding a n reEvenCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialEvenPart (complexPolynomialRealPart P))) A))
+    (hReOdd : ExactBlockEncoding a n reOddCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialOddPart (complexPolynomialRealPart P))) A))
+    (hImEven : ExactBlockEncoding a n imEvenCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialEvenPart (complexPolynomialImagPart P))) A))
+    (hImOdd : ExactBlockEncoding a n imOddCircuit.matrix
+      (polynomialOperator
+        (realPolynomialToComplex
+          (realPolynomialOddPart (complexPolynomialImagPart P))) A)) :
+    BlockEncoding 4 (1 + (1 + a)) n 0
+      (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
+        reEvenCircuit reOddCircuit
+        (phaseScaledCircuit Complex.I complex_normSq_I imEvenCircuit)
+        (phaseScaledCircuit Complex.I complex_normSq_I imOddCircuit)).matrix
+      (polynomialOperator P A) := by
+  have hExact := exactBlockEncoding_complexFourPartAverageProjectedBlockCircuit
+    (a := a) (n := n) P A reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit
+    hReEven hReOdd hImEven hImOdd
+  have hExactScaled :
+      ExactBlockEncoding (1 + (1 + a)) n
+        (fourWayAverageProjectedBlockCircuit (a := a) (n := n)
+          reEvenCircuit reOddCircuit
+          (phaseScaledCircuit Complex.I complex_normSq_I imEvenCircuit)
+          (phaseScaledCircuit Complex.I complex_normSq_I imOddCircuit)).matrix
+        (((4 : ℝ)⁻¹ : ℂ) • polynomialOperator P A) := by
+    simpa [one_div] using hExact
+  exact ExactBlockEncoding.toScaledBlockEncoding
+    (α := 4) (by norm_num) hExactScaled
 
 /-- The zero-ancilla projected source block has the same top-left block as the
-underlying source gate.  This is the bookkeeping bridge from the source
+underlying source unitary.  This is the bookkeeping bridge from the source
 projected statement to ordinary block-encoding notation. -/
 theorem projectedBlock_sourceProjectedBlock_zeroAncilla {m n : Nat}
-    (V : Gate (Qubits (m + n))) :
+    (V : UnitaryOperator (Qubits (m + n))) :
     projectedBlock m n
         (sourceProjectedBlock (OrthogonalProjector.zeroAncilla m n)
           (OrthogonalProjector.zeroAncilla m n) V) =
@@ -365,7 +1115,7 @@ This is the endpoint form used by shared-control QSVT combinations: the branch
 gate is the source alternating phase sequence itself, rather than an already
 Hadamard-wrapped public-real branch [GSLW19, BlockHam.tex:768-887,1936-1952]. -/
 theorem exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
-    {m n d : Nat} {U : Gate (Qubits (m + n))}
+    {m n d : Nat} {U : UnitaryOperator (Qubits (m + n))}
     {A : HilbertOperator (Qubits n)} {P : Polynomial ℂ}
     {phases : List ℝ}
     (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
@@ -377,7 +1127,7 @@ theorem exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
     ExactBlockEncoding m n
       (sourceAlternatingPhaseModulation U
         (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) phases)
+        (OrthogonalProjector.zeroAncilla m n) phases).matrix
       (polynomialOperator P A) := by
   let zero := OrthogonalProjector.zeroAncilla m n
   constructor
@@ -390,16 +1140,18 @@ theorem exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
           (sourceAlternatingPhaseModulation U zero zero phases :
             HilbertOperator (Qubits (m + n))) =
         projectedBlock m n
-          (singularValuePolynomial zero d P (projectedUnitaryBlock zero zero U)) := by
+          (singularValuePolynomial zero d P
+            (projectedUnitaryBlock zero zero U)) := by
     rw [← projectedBlock_sourceProjectedBlock_zeroAncilla
       (m := m) (n := n)
-      (sourceAlternatingPhaseModulation U zero zero phases)]
+          (sourceAlternatingPhaseModulation U zero zero phases).matrix]
     simpa [zero, hout] using hprojected
   have henc :=
     (exactBlockEncoding_to_projectedUnitaryEncoding hbe).block_eq
   have htarget :
       projectedBlock m n
-          (singularValuePolynomial zero d P (projectedUnitaryBlock zero zero U)) =
+          (singularValuePolynomial zero d P
+            (projectedUnitaryBlock zero zero U)) =
         polynomialOperator P A := by
     rw [henc]
     exact
@@ -418,7 +1170,8 @@ selector ancillas.  Unlike the fallback `m+3` bookkeeping theorem, each branch
 here is the source alternating phase sequence itself, so the output has exactly
 `m+2` block-encoding ancillas [GSLW19, BlockHam.tex:886-887,1936-1952]. -/
 theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
-    {m n d00 d01 d10 d11 : Nat} {U : Gate (Qubits (m + n))}
+    {m n d00 d01 d10 d11 : Nat}
+    {U : UnitaryOperator (Qubits (m + n))}
     {A : HilbertOperator (Qubits n)}
     {P00 P01 P10 P11 : Polynomial ℂ}
     {phases00 phases01 phases10 phases11 : List ℝ}
@@ -444,19 +1197,19 @@ theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
         (OrthogonalProjector.zeroAncilla m n)
         (OrthogonalProjector.zeroAncilla m n) d11 P11 phases11) :
     ExactBlockEncoding (1 + (1 + m)) n
-      (fourWayAverageProjectedBlockGate (a := m) (n := n)
+      (fourWayAverageProjectedBlockOperator (a := m) (n := n)
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases00)
+          (OrthogonalProjector.zeroAncilla m n) phases00).matrix
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases01)
+          (OrthogonalProjector.zeroAncilla m n) phases01).matrix
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases10)
+          (OrthogonalProjector.zeroAncilla m n) phases10).matrix
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases11))
+          (OrthogonalProjector.zeroAncilla m n) phases11).matrix)
       ((1 / 4 : ℂ) • polynomialOperator P00 A +
         (1 / 4 : ℂ) • polynomialOperator P01 A +
       ((1 / 4 : ℂ) • polynomialOperator P10 A +
@@ -465,7 +1218,7 @@ theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases00)
+          (OrthogonalProjector.zeroAncilla m n) phases00).matrix
         (polynomialOperator P00 A) :=
     exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
       hbe hA hparity00 hblock00
@@ -473,7 +1226,7 @@ theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases01)
+          (OrthogonalProjector.zeroAncilla m n) phases01).matrix
         (polynomialOperator P01 A) :=
     exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
       hbe hA hparity01 hblock01
@@ -481,7 +1234,7 @@ theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases10)
+          (OrthogonalProjector.zeroAncilla m n) phases10).matrix
         (polynomialOperator P10 A) :=
     exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
       hbe hA hparity10 hblock10
@@ -489,11 +1242,11 @@ theorem exactBlockEncoding_fourWaySourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phases11)
+          (OrthogonalProjector.zeroAncilla m n) phases11).matrix
         (polynomialOperator P11 A) :=
     exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
       hbe hA hparity11 hblock11
-  exact exactBlockEncoding_fourWayAverageProjectedBlockGate
+  exact exactBlockEncoding_fourWayAverageProjectedBlockOperator
     (a := m) (n := n) h00 h01 h10 h11
 
 /-- Four source-level real/imaginary and even/odd phase branches give the
@@ -503,7 +1256,8 @@ note after `thm:arbParity`: the branches are source alternating phase sequences,
 not already wrapped real-QSVT outputs [GSLW19, BlockHam.tex:1936-1952]. -/
 theorem exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
     {m n dReEven dReOdd dImEven dImOdd : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))}
+    {A : HilbertOperator (Qubits n)}
     {P : Polynomial Complex}
     {phasesReEven phasesReOdd phasesImEven phasesImOdd : List Real}
     (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
@@ -552,27 +1306,27 @@ theorem exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
           (realPolynomialOddPart (complexPolynomialImagPart P)))
         phasesImOdd) :
     ExactBlockEncoding (1 + (1 + m)) n
-      (fourWayAverageProjectedBlockGate (a := m) (n := n)
+      (fourWayAverageProjectedBlockOperator (a := m) (n := n)
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReEven)
+          (OrthogonalProjector.zeroAncilla m n) phasesReEven).matrix
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReOdd)
-        (phaseScaledGate Complex.I complex_normSq_I
+          (OrthogonalProjector.zeroAncilla m n) phasesReOdd).matrix
+        (phaseScaledOperator Complex.I complex_normSq_I
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesImEven))
-        (phaseScaledGate Complex.I complex_normSq_I
+            (OrthogonalProjector.zeroAncilla m n) phasesImEven).matrix)
+        (phaseScaledOperator Complex.I complex_normSq_I
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesImOdd)))
+            (OrthogonalProjector.zeroAncilla m n) phasesImOdd).matrix))
       ((1 / 4 : Complex) • polynomialOperator P A) := by
   have hReEven :
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReEven)
+          (OrthogonalProjector.zeroAncilla m n) phasesReEven).matrix
         (polynomialOperator
           (realPolynomialToComplex
             (realPolynomialEvenPart (complexPolynomialRealPart P))) A) :=
@@ -582,7 +1336,7 @@ theorem exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReOdd)
+          (OrthogonalProjector.zeroAncilla m n) phasesReOdd).matrix
         (polynomialOperator
           (realPolynomialToComplex
             (realPolynomialOddPart (complexPolynomialRealPart P))) A) :=
@@ -592,7 +1346,7 @@ theorem exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesImEven)
+          (OrthogonalProjector.zeroAncilla m n) phasesImEven).matrix
         (polynomialOperator
           (realPolynomialToComplex
             (realPolynomialEvenPart (complexPolynomialImagPart P))) A) :=
@@ -602,14 +1356,14 @@ theorem exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
       ExactBlockEncoding m n
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesImOdd)
+          (OrthogonalProjector.zeroAncilla m n) phasesImOdd).matrix
         (polynomialOperator
           (realPolynomialToComplex
             (realPolynomialOddPart (complexPolynomialImagPart P))) A) :=
     exactBlockEncoding_sourceAlternatingPhaseModulation_of_sourceCorrectness
       hbe hA hparityImOdd hblockImOdd
   exact
-    exactBlockEncoding_complexFourPartAverageProjectedBlockGate
+    exactBlockEncoding_complexFourPartAverageProjectedBlockOperator
       (a := m) (n := n) P A hReEven hReOdd hImEven hImOdd
 
 /-- Block-encoding form of
@@ -618,7 +1372,8 @@ shared source-level four-way circuit is a `(4,m+2,0)` block encoding of the
 complex Hermitian polynomial target. -/
 theorem blockEncoding_complexFourPartSourceAlternatingPhaseModulation
     {m n dReEven dReOdd dImEven dImOdd : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))}
+    {A : HilbertOperator (Qubits n)}
     {P : Polynomial Complex}
     {phasesReEven phasesReOdd phasesImEven phasesImOdd : List Real}
     (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
@@ -667,21 +1422,21 @@ theorem blockEncoding_complexFourPartSourceAlternatingPhaseModulation
           (realPolynomialOddPart (complexPolynomialImagPart P)))
         phasesImOdd) :
     BlockEncoding 4 (1 + (1 + m)) n 0
-      (fourWayAverageProjectedBlockGate (a := m) (n := n)
+      (fourWayAverageProjectedBlockOperator (a := m) (n := n)
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReEven)
+          (OrthogonalProjector.zeroAncilla m n) phasesReEven).matrix
         (sourceAlternatingPhaseModulation U
           (OrthogonalProjector.zeroAncilla m n)
-          (OrthogonalProjector.zeroAncilla m n) phasesReOdd)
-        (phaseScaledGate Complex.I complex_normSq_I
+          (OrthogonalProjector.zeroAncilla m n) phasesReOdd).matrix
+        (phaseScaledOperator Complex.I complex_normSq_I
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesImEven))
-        (phaseScaledGate Complex.I complex_normSq_I
+            (OrthogonalProjector.zeroAncilla m n) phasesImEven).matrix)
+        (phaseScaledOperator Complex.I complex_normSq_I
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesImOdd)))
+            (OrthogonalProjector.zeroAncilla m n) phasesImOdd).matrix))
       (polynomialOperator P A) := by
   have hExact :=
     exactBlockEncoding_complexFourPartSourceAlternatingPhaseModulation
@@ -690,32 +1445,33 @@ theorem blockEncoding_complexFourPartSourceAlternatingPhaseModulation
       hblockReEven hblockReOdd hblockImEven hblockImOdd
   have hScaled :
       ExactBlockEncoding (1 + (1 + m)) n
-        (fourWayAverageProjectedBlockGate (a := m) (n := n)
+        (fourWayAverageProjectedBlockOperator (a := m) (n := n)
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesReEven)
+            (OrthogonalProjector.zeroAncilla m n) phasesReEven).matrix
           (sourceAlternatingPhaseModulation U
             (OrthogonalProjector.zeroAncilla m n)
-            (OrthogonalProjector.zeroAncilla m n) phasesReOdd)
-          (phaseScaledGate Complex.I complex_normSq_I
+            (OrthogonalProjector.zeroAncilla m n) phasesReOdd).matrix
+          (phaseScaledOperator Complex.I complex_normSq_I
             (sourceAlternatingPhaseModulation U
               (OrthogonalProjector.zeroAncilla m n)
-              (OrthogonalProjector.zeroAncilla m n) phasesImEven))
-          (phaseScaledGate Complex.I complex_normSq_I
+              (OrthogonalProjector.zeroAncilla m n) phasesImEven).matrix)
+          (phaseScaledOperator Complex.I complex_normSq_I
             (sourceAlternatingPhaseModulation U
               (OrthogonalProjector.zeroAncilla m n)
-              (OrthogonalProjector.zeroAncilla m n) phasesImOdd)))
+              (OrthogonalProjector.zeroAncilla m n) phasesImOdd).matrix))
         (((4 : Real)⁻¹ : Complex) • polynomialOperator P A) := by
     simpa [one_div] using hExact
-  exact ExactBlockEncoding.toScaledBlockEncoding (alpha := 4) (by norm_num) hScaled
+  exact ExactBlockEncoding.toScaledBlockEncoding (α := 4) (by norm_num) hScaled
 
 namespace Signal.HermitianRealParity
 
-/-- The real matching-parity Hermitian QSVT endpoint.  The polynomial-side
-hypotheses record the degree, parity, and spectral contraction choices of the
-source theorem; the conclusion gives a concrete output gate whose projected
-block is exactly `P(A)` together with the exact resource counters. -/
-theorem sourceMain {m n L : Nat} {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+/-! ### Event-native real matching-parity endpoint -/
+
+/-- The real matching-parity Hermitian QSVT endpoint.  Its semantics and exact
+event profile are both derived from the returned typed circuit. -/
+theorem sourceMain {m n L : Nat}
+    {U : UnitaryOperator (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
     (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (hLpos : 0 < L) :
@@ -724,21 +1480,15 @@ theorem sourceMain {m n L : Nat} {U : Gate (Qubits (m + n))} {A : HilbertOperato
         ExactBlockEncoding (1 + m) n word.output
           (polynomialOperator (realPolynomialToComplex PRe) A) ∧
         word.totalBlockAncilla = m + 1 ∧
-        word.resources = realParityResources m L ∧
+        word.eventProfile = realParityEventProfile m L ∧
         (realPolynomialToComplex PRe).natDegree ≤ L ∧
-        HasParity (realPolynomialToComplex PRe) L ∧
-        HermitianResourceProfile.HasExactCounts word.resources L 0 1 ((m + 1) * L) ∧
-        NatBigO (fun d : ℕ => (realParityResources m d).oracleQueries) (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (realParityResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
+        HasParity (realPolynomialToComplex PRe) L := by
   let zero := OrthogonalProjector.zeroAncilla m n
   let projected :=
     realProjectedQSVTOfMatchingParity (U := U) zero zero hP hLpos
   let circuit :=
     phaseHadamardReassociateCircuit (m := m) (n := n) projected.circuit
-      (realParityResources m L)
-  let output :=
-    circuit.matrix
+  let output := circuit.matrix
   have houtput :
       ExactBlockEncoding (1 + m) n output
         (polynomialOperator (realPolynomialToComplex PRe) A) := by
@@ -746,8 +1496,7 @@ theorem sourceMain {m n L : Nat} {U : Gate (Qubits (m + n))} {A : HilbertOperato
     intro i j
     have hout : projectedOutputProjector zero zero L = zero := by
       simp [projectedOutputProjector]
-    have hprojected :=
-      congrArg (projectedBlock m n) projected.block_eq
+    have hprojected := congrArg (projectedBlock m n) projected.block_eq
     have hprojected' :
         projectedBlock m n
             (projectedPhasePlusBlock zero zero projected.circuit.matrix) =
@@ -774,56 +1523,67 @@ theorem sourceMain {m n L : Nat} {U : Gate (Qubits (m + n))} {A : HilbertOperato
       unfold output circuit
       rw [phaseHadamardReassociateCircuit_matrix]
       rw [projectedBlock_reassociatedPhaseHadamardWrapper]
-      rw [← projectedBlock_projectedPhasePlusBlock_zeroAncilla projected.circuit.matrix]
+      rw [← projectedBlock_projectedPhasePlusBlock_zeroAncilla
+        projected.circuit.matrix]
       rw [hprojected', htarget]
     exact congrFun (congrFun hblock i) j
+  have hprojectedEvents :
+      projected.circuit.eventCost =
+        qsvtProjectedCircuitEventResource (m + n) L :=
+    projected.resources_exact
+  have hcircuitEvents :
+      circuit.eventCost = realParityCircuitEvents (m + n) L := by
+    unfold circuit
+    rw [phaseHadamardReassociateCircuit_eventCost, hprojectedEvents]
+    rfl
+  have heventProfile :
+      HermitianEventProfile.ofEvents circuit.eventCost =
+        realParityEventProfile m L := by
+    rw [hcircuitEvents]
+    exact realParityCircuitEvents_profile m n L
   refine ⟨{
       signal := U,
-      output := output,
       circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := realParityResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          phaseHadamardReassociateCircuit_resources_exact
-            (m := m) (n := n) projected.circuit (realParityResources m L),
       sourceBlockEncoding := hbe,
       extraAncillaQubits := 1,
       totalBlockAncilla := 1 + m,
       totalBlockAncilla_eq := by omega
+      totalBlockAncilla_eq_a := by omega
     }, ?_⟩
   exact ⟨rfl, houtput, by simp; omega,
-    rfl, by simpa [realPolynomialToComplex_natDegree] using hP.degree_le,
-    ReflectionQSPPhaseSynthesis.hasParity_realPolynomialToComplex hP.parity,
-    realParityResources_exact m L, realParityOracleQueries_bigO m,
-    realParityElementaryGates_bigO m⟩
+    by simpa [HermitianQSVTWord.eventProfile] using heventProfile,
+    by simpa [realPolynomialToComplex_natDegree] using hP.degree_le,
+    ReflectionQSPPhaseSynthesis.hasParity_realPolynomialToComplex hP.parity⟩
 
-/-- A real matching-parity branch can always be represented as a block-encoding
-with the same carrier shape as the source real-parity QSVT endpoint.  Positive
-degree branches use the source circuit; degree-zero branches are represented by
-the elementary scalar dilation.  This keeps the arbitrary-parity reductions from
-falling back to an unrelated spectral construction. -/
+/-- A matching-parity branch has the source circuit at positive degree and a
+sealed scalar-dilation circuit at degree zero.  Both cases expose only the
+event profile of the returned circuit. -/
 theorem exists_word_of_matchingParity {m n d : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
     (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
     (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe) :
     ∃ word : HermitianQSVTWord m (1 + m) n A,
       word.UsesSignal U ∧
         ExactBlockEncoding (1 + m) n word.output
           (polynomialOperator (realPolynomialToComplex PRe) A) ∧
-        word.resources = realParityResources m d := by
+        word.extraAncillaQubits = 1 ∧
+        word.eventProfile = matchingParityEventProfile m d := by
   by_cases hpos : 0 < d
   · rcases sourceMain (m := m) (n := n) (L := d) (U := U) (A := A)
         PRe hbe hA hP hpos with
-      ⟨word, huses, henc, -, hresources, -, -, -, -, -⟩
-    exact ⟨word, huses, henc, hresources⟩
+      ⟨word, huses, henc, htotal, hevents, -, -⟩
+    have hextra : word.extraAncillaQubits = 1 := by
+      have hfield := word.totalBlockAncilla_eq
+      omega
+    exact ⟨word, huses, henc, hextra,
+      hevents.trans
+        (matchingParityEventProfile_eq_realParityEventProfile hpos).symm⟩
   · have hd0 : d = 0 := by omega
     have hdegRe : PRe.natDegree = 0 := by
       have hle0 : PRe.natDegree ≤ 0 := by
         simpa [hd0] using hP.degree_le
       exact Nat.eq_zero_of_le_zero hle0
-    have hdeg :
-        (realPolynomialToComplex PRe).natDegree = 0 := by
+    have hdeg : (realPolynomialToComplex PRe).natDegree = 0 := by
       simp [realPolynomialToComplex_natDegree, hdegRe]
     have hzero : (0 : ℝ) ∈ Set.Icc (-1 : ℝ) 1 := by
       constructor <;> norm_num
@@ -835,157 +1595,54 @@ theorem exists_word_of_matchingParity {m n d : Nat}
       simpa [realPolynomialToComplex, Polynomial.coeff_map] using hcoeffAbs
     have hcoeffSq :
         ‖(realPolynomialToComplex PRe).coeff 0‖ ^ 2 ≤ (1 : ℝ) := by
-      nlinarith [hcoeffNorm, norm_nonneg ((realPolynomialToComplex PRe).coeff 0)]
+      nlinarith [hcoeffNorm,
+        norm_nonneg ((realPolynomialToComplex PRe).coeff 0)]
     have hcontract :
         Complex.normSq ((realPolynomialToComplex PRe).coeff 0) ≤ 1 := by
       simpa [Complex.normSq_eq_norm_sq] using hcoeffSq
-    let output :=
-      scalarDilationWithSourceAncillas (m := m) (n := n)
-        ((realPolynomialToComplex PRe).coeff 0) hcontract
     let circuit :=
-      Circuit.ofGate "qsvt-scalar-dilation" output
-        (realParityResources m d).toCircuitResourceProfile 0 0
+      qsvtScalarDilationCircuit (m := m) (n := n)
+        ((realPolynomialToComplex PRe).coeff 0) hcontract
     have henc :
-        ExactBlockEncoding (1 + m) n output
-          (polynomialOperator (realPolynomialToComplex PRe) A) :=
-      exactBlockEncoding_constantPolynomialWithSourceAncillas
+        ExactBlockEncoding (1 + m) n circuit.matrix
+          (polynomialOperator (realPolynomialToComplex PRe) A) := by
+      change ExactBlockEncoding (1 + m) n
+        (scalarDilationWithSourceAncillas (m := m) (n := n)
+          ((realPolynomialToComplex PRe).coeff 0) hcontract) _
+      exact exactBlockEncoding_constantPolynomialWithSourceAncillas
         (m := m) (n := n) (P := realPolynomialToComplex PRe) A hdeg hcontract
+    have hevents :
+        HermitianEventProfile.ofEvents circuit.eventCost =
+          matchingParityEventProfile m 0 := by
+      unfold circuit
+      exact qsvtScalarDilationCircuit_eventProfile _ _
     refine ⟨{
         signal := U,
-        output := output,
         circuit := circuit,
-        output_matrix_eq := by
-          simp [circuit, Circuit.ofGate],
-        resources := realParityResources m d,
-        circuit_resources := by
-          simpa [circuit] using
-            HermitianResourceProfile.toCircuitResourceProfile_exact
-              (realParityResources m d),
         sourceBlockEncoding := hbe,
         extraAncillaQubits := 1,
         totalBlockAncilla := 1 + m,
         totalBlockAncilla_eq := by omega
-      }, rfl, henc, rfl⟩
+        totalBlockAncilla_eq_a := by omega
+      }, rfl, henc, rfl, ?_⟩
+    change HermitianEventProfile.ofEvents circuit.eventCost =
+      matchingParityEventProfile m d
+    simpa [hd0] using hevents
 
-/-- Gate-only projection of `exists_word_of_matchingParity` for older internal
-block-encoding helpers. -/
-theorem exists_output_of_matchingParity {m n d : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hP : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity d PRe) :
-    ∃ V : Gate (Qubits ((1 + m) + n)),
-      ExactBlockEncoding (1 + m) n V
-        (polynomialOperator (realPolynomialToComplex PRe) A) := by
-  rcases exists_word_of_matchingParity (m := m) (n := n) (d := d)
-      (U := U) (A := A) PRe hbe hA hP with
-    ⟨word, -, henc, -⟩
-  exact ⟨word.output, henc⟩
+
+
+
 
 end Signal.HermitianRealParity
 
 namespace Signal.HermitianRealArbitrary
 
-/-- Real arbitrary-parity Hermitian QSVT for the main positive-branch case.
-The proof follows `thm:arbParity`: implement the doubled even and odd branches
-with the matching-parity corollary, then take one selector average
-[GSLW19, BlockHam.tex:1936-1951].  The low-degree edge cases are handled
-separately before this internal theorem is exposed as a public endpoint. -/
-theorem main_of_positive_branch_degrees {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hdegree : PRe.natDegree ≤ L)
-    (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |PRe.eval x| ≤ (1 / 2 : ℝ))
-    (hEvenPos : 0 < ReflectionQSPPhaseSynthesis.evenBranchDegree L)
-    (hOddPos : 0 < ReflectionQSPPhaseSynthesis.oddBranchDegree L) :
-    ∃ word : HermitianQSVTWord m (1 + (1 + m)) n A,
-      word.UsesSignal U ∧
-        ExactBlockEncoding (1 + (1 + m)) n word.output
-          (polynomialOperator (realPolynomialToComplex PRe) A) ∧
-        word.totalBlockAncilla = m + 2 ∧
-        word.resources = hermitianComplexResources m L ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).oracleQueries)
-          (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
-  let Peven : Polynomial ℝ := (2 : ℝ) • realPolynomialEvenPart PRe
-  let Podd : Polynomial ℝ := (2 : ℝ) • realPolynomialOddPart PRe
-  have hLpos : 0 < L := by
-    by_contra hnot
-    have hLzero : L = 0 := Nat.eq_zero_of_not_pos hnot
-    simp [ReflectionQSPPhaseSynthesis.oddBranchDegree, hLzero] at hOddPos
-  have hPeven :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.evenBranchDegree L) Peven := by
-    simpa [Peven] using
-      ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_twoEvenPart_branch_of_boundedByHalf
-          (L := L) PRe hdegree hbound
-  have hPodd :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.oddBranchDegree L) Podd := by
-    simpa [Podd] using
-      ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf
-          (L := L) PRe hdegree hLpos hbound
-  rcases QSVT.Signal.HermitianRealParity.sourceMain (m := m) (n := n)
-      (L := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
-      (U := U) (A := A) Peven hbe hA hPeven hEvenPos with
-    ⟨evenWord, hevenUses, hEvenEnc, -, -, -, -, -, -⟩
-  rcases QSVT.Signal.HermitianRealParity.sourceMain (m := m) (n := n)
-      (L := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
-      (U := U) (A := A) Podd hbe hA hPodd hOddPos with
-    ⟨oddWord, hoddUses, hOddEnc, -, -, -, -, -, -⟩
-  have hevenSignal : evenWord.signal = U := hevenUses
-  have hoddSignal : oddWord.signal = U := hoddUses
-  have hEvenEncCircuit :
-      ExactBlockEncoding (1 + m) n evenWord.circuit.matrix
-        (polynomialOperator (realPolynomialToComplex Peven) A) := by
-    constructor
-    intro i j
-    simpa [← evenWord.output_matrix_eq] using hEvenEnc.block_eq i j
-  have hOddEncCircuit :
-      ExactBlockEncoding (1 + m) n oddWord.circuit.matrix
-        (polynomialOperator (realPolynomialToComplex Podd) A) := by
-    constructor
-    intro i j
-    simpa [← oddWord.output_matrix_eq] using hOddEnc.block_eq i j
-  let circuit :=
-    averageProjectedBlockCircuit (a := 1 + m) (n := n)
-      evenWord.circuit oddWord.circuit (hermitianComplexResources m L)
-  let output :=
-    circuit.matrix
-  have houtput :
-      ExactBlockEncoding (1 + (1 + m)) n output
-        (polynomialOperator (realPolynomialToComplex PRe) A) := by
-    unfold output circuit
-    simpa [averageProjectedBlockCircuit, Peven, Podd] using
-      exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockGate
-        (a := 1 + m) (n := n) PRe A hEvenEncCircuit hOddEncCircuit
-  refine ⟨{
-      signal := U,
-      output := output,
-      circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := hermitianComplexResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          averageProjectedBlockCircuit_resources_exact
-            (a := 1 + m) (n := n) evenWord.circuit oddWord.circuit
-            (hermitianComplexResources m L),
-      sourceBlockEncoding := hbe,
-      extraAncillaQubits := 2,
-      totalBlockAncilla := m + 2,
-      totalBlockAncilla_eq := by omega
-    }, ?_⟩
-  exact ⟨rfl, houtput, rfl, rfl,
-    hermitianComplexOracleQueries_bigO m,
-    hermitianComplexElementaryGates_bigO m⟩
+/-! ### Event-native real arbitrary-parity endpoint -/
 
-/-- Real arbitrary-parity Hermitian QSVT.  This removes the positive-branch
-side conditions from `main_of_positive_branch_degrees` by using constant-safe
-branch realizations for zero-degree even/odd pieces, while preserving the same
-source-circuit selector-average shape from `thm:arbParity`
-[GSLW19, BlockHam.tex:1936-1951]. -/
+/-- Real arbitrary-parity Hermitian QSVT, assembled from two event-certified
+matching-parity branch circuits and their explicit selector circuit. -/
 theorem sourceMain {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
     (PRe : Polynomial ℝ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
     (hdegree : PRe.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |PRe.eval x| ≤ (1 / 2 : ℝ)) :
@@ -994,11 +1651,7 @@ theorem sourceMain {m n L : Nat}
         ExactBlockEncoding (1 + (1 + m)) n word.output
           (polynomialOperator (realPolynomialToComplex PRe) A) ∧
         word.totalBlockAncilla = m + 2 ∧
-        word.resources = hermitianComplexResources m L ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).oracleQueries)
-          (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
+        word.eventProfile = hermitianComplexEventProfile m L := by
   let Peven : Polynomial ℝ := (2 : ℝ) • realPolynomialEvenPart PRe
   let Podd : Polynomial ℝ := (2 : ℝ) • realPolynomialOddPart PRe
   have hPeven :
@@ -1006,344 +1659,80 @@ theorem sourceMain {m n L : Nat}
         (ReflectionQSPPhaseSynthesis.evenBranchDegree L) Peven := by
     simpa [Peven] using
       ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_twoEvenPart_branch_of_boundedByHalf
-          (L := L) PRe hdegree hbound
+        (L := L) PRe hdegree hbound
   have hPodd :
       ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
         (ReflectionQSPPhaseSynthesis.oddBranchDegree L) Podd := by
     simpa [Podd] using
       realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf_including_constant
-          (L := L) PRe hdegree hbound
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+        (L := L) PRe hdegree hbound
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
       (U := U) (A := A) Peven hbe hA hPeven with
-    ⟨evenWord, -, hEvenEnc, -⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+    ⟨evenWord, -, hEvenEnc, -, hEvenEvents⟩
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
       (U := U) (A := A) Podd hbe hA hPodd with
-    ⟨oddWord, -, hOddEnc, -⟩
+    ⟨oddWord, -, hOddEnc, -, hOddEvents⟩
   have hEvenEncCircuit :
       ExactBlockEncoding (1 + m) n evenWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex Peven) A) := by
-    constructor
-    intro i j
-    simpa [← evenWord.output_matrix_eq] using hEvenEnc.block_eq i j
+    simpa only [HermitianQSVTWord.output] using hEvenEnc
   have hOddEncCircuit :
       ExactBlockEncoding (1 + m) n oddWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex Podd) A) := by
-    constructor
-    intro i j
-    simpa [← oddWord.output_matrix_eq] using hOddEnc.block_eq i j
+    simpa only [HermitianQSVTWord.output] using hOddEnc
   let circuit :=
     averageProjectedBlockCircuit (a := 1 + m) (n := n)
-      evenWord.circuit oddWord.circuit (hermitianComplexResources m L)
-  let output :=
-    circuit.matrix
+      evenWord.circuit oddWord.circuit
+  let output := circuit.matrix
   have houtput :
       ExactBlockEncoding (1 + (1 + m)) n output
         (polynomialOperator (realPolynomialToComplex PRe) A) := by
     unfold output circuit
-    simpa [averageProjectedBlockCircuit, Peven, Podd] using
-      exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockGate
+    rw [averageProjectedBlockCircuit_matrix]
+    simpa [Peven, Podd] using
+      exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockOperator
         (a := 1 + m) (n := n) PRe A hEvenEncCircuit hOddEncCircuit
+  simp only [HermitianQSVTWord.eventProfile] at hEvenEvents hOddEvents
+  have hevents :
+      HermitianEventProfile.ofEvents circuit.eventCost =
+        hermitianComplexEventProfile m L := by
+    unfold circuit
+    rw [averageProjectedBlockCircuit_eventProfile,
+      hEvenEvents, hOddEvents]
+    apply HermitianEventProfile.ext <;>
+      simp [HermitianEventProfile.binarySelector,
+        matchingParityEventProfile, hermitianComplexEventProfile]
   refine ⟨{
       signal := U,
-      output := output,
       circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := hermitianComplexResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          averageProjectedBlockCircuit_resources_exact
-            (a := 1 + m) (n := n) evenWord.circuit oddWord.circuit
-            (hermitianComplexResources m L),
       sourceBlockEncoding := hbe,
       extraAncillaQubits := 2,
       totalBlockAncilla := m + 2,
       totalBlockAncilla_eq := by omega
+      totalBlockAncilla_eq_a := by omega
     }, ?_⟩
-  exact ⟨rfl, houtput, rfl, rfl,
-    hermitianComplexOracleQueries_bigO m,
-    hermitianComplexElementaryGates_bigO m⟩
+  exact ⟨rfl, houtput, rfl,
+    by simpa [HermitianQSVTWord.eventProfile] using hevents⟩
+
+
+
+
 
 end Signal.HermitianRealArbitrary
 
 namespace Signal.HermitianComplex
 
-/-- Conditional complex Hermitian endpoint from four direct source-level branches.
+/-! ### Event-native complex Hermitian endpoint -/
 
-If the four real/imaginary even/odd terms are already implemented as direct
-source alternating phase sequences, the two shared selector ancillas give a
-sharper `(4,m+2,0)` support shape.  These branch hypotheses are stronger than
-the real-completion conclusion of `cor:realP`, so the public complex endpoint
-below uses the unconditional four-real-branch construction instead
-[GSLW19, BlockHam.tex:1936-1952]. -/
-theorem ofFourSourceBranches {m n L dReEven dReOdd dImEven dImOdd : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    {P : Polynomial Complex}
-    {phasesReEven phasesReOdd phasesImEven phasesImOdd : List Real}
-    (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hdegree : P.natDegree ≤ L)
-    (hparityReEven :
-      HasParity
-        (realPolynomialToComplex
-          (realPolynomialEvenPart (complexPolynomialRealPart P))) dReEven)
-    (hparityReOdd :
-      HasParity
-        (realPolynomialToComplex
-          (realPolynomialOddPart (complexPolynomialRealPart P))) dReOdd)
-    (hparityImEven :
-      HasParity
-        (realPolynomialToComplex
-          (realPolynomialEvenPart (complexPolynomialImagPart P))) dImEven)
-    (hparityImOdd :
-      HasParity
-        (realPolynomialToComplex
-          (realPolynomialOddPart (complexPolynomialImagPart P))) dImOdd)
-    (hblockReEven :
-      SourceProjectedQSVTBlockCorrectness U
-        (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) dReEven
-        (realPolynomialToComplex
-          (realPolynomialEvenPart (complexPolynomialRealPart P)))
-        phasesReEven)
-    (hblockReOdd :
-      SourceProjectedQSVTBlockCorrectness U
-        (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) dReOdd
-        (realPolynomialToComplex
-          (realPolynomialOddPart (complexPolynomialRealPart P)))
-        phasesReOdd)
-    (hblockImEven :
-      SourceProjectedQSVTBlockCorrectness U
-        (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) dImEven
-        (realPolynomialToComplex
-          (realPolynomialEvenPart (complexPolynomialImagPart P)))
-        phasesImEven)
-    (hblockImOdd :
-      SourceProjectedQSVTBlockCorrectness U
-        (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) dImOdd
-        (realPolynomialToComplex
-          (realPolynomialOddPart (complexPolynomialImagPart P)))
-        phasesImOdd) :
-    ∃ word : HermitianQSVTWord m (1 + (1 + m)) n A,
-      word.UsesSignal U ∧
-        BlockEncoding 4 (1 + (1 + m)) n 0 word.output
-          (polynomialOperator P A) ∧
-        word.totalBlockAncilla = m + 2 ∧
-        word.resources = hermitianComplexResources m L ∧
-        P.natDegree ≤ L ∧
-        HermitianResourceProfile.HasExactCounts word.resources L 1 2 ((m + 1) * L) ∧
-        NatBigO (fun d : Nat => (hermitianComplexResources m d).oracleQueries)
-          (fun d : Nat => d) ∧
-        NatBigO (fun d : Nat => (hermitianComplexResources m d).elementaryGates)
-          (fun d : Nat => (m + 1) * d) := by
-  let zero := OrthogonalProjector.zeroAncilla m n
-  let reEvenCircuit := sourceAlternatingPhaseCircuit U zero zero phasesReEven
-  let reOddCircuit := sourceAlternatingPhaseCircuit U zero zero phasesReOdd
-  let imEvenCircuit :=
-    phaseScaledCircuit Complex.I complex_normSq_I
-      (sourceAlternatingPhaseCircuit U zero zero phasesImEven)
-  let imOddCircuit :=
-    phaseScaledCircuit Complex.I complex_normSq_I
-      (sourceAlternatingPhaseCircuit U zero zero phasesImOdd)
-  let circuit :=
-    fourWayAverageProjectedBlockCircuit (a := m) (n := n)
-      reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit
-      (hermitianComplexResources m L)
-  let output := circuit.matrix
-  have houtput :
-      BlockEncoding 4 (1 + (1 + m)) n 0 output
-        (polynomialOperator P A) := by
-    unfold output circuit reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit zero
-    simpa [fourWayAverageProjectedBlockCircuit, sourceAlternatingPhaseCircuit,
-      phaseScaledCircuit] using
-      blockEncoding_complexFourPartSourceAlternatingPhaseModulation
-        (m := m) (n := n) (U := U) (A := A) (P := P)
-        hbe hA hparityReEven hparityReOdd hparityImEven hparityImOdd
-        hblockReEven hblockReOdd hblockImEven hblockImOdd
-  refine ⟨{
-      signal := U,
-      output := output,
-      circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := hermitianComplexResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          fourWayAverageProjectedBlockCircuit_resources_exact
-            (a := m) (n := n) reEvenCircuit reOddCircuit imEvenCircuit imOddCircuit
-            (hermitianComplexResources m L),
-      sourceBlockEncoding := hbe,
-      extraAncillaQubits := 2,
-      totalBlockAncilla := m + 2,
-      totalBlockAncilla_eq := by omega
-    }, ?_⟩
-  exact ⟨rfl, houtput, rfl, rfl, hdegree,
-    hermitianComplexResources_exact m L,
-    hermitianComplexOracleQueries_bigO m,
-    hermitianComplexElementaryGates_bigO m⟩
-
-/-- Combine complex even/odd branch encodings into the Hermitian complex QSVT
-endpoint shape with two total transformation ancillas.  This is the
-source-circuit interface left after the complex note following `thm:arbParity`:
-once the two matching-parity complex branches are implemented by QSVT circuits,
-one selector average reconstructs `P(A)` [GSLW19, BlockHam.tex:1952]. -/
-theorem ofComplexEvenOddBranchEncodings {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (P : Polynomial ℂ) (hbe : ExactBlockEncoding m n U A)
-    {VEven VOdd : Gate (Qubits ((1 + m) + n))}
-    (hEven : ExactBlockEncoding (1 + m) n VEven
-      (polynomialOperator ((2 : ℂ) • complexPolynomialEvenPart P) A))
-    (hOdd : ExactBlockEncoding (1 + m) n VOdd
-      (polynomialOperator ((2 : ℂ) • complexPolynomialOddPart P) A))
-    (hdegree : P.natDegree ≤ L) :
-    ∃ word : HermitianQSVTWord m (1 + (1 + m)) n A,
-      word.UsesSignal U ∧
-        ExactBlockEncoding (1 + (1 + m)) n word.output
-          (polynomialOperator P A) ∧
-        word.totalBlockAncilla = m + 2 ∧
-        word.resources = hermitianComplexResources m L ∧
-        P.natDegree ≤ L ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).oracleQueries)
-          (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ => (hermitianComplexResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
-  let evenCircuit :=
-    Circuit.ofGate "qsvt-complex-even-branch" VEven
-      (hermitianComplexResources m L).toCircuitResourceProfile 0 0
-  let oddCircuit :=
-    Circuit.ofGate "qsvt-complex-odd-branch" VOdd
-      (hermitianComplexResources m L).toCircuitResourceProfile 0 0
-  let circuit :=
-    averageProjectedBlockCircuit (a := 1 + m) (n := n)
-      evenCircuit oddCircuit (hermitianComplexResources m L)
-  let output := circuit.matrix
-  have houtput :
-      ExactBlockEncoding (1 + (1 + m)) n output
-        (polynomialOperator P A) := by
-    unfold output circuit evenCircuit oddCircuit
-    change ExactBlockEncoding (1 + (1 + m)) n
-      (averageProjectedBlockGate (a := 1 + m) (n := n) VEven VOdd)
-      (polynomialOperator P A)
-    exact exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockGate
-      (a := 1 + m) (n := n) P A hEven hOdd
-  refine ⟨{
-      signal := U,
-      output := output,
-      circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := hermitianComplexResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          averageProjectedBlockCircuit_resources_exact
-            (a := 1 + m) (n := n) evenCircuit oddCircuit
-            (hermitianComplexResources m L),
-      sourceBlockEncoding := hbe,
-      extraAncillaQubits := 2,
-      totalBlockAncilla := m + 2,
-      totalBlockAncilla_eq := by omega
-    }, ?_⟩
-  exact ⟨rfl, houtput, rfl, rfl, hdegree,
-    hermitianComplexOracleQueries_bigO m,
-    hermitianComplexElementaryGates_bigO m⟩
-
-/-- Naive four-real-branch complex Hermitian QSVT block encoding.
-
-This theorem verifies the source note after `thm:arbParity`: real/imaginary and
-even/odd branches combine to a normalization-four encoding of `P(A)`.  The
-current public complex endpoint uses this source-supported construction, with
-three transformation ancillas (`m+3`) and constant controlled-query overhead
-[GSLW19, BlockHam.tex:1936-1952]. -/
-theorem naiveFourRealBranchBlockEncoding {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
-    (P : Polynomial ℂ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
-    (hdegree : P.natDegree ≤ L)
-    (hbound :
-      ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
-        Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
-    ∃ output : Gate (Qubits ((1 + (1 + (1 + m))) + n)),
-      BlockEncoding 4 (1 + (1 + (1 + m))) n 0 output
-        (polynomialOperator P A) := by
-  let PReEven : Polynomial ℝ :=
-    realPolynomialEvenPart (complexPolynomialRealPart P)
-  let PReOdd : Polynomial ℝ :=
-    realPolynomialOddPart (complexPolynomialRealPart P)
-  let PImEven : Polynomial ℝ :=
-    realPolynomialEvenPart (complexPolynomialImagPart P)
-  let PImOdd : Polynomial ℝ :=
-    realPolynomialOddPart (complexPolynomialImagPart P)
-  have hReEven :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.evenBranchDegree L) PReEven := by
-    simpa [PReEven] using
-      ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_realEvenPart_branch_of_normSq_le
-        (L := L) P hdegree hbound
-  have hReOdd :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.oddBranchDegree L) PReOdd := by
-    simpa [PReOdd] using
-      realBoundedMatchingParity_realOddPart_branch_of_normSq_le_including_constant
-        (L := L) P hdegree hbound
-  have hImEven :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.evenBranchDegree L) PImEven := by
-    simpa [PImEven] using
-      ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le
-        (L := L) P hdegree hbound
-  have hImOdd :
-      ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity
-        (ReflectionQSPPhaseSynthesis.oddBranchDegree L) PImOdd := by
-    simpa [PImOdd] using
-      realBoundedMatchingParity_imagOddPart_branch_of_normSq_le_including_constant
-        (L := L) P hdegree hbound
-  rcases QSVT.Signal.HermitianRealParity.exists_output_of_matchingParity (m := m) (n := n)
-      (d := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
-      (U := U) (A := A) PReEven hbe hA hReEven with
-    ⟨VReEven, hVReEven⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_output_of_matchingParity (m := m) (n := n)
-      (d := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
-      (U := U) (A := A) PReOdd hbe hA hReOdd with
-    ⟨VReOdd, hVReOdd⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_output_of_matchingParity (m := m) (n := n)
-      (d := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
-      (U := U) (A := A) PImEven hbe hA hImEven with
-    ⟨VImEven, hVImEven⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_output_of_matchingParity (m := m) (n := n)
-      (d := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
-      (U := U) (A := A) PImOdd hbe hA hImOdd with
-    ⟨VImOdd, hVImOdd⟩
-  let output :=
-    fourWayAverageProjectedBlockGate (a := 1 + m) (n := n)
-      VReEven VReOdd
-      (phaseScaledGate Complex.I complex_normSq_I VImEven)
-      (phaseScaledGate Complex.I complex_normSq_I VImOdd)
-  have hExact :
-      ExactBlockEncoding (1 + (1 + (1 + m))) n output
-        ((1 / 4 : ℂ) • polynomialOperator P A) := by
-    unfold output
-    exact
-      exactBlockEncoding_complexFourPartAverageProjectedBlockGate
-        (a := 1 + m) (n := n) P A
-        hVReEven hVReOdd hVImEven hVImOdd
-  refine ⟨output, ?_⟩
-  have hExactScaled :
-      ExactBlockEncoding (1 + (1 + (1 + m))) n output
-        (((4 : ℝ)⁻¹ : ℂ) • polynomialOperator P A) := by
-    simpa [one_div] using hExact
-  exact ExactBlockEncoding.toScaledBlockEncoding (alpha := 4) (by norm_num) hExactScaled
-
-/-- Complex Hermitian QSVT endpoint through the source-supported four-real-branch
-construction.
-
-The complex polynomial is split into real/imaginary and even/odd real branches.
-Each branch is synthesized by the real matching-parity projected QSVT route, and
-the four branch block encodings are recombined with selector block encodings.
-This proves the normalization-four complex Hermitian public endpoint with three
-transformation ancillas and the same-circuit resource profile recorded in the
-returned word [GSLW19, BlockHam.tex:1936-1952]. -/
+/-- Complex Hermitian QSVT through four real matching-parity branch circuits.
+The returned word records only the event profile projected from their explicit
+phase and selector composition. -/
 theorem sourceMain {m n L : Nat}
-    {U : Gate (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
+    {U : UnitaryOperator (Qubits (m + n))} {A : HilbertOperator (Qubits n)}
     (P : Polynomial ℂ) (hbe : ExactBlockEncoding m n U A) (hA : A.IsHermitian)
     (hdegree : P.natDegree ≤ L)
     (hbound :
@@ -1354,16 +1743,8 @@ theorem sourceMain {m n L : Nat}
         BlockEncoding 4 (1 + (1 + (1 + m))) n 0 word.output
           (polynomialOperator P A) ∧
         word.totalBlockAncilla = m + 3 ∧
-        word.resources = hermitianComplexFourBranchResources m L ∧
-        P.natDegree ≤ L ∧
-        HermitianResourceProfile.HasExactCounts word.resources
-          (4 * L) 4 3 (4 * ((m + 1) * L)) ∧
-        NatBigO (fun d : ℕ =>
-            (hermitianComplexFourBranchResources m d).oracleQueries)
-          (fun d : ℕ => d) ∧
-        NatBigO (fun d : ℕ =>
-            (hermitianComplexFourBranchResources m d).elementaryGates)
-          (fun d : ℕ => (m + 1) * d) := by
+        word.eventProfile = hermitianComplexFourBranchEventProfile m L ∧
+        P.natDegree ≤ L := by
   let PReEven : Polynomial ℝ :=
     realPolynomialEvenPart (complexPolynomialRealPart P)
   let PReOdd : Polynomial ℝ :=
@@ -1396,62 +1777,61 @@ theorem sourceMain {m n L : Nat}
     simpa [PImOdd] using
       realBoundedMatchingParity_imagOddPart_branch_of_normSq_le_including_constant
         (L := L) P hdegree hbound
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
       (U := U) (A := A) PReEven hbe hA hReEven with
-    ⟨reEvenWord, -, hReEvenEnc, -⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+    ⟨reEvenWord, -, hReEvenEnc, -, hReEvenEvents⟩
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
       (U := U) (A := A) PReOdd hbe hA hReOdd with
-    ⟨reOddWord, -, hReOddEnc, -⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+    ⟨reOddWord, -, hReOddEnc, -, hReOddEvents⟩
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.evenBranchDegree L)
       (U := U) (A := A) PImEven hbe hA hImEven with
-    ⟨imEvenWord, -, hImEvenEnc, -⟩
-  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity (m := m) (n := n)
+    ⟨imEvenWord, -, hImEvenEnc, -, hImEvenEvents⟩
+  rcases QSVT.Signal.HermitianRealParity.exists_word_of_matchingParity
+      (m := m) (n := n)
       (d := ReflectionQSPPhaseSynthesis.oddBranchDegree L)
       (U := U) (A := A) PImOdd hbe hA hImOdd with
-    ⟨imOddWord, -, hImOddEnc, -⟩
+    ⟨imOddWord, -, hImOddEnc, -, hImOddEvents⟩
   have hReEvenCircuit :
       ExactBlockEncoding (1 + m) n reEvenWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex PReEven) A) := by
-    constructor
-    intro i j
-    simpa [← reEvenWord.output_matrix_eq] using hReEvenEnc.block_eq i j
+    simpa only [HermitianQSVTWord.output] using hReEvenEnc
   have hReOddCircuit :
       ExactBlockEncoding (1 + m) n reOddWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex PReOdd) A) := by
-    constructor
-    intro i j
-    simpa [← reOddWord.output_matrix_eq] using hReOddEnc.block_eq i j
+    simpa only [HermitianQSVTWord.output] using hReOddEnc
   have hImEvenCircuit :
       ExactBlockEncoding (1 + m) n imEvenWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex PImEven) A) := by
-    constructor
-    intro i j
-    simpa [← imEvenWord.output_matrix_eq] using hImEvenEnc.block_eq i j
+    simpa only [HermitianQSVTWord.output] using hImEvenEnc
   have hImOddCircuit :
       ExactBlockEncoding (1 + m) n imOddWord.circuit.matrix
         (polynomialOperator (realPolynomialToComplex PImOdd) A) := by
-    constructor
-    intro i j
-    simpa [← imOddWord.output_matrix_eq] using hImOddEnc.block_eq i j
-  let imEvenCircuit := phaseScaledCircuit Complex.I complex_normSq_I imEvenWord.circuit
-  let imOddCircuit := phaseScaledCircuit Complex.I complex_normSq_I imOddWord.circuit
+    simpa only [HermitianQSVTWord.output] using hImOddEnc
+  let imEvenCircuit :=
+    phaseScaledCircuit Complex.I complex_normSq_I imEvenWord.circuit
+  let imOddCircuit :=
+    phaseScaledCircuit Complex.I complex_normSq_I imOddWord.circuit
   let circuit :=
     fourWayAverageProjectedBlockCircuit (a := 1 + m) (n := n)
       reEvenWord.circuit reOddWord.circuit imEvenCircuit imOddCircuit
-      (hermitianComplexFourBranchResources m L)
   let output := circuit.matrix
   have hExact :
       ExactBlockEncoding (1 + (1 + (1 + m))) n output
         ((1 / 4 : ℂ) • polynomialOperator P A) := by
     unfold output circuit imEvenCircuit imOddCircuit
-    simpa [fourWayAverageProjectedBlockCircuit, phaseScaledCircuit,
-      PReEven, PReOdd, PImEven, PImOdd] using
-      exactBlockEncoding_complexFourPartAverageProjectedBlockGate
-        (a := 1 + m) (n := n) P A
-        hReEvenCircuit hReOddCircuit hImEvenCircuit hImOddCircuit
+    apply exactBlockEncoding_complexFourPartAverageProjectedBlockCircuit
+      (a := 1 + m) (n := n) P A reEvenWord.circuit reOddWord.circuit
+      imEvenWord.circuit imOddWord.circuit
+    · simpa [PReEven] using hReEvenCircuit
+    · simpa [PReOdd] using hReOddCircuit
+    · simpa [PImEven] using hImEvenCircuit
+    · simpa [PImOdd] using hImOddCircuit
   have houtput :
       BlockEncoding 4 (1 + (1 + (1 + m))) n 0 output
         (polynomialOperator P A) := by
@@ -1459,28 +1839,55 @@ theorem sourceMain {m n L : Nat}
         ExactBlockEncoding (1 + (1 + (1 + m))) n output
           (((4 : ℝ)⁻¹ : ℂ) • polynomialOperator P A) := by
       simpa [one_div] using hExact
-    exact ExactBlockEncoding.toScaledBlockEncoding (alpha := 4) (by norm_num) hExactScaled
+    exact ExactBlockEncoding.toScaledBlockEncoding
+      (α := 4) (by norm_num) hExactScaled
+  simp only [HermitianQSVTWord.eventProfile] at hReEvenEvents hReOddEvents
+  simp only [HermitianQSVTWord.eventProfile] at hImEvenEvents hImOddEvents
+  have hImEvenEventProfile :
+      HermitianEventProfile.ofEvents imEvenCircuit.eventCost =
+        HermitianEventProfile.addElementaryEvent
+          (matchingParityEventProfile m
+            (ReflectionQSPPhaseSynthesis.evenBranchDegree L)) := by
+    unfold imEvenCircuit
+    rw [phaseScaledCircuit_eventProfile, hImEvenEvents]
+  have hImOddEventProfile :
+      HermitianEventProfile.ofEvents imOddCircuit.eventCost =
+        HermitianEventProfile.addElementaryEvent
+          (matchingParityEventProfile m
+            (ReflectionQSPPhaseSynthesis.oddBranchDegree L)) := by
+    unfold imOddCircuit
+    rw [phaseScaledCircuit_eventProfile, hImOddEvents]
+  have hevents :
+      HermitianEventProfile.ofEvents circuit.eventCost =
+        hermitianComplexFourBranchEventProfile m L := by
+    unfold circuit
+    rw [fourWayAverageProjectedBlockCircuit_eventProfile,
+      hReEvenEvents, hReOddEvents,
+      hImEvenEventProfile, hImOddEventProfile]
+    apply HermitianEventProfile.ext <;>
+      simp [HermitianEventProfile.binarySelector,
+        HermitianEventProfile.addElementaryEvent,
+        matchingParityEventProfile,
+        hermitianComplexFourBranchEventProfile] <;>
+      omega
   refine ⟨{
       signal := U,
-      output := output,
       circuit := circuit,
-      output_matrix_eq := rfl,
-      resources := hermitianComplexFourBranchResources m L,
-      circuit_resources := by
-        simpa [circuit] using
-          fourWayAverageProjectedBlockCircuit_resources_exact
-            (a := 1 + m) (n := n)
-            reEvenWord.circuit reOddWord.circuit imEvenCircuit imOddCircuit
-            (hermitianComplexFourBranchResources m L),
       sourceBlockEncoding := hbe,
       extraAncillaQubits := 3,
       totalBlockAncilla := m + 3,
       totalBlockAncilla_eq := by omega
+      totalBlockAncilla_eq_a := by omega
     }, ?_⟩
-  exact ⟨rfl, houtput, rfl, rfl, hdegree,
-    hermitianComplexFourBranchResources_exact m L,
-    hermitianComplexFourBranchOracleQueries_bigO m,
-    hermitianComplexFourBranchElementaryGates_bigO m⟩
+  exact ⟨rfl, houtput, rfl,
+    by simpa [HermitianQSVTWord.eventProfile] using hevents,
+    hdegree⟩
+
+
+
+
+
+
 
 end Signal.HermitianComplex
 
@@ -1488,28 +1895,38 @@ end QSVT
 
 namespace QSVT.Signal
 
-/-- Namespace-local spelling of Hermitian QSVT resource counters. -/
-abbrev HermitianResourceProfile :=
-  QuantumAlg.QSP.MultiQubit.QSVT.HermitianResourceProfile
+
+
+/-- Namespace-local spelling of strict Hermitian QSVT event counters. -/
+abbrev HermitianEventProfile :=
+  QuantumAlg.QSP.MultiQubit.QSVT.HermitianEventProfile
 
 /-- Namespace-local spelling of a Hermitian QSVT word. -/
 abbrev HermitianQSVTWord (m a n : Nat) (A : HilbertOperator (Qubits n)) :=
   QuantumAlg.QSP.MultiQubit.QSVT.HermitianQSVTWord m a n A
 
-/-- Namespace-local real-parity Hermitian QSVT resource profile. -/
-abbrev realParityResources (m L : ℕ) :=
-  QuantumAlg.QSP.MultiQubit.QSVT.realParityResources m L
 
-/-- Namespace-local shared-control complex Hermitian resource profile. -/
-abbrev hermitianComplexResources (m L : ℕ) :=
-  QuantumAlg.QSP.MultiQubit.QSVT.hermitianComplexResources m L
 
-/-- Namespace-local four-branch complex Hermitian resource profile. -/
-abbrev hermitianComplexFourBranchResources (m L : ℕ) :=
-  QuantumAlg.QSP.MultiQubit.QSVT.hermitianComplexFourBranchResources m L
+
+
+
+
+/-- Namespace-local real-parity strict event profile. -/
+abbrev realParityEventProfile (m L : ℕ) :=
+  QuantumAlg.QSP.MultiQubit.QSVT.realParityEventProfile m L
+
+/-- Namespace-local shared-control complex strict event profile. -/
+abbrev hermitianComplexEventProfile (m L : ℕ) :=
+  QuantumAlg.QSP.MultiQubit.QSVT.hermitianComplexEventProfile m L
+
+/-- Namespace-local four-branch complex strict event profile. -/
+abbrev hermitianComplexFourBranchEventProfile (m L : ℕ) :=
+  QuantumAlg.QSP.MultiQubit.QSVT.hermitianComplexFourBranchEventProfile m L
 
 end QSVT.Signal
 
 end QSP.MultiQubit
 
 end QuantumAlg
+
+end

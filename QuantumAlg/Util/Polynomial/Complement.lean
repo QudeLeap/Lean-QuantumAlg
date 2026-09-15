@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Witness
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Witness
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Witness
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Witness
 
 /-!
 # Polynomial complement constructions
@@ -19,4 +19,6 @@ bounded real-polynomial completion; the Laurent side supports unit-circle
 trigonometric completion.
 -/
 
-@[expose] public section
+section
+
+end

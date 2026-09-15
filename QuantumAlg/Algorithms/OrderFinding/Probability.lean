@@ -6,14 +6,14 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Algorithms.QPE
-public import QuantumAlg.Util.OrderCandidate
-public import QuantumAlg.Util.RationalApproximation
-public import Mathlib.Algebra.Order.Round
-public import Mathlib.Analysis.Real.Pi.Bounds
-public import Mathlib.Data.Nat.Totient
-public import Mathlib.Tactic
+import QuantumAlg.Init
+import all QuantumAlg.Algorithms.QPE.Construction
+import all QuantumAlg.Util.Order.Candidate
+import all QuantumAlg.Util.RationalApproximation
+import Mathlib.Algebra.Order.Round
+import Mathlib.Analysis.Real.Pi.Bounds
+import Mathlib.Data.Nat.Totient
+import Mathlib.Tactic
 
 /-!
 # Order-finding probability and source-success bridge
@@ -28,7 +28,7 @@ non-dyadic period-finding analysis from Shor's algorithm [Sho95,
 source.tex:1614-1633] [dW19, qcnotes.tex:2279-2301].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace OrderFinding
@@ -47,29 +47,30 @@ theorem generalOrderEigenphase_eq (s r : ℕ) :
 /-- Phase-register output state for a general order, after inverse QFT. This
 definition intentionally separates the sampling distribution from later
 lower-bound estimates. -/
-def generalOrderPhaseRegisterState (t s r : ℕ) : PureState (Qubits t) :=
-  (invQFT t).apply (phasePureState t (generalOrderEigenphase s r))
+def generalOrderPhaseRegisterState (t s r : ℕ) : NormalizedVector (Qubits t) :=
+  (invQFT t).apply (phaseState t (generalOrderEigenphase s r))
 
 /-- Born-rule sampling distribution over the phase-register outcomes for a
 general-order eigenphase `s/r`. -/
 def generalOrderPhaseRegisterDistribution (t s r : ℕ) (j : Fin (2 ^ t)) : ℝ :=
-  PureState.probOutcome (generalOrderPhaseRegisterState t s r) j
+  ‖generalOrderPhaseRegisterState t s r j‖ ^ 2
 
 theorem generalOrderPhaseRegisterDistribution_nonneg (t s r : ℕ)
     (j : Fin (2 ^ t)) :
     0 ≤ generalOrderPhaseRegisterDistribution t s r j :=
-  PureState.probOutcome_nonneg _ _
+  sq_nonneg _
 
 private theorem sum_generalOrderPhaseRegisterDistribution (t s r : ℕ) :
     ∑ j : Fin (2 ^ t), generalOrderPhaseRegisterDistribution t s r j = 1 := by
-  simpa [generalOrderPhaseRegisterDistribution] using
-    PureState.sum_probOutcome (generalOrderPhaseRegisterState t s r)
+  unfold generalOrderPhaseRegisterDistribution
+  rw [← EuclideanSpace.norm_sq_eq,
+    (generalOrderPhaseRegisterState t s r).norm_eq_one]
+  norm_num
 
 private theorem generalOrderPhaseRegisterDistribution_eq_qpe_probOutcome (t s r : ℕ)
     (j : Fin (2 ^ t)) :
     generalOrderPhaseRegisterDistribution t s r j =
-      PureState.probOutcome
-        ((invQFT t).apply (phasePureState t ((s : ℝ) / r))) j := by
+      ‖((invQFT t).apply (phaseState t ((s : ℝ) / r))) j‖ ^ 2 := by
   rfl
 
 /-- Geometric-sum amplitude for a general-order eigenphase `s/r`. -/
@@ -78,7 +79,7 @@ def generalOrderPhaseRegisterAmplitude (t s r : ℕ) (j : Fin (2 ^ t)) : ℂ :=
 
 theorem generalOrderPhaseRegisterState_apply_geometricAmplitude (t s r : ℕ)
     (j : Fin (2 ^ t)) :
-    (generalOrderPhaseRegisterState t s r : StateVector (Qubits t)) j =
+    (generalOrderPhaseRegisterState t s r : HilbertVector (Qubits t)) j =
       generalOrderPhaseRegisterAmplitude t s r j := by
   exact invQFT_phaseState_apply_geometricSum t (generalOrderEigenphase s r) j
 
@@ -86,10 +87,9 @@ private theorem generalOrderPhaseRegisterDistribution_eq_normSq_geometricAmplitu
     (t s r : ℕ) (j : Fin (2 ^ t)) :
     generalOrderPhaseRegisterDistribution t s r j =
       ‖generalOrderPhaseRegisterAmplitude t s r j‖ ^ 2 := by
-  change StateVector.probOutcome
-      (generalOrderPhaseRegisterState t s r : StateVector (Qubits t)) j =
+  change ‖generalOrderPhaseRegisterState t s r j‖ ^ 2 =
     ‖generalOrderPhaseRegisterAmplitude t s r j‖ ^ 2
-  rw [StateVector.probOutcome, generalOrderPhaseRegisterState_apply_geometricAmplitude]
+  rw [generalOrderPhaseRegisterState_apply_geometricAmplitude]
 
 /-- A phase-register outcome is good when its dyadic estimate is within the
 continued-fraction recovery radius around the eigenphase `s/r`. -/
@@ -379,6 +379,14 @@ theorem orderFindingOutputSuccessLowerBound_eq_shor (r : ℕ) :
     orderFindingOutputSuccessLowerBound r =
       shorOrderRecoverySuccessLowerBound r :=
   rfl
+
+/-- The general order-finding lower bound is strictly positive for a positive
+true order. -/
+theorem orderFindingOutputSuccessLowerBound_pos {r : ℕ} (hr : 0 < r) :
+    0 < orderFindingOutputSuccessLowerBound r := by
+  unfold orderFindingOutputSuccessLowerBound
+  exact div_pos (by exact_mod_cast Nat.totient_pos.mpr hr)
+    (mul_pos (by norm_num) (by exact_mod_cast hr))
 
 /-- Probability mass assigned to public order-finding output-success events. -/
 noncomputable def orderFindingOutputSuccessMass {G : Type*} [Monoid G] {t r : ℕ}
@@ -2408,3 +2416,5 @@ end
 
 end OrderFinding
 end QuantumAlg
+
+end

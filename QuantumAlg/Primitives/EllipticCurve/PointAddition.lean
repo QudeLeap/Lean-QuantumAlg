@@ -7,17 +7,23 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Basic
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Generic
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.StructuredCircuit
+import QuantumAlg.Primitives.EllipticCurve.PointAddition.Generic
+import QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
+import QuantumAlg.Primitives.EllipticCurve.PointAddition.ExceptionalCleanup
+public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Endpoint
+import QuantumAlg.Primitives.EllipticCurve.PointAddition.Generic.Pipeline
+import QuantumAlg.Primitives.EllipticCurve.PointAddition.StructuredCircuit
 
 /-!
 # Affine elliptic-curve point-addition primitives
 
 This file is the stable re-export for the affine point-addition basic,
-generic, controlled endpoint, and encoded structured-circuit modules.
+generic, public controlled endpoint, encoded structured-circuit, and total clean
+width-parameterized translation modules.
 -/
 
-@[expose] public section
+section
+
+end

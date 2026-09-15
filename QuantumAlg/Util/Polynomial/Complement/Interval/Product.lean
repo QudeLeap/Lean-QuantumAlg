@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Roots
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Roots
 
 /-!
 # Interval complement products
@@ -15,7 +15,7 @@ public import QuantumAlg.Util.Polynomial.Complement.Interval.Roots
 Stage module for interval-complement grouped root-product data.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -38,3 +38,5 @@ structure SourceRootProductData (A : ℝ[X]) where
 end Complement.Interval.Product
 
 end QuantumAlg
+
+end

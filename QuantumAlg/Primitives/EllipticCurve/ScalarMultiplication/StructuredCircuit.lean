@@ -6,15 +6,15 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Core.Components.BaseGateRealization
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.StructuredCircuit
-public import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplicationEndpoint
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.StructuredCircuit
+import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Endpoint
 
 /-!
-# Encoded base-gate scalar-multiplication witnesses
+# Encoded scalar-multiplication circuits
 
-This module provides the gate-structured fixed-base scalar-multiplication
+This module provides actual fixed-base scalar-multiplication circuits and
+proof-only basis realizations.  The
 interfaces.  The trace layer lifts schedule-indexed controlled-ECADD step
 programs into one scalar trace circuit.  The endpoint layer keeps the public
 certified scalar-action wrapper for a final coordinate-target program.  The
@@ -22,11 +22,11 @@ schedule follows the fixed-base controlled-addition route used in
 elliptic-curve discrete-log resource estimates [RNSL17,
 ECDLP.tex:589-597,650-699], with generic affine point-addition branches from
 Proos--Zalka [PZ03, ecc.tex:448-462,525-551].  In both layers, the folded
-`Circuit` is the same object used for encoded-basis correctness and resource
+`UnitaryCircuit` is the same object used for encoded-basis correctness and resource
 accounting.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
@@ -55,20 +55,20 @@ def stepUpdates (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 def sequentialStep (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) :
     TraceData E schedule -> TraceData E schedule :=
-  BaseGateProgram.Realizes.stepList (stepUpdates E schedule)
+  UnitaryCircuit.Realizes.stepList (stepUpdates E schedule)
 
 private theorem stepList_eq_foldl
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (l : List (Fin schedule.length))
     (x : TraceData E schedule) :
-    BaseGateProgram.Realizes.stepList
+    UnitaryCircuit.Realizes.stepList
         (l.map fun i => TraceData.controlledEquivAt E schedule i) x =
       l.foldl (fun y i => TraceData.controlledEquivAt E schedule i y) x := by
   induction l generalizing x with
   | nil =>
       rfl
   | cons i rest ih =>
-      simpa [BaseGateProgram.Realizes.stepList, List.foldl_cons] using
+      simpa [UnitaryCircuit.Realizes.stepList, List.foldl_cons] using
         ih (TraceData.controlledEquivAt E schedule i x)
 
 private theorem traceDataFold_apply_of_nodup
@@ -133,12 +133,12 @@ structure StepLift (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   /-- Explicit embedding of the selected lower-level program into the scalar
   trace register. -/
   liftProgram :
-    BaseGateProgram controlledWitness.encoding.width ->
-      BaseGateProgram encoding.width
+    UnitaryCircuit (Qubits controlledWitness.encoding.width) ->
+      UnitaryCircuit (Qubits encoding.width)
   /-- The lifted lower-level program updates exactly the selected trace
   component. -/
   realizes :
-    BaseGateProgram.Realizes encoding
+    UnitaryCircuit.Realizes encoding
       (liftProgram controlledWitness.program)
       (TraceData.controlledEquivAt E schedule i)
 
@@ -151,12 +151,12 @@ variable {i : Fin schedule.length}
 
 /-- Lower-level controlled-ECADD program consumed by the scalar trace lift. -/
 def sourceProgram (w : StepLift E schedule encoding i) :
-    BaseGateProgram w.controlledWitness.encoding.width :=
+    UnitaryCircuit (Qubits w.controlledWitness.encoding.width) :=
   w.controlledWitness.program
 
 /-- Lifted base-gate program acting on the full scalar trace register. -/
 def program (w : StepLift E schedule encoding i) :
-    BaseGateProgram encoding.width :=
+    UnitaryCircuit (Qubits encoding.width) :=
   w.liftProgram w.sourceProgram
 
 /-- The lifted scalar trace program is definitionally derived from the
@@ -165,26 +165,14 @@ theorem program_eq_lifted (w : StepLift E schedule encoding i) :
     w.program = w.liftProgram w.sourceProgram :=
   rfl
 
-/-- The lower-level controlled-ECADD witness consumed by this lift is
-base-gate structured. -/
-theorem source_structured (w : StepLift E schedule encoding i) :
-    (BaseGateSameCircuitWitness.circuit
-      w.controlledWitness.sameCircuit).history.IsBaseGateStructured :=
-  ControlledPointAddition.DecomposedWitness.structured w.controlledWitness
-
 /-- Encoded-basis action of the lifted selected trace component. -/
 theorem apply_ket (w : StepLift E schedule encoding i)
     (x : TraceData E schedule) :
-    Circuit.apply (BaseGateProgram.toCircuit w.program).circuit
-        ((PureState.ket (R := Qubits encoding.width) (encoding.encode x) :
-          PureState (Qubits encoding.width)) :
-          StateVector (Qubits encoding.width)) =
-      (PureState.ket (R := Qubits encoding.width)
-        (encoding.encode (TraceData.controlledEquivAt E schedule i x)) :
-        StateVector (Qubits encoding.width)) :=
-  by
-    simpa [program, sourceProgram] using
-      BaseGateProgram.toCircuit_apply_encoded_ket w.realizes x
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode x)) =
+      (NormalizedVector.ket (R := Qubits encoding.width)
+        (encoding.encode (TraceData.controlledEquivAt E schedule i x))) :=
+  w.realizes.apply_encoded_ket x
 
 end StepLift
 
@@ -207,18 +195,19 @@ variable {schedule : Schedule E}
 
 /-- Lifted step programs in schedule order. -/
 def stepPrograms (w : ScheduleCompositionWitness E schedule) :
-    List (BaseGateProgram w.encoding.width) :=
+    List (UnitaryCircuit (Qubits w.encoding.width)) :=
   (stepIndices schedule).map fun i => (w.stepLift i).program
 
 /-- Folded scalar trace program obtained by appending the lifted step programs. -/
 def program (w : ScheduleCompositionWitness E schedule) :
-    BaseGateProgram w.encoding.width :=
-  BaseGateProgram.appendList w.stepPrograms
+    UnitaryCircuit (Qubits w.encoding.width) :=
+  w.stepPrograms.foldr UnitaryCircuit.seq
+    (UnitaryCircuit.identity (Qubits w.encoding.width) [] (by simp))
 
 /-- The lifted step programs realize the schedule-ordered trace updates. -/
 theorem stepRealizes (w : ScheduleCompositionWitness E schedule) :
     List.Forall₂
-      (fun program step => BaseGateProgram.Realizes w.encoding program step)
+      (fun program step => UnitaryCircuit.Realizes w.encoding program step)
       w.stepPrograms (stepUpdates E schedule) := by
   dsimp [stepPrograms, stepUpdates, stepIndices]
   induction List.ofFn (fun i : Fin schedule.length => i) with
@@ -230,56 +219,38 @@ theorem stepRealizes (w : ScheduleCompositionWitness E schedule) :
           (w.stepLift i).realizes
       · exact ih
 
-/-- Same-Circuit witness for the folded scalar trace schedule. -/
-def sequentialSameCircuit (w : ScheduleCompositionWitness E schedule) :
-    BaseGateSameCircuitWitness (TraceData E schedule)
-      (sequentialStep E schedule) where
-  encoding := w.encoding
-  program := w.program
-  realizes := by
-    dsimp [program, stepPrograms, sequentialStep]
-    exact
-      BaseGateProgram.Realizes.appendList w.encoding
-        w.stepPrograms (stepUpdates E schedule) w.stepRealizes
+/-- The folded actual circuit realizes the sequential scalar trace schedule. -/
+theorem sequential_realizes (w : ScheduleCompositionWitness E schedule) :
+    UnitaryCircuit.Realizes w.encoding w.program (sequentialStep E schedule) := by
+  dsimp [program, stepPrograms, sequentialStep]
+  exact UnitaryCircuit.Realizes.appendList w.encoding
+    w.stepPrograms (stepUpdates E schedule) w.stepRealizes
 
-/-- Same-Circuit witness for the schedule-wide controlled-ECADD trace
-endpoint. -/
-def sameCircuit (w : ScheduleCompositionWitness E schedule) :
-    BaseGateSameCircuitWitness (TraceData E schedule)
+/-- The folded actual circuit realizes the schedule-wide controlled-ECADD
+trace endpoint. -/
+theorem realizes (w : ScheduleCompositionWitness E schedule) :
+    UnitaryCircuit.Realizes w.encoding w.program
       (TraceData.controlledEquiv E schedule) :=
-  (w.sequentialSameCircuit).congrStep
-    (sequentialStep_apply E schedule)
-
-/-- The folded scalar trace circuit history bottoms out in X/CNOT/Toffoli
-atoms. -/
-theorem structured (w : ScheduleCompositionWitness E schedule) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w.sameCircuit
+  w.sequential_realizes.congrStep (sequentialStep_apply E schedule)
 
 /-- Encoded-basis correctness for the composed scalar trace circuit. -/
 theorem apply_ket (w : ScheduleCompositionWitness E schedule)
     (x : TraceData E schedule) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (TraceData.controlledEquiv E schedule x)) :
-        StateVector (Qubits w.encoding.width)) :=
-  BaseGateSameCircuitWitness.apply_encoded_ket w.sameCircuit x
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (TraceData.controlledEquiv E schedule x))) :=
+  w.realizes.apply_encoded_ket x
 
 /-- Certified-run form of the composed trace action: every schedule component
 is advanced by its controlled-ECADD endpoint. -/
 theorem apply_certified_run (w : ScheduleCompositionWitness E schedule)
     (run : Run E schedule) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode run.controlledTraceData) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode run.updatedTraceData) :
-        StateVector (Qubits w.encoding.width)) := by
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (w.encoding.encode run.controlledTraceData)) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode run.updatedTraceData)) := by
   have htrace :
       TraceData.controlledEquiv E schedule run.controlledTraceData =
         run.updatedTraceData := by
@@ -287,46 +258,6 @@ theorem apply_certified_run (w : ScheduleCompositionWitness E schedule)
     rfl
   simpa [htrace] using
     apply_ket (E := E) (schedule := schedule) w run.controlledTraceData
-
-/-- Resource counters are projected from the same folded scalar trace circuit
-used for correctness. -/
-theorem resources_eq (w : ScheduleCompositionWitness E schedule) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w.sameCircuit
-
-/-- Circuit depth is projected from the same folded scalar trace circuit. -/
-theorem depth_eq (w : ScheduleCompositionWitness E schedule) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w.sameCircuit
-
-/-- Query depth is projected from the same folded scalar trace circuit. -/
-theorem queryDepth_eq (w : ScheduleCompositionWitness E schedule) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w.sameCircuit
-
-/-- Resource-correct witness for the composed scalar trace schedule. -/
-def resourceCorrectWitness (w : ScheduleCompositionWitness E schedule) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ x : TraceData E schedule,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-          ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode (TraceData.controlledEquiv E schedule x)) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w.sameCircuit
-  correctness := apply_ket w
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end ScheduleCompositionWitness
 
@@ -418,7 +349,7 @@ theorem fullStep_clean
       simp [fullStep, traceStep, targetStep, htrace,
         Data.addIntoTarget, Data.outputPoint, houtput]
 
-/-- Composed same-Circuit witness for the certified scalar endpoint.  The
+/-- Composed actual-circuit data for the certified scalar endpoint.  The
 program first runs the source-bound controlled-ECADD schedule trace circuit,
 then runs the supplied final target-write program over the same state
 encoding. -/
@@ -430,12 +361,12 @@ structure Witness (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   traceWitness : TraceCircuitWitness.ScheduleCompositionWitness E schedule
   /-- Final target-write program over the composed endpoint state. -/
   targetProgram :
-    BaseGateProgram
-      (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding).width
+    UnitaryCircuit (Qubits
+      (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding).width)
   /-- Correctness of the final target-write program under the composed
   endpoint encoding. -/
   targetRealizes :
-    BaseGateProgram.Realizes
+    UnitaryCircuit.Realizes
       (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding)
       targetProgram (targetStep E schedule cert)
 
@@ -449,79 +380,62 @@ def encoding (w : Witness E schedule cert) :
     BinaryLabelEncoding (State E schedule cert) :=
   BinaryLabelEncoding.prod w.endpointRunEncoding w.traceWitness.encoding
 
-/-- Trace schedule witness lifted over the endpoint/run half of the composed
+/-- Trace schedule circuit lifted over the endpoint/run half of the composed
 state. -/
-def traceLiftedWitness (w : Witness E schedule cert) :
-    BaseGateSameCircuitWitness (State E schedule cert)
-      (traceSequentialStep E schedule cert) where
-  encoding := w.encoding
-  program :=
-    BaseGateProgram.prodRight (m := w.endpointRunEncoding.width)
-      w.traceWitness.sequentialSameCircuit.program
-  realizes := by
-    have h :
-        BaseGateProgram.Realizes
-          (BinaryLabelEncoding.prod w.endpointRunEncoding w.traceWitness.encoding)
-          (BaseGateProgram.prodRight (m := w.endpointRunEncoding.width)
-            w.traceWitness.sequentialSameCircuit.program)
-          (fun x : EndpointRunState E schedule cert × TraceData E schedule =>
-            (x.1, TraceCircuitWitness.sequentialStep E schedule x.2)) :=
-      BaseGateProgram.Realizes.prodRight
-        (left := w.endpointRunEncoding)
-        (right := w.traceWitness.encoding)
-        w.traceWitness.sequentialSameCircuit.realizes
-    change
-      BaseGateProgram.Realizes
-        (BinaryLabelEncoding.prod w.endpointRunEncoding w.traceWitness.encoding)
-        (BaseGateProgram.prodRight (m := w.endpointRunEncoding.width)
-          w.traceWitness.sequentialSameCircuit.program)
-        (fun x : EndpointRunState E schedule cert × TraceData E schedule =>
-          (x.1, TraceCircuitWitness.sequentialStep E schedule x.2))
-    exact h
+def traceLiftedProgram (w : Witness E schedule cert) :
+    UnitaryCircuit (Qubits w.encoding.width) :=
+  UnitaryCircuit.prodRight (m := w.endpointRunEncoding.width) w.traceWitness.program
+
+/-- The lifted trace circuit realizes the sequential schedule update. -/
+theorem traceLifted_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
+      (traceSequentialStep E schedule cert) := by
+  have h := UnitaryCircuit.Realizes.prodRight
+    (left := w.endpointRunEncoding) (right := w.traceWitness.encoding)
+    w.traceWitness.sequential_realizes
+  have hstep := h.congrStep (second := traceSequentialStep E schedule cert) (by
+    intro x
+    rfl)
+  simpa [encoding, traceLiftedProgram] using hstep
 
 /-- Folded composed scalar endpoint program. -/
 def program (w : Witness E schedule cert) :
-    BaseGateProgram w.encoding.width :=
-  BaseGateProgram.append w.traceLiftedWitness.program w.targetProgram
+    UnitaryCircuit (Qubits w.encoding.width) :=
+  UnitaryCircuit.seq w.traceLiftedProgram w.targetProgram
 
-/-- Same-Circuit witness for the composed scalar endpoint before rewriting the
-trace fold to the schedule-wide trace endpoint. -/
-def sequentialSameCircuit (w : Witness E schedule cert) :
-    BaseGateSameCircuitWitness (State E schedule cert)
-      (fullSequentialStep E schedule cert) where
-  encoding := w.encoding
-  program := w.program
-  realizes := by
+/-- The composed circuit realizes the endpoint before rewriting the trace fold
+to the schedule-wide trace endpoint. -/
+theorem sequential_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.program
+      (fullSequentialStep E schedule cert) := by
     have htrace :
-        BaseGateProgram.Realizes w.encoding w.traceLiftedWitness.program
+        UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
           (traceSequentialStep E schedule cert) := by
-      simpa [encoding, State, traceLiftedWitness, traceSequentialStep] using
-        w.traceLiftedWitness.realizes
+      exact w.traceLifted_realizes
     have htarget :
-        BaseGateProgram.Realizes w.encoding w.targetProgram
+        UnitaryCircuit.Realizes w.encoding w.targetProgram
           (targetStep E schedule cert) := by
       simpa [encoding] using w.targetRealizes
     have hfull :
-        BaseGateProgram.Realizes w.encoding w.program
+        UnitaryCircuit.Realizes w.encoding w.program
           (fun x : State E schedule cert =>
             targetStep E schedule cert
               (traceSequentialStep E schedule cert x)) := by
       simpa [program] using
-        BaseGateProgram.Realizes.append
+        UnitaryCircuit.Realizes.seq
           (firstStep := traceSequentialStep E schedule cert)
           (secondStep := targetStep E schedule cert) htrace htarget
     change
-      BaseGateProgram.Realizes w.encoding w.program
+      UnitaryCircuit.Realizes w.encoding w.program
         (fun x : State E schedule cert =>
           targetStep E schedule cert
             (traceSequentialStep E schedule cert x))
     exact hfull
 
-/-- Same-Circuit witness for the composed scalar endpoint. -/
-def sameCircuit (w : Witness E schedule cert) :
-    BaseGateSameCircuitWitness (State E schedule cert)
-      (fullStep E schedule cert) :=
-  w.sequentialSameCircuit.congrStep (by
+/-- The composed actual circuit realizes the certified scalar endpoint. -/
+theorem realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.program (fullStep E schedule cert) :=
+  w.sequential_realizes.congrStep (by
     intro x
     change
       targetStep E schedule cert (traceSequentialStep E schedule cert x) =
@@ -531,37 +445,26 @@ def sameCircuit (w : Witness E schedule cert) :
         simp only [traceSequentialStep, traceStep]
         rw [TraceCircuitWitness.sequentialStep_apply])
 
-/-- The composed scalar endpoint circuit history bottoms out in base gates. -/
-theorem structured (w : Witness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w.sameCircuit
-
 /-- Encoded-basis correctness for the composed scalar endpoint. -/
 theorem apply_ket (w : Witness E schedule cert)
     (x : State E schedule cert) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (fullStep E schedule cert x)) :
-        StateVector (Qubits w.encoding.width)) :=
-  BaseGateSameCircuitWitness.apply_encoded_ket w.sameCircuit x
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode (fullStep E schedule cert x))) :=
+  w.realizes.apply_encoded_ket x
 
 /-- Clean encoded-basis correctness for a composed endpoint state whose run
 output agrees with the public certified scalar output. -/
 theorem apply_clean_ket (w : Witness E schedule cert)
     (s : EndpointRunState E schedule cert)
     (houtput : s.run.outputPoint = s.data.outputPoint) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-        ((PureState.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (s, s.run.controlledTraceData)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+    w.program.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (w.encoding.encode (s, s.run.controlledTraceData))) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
-          ({ s with data := s.data.addIntoTarget }, s.run.updatedTraceData)) :
-        StateVector (Qubits w.encoding.width)) := by
+          ({ s with data := s.data.addIntoTarget }, s.run.updatedTraceData))) := by
   simpa [fullStep_clean E schedule cert s houtput] using
     apply_ket (E := E) (schedule := schedule) (cert := cert) w
       (s, s.run.controlledTraceData)
@@ -577,17 +480,15 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
         (∀ i : Fin schedule.length,
           run.controls i = bitControl schedule input.1.1 i) ∧
         run.outputPoint = cert.output input.1.1 input.1.2 ∧
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-          ((PureState.ket (R := Qubits w.encoding.width)
+        w.program.applyNormalized
+          (NormalizedVector.ket (R := Qubits w.encoding.width)
             (w.encoding.encode
               (({ data :=
                     ({ input := input, targetX := 0, targetY := 0, flag := false } :
                       Data E schedule cert)
                   run := run } : EndpointRunState E schedule cert),
-                run.controlledTraceData)) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
+                run.controlledTraceData))) =
+          (NormalizedVector.ket (R := Qubits w.encoding.width)
             (w.encoding.encode
               (({ data :=
                     ({ input := input
@@ -595,8 +496,7 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
                        targetY := (cert.output input.1.1 input.1.2).y
                        flag := false } : Data E schedule cert)
                   run := run } : EndpointRunState E schedule cert),
-                run.updatedTraceData)) :
-            StateVector (Qubits w.encoding.width)) := by
+                run.updatedTraceData))) := by
   rcases cert.exists_run input.1.1 input.1.2 input.2 with
     ⟨run, hstart, hcontrols, houtput⟩
   let initialData : Data E schedule cert :=
@@ -613,46 +513,6 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
   simpa [endpointRun, initialData, Data.addIntoTarget, Data.outputPoint,
     Data.scalar, Data.startPoint] using happly
 
-/-- Resource counters are projected from the same folded composed endpoint
-circuit used for correctness. -/
-theorem resources_eq (w : Witness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w.sameCircuit
-
-/-- Circuit depth is projected from the same folded composed endpoint circuit. -/
-theorem depth_eq (w : Witness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w.sameCircuit
-
-/-- Query depth is projected from the same folded composed endpoint circuit. -/
-theorem queryDepth_eq (w : Witness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-      (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w.sameCircuit
-
-/-- Resource-correct witness for the composed scalar endpoint. -/
-def resourceCorrectWitness (w : Witness E schedule cert) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ x : State E schedule cert,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w.sameCircuit)
-          ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode (fullStep E schedule cert x)) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w.sameCircuit).resources =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).depth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w.sameCircuit).queryDepth =
-          (BaseGateSameCircuitWitness.profile w.sameCircuit).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w.sameCircuit
-  correctness := apply_ket w
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
-
 end Witness
 
 end ComposedEndpoint
@@ -663,11 +523,17 @@ abbrev encodedStep {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     Data E schedule cert -> Data E schedule cert :=
   Data.addIntoTarget
 
-/-- Gate-structured encoded certified scalar-multiplication witness. -/
-abbrev StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
+/-- Domain-specific certified scalar witness tied to one actual circuit and
+its public endpoint. -/
+structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (schedule : Schedule E)
-    (cert : CertifiedScalarAction E schedule) :=
-  BaseGateSameCircuitWitness (Data E schedule cert)
+    (cert : CertifiedScalarAction E schedule) where
+  /-- Faithful encoding of certified scalar endpoint labels. -/
+  encoding : BinaryLabelEncoding (Data E schedule cert)
+  /-- Actual certified scalar circuit. -/
+  circuit : UnitaryCircuit (Qubits encoding.width)
+  /-- Direct realization of the certified scalar endpoint. -/
+  realizes : UnitaryCircuit.Realizes encoding circuit
     (encodedStep (E := E) (schedule := schedule) (cert := cert))
 
 namespace StructuredCircuitWitness
@@ -675,43 +541,32 @@ namespace StructuredCircuitWitness
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 variable {schedule : Schedule E} {cert : CertifiedScalarAction E schedule}
 
-/-- The structured scalar circuit history bottoms out in X/CNOT/Toffoli atoms. -/
-theorem structured (w : StructuredCircuitWitness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w).history.IsBaseGateStructured :=
-  BaseGateSameCircuitWitness.structured w
-
 /-- Encoded-basis correctness for all certified scalar endpoint labels. -/
 theorem apply_ket (w : StructuredCircuitWitness E schedule cert)
     (x : Data E schedule cert) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget) :
-        StateVector (Qubits w.encoding.width)) :=
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (w.encoding.encode x.addIntoTarget)) :=
   by
-    simpa [encodedStep] using BaseGateSameCircuitWitness.apply_encoded_ket w x
+    simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
 /-- Clean public-form encoded-basis action for certified scalar multiplication. -/
 theorem apply_clean_ket (w : StructuredCircuitWitness E schedule cert)
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width)
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
           (w.encoding.encode
             ({ input := input, targetX := 0, targetY := 0, flag := false } :
-              Data E schedule cert)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+              Data E schedule cert))) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
           ({ input := input
              targetX := (cert.output input.1.1 input.1.2).x
              targetY := (cert.output input.1.1 input.1.2).y
-             flag := false } : Data E schedule cert)) :
-        StateVector (Qubits w.encoding.width)) := by
+             flag := false } : Data E schedule cert))) := by
   simpa [encodedStep, Data.addIntoTarget, Data.outputPoint, Data.scalar,
     Data.startPoint] using
     apply_ket (E := E) (schedule := schedule) (cert := cert) w
@@ -736,20 +591,17 @@ theorem apply_clean_ket_with_run
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
-    Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-        ((PureState.ket (R := Qubits w.encoding.width)
+    w.circuit.applyNormalized
+        (NormalizedVector.ket (R := Qubits w.encoding.width)
           (w.encoding.encode
             ({ input := input, targetX := 0, targetY := 0, flag := false } :
-              Data E schedule cert)) :
-          PureState (Qubits w.encoding.width)) :
-          StateVector (Qubits w.encoding.width)) =
-      (PureState.ket (R := Qubits w.encoding.width)
+              Data E schedule cert))) =
+      (NormalizedVector.ket (R := Qubits w.encoding.width)
         (w.encoding.encode
           ({ input := input
              targetX := (cert.output input.1.1 input.1.2).x
              targetY := (cert.output input.1.1 input.1.2).y
-             flag := false } : Data E schedule cert)) :
-        StateVector (Qubits w.encoding.width)) ∧
+             flag := false } : Data E schedule cert))) ∧
     ∃ run : Run E schedule,
       run.startsAt = input.1.2 ∧
         (∀ i : Fin schedule.length,
@@ -757,45 +609,6 @@ theorem apply_clean_ket_with_run
         run.outputPoint = cert.output input.1.1 input.1.2 :=
   ⟨apply_clean_ket w input, clean_input_has_run (E := E) (schedule := schedule)
     (cert := cert) input⟩
-
-/-- Resource counters are projected from the same structured scalar circuit. -/
-theorem resources_eq (w : StructuredCircuitWitness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w).resources =
-      (BaseGateSameCircuitWitness.profile w).toResourceProfile :=
-  BaseGateSameCircuitWitness.resources_eq w
-
-/-- Circuit depth is projected from the same structured scalar circuit. -/
-theorem depth_eq (w : StructuredCircuitWitness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w).depth =
-      (BaseGateSameCircuitWitness.profile w).circuitDepth :=
-  BaseGateSameCircuitWitness.depth_eq w
-
-/-- Query depth is projected from the same structured scalar circuit. -/
-theorem queryDepth_eq (w : StructuredCircuitWitness E schedule cert) :
-    (BaseGateSameCircuitWitness.circuit w).queryDepth =
-      (BaseGateSameCircuitWitness.profile w).oracleQueries :=
-  BaseGateSameCircuitWitness.queryDepth_eq w
-
-/-- Resource-correct witness for the encoded certified scalar endpoint. -/
-def resourceCorrectWitness (w : StructuredCircuitWitness E schedule cert) :
-    ResourceCorrectWitness (R := Qubits w.encoding.width)
-      (∀ x : Data E schedule cert,
-        Circuit.apply (BaseGateSameCircuitWitness.circuit w)
-          ((PureState.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-            PureState (Qubits w.encoding.width)) :
-            StateVector (Qubits w.encoding.width)) =
-          (PureState.ket (R := Qubits w.encoding.width)
-            (w.encoding.encode x.addIntoTarget) :
-            StateVector (Qubits w.encoding.width)))
-      ((BaseGateSameCircuitWitness.circuit w).resources =
-          (BaseGateSameCircuitWitness.profile w).toResourceProfile ∧
-        (BaseGateSameCircuitWitness.circuit w).depth =
-          (BaseGateSameCircuitWitness.profile w).circuitDepth ∧
-        (BaseGateSameCircuitWitness.circuit w).queryDepth =
-          (BaseGateSameCircuitWitness.profile w).oracleQueries) where
-  circuit := BaseGateSameCircuitWitness.circuit w
-  correctness := apply_ket w
-  resources := ⟨resources_eq w, depth_eq w, queryDepth_eq w⟩
 
 end StructuredCircuitWitness
 
@@ -806,3 +619,5 @@ end ScalarMultiplication
 end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
+
+end

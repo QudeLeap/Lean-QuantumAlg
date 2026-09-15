@@ -23,5 +23,3 @@ unitary polynomial and block-encoding transformations.
   endpoints keep correctness and resource counts bound to one constructed
   circuit witness.
 -/
-
-@[expose] public section

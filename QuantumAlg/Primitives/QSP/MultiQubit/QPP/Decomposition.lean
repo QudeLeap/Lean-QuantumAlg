@@ -6,17 +6,16 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Core.Cost
-public import QuantumAlg.Core.Circuit
-public import QuantumAlg.Core.Components.Oracle.BlockEncoding
-public import QuantumAlg.Primitives.PhaseKickback
-public import QuantumAlg.Primitives.QSP.SingleQubit
-public import QuantumAlg.Util.Complex
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Witness
-public import Mathlib.Analysis.InnerProductSpace.JointEigenspace
-public import Mathlib.Analysis.Matrix.Spectrum
-public import Mathlib.Data.List.Enum
+import QuantumAlg.Init
+import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Components.Oracle.BlockEncoding
+import all QuantumAlg.Primitives.PhaseKickback.Basic
+import all QuantumAlg.Primitives.QSP.SingleQubit
+import all QuantumAlg.Util.Complex
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Witness
+import Mathlib.Analysis.InnerProductSpace.JointEigenspace
+import Mathlib.Analysis.Matrix.Spectrum
+import Mathlib.Data.List.Enum
 
 /-!
 # QPP spectral support
@@ -24,18 +23,18 @@ public import Mathlib.Data.List.Enum
 Source-facing spectral decomposition and operator extensionality used by QPP.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
 namespace QSP.MultiQubit
 
-open PureState Module.End
+open NormalizedVector Module.End
 
 noncomputable section
 
 variable {n : ℕ}
-variable {U : Gate (Qubits n)}
+variable {U : UnitaryOperator (Qubits n)}
 
 /-! ### Source spectral decomposition interface -/
 
@@ -63,7 +62,7 @@ theorem QPP.hermitianImagPart_isHermitian {R : Register}
   ring_nf
 
 theorem QPP.hermitianParts_commute_of_unitary {R : Register}
-    (U : Gate R) :
+    (U : UnitaryOperator R) :
     Commute
       (QPP.hermitianRealPart (U : HilbertOperator R))
       (QPP.hermitianImagPart (U : HilbertOperator R)) := by
@@ -71,11 +70,11 @@ theorem QPP.hermitianParts_commute_of_unitary {R : Register}
   have hstar_mul :
       (U : HilbertOperator R).conjTranspose * (U : HilbertOperator R) = 1 := by
     rw [← Matrix.star_eq_conjTranspose]
-    exact Matrix.mem_unitaryGroup_iff'.mp U.unitary
+    exact Matrix.mem_unitaryGroup_iff'.mp U.property
   have hmul_star :
       (U : HilbertOperator R) * (U : HilbertOperator R).conjTranspose = 1 := by
     rw [← Matrix.star_eq_conjTranspose]
-    exact Matrix.mem_unitaryGroup_iff.mp U.unitary
+    exact Matrix.mem_unitaryGroup_iff.mp U.property
   ext i j
   simp [QPP.hermitianRealPart, QPP.hermitianImagPart,
     Matrix.mul_add, Matrix.add_mul, Matrix.mul_sub, Matrix.sub_mul,
@@ -91,18 +90,18 @@ theorem QPP.commute_toEuclideanLin_of_matrix_commute
   simp [Matrix.toLpLin_apply, Matrix.mulVec_mulVec, h]
 
 /-- Joint eigenspace of the Hermitian real and imaginary parts of a unitary. -/
-def QPP.jointEigenSubspace {R : Register} (U : Gate R)
+def QPP.jointEigenSubspace {R : Register} (U : UnitaryOperator R)
     (i :
       Eigenvalues (Matrix.toEuclideanLin (QPP.hermitianRealPart (U : HilbertOperator R))) ×
         Eigenvalues (Matrix.toEuclideanLin (QPP.hermitianImagPart (U : HilbertOperator R)))) :
-    Submodule ℂ (StateVector R) :=
+    Submodule ℂ (HilbertVector R) :=
   eigenspace (Matrix.toEuclideanLin (QPP.hermitianRealPart (U : HilbertOperator R)))
       (i.1 : ℂ) ⊓
     eigenspace (Matrix.toEuclideanLin (QPP.hermitianImagPart (U : HilbertOperator R)))
       (i.2 : ℂ)
 
 theorem QPP.jointEigenOrthogonalFamily {R : Register}
-    (U : Gate R) :
+    (U : UnitaryOperator R) :
     OrthogonalFamily ℂ
       (fun i =>
         QPP.jointEigenSubspace U i)
@@ -124,12 +123,12 @@ theorem QPP.jointEigenOrthogonalFamily {R : Register}
     exact hsym.orthogonalFamily_eigenspaces'.pairwise hsecond hv.2 w hw.2
 
 theorem QPP.jointEigen_iSup_eq_top {R : Register}
-    (U : Gate R) :
+    (U : UnitaryOperator R) :
     (iSup (QPP.jointEigenSubspace U)) = ⊤ := by
   classical
-  let linA : StateVector R →ₗ[ℂ] StateVector R :=
+  let linA : HilbertVector R →ₗ[ℂ] HilbertVector R :=
     Matrix.toEuclideanLin (QPP.hermitianRealPart (U : HilbertOperator R))
-  let linB : StateVector R →ₗ[ℂ] StateVector R :=
+  let linB : HilbertVector R →ₗ[ℂ] HilbertVector R :=
     Matrix.toEuclideanLin (QPP.hermitianImagPart (U : HilbertOperator R))
   have hlinA :
       linA =
@@ -183,7 +182,7 @@ theorem QPP.jointEigen_iSup_eq_top {R : Register}
 
 /-- The joint eigenspaces form an internal direct-sum decomposition. -/
 theorem QPP.jointEigenInternal {R : Register}
-    (U : Gate R) :
+    (U : UnitaryOperator R) :
     DirectSum.IsInternal (QPP.jointEigenSubspace U) := by
   classical
   exact (QPP.jointEigenOrthogonalFamily U).isInternal_iff.mpr (by
@@ -191,39 +190,39 @@ theorem QPP.jointEigenInternal {R : Register}
     exact Submodule.top_orthogonal_eq_bot)
 
 /-- Orthonormal basis subordinate to the joint eigenspace decomposition. -/
-def QPP.jointEigenBasis (U : Gate (Qubits n)) :
-    OrthonormalBasis (Fin (2 ^ n)) ℂ (StateVector (Qubits n)) :=
+def QPP.jointEigenBasis (U : UnitaryOperator (Qubits n)) :
+    OrthonormalBasis (Fin (2 ^ n)) ℂ (HilbertVector (Qubits n)) :=
   (QPP.jointEigenInternal U).subordinateOrthonormalBasis
-    (by simp [StateVector])
+    (by simp [HilbertVector])
     (QPP.jointEigenOrthogonalFamily U)
 
 /-- Joint eigenvalue index attached to a vector of `jointEigenBasis`. -/
-def QPP.jointEigenIndex (U : Gate (Qubits n))
+def QPP.jointEigenIndex (U : UnitaryOperator (Qubits n))
     (j : Fin (2 ^ n)) :
     Eigenvalues (Matrix.toEuclideanLin
       (QPP.hermitianRealPart (U : HilbertOperator (Qubits n)))) ×
       Eigenvalues (Matrix.toEuclideanLin
         (QPP.hermitianImagPart (U : HilbertOperator (Qubits n)))) :=
   (QPP.jointEigenInternal U).subordinateOrthonormalBasisIndex
-    (by simp [StateVector])
+    (by simp [HilbertVector])
     j
     (QPP.jointEigenOrthogonalFamily U)
 
 /-- Unitary eigenvalue reconstructed from the joint real/imaginary eigenvalues. -/
-def QPP.jointEigenvalue (U : Gate (Qubits n))
+def QPP.jointEigenvalue (U : UnitaryOperator (Qubits n))
     (j : Fin (2 ^ n)) : ℂ :=
   (((QPP.jointEigenIndex U j).1 : ℂ) +
     Complex.I * ((QPP.jointEigenIndex U j).2 : ℂ)) / 2
 
-theorem QPP.applyVec_eq_hermitianParts (U : Gate (Qubits n))
-    (psi : StateVector (Qubits n)) :
-    U.applyVec psi =
+theorem QPP.applyVec_eq_hermitianParts (U : UnitaryOperator (Qubits n))
+    (ψ : HilbertVector (Qubits n)) :
+    U.applyVec ψ =
       ((2 : ℂ)⁻¹) •
         (HilbertOperator.applyVec
-            (QPP.hermitianRealPart (U : HilbertOperator (Qubits n))) psi +
+            (QPP.hermitianRealPart (U : HilbertOperator (Qubits n))) ψ +
           Complex.I •
             HilbertOperator.applyVec
-              (QPP.hermitianImagPart (U : HilbertOperator (Qubits n))) psi) := by
+              (QPP.hermitianImagPart (U : HilbertOperator (Qubits n))) ψ) := by
   have hop :
       (U : HilbertOperator (Qubits n)) =
         ((2 : ℂ)⁻¹) •
@@ -235,20 +234,20 @@ theorem QPP.applyVec_eq_hermitianParts (U : Gate (Qubits n))
       Matrix.smul_apply, Matrix.add_apply, Matrix.sub_apply, smul_eq_mul]
     rw [← mul_assoc, Complex.I_mul_I]
     ring_nf
-  change HilbertOperator.applyVec (U : HilbertOperator (Qubits n)) psi = _
+  change HilbertOperator.applyVec (U : HilbertOperator (Qubits n)) ψ = _
   conv_lhs => rw [hop]
   rw [HilbertOperator.smul_applyVec, HilbertOperator.add_applyVec]
   simp [HilbertOperator.smul_applyVec]
 
 theorem QPP.jointEigenBasis_gate_eigen
-    (U : Gate (Qubits n)) (j : Fin (2 ^ n)) :
+    (U : UnitaryOperator (Qubits n)) (j : Fin (2 ^ n)) :
     U.applyVec (QPP.jointEigenBasis U j) =
       QPP.jointEigenvalue U j • QPP.jointEigenBasis U j := by
   have hmem :
       QPP.jointEigenBasis U j ∈
         QPP.jointEigenSubspace U (QPP.jointEigenIndex U j) :=
     (QPP.jointEigenInternal U).subordinateOrthonormalBasis_subordinate
-      (by simp [StateVector])
+      (by simp [HilbertVector])
       j
       (QPP.jointEigenOrthogonalFamily U)
   have hreal :
@@ -273,11 +272,10 @@ theorem QPP.jointEigenBasis_gate_eigen
   ring
 
 theorem QPP.jointEigenvalue_norm_eq_one
-    (U : Gate (Qubits n)) (j : Fin (2 ^ n)) :
+    (U : UnitaryOperator (Qubits n)) (j : Fin (2 ^ n)) :
     ‖QPP.jointEigenvalue U j‖ = 1 := by
   have hnorm :=
-    HilbertOperator.norm_applyVec_of_mem_unitaryGroup U.unitary
-      (QPP.jointEigenBasis U j)
+    U.norm_applyVec (QPP.jointEigenBasis U j)
   change ‖U.applyVec (QPP.jointEigenBasis U j)‖ =
     ‖QPP.jointEigenBasis U j‖ at hnorm
   rw [QPP.jointEigenBasis_gate_eigen, norm_smul,
@@ -289,11 +287,11 @@ Wang's theorem is stated for
 `U = \sum_j e^{i\tau_j} |\chi_j><\chi_j|`; this structure records the
 orthonormal eigenbasis and eigenphases used by the Lean proof
 [WZYW23, arxiv_v3.tex:641,650-666]. -/
-structure QPP.PhaseDecomposition (U : Gate (Qubits n)) where
+structure QPP.PhaseDecomposition (U : UnitaryOperator (Qubits n)) where
   /-- Eigenphase assigned to each source eigenbasis vector. -/
   phase : Fin (2 ^ n) → ℝ
   /-- Orthonormal eigenbasis used by the QPP proof. -/
-  basis : OrthonormalBasis (Fin (2 ^ n)) ℂ (StateVector (Qubits n))
+  basis : OrthonormalBasis (Fin (2 ^ n)) ℂ (HilbertVector (Qubits n))
   eigen :
     ∀ j : Fin (2 ^ n),
       U.applyVec (basis j) =
@@ -301,32 +299,33 @@ structure QPP.PhaseDecomposition (U : Gate (Qubits n)) where
 
 namespace QPP.PhaseDecomposition
 
-/-- The eigenbasis vector as a normalized `PureState`. -/
+/-- The eigenbasis vector as a metadata-free normalized vector. -/
 def pure (decomp : QPP.PhaseDecomposition (n := n) U)
-    (j : Fin (2 ^ n)) : PureState (Qubits n) :=
-  PureState.ofVec (decomp.basis j) (decomp.basis.orthonormal.norm_eq_one j)
+    (j : Fin (2 ^ n)) : NormalizedVector (Qubits n) :=
+  NormalizedVector.ofVector (decomp.basis j)
+    (decomp.basis.orthonormal.norm_eq_one j)
 
 @[simp]
 theorem pure_coe (decomp : QPP.PhaseDecomposition (n := n) U)
     (j : Fin (2 ^ n)) :
-    ((decomp.pure j : PureState (Qubits n)) : StateVector (Qubits n)) =
+    ((decomp.pure j : NormalizedVector (Qubits n)) : HilbertVector (Qubits n)) =
       decomp.basis j :=
   rfl
 
 /-- Eigenphase equation for the normalized pure-state wrapper. -/
 theorem eigen_pure (decomp : QPP.PhaseDecomposition (n := n) U)
     (j : Fin (2 ^ n)) :
-    U.applyVec (decomp.pure j : StateVector (Qubits n)) =
+    U.applyVec (decomp.pure j : HilbertVector (Qubits n)) =
       Complex.exp ((decomp.phase j : ℂ) * Complex.I) •
-        (decomp.pure j : StateVector (Qubits n)) := by
+        (decomp.pure j : HilbertVector (Qubits n)) := by
   simpa using decomp.eigen j
 
 end QPP.PhaseDecomposition
 
-/-- Every finite-dimensional unitary gate admits the source-facing phase
+/-- Every finite-dimensional unitary operator admits the source-facing phase
 decomposition used in Wang's QPP theorem: an orthonormal eigenbasis with
 eigenvalues written as `e^{iτ}` [WZYW23, arxiv_v3.tex:635-646]. -/
-noncomputable def QPP.phaseDecomposition (U : Gate (Qubits n)) :
+noncomputable def QPP.phaseDecomposition (U : UnitaryOperator (Qubits n)) :
     QPP.PhaseDecomposition U where
   phase := fun j => Complex.arg (QPP.jointEigenvalue U j)
   basis := QPP.jointEigenBasis U
@@ -336,28 +335,32 @@ noncomputable def QPP.phaseDecomposition (U : Gate (Qubits n)) :
     rw [QuantumAlg.exp_arg_of_norm_eq_one _
       (QPP.jointEigenvalue_norm_eq_one U j)]
 
-/-- An eigenstate of a gate is an eigenstate of every gate power. -/
-theorem QPP.gate_applyVec_pow_eigenstate {U : Gate (Qubits n)}
-    {u : PureState (Qubits n)} {lam : ℂ}
-    (hu : U.applyVec (u : StateVector (Qubits n)) =
-      lam • (u : StateVector (Qubits n))) (m : ℕ) :
-    (U ^ m).applyVec (u : StateVector (Qubits n)) =
-      lam ^ m • (u : StateVector (Qubits n)) := by
+/-- An eigenstate of a unitary operator is an eigenstate of every power. -/
+theorem QPP.gate_applyVec_pow_eigenstate {U : UnitaryOperator (Qubits n)}
+    {u : NormalizedVector (Qubits n)} {lam : ℂ}
+    (hu : U.applyVec (u : HilbertVector (Qubits n)) =
+      lam • (u : HilbertVector (Qubits n))) (m : ℕ) :
+    HilbertOperator.applyVec ((U : HilbertOperator (Qubits n)) ^ m)
+        (u : HilbertVector (Qubits n)) =
+      lam ^ m • (u : HilbertVector (Qubits n)) := by
+  have huOp : HilbertOperator.applyVec (U : HilbertOperator (Qubits n))
+      (u : HilbertVector (Qubits n)) = lam • (u : HilbertVector (Qubits n)) := hu
   induction m with
   | zero =>
-      rw [pow_zero, pow_zero, Gate.one_applyVec, one_smul]
+      rw [pow_zero, pow_zero, HilbertOperator.one_applyVec, one_smul]
   | succ m ih =>
-      rw [pow_succ, Gate.mul_applyVec, hu, Gate.applyVec_smul, ih, smul_smul,
+      rw [pow_succ, HilbertOperator.mul_applyVec, huOp,
+        HilbertOperator.applyVec_smul, ih, smul_smul,
         ← pow_succ']
 
 namespace QPP.Decomposition
 
 /-- Namespace-local spelling of the source-facing QPP phase decomposition. -/
-abbrev PhaseDecomposition (U : Gate (Qubits n)) :=
+abbrev PhaseDecomposition (U : UnitaryOperator (Qubits n)) :=
   QuantumAlg.QSP.MultiQubit.QPP.PhaseDecomposition U
 
 /-- Namespace-local constructor for the source-facing QPP phase decomposition. -/
-noncomputable abbrev phaseDecomposition (U : Gate (Qubits n)) :
+noncomputable abbrev phaseDecomposition (U : UnitaryOperator (Qubits n)) :
     PhaseDecomposition U :=
   QuantumAlg.QSP.MultiQubit.QPP.phaseDecomposition U
 
@@ -370,3 +373,5 @@ end
 end QSP.MultiQubit
 
 end QuantumAlg
+
+end

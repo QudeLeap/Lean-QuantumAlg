@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Primitives.QKernel.Fidelity
 public import QuantumAlg.Primitives.QKernel.Fourier
 public import QuantumAlg.Primitives.QKernel.Concentration
@@ -32,4 +32,6 @@ Umbrella module for the quantum-kernel development; re-exports the genuine resul
   (`QuantumKernelExpressivity.main`, Gil-Fuster 2023).
 -/
 
-@[expose] public section
+section
+
+end

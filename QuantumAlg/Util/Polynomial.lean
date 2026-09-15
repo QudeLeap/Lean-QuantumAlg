@@ -6,7 +6,6 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
 public import QuantumAlg.Util.Polynomial.Basic
 public import QuantumAlg.Util.Polynomial.Laurent
 public import QuantumAlg.Util.Polynomial.Complement
@@ -19,4 +18,6 @@ public import QuantumAlg.Util.Polynomial.Trigonometric
 This header re-exports the quantum-free polynomial helpers used by QSP/QSVT.
 -/
 
-@[expose] public section
+section
+
+end

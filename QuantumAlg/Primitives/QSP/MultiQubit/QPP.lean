@@ -7,7 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.MultiQubit.QPP.Witness
+public import QuantumAlg.Core.Base
+public import QuantumAlg.Components.Oracle.BlockEncoding
+public import QuantumAlg.Primitives.QSP.MultiQubit.QPP.Complement
+public import QuantumAlg.Primitives.QSP.MultiQubit.QPP.Signal
+import all QuantumAlg.Primitives.QSP.MultiQubit.QPP.Witness
 
 /-!
 # Unitary polynomial transformation (quantum phase processing)
@@ -60,4 +64,28 @@ leaves only the parity phase `(e^{-iθ/2})^{L mod 2}`.
   the eigenphase by some QPP word.
 -/
 
-@[expose] public section
+namespace QuantumAlg.QSP.MultiQubit
+
+variable {n : ℕ}
+
+namespace QPP.Witness
+
+/-- **Unitary polynomial transformation** [WZYW23, arxiv_v3.tex:635-666,
+2237-2274,2446-2465].  The bounded trigonometric-polynomial hypothesis supplies
+the Laurent complement internally; the source spectral decomposition of `U`
+turns the same counted QPP circuit into the projected-block operator identity. -/
+public theorem main
+    (L : ℕ) (U : UnitaryOperator (Qubits n))
+    (coeff : Fin (2 * L + 1) → ℂ)
+    (h : QPP.TrigonometricPolynomialBound L coeff) :
+    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+      projectedBlock 1 n
+          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+        = unitaryLaurentPolynomial L U coeff ∧
+      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+  exact QPP.fromCircuitWitness L U coeff
+    (QPP.qppCircuitWitnessOfTrigonometricBound L U coeff h)
+
+end QPP.Witness
+
+end QuantumAlg.QSP.MultiQubit

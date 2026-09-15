@@ -6,11 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.GroupTheory.SpecificGroups.Cyclic
 public import Mathlib.Data.ZMod.Basic
 public import Mathlib.Data.Real.Basic
-public import Mathlib.Tactic
+import Mathlib.Tactic
 
 /-!
 # The discrete-logarithm concept class and its secret-homogeneity
@@ -22,7 +22,7 @@ for one secret breaks every secret (and hence the discrete-log problem). Pure fi
 theory; no Haar / complexity assumptions.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -41,7 +41,7 @@ noncomputable def dlog (x : G) : ZMod (Nat.card G) :=
   Multiplicative.toAdd ((dlogEquiv g hg).symm x)
 
 /-- `g` raised to a `ZMod (Nat.card G)` exponent. -/
-noncomputable def gpow (t : ZMod (Nat.card G)) : G :=
+public noncomputable def gpow (t : ZMod (Nat.card G)) : G :=
   dlogEquiv g hg (Multiplicative.ofAdd t)
 
 omit [Fintype G] [IsCyclic G] in
@@ -84,7 +84,7 @@ theorem dlogConcept_reduction (s : ZMod (Nat.card G)) (y : G) :
   rw [dlogConcept_shift, show s - (s - 1) = 1 from by ring]
 
 /-- Uniform (counting) accuracy of a Boolean predictor `p` against the concept `f_s`. -/
-noncomputable def acc (p : G → Bool) (s : ZMod (Nat.card G)) : ℝ :=
+public noncomputable def acc (p : G → Bool) (s : ZMod (Nat.card G)) : ℝ :=
   ((Finset.univ.filter (fun x => p x = dlogConcept g hg s x)).card : ℝ) / (Nat.card G : ℝ)
 
 omit [IsCyclic G] in
@@ -104,3 +104,5 @@ theorem acc_shift (p : G → Bool) (s : ZMod (Nat.card G)) :
   rw [key]
 
 end QuantumAlg
+
+end

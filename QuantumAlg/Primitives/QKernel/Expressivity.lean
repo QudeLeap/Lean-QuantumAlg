@@ -6,11 +6,12 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.LinearAlgebra.Matrix.PosDef
 public import Mathlib.Analysis.InnerProductSpace.Basic
 public import Mathlib.Analysis.RCLike.Basic
-public import Mathlib.Tactic
+public import Mathlib.Data.Complex.Basic
+import Mathlib.Tactic
 
 /-!
 # Embedding quantum kernels: density-matrix realization (expressivity)
@@ -22,7 +23,7 @@ finite-dimensional realization step; the full GFE23 Thm 1 — `ε`-approximation
 kernel via a Mercer expansion and a `2ⁿ`-term Pauli-mixture density — is not formalized here.)
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -105,7 +106,7 @@ theorem one_add_offDiagEmb_posSemidef (v : Fin r → ℂ)
   have hBh : (Matrix.of fun (k : Fin r) (_ : Fin 1) => starRingEnd ℂ (v k))
       = (Matrix.of fun (_ : Fin 1) (k : Fin r) => v k)ᴴ := by
     ext k i; simp [Matrix.conjTranspose_apply, Matrix.of_apply]
-  haveI : Invertible (1 : Matrix (Fin r) (Fin r) ℂ) := invertibleOne
+  let _ : Invertible (1 : Matrix (Fin r) (Fin r) ℂ) := invertibleOne
   rw [one_add_offDiagEmb_eq, hBh, Matrix.PosDef.fromBlocks₂₂ _ _ Matrix.PosDef.one]
   simp only [inv_one, Matrix.mul_one]
   -- goal: (1 - B * Bᴴ).PosSemidef, a 1×1 matrix [1 - ∑ normSq (v k)]
@@ -126,7 +127,7 @@ theorem one_add_offDiagEmb_posSemidef (v : Fin r → ℂ)
     (by linarith [hv] : (0 : ℝ) ≤ 1 - ∑ k, Complex.normSq (v k))
 
 /-- The maximally-mixed-plus-perturbation density operator for feature vector `v`. -/
-noncomputable def densityOf (v : Fin r → ℂ) : Matrix (Fin 1 ⊕ Fin r) (Fin 1 ⊕ Fin r) ℂ :=
+public noncomputable def densityOf (v : Fin r → ℂ) : Matrix (Fin 1 ⊕ Fin r) (Fin 1 ⊕ Fin r) ℂ :=
   ((r : ℝ) + 1)⁻¹ • (1 + offDiagEmb v)
 
 theorem densityOf_posSemidef (v : Fin r → ℂ) (hv : ∑ k, Complex.normSq (v k) ≤ 1) :
@@ -168,7 +169,7 @@ normalized feature map `φ` is realized by a family of genuine density matrices 
 quantum kernel equals `c²·(D + 2·Re⟨φ_i,φ_j⟩)` — a positive affine image of the feature kernel
 `Re⟨φ_i,φ_j⟩` (exact for real feature maps). This is the exact realization step, *not* the full
 `ε`-approximate universality over arbitrary kernels. -/
-theorem eqk_realizes {ι : Type*} (φ : ι → (Fin r → ℂ))
+public theorem QuantumKernelExpressivity.main {ι : Type*} (φ : ι → (Fin r → ℂ))
     (hφ : ∀ i, ∑ k, Complex.normSq (φ i k) ≤ 1) :
     (∀ i, (densityOf (φ i)).IsHermitian ∧ (densityOf (φ i)).trace = 1
         ∧ (densityOf (φ i)).PosSemidef)
@@ -195,3 +196,5 @@ theorem eqk_nonempty :
     norm_num
 
 end QuantumAlg
+
+end

@@ -6,10 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Probability.Moments.Variance
 public import Mathlib.MeasureTheory.Integral.Bochner.Basic
-public import Mathlib.Tactic
+import Mathlib.Tactic
 
 /-!
 # Probabilistic exponential concentration
@@ -20,7 +20,7 @@ small variance, and hence (by Chebyshev) concentrates exponentially around its m
 Quantum-free; built on Mathlib's `variance` and Chebyshev inequality.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -47,7 +47,7 @@ theorem variance_le_mean [IsProbabilityMeasure μ] {X : Ω → ℝ}
 /-- **Probabilistic exponential concentration** of a family of random variables
 `X n : Ω n → ℝ` (each on a probability space `μ n`): the probability of deviating from
 the mean by `δ` is at most `C / (bⁿ δ²)` for some `b > 1`. -/
-def ExpConcentratedProb {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
+public def ExpConcentratedProb {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
     (μ : (n : ℕ) → Measure (Ω n)) (X : (n : ℕ) → Ω n → ℝ) : Prop :=
   ∃ b : ℝ, 1 < b ∧ ∃ C : ℝ, 0 ≤ C ∧ ∀ (n : ℕ) (δ : ℝ), 0 < δ →
     (μ n) {ω | δ ≤ |X n ω - ∫ x, X n x ∂(μ n)|} ≤ ENNReal.ofReal (C / (b ^ n * δ ^ 2))
@@ -106,3 +106,5 @@ theorem ExpConcentratedProb.tendsto_zero {Ω : ℕ → Type*} [∀ n, Measurable
     (fun _ => zero_le) (fun n => hbound n δ hδ)
 
 end QuantumAlg
+
+end

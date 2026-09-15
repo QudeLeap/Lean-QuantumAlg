@@ -7,24 +7,24 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Init
-public import QuantumAlg.Algorithms.QPE
-public import QuantumAlg.Algorithms.GHZ
-public import QuantumAlg.Algorithms.SuperdenseCoding
-public import QuantumAlg.Algorithms.Teleportation
-public import QuantumAlg.Algorithms.DeutschJozsa
+public import QuantumAlg.Algorithms.AmplitudeEstimation
 public import QuantumAlg.Algorithms.BernsteinVazirani
-public import QuantumAlg.Algorithms.Simon
+public import QuantumAlg.Algorithms.Classical
+public import QuantumAlg.Algorithms.DeutschJozsa
+public import QuantumAlg.Algorithms.EllipticCurve
+public import QuantumAlg.Algorithms.FiniteCyclicDLP
+public import QuantumAlg.Algorithms.Factoring
 public import QuantumAlg.Algorithms.Grover
 public import QuantumAlg.Algorithms.OrderFinding
-public import QuantumAlg.Algorithms.FiniteCyclicDLP
-public import QuantumAlg.Algorithms.EllipticCurve
-public import QuantumAlg.Algorithms.Factoring
-public import QuantumAlg.Algorithms.AmplitudeEstimation
+public import QuantumAlg.Algorithms.QPE
+public import QuantumAlg.Algorithms.Simon
+public import QuantumAlg.Algorithms.SuperdenseCoding
+public import QuantumAlg.Algorithms.Teleportation
 
 /-!
 # QuantumAlg algorithms
 
-This module re-exports the algorithm endpoints.
+Algorithm endpoints live in explicit leaf modules; this aggregate header
+exposes the canonical non-QML algorithm surface, including the stable
+classical endpoint aggregate.
 -/
-
-@[expose] public section

@@ -7,8 +7,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Generic
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Generic
 
 /-!
 # Controlled affine point-addition endpoint
@@ -20,7 +20,7 @@ interface matches the RNSL17 short-Weierstrass implementation boundary
 [RNSL17, ECDLP.tex:650-696].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
@@ -349,399 +349,30 @@ def withWorkCleanMap (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
 end Data
 
 /-- Register whose labels are controlled point-addition data states. -/
+@[implicit_reducible]
 noncomputable def register (E : PrimeFieldShortWeierstrass p) [NeZero p] (Q : AffinePoint E) :
     Register where
   Index := Data E Q
   fintype := inferInstance
   decEq := inferInstance
 
-/-- Controlled generic point-addition gate for a fixed addend `Q`. -/
-noncomputable def controlledGate (E : PrimeFieldShortWeierstrass p) [NeZero p]
-    [Fact p.Prime] (Q : AffinePoint E) : Gate (register E Q) :=
-  Gate.ofPerm (Data.controlledEquiv E Q).symm
+/-- Metadata-free controlled generic point-addition operator for a fixed addend `Q`. -/
+noncomputable def controlledOp (E : PrimeFieldShortWeierstrass p) [NeZero p]
+    [Fact p.Prime] (Q : AffinePoint E) : UnitaryOperator (register E Q) :=
+  UnitaryOperator.ofPerm (Data.controlledEquiv E Q).symm
 
-/-- Basis action of the controlled generic point-addition gate. -/
-theorem controlledGate_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
+/-- Basis action of the controlled generic point-addition operator. -/
+theorem controlledOp_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
     [Fact p.Prime] (Q : AffinePoint E) (x : Data E Q) :
-    (controlledGate E Q).apply (PureState.ket (R := register E Q) x) =
-      PureState.ket (R := register E Q) x.addIntoTarget := by
-  rw [controlledGate, Gate.ofPerm_apply_ket]
+    (controlledOp E Q).apply (NormalizedVector.ket (R := register E Q) x) =
+      NormalizedVector.ket (R := register E Q) x.addIntoTarget := by
+  rw [controlledOp, UnitaryOperator.ofPerm_apply_ket]
   rfl
-
-/-- Resource parameters attached to the controlled generic point-addition endpoint. -/
-structure ResourceParameters where
-  /-- Resource profile for evaluating the control branch. -/
-  controlProfile : ModularArithmeticResourceProfile
-  /-- Resource profile for the underlying generic point addition. -/
-  additionProfile : ModularArithmeticResourceProfile
-deriving DecidableEq
-
-namespace ResourceParameters
-
-/-- Compose control overhead and the underlying generic addition profile. -/
-def toProfile (params : ResourceParameters) : ModularArithmeticResourceProfile :=
-  ModularArithmeticResourceProfile.sequential
-    params.controlProfile params.additionProfile
-
-/-- Concrete component bounds for controlled point addition. -/
-structure PublicBaselineBounds where
-  /-- Public bound for control-branch overhead. -/
-  controlBound : ModularArithmeticResourceProfile
-  /-- Public bound for the underlying point-addition endpoint. -/
-  additionBound : ModularArithmeticResourceProfile
-deriving DecidableEq
-
-namespace PublicBaselineBounds
-
-/-- The composed bound profile for controlled point addition. -/
-def toProfile (bounds : PublicBaselineBounds) : ModularArithmeticResourceProfile :=
-  ModularArithmeticResourceProfile.sequential bounds.controlBound bounds.additionBound
-
-end PublicBaselineBounds
-
-/-- Fieldwise source-bound certificate for controlled point addition. -/
-structure SourceBoundCertificate
-    (params : ResourceParameters) (bounds : PublicBaselineBounds) : Prop where
-  control_le :
-    ModularArithmeticResourceProfile.SupportsUpperBound
-      params.controlProfile bounds.controlBound
-  addition_le :
-    ModularArithmeticResourceProfile.SupportsUpperBound
-      params.additionProfile bounds.additionBound
-
-/-- The component certificate implies the composed profile bound. -/
-theorem SourceBoundCertificate.supportsUpperBound
-    {params : ResourceParameters} {bounds : PublicBaselineBounds}
-    (cert : SourceBoundCertificate params bounds) :
-    ModularArithmeticResourceProfile.SupportsUpperBound params.toProfile bounds.toProfile := by
-  simpa [toProfile, PublicBaselineBounds.toProfile] using
-    ModularArithmeticResourceProfile.SupportsUpperBound.sequential
-      cert.control_le cert.addition_le
-
-end ResourceParameters
-
-/-- Typed endpoint witness for controlled generic affine point addition, modeled
-as one permutation gate with an attached resource profile. -/
-noncomputable def controlledCircuit (E : PrimeFieldShortWeierstrass p) [NeZero p]
-    [Fact p.Prime] (Q : AffinePoint E) (params : ResourceParameters) :
-    Circuit (register E Q) :=
-  Circuit.ofGate "elliptic-curve-controlled-generic-addition" (controlledGate E Q)
-    params.toProfile.toResourceProfile params.toProfile.circuitDepth
-    params.toProfile.oracleQueries
-
-/-- The zero-control branch is the identity on clean target coordinates. -/
-theorem controlledCircuit_apply_zero_branch (E : PrimeFieldShortWeierstrass p)
-    [NeZero p] [Fact p.Prime] (Q : AffinePoint E) (params : ResourceParameters)
-    (P : {P : AffinePoint E // P.x ≠ Q.x}) :
-    Circuit.apply (controlledCircuit E Q params)
-      (PureState.ket (R := register E Q)
-        ({ input := P
-           control := false
-           targetX := 0
-           targetY := 0
-           flag := false } : Data E Q) :
-          StateVector (register E Q)) =
-      (PureState.ket (R := register E Q)
-        ({ input := P
-           control := false
-           targetX := 0
-           targetY := 0
-           flag := false } : Data E Q) :
-          StateVector (register E Q)) := by
-  simpa [controlledCircuit, Circuit.apply_ofGate, Gate.apply_coe, Data.addIntoTarget] using
-    congrArg (fun psi : PureState (register E Q) => (psi : StateVector (register E Q)))
-      (controlledGate_apply_ket E Q
-        ({ input := P
-           control := false
-           targetX := 0
-           targetY := 0
-           flag := false } : Data E Q))
-
-/-- The one-control branch applies the generic affine point-addition update. -/
-theorem controlledCircuit_apply_one_branch (E : PrimeFieldShortWeierstrass p)
-    [NeZero p] [Fact p.Prime] (Q : AffinePoint E) (params : ResourceParameters)
-    (P : {P : AffinePoint E // P.x ≠ Q.x}) :
-    Circuit.apply (controlledCircuit E Q params)
-      (PureState.ket (R := register E Q)
-        ({ input := P
-           control := true
-           targetX := 0
-           targetY := 0
-           flag := false } : Data E Q) :
-          StateVector (register E Q)) =
-      (PureState.ket (R := register E Q)
-        ({ input := P
-           control := true
-           targetX := genericAddX E P.1 Q
-           targetY := genericAddY E P.1 Q
-           flag := false } : Data E Q) :
-          StateVector (register E Q)) := by
-  simpa [controlledCircuit, Circuit.apply_ofGate, Gate.apply_coe, Data.addIntoTarget] using
-    congrArg (fun psi : PureState (register E Q) => (psi : StateVector (register E Q)))
-      (controlledGate_apply_ket E Q
-        ({ input := P
-           control := true
-           targetX := 0
-           targetY := 0
-           flag := false } : Data E Q))
-
-/-! #### External work-register clean interface -/
-
-/-- Controlled generic point addition as an external-work clean reversible circuit. -/
-noncomputable def controlledWithWorkCircuit (E : PrimeFieldShortWeierstrass p)
-    [NeZero p] [Fact p.Prime] (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) :
-    Circuit (WorkRegister.CleanReversibleMap.register (Data E Q) Work) :=
-  (Data.withWorkCleanMap E Q Work).circuit params.toProfile
-
-@[simp] theorem controlledWithWorkCircuit_resources
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) :
-    (controlledWithWorkCircuit E Q Work params).resources =
-      params.toProfile.toResourceProfile :=
-  rfl
-
-@[simp] theorem controlledWithWorkCircuit_depth
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) :
-    (controlledWithWorkCircuit E Q Work params).depth = params.toProfile.circuitDepth :=
-  rfl
-
-@[simp] theorem controlledWithWorkCircuit_queryDepth
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) :
-    (controlledWithWorkCircuit E Q Work params).queryDepth =
-      params.toProfile.oracleQueries :=
-  rfl
-
-/-- Basis-state correctness for controlled point addition with an external work register. -/
-theorem controlledWithWorkCircuit_apply_ket
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) (x : Data E Q) (w : Work) :
-    Circuit.apply (controlledWithWorkCircuit E Q Work params)
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work) (x, w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-          (x.addIntoTarget, w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) := by
-  simpa [controlledWithWorkCircuit, Data.withWorkCleanMap, Data.withWorkEquiv] using
-    WorkRegister.CleanReversibleMap.circuit_apply_ket
-      (clean := Data.withWorkCleanMap E Q Work)
-      (profile := params.toProfile) (x := (x, w))
-
-/-- The external-work zero-control branch is the identity on clean target coordinates. -/
-theorem controlledWithWorkCircuit_apply_zero_branch
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) (P : {P : AffinePoint E // P.x ≠ Q.x}) (w : Work) :
-    Circuit.apply (controlledWithWorkCircuit E Q Work params)
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-          (({ input := P
-              control := false
-              targetX := 0
-              targetY := 0
-              flag := false } : Data E Q), w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-          (({ input := P
-              control := false
-              targetX := 0
-              targetY := 0
-              flag := false } : Data E Q), w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) := by
-  simpa [Data.addIntoTarget] using
-    controlledWithWorkCircuit_apply_ket E Q Work params
-      ({ input := P, control := false, targetX := 0, targetY := 0, flag := false } : Data E Q) w
-
-/-- The external-work one-control branch applies the generic affine point-addition update. -/
-theorem controlledWithWorkCircuit_apply_one_branch
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) (P : {P : AffinePoint E // P.x ≠ Q.x}) (w : Work) :
-    Circuit.apply (controlledWithWorkCircuit E Q Work params)
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-          (({ input := P
-              control := true
-              targetX := 0
-              targetY := 0
-              flag := false } : Data E Q), w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-      (PureState.ket
-        (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-          (({ input := P
-              control := true
-              targetX := genericAddX E P.1 Q
-              targetY := genericAddY E P.1 Q
-              flag := false } : Data E Q), w) :
-          StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) := by
-  simpa [Data.addIntoTarget] using
-    controlledWithWorkCircuit_apply_ket E Q Work params
-      ({ input := P, control := true, targetX := 0, targetY := 0, flag := false } : Data E Q) w
-
-/-- Encoded zero-control branch: the finite input encoding is valid, control is
-preserved, target registers are unchanged, and external work remains clean
-[RNSL17, ECDLP.tex:650-696]. -/
-theorem encodedControlledWithWorkCircuit_apply_zero_branch
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    {n : ℕ} (encoding : PointEncoding E n)
-    (params : ResourceParameters) (P : Input E Q) (w : Work) :
-    encoding.IsValidFiniteEncoding (GenericPointAddition.encodeInput encoding P) ∧
-      encoding.decodeFiniteCoordinates (GenericPointAddition.encodeInput encoding P) =
-        (P.1.x, P.1.y) ∧
-      Circuit.apply (controlledWithWorkCircuit E Q Work params)
-        (PureState.ket
-          (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-            (({ input := P
-                control := false
-                targetX := 0
-                targetY := 0
-                flag := false } : Data E Q), w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-        (PureState.ket
-          (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-            (({ input := P
-                control := false
-                targetX := 0
-                targetY := 0
-                flag := false } : Data E Q), w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) := by
-  constructor
-  · exact GenericPointAddition.encodeInput_isValid encoding P
-  constructor
-  · exact GenericPointAddition.encodeInput_decodes encoding P
-  · exact controlledWithWorkCircuit_apply_zero_branch E Q Work params P w
-
-/-- Encoded one-control branch: the finite input and output encodings are valid,
-the active branch performs generic affine addition, and external work remains
-clean [RNSL17, ECDLP.tex:650-696]. -/
-theorem encodedControlledWithWorkCircuit_apply_one_branch
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    {n : ℕ} (encoding : PointEncoding E n)
-    (params : ResourceParameters) (P : Input E Q) (w : Work) :
-    GenericPointAddition.EncodedEndpointEvidence E Q encoding P ∧
-      Circuit.apply (controlledWithWorkCircuit E Q Work params)
-        (PureState.ket
-          (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-            (({ input := P
-                control := true
-                targetX := 0
-                targetY := 0
-                flag := false } : Data E Q), w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-        (PureState.ket
-          (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-            (({ input := P
-                control := true
-                targetX := genericAddX E P.1 Q
-                targetY := genericAddY E P.1 Q
-                flag := false } : Data E Q), w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) := by
-  constructor
-  · exact GenericPointAddition.encodedEndpointEvidence E Q encoding P
-  · exact controlledWithWorkCircuit_apply_one_branch E Q Work params P w
-
-/-- Resource-correct witness for the external-work controlled point-addition circuit. -/
-noncomputable def controlledWithWorkCircuitResourceCorrectWitness
-    (E : PrimeFieldShortWeierstrass p) [NeZero p] [Fact p.Prime]
-    (Q : AffinePoint E)
-    (Work : Type) [Fintype Work] [DecidableEq Work]
-    (params : ResourceParameters) :
-    ResourceCorrectWitness
-      (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-      (∀ x : Data E Q, ∀ w : Work,
-        Circuit.apply (controlledWithWorkCircuit E Q Work params)
-          (PureState.ket
-            (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work) (x, w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)) =
-          (PureState.ket
-            (R := WorkRegister.CleanReversibleMap.register (Data E Q) Work)
-              (x.addIntoTarget, w) :
-            StateVector (WorkRegister.CleanReversibleMap.register (Data E Q) Work)))
-      ((controlledWithWorkCircuit E Q Work params).resources =
-          params.toProfile.toResourceProfile ∧
-        (controlledWithWorkCircuit E Q Work params).depth =
-          params.toProfile.circuitDepth ∧
-        (controlledWithWorkCircuit E Q Work params).queryDepth =
-          params.toProfile.oracleQueries) := by
-  exact
-    { circuit := controlledWithWorkCircuit E Q Work params
-      correctness := fun x w => controlledWithWorkCircuit_apply_ket E Q Work params x w
-      resources := ⟨rfl, rfl, rfl⟩ }
-
-/-- Public-bounds endpoint for controlled generic point addition. -/
-theorem main_with_public_bounds (E : PrimeFieldShortWeierstrass p) [NeZero p]
-    [Fact p.Prime] (Q : AffinePoint E) (params : ResourceParameters)
-    (bounds : ResourceParameters.PublicBaselineBounds)
-    (componentBounds : ResourceParameters.SourceBoundCertificate params bounds) :
-    (∀ P : {P : AffinePoint E // P.x ≠ Q.x},
-      Circuit.apply (controlledCircuit E Q params)
-          (PureState.ket (R := register E Q)
-          ({ input := P
-             control := false
-             targetX := 0
-             targetY := 0
-             flag := false } : Data E Q) :
-            StateVector (register E Q)) =
-        (PureState.ket (R := register E Q)
-          ({ input := P
-             control := false
-             targetX := 0
-             targetY := 0
-             flag := false } : Data E Q) :
-            StateVector (register E Q))) ∧
-      (∀ P : {P : AffinePoint E // P.x ≠ Q.x},
-        Circuit.apply (controlledCircuit E Q params)
-          (PureState.ket (R := register E Q)
-            ({ input := P
-               control := true
-               targetX := 0
-               targetY := 0
-               flag := false } : Data E Q) :
-              StateVector (register E Q)) =
-          (PureState.ket (R := register E Q)
-            ({ input := P
-               control := true
-               targetX := genericAddX E P.1 Q
-               targetY := genericAddY E P.1 Q
-               flag := false } : Data E Q) :
-              StateVector (register E Q))) ∧
-      ModularArithmeticResourceProfile.SupportsUpperBound
-        params.toProfile bounds.toProfile ∧
-      (controlledCircuit E Q params).resources = params.toProfile.toResourceProfile ∧
-      (controlledCircuit E Q params).depth = params.toProfile.circuitDepth ∧
-      (controlledCircuit E Q params).queryDepth = params.toProfile.oracleQueries := by
-  constructor
-  · intro P
-    exact controlledCircuit_apply_zero_branch E Q params P
-  constructor
-  · intro P
-    exact controlledCircuit_apply_one_branch E Q params P
-  constructor
-  · exact componentBounds.supportsUpperBound
-  · exact ⟨rfl, rfl, rfl⟩
 
 end ControlledPointAddition
 
 end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
+
+end

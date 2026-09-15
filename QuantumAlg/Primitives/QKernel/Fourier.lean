@@ -6,10 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Util.Polynomial.Trigonometric
+import all QuantumAlg.Util.Polynomial.Trigonometric
 public import Mathlib.Data.Matrix.Mul
-public import Mathlib.Tactic
+import Mathlib.Tactic
 
 /-!
 # Fourier representation of the quantum kernel
@@ -26,7 +27,7 @@ applying a constant matrix and a diagonal phase gate), hence the overlap and its
 modulus are `TrigPolynomial`s; collecting by frequency gives the representation.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -79,7 +80,7 @@ theorem IsTrigPolynomialVec.phaseMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (
 /-- The feature state after `j` encoding layers: start from `ψ`, apply the constant
 unitary `W 0`, then alternately a phase gate for each coordinate and the next `W`.
 `featState W lam ψ N x` is `|φ(x)⟩` for the full `N`-input circuit. -/
-noncomputable def featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+public noncomputable def featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) : (j : ℕ) → (Fin N → ℝ) → (Fin d → ℂ)
   | 0, _ => W 0 *ᵥ ψ
   | (j + 1), x =>
@@ -295,7 +296,7 @@ theorem overlapES_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : F
       ← featComp_eval W lam ψ m x', ← featComp_eval W lam ψ m x]
 
 /-- The quantum kernel as a trigonometric polynomial: the squared modulus of the overlap. -/
-noncomputable def kernelES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+public noncomputable def kernelES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) : TrigPolynomial (N + N) :=
   (overlapES W lam ψ).mul (overlapES W lam ψ).conj
 
@@ -303,7 +304,8 @@ noncomputable def kernelES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam
 `κ(x,x') = |⟨φ(x')|φ(x)⟩|²` is a finite sum of characters `e^{i⟨ω,(x,x')⟩}` whose
 frequencies (the elements of `(kernelES …).freqs`) are differences of the generator's
 eigenvalue vectors. -/
-theorem fourier_representation (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+public theorem QuantumKernelFourier.main
+    (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (x x' : Fin N → ℝ) :
     (Complex.normSq
         (∑ m, (starRingEnd ℂ) (featState W lam ψ N x' m) *
@@ -458,3 +460,5 @@ theorem pauliX_kernel_eq_cos_sq (x x' : ℝ) :
   ring
 
 end QuantumAlg
+
+end

@@ -6,13 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-public import Cslib.Init
+public import Mathlib.Init
 
 /-!
 # QuantumAlg initialization
 
-This module imports CSLib initialization so public QuantumAlg modules share the
-same default lint/import environment expected by CSLib-oriented upstreaming.
+Shared Mathlib initialization for the library.
 -/
-
-@[expose] public section

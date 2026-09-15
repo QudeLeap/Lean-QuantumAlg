@@ -6,13 +6,13 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import Mathlib.LinearAlgebra.Matrix.Kronecker
+import QuantumAlg.Init
+import Mathlib.LinearAlgebra.Matrix.Kronecker
 public import Mathlib.LinearAlgebra.Matrix.Trace
-public import Mathlib.LinearAlgebra.Matrix.ConjTranspose
-public import Mathlib.Data.Matrix.Basis
+import Mathlib.LinearAlgebra.Matrix.ConjTranspose
+import Mathlib.Data.Matrix.Basis
 public import Mathlib.Data.Complex.Basic
-public import Mathlib.Data.Complex.BigOperators
+import Mathlib.Data.Complex.BigOperators
 
 /-!
 # The Hilbert–Schmidt inner product on matrices
@@ -29,7 +29,7 @@ bases, is obtained separately by transport along the linear isometry to
 `EuclideanSpace ℂ (m × m)`.)
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -40,7 +40,7 @@ variable {m : Type*} [Fintype m]
 
 /-- The Hilbert–Schmidt (Frobenius) inner product `⟪A, B⟫ = Tr[Aᴴ B]`. Conjugate-linear
 in the first argument, linear in the second. -/
-def hsInner (A B : Matrix m m ℂ) : ℂ := (Aᴴ * B).trace
+public def hsInner (A B : Matrix m m ℂ) : ℂ := (Aᴴ * B).trace
 
 @[simp] theorem hsInner_def (A B : Matrix m m ℂ) : hsInner A B = (Aᴴ * B).trace := rfl
 
@@ -140,3 +140,5 @@ theorem hsInner_single [DecidableEq m] (i j k l : m) :
     exact h ⟨hki.symm, hlj.symm⟩
 
 end QuantumAlg
+
+end

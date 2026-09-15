@@ -6,13 +6,13 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import Mathlib.Algebra.GroupWithZero.Nat
-public import Mathlib.Algebra.Order.Group.Abs
-public import Mathlib.Algebra.Order.Group.Unbundled.Int
-public import Mathlib.Data.Real.Basic
-public import Mathlib.Data.Nat.GCD.Basic
-public import Mathlib.NumberTheory.DiophantineApproximation.Basic
+import QuantumAlg.Init
+import Mathlib.Algebra.GroupWithZero.Nat
+import Mathlib.Algebra.Order.Group.Abs
+import Mathlib.Algebra.Order.Group.Unbundled.Int
+import Mathlib.Data.Real.Basic
+import Mathlib.Data.Nat.GCD.Basic
+import Mathlib.NumberTheory.DiophantineApproximation.Basic
 
 /-!
 # Rational-approximation uniqueness helpers
@@ -28,7 +28,7 @@ bounded denominator [Sho95, source.tex:1614-1633] [dW19, qcnotes.tex:2293-2301,
 2316-2362].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -154,3 +154,5 @@ private theorem continuedFraction_denominatorRecovery_of_cleared_error_lt_one {Î
 end RationalApproximation
 
 end QuantumAlg
+
+end

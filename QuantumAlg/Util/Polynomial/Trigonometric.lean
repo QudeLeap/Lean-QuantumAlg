@@ -6,13 +6,13 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Analysis.SpecialFunctions.Complex.Circle
-public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 public import Mathlib.Algebra.BigOperators.Ring.Finset
-public import Mathlib.LinearAlgebra.LinearIndependent.Basic
-public import Mathlib.Tactic
+import Mathlib.LinearAlgebra.LinearIndependent.Basic
+import Mathlib.Tactic
 
 /-!
 # Trigonometric polynomials
@@ -27,7 +27,7 @@ This module is quantum-free: it only knows about `ℂ`, finite sums, the real pa
 `⟨ω, x⟩ = ∑ i, ω i * x i`, and real one-variable trigonometric identities.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -36,12 +36,12 @@ open Complex BigOperators
 variable {k : ℕ}
 
 /-- The real pairing `⟨ω, x⟩ = ∑ i, ω i * x i` of a frequency vector with a data point. -/
-def freqDot (ω x : Fin k → ℝ) : ℝ := ∑ i, ω i * x i
+public def freqDot (ω x : Fin k → ℝ) : ℝ := ∑ i, ω i * x i
 
 /-- An **trigonometric polynomial** in `k` real variables: the function
 `x ↦ ∑_{ω ∈ freqs} coeff ω · exp(i⟨ω, x⟩)`. The data is a finite set of frequency vectors
 together with a complex coefficient at each. -/
-structure TrigPolynomial (k : ℕ) where
+public structure TrigPolynomial (k : ℕ) where
   /-- The finite set of frequency vectors carrying nonzero (or bookkept) coefficients. -/
   freqs : Finset (Fin k → ℝ)
   /-- The complex coefficient at each frequency. -/
@@ -408,3 +408,5 @@ theorem trig_parameter_shift (a b c θ : ℝ) :
 end
 
 end QuantumAlg
+
+end

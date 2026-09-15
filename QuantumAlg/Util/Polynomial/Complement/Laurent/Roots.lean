@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Problem
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Problem
 
 /-!
 # Laurent complement roots
@@ -15,7 +15,7 @@ public import QuantumAlg.Util.Polynomial.Complement.Laurent.Problem
 Stage module for reciprocal-conjugate root symmetry and multiplicity facts.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -35,3 +35,5 @@ end Complement.Laurent.Roots
 end
 
 end QuantumAlg
+
+end

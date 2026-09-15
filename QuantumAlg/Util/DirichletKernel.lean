@@ -6,10 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
-public import Mathlib.Tactic
+import Mathlib.Tactic
 
 /-!
 # Finite trigonometric-sum (Dirichlet-kernel) identities (quantum-free)
@@ -36,7 +36,7 @@ whose derivatives at the nodes supply the `1/sin²` weights without ever summing
   of Wierichs et al. [WIWL22, main.tex:482-484].
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -78,10 +78,10 @@ second-derivative rule samples the `2R-1` even nodes `μπ/R`. The weights are t
 node-derivatives of the modified Dirichlet kernel. -/
 
 /-- Evaluation point for the first-derivative rule: `x_μ = (2μ-1)π/(2R)`. -/
-noncomputable def psPoint (R μ : ℕ) : ℝ := (2 * (μ : ℝ) - 1) * Real.pi / (2 * R)
+public noncomputable def psPoint (R μ : ℕ) : ℝ := (2 * (μ : ℝ) - 1) * Real.pi / (2 * R)
 
 /-- Weight for the first-derivative rule: `(-1)^{μ-1} / (4R sin²((2μ-1)π/(4R)))`. -/
-noncomputable def psWeight (R μ : ℕ) : ℝ :=
+public noncomputable def psWeight (R μ : ℕ) : ℝ :=
   (-1 : ℝ) ^ (μ - 1) / (4 * R * Real.sin ((2 * (μ : ℝ) - 1) * Real.pi / (4 * R)) ^ 2)
 
 /-- Evaluation point for the second-derivative rule: `μπ/R`. -/
@@ -1709,3 +1709,5 @@ theorem sum_sin_mul_psWeight_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR 
     ring
 
 end QuantumAlg
+
+end

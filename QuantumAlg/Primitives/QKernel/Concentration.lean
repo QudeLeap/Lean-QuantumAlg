@@ -6,12 +6,13 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Util.Concentration
-public import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
-public import Mathlib.MeasureTheory.Integral.Pi
-public import Mathlib.MeasureTheory.Constructions.Pi
-public import Mathlib.Tactic
+import all QuantumAlg.Util.Concentration
+import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+import Mathlib.MeasureTheory.Integral.Pi
+import Mathlib.MeasureTheory.Constructions.Pi
+import Mathlib.Tactic
 
 /-!
 # Exponential concentration of the tensor-product RY quantum kernel
@@ -23,7 +24,7 @@ invariance each coordinate reduces to a uniform variable on `[-π,π]`, so we st
 `Var[κ]=(3/8)ⁿ-(1/4)ⁿ`), giving genuine exponential concentration with NO Haar assumption.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -34,10 +35,10 @@ noncomputable def unifAngle : Measure ℝ :=
   (ENNReal.ofReal (2 * Real.pi))⁻¹ • volume.restrict (Set.Icc (-Real.pi) Real.pi)
 
 /-- The reduced tensor-product RY fidelity kernel `∏ₖ cos²(θₖ)`. -/
-noncomputable def ryKernel (n : ℕ) (θ : Fin n → ℝ) : ℝ := ∏ k, Real.cos (θ k) ^ 2
+public noncomputable def ryKernel (n : ℕ) (θ : Fin n → ℝ) : ℝ := ∏ k, Real.cos (θ k) ^ 2
 
 /-- The data distribution: `n` independent uniform angles. -/
-noncomputable def ryMeasure (n : ℕ) : Measure (Fin n → ℝ) :=
+public noncomputable def ryMeasure (n : ℕ) : Measure (Fin n → ℝ) :=
   Measure.pi (fun _ => unifAngle)
 
 instance : IsProbabilityMeasure unifAngle := by
@@ -130,7 +131,7 @@ theorem variance_ryKernel_le (n : ℕ) :
 
 /-- **The tensor-product RY quantum kernel concentrates exponentially**
 [TWC+22, main-update.tex:930], with NO Haar assumption. -/
-theorem ryKernel_concentrates :
+public theorem QuantumKernelConcentration.main :
     ExpConcentratedProb (fun n => ryMeasure n) (fun n => ryKernel n) := by
   refine expConcentratedProb_of_variance_le (fun n => ryMeasure n) (fun n => ryKernel n)
     (fun n => ryKernel_memLp n) (b := 8 / 3) (by norm_num) (C := 1) (by norm_num)
@@ -146,6 +147,8 @@ theorem ryKernel_tendsto_zero {δ : ℝ} (hδ : 0 < δ) :
     Filter.Tendsto
       (fun n => (ryMeasure n) {θ | δ ≤ |ryKernel n θ - ∫ x, ryKernel n x ∂(ryMeasure n)|})
       Filter.atTop (nhds 0) :=
-  ryKernel_concentrates.tendsto_zero hδ
+  QuantumKernelConcentration.main.tendsto_zero hδ
 
 end QuantumAlg
+
+end

@@ -91,130 +91,6 @@
       "entry_point": "siam.tex"
     },
     {
-      "key": "Sho95",
-      "authors": [
-        "Peter W. Shor"
-      ],
-      "year": 1995,
-      "title": "Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer",
-      "arxiv_id": "quant-ph/9508027",
-      "arxiv_version": "v2",
-      "entry_point": "source.tex"
-    },
-    {
-      "key": "VBE95",
-      "authors": [
-        "Vlatko Vedral",
-        "Adriano Barenco",
-        "Artur Ekert"
-      ],
-      "year": 1995,
-      "title": "Quantum Networks for Elementary Arithmetic Operations",
-      "arxiv_id": "quant-ph/9511018",
-      "arxiv_version": "v1",
-      "entry_point": "9511018.tex"
-    },
-    {
-      "key": "Bea02",
-      "authors": [
-        "Stephane Beauregard"
-      ],
-      "year": 2002,
-      "title": "Circuit for Shor's Algorithm Using 2n+3 Qubits",
-      "arxiv_id": "quant-ph/0205095",
-      "arxiv_version": "v3",
-      "entry_point": "arxivfact.tex"
-    },
-    {
-      "key": "EH17",
-      "authors": [
-        "Martin Ekerå",
-        "Johan Håstad"
-      ],
-      "year": 2017,
-      "title": "Quantum algorithms for computing short discrete logarithms and factoring RSA integers",
-      "arxiv_id": "1702.00249",
-      "arxiv_version": "v1",
-      "entry_point": "source.tex"
-    },
-    {
-      "key": "E23",
-      "authors": [
-        "Martin Ekera"
-      ],
-      "year": 2023,
-      "title": "On the Success Probability of the Quantum Algorithm for the Short DLP",
-      "arxiv_id": "2309.01754",
-      "arxiv_version": "v5",
-      "entry_point": "arxiv-v5.tex"
-    },
-    {
-      "key": "GE19",
-      "authors": [
-        "Craig Gidney",
-        "Martin Ekerå"
-      ],
-      "year": 2019,
-      "title": "How to factor 2048 bit RSA integers in 8 hours using 20 million noisy qubits",
-      "arxiv_id": "1905.09749",
-      "arxiv_version": "v3",
-      "entry_point": "main.tex"
-    },
-    {
-      "key": "PZ03",
-      "authors": [
-        "John Proos",
-        "Christof Zalka"
-      ],
-      "year": 2003,
-      "title": "Shor's Discrete Logarithm Quantum Algorithm for Elliptic Curves",
-      "arxiv_id": "quant-ph/0301141",
-      "arxiv_version": "v2",
-      "entry_point": "ecc.tex"
-    },
-    {
-      "key": "RNSL17",
-      "authors": [
-        "Martin Roetteler",
-        "Michael Naehrig",
-        "Krysta M. Svore",
-        "Kristin Lauter"
-      ],
-      "year": 2017,
-      "title": "Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms",
-      "arxiv_id": "1706.06752",
-      "arxiv_version": "v3",
-      "entry_point": "ECDLP.tex"
-    },
-    {
-      "key": "NIST23",
-      "authors": [
-        "Lily Chen",
-        "Dustin Moody",
-        "Karen Randall",
-        "Andrew Regenscheid",
-        "Angela Robinson"
-      ],
-      "year": 2023,
-      "title": "Recommendations for Discrete Logarithm-based Cryptography: Elliptic Curve Domain Parameters",
-      "doi": "10.6028/NIST.SP.800-186"
-    },
-    {
-      "key": "HJN+20",
-      "authors": [
-        "Thomas Haner",
-        "Samuel Jaques",
-        "Michael Naehrig",
-        "Martin Roetteler",
-        "Mathias Soeken"
-      ],
-      "year": 2020,
-      "title": "Improved Quantum Circuits for Elliptic Curve Discrete Logarithms",
-      "arxiv_id": "2001.09580",
-      "arxiv_version": "v1",
-      "entry_point": "ECDLP.tex"
-    },
-    {
       "key": "NC10",
       "authors": [
         "Michael A. Nielsen",
@@ -540,28 +416,56 @@
       "entry_point": "Quantum-main.tex"
     },
     {
-      "key": "Web15",
+      "key": "BKL+20",
       "authors": [
-        "Zak Webb"
+        "Samuel Broadbent",
+        "Habiba Kadiri",
+        "Allysa Lumley",
+        "Nathan Ng",
+        "Kirsten Wilk"
       ],
-      "year": 2015,
-      "title": "The Clifford group forms a unitary 3-design",
-      "arxiv_id": "1510.02769",
-      "arxiv_version": "v3",
-      "entry_point": "Cliffords_are_a_3-design.tex"
+      "year": 2020,
+      "title": "Sharper bounds for the Chebyshev function theta(x)",
+      "arxiv_id": "2002.11068",
+      "arxiv_version": "v2",
+      "entry_point": "sharper-bounds-psi-theta-May2020-resubmittedMathComp.tex"
     },
     {
-      "key": "WKKB24",
+      "key": "BW02",
       "authors": [
-        "Roeland Wiersema",
-        "Efekan Kökcü",
-        "Alexander F. Kemper",
-        "Bojko N. Bakalov"
+        "Alexander Barvinok",
+        "Kevin Woods"
       ],
-      "year": 2024,
-      "title": "Classification of dynamical Lie algebras of 2-local spin systems on linear, circular and fully connected topologies",
-      "arxiv_id": "2309.05690",
-      "arxiv_version": "v2",
+      "year": 2002,
+      "title": "Short Rational Generating Functions for Lattice Point Problems",
+      "arxiv_id": "math/0211146",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "Bea02",
+      "authors": [
+        "Stephane Beauregard"
+      ],
+      "year": 2002,
+      "title": "Circuit for Shor's Algorithm Using 2n+3 Qubits",
+      "arxiv_id": "quant-ph/0205095",
+      "arxiv_version": "v3",
+      "entry_point": "arxivfact.tex"
+    },
+    {
+      "key": "CGM+25",
+      "authors": [
+        "James Cook",
+        "Surendra Ghentiyala",
+        "Ian Mertz",
+        "Edward Pyne",
+        "Nathan S. Sheffield"
+      ],
+      "year": 2025,
+      "title": "The Structure of In-Place Space-Bounded Computation",
+      "arxiv_id": "2510.12005",
+      "arxiv_version": "v1",
       "entry_point": "main.tex"
     },
     {
@@ -587,6 +491,122 @@
       "entry_point": null
     },
     {
+      "key": "E20",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2020,
+      "title": "On post-processing in the quantum algorithm for computing short discrete logarithms",
+      "doi": "10.1007/s10623-020-00783-2"
+    },
+    {
+      "key": "E20A",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2020,
+      "title": "On post-processing in the quantum algorithm for computing short discrete logarithms",
+      "doi": "10.1007/s10623-020-00783-2"
+    },
+    {
+      "key": "E20P",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2020,
+      "title": "On post-processing in the quantum algorithm for computing short discrete logarithms",
+      "doi": "10.1007/s10623-020-00783-2"
+    },
+    {
+      "key": "E21",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2021,
+      "title": "Correction to the Ekerå–Håstad short-DLP lattice search radius",
+      "url": "https://quantumcomputing.stackexchange.com/questions/18361/question-about-the-result-analysis-of-ekeras-method-in-short-dlp"
+    },
+    {
+      "key": "E23",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2023,
+      "title": "On the Success Probability of the Quantum Algorithm for the Short DLP",
+      "arxiv_id": "2309.01754",
+      "arxiv_version": "v5",
+      "entry_point": "arxiv-v5.tex"
+    },
+    {
+      "key": "E23R",
+      "authors": [
+        "Martin Ekerå"
+      ],
+      "year": 2023,
+      "title": "On the Success Probability of the Quantum Algorithm for the Short DLP",
+      "arxiv_id": "2309.01754",
+      "arxiv_version": "v5",
+      "entry_point": "arxiv-v5.tex"
+    },
+    {
+      "key": "EH17",
+      "authors": [
+        "Martin Ekerå",
+        "Johan Håstad"
+      ],
+      "year": 2017,
+      "title": "Quantum algorithms for computing short discrete logarithms and factoring RSA integers",
+      "arxiv_id": "1702.00249",
+      "arxiv_version": "v1",
+      "entry_point": "source.tex"
+    },
+    {
+      "key": "EH17C",
+      "authors": [
+        "Martin Ekerå",
+        "Johan Håstad"
+      ],
+      "year": 2017,
+      "title": "Quantum algorithms for computing short discrete logarithms and factoring RSA integers",
+      "doi": "10.1007/978-3-319-59879-6_20"
+    },
+    {
+      "key": "GE19",
+      "authors": [
+        "Craig Gidney",
+        "Martin Ekerå"
+      ],
+      "year": 2019,
+      "title": "How to factor 2048 bit RSA integers in 8 hours using 20 million noisy qubits",
+      "arxiv_id": "1905.09749",
+      "arxiv_version": "v3",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "Gid19",
+      "authors": [
+        "Craig Gidney"
+      ],
+      "year": 2019,
+      "title": "Windowed quantum arithmetic",
+      "arxiv_id": "1905.07682",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "HRS16",
+      "authors": [
+        "Thomas Häner",
+        "Martin Roetteler",
+        "Krysta M. Svore"
+      ],
+      "year": 2016,
+      "title": "Factoring using 2n+2 qubits with Toffoli based modular multiplication",
+      "arxiv_id": "1611.07995",
+      "arxiv_version": "v1",
+      "entry_point": "paper.tex"
+    },
+    {
       "key": "GLC+23",
       "authors": [
         "Matthew L. Goh",
@@ -600,6 +620,276 @@
       "arxiv_id": "2308.01432",
       "arxiv_version": "v1",
       "entry_point": null
+    },
+    {
+      "key": "HJN+20",
+      "authors": [
+        "Thomas Haner",
+        "Samuel Jaques",
+        "Michael Naehrig",
+        "Martin Roetteler",
+        "Mathias Soeken"
+      ],
+      "year": 2020,
+      "title": "Improved Quantum Circuits for Elliptic Curve Discrete Logarithms",
+      "arxiv_id": "2001.09580",
+      "arxiv_version": "v1",
+      "entry_point": "ECDLP.tex"
+    },
+    {
+      "key": "KC24",
+      "authors": [
+        "Alex Kalbach",
+        "Ted Chinburg"
+      ],
+      "year": 2024,
+      "title": "LLL Algorithm for Lattice Basis Reduction",
+      "arxiv_id": "2410.22196",
+      "arxiv_version": "v1",
+      "entry_point": "Thesisbody.tex"
+    },
+    {
+      "key": "NIST23",
+      "authors": [
+        "Lily Chen",
+        "Dustin Moody",
+        "Karen Randall",
+        "Andrew Regenscheid",
+        "Angela Robinson"
+      ],
+      "year": 2023,
+      "title": "Recommendations for Discrete Logarithm-based Cryptography: Elliptic Curve Domain Parameters",
+      "doi": "10.6028/NIST.SP.800-186"
+    },
+    {
+      "key": "PZ03",
+      "authors": [
+        "John Proos",
+        "Christof Zalka"
+      ],
+      "year": 2003,
+      "title": "Shor's Discrete Logarithm Quantum Algorithm for Elliptic Curves",
+      "arxiv_id": "quant-ph/0301141",
+      "arxiv_version": "v2",
+      "entry_point": "ecc.tex"
+    },
+    {
+      "key": "RNSL17",
+      "authors": [
+        "Martin Roetteler",
+        "Michael Naehrig",
+        "Krysta M. Svore",
+        "Kristin Lauter"
+      ],
+      "year": 2017,
+      "title": "Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms",
+      "arxiv_id": "1706.06752",
+      "arxiv_version": "v3",
+      "entry_point": "ECDLP.tex"
+    },
+    {
+      "key": "RPZ18",
+      "authors": [
+        "Robert Rand",
+        "Jennifer Paykin",
+        "Steve Zdancewic"
+      ],
+      "year": 2018,
+      "title": "QWIRE Practice: Formal Verification of Quantum Circuits in Coq",
+      "arxiv_id": "1803.00699",
+      "arxiv_version": "v1",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "Sho95",
+      "authors": [
+        "Peter W. Shor"
+      ],
+      "year": 1995,
+      "title": "Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer",
+      "arxiv_id": "quant-ph/9508027",
+      "arxiv_version": "v2",
+      "entry_point": "source.tex"
+    },
+    {
+      "key": "SV24",
+      "authors": [
+        "Alok Shukla",
+        "Prakash Vedula"
+      ],
+      "year": 2024,
+      "title": "An efficient quantum algorithm for preparation of uniform quantum superposition states",
+      "arxiv_id": "2306.11747",
+      "arxiv_version": "v2",
+      "entry_point": "Uniform.tex",
+      "doi": "10.1007/s11128-024-04258-4"
+    },
+    {
+      "key": "U24",
+      "authors": [
+        "Marcell János Uray"
+      ],
+      "year": 2024,
+      "title": "Algebraic number fields and the LLL algorithm",
+      "arxiv_id": "1810.01634",
+      "arxiv_version": "v2",
+      "entry_point": "alg-lll.tex"
+    },
+    {
+      "key": "VBE95",
+      "authors": [
+        "Vlatko Vedral",
+        "Adriano Barenco",
+        "Artur Ekert"
+      ],
+      "year": 1995,
+      "title": "Quantum Networks for Elementary Arithmetic Operations",
+      "arxiv_id": "quant-ph/9511018",
+      "arxiv_version": "v1",
+      "entry_point": "9511018.tex"
+    },
+    {
+      "key": "WKKB24",
+      "authors": [
+        "Roeland Wiersema",
+        "Efekan Kökcü",
+        "Alexander F. Kemper",
+        "Bojko N. Bakalov"
+      ],
+      "year": 2024,
+      "title": "Classification of dynamical Lie algebras of 2-local spin systems on linear, circular and fully connected topologies",
+      "arxiv_id": "2309.05690",
+      "arxiv_version": "v2",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "Web15",
+      "authors": [
+        "Zak Webb"
+      ],
+      "year": 2015,
+      "title": "The Clifford group forms a unitary 3-design",
+      "arxiv_id": "1510.02769",
+      "arxiv_version": "v3",
+      "entry_point": "Cliffords_are_a_3-design.tex"
+    },
+    {
+      "key": "TTK09",
+      "authors": [
+        "Yasuhiro Takahashi",
+        "Seiichiro Tani",
+        "Noboru Kunihiro"
+      ],
+      "year": 2009,
+      "title": "Quantum Addition Circuits and Unbounded Fan-Out",
+      "arxiv_id": "0910.2530",
+      "arxiv_version": "v1",
+      "entry_point": "qic-loglogaddition-quant.tex"
+    },
+    {
+      "key": "D00",
+      "authors": [
+        "Thomas G. Draper"
+      ],
+      "year": 2000,
+      "title": "Addition on a Quantum Computer",
+      "arxiv_id": "quant-ph/0008033",
+      "arxiv_version": "v1",
+      "entry_point": "paper.tex"
+    },
+    {
+      "key": "G17",
+      "authors": [
+        "Craig Gidney"
+      ],
+      "year": 2017,
+      "title": "Factoring with n+2 clean qubits and n-1 dirty qubits",
+      "arxiv_id": "1706.07884",
+      "arxiv_version": "v2",
+      "entry_point": "paper.tex"
+    },
+    {
+      "key": "LYL+26",
+      "authors": [
+        "Han Luo",
+        "Ziyi Yang",
+        "Jingquan Luo",
+        "Ziruo Wang",
+        "Yuexin Su",
+        "Xiaoming Sun",
+        "Lvzhou Li",
+        "Tongyang Li"
+      ],
+      "year": 2026,
+      "title": "Quantum Algorithm for Elliptic Curve Discrete Logarithms with Space-Efficient Point Addition",
+      "arxiv_id": "2607.13816",
+      "arxiv_version": "v2",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "Amb04",
+      "authors": [
+        "Andris Ambainis"
+      ],
+      "year": 2004,
+      "title": "Quantum Walk Algorithm for Element Distinctness",
+      "arxiv_id": "quant-ph/0311001",
+      "arxiv_version": "v2",
+      "entry_point": "distinct-revised10.tex"
+    },
+    {
+      "key": "CML+24",
+      "authors": [
+        "Yu-Ao Chen",
+        "Yin Mo",
+        "Yingjian Liu",
+        "Lei Zhang",
+        "Xin Wang"
+      ],
+      "year": 2024,
+      "title": "Quantum Algorithm for Reversing Unknown Unitary Evolutions",
+      "arxiv_id": "2403.04704",
+      "arxiv_version": "v3",
+      "entry_point": "main.tex"
+    },
+    {
+      "key": "CMN+18",
+      "authors": [
+        "Andrew M. Childs",
+        "Dmitri Maslov",
+        "Yunseong Nam",
+        "Neil J. Ross",
+        "Yuan Su"
+      ],
+      "year": 2018,
+      "title": "Toward the first quantum simulation with quantum speedup",
+      "arxiv_id": "1711.10980",
+      "arxiv_version": "v1",
+      "entry_point": "simcount.tex"
+    },
+    {
+      "key": "C19",
+      "authors": [
+        "Earl Campbell"
+      ],
+      "year": 2019,
+      "title": "A random compiler for fast Hamiltonian simulation",
+      "arxiv_id": "1811.08017",
+      "arxiv_version": "v2",
+      "entry_point": "qDRIFT_arXiv_V2submit.tex"
+    },
+    {
+      "key": "HHL09",
+      "authors": [
+        "Aram W. Harrow",
+        "Avinatan Hassidim",
+        "Seth Lloyd"
+      ],
+      "year": 2009,
+      "title": "Quantum algorithm for solving linear systems of equations",
+      "arxiv_id": "0811.3171",
+      "arxiv_version": "v3",
+      "entry_point": "08113171.tex"
     }
   ]
 }

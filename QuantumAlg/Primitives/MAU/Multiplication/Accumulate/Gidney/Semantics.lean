@@ -1,0 +1,50 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+public import QuantumAlg.Primitives.MAU.Multiplication.Accumulate.WordAction
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.WordAction
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Program
+
+/-!
+# Exact equality with the independent accumulation operator
+
+The actual internally borrowed stage sequence equals the finite arithmetic
+permutation on the whole two-word carrier. Equality includes phase, extends
+to every incoming mixed or pure state, and preserves correlations with
+arbitrary external references.
+-/
+
+namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
+
+noncomputable section
+
+theorem gidneyAccumulate_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) :
+    (program width modulus coefficient).matrix =
+      wordAccumulateOperator width modulus coefficient := by
+  apply Subtype.ext
+  ext output input
+  obtain ⟨⟨source, target⟩, rfl⟩ := (prodEquiv (m := width) (n := width)).surjective input
+  have circuit := congrArg (fun state : NormalizedVector (Qubits (width + width)) => state output)
+    ((gidneyAccumulate_realizes width modulus coefficient).apply_encoded_ket (source, target))
+  have semantic := congrArg (fun state : NormalizedVector (Qubits (width + width)) => state output)
+    (wordAccumulateOperator_ket width modulus coefficient source target)
+  have actualColumn :=
+    (HilbertOperator.applyVec_ket
+      ((program width modulus coefficient).matrix : HilbertOperator (Qubits (encoding width).width))
+      ((encoding width).encode (source, target)) output).symm.trans circuit
+  have semanticColumn :=
+    (HilbertOperator.applyVec_ket
+      (wordAccumulateOperator width modulus coefficient : HilbertOperator (Qubits (width + width)))
+      (prodEquiv (m := width) (n := width) (source, target)) output).symm.trans semantic
+  exact actualColumn.trans semanticColumn.symm
+
+end
+
+end QuantumAlg.MAU.Multiplication.Accumulate.Gidney

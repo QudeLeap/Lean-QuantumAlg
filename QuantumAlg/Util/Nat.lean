@@ -6,7 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
+import all QuantumAlg.Util.Nat.Binary.Arithmetic
+import all QuantumAlg.Util.Nat.FixedWidth
 
 /-!
 # Natural-number utility lemmas
@@ -16,7 +18,7 @@ formulas. These definitions are purely arithmetic adapters, not algorithm
 claims.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace Nat
@@ -31,5 +33,27 @@ theorem ceilDiv_eq (num den : ℕ) :
     ceilDiv num den = (num + den - 1) / den :=
   rfl
 
+/-- Multiplying a ceiling quotient by its positive denominator recovers at
+least the numerator. -/
+theorem le_ceilDiv_mul {num den : ℕ} (hden : 0 < den) :
+    num ≤ ceilDiv num den * den := by
+  have hmod := Nat.mod_lt (num + den - 1) hden
+  have hdecomp := Nat.div_add_mod (num + den - 1) den
+  have hcomm :
+      den * ((num + den - 1) / den) =
+        ((num + den - 1) / den) * den := Nat.mul_comm _ _
+  unfold ceilDiv
+  omega
+
+/-- The overshoot produced by a natural-number ceiling quotient is strictly
+less than one positive denominator. -/
+theorem ceilDiv_mul_lt_add {num den : ℕ} (hden : 0 < den) :
+    ceilDiv num den * den < num + den := by
+  have hle := Nat.div_mul_le_self (num + den - 1) den
+  rw [ceilDiv]
+  omega
+
 end Nat
 end QuantumAlg
+
+end

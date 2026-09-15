@@ -6,9 +6,12 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Core.Base
-public import QuantumAlg.Core.Base
+import all QuantumAlg.Core.Base
+import all QuantumAlg.Core.Base.State.Pure
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Metadata
 public import Mathlib.LinearAlgebra.Matrix.PosDef
 
 /-!
@@ -46,7 +49,7 @@ Sources: [SK18, featuremap_variational_cvcircuit.tex:194; Sch21, main.tex:97].
 - `QuantumAlg.quantumKernel_self` — the diagonal value on a pure state.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -58,14 +61,16 @@ variable {n : ℕ}
 
 /-- Elementwise complex conjugate of a pure state. -/
 def conjState (ψ : PureState (Qubits n)) : PureState (Qubits n) :=
-  ofVec (WithLp.toLp 2 fun i => starRingEnd ℂ (ψ i)) (by
-    calc
-      ‖WithLp.toLp 2 (fun i => starRingEnd ℂ (ψ i))‖
-          = ‖(ψ : StateVector (Qubits n))‖ := by
-            rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq]
-            congr 1
-            exact Finset.sum_congr rfl fun i _ => by simp
-      _ = 1 := ψ.norm_eq_one)
+  ofNormalized
+    (NormalizedVector.ofVector (WithLp.toLp 2 fun i => starRingEnd ℂ (ψ i)) (by
+      calc
+        ‖WithLp.toLp 2 (fun i => starRingEnd ℂ (ψ i))‖
+            = ‖(ψ : HilbertVector (Qubits n))‖ := by
+              rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq]
+              congr 1
+              exact Finset.sum_congr rfl fun i _ => by simp
+        _ = 1 := ψ.norm_eq_one))
+    ψ.system_idx
 
 @[simp]
 theorem conjState_apply (ψ : PureState (Qubits n)) (i : Fin (2 ^ n)) :
@@ -76,10 +81,10 @@ theorem inner_conjState
     (a b : PureState (Qubits n)) :
     inner ℂ (conjState a) (conjState b) = starRingEnd ℂ (inner ℂ a b) := by
   change inner ℂ
-      ((conjState a : PureState (Qubits n)) : StateVector (Qubits n))
-      ((conjState b : PureState (Qubits n)) : StateVector (Qubits n))
+      ((conjState a : PureState (Qubits n)) : HilbertVector (Qubits n))
+      ((conjState b : PureState (Qubits n)) : HilbertVector (Qubits n))
     = starRingEnd ℂ
-        (inner ℂ (a : StateVector (Qubits n)) (b : StateVector (Qubits n)))
+        (inner ℂ (a : HilbertVector (Qubits n)) (b : HilbertVector (Qubits n)))
   simp only [PiLp.inner_apply, RCLike.inner_apply, conjState_apply, map_sum, map_mul]
 
 end
@@ -98,7 +103,7 @@ def featureTensor
 
 /-- The fidelity quantum kernel `k(x, y) = |⟨φ(x), φ(y)⟩|²`, written as the
 complex product `⟨φ(x), φ(y)⟩ · conj⟨φ(x), φ(y)⟩` (a nonnegative real). -/
-def quantumKernel (φ : X → PureState (Qubits n)) (x y : X) : ℂ :=
+public def quantumKernel (φ : X → PureState (Qubits n)) (x y : X) : ℂ :=
   inner ℂ (φ x) (φ y) *
     starRingEnd ℂ (inner ℂ (φ x) (φ y))
 
@@ -115,8 +120,8 @@ theorem quantumKernel_self (φ : X → PureState (Qubits n)) (x : X) :
     quantumKernel φ x x = 1 := by
   have hself : inner ℂ (φ x) (φ x) = (1 : ℂ) := by
     change inner ℂ
-        ((φ x : PureState (Qubits n)) : StateVector (Qubits n))
-        ((φ x : PureState (Qubits n)) : StateVector (Qubits n))
+        ((φ x : PureState (Qubits n)) : HilbertVector (Qubits n))
+        ((φ x : PureState (Qubits n)) : HilbertVector (Qubits n))
       = (1 : ℂ)
     rw [inner_self_eq_norm_sq_to_K, (φ x).norm_eq_one]
     norm_num
@@ -139,9 +144,9 @@ theorem quantumKernel_gram_posSemidef {ι : Type*} [Finite ι]
     rw [Matrix.of_apply, quantumKernel_eq_inner_featureTensor, Matrix.mul_apply]
     change inner ℂ
         ((featureTensor φ (x i) : PureState (Qubits (n + n))) :
-          StateVector (Qubits (n + n)))
+          HilbertVector (Qubits (n + n)))
         ((featureTensor φ (x j) : PureState (Qubits (n + n))) :
-          StateVector (Qubits (n + n)))
+          HilbertVector (Qubits (n + n)))
       = ∑ x_1,
           (Matrix.of fun k i => featureTensor φ (x i) k).conjTranspose i x_1 *
           (Matrix.of fun k i => featureTensor φ (x i) k) x_1 j
@@ -156,7 +161,7 @@ theorem quantumKernel_gram_posSemidef {ι : Type*} [Finite ι]
 namespace QuantumKernel
 
 /-- Main theorem: fidelity quantum-kernel Gram matrices are positive semidefinite. -/
-theorem main {ι : Type*} [Finite ι] (φ : X → PureState (Qubits n)) (x : ι → X) :
+public theorem main {ι : Type*} [Finite ι] (φ : X → PureState (Qubits n)) (x : ι → X) :
     (Matrix.of fun i j => quantumKernel φ (x i) (x j)).PosSemidef :=
   quantumKernel_gram_posSemidef φ x
 
@@ -175,3 +180,5 @@ end QuantumKernel
 end
 
 end QuantumAlg
+
+end

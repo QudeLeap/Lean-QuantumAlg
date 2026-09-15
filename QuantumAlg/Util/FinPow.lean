@@ -6,10 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import Mathlib.Logic.Equiv.Fin.Basic
-public import Mathlib.Data.Fin.SuccPred
-public import Mathlib.Algebra.Group.Nat.Defs
+import QuantumAlg.Init
+public import Mathlib.Logic.Equiv.Defs
+import Mathlib.Logic.Equiv.Fin.Basic
+import Mathlib.Data.Fin.SuccPred
+import Mathlib.Algebra.Group.Nat.Defs
 
 /-!
 # Index plumbing for `Fin (2 ^ n)` registers (quantum-free)
@@ -27,7 +28,7 @@ on `Gate`/`PureState`.
 Pinned Mathlib API: `finProdFinEquiv` (`(x, y) ↦ y + n * x`), `finCongr`.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -35,8 +36,20 @@ variable {m n : ℕ}
 
 /-- Big-endian pairing of basis labels: `(x, y) ↦ y + 2 ^ n * x`, so the
 first (lower-qubit-index) factor carries the most significant bits. -/
-def prodEquiv : Fin (2 ^ m) × Fin (2 ^ n) ≃ Fin (2 ^ (m + n)) :=
+public def prodEquiv : Fin (2 ^ m) × Fin (2 ^ n) ≃ Fin (2 ^ (m + n)) :=
   finProdFinEquiv.trans (finCongr (pow_add (2 : ℕ) m n).symm)
+
+/-- The high component recovered by the big-endian product equivalence is the
+quotient by the low-register cardinality. -/
+theorem prodEquiv_symm_fst_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
+    ((prodEquiv (m := m) (n := n)).symm raw).1.val = raw.val / 2 ^ n := by
+  rfl
+
+/-- The low component recovered by the big-endian product equivalence is the
+remainder modulo the low-register cardinality. -/
+theorem prodEquiv_symm_snd_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
+    ((prodEquiv (m := m) (n := n)).symm raw).2.val = raw.val % 2 ^ n := by
+  rfl
 
 /-! ## Bit reconstruction helpers -/
 
@@ -176,3 +189,5 @@ theorem prodEquiv_testBit_left {m n : ℕ}
   · omega
 
 end QuantumAlg
+
+end

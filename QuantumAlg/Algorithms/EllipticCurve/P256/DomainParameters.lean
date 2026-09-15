@@ -4,195 +4,226 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: QudeLeap Team
 -/
 
-
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Algorithms.EllipticCurve.DLP
-public import QuantumAlg.Algorithms.Factoring.Common
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.EllipticCurve.Arithmetic.VariableModularMultiplication
+public import QuantumAlg.Util.EllipticCurve
+import all QuantumAlg.Util.EllipticCurve
+import Lean.Elab.Tactic.Omega
+import Mathlib.Tactic.NormNum
 
 /-!
 # P-256 domain parameters
 
-This module records the standard P-256 domain-parameter interface used by
-the scalar-recovery resource theorem.  The constants follow NIST SP 800-186,
-Section 3.2.1.3; that standards source is PDF-only, so it is credited in
-prose rather than as a TeX-line citation.
+This module records the standard P-256 constants and the explicit certificates
+needed by the generic elliptic-curve DLP and parameterized arithmetic layers.
+The arithmetic width is derived from the field modulus; no definition in this
+endpoint freezes a circuit subtree at 256 bits.
+
+The constants follow NIST SP 800-186, Section 3.2.1.3.  Large primality,
+nonsingularity, base-point, and subgroup-order facts remain visible input
+certificates rather than being recomputed by the resource endpoint.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 namespace EllipticCurve
+namespace P256
+namespace DomainParameters
 
-namespace P256DomainParameters
+noncomputable section
 
-/-- Bit-size attached to the P-256 prime-field modulus. -/
-def bitSize : Nat := 256
-
-/-- P-256 prime modulus
-`2^256 - 2^224 + 2^192 + 2^96 - 1`. -/
+/-- P-256 prime modulus `2^256 - 2^224 + 2^192 + 2^96 - 1`. -/
 def primeModulus : Nat :=
   2 ^ 256 - 2 ^ 224 + 2 ^ 192 + 2 ^ 96 - 1
 
 /-- P-256 subgroup order. -/
-def subgroupOrder : Nat :=
+public def subgroupOrder : Nat :=
   115792089210356248762697446949407573529996955224135760342422259061068512044369
 
 /-- P-256 cofactor. -/
 def cofactor : Nat := 1
 
-/-- P-256 short-Weierstrass `a` coefficient. -/
-def coefficientA : ZMod primeModulus :=
-  -3
-
-/-- P-256 short-Weierstrass `b` coefficient, recorded as a natural number. -/
+/-- P-256 short-Weierstrass `b` coefficient as a natural number. -/
 def coefficientBNat : Nat :=
   41058363725152142129326129780047268409114441015993725554835256314039467401291
 
-/-- P-256 short-Weierstrass `b` coefficient in the prime field. -/
-def coefficientB : ZMod primeModulus :=
-  coefficientBNat
-
-/-- P-256 base-point `x` coordinate, recorded as a natural number. -/
+/-- P-256 base-point `x` coordinate as a natural number. -/
 def basePointXNat : Nat :=
   48439561293906451759052585252797914202762949526041747995844080717082404635286
 
-/-- P-256 base-point `y` coordinate, recorded as a natural number. -/
+/-- P-256 base-point `y` coordinate as a natural number. -/
 def basePointYNat : Nat :=
   36134250956749795798585127919587881956611106672985015071877198253568414405109
 
+/-- Canonical binary field width derived from the P-256 modulus. -/
+def fieldWidth : Nat :=
+  Nat.clog 2 primeModulus
+
+set_option exponentiation.threshold 260 in
+/-- The derived P-256 field width is 256 bits. -/
+theorem fieldWidth_eq_256 : fieldWidth = 256 := by
+  change Nat.clog 2 primeModulus = 256
+  have h256 : (256 : Nat) = 16 * 16 := by norm_num
+  have h255 : (255 : Nat) = 15 * 16 + 15 := by norm_num
+  apply Nat.le_antisymm
+  · apply Nat.clog_le_of_le_pow
+    rw [h256, pow_mul]
+    norm_num [primeModulus]
+  · have hpower : 2 ^ 255 < primeModulus := by
+      rw [h255, pow_add, pow_mul]
+      norm_num [primeModulus]
+    have hclog : 255 < Nat.clog 2 primeModulus :=
+      (Nat.lt_clog_iff_pow_lt (by norm_num)).2 hpower
+    exact Nat.succ_le_iff.mpr hclog
+
+set_option exponentiation.threshold 260 in
+/-- The standard modulus fits strictly inside its derived binary carrier. -/
+theorem primeModulus_lt_capacity : primeModulus < 2 ^ fieldWidth := by
+  rw [fieldWidth_eq_256, show (256 : Nat) = 16 * 16 by norm_num, pow_mul]
+  norm_num [primeModulus]
+
+/-- The standard modulus represented in the parameterized arithmetic word. -/
+def modulusWord : PlainAdder.Word fieldWidth :=
+  primeModulus
+
+/-- The natural modulus seen by the parameterized elliptic-curve arithmetic. -/
+public def fieldModulus : Nat :=
+  modulusWord.val
+
+/-- The derived arithmetic modulus is exactly the standard P-256 prime. -/
+@[simp] theorem fieldModulus_eq_primeModulus :
+    fieldModulus = primeModulus := by
+  unfold fieldModulus modulusWord
+  exact ZMod.val_natCast_of_lt primeModulus_lt_capacity
+
+/-- The P-256 field has characteristic greater than three. -/
+theorem three_lt_fieldModulus : 3 < fieldModulus := by
+  rw [fieldModulus_eq_primeModulus]
+  norm_num [primeModulus]
+
+/-- The recorded P-256 cofactor has its standard value. -/
+theorem cofactor_eq_one : cofactor = 1 := rfl
+
+/-- P-256 short-Weierstrass `a` coefficient. -/
+public def coefficientA : ZMod fieldModulus :=
+  -3
+
+/-- P-256 short-Weierstrass `b` coefficient in the prime field. -/
+public def coefficientB : ZMod fieldModulus :=
+  coefficientBNat
+
 /-- P-256 base-point `x` coordinate in the prime field. -/
-def basePointX : ZMod primeModulus :=
+public def basePointX : ZMod fieldModulus :=
   basePointXNat
 
 /-- P-256 base-point `y` coordinate in the prime field. -/
-def basePointY : ZMod primeModulus :=
+public def basePointY : ZMod fieldModulus :=
   basePointYNat
 
-/-- Certificate that the recorded P-256 constants define the promised
-short-Weierstrass prime-field curve.  The large primality and nonsingularity
-facts are intentionally supplied as data rather than recomputed by the
-resource theorem. -/
-structure CurveCertificate where
+/-- Certificate that the recorded constants define the promised nonsingular
+short-Weierstrass curve over the P-256 prime field. -/
+public structure CurveCertificate where
   /-- The standard P-256 modulus is prime. -/
-  prime : primeModulus.Prime
-  /-- The standard P-256 modulus is outside characteristics two and three. -/
-  three_lt : 3 < primeModulus
-  /-- The standard P-256 short-Weierstrass equation is nonsingular. -/
+  prime : fieldModulus.Prime
+  /-- The recorded short-Weierstrass equation is nonsingular. -/
   nonsingular :
-    (4 : ZMod primeModulus) * coefficientA ^ 3 +
-        (27 : ZMod primeModulus) * coefficientB ^ 2 ≠ 0
+    (4 : ZMod fieldModulus) * coefficientA ^ 3 +
+        (27 : ZMod fieldModulus) * coefficientB ^ 2 ≠ 0
 
-/-- The standard P-256 short-Weierstrass curve built from a certificate. -/
-def curve (cert : CurveCertificate) :
-    PrimeFieldShortWeierstrass primeModulus where
+/-- Parameterized modular-arithmetic data derived from the certified modulus. -/
+@[implicit_reducible]
+def arithmeticParameters (cert : CurveCertificate) :
+    PrimeFieldShortWeierstrass.Arithmetic.VariableModularMul.Parameters where
+  width := fieldWidth
+  widthPos := by rw [fieldWidth_eq_256]; norm_num
+  modulus := modulusWord
+  one_lt_modulus := (by norm_num : 1 < 3).trans three_lt_fieldModulus
+  modulusPos := lt_trans (by norm_num) three_lt_fieldModulus
+  modulusOdd := by
+    exact cert.prime.odd_of_ne_two
+      (ne_of_gt ((by norm_num : 2 < 3).trans three_lt_fieldModulus))
+
+/-- The standard P-256 short-Weierstrass curve. -/
+public def curve (cert : CurveCertificate) :
+    PrimeFieldShortWeierstrass fieldModulus where
   prime := cert.prime
-  three_lt := cert.three_lt
+  three_lt := three_lt_fieldModulus
   a := coefficientA
   b := coefficientB
   nonsingular := cert.nonsingular
 
-/-- Certificate that the recorded affine base-point coordinates lie on the
-standard P-256 curve. -/
-structure BasePointCertificate where
-  /-- The standard base point satisfies the P-256 affine equation. -/
-  equation :
-    basePointY ^ 2 =
-      basePointX ^ 3 + coefficientA * basePointX + coefficientB
+/-- Certificate that the standard affine base-point coordinates form a
+nonsingular point of the certified P-256 curve. -/
+public structure BasePointCertificate (cert : CurveCertificate) where
+  nonsingular :
+    (curve cert).toWeierstrassCurve.toAffine.Nonsingular
+      basePointX basePointY
 
-/-- The standard P-256 base point as a finite affine curve point. -/
-def basePoint (cert : CurveCertificate) (baseCert : BasePointCertificate) :
-    PrimeFieldShortWeierstrass.FinitePoint (curve cert) where
+/-- The standard P-256 base point in the actual affine group carrier. -/
+public def basePoint (cert : CurveCertificate)
+    (baseCert : BasePointCertificate cert) :
+    PrimeFieldShortWeierstrass.AffinePoint (curve cert) where
   x := basePointX
   y := basePointY
-  equation := by
-    simpa [curve, PrimeFieldShortWeierstrass.AffineEquation]
-      using baseCert.equation
+  nonsingular := baseCert.nonsingular
 
-/-- Certificate for the prime-order subgroup advertised by the P-256 domain
-parameters. -/
-structure SubgroupOrderCertificate where
-  /-- The recorded subgroup order is positive. -/
-  positive : 0 < subgroupOrder
+/-- Certificate for the advertised prime-order subgroup generated by the
+standard base point. -/
+public structure SubgroupCertificate (cert : CurveCertificate)
+    (baseCert : BasePointCertificate cert) where
   /-- The recorded subgroup order is prime. -/
   prime : subgroupOrder.Prime
-  /-- The P-256 cofactor is one. -/
-  cofactor_eq_one : cofactor = 1
+  /-- The advertised subgroup order is the actual order of the base point. -/
+  subgroupOrder_eq_orderOf :
+    subgroupOrder = orderOf (basePoint cert baseCert).toGroupPoint
 
-/-- A natural-number private scalar in the standard range `0 <= m < r`, where
-`r` is the P-256 subgroup order. -/
-structure ScalarRangeWitness where
-  /-- The natural-number representative of the private scalar. -/
-  value : Nat
-  /-- The representative is reduced modulo the P-256 subgroup order. -/
-  value_lt_order : value < subgroupOrder
+/-- The certified subgroup order is positive. -/
+theorem SubgroupCertificate.positive
+    {cert : CurveCertificate} {baseCert : BasePointCertificate cert}
+    (subgroupCert : SubgroupCertificate cert baseCert) :
+    0 < subgroupOrder :=
+  subgroupCert.prime.pos
 
-namespace ScalarRangeWitness
-
-/-- View a range-certified scalar as an element of `ZMod r`. -/
-def toZMod (scalar : ScalarRangeWitness) : ZMod subgroupOrder :=
-  scalar.value
-
-end ScalarRangeWitness
-
-/-- Lean-facing interface for a P-256 ECDLP instance with public key
-`Q = [m]P`.  The scalar-multiplication map is an abstract mathematical bridge:
-primitive/circuit modules provide implementations, while this layer records the
-standard curve inputs and the scalar-recovery promise. -/
-structure ScalarRecoveryInterface where
+/-- Public P-256 ECDLP instance.  It contains only public curve and subgroup
+data plus the standard subgroup promise; no private scalar is problem data. -/
+public structure PublicKeyInstance where
   /-- Certificate for the standard P-256 curve constants. -/
   curveCert : CurveCertificate
-  /-- Certificate that the standard base point lies on the curve. -/
-  baseCert : BasePointCertificate
+  /-- Certificate for the standard affine base point. -/
+  baseCert : BasePointCertificate curveCert
   /-- Certificate for the standard prime-order subgroup. -/
-  subgroupCert : SubgroupOrderCertificate
-  /-- Known public key point `Q`. -/
-  publicKey :
-    PrimeFieldShortWeierstrass.FinitePoint (curve curveCert)
-  /-- Range-certified private scalar `m`. -/
-  privateScalar : ScalarRangeWitness
-  /-- Abstract scalar multiplication by residues modulo the subgroup order. -/
-  scalarMultiplication :
-    ZMod subgroupOrder ->
-      PrimeFieldShortWeierstrass.FinitePoint (curve curveCert)
-  /-- Multiplication by one returns the standard base point `P`. -/
-  scalar_one :
-    scalarMultiplication 1 = basePoint curveCert baseCert
-  /-- The public key is the standard scalar multiple `Q = [m]P`. -/
-  publicKey_eq_scalar_mul :
-    scalarMultiplication privateScalar.toZMod = publicKey
+  subgroupCert : SubgroupCertificate curveCert baseCert
+  /-- Known nonidentity public key point `Q`. -/
+  publicKey : PrimeFieldShortWeierstrass.AffinePoint (curve curveCert)
+  /-- The public key lies in the cyclic subgroup generated by the base point. -/
+  publicKey_mem_span :
+    ∃ scalar : ZMod subgroupOrder,
+      (basePoint curveCert baseCert).toGroupPoint ^ scalar.val =
+        publicKey.toGroupPoint
 
-namespace ScalarRecoveryInterface
+namespace PublicKeyInstance
 
-/-- Convert the P-256 scalar-recovery interface to the generic prime-field
-ECDLP instance interface. -/
-def toECDLPInstance (I : ScalarRecoveryInterface) :
+/-- Convert the P-256 interface to the generic actual-group ECDLP instance. -/
+def toECDLPInstance (I : PublicKeyInstance) :
     PrimeFieldShortWeierstrass.ECDLPInstance (curve I.curveCert) where
   subgroupOrder := subgroupOrder
   subgroupOrder_pos := I.subgroupCert.positive
+  subgroupOrder_prime := I.subgroupCert.prime
   basePoint := basePoint I.curveCert I.baseCert
   targetPoint := I.publicKey
-  scalarMultiplication := I.scalarMultiplication
-  scalar_one := I.scalar_one
-  target_mem_span := ⟨I.privateScalar.toZMod, I.publicKey_eq_scalar_mul⟩
+  subgroupOrder_eq_orderOf := I.subgroupCert.subgroupOrder_eq_orderOf
+  target_mem_span := I.publicKey_mem_span
 
-/-- The stored private scalar is a candidate scalar for the induced ECDLP
-instance. -/
-theorem privateScalar_candidate (I : ScalarRecoveryInterface) :
-    I.toECDLPInstance.CandidateScalar I.privateScalar.toZMod := by
-  simpa [toECDLPInstance, PrimeFieldShortWeierstrass.ECDLPInstance.CandidateScalar]
-    using I.publicKey_eq_scalar_mul
+end PublicKeyInstance
 
-/-- The scalar-recovery interface records the natural-number scalar range
-required by the public P-256 statement. -/
-theorem privateScalar_lt_order (I : ScalarRecoveryInterface) :
-    I.privateScalar.value < subgroupOrder :=
-  I.privateScalar.value_lt_order
+end
 
-end ScalarRecoveryInterface
-
-end P256DomainParameters
-
+end DomainParameters
+end P256
 end EllipticCurve
 end QuantumAlg
+
+end

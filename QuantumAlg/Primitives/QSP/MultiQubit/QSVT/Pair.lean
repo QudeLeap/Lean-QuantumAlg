@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Complement
+import QuantumAlg.Init
+import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Complement
 
 /-!
 # QSVT polynomial pairs
@@ -15,7 +15,7 @@ public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Complement
 Stage module for QSVT phase-certificate and completed pair handoff data.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -42,3 +42,5 @@ end QSVT.Pair
 end QSP.MultiQubit
 
 end QuantumAlg
+
+end

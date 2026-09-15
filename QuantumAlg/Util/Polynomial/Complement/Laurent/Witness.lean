@@ -6,16 +6,16 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Util.Polynomial.Complement.Laurent.Certificate
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Complex
-public import QuantumAlg.Util.Polynomial.Laurent
-public import Mathlib.Analysis.Calculus.DSlope
-public import Mathlib.Analysis.Complex.RealDeriv
-public import Mathlib.Analysis.Complex.Polynomial.Basic
-public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-public import Mathlib.RingTheory.RootsOfUnity.Complex
-public import Mathlib.Topology.Algebra.Polynomial
+import all QuantumAlg.Util.Polynomial.Complement.Laurent.Certificate
+import QuantumAlg.Init
+import all QuantumAlg.Util.Complex
+import all QuantumAlg.Util.Polynomial.Laurent
+import Mathlib.Analysis.Calculus.DSlope
+import Mathlib.Analysis.Complex.RealDeriv
+import Mathlib.Analysis.Complex.Polynomial.Basic
+import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+import Mathlib.RingTheory.RootsOfUnity.Complex
+import Mathlib.Topology.Algebra.Polynomial
 
 /-!
 # Trigonometric polynomial factorization helpers
@@ -26,7 +26,7 @@ existence proof is developed separately; this file records the small algebraic
 interface that connects such a factorization to the QSP normalization equation.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -2203,3 +2203,5 @@ end Complement.Laurent.Witness
 end
 
 end QuantumAlg
+
+end

@@ -6,19 +6,23 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
+import QuantumAlg.Init
 public import QuantumAlg.Primitives.EllipticCurve.PointAddition
-public import QuantumAlg.Primitives.EllipticCurve.Resource
-public import QuantumAlg.Primitives.EllipticCurve.CleanComposition
-public import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication
-public import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplicationEndpoint
-public import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.StructuredCircuit
+import QuantumAlg.Primitives.EllipticCurve.CleanComposition
+import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication
+import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Endpoint
+import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.CleanCircuit
+import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.ECADDResourceCorollary
+import QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.StructuredCircuit
 
 /-!
 # Elliptic-curve primitives
 
 This module re-exports elliptic-curve circuit-facing primitive components,
-including encoded structured-circuit witness layers.
+including encoded structured-circuit witness layers and the shared-carrier
+resource corollary for a `2t` controlled-ECADD cascade.
 -/
 
-@[expose] public section
+section
+
+end

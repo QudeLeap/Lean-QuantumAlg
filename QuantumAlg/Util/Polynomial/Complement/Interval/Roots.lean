@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Init
-public import QuantumAlg.Util.Polynomial.Complement.Interval.Problem
-public import QuantumAlg.Util.Complex
+import QuantumAlg.Init
+import all QuantumAlg.Util.Polynomial.Complement.Interval.Problem
+import all QuantumAlg.Util.Complex
 
 /-!
 # Interval complement root classes
@@ -16,7 +16,7 @@ public import QuantumAlg.Util.Complex
 Stage module for interval-complement root multiplicity and orbit facts.
 -/
 
-@[expose] public section
+section
 
 namespace QuantumAlg
 
@@ -123,3 +123,5 @@ end SourceRootClassFacts
 end Complement.Interval.Roots
 
 end QuantumAlg
+
+end
