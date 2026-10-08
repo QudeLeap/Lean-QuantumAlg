@@ -27,9 +27,8 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
-
-private theorem storedEffect_history {H K : Type} [Fintype H] [Fintype K]
+private theorem storedEffect_history {kind : ProblemKind}
+    {ctx : RuntimeCtx kind} {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference H) (update : H → K)
     (effects : Store ctx → Effect (Register.prod ctx.register Reference)) :
     (state.mapHistory update).effectWeight (fun record => effects record.1) =
@@ -37,14 +36,17 @@ private theorem storedEffect_history {H K : Type} [Fintype H] [Fintype K]
   unfold State.mapHistory
   exact ExecutionState.effectWeight_mapClassical_decision _ state _ _
 
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {Reference : Register}
+
 /-- Proven per-round effect contraction bounds the same actual finite execution. -/
-theorem forRange_effectWeight_le (count : Nat) (body : Fin count → Circuit ctx ctx)
+theorem forRange_effectWeight_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (effects : Store ctx → Effect (Register.prod ctx.register Reference))
     (ratio : ℝ) (nonnegative : 0 ≤ ratio)
-    (step : ∀ index {H : Type} [Fintype H] (state : State ctx Reference H),
+    (step : ∀ index {H : Type} [Fintype H]
+      (state : State ctx Reference (model.HiddenState × H)),
       ((body index).execute Reference state).effectWeight (fun record => effects record.1) ≤
         ratio * state.effectWeight (fun record => effects record.1))
-    {H : Type} [Fintype H] (state : State ctx Reference H) :
+    {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H)) :
     ((forRange count body).execute Reference state).effectWeight
         (fun record => effects record.1) ≤
       ratio ^ count * state.effectWeight (fun record => effects record.1) := by

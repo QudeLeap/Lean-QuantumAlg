@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Initialization
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Correctness
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Domain
 
 /-!
 # Original-input support establishes the measured body's internal domain
@@ -36,7 +36,8 @@ def inputAdmissible {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoin
 /-- Actual initialization derives the internal prepared support from the original input domain. -/
 theorem initialize_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before p.size) Reference History)
+    (state : State (before p.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ input : (Register.prod (before p.size).register Reference).Index,
       ¬inputAdmissible E Q input.1 → state.quantumMarginal.matrix input input = 0) :
     ∀ output : (Register.prod (after p.size).register Reference).Index,

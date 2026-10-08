@@ -11,6 +11,8 @@ import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Combinatorics.Colex
 import all QuantumAlg.Components.Encoded.Circuit
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.MAU.Inversion.Layout
 import all QuantumAlg.Primitives.MAU.Division.Layout
 import all QuantumAlg.Primitives.MAU.Division.Pipeline
@@ -37,18 +39,27 @@ noncomputable section
 private so the public witness surface remains normalization-preserving. -/
 private theorem applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
-    {program : UnitaryCircuit (Qubits encoding.width)} {step : Data -> Data}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
     (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
     UnitaryCircuit.applyVec program
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode x) :
-          HilbertVector (Qubits encoding.width)) =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (step x)) : HilbertVector (Qubits encoding.width)) := by
-  simpa only [UnitaryCircuit.applyNormalized_coe] using
-    congrArg
-      (fun ψ : NormalizedVector (Qubits encoding.width) =>
-        (ψ : HilbertVector (Qubits encoding.width)))
-      (h.apply_encoded_ket x)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm
+            (encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x))) : HilbertVector
+            (QubitLayout.canonical encoding.width).toQuantum.register) := by
+  change
+    (program.applyNormalized
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode x)))).vec =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x)))).vec
+  exact congrArg NormalizedVector.vec (h.apply_encoded_ket x)
 
 namespace PipelineState
 
@@ -167,7 +178,8 @@ def tupleAddQuotientToTarget {N : Nat} : FieldTuple N -> FieldTuple N
 structure TupleTargetAddWitness {N n : Nat}
     (E : BinaryResidueEncoding N n) where
   /-- Program acting on the field tuple layout. -/
-  program : UnitaryCircuit (Qubits (fieldTupleEncoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((fieldTupleEncoding
+    E).width)).toQuantum
   /-- Correctness of the target-add program on tuple labels. -/
   realizes :
     UnitaryCircuit.Realizes (fieldTupleEncoding E) program
@@ -188,13 +200,13 @@ theorem pipeline_realizes (w : TupleTargetAddWitness E) :
 layout by preserving the denominator and numerator fields. -/
 def ofModularAddition (w : MAU.Addition.TargetAddWithAux.Witness E) :
     TupleTargetAddWitness E where
-  program := UnitaryCircuit.prodRight
-    (m := (BinaryLabelEncoding.ofUnitResidueEncoding E).width)
-    (UnitaryCircuit.prodRight
-      (m := (BinaryLabelEncoding.ofResidueEncoding E).width) w.program)
-  realizes := UnitaryCircuit.Realizes.prodRight
+  program := UnitaryCircuit.onBinarySuffix
+    (BinaryLabelEncoding.ofUnitResidueEncoding E).width
+    (UnitaryCircuit.onBinarySuffix
+      (BinaryLabelEncoding.ofResidueEncoding E).width w.program)
+  realizes := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding E)
-    (UnitaryCircuit.Realizes.prodRight
+    (UnitaryCircuit.Realizes.onBinarySuffix
       (left := BinaryLabelEncoding.ofResidueEncoding E) w.realizes)
 
 end TupleTargetAddWitness
@@ -222,7 +234,7 @@ abbrev FieldTupleWithWork (n : Nat) : Type :=
   FieldTuple (2 ^ n) × CarryWork n
 
 /-- Product reassociation between the division field tuple with trailing work
-and the nested product shape required by two `prodRight` lifts. -/
+and the nested product shape required by two suffix placements. -/
 def fieldTupleWithWorkEquiv (n : Nat) :
     FieldTupleWithWork n ≃
       ((ZMod (2 ^ n))ˣ ×
@@ -265,23 +277,24 @@ def tupleWithWorkEncoding (n : Nat) :
 
 /-- Actual tuple-level target-add circuit with explicit carry work. -/
 def tupleWithWorkProgram (n : Nat) :
-    UnitaryCircuit (Qubits (tupleWithWorkEncoding n).width) :=
-  UnitaryCircuit.prodRight
-    (m := (BinaryLabelEncoding.ofUnitResidueEncoding
-      (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n)).width)
-    (UnitaryCircuit.prodRight
-      (m := (BinaryLabelEncoding.ofResidueEncoding
-        (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n)).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((tupleWithWorkEncoding
+      n).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix
+    (BinaryLabelEncoding.ofUnitResidueEncoding
+      (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n)).width
+    (UnitaryCircuit.onBinarySuffix
+      (BinaryLabelEncoding.ofResidueEncoding
+        (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n)).width
       (MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness n).program)
 
 /-- The lifted actual circuit realizes tuple-level target-add with work. -/
 theorem tupleWithWork_realizes (n : Nat) :
     UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n)
       (tupleAddQuotientToTargetWithWork n) := by
-  have h := UnitaryCircuit.Realizes.prodRight
+  have h := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding
       (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n))
-    (UnitaryCircuit.Realizes.prodRight
+    (UnitaryCircuit.Realizes.onBinarySuffix
       (left := BinaryLabelEncoding.ofResidueEncoding
         (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n))
       (MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness n).realizes)
@@ -341,7 +354,8 @@ def pipelineWithWorkEncoding (n : Nat) :
 
 /-- Actual pipeline target-add circuit with explicit carry work. -/
 def pipelineWithWorkProgram (n : Nat) :
-    UnitaryCircuit (Qubits (pipelineWithWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((pipelineWithWorkEncoding
+      n).width)).toQuantum :=
   tupleWithWorkProgram n
 
 /-- The actual pipeline circuit realizes the work-aware target-add step. -/
@@ -1643,8 +1657,9 @@ def productRowTruncatedShiftedLoadGates (n : Nat) (offset : Fin n) :
 
 /-- Base-gate program for one non-wrapping shifted product-row load. -/
 def productRowTruncatedShiftedLoadProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedLoadGates n offset)
 
 /-- Folded semantic action for one non-wrapping shifted product-row load. -/
@@ -1660,7 +1675,7 @@ theorem productRowTruncatedShiftedLoad_realizes
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
       (productRowTruncatedShiftedLoadProgram n offset)
       (productRowTruncatedShiftedLoadStep n offset) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedLoadGates n offset)
 
 /-- A non-wrapping shifted product-row load preserves the denominator. -/
@@ -2098,8 +2113,9 @@ def productRowTruncatedShiftedUnloadGates (n : Nat) (offset : Fin n) :
 
 /-- Base-gate program for unloading one non-wrapping shifted product row. -/
 def productRowTruncatedShiftedUnloadProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedUnloadGates n offset)
 
 /-- Folded semantic action for unloading one non-wrapping shifted product row. -/
@@ -2114,7 +2130,7 @@ theorem productRowTruncatedShiftedUnload_realizes
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
       (productRowTruncatedShiftedUnloadProgram n offset)
       (productRowTruncatedShiftedUnloadStep n offset) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedUnloadGates n offset)
 
 /-- A non-wrapping shifted product-row unload preserves the denominator. -/
@@ -2421,8 +2437,9 @@ def controlledShiftedRowLoadProgram (n : Nat) (offset : Fin n)
       ∀ i,
         ((productRowWorkspaceNumeratorWord n).bit i).wire ≠
           ((productRowWorkspaceShiftedRowWord n offset).bit i).wire) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (controlledShiftedRowLoadGates n offset
       hcontrolSource hcontrolTarget hsourceTarget)
 
@@ -2465,7 +2482,7 @@ theorem controlledShiftedRowLoad_realizes (n : Nat) (offset : Fin n)
         hcontrolSource hcontrolTarget hsourceTarget)
       (controlledShiftedRowLoadStep n offset
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (controlledShiftedRowLoadGates n offset
       hcontrolSource hcontrolTarget hsourceTarget)
 
@@ -2480,7 +2497,8 @@ def productRowControlledShiftedLoadGates (n : Nat) (offset : Fin n) :
 
 /-- Concrete base-gate program for one shifted product-row load. -/
 def productRowControlledShiftedLoadProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   controlledShiftedRowLoadProgram n offset
     (productRowWorkspaceInverseScratch_ne_numerator n offset)
     (productRowWorkspaceInverseScratch_ne_shiftedRow n offset)
@@ -2808,7 +2826,8 @@ def productRowAddGates (n : Nat) :
 
 /-- Base-gate program for adding a loaded product row into quotient scratch. -/
 def productRowAddProgram (n : Nat) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (productRowAddCarryWorkLayout n)
 
@@ -3380,8 +3399,9 @@ def productRowControlledShiftedUnloadGates (n : Nat) (offset : Fin n) :
 
 /-- Base-gate program for unloading one shifted product row. -/
 def productRowControlledShiftedUnloadProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (productRowControlledShiftedUnloadGates n offset)
 
 /-- Folded semantic action for unloading one shifted product row. -/
@@ -3515,7 +3535,7 @@ theorem productRowControlledShiftedUnload_realizes
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
       (productRowControlledShiftedUnloadProgram n offset)
       (productRowControlledShiftedUnloadStep n offset) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (productRowControlledShiftedUnloadGates n offset)
 
 /-! #### One-offset non-wrapping product-row add slice -/
@@ -3532,7 +3552,8 @@ def productRowTruncatedOffsetAddStep (n : Nat) (offset : Fin n) :
 
 /-- Base-gate program for one non-wrapping quotient-product row slice. -/
 def productRowTruncatedOffsetAddProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   UnitaryCircuit.seq (productRowTruncatedShiftedLoadProgram n offset)
     (UnitaryCircuit.seq (productRowAddProgram n)
       (productRowTruncatedShiftedUnloadProgram n offset))
@@ -3961,7 +3982,8 @@ theorem productRowOffsetAddStep_get_quotientScratch_add_loadedRow
 
 /-- Base-gate program for one quotient-product row slice. -/
 def productRowOffsetAddProgram (n : Nat) (offset : Fin n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   UnitaryCircuit.seq (productRowControlledShiftedLoadProgram n offset)
     (UnitaryCircuit.seq (productRowAddProgram n)
       (productRowControlledShiftedUnloadProgram n offset))
@@ -4007,9 +4029,10 @@ def productRowOffsets (n : Nat) : List (Fin n) :=
 /-- Fold a list of product-row offsets into one non-wrapping base-gate
 program. -/
 def productRowTruncatedOffsetsProgram (n : Nat) :
-    List (Fin n) -> UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width)
-  | [] => UnitaryCircuit.identity
-      (Qubits (pipelineWithProductRowWorkEncoding n).width) [] (by simp)
+  List (Fin n) -> UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (pipelineWithProductRowWorkEncoding n).width).toQuantum
   | offset :: rest =>
       UnitaryCircuit.seq (productRowTruncatedOffsetAddProgram n offset)
         (productRowTruncatedOffsetsProgram n rest)
@@ -4274,7 +4297,8 @@ theorem productRowTruncatedOffsets_realizes
   | nil =>
       simpa [productRowTruncatedOffsetsProgram,
         productRowTruncatedOffsetsStep] using
-        UnitaryCircuit.Realizes.identity (pipelineWithProductRowWorkEncoding n)
+        UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+          (pipelineWithProductRowWorkEncoding n) (QubitLayout.canonical _)
   | cons offset rest ih =>
       simpa [productRowTruncatedOffsetsProgram,
         productRowTruncatedOffsetsStep] using
@@ -4288,7 +4312,8 @@ endpoint proof: it folds one filtered load/add/unload row slice over every
 inverse-scratch bit [PZ03, ecc.tex:622-640; VBE95,
 9511018.tex:333-350,591-618]. -/
 def productRowsTruncatedProgram (n : Nat) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   productRowTruncatedOffsetsProgram n (productRowOffsets n)
 
 /-- Folded semantic action of the full non-wrapping product-row program. -/
@@ -4577,9 +4602,10 @@ theorem productRowsTruncated_realizes (n : Nat) :
 
 /-- Fold a list of product-row offsets into one base-gate program. -/
 def productRowOffsetsProgram (n : Nat) :
-    List (Fin n) -> UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width)
-  | [] => UnitaryCircuit.identity
-      (Qubits (pipelineWithProductRowWorkEncoding n).width) [] (by simp)
+  List (Fin n) -> UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (pipelineWithProductRowWorkEncoding n).width).toQuantum
   | offset :: rest =>
       UnitaryCircuit.seq (productRowOffsetAddProgram n offset)
         (productRowOffsetsProgram n rest)
@@ -4798,7 +4824,8 @@ theorem productRowOffsets_realizes (n : Nat) (offsets : List (Fin n)) :
   induction offsets with
   | nil =>
       simpa [productRowOffsetsProgram, productRowOffsetsStep] using
-        UnitaryCircuit.Realizes.identity (pipelineWithProductRowWorkEncoding n)
+        UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+          (pipelineWithProductRowWorkEncoding n) (QubitLayout.canonical _)
   | cons offset rest ih =>
       simpa [productRowOffsetsProgram, productRowOffsetsStep] using
         UnitaryCircuit.Realizes.seq
@@ -4811,7 +4838,8 @@ slice over every inverse-scratch bit [PZ03, ecc.tex:622-640; VBE95,
 9511018.tex:333-350,591-618].  The quotient-product witness below uses the
 non-wrapping truncated variant. -/
 def productRowsProgram (n : Nat) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   productRowOffsetsProgram n (productRowOffsets n)
 
 /-- Folded semantic action of the full shifted-row product program. -/
@@ -4914,8 +4942,9 @@ def addQuotientToTargetWithProductWork (n : Nat) {ProductWork : Type} :
 /-- Actual target-add circuit lifted over a product-compute workspace. -/
 def pipelineWithProductWorkTargetAddProgram (n : Nat)
     {ProductWork : Type} (productEncoding : BinaryLabelEncoding ProductWork) :
-    UnitaryCircuit (Qubits (pipelineWithProductWorkEncoding n productEncoding).width) :=
-  UnitaryCircuit.prodLeft (n := productEncoding.width) (pipelineWithWorkProgram n)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductWorkEncoding n productEncoding).width)).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix productEncoding.width (pipelineWithWorkProgram n)
 
 /-- The lifted actual circuit realizes target-add while preserving product work. -/
 theorem pipelineWithProductWorkTargetAdd_realizes (n : Nat)
@@ -4923,7 +4952,7 @@ theorem pipelineWithProductWorkTargetAdd_realizes (n : Nat)
     UnitaryCircuit.Realizes (pipelineWithProductWorkEncoding n productEncoding)
       (pipelineWithProductWorkTargetAddProgram n productEncoding)
       (addQuotientToTargetWithProductWork n) :=
-  UnitaryCircuit.Realizes.prodLeft (right := productEncoding)
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := productEncoding)
     (pipelineWithWork_realizes n)
 
 /-- Product-compute / target-add / inverse-product schedule over explicit
@@ -4958,7 +4987,8 @@ structure DecomposedProductWithWorkspaceWitness (n : Nat)
       PipelineWithProductWork n ProductWork
   /-- Program for the quotient-product compute leg over the full workspace. -/
   productProgram :
-    UnitaryCircuit (Qubits (pipelineWithProductWorkEncoding n productEncoding).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductWorkEncoding n productEncoding).width)).toQuantum
   /-- Correctness of the product-compute program on full workspace labels. -/
   productRealizes :
     UnitaryCircuit.Realizes (pipelineWithProductWorkEncoding n productEncoding)
@@ -4980,11 +5010,12 @@ def step {n : Nat} {ProductWork : Type}
 def program {n : Nat} {ProductWork : Type}
     {productEncoding : BinaryLabelEncoding ProductWork}
     (w : DecomposedProductWithWorkspaceWitness n productEncoding) :
-    UnitaryCircuit (Qubits (pipelineWithProductWorkEncoding n productEncoding).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductWorkEncoding n productEncoding).width)).toQuantum :=
   UnitaryCircuit.seq w.productProgram
     (UnitaryCircuit.seq
       (pipelineWithProductWorkTargetAddProgram n productEncoding)
-      w.productProgram.dagger)
+      (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed product-workspace program realizes the selected
 product/add/unproduct semantic update. -/
@@ -5002,15 +5033,18 @@ theorem realizes {n : Nat} {ProductWork : Type}
   have hunproduct :
       UnitaryCircuit.Realizes
         (pipelineWithProductWorkEncoding n productEncoding)
-        w.productProgram.dagger w.unproductStep :=
+        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.unproductStep :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       w.product_rightInverse
   have htail :
       UnitaryCircuit.Realizes
         (pipelineWithProductWorkEncoding n productEncoding)
         (UnitaryCircuit.seq
           (pipelineWithProductWorkTargetAddProgram n productEncoding)
-          w.productProgram.dagger)
+          (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : PipelineWithProductWork n ProductWork =>
           w.unproductStep (addQuotientToTargetWithProductWork n x)) :=
     UnitaryCircuit.Realizes.seq
@@ -5035,15 +5069,17 @@ theorem apply_ket {n : Nat} {ProductWork : Type}
     (x : PipelineWithProductWork n ProductWork) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (pipelineWithProductWorkEncoding n productEncoding).width)
-          ((pipelineWithProductWorkEncoding n productEncoding).encode x) :
-          HilbertVector
-            (Qubits (pipelineWithProductWorkEncoding n productEncoding).width)) =
+          ((QubitLayout.canonical
+              (pipelineWithProductWorkEncoding n productEncoding).width).basisEquiv.symm
+            ((pipelineWithProductWorkEncoding n productEncoding).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (pipelineWithProductWorkEncoding n productEncoding).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (pipelineWithProductWorkEncoding n productEncoding).width)
-        ((pipelineWithProductWorkEncoding n productEncoding).encode (w.step x)) :
-        HilbertVector
-          (Qubits (pipelineWithProductWorkEncoding n productEncoding).width)) := by
+        ((QubitLayout.canonical
+            (pipelineWithProductWorkEncoding n productEncoding).width).basisEquiv.symm
+          ((pipelineWithProductWorkEncoding n productEncoding).encode (w.step x))) :
+        HilbertVector (QubitLayout.canonical
+          (pipelineWithProductWorkEncoding n productEncoding).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 
@@ -5416,7 +5452,8 @@ structure DecomposedPipelineWithProductRowWitness (n : Nat) where
   /-- Program adding the denominator inverse into inverse scratch over the
   product-row-aware layout. -/
   inverseProgram :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum
   /-- Correctness of inverse computation on product-row-aware labels. -/
   inverseRealizes :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
@@ -5427,10 +5464,11 @@ namespace DecomposedPipelineWithProductRowWitness
 /-- Inverse, concrete product-row product/target-add/unproduct, and
 reverse-inverse as one actual circuit. -/
 def program {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
-    UnitaryCircuit (Qubits (pipelineWithProductRowWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((pipelineWithProductRowWorkEncoding n).width)).toQuantum :=
   UnitaryCircuit.seq w.inverseProgram
     (UnitaryCircuit.seq (productRowsDecomposedWitness n).program
-      w.inverseProgram.dagger)
+      (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The product-row-aware decomposed program realizes the reversible division
 pipeline selected above. -/
@@ -5445,14 +5483,17 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
       (productRowsDecomposedWitness n).realizes
   have huninverse :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-        w.inverseProgram.dagger
+        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         (subInverseFromScratchWithProductRowWork n) :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       (addInverseToScratchWithProductRowWork_subInverse n)
   have htail :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
         (UnitaryCircuit.seq (productRowsDecomposedWitness n).program
-          w.inverseProgram.dagger)
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : PipelineWithProductRowWork n =>
           subInverseFromScratchWithProductRowWork n
             ((productRowsDecomposedWitness n).step x)) :=
@@ -5477,14 +5518,18 @@ theorem apply_ket {n : Nat}
     (x : PipelineWithProductRowWork n) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (pipelineWithProductRowWorkEncoding n).width)
-          ((pipelineWithProductRowWorkEncoding n).encode x) :
-          HilbertVector (Qubits (pipelineWithProductRowWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
+            ((pipelineWithProductRowWorkEncoding n).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (pipelineWithProductRowWorkEncoding n).width)
-        ((pipelineWithProductRowWorkEncoding n).encode
-          (reversiblePipelineStepWithProductRowWork n x)) :
-        HilbertVector (Qubits (pipelineWithProductRowWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
+          ((pipelineWithProductRowWorkEncoding n).encode
+            (reversiblePipelineStepWithProductRowWork n x))) :
+        HilbertVector (QubitLayout.canonical
+          (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 /-- Clean encoded-basis action for the product-row-aware decomposed division
@@ -5494,15 +5539,19 @@ theorem apply_clean_ket {n : Nat}
     (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (pipelineWithProductRowWorkEncoding n).width)
-          ((pipelineWithProductRowWorkEncoding n).encode
-            ((initial u v z, cleanWork n), (0 : ProductRowWork n))) :
-          HilbertVector (Qubits (pipelineWithProductRowWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
+            ((pipelineWithProductRowWorkEncoding n).encode
+              ((initial u v z, cleanWork n), (0 : ProductRowWork n)))) :
+          HilbertVector (QubitLayout.canonical
+            (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (pipelineWithProductRowWorkEncoding n).width)
-        ((pipelineWithProductRowWorkEncoding n).encode
-          (cleanProductRowOutput n u v z)) :
-        HilbertVector (Qubits (pipelineWithProductRowWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
+          ((pipelineWithProductRowWorkEncoding n).encode
+            (cleanProductRowOutput n u v z))) :
+        HilbertVector (QubitLayout.canonical
+          (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) := by
   simpa [reversiblePipelineStepWithProductRowWork_initial] using
     applyVec_encoded_ket_of_realizes w.realizes
       ((initial u v z, cleanWork n), (0 : ProductRowWork n))
@@ -5525,10 +5574,12 @@ programs under the same pipeline/work encoding [PZ03, ecc.tex:622-640]. -/
 structure DecomposedPipelineWithTargetAddWitness (n : Nat) where
   /-- Program adding the denominator inverse into inverse scratch. -/
   inverseProgram :
-    UnitaryCircuit (Qubits (pipelineWithWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((pipelineWithWorkEncoding
+      n).width)).toQuantum
   /-- Program adding the numerator-inverse product into quotient scratch. -/
   productProgram :
-    UnitaryCircuit (Qubits (pipelineWithWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((pipelineWithWorkEncoding
+      n).width)).toQuantum
   /-- Correctness of inverse computation on pipeline/work labels. -/
   inverseRealizes :
     UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
@@ -5543,11 +5594,13 @@ namespace DecomposedPipelineWithTargetAddWitness
 /-- Inverse, product, work-aware target-add, reverse-product, and
 reverse-inverse as one actual circuit. -/
 def program {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
-    UnitaryCircuit (Qubits (pipelineWithWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((pipelineWithWorkEncoding
+      n).width)).toQuantum :=
   UnitaryCircuit.seq w.inverseProgram
     (UnitaryCircuit.seq w.productProgram
       (UnitaryCircuit.seq (pipelineWithWorkProgram n)
-        (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)))
+        (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
 
 /-- The decomposed work-aware program realizes the reversible division pipeline
 with explicit carry work. -/
@@ -5556,19 +5609,26 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
       (reversiblePipelineStepWithWork n) := by
   have hunproduct :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-        w.productProgram.dagger
+        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         (subProductFromQuotientScratchWithWork n) :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       (addProductToQuotientScratchWithWork_subProductFromQuotientScratchWithWork n)
   have huninverse :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-        w.inverseProgram.dagger
+        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         (subInverseFromScratchWithWork n) :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       (addInverseToScratchWithWork_subInverseFromScratchWithWork n)
   have hcleanup :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-        (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)
+        (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n x)) :=
@@ -5579,7 +5639,8 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
   have htargetTail :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
         (UnitaryCircuit.seq (pipelineWithWorkProgram n)
-          (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger))
+          (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n
@@ -5594,7 +5655,8 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
         (UnitaryCircuit.seq w.productProgram
           (UnitaryCircuit.seq (pipelineWithWorkProgram n)
-            (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)))
+            (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n
@@ -5625,14 +5687,18 @@ theorem apply_ket {n : Nat}
     (w : DecomposedPipelineWithTargetAddWitness n) (x : PipelineWithWork n) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (pipelineWithWorkEncoding n).width)
-          ((pipelineWithWorkEncoding n).encode x) :
-          HilbertVector (Qubits (pipelineWithWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (pipelineWithWorkEncoding n).width).basisEquiv.symm
+            ((pipelineWithWorkEncoding n).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (pipelineWithWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (pipelineWithWorkEncoding n).width)
-        ((pipelineWithWorkEncoding n).encode
-          (reversiblePipelineStepWithWork n x)) :
-        HilbertVector (Qubits (pipelineWithWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (pipelineWithWorkEncoding n).width).basisEquiv.symm
+          ((pipelineWithWorkEncoding n).encode
+            (reversiblePipelineStepWithWork n x))) :
+        HilbertVector (QubitLayout.canonical
+          (pipelineWithWorkEncoding n).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 /-- Clean encoded-basis action for the work-aware decomposed division wrapper. -/
@@ -5641,21 +5707,25 @@ theorem apply_clean_ket {n : Nat}
     (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (pipelineWithWorkEncoding n).width)
-          ((pipelineWithWorkEncoding n).encode
-            (initial u v z, cleanWork n)) :
-          HilbertVector (Qubits (pipelineWithWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (pipelineWithWorkEncoding n).width).basisEquiv.symm
+            ((pipelineWithWorkEncoding n).encode
+              (initial u v z, cleanWork n))) :
+          HilbertVector (QubitLayout.canonical
+            (pipelineWithWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (pipelineWithWorkEncoding n).width)
-        ((pipelineWithWorkEncoding n).encode
-          (({ denominator := u
-              numerator := v
-              target := z + quotientResidue u v
-              inverseScratch := 0
-              quotientScratch := 0
-              flag := false } : PipelineState (2 ^ n)),
-            cleanWork n)) :
-        HilbertVector (Qubits (pipelineWithWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (pipelineWithWorkEncoding n).width).basisEquiv.symm
+          ((pipelineWithWorkEncoding n).encode
+            (({ denominator := u
+                numerator := v
+                target := z + quotientResidue u v
+                inverseScratch := 0
+                quotientScratch := 0
+                flag := false } : PipelineState (2 ^ n)),
+              cleanWork n))) :
+        HilbertVector (QubitLayout.canonical
+          (pipelineWithWorkEncoding n).width).toQuantum.register) := by
   simpa [reversiblePipelineStepWithWork_initial] using
     applyVec_encoded_ket_of_realizes w.realizes
       (initial u v z, cleanWork n)
@@ -5710,11 +5780,14 @@ structure DecomposedPipelineWitness (N : Nat) where
   /-- Faithful encoding of pipeline labels, including scratch registers. -/
   encoding : BinaryLabelEncoding (PipelineState N)
   /-- Program adding the denominator inverse into inverse scratch. -/
-  inverseProgram : UnitaryCircuit (Qubits encoding.width)
+  inverseProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Program adding the numerator-inverse product into quotient scratch. -/
-  productProgram : UnitaryCircuit (Qubits encoding.width)
+  productProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Program adding quotient scratch into the target accumulator. -/
-  targetAddProgram : UnitaryCircuit (Qubits encoding.width)
+  targetAddProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Correctness of the inverse-computation program on encoded labels. -/
   inverseRealizes :
     UnitaryCircuit.Realizes encoding inverseProgram
@@ -5736,7 +5809,8 @@ variable {N : Nat}
 modular-division layout. -/
 def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
     (inverseProgram productProgram targetAddProgram :
-      UnitaryCircuit (Qubits (PipelineState.fieldEncoding E).width))
+      UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+        ((PipelineState.fieldEncoding E).width)).toQuantum)
     (inverseRealizes :
       UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram
         PipelineState.addInverseToScratch)
@@ -5758,7 +5832,8 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
 @[simp] theorem ofFieldEncoding_encoding {N n : Nat}
     (E : BinaryResidueEncoding N n)
     (inverseProgram productProgram targetAddProgram :
-      UnitaryCircuit (Qubits (PipelineState.fieldEncoding E).width))
+      UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+        ((PipelineState.fieldEncoding E).width)).toQuantum)
     (inverseRealizes :
       UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram
         PipelineState.addInverseToScratch)
@@ -5776,29 +5851,40 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
 /-- Inverse, product, target-add, reverse-product, and reverse-inverse as one
 actual circuit. -/
 def program (w : DecomposedPipelineWitness N) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (w.encoding.width)).toQuantum
+      :=
   UnitaryCircuit.seq w.inverseProgram
     (UnitaryCircuit.seq w.productProgram
       (UnitaryCircuit.seq w.targetAddProgram
-        (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)))
+        (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
 
 /-- The decomposed program realizes the reversible division pipeline. -/
 theorem realizes (w : DecomposedPipelineWitness N) :
     UnitaryCircuit.Realizes w.encoding w.program
       (decomposedPipelineStep (N := N)) := by
   have hunproduct :
-      UnitaryCircuit.Realizes w.encoding w.productProgram.dagger
+      UnitaryCircuit.Realizes w.encoding (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints
+        .empty))
         PipelineState.subProductFromQuotientScratch :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       PipelineState.addProductToQuotientScratch_subProductFromQuotientScratch
   have huninverse :
-      UnitaryCircuit.Realizes w.encoding w.inverseProgram.dagger
+      UnitaryCircuit.Realizes w.encoding (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints
+        .empty))
         PipelineState.subInverseFromScratch :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       PipelineState.addInverseToScratch_subInverseFromScratch
   have hcleanup :
       UnitaryCircuit.Realizes w.encoding
-        (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)
+        (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch x)) :=
@@ -5809,7 +5895,8 @@ theorem realizes (w : DecomposedPipelineWitness N) :
   have htargetTail :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq w.targetAddProgram
-          (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger))
+          (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch
@@ -5824,7 +5911,8 @@ theorem realizes (w : DecomposedPipelineWitness N) :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq w.productProgram
           (UnitaryCircuit.seq w.targetAddProgram
-            (UnitaryCircuit.seq w.productProgram.dagger w.inverseProgram.dagger)))
+            (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch
@@ -5854,11 +5942,15 @@ theorem realizes (w : DecomposedPipelineWitness N) :
 /-- Encoded-basis correctness for all staged modular-division labels. -/
 theorem apply_ket (w : DecomposedPipelineWitness N) (x : PipelineState N) :
     UnitaryCircuit.applyVec w.program
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (PipelineState.reversiblePipelineStep x)) :
-        HilbertVector (Qubits w.encoding.width)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (PipelineState.reversiblePipelineStep x))) :
+        HilbertVector
+          (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   applyVec_encoded_ket_of_realizes w.realizes x
 
 /-- Clean staged action:
@@ -5866,18 +5958,22 @@ theorem apply_ket (w : DecomposedPipelineWitness N) (x : PipelineState N) :
 theorem apply_clean_ket (w : DecomposedPipelineWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     UnitaryCircuit.applyVec w.program
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (PipelineState.initial u v z)) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ denominator := u
-             numerator := v
-             target := z + quotientResidue u v
-             inverseScratch := 0
-             quotientScratch := 0
-             flag := false } : PipelineState N)) :
-        HilbertVector (Qubits w.encoding.width)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (PipelineState.initial u v z))) :
+          HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            ({ denominator := u
+               numerator := v
+               target := z + quotientResidue u v
+               inverseScratch := 0
+               quotientScratch := 0
+               flag := false } : PipelineState N))) :
+        HilbertVector
+          (QubitLayout.canonical w.encoding.width).toQuantum.register) := by
   simpa [PipelineState.reversiblePipelineStep_initial] using
     apply_ket w (PipelineState.initial u v z)
 
@@ -5886,56 +5982,64 @@ inverse / product / target-add / inverse-product / inverse-inverse circuit. -/
 theorem applyNormalized_ket (w : DecomposedPipelineWitness N)
     (x : PipelineState N) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (PipelineState.reversiblePipelineStep x)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (PipelineState.reversiblePipelineStep x))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Normalized clean staged action of the exact decomposed division circuit. -/
 theorem applyNormalized_clean_ket (w : DecomposedPipelineWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (PipelineState.initial u v z))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ denominator := u
-             numerator := v
-             target := z + quotientResidue u v
-             inverseScratch := 0
-             quotientScratch := 0
-             flag := false } : PipelineState N)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (PipelineState.initial u v z)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            ({ denominator := u
+               numerator := v
+               target := z + quotientResidue u v
+               inverseScratch := 0
+               quotientScratch := 0
+               flag := false } : PipelineState N))) := by
   simpa [PipelineState.reversiblePipelineStep_initial] using
     applyNormalized_ket w (PipelineState.initial u v z)
 
 /-- Ordered strict event trace of the exact decomposed division circuit. -/
 def eventTrace (w : DecomposedPipelineWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventTrace
 
 /-- Strict event pool of the exact decomposed division circuit. -/
-def eventCost (w : DecomposedPipelineWitness N) : ResourcePool .quantum :=
+def eventCost (w : DecomposedPipelineWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.program.eventCost
 
 /-- Strict symbolic event critical path of the exact decomposed circuit. -/
 def eventDepth (w : DecomposedPipelineWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventDepth
 
 /-- Evaluated event depth of the exact decomposed circuit. -/
 def evaluatedEventDepth (w : DecomposedPipelineWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.program.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the decomposed circuit. -/
 def eventQueryDepth (w : DecomposedPipelineWitness N)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.program.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the decomposed event pool. -/
 def eventGateCount (w : DecomposedPipelineWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.program.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.program.eventCost
 
 
 
@@ -5967,7 +6071,8 @@ structure StructuredCircuitWitness (N : Nat) where
   /-- Faithful encoding of modular-division labels. -/
   encoding : BinaryLabelEncoding (Data N)
   /-- Actual modular-division circuit. -/
-  circuit : UnitaryCircuit (Qubits encoding.width)
+  circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Direct encoded-basis realization of the public division update. -/
   realizes : UnitaryCircuit.Realizes encoding circuit (encodedStep (N := N))
 
@@ -5978,11 +6083,14 @@ variable {N : Nat}
 /-- Encoded-basis correctness for all modular-division data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
     UnitaryCircuit.applyVec w.circuit
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addQuotientIntoTarget) :
-        HilbertVector (Qubits w.encoding.width)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addQuotientIntoTarget)) : HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   by
     simpa [encodedStep] using applyVec_encoded_ket_of_realizes w.realizes x
 
@@ -5991,18 +6099,24 @@ theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
 theorem apply_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     UnitaryCircuit.applyVec w.circuit
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ denominator := u
+                 numerator := v
+                 target := z
+                 flag := false } : Data N))) :
+          HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
-            ({ denominator := u, numerator := v, target := z, flag := false } :
-              Data N)) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ denominator := u
-             numerator := v
-             target := z + quotientResidue u v
-             flag := false } : Data N)) :
-        HilbertVector (Qubits w.encoding.width)) := by
+            ({ denominator := u
+               numerator := v
+               target := z + quotientResidue u v
+               flag := false } : Data N))) :
+        HilbertVector
+          (QubitLayout.canonical w.encoding.width).toQuantum.register) := by
   simpa [encodedStep, Data.addQuotientIntoTarget] using
     apply_ket (N := N) w
       ({ denominator := u, numerator := v, target := z, flag := false } : Data N)
@@ -6010,9 +6124,12 @@ theorem apply_clean_ket (w : StructuredCircuitWitness N)
 /-- Intrinsically normalized encoded-basis correctness. -/
 theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addQuotientIntoTarget) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addQuotientIntoTarget)) := by
   simpa [encodedStep] using
     w.realizes.apply_encoded_ket x
 
@@ -6020,48 +6137,55 @@ theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
 theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ denominator := u
+                 numerator := v
+                 target := z
+                 flag := false } : Data N)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
-            ({ denominator := u, numerator := v, target := z, flag := false } :
-              Data N))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ denominator := u
-             numerator := v
-             target := z + quotientResidue u v
-             flag := false } : Data N)) := by
+            ({ denominator := u
+               numerator := v
+               target := z + quotientResidue u v
+               flag := false } : Data N))) := by
   simpa [Data.addQuotientIntoTarget] using
     applyNormalized_ket (N := N) w
       ({ denominator := u, numerator := v, target := z, flag := false } : Data N)
 
 /-- Ordered strict event trace of the exact structured division circuit. -/
 def eventTrace (w : StructuredCircuitWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventTrace
 
 /-- Strict event pool of the exact structured division circuit. -/
-def eventCost (w : StructuredCircuitWitness N) : ResourcePool .quantum :=
+def eventCost (w : StructuredCircuitWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.circuit.eventCost
 
 /-- Strict symbolic event critical path of the structured circuit. -/
 def eventDepth (w : StructuredCircuitWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventDepth
 
 /-- Evaluated event depth of the exact structured circuit. -/
 def evaluatedEventDepth (w : StructuredCircuitWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.circuit.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the structured circuit. -/
 def eventQueryDepth (w : StructuredCircuitWitness N)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.circuit.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the structured event pool. -/
 def eventGateCount (w : StructuredCircuitWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.circuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.circuit.eventCost
 
 
 

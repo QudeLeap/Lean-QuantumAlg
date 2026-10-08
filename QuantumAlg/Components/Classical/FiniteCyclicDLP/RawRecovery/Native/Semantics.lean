@@ -30,32 +30,36 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual single recovery writes the original optional result and preserves the caller frame. -/
 theorem singleIntoResult_actualRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width)) :
-    ∃ record : Store ctx → Store ctx × (singleIntoResult spec input result).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (singleIntoResult (model := model) spec input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (singleIntoResult spec input result).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (singleIntoResult (model := model) spec input result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 = before.write result
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 = before.1.write result
         (encodedRawOutput spec
-          (RawRecovery.outputOf spec (preparationInput (before.read input)))) := by
+          (RawRecovery.outputOf spec (preparationInput (before.1.read input)))) := by
   unfold singleIntoResult
-  apply withPreparation_actualRecord_post spec input
-    (fun refs transport => withCheckedSelection spec refs (transport.liftWrite result))
+  apply withPreparation_actualRecord_post (model := model) spec input
+    (fun refs transport => withCheckedSelection (model := model) spec refs (transport.liftWrite
+      result))
     (fun before after => after = before.write result
       (encodedRawOutput spec (RawRecovery.outputOf spec (preparationInput (before.read input)))))
   intro inner cells _distinct transport _separated
-  obtain ⟨record, equation, correct⟩ := withCheckedSelection_actualRecord spec
+  obtain ⟨record, equation, correct⟩ := withCheckedSelection_actualRecord (model := model) spec
     (preparationRefs cells) (transport.liftWrite result)
   refine ⟨record, equation, ?_⟩
   intro source prepared reads modulusValue leftValue rightValue
-  let final := (record prepared).1
+  let final := (record prepared).1.1
   let returned := transport.restrict final
   have returnedReads : transport.ReadsAs returned final :=
     transport.workspaceTransport_restrict_readsAs final

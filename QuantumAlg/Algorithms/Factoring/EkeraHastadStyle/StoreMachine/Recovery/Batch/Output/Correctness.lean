@@ -15,7 +15,8 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Actual resize and packing produce the exact selected optional value and caller frame. -/
 theorem into_correct (refs : Refs ctx N) (separated : Separation refs) (store : Store ctx) :

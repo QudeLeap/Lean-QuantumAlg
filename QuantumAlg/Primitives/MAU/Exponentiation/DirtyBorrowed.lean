@@ -28,6 +28,21 @@ noncomputable section
 
 open MAU.Multiplication.DirtyBorrowed
 
+private abbrev CircuitOf {Data : Type} (dataEncoding : BinaryLabelEncoding Data) :=
+  UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical dataEncoding.width).toQuantum
+
+private def programOf {Data : Type} {dataEncoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec dataEncoding)) : CircuitOf dataEncoding :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
+
+private theorem realizesProgramOf {Data : Type}
+    {dataEncoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec dataEncoding)) :
+    UnitaryCircuit.Realizes dataEncoding (programOf gates)
+      (EncodedBit.GateSpec.stepList gates) :=
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates
+
 /-- HRS word width used by this implementation. -/
 abbrev wordBits (interior : Nat) : Nat := (interior + 2).succ
 
@@ -395,16 +410,17 @@ private theorem literalControlledModularAddGates_length_eq
         literalControlledModularAddCnotCount interior modulus addend +
         literalControlledModularAddToffoliCount interior modulus addend := by
   have hprimitive := EncodedBit.GateSpec.primitiveEventCount_programList
+    (layout := QubitLayout.canonical _) (oracles := .empty)
     (literalControlledModularAddGates interior pivot modulus addend)
   unfold EncodedBit.GateSpec.primitiveEventCount at hprimitive
   change
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
           (literalControlledModularAddCircuit
             interior pivot modulus addend).eventCost +
-        ResourcePool.count (.gate (.builtin "cnot"))
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
           (literalControlledModularAddCircuit
             interior pivot modulus addend).eventCost +
-        ResourcePool.count (.gate (.builtin "toffoli"))
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (literalControlledModularAddCircuit
             interior pivot modulus addend).eventCost = _ at hprimitive
   rw [literalControlledModularAddCircuit_x_count_eq,
@@ -493,42 +509,29 @@ theorem literalInPlaceGates_length_le_multiplierPrimitiveBound
           exact Nat.add_le_add (Nat.add_le_add hforward' le_rfl) hinverse'
     _ = 48 * wordBits interior ^ 3 + 3 * wordBits interior := by ring
 
-/-- Maximum literal HRS source-list length over every unit of the fixed
-modulus.  It depends only on public layout/modulus data, never on the sampled
-runtime unit. -/
-def sourceSlotBound (interior N : Nat) (hNgtOne : 1 < N)
-    (hN : N < 2 ^ wordBits interior) : Nat :=
-  let _ : Fintype (ZMod N)ˣ := Fintype.ofFinite _
-  Finset.univ.sup fun unit : (ZMod N)ˣ =>
-    (literalInPlaceGates interior
-      (parameters interior N hNgtOne hN unit)).length
+/-- Explicit width-only capacity for every literal HRS source schedule.
+The construction uses the proved cubic ceiling directly; it never sizes its
+padding by traversing the unit group of the modulus. -/
+def sourceSlotBound (interior N : Nat) (_hNgtOne : 1 < N)
+    (_hN : N < 2 ^ wordBits interior) : Nat :=
+  multiplierPrimitiveBound interior
 
-/-- Every literal source schedule fits the public unit-independent slot
-bound. -/
+/-- Every literal source schedule fits the independently proved cubic slot capacity. -/
 theorem literalInPlaceGates_length_le_sourceSlotBound
     (interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     (literalInPlaceGates interior
         (parameters interior N hNgtOne hN unit)).length ≤
-      sourceSlotBound interior N hNgtOne hN := by
-  let _ : Fintype (ZMod N)ˣ := Fintype.ofFinite _
-  exact Finset.le_sup (f := fun candidate : (ZMod N)ˣ =>
-    (literalInPlaceGates interior
-      (parameters interior N hNgtOne hN candidate)).length)
-    (Finset.mem_univ unit)
+      sourceSlotBound interior N hNgtOne hN :=
+  literalInPlaceGates_length_le_multiplierPrimitiveBound interior
+    (parameters interior N hNgtOne hN unit)
 
-/-- The unit-independent fixed-trace slot count is bounded solely by the HRS
-word width. -/
+/-- The construction's public slot capacity is the explicit width-only bound. -/
 theorem sourceSlotBound_le_multiplierPrimitiveBound
     (interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) :
-    sourceSlotBound interior N hNgtOne hN ≤ multiplierPrimitiveBound interior := by
-  let _ : Fintype (ZMod N)ˣ := Fintype.ofFinite _
-  unfold sourceSlotBound
-  apply Finset.sup_le
-  intro unit _hunit
-  exact literalInPlaceGates_length_le_multiplierPrimitiveBound interior
-    (parameters interior N hNgtOne hN unit)
+    sourceSlotBound interior N hNgtOne hN ≤ multiplierPrimitiveBound interior :=
+  le_rfl
 
 /-- A fixed source-word wire reserved for semantically inactive padding
 gates. -/
@@ -623,9 +626,9 @@ theorem dummyBlock_step_eq_self (m interior : Nat)
 
 /-- Every inactive block exposes the same four strict event labels. -/
 @[simp] theorem dummyBlock_events (m interior : Nat) :
-    (dummyBlock m interior).map EncodedBit.GateSpec.event =
-      [.gate (.builtin "cnot"), .gate (.builtin "toffoli"),
-        .gate (.builtin "toffoli"), .gate (.builtin "toffoli")] := by
+    (dummyBlock m interior).map (EncodedBit.GateSpec.event .empty) =
+      [.gate .cnot, .gate .toffoli,
+        .gate .toffoli, .gate .toffoli] := by
   rfl
 
 /-- Inactive Toffoli suffix used to fill one fixed control block. -/
@@ -775,20 +778,22 @@ theorem uniformControlledGate_events
     (hwork : EncodedBit.GateSpec.bitDisjoint
       (controlWorkBit m interior) gate) :
     (uniformControlledGate m interior bit gate hcontrol hwork).map
-        EncodedBit.GateSpec.event =
-      [.gate (.builtin "cnot"), .gate (.builtin "toffoli"),
-        .gate (.builtin "toffoli"), .gate (.builtin "toffoli")] := by
+        (EncodedBit.GateSpec.event .empty) =
+      [.gate .cnot, .gate .toffoli,
+        .gate .toffoli, .gate .toffoli] := by
   cases gate <;>
     simp [uniformControlledGate, uniformPrefix, uniformSuffixCount,
       dummyToffoliList, dummyCnot, dummyToffoli,
       EncodedBit.GateSpec.controlledWithWorkGates,
-      EncodedBit.GateSpec.event]
+      EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
+      QubitPrimitive.event, QubitPrimitive.nativeToken,
+      AlgorithmGate.model, AlgorithmGate.coordinate]
 
 /-- Public, wire-independent strict event block used by every normalized
 source slot. -/
-def uniformEventBlock : List (Resource.Event .quantum) :=
-  [.gate (.builtin "cnot"), .gate (.builtin "toffoli"),
-    .gate (.builtin "toffoli"), .gate (.builtin "toffoli")]
+def uniformEventBlock : List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
+  [.gate .cnot, .gate .toffoli,
+    .gate .toffoli, .gate .toffoli]
 
 theorem uniformControlledGate_events_eq_block
     (m interior : Nat) (bit : Fin m)
@@ -798,7 +803,7 @@ theorem uniformControlledGate_events_eq_block
     (hwork : EncodedBit.GateSpec.bitDisjoint
       (controlWorkBit m interior) gate) :
     (uniformControlledGate m interior bit gate hcontrol hwork).map
-        EncodedBit.GateSpec.event = uniformEventBlock := by
+        (EncodedBit.GateSpec.event .empty) = uniformEventBlock := by
   simpa [uniformEventBlock] using
     uniformControlledGate_events m interior bit gate hcontrol hwork
 
@@ -895,7 +900,7 @@ theorem uniformControlledList_events
       (hwork : ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint
         (controlWorkBit m interior) gate),
       (uniformControlledList m interior bit gates hcontrol hwork).map
-          EncodedBit.GateSpec.event =
+          (EncodedBit.GateSpec.event .empty) =
         (List.replicate gates.length uniformEventBlock).flatten
   | [], _hcontrol, _hwork => rfl
   | gate :: rest, hcontrol, hwork => by
@@ -924,14 +929,14 @@ theorem dummyBlocks_step_eq_self (m interior : Nat) :
 /-- Padding blocks expose exactly the same repeated strict trace. -/
 theorem dummyBlocks_events (m interior : Nat) :
     ∀ count : Nat,
-      (dummyBlocks m interior count).map EncodedBit.GateSpec.event =
+      (dummyBlocks m interior count).map (EncodedBit.GateSpec.event .empty) =
         (List.replicate count uniformEventBlock).flatten
   | 0 => rfl
   | count + 1 => by
       rw [dummyBlocks, List.replicate_succ, List.flatten_cons,
         List.map_append, dummyBlock_events]
       change uniformEventBlock ++
-        (dummyBlocks m interior count).map EncodedBit.GateSpec.event =
+        (dummyBlocks m interior count).map (EncodedBit.GateSpec.event .empty) =
           uniformEventBlock ++
             (List.replicate count uniformEventBlock).flatten
       rw [dummyBlocks_events m interior count]
@@ -963,9 +968,8 @@ def uniformStageGates (m interior N : Nat) (hNgtOne : 1 < N)
 /-- Fixed-trace circuit for one exponent-controlled HRS multiplier. -/
 def uniformStageProgram (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    UnitaryCircuit (Qubits (encoding m interior).width) :=
-  EncodedBit.GateSpec.programList
-    (uniformStageGates m interior N hNgtOne hN unit bit)
+    CircuitOf (encoding m interior) :=
+  programOf (uniformStageGates m interior N hNgtOne hN unit bit)
 
 /-- Total basis action of the fixed-trace stage. -/
 def uniformStageStep (m interior N : Nat) (hNgtOne : 1 < N)
@@ -981,16 +985,8 @@ theorem uniformStageProgram_realizes
     UnitaryCircuit.Realizes (encoding m interior)
       (uniformStageProgram m interior N hNgtOne hN unit bit)
       (uniformStageStep m interior N hNgtOne hN unit bit) := by
-  exact EncodedBit.GateSpec.witnessList
+  exact realizesProgramOf
     (uniformStageGates m interior N hNgtOne hN unit bit)
-
-/-- Every normalized stage gate stays inside its encoded register. -/
-theorem uniformStageProgram_physical_idx_subset_range
-    (m interior N : Nat) (hNgtOne : 1 < N)
-    (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    (uniformStageProgram m interior N hNgtOne hN unit bit).physical_idx ⊆
-      List.range (encoding m interior).width := by
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
 
 /-- The complete normalized stage has a public, unit-independent strict event
 trace. -/
@@ -998,7 +994,7 @@ theorem uniformStageGates_events
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (uniformStageGates m interior N hNgtOne hN unit bit).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (List.replicate (sourceSlotBound interior N hNgtOne hN)
         uniformEventBlock).flatten := by
   unfold uniformStageGates
@@ -1010,47 +1006,47 @@ theorem uniformStageGates_events
       m interior N hNgtOne hN unit bit)]
 
 theorem uniformEventBlock_toffoli_count : ∀ slots : Nat,
-    List.count (.gate (.builtin "toffoli"))
+    List.count (.gate .toffoli)
         (List.replicate slots uniformEventBlock).flatten = 3 * slots
   | 0 => rfl
   | slots + 1 => by
       rw [List.replicate_succ, List.flatten_cons, List.count_append,
         uniformEventBlock_toffoli_count slots]
       have hblock :
-          List.count (.gate (.builtin "toffoli")) uniformEventBlock = 3 := by
+          List.count (.gate .toffoli) uniformEventBlock = 3 := by
         decide
       rw [hblock]
       omega
 
 theorem uniformEventBlock_cnot_count : ∀ slots : Nat,
-    List.count (.gate (.builtin "cnot"))
+    List.count (.gate .cnot)
         (List.replicate slots uniformEventBlock).flatten = slots
   | 0 => rfl
   | slots + 1 => by
       rw [List.replicate_succ, List.flatten_cons, List.count_append,
         uniformEventBlock_cnot_count slots]
       have hblock :
-          List.count (.gate (.builtin "cnot")) uniformEventBlock = 1 := by
+          List.count (.gate .cnot) uniformEventBlock = 1 := by
         decide
       rw [hblock]
       omega
 
 theorem uniformEventBlock_x_count : ∀ slots : Nat,
-    List.count (.gate (.builtin "x"))
+    List.count (.gate .singleQubit)
         (List.replicate slots uniformEventBlock).flatten = 0
   | 0 => rfl
   | slots + 1 => by
       rw [List.replicate_succ, List.flatten_cons, List.count_append,
         uniformEventBlock_x_count slots]
       have hblock :
-          List.count (.gate (.builtin "x")) uniformEventBlock = 0 := by
+          List.count (.gate .singleQubit) uniformEventBlock = 0 := by
         decide
       rw [hblock]
 
 theorem uniformEventBlock_other_count
-    (label : Resource.GateLabel)
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") : ∀ slots : Nat,
+    (label : AlgorithmGate.Coordinate)
+    (hcnot : label ≠ .cnot)
+    (htoffoli : label ≠ .toffoli) : ∀ slots : Nat,
     List.count (.gate label)
         (List.replicate slots uniformEventBlock).flatten = 0
   | 0 => rfl
@@ -1058,12 +1054,12 @@ theorem uniformEventBlock_other_count
       rw [List.replicate_succ, List.flatten_cons, List.count_append,
         uniformEventBlock_other_count label hcnot htoffoli slots]
       have hcnotEvent :
-          (.gate (.builtin "cnot") : Resource.Event .quantum) ≠
+          (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty)) ≠
             .gate label := by
         intro equality
         exact hcnot (Resource.Event.gate.inj equality).symm
       have htoffoliEvent :
-          (.gate (.builtin "toffoli") : Resource.Event .quantum) ≠
+          (.gate .toffoli : Resource.Event (.quantum AlgorithmGate.model .empty)) ≠
             .gate label := by
         intro equality
         exact htoffoli (Resource.Event.gate.inj equality).symm
@@ -1079,7 +1075,7 @@ theorem uniformStageProgram_eventCost_eq
     (left right : (ZMod N)ˣ) (leftBit rightBit : Fin m) :
     (uniformStageProgram m interior N hNgtOne hN left leftBit).eventCost =
       (uniformStageProgram m interior N hNgtOne hN right rightBit).eventCost := by
-  unfold uniformStageProgram
+  unfold uniformStageProgram programOf
   apply EncodedBit.GateSpec.programList_eventCost_eq_of_events_eq
   rw [uniformStageGates_events, uniformStageGates_events]
 
@@ -1091,7 +1087,7 @@ theorem uniformStageProgram_eventDepth_eq
     (left right : (ZMod N)ˣ) (leftBit rightBit : Fin m) :
     (uniformStageProgram m interior N hNgtOne hN left leftBit).eventDepth =
       (uniformStageProgram m interior N hNgtOne hN right rightBit).eventDepth := by
-  unfold uniformStageProgram
+  unfold uniformStageProgram programOf
   apply EncodedBit.GateSpec.programList_eventDepth_eq_of_events_eq
   rw [uniformStageGates_events, uniformStageGates_events]
 
@@ -1102,7 +1098,7 @@ theorem uniformStageProgram_eventCost_card_eq
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost.card =
       4 * sourceSlotBound interior N hNgtOne hN := by
-  rw [uniformStageProgram, EncodedBit.GateSpec.programList_eventCost,
+  rw [uniformStageProgram, programOf, EncodedBit.GateSpec.programList_eventCost,
     uniformStageGates_events]
   simp [uniformEventBlock, ResourcePool.ofList]
   omega
@@ -1111,10 +1107,10 @@ theorem uniformStageProgram_eventCost_card_eq
 theorem uniformStageProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost =
       3 * sourceSlotBound interior N hNgtOne hN := by
-  rw [uniformStageProgram, EncodedBit.GateSpec.programList_eventCost,
+  rw [uniformStageProgram, programOf, EncodedBit.GateSpec.programList_eventCost,
     ResourcePool.count_ofList, uniformStageGates_events]
   exact uniformEventBlock_toffoli_count
     (sourceSlotBound interior N hNgtOne hN)
@@ -1123,10 +1119,10 @@ theorem uniformStageProgram_toffoli_count_eq
 theorem uniformStageProgram_cnot_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost =
       sourceSlotBound interior N hNgtOne hN := by
-  rw [uniformStageProgram, EncodedBit.GateSpec.programList_eventCost,
+  rw [uniformStageProgram, programOf, EncodedBit.GateSpec.programList_eventCost,
     ResourcePool.count_ofList, uniformStageGates_events]
   exact uniformEventBlock_cnot_count
     (sourceSlotBound interior N hNgtOne hN)
@@ -1135,9 +1131,9 @@ theorem uniformStageProgram_cnot_count_eq
 @[simp] theorem uniformStageProgram_x_count_eq_zero
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost = 0 := by
-  rw [uniformStageProgram, EncodedBit.GateSpec.programList_eventCost,
+  rw [uniformStageProgram, programOf, EncodedBit.GateSpec.programList_eventCost,
     ResourcePool.count_ofList, uniformStageGates_events]
   exact uniformEventBlock_x_count
     (sourceSlotBound interior N hNgtOne hN)
@@ -1146,12 +1142,12 @@ theorem uniformStageProgram_cnot_count_eq
 theorem uniformStageProgram_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
-    (label : Resource.GateLabel)
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") :
-    ResourcePool.count (.gate label)
+    (label : AlgorithmGate.Coordinate)
+    (hcnot : label ≠ .cnot)
+    (htoffoli : label ≠ .toffoli) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
         (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost = 0 := by
-  rw [uniformStageProgram, EncodedBit.GateSpec.programList_eventCost,
+  rw [uniformStageProgram, programOf, EncodedBit.GateSpec.programList_eventCost,
     ResourcePool.count_ofList, uniformStageGates_events]
   exact uniformEventBlock_other_count label hcnot htoffoli
     (sourceSlotBound interior N hNgtOne hN)
@@ -1234,9 +1230,8 @@ def stageGates (m interior N : Nat) (hNgtOne : 1 < N)
 /-- Actual circuit for one exponent-controlled HRS multiplier. -/
 def stageProgram (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    UnitaryCircuit (Qubits (encoding m interior).width) :=
-  EncodedBit.GateSpec.programList
-    (stageGates m interior N hNgtOne hN unit bit)
+    CircuitOf (encoding m interior) :=
+  programOf (stageGates m interior N hNgtOne hN unit bit)
 
 /-- Total basis action of the same mechanically controlled gate list. -/
 def stageStep (m interior N : Nat) (hNgtOne : 1 < N)
@@ -1266,23 +1261,19 @@ theorem stageProgram_realizes
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     UnitaryCircuit.Realizes (encoding m interior)
       (stageProgram m interior N hNgtOne hN unit bit)
-      (stageStep m interior N hNgtOne hN unit bit) :=
-  EncodedBit.GateSpec.controlledListWithWorkWitness
-    (exponentBit m interior bit) (controlWorkBit m interior)
-    (liftedMultiplierGates m interior N hNgtOne hN unit bit)
-    (controlDisjoint m interior N hNgtOne hN unit bit)
-    (workDisjoint m interior N hNgtOne hN unit bit)
-    (controlWork_ne m interior bit)
+      (stageStep m interior N hNgtOne hN unit bit) := by
+  exact realizesProgramOf
+    (stageGates m interior N hNgtOne hN unit bit)
 
 /-- Register lifting preserves the complete strict source event schedule. -/
 theorem liftedMultiplierGates_events_eq_source
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (liftedMultiplierGates m interior N hNgtOne hN unit bit).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (literalInPlaceGates interior
         (parameters interior N hNgtOne hN (stageUnit unit bit))).map
-          EncodedBit.GateSpec.event := by
+          (EncodedBit.GateSpec.event .empty) := by
   unfold liftedMultiplierGates
   rw [EncodedBit.GateSpec.map_event_prodRight,
     EncodedBit.GateSpec.map_event_prodLeft]
@@ -1312,17 +1303,17 @@ def sourceXCount (interior N : Nat) (hNgtOne : 1 < N)
 theorem stageProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (stageProgram m interior N hNgtOne hN unit bit).eventCost =
       sourceCnotCount interior N hNgtOne hN (stageUnit unit bit) +
         3 * sourceToffoliCount interior N hNgtOne hN (stageUnit unit bit) := by
-  rw [stageProgram, EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  rw [stageProgram, programOf, EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   unfold stageGates
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_toffoliMultiplicity_sum]
-  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (liftedMultiplierGates_events_eq_source
       m interior N hNgtOne hN unit bit)
-  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (liftedMultiplierGates_events_eq_source
       m interior N hNgtOne hN unit bit)
   simpa [sourceCnotCount, sourceToffoliCount] using congrArg₂ (· + ·)
@@ -1332,13 +1323,13 @@ theorem stageProgram_toffoli_count_eq
 theorem stageProgram_cnot_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (stageProgram m interior N hNgtOne hN unit bit).eventCost =
       sourceXCount interior N hNgtOne hN (stageUnit unit bit) := by
-  rw [stageProgram, EncodedBit.GateSpec.programList_cnot_count_eq_sum]
+  rw [stageProgram, programOf, EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   unfold stageGates
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_cnotMultiplicity_sum]
-  exact EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     (liftedMultiplierGates_events_eq_source
       m interior N hNgtOne hN unit bit)
 
@@ -1346,9 +1337,9 @@ theorem stageProgram_cnot_count_eq
 @[simp] theorem stageProgram_x_count_eq_zero
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (stageProgram m interior N hNgtOne hN unit bit).eventCost = 0 := by
-  rw [stageProgram, EncodedBit.GateSpec.programList_x_count_eq_sum]
+  rw [stageProgram, programOf, EncodedBit.GateSpec.programList_x_count_eq_sum]
   exact EncodedBit.GateSpec.controlledListWithWorkGates_xMultiplicity_sum
     (exponentBit m interior bit) (controlWorkBit m interior)
     (liftedMultiplierGates m interior N hNgtOne hN unit bit)
@@ -1484,10 +1475,11 @@ def scheduledUnit {m N : Nat} (unit : (ZMod N)ˣ) (exponent : Nat)
 order. -/
 def programForBits (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
-    List (Fin m) → UnitaryCircuit (Qubits (encoding m interior).width)
-  | [] => UnitaryCircuit.identity (Qubits (encoding m interior).width) [] (by simp)
+    List (Fin m) → CircuitOf (encoding m interior)
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding m interior).width).toQuantum
   | bit :: rest =>
-      UnitaryCircuit.seq (uniformStageProgram m interior N hNgtOne hN unit bit)
+      (uniformStageProgram m interior N hNgtOne hN unit bit).seq
         (programForBits m interior N hNgtOne hN unit rest)
 
 /-- Total basis-state fold aligned with `programForBits`. -/
@@ -1499,28 +1491,6 @@ def programForBitsStep (m interior N : Nat) (hNgtOne : 1 < N)
       programForBitsStep m interior N hNgtOne hN unit rest
         (uniformStageStep m interior N hNgtOne hN unit bit state)
 
-/-- Every fixed selected-bit schedule stays inside the canonical HRS
-exponentiation register. -/
-theorem programForBits_physical_idx_subset_range
-    (m interior N : Nat) (hNgtOne : 1 < N)
-    (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
-    ∀ bits : List (Fin m),
-      (programForBits m interior N hNgtOne hN unit bits).physical_idx ⊆
-        List.range (encoding m interior).width
-  | [] => by
-      intro index hindex
-      simp [programForBits, UnitaryCircuit.identity] at hindex
-  | bit :: rest => by
-      intro index hindex
-      change index ∈ UnitaryCircuit.unionPhysicalIdx
-        (uniformStageProgram m interior N hNgtOne hN unit bit).physical_idx
-        (programForBits m interior N hNgtOne hN unit rest).physical_idx at hindex
-      rcases List.mem_union_iff.mp hindex with hstage | hrest
-      · exact uniformStageProgram_physical_idx_subset_range
-          m interior N hNgtOne hN unit bit hstage
-      · exact programForBits_physical_idx_subset_range
-          m interior N hNgtOne hN unit rest hrest
-
 /-- Every selected-bit schedule is realized by its fixed-trace composed
 circuit. -/
 theorem programForBits_realizes
@@ -1530,7 +1500,8 @@ theorem programForBits_realizes
       UnitaryCircuit.Realizes (encoding m interior)
         (programForBits m interior N hNgtOne hN unit bits)
         (programForBitsStep m interior N hNgtOne hN unit bits)
-  | [] => UnitaryCircuit.Realizes.identity (encoding m interior)
+  | [] => UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+      (encoding m interior) (QubitLayout.canonical _)
   | bit :: rest =>
       UnitaryCircuit.Realizes.seq
         (firstStep := uniformStageStep m interior N hNgtOne hN unit bit)
@@ -1597,11 +1568,11 @@ theorem programForBits_eventCost_card_eq
 theorem programForBits_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ)
-    (label : Resource.GateLabel)
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") :
+    (label : AlgorithmGate.Coordinate)
+    (hcnot : label ≠ .cnot)
+    (htoffoli : label ≠ .toffoli) :
     ∀ bits : List (Fin m),
-      ResourcePool.count (.gate label)
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
         (programForBits m interior N hNgtOne hN unit bits).eventCost = 0
   | [] => by simp [programForBits]
   | bit :: rest => by
@@ -1683,7 +1654,7 @@ def exponentBits (m : Nat) : List (Fin m) :=
 /-- Complete fixed-trace exponentiation program on the HRS workspace. -/
 def exponentiationProgram (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
-    UnitaryCircuit (Qubits (encoding m interior).width) :=
+    CircuitOf (encoding m interior) :=
   programForBits m interior N hNgtOne hN unit (exponentBits m)
 
 /-- Total basis-state action aligned with the complete fixed-trace
@@ -1717,16 +1688,6 @@ theorem exponentiationProgram_realizes
       (exponentiationProgram m interior N hNgtOne hN unit)
       (exponentiationStep m interior N hNgtOne hN unit) := by
   exact programForBits_realizes
-    m interior N hNgtOne hN unit (exponentBits m)
-
-/-- The complete fixed-trace exponentiation circuit stays inside its
-canonical flat register. -/
-theorem exponentiationProgram_physical_idx_subset_range
-    (m interior N : Nat) (hNgtOne : 1 < N)
-    (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
-    (exponentiationProgram m interior N hNgtOne hN unit).physical_idx ⊆
-      List.range (encoding m interior).width := by
-  exact programForBits_physical_idx_subset_range
     m interior N hNgtOne hN unit (exponentBits m)
 
 /-- Complete exponentiation has an exact event pool independent of the
@@ -1766,10 +1727,10 @@ strict gates. -/
 theorem exponentiationProgram_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ)
-    (label : Resource.GateLabel)
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") :
-    ResourcePool.count (.gate label)
+    (label : AlgorithmGate.Coordinate)
+    (hcnot : label ≠ .cnot)
+    (htoffoli : label ≠ .toffoli) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
         (exponentiationProgram m interior N hNgtOne hN unit).eventCost = 0 := by
   exact programForBits_gate_count_zero_of_ne
     m interior N hNgtOne hN unit label hcnot htoffoli (exponentBits m)
@@ -1781,12 +1742,14 @@ theorem exponentiationProgram_applyNormalized_clean_ket
     (exponent : Fin (2 ^ m)) :
     (exponentiationProgram m interior N hNgtOne hN unit).applyNormalized
         (NormalizedVector.ket
-          ((encoding m interior).encode
-            (exponent, cleanWorkspace interior N hNgtOne hN value))) =
+          ((QubitLayout.canonical (encoding m interior).width).basisEquiv.symm
+            ((encoding m interior).encode
+              (exponent, cleanWorkspace interior N hNgtOne hN value)))) =
       NormalizedVector.ket
-        ((encoding m interior).encode
-          (exponent, cleanWorkspace interior N hNgtOne hN
-            (unit ^ exponent.val * value))) := by
+        ((QubitLayout.canonical (encoding m interior).width).basisEquiv.symm
+          ((encoding m interior).encode
+            (exponent, cleanWorkspace interior N hNgtOne hN
+              (unit ^ exponent.val * value)))) := by
   have hrealizes := (programForBits_realizes
     m interior N hNgtOne hN unit (exponentBits m)).apply_encoded_ket
       (exponent, cleanWorkspace interior N hNgtOne hN value)
@@ -1807,7 +1770,7 @@ theorem programForBits_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     ∀ bits : List (Fin m),
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (programForBits m interior N hNgtOne hN unit bits).eventCost =
         bitsToffoliCount interior N hNgtOne hN bits
   | [] => by simp [programForBits, bitsToffoliCount]
@@ -1823,7 +1786,7 @@ program. -/
 theorem exponentiationProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (exponentiationProgram m interior N hNgtOne hN unit).eventCost =
       bitsToffoliCount interior N hNgtOne hN (exponentBits m) := by
   exact programForBits_toffoli_count_eq

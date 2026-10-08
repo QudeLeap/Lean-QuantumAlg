@@ -22,19 +22,55 @@ open Execution
 
 noncomputable section
 
+local instance {α : Type} : DecidableEq α := Classical.decEq α
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual three-copy exchange of two words through caller-owned scratch. -/
-def coordinateSwap (left right scratch : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (LatticeRows.copyOp left scratch))
-    (.seq (.classical (LatticeRows.copyOp right left))
-      (.classical (LatticeRows.copyOp scratch right)))
+def coordinateSwap {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (LatticeRows.copyOp left scratch))
+    (.seq (BitWord.instruction (execution := model) (LatticeRows.copyOp right left))
+      (BitWord.instruction (execution := model) (LatticeRows.copyOp scratch right)))
 
 /-- The actual chronological writes of one coordinate exchange. -/
 def coordinateSwapStore (left right scratch : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) : Store ctx :=
   ((store.applyOp (LatticeRows.copyOp left scratch)).applyOp
     (LatticeRows.copyOp right left)).applyOp (LatticeRows.copyOp scratch right)
+
+/-- Actual selected paths and chronological stores of a coordinate swap. -/
+def coordinateSwapStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) :
+    Store ctx × (coordinateSwap (model := model) left right scratch).Path :=
+  let first := BitWord.instructionStep (execution := model) (LatticeRows.copyOp left scratch) store
+  let second := BitWord.instructionStep (execution := model)
+    (LatticeRows.copyOp right left) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (LatticeRows.copyOp scratch right) second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem coordinateSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) :
+    (coordinateSwapStep (model := model) left right scratch store).1 =
+      coordinateSwapStore left right scratch store := rfl
+
+/-- The actual swap preserves service state and external-reference correlations. -/
+theorem coordinateSwap_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (coordinateSwap (model := model) left right scratch).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := coordinateSwapStep (model := model) left right scratch entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [coordinateSwap, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Reads outside the two exchanged words and scratch survive the actual exchange. -/
 theorem coordinateSwap_callerFrame (left right scratch : CWriteRef ctx (.unsignedWord width))

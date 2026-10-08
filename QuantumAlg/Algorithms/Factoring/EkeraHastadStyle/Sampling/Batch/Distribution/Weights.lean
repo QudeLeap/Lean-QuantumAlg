@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Distribution
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Moments.Sampled
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit
 import all QuantumAlg.Util.PMF.FiniteWeights
 import Mathlib.Data.ENNReal.Inv
 
@@ -43,7 +44,21 @@ theorem nativeBatch_sourceDistribution_weighted {N : Nat} (input : Input N)
   intro source _
   rw [PMF.sum_map_toReal_mul, PMF.uniformOfFintype_apply, Fintype.card_fin,
     ENNReal.toReal_inv, ENNReal.toReal_natCast, Complex.ofReal_inv]
-  rfl
+  have sourceLaw : selectedOutcomePMF (parameterValue input source) =
+      (ShortDLP.measurement (ShortDLP.CompiledMAU.registerParameters
+        (shortLogBits N) (tradeoffBits N) (arithmeticBits N))).outcomePMF
+        (ShortDLP.CompiledMAU.evolvedState (shortLogBits N) (tradeoffBits N)
+          (arithmeticBits N) N (parameterUnit (parameterValue input source))
+          (parameterTarget (parameterValue input source))) := by
+    unfold selectedOutcomePMF
+    rw [dif_pos (show 1 < N ∧ N < 2 ^ arithmeticBits N from
+      ⟨input.modulus_gt_one, modulus_lt_arithmeticCapacity N⟩)]
+    exact (ShortDLP.CompiledMAU.outcomePMF_eq_ideal
+      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
+      (parameterUnit (parameterValue input source))
+      (parameterTarget (parameterValue input source))
+      input.modulus_gt_one (modulus_lt_arithmeticCapacity N)).symm
+  simp only [sourceLaw, conditionalMoment, sourceValue]
 
 /-- A characteristic weight extracts the same source PMF's exact probability of one output. -/
 theorem nativeBatch_sourceDistribution_indicator {N : Nat} (input : Input N)

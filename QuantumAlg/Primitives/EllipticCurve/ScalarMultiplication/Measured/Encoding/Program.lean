@@ -27,26 +27,17 @@ noncomputable section
 open MeasuredUncompute Execution
 
 private def extendedProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) : UnitaryCircuit (Qubits (sourceEncoding width).width) :=
-  UnitaryCircuit.prodLeft (n := retainedWidth width)
+    (coefficient : (ZMod modulus.val)ˣ) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (sourceEncoding width).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (retainedWidth width)
     (MAU.Multiplication.Gidney.program width modulus coefficient)
-
-private theorem extended_within (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) :
-    (extendedProgram width modulus coefficient).physical_idx ⊆
-      List.range (sourceEncoding width).width := by
-  apply UnitaryCircuit.prodLeft_physical_idx_subset_range
-  rw [MAU.Multiplication.Gidney.gidneyUnitMultiplication_physical]
-  change List.range (2 * width) ⊆ List.range (width + width)
-  rw [two_mul]
-  exact List.Subset.refl _
 
 /-- The real native two-word program is placed through its exact physical coordinate ports. -/
 def nativeProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    UnitaryCircuit (Qubits (ProductPlacement.frameEncoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum :=
   (placement width coordinate).place (extendedProgram width modulus coefficient)
-    (extended_within width modulus coefficient)
 
 /-- Independent two-word multiplication in the grouping induced by actual physical ports. -/
 def nativeAction (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -61,53 +52,147 @@ theorem nativeProgram_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     UnitaryCircuit.Realizes (ProductPlacement.frameEncoding width)
       (nativeProgram width modulus coefficient coordinate)
       (nativeAction width modulus coefficient coordinate) :=
-  (placement width coordinate).place_realizes (extended_within width modulus coefficient)
-    (UnitaryCircuit.Realizes.prodLeft
+  (placement width coordinate).place_realizes
+    (UnitaryCircuit.Realizes.onBinaryPrefix
       (right := BinaryLabelEncoding.finIdentity (retainedWidth width))
       (MAU.Multiplication.Gidney.gidneyUnitMultiplication_realizes width modulus coefficient))
 
-/-- The declared native footprint contains the complete existing arithmetic frame. -/
-theorem nativeProgram_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    (nativeProgram width modulus coefficient coordinate).physical_idx =
-      List.range (ProductPlacement.frameEncoding width).width :=
-  EncodedBit.FullPlacement.place_physical _ _ _
+/-- Match each canonical frame wire to its original live measured-runtime position. -/
+private def runtimePosition (width : Nat) :
+    Fin (ProductPlacement.frameEncoding width).width ↪
+      Fin (NumeratorMeasurement.context width).systemCount := by
+  unfold NumeratorMeasurement.context
+  exact (MAU.Inversion.SharedEEA.InverseRuntimeFrame.position width).trans
+    (MeasurementCells.wireEquiv
+      (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width).toEmbedding
+
+private theorem runtimeDimensions (width : Nat)
+    (index : Fin (ProductPlacement.frameEncoding width).width) :
+    ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum.wire
+      index).dimension =
+      ((NumeratorMeasurement.context width).quantumLayout.wire
+        (runtimePosition width index)).dimension := by
+  change _ =
+    ((MeasurementCells.context (MAU.Inversion.SharedEEA.InversePreparation.after width)
+      2 width).quantumLayout.wire
+      (MeasurementCells.wireEquiv
+        (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width
+        (MAU.Inversion.SharedEEA.InverseRuntimeFrame.position width index))).dimension
+  rw [MeasurementCells.wireEquiv_preserved]
+  exact MAU.Inversion.SharedEEA.InverseRuntimeFrame.position_dimensions width index
+
+private theorem runtimePosition_surjective (width : Nat) :
+    Function.Surjective (runtimePosition width) := by
+  intro target
+  obtain ⟨old, rfl⟩ := (MeasurementCells.wireEquiv
+    (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width).surjective target
+  obtain ⟨index, same⟩ :=
+    MAU.Inversion.SharedEEA.InverseRuntimeFrame.position_surjective width old
+  exact ⟨index, congrArg (MeasurementCells.wireEquiv
+    (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width) same⟩
+
+/-- The selected physical basis is the original complete encoded frame basis. -/
+private theorem runtimeSelected (width : Nat)
+    (basis : (NumeratorMeasurement.context width).register.Index) :
+    UnitaryCircuit.selectedInput
+      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
+      (NumeratorMeasurement.context width).quantumLayout
+      (runtimePosition width) (runtimeDimensions width) basis =
+        (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+          (NumeratorMeasurement.frameBasis width basis) := by
+  obtain ⟨old, rfl⟩ := (MeasurementCells.basisEquiv
+    (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width).surjective basis
+  have same : UnitaryCircuit.selectedInput
+      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
+      (NumeratorMeasurement.context width).quantumLayout
+      (runtimePosition width) (runtimeDimensions width)
+      (MeasurementCells.basisEquiv
+        (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width old) =
+        UnitaryCircuit.selectedInput
+          (MAU.Inversion.SharedEEA.InverseRuntimeFrame.source width)
+          (MAU.Inversion.SharedEEA.InversePreparation.after width).quantumLayout
+          (MAU.Inversion.SharedEEA.InverseRuntimeFrame.position width)
+          (MAU.Inversion.SharedEEA.InverseRuntimeFrame.position_dimensions width) old := by
+    funext index
+    apply Fin.ext
+    exact MeasurementCells.basisEquiv_value
+      (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width old
+      (MAU.Inversion.SharedEEA.InverseRuntimeFrame.position width index)
+  rw [same]
+  exact (MAU.Inversion.SharedEEA.InverseRuntimeFrame.selectedBasis_eq_basisEquiv width old).trans
+    (by
+      change _ =
+        (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+        ((MAU.Inversion.SharedEEA.InverseAssembly.basisEquiv width)
+          ((MeasurementCells.basisEquiv
+            (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width).symm
+              ((MeasurementCells.basisEquiv
+                (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width) old)))
+      rw [Equiv.symm_apply_apply]
+      rfl)
 
 /-- The same native program follows the actual runtime basis and lists every original wire. -/
 def runtimeProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    UnitaryCircuit (NumeratorMeasurement.context width).register :=
-  (UnitaryCircuit.reindex (NumeratorMeasurement.frameBasis width).symm
-    (nativeProgram width modulus coefficient coordinate)).seq
-      (.identity (NumeratorMeasurement.context width).register
-        (NumeratorMeasurement.context width).physicalIdx
-        (NumeratorMeasurement.context width).identitiesNodup)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (NumeratorMeasurement.context width).quantumLayout :=
+  UnitaryCircuit.placeAt
+    (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
+    (NumeratorMeasurement.context width).quantumLayout
+    (runtimePosition width) (runtimeDimensions width)
+    (nativeProgram width modulus coefficient coordinate)
 
-/-- All placed leaves address actual original wires in the retained-cell runtime context. -/
-theorem runtimeProgram_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    (runtimeProgram width modulus coefficient coordinate).physical_idx =
-      (NumeratorMeasurement.context width).physicalIdx := by
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  intro wire present
-  change wire ∈ (nativeProgram width modulus coefficient coordinate).physical_idx at present
-  rw [nativeProgram_physical] at present
-  change wire ∈ (NumeratorMeasurement.context width).physicalIdx
-  rw [NumeratorMeasurement.context_physical]
-  exact MAU.Inversion.SharedEEA.InverseRuntimeFrame.range_contained width present
+/-- Transport an exact native basis action to the complete live runtime frame. -/
+theorem runtimeProgram_apply_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
+    (input output : Fin (2 ^ (ProductPlacement.frameEncoding width).width))
+    (actual : (nativeProgram width modulus coefficient coordinate).applyNormalized
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+          input)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+          output)) :
+    (runtimeProgram width modulus coefficient coordinate).applyNormalized
+      (NormalizedVector.ket ((NumeratorMeasurement.frameBasis width).symm input)) =
+    NormalizedVector.ket ((NumeratorMeasurement.frameBasis width).symm output) := by
+  apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
+    (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
+    (NumeratorMeasurement.context width).quantumLayout
+    (runtimePosition width) (runtimeDimensions width)
+    (nativeProgram width modulus coefficient coordinate)
+    ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm input)
+    ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm output)
+    actual ((NumeratorMeasurement.frameBasis width).symm input)
+    ((NumeratorMeasurement.frameBasis width).symm output)
+  · rw [runtimeSelected]
+    exact congrArg
+      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+      ((NumeratorMeasurement.frameBasis width).apply_symm_apply input)
+  · rw [runtimeSelected]
+    exact congrArg
+      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+      ((NumeratorMeasurement.frameBasis width).apply_symm_apply output)
+  · funext index
+    obtain ⟨sourceIndex, same⟩ := runtimePosition_surjective width index.val
+    have present : index.val ∈ Finset.univ.map (runtimePosition width) := by
+      rw [← same]
+      exact Finset.mem_map_of_mem _ (Finset.mem_univ sourceIndex)
+    exact False.elim ((Finset.mem_compl.mp index.property) present)
 
 /-- One actual unitary instruction keeps the original measured arithmetic context intact. -/
 def originalCircuit (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
   .unitary (runtimeProgram width modulus coefficient coordinate)
-    (runtimeProgram_physical width modulus coefficient coordinate)
 
 /-- One actual coordinate conversion retains every exponent, selector, history bit
 and result cell. -/
 def coordinateCircuit (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    Circuit (readyContext width count) (readyContext width count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext width count) (readyContext width count) :=
   ContextUnion.frameLocal (originalCircuit width modulus coefficient coordinate) (by trivial)
     (indexedContext width (List.range (count + 1)) List.nodup_range)
     (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)
@@ -122,7 +207,8 @@ theorem coordinateCircuit_isLocal (width count : Nat) (modulus : Fin (2 ^ width 
 on one A word. -/
 def pairCircuit (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    Circuit (readyContext width count) (readyContext width count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext width count) (readyContext width count) :=
   (coordinateCircuit width count modulus coefficient .x).seq
     (coordinateCircuit width count modulus coefficient .y)
 

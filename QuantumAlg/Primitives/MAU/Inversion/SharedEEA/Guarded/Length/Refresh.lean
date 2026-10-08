@@ -108,19 +108,20 @@ theorem gates_iteration (width : Nat) (state : Registers width) :
   split <;> rfl
 
 /-- The unitary program is compiled from these actual enlarged-source native lists. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Complete basis-vector action preserves every untouched coordinate and relative amplitude. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width)
       (fun state => if Guard state then LengthRefresh.step state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width)
 
 /-- Every actual native guard and cleanup event remains in the ordered trace. -/
 theorem program_eventTrace (width : Nat) :
-    (program width).eventTrace = (gates width).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width).eventTrace = (gates width).map (GateSpec.event .empty) :=
+  GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty _
 
 end
 

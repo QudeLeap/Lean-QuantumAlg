@@ -43,116 +43,109 @@ private def coprimeOp (scratch : Proposal.ScratchRefs ctx width)
     (.product (FirstAccepted.cellRead gcdResult) (FirstAccepted.cellRead scratch.extended))
     scratch.positive
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 private def resultTail (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
-    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit ctx ctx :=
-  .seq (.classical (oneOp shared scratch))
-    (.seq (.classical (coprimeOp scratch gcdResult)) (chooseResult shared scratch gcdResult))
+    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (oneOp shared scratch))
+    (.seq (BitWord.instruction (execution := model) (coprimeOp scratch gcdResult))
+      (chooseResult (model := model) shared scratch gcdResult))
 
 private def resultTailStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (resultTail shared scratch gcdResult).Path :=
-  let compared := (store.applyOp (oneOp shared scratch)).applyOp (coprimeOp scratch gcdResult)
-  let selected := resultStep shared scratch gcdResult compared
-  (selected.1, ((), ((), selected.2)))
+    Store ctx × (resultTail (model := model) shared scratch gcdResult).Path :=
+  let widened := BitWord.instructionStep (execution := model) (oneOp shared scratch) store
+  let compared := BitWord.instructionStep (execution := model)
+    (coprimeOp scratch gcdResult) widened.1
+  let selected := resultStep (model := model) shared scratch gcdResult compared.1
+  (selected.1, (widened.2, (compared.2, selected.2)))
 
 private theorem resultTail_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (resultTail shared scratch gcdResult).execute Reference state =
-      state.mapClassical (fun entry => ((resultTailStep shared scratch gcdResult entry.1).1,
-        (entry.2, (resultTailStep shared scratch gcdResult entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (oneOp shared scratch))
-    (.seq (.classical (coprimeOp scratch gcdResult)) (chooseResult shared scratch gcdResult))
-    (fun store => (store.applyOp (oneOp shared scratch), ()))
-    (fun store =>
-      let next := resultStep shared scratch gcdResult (store.applyOp (coprimeOp scratch gcdResult))
-      (next.1, ((), next.2)))
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (oneOp shared scratch) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_seq_mapClassical (.classical (coprimeOp scratch gcdResult))
-        (chooseResult shared scratch gcdResult)
-        (fun store => (store.applyOp (coprimeOp scratch gcdResult), ()))
-        (resultStep shared scratch gcdResult)
-        (fun reference {_} _ initial => by
-          refine (Circuit.execute_classical_mapClassical
-            (coprimeOp scratch gcdResult) reference initial).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _)
-        (decisionResult_execute shared scratch gcdResult) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (resultTail (model := model) shared scratch gcdResult).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := resultTailStep (model := model) shared scratch gcdResult entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [resultTail, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    decisionResult_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def gcdTail (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
-    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit ctx ctx :=
-  .seq (NumberTheory.GCD.lexicalBody
+    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit model ctx ctx :=
+  .seq (NumberTheory.GCD.lexicalBody (model := model)
     (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult)
-    (resultTail shared scratch gcdResult)
+    (resultTail (model := model) shared scratch gcdResult)
 
 private def gcdTailStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (gcdTail shared scratch gcdResult).Path :=
-  let reduced := NumberTheory.GCD.lexicalStep
+    Store ctx × (gcdTail (model := model) shared scratch gcdResult).Path :=
+  let reduced := NumberTheory.GCD.lexicalStep (model := model)
     (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult store
-  let selected := resultTailStep shared scratch gcdResult reduced.1
+  let selected := resultTailStep (model := model) shared scratch gcdResult reduced.1
   (selected.1, (reduced.2, selected.2))
 
 private theorem gcdTail_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (gcdTail shared scratch gcdResult).execute Reference state =
-      state.mapClassical (fun entry => ((gcdTailStep shared scratch gcdResult entry.1).1,
-        (entry.2, (gcdTailStep shared scratch gcdResult entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical _ (resultTail shared scratch gcdResult)
-    (NumberTheory.GCD.lexicalStep
-      (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult)
-    (resultTailStep shared scratch gcdResult)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (gcdTail (model := model) shared scratch gcdResult).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := gcdTailStep (model := model) shared scratch gcdResult entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical _ (resultTail (model := model) shared scratch gcdResult)
+    (fun entry =>
+      let result := NumberTheory.GCD.lexicalStep (model := model)
+        (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult entry.1
+      ((result.1, entry.2), result.2))
+    (fun entry =>
+      let result := resultTailStep (model := model) shared scratch gcdResult entry.1
+      ((result.1, entry.2), result.2))
     (NumberTheory.GCD.gcdLexical_execute
       (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult)
     (resultTail_execute shared scratch gcdResult) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Exact store and path of widening, the actual Euclidean scopes, and the stored result arm. -/
 def acceptedStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (acceptedBody shared scratch gcdResult).Path :=
-  let selected := gcdTailStep shared scratch gcdResult (store.applyOp (Proposal.extendOp scratch))
-  (selected.1, ((), selected.2))
+    Store ctx × (acceptedBody (model := model) shared scratch gcdResult).Path :=
+  let widened := BitWord.instructionStep (execution := model) (Proposal.extendOp scratch) store
+  let selected := gcdTailStep (model := model) shared scratch gcdResult widened.1
+  (selected.1, (widened.2, selected.2))
 
 /-- The full accepted arm executes its real GCD path and preserves all joint matrix blocks. -/
 theorem decisionAccepted_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (acceptedBody shared scratch gcdResult).execute Reference state =
-      state.mapClassical (fun entry => ((acceptedStep shared scratch gcdResult entry.1).1,
-        (entry.2, (acceptedStep shared scratch gcdResult entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (Proposal.extendOp scratch))
-    (gcdTail shared scratch gcdResult)
-    (fun store => (store.applyOp (Proposal.extendOp scratch), ()))
-    (gcdTailStep shared scratch gcdResult)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (Proposal.extendOp scratch) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (acceptedBody (model := model) shared scratch gcdResult).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := acceptedStep (model := model) shared scratch gcdResult entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (Proposal.extendOp scratch))
+    (gcdTail (model := model) shared scratch gcdResult)
+    (fun entry =>
+      let result := BitWord.instructionStep (execution := model) (Proposal.extendOp scratch) entry.1
+      ((result.1, entry.2), result.2))
+    (fun entry =>
+      let result := gcdTailStep (model := model) shared scratch gcdResult entry.1
+      ((result.1, entry.2), result.2))
+    (fun reference {_} _ initial =>
+      (BitWord.bitWord_instruction_execute (Proposal.extendOp scratch)
+        (Reference := reference) initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl))
     (gcdTail_execute shared scratch gcdResult) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

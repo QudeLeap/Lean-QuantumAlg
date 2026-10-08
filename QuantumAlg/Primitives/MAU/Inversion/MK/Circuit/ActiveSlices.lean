@@ -81,8 +81,10 @@ theorem originalActiveLatchGates_stepList_eq
 
 /-- Base-gate program for the lifted original-active latch. -/
 def originalActiveLatchProgram (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (originalActiveLatchGates tail counterWidth)
 
 theorem originalActiveLatch_realizes (tail counterWidth : Nat) :
@@ -90,6 +92,7 @@ theorem originalActiveLatch_realizes (tail counterWidth : Nat) :
       (originalActiveLatchProgram tail counterWidth)
       (originalActiveLatchStep tail counterWidth) := by
   exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (originalActiveLatchGates tail counterWidth)
     (originalActiveLatchGates_stepList_eq tail counterWidth)
 
@@ -97,7 +100,7 @@ theorem originalActiveLatch_realizes (tail counterWidth : Nat) :
 route-history action as the structural lifted circuit. -/
 theorem originalActiveLatchGates_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (originalActiveLatchGates tail counterWidth))
       (originalActiveLatchStep tail counterWidth) :=
   originalActiveLatch_realizes tail counterWidth
@@ -107,8 +110,9 @@ event trace. -/
 theorem originalActiveLatchProgram_eventTrace (tail counterWidth : Nat) :
     (originalActiveLatchProgram tail counterWidth).eventTrace =
       (originalActiveLatchGates tail counterWidth).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.programList_eventTrace
+    (QubitLayout.canonical _) .empty
     (originalActiveLatchGates tail counterWidth)
 
 /-- Lift the inactive-padding action over the route-history word. -/
@@ -136,9 +140,9 @@ theorem event_insertMiddleGateSpec
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     (middle : BinaryLabelEncoding Middle)
     (gate : EncodedBit.GateSpec (BinaryLabelEncoding.prod left right)) :
-    EncodedBit.GateSpec.event
+    (EncodedBit.GateSpec.event .empty)
         (EncodedBit.GateSpec.insertMiddle middle gate) =
-      EncodedBit.GateSpec.event gate := by
+      (EncodedBit.GateSpec.event .empty) gate := by
   cases gate <;> rfl
 
 /-- The lifted inactive-padding list has exactly the named route-history
@@ -200,8 +204,10 @@ theorem inactivePaddingGates_stepList_eq
 
 /-- Base-gate program for the lifted inactive-padding action. -/
 def inactivePaddingProgram (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (inactivePaddingGates tail counterWidth)
 
 theorem inactivePadding_realizes (tail counterWidth : Nat) :
@@ -209,6 +215,7 @@ theorem inactivePadding_realizes (tail counterWidth : Nat) :
       (inactivePaddingProgram tail counterWidth)
       (inactivePaddingStep tail counterWidth) := by
   exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (inactivePaddingGates tail counterWidth)
     (inactivePaddingGates_stepList_eq tail counterWidth)
 
@@ -216,7 +223,7 @@ theorem inactivePadding_realizes (tail counterWidth : Nat) :
 route-history action as the structural lifted circuit. -/
 theorem inactivePaddingGates_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (inactivePaddingGates tail counterWidth))
       (inactivePaddingStep tail counterWidth) :=
   inactivePadding_realizes tail counterWidth
@@ -226,8 +233,9 @@ event trace. -/
 theorem inactivePaddingProgram_eventTrace (tail counterWidth : Nat) :
     (inactivePaddingProgram tail counterWidth).eventTrace =
       (inactivePaddingGates tail counterWidth).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.programList_eventTrace
+    (QubitLayout.canonical _) .empty
     (inactivePaddingGates tail counterWidth)
 
 /-- The comparison-work-backed zero detector lifted over the counter work as
@@ -443,8 +451,10 @@ def liftedActiveOnlyProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (liftedActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 
@@ -458,6 +468,7 @@ theorem liftedActiveOnly_realizes (tail counterWidth : Nat)
       (liftedActiveOnlyStep tail counterWidth comparisonIndex
         historyIndex workIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (liftedActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
     (liftedActiveOnlyGates_stepList_eq tail counterWidth comparisonIndex

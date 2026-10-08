@@ -53,15 +53,17 @@ def recoveryRead : CInputRef (recoveryContext base noQuantum n count)
 
 /-- Sample into the real fixed slots, then execute the original polynomial recovery. -/
 def recoveryCode (sampling : SamplingCircuit n) :
-    Circuit base (recoveryContext base noQuantum n count) :=
+    Circuit (executionModel sampling.oracle) base (recoveryContext base noQuantum n count) :=
   let ctx := context base noQuantum n count
   .seq (code base noQuantum n count sampling)
-    (ClassicalRoutines.GF2.Native.retainedCircuit (samplesInput base noQuantum n count)
+    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel sampling.oracle)
+      (samplesInput base noQuantum n count)
       ctx.canonicalFreshKey ctx.canonicalFreshKey_fresh)
 
 /-- One actual sampling-and-recovery run with every surviving resource explicitly listed. -/
 def recoveryRun (sampling : SamplingCircuit n) :
-    AlgorithmRun base (recoveryContext base noQuantum n count) (.option (.unsignedWord n)) where
+    AlgorithmRun (executionModel sampling.oracle) base
+      (recoveryContext base noQuantum n count) (.option (.unsignedWord n)) where
   code := recoveryCode base noQuantum n count sampling
   output := Output.all (recoveryContext base noQuantum n count)
     (.read (recoveryRead base noQuantum n count))
@@ -73,7 +75,7 @@ theorem nativeSimon_recovery_output_listing (sampling : SamplingCircuit n) :
 
 /-- The complete final state is the actual sampled state followed by the real retained write. -/
 theorem nativeSimon_recovery_finalState (sampling : SamplingCircuit n) (Reference : Register)
-    (state : ExecutionState (Store base) (Register.prod base.register Reference)) :
+    (state : ExecutionState (Store base × Unit) (Register.prod base.register Reference)) :
     (recoveryRun base noQuantum n count sampling).finalState Reference state =
       ((run base noQuantum n count sampling).finalState Reference state).mapClassical
         (fun before =>
@@ -87,18 +89,21 @@ theorem nativeSimon_recovery_finalState (sampling : SamplingCircuit n) (Referenc
   let ctx := context base noQuantum n count
   let input := samplesInput base noQuantum n count
   obtain ⟨record, executed, correct⟩ :=
-    ClassicalRoutines.GF2.Native.gf2Retained_actualRecord_correct input
+    ClassicalRoutines.GF2.Native.gf2Retained_actualRecord_correct
+      (model := executionModel sampling.oracle) input
       ctx.canonicalFreshKey ctx.canonicalFreshKey_fresh
   have actual := Circuit.execute_seq_retained_mapClassical_tail ctx.canonicalFreshKey
     (.option (.unsignedWord n)) ctx.canonicalFreshKey_fresh
     (code base noQuantum n count sampling)
-    (ClassicalRoutines.GF2.Native.retainedCircuit input ctx.canonicalFreshKey
+    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel sampling.oracle)
+      input ctx.canonicalFreshKey
       ctx.canonicalFreshKey_fresh) record executed Reference
-    (state.mapClassical (fun before => (before, before)))
+    (state.mapClassical (fun before => (before.1, (before.2, before.1))))
   let firstRun := run base noQuantum n count sampling
   let fullRun := recoveryRun base noQuantum n count sampling
   let update := fun entry : firstRun.Record =>
-    ((record entry.1).1, (entry.2.1, (entry.2.2, (record entry.1).2)))
+    let result := record (entry.1, entry.2.1)
+    (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2))))
   let finalWrite := fun before : Store ctx =>
     (before.pushRetained ctx.canonicalFreshKey (.option (.unsignedWord n))
       ctx.canonicalFreshKey_fresh).write
@@ -119,11 +124,11 @@ theorem nativeSimon_recovery_finalState (sampling : SamplingCircuit n) (Referenc
     (firstRun.execute Reference state) Prod.fst finalWrite).symm
   congr 1
   funext entry
-  exact correct entry.1
+  exact correct (entry.1, entry.2.1)
 
 /-- Actual output blocks retain the sampled quantum-reference state grouped by recovery value. -/
 theorem nativeSimon_recovery_readoutState (sampling : SamplingCircuit n) (Reference : Register)
-    (state : ExecutionState (Store base) (Register.prod base.register Reference)) :
+    (state : ExecutionState (Store base × Unit) (Register.prod base.register Reference)) :
     ((recoveryRun base noQuantum n count sampling).execute Reference state).mapClassical
         (recoveryRun base noQuantum n count sampling).result =
       ((run base noQuantum n count sampling).execute Reference state).mapClassical
@@ -154,7 +159,7 @@ private theorem mapped_probability {C D Value : Type} [Fintype C] [Fintype D] [F
 
 /-- The actual recovery distribution is the original recovery applied to actual sample slots. -/
 theorem nativeSimon_recovery_outputDistribution (sampling : SamplingCircuit n)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register} (input : Execution.OracleInput .empty base Reference) :
     (recoveryRun base noQuantum n count sampling).outputDistribution input =
       ((run base noQuantum n count sampling).outputDistribution input).map
         ClassicalRoutines.GF2.Native.gf2RecoveryValue := by
@@ -184,7 +189,7 @@ private theorem recovery_value (value : (CShape.fixedVector count (.bits n)).Val
 
 /-- The same executed output PMF is recovered from the original independent Born vector law. -/
 theorem nativeSimon_recovery_bornDistribution (sampling : SamplingCircuit n)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register} (input : Execution.OracleInput .empty base Reference) :
     (recoveryRun base noQuantum n count sampling).outputDistribution input =
       (PMF.independentReplicateVector sampling.outcomePMF count).map
         (fun batch => match ClassicalAlgorithms.GF2.recover? (batchSamples batch) with
@@ -201,7 +206,7 @@ with probability at least 1 - 2⁻κ. The circuit and input have no secret param
 theorem nativeSimon_recovery_success {α : Type u} {f : Simon.Oracle n α}
     {secret : Simon.BitVec n} (model : Model f secret) (κ : SecurityParameter)
     (promise : Simon.Promise f secret) {Reference : Register}
-    (input : Execution.Input base Reference) :
+    (input : Execution.OracleInput .empty base Reference) :
     1 - ((2 : ENNReal)⁻¹) ^ κ.value ≤
       (recoveryRun base noQuantum n (sampleCount n κ) model.sampling).outputDistribution input
         (.optionSome (.unsignedWord model.secret)) := by

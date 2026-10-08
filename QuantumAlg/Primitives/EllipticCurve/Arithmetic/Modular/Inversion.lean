@@ -9,7 +9,7 @@ module
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.EllipticCurve.Arithmetic.VariableModularMultiplication.Resource
 import all QuantumAlg.Primitives.EllipticCurve.Arithmetic.BlockBank
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Resource.QuantumSubroutine
+import all QuantumAlg.Primitives.MAU.Inversion.MK.Resource
 /-!
 # Width-parameterized odd-modulus inversion
 
@@ -575,10 +575,10 @@ theorem gates_xMultiplicity_sum_le :
 /-- The public inversion adapter preserves the ordered primitive-event trace
 of the unscaled inversion schedule. -/
 theorem gates_map_event :
-    gates.map EncodedBit.GateSpec.event =
+    gates.map (EncodedBit.GateSpec.event .empty) =
       (MAU.Inversion.MK.Resource.unscaledInversionGates
         tailWidth counterWidth params.modulus.val comparisonIndex workIndex
-        params.modulusOdd).map EncodedBit.GateSpec.event := by
+        params.modulusOdd).map (EncodedBit.GateSpec.event .empty) := by
   unfold gates
   exact
     (EncodedBit.GateSpec.map_event_prodRight
@@ -594,6 +594,7 @@ theorem gates_cnotMultiplicity_sum :
         params.modulusOdd).map
           EncodedBit.GateSpec.cnotMultiplicity).sum := by
   exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+    .empty
     gates_map_event
 
 /-- The lifted public inversion schedule obeys its source-ledger
@@ -615,6 +616,7 @@ theorem gates_toffoliMultiplicity_sum :
         params.modulusOdd).map
           EncodedBit.GateSpec.toffoliMultiplicity).sum := by
   exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+    .empty
     gates_map_event
 
 /-- The lifted public inversion schedule obeys its source-ledger
@@ -630,13 +632,15 @@ theorem gates_toffoliMultiplicity_sum_le :
 
 /-- Actual unscaled Kaliski inversion program compiled from its complete
 lifted gate schedule. -/
-def circuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList gates
+def circuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
 /-- The literal public inversion circuit obeys its closed unit-depth bound. -/
 theorem circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
-  change (EncodedBit.GateSpec.programList gates).evaluatedEventDepth
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    gates).evaluatedEventDepth
       (fun _ => 1) ≤ _
   rw [EncodedBit.GateSpec.programList_evaluatedEventDepth_unit]
   exact gates_length_le
@@ -661,7 +665,8 @@ theorem gates_stepList (x : RawRegisters) :
 /-- The actual lifted circuit realizes its total raw-carrier action. -/
 theorem rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit rawStep := by
   unfold circuit
-  exact EncodedBit.GateSpec.realizesList_congrStep gates gates_stepList
+  exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty gates gates_stepList
 
 /-- The static circuit adds the inverse of a unit input into its target and
 restores all work registers. -/
@@ -730,18 +735,8 @@ theorem realizes : UnitaryCircuit.Realizes encoding circuit
   constructor
   intro x
   have happly := rawRealizes.apply_encoded_ket (cleanRegisters x)
-  calc
-    circuit.applyNormalized
-        (NormalizedVector.ket (encoding.encode x)) =
-      NormalizedVector.ket
-        (rawEncoding.encode (rawStep (cleanRegisters x))) := by
-        simpa only [circuit, encoding, rawEncoding] using happly
-    _ = NormalizedVector.ket
-        (encoding.encode x.addInverseIntoTarget) := by
-      apply congrArg (fun state =>
-        NormalizedVector.ket (R := Qubits rawEncoding.width)
-          (rawEncoding.encode state))
-      exact rawStep_cleanEndpoint x
+  rw [rawStep_cleanEndpoint] at happly
+  exact happly
 
 /-- Structured witness consumed by modular-division and ECADD assembly. -/
 def witness : MAU.Inversion.StructuredCircuitWitness params.modulus.val where

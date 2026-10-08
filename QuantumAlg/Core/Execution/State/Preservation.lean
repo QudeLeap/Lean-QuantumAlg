@@ -9,7 +9,6 @@ module
 import all QuantumAlg.Core.Execution.State
 import all QuantumAlg.Core.Execution.Random
 import all QuantumAlg.Core.Execution.Store
-import all QuantumAlg.Core.Execution.Classical.Call
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Algorithm.ExecutionState
 import all QuantumAlg.Core.Base.Accounting.Context
@@ -70,12 +69,6 @@ including when several previous storage values produce the same written value. -
 theorem classicalStep_quantumMarginal (state : State ctx Reference H)
     {input output : CShape} (op : ClassicalOp input output ctx ctx) :
     (classicalStep state op).quantumMarginal = state.quantumMarginal :=
-  ExecutionState.mapClassical_quantumMarginal state _
-
-/-- A declared classical call preserves every quantum-reference matrix entry. -/
-theorem declaredStep_quantumMarginal (state : State ctx Reference H)
-    {input output : CShape} (call : DeclaredClassicalCall ctx input output) :
-    (declaredStep state call).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Retaining a new classical cell changes no part of the quantum-reference marginal. -/

@@ -28,19 +28,21 @@ open FiniteCyclicDLP.RawRecovery.Native
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Independent allowances retain raw recovery, actual verification and the original selector. -/
-def attemptEnvelope (kind : ProblemKind) (curve : CurveSpec width)
-    (modulus : ModulusSpec scalarWidth) : ResourcePool kind :=
-  singleExposureEnvelope kind modulus + verificationEnvelope kind curve scalarWidth +
-    FirstAccepted.nativeEnvelope kind scalarWidth
+def attemptEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth) : ResourcePool model :=
+  singleExposureEnvelope model modulus + verificationEnvelope model curve scalarWidth +
+    FirstAccepted.nativeEnvelope model scalarWidth
 
 /-- Arbitrary native durations retain the actual three serial circuit groups. -/
-def attemptDepthLimit (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
-    (duration : Resource.Event kind → Nat) : Nat :=
+def attemptDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (duration : Resource.Event model → Nat) : Nat :=
   singleExposureDepthLimit modulus duration + verificationDepthLimit curve scalarWidth duration +
-    ((FirstAccepted.decisionEvents kind ++ FirstAccepted.copyEvents kind scalarWidth).map
+    ((FirstAccepted.decisionEvents model ++ FirstAccepted.copyEvents model scalarWidth).map
       duration).sum
 
 /-- Only successive lexical scratch scopes contribute a maximum beside the caller context. -/
@@ -98,7 +100,7 @@ theorem attemptInto_pool_le
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).resourcePool path ≤
-        attemptEnvelope kind curve modulus := by
+        attemptEnvelope model curve modulus := by
   rw [attemptInto_resourcePool]
   exact add_le_add
     (add_le_add (singleIntoCells_pool_le modulus sample inverseSuccess candidate reconstruction
@@ -106,7 +108,7 @@ theorem attemptInto_pool_le
     (FirstAccepted.withSelection_pool_le _ accepted selected path.2)
 
 /-- Actual dependency depth is the serial sum on exactly the same three recorded paths. -/
-theorem attemptInto_depth (duration : Resource.Event kind → Nat)
+theorem attemptInto_depth (duration : Resource.Event model → Nat)
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -121,7 +123,7 @@ theorem attemptInto_depth (duration : Resource.Event kind → Nat)
           accepted selected).depth duration path.2 := rfl
 
 /-- Arbitrary native duration allowances retain the original six-stage dependency order. -/
-theorem attemptInto_depth_le (duration : Resource.Event kind → Nat)
+theorem attemptInto_depth_le (duration : Resource.Event model → Nat)
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -140,7 +142,7 @@ theorem attemptInto_resident_le
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).peakResidentSpace path ≤
-        attemptScratchSpace kind width scalarWidth + ctx.residentSpace := by
+        attemptScratchSpace model.kind width scalarWidth + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
     · exact (singleIntoCells_resident_le modulus sample inverseSuccess candidate reconstruction
@@ -158,7 +160,7 @@ theorem attemptInto_auxiliary_le
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).peakAuxiliarySpace path ≤
-        attemptScratchSpace kind width scalarWidth + ctx.auxiliarySpace := by
+        attemptScratchSpace model.kind width scalarWidth + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
     · exact (singleIntoCells_auxiliary_le modulus sample inverseSuccess candidate reconstruction

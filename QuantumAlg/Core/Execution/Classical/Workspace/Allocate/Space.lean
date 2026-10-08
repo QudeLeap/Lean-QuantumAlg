@@ -19,10 +19,10 @@ further resources, accounted for by an independent additional space budget.
 
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
-private theorem peak_workspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (projection : RuntimeCtx kind → SpacePool kind)
+private theorem peak_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (projection : RuntimeCtx model.kind → SpacePool model.kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (code : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (code : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (path : (Circuit.workspace ctx key shape fresh code).Path) :
     Circuit.peak projection ((Circuit.workspace ctx key shape fresh code).visitedContexts path) =
       SpacePool.max (projection ctx) (Circuit.peak projection (code.visitedContexts path)) := by
@@ -37,17 +37,17 @@ private theorem peak_workspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
   change _ = max (projection ctx axis) (Circuit.peak projection (code.visitedContexts path) axis)
   omega
 
-private theorem withCellsFrom_peak_le {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
+private theorem withCellsFrom_peak_le {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
     (transport : Transport outer ctx) (shapes : List CShape)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes), cells.Distinct →
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
-        Circuit inner inner)
-    (projection : RuntimeCtx kind → SpacePool kind)
-    (workspaceSpace : ∀ (inner : RuntimeCtx kind) (key : StorageKey)
+        Circuit model inner inner)
+    (projection : RuntimeCtx model.kind → SpacePool model.kind)
+    (workspaceSpace : ∀ (inner : RuntimeCtx model.kind) (key : StorageKey)
       (shape : CShape) (fresh : key ∉ inner.keys),
       projection (inner.addWorkspace key shape fresh) = SpacePool.ofShape shape + projection inner)
-    (additional : SpacePool kind)
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes)
+    (additional : SpacePool model.kind)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
       (path : (body cells distinct innerTransport separated).Path),
@@ -72,16 +72,16 @@ private theorem withCellsFrom_peak_le {kind : ProblemKind} {outer ctx : RuntimeC
         simpa only [workspaceSpace, add_assoc, add_left_comm, add_comm] using inside
       · exact le_of_eq (by simp only [List.map_cons, List.sum_cons]; ac_rfl)
 
-variable {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
     (transport : Transport outer ctx) (shapes : List CShape)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes), cells.Distinct →
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
-        Circuit inner inner)
-    (additional : SpacePool kind)
+        Circuit model inner inner)
+    (additional : SpacePool model.kind)
 
 /-- Resident peak includes all actual allocated shapes and the body's independent extra budget. -/
 theorem withCellsFrom_resident_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
       (path : (body cells distinct innerTransport separated).Path),
@@ -95,7 +95,7 @@ theorem withCellsFrom_resident_le
 
 /-- Auxiliary peak charges each live workspace cell together with the body's extra allocation. -/
 theorem withCellsFrom_auxiliary_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
       (path : (body cells distinct innerTransport separated).Path),

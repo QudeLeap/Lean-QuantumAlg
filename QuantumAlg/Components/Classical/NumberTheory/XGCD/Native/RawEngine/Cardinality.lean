@@ -21,8 +21,8 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native
 open ClassicalAlgorithms.NumberTheory
 
 /-- The actual independent raw-engine allowance has its original linear cardinality. -/
-theorem rawEnvelope_card (kind : ProblemKind) (width : Nat) :
-    (rawEnvelope kind width).card = 28 * width + 23 := by
+theorem rawEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+    (rawEnvelope model width).card = 28 * width + 23 := by
   simp [rawEnvelope, initializationEvents, activeEvents, coefficientUpdateEvents,
     rawOutputEvents, Euclid.gcdFuel, ResourcePool.scale, ResourcePool.ofList]
   omega

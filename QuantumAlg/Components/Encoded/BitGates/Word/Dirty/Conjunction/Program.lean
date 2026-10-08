@@ -23,6 +23,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- An actual conjunction computation, one output Toffoli, and its literal inverse. -/
 def conjunctionSandwich (compute : List (GateSpec encoding)) : List (GateSpec encoding) :=
@@ -112,10 +113,11 @@ theorem dirtyConjunctionGates_length (positive : 0 < tail) :
 
 /-- The actual elementary circuit agrees on every computational label, including dirty work. -/
 theorem dirtyConjunctionGates_realizes (positive : 0 < tail) :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList (dirtyConjunctionGates layout))
+    UnitaryCircuit.Realizes encoding
+      (GateSpec.programList physical oracles (dirtyConjunctionGates layout))
       (fun state => if sourceConjunction layout state (tail + 2)
         then layout.output.flip state else state) := by
-  exact GateSpec.realizesList_congrStep (dirtyConjunctionGates layout)
+  exact GateSpec.realizesList_congrStep physical oracles (dirtyConjunctionGates layout)
     (dirtyConjunctionGates_step layout positive)
 
 end

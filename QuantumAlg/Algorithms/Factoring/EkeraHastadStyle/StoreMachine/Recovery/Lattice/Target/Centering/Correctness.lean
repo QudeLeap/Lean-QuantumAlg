@@ -26,6 +26,9 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- An actual correct stored half comparison selects its exact original raw integer expression. -/
 theorem half_represents (refs : Refs ctx width) (store : Store ctx)
     (correct : (store.read (writeInput refs.belowHalf)).toBool =

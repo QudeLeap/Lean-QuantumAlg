@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual native modular-negation branch for raw Fourier recovery
@@ -84,48 +85,61 @@ def negateSubtractOp (modulus right : CInputRef ctx (.unsignedWord width))
   .wordBinary .sub width ctx (.product modulus right) output
 
 /-- A stored bit selects one of the two original native instructions. -/
-def negateChoice (modulus right zero : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) : Circuit ctx ctx :=
-  if value.toBool then .classical (negateCopyOp zero output)
-    else .classical (negateSubtractOp modulus right output)
+def negateChoice {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
+    (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) :
+    Circuit model ctx ctx :=
+  if value.toBool then BitWord.instruction (execution := model) (negateCopyOp zero output)
+    else BitWord.instruction (execution := model) (negateSubtractOp modulus right output)
 
 /-- Exact actual selected operation store and its one-instruction path. -/
-def negateChoiceStep (modulus right zero : CInputRef ctx (.unsignedWord width))
+def negateChoiceStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
-    (store : Store ctx) : Store ctx × (negateChoice modulus right zero output value).Path :=
+    (store : Store ctx) :
+    Store ctx × (negateChoice (model := model) modulus right zero output value).Path :=
   match value with
-  | .bit false => (store.applyOp (negateSubtractOp modulus right output), ())
-  | .bit true => (store.applyOp (negateCopyOp zero output), ())
+  | .bit false => BitWord.instructionStep (execution := model)
+      (negateSubtractOp modulus right output) store
+  | .bit true => BitWord.instructionStep (execution := model) (negateCopyOp zero output) store
 
 /-- Actual equality followed by a structural read of the newly written flag. -/
-def negateBody (modulus right zero : CInputRef ctx (.unsignedWord width))
-    (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (negateEqualOp right zero flag))
-    (.branch (negateRead flag) (negateChoice modulus right zero output))
+def negateBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
+    (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (negateEqualOp right zero flag))
+    (.branch (negateRead flag) (negateChoice (model := model) modulus right zero output))
 
 /-- Actual checked store, selected classical value and selected native instruction path. -/
-def negateBodyStep (modulus right zero : CInputRef ctx (.unsignedWord width))
+def negateBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (negateBody modulus right zero flag output).Path :=
-  let checked := store.applyOp (negateEqualOp right zero flag)
-  let choice := checked.read (negateRead flag)
-  let selected := negateChoiceStep modulus right zero output choice checked
-  (selected.1, ((), ⟨choice, selected.2⟩))
+    Store ctx × (negateBody (model := model) modulus right zero flag output).Path :=
+  let checked := BitWord.instructionStep (execution := model) (negateEqualOp right zero flag) store
+  let choice := checked.1.read (negateRead flag)
+  let selected := negateChoiceStep (model := model) modulus right zero output choice checked.1
+  (selected.1, (checked.2, ⟨choice, selected.2⟩))
 
 /-- The actual inner body uses the two fresh scratch cells and original caller references. -/
-def negatePlaced (modulus right : CInputRef ctx (.unsignedWord width))
+def negatePlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (negateCtx ctx width) (negateCtx ctx width) :=
-  negateBody (underNegate modulus width) (underNegate right width)
+    Circuit model (negateCtx ctx width) (negateCtx ctx width) :=
+  negateBody (model := model)
+    (underNegate modulus width) (underNegate right width)
     (negateRead (negateZeroCell ctx width)) (negateFlagCell ctx width)
     (writeUnderNegate output width)
 
 /-- The complete original branch with both actual scratch allocations and matching releases. -/
-def withNegate (modulus right : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+def withNegate {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
+    (output : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (.workspace (negateZeroCtx ctx width) (negateZeroCtx ctx width).canonicalFreshKey .bit
-      (negateZeroCtx ctx width).canonicalFreshKey_fresh (negatePlaced modulus right output))
+      (negateZeroCtx ctx width).canonicalFreshKey_fresh
+      (negatePlaced (model := model) modulus right output))
 
 /-- Store produced by precisely the two actual lexical entries. -/
 def enterNegate (store : Store ctx) (width : Nat) : Store (negateCtx ctx width) :=
@@ -140,10 +154,12 @@ def leaveNegate (store : Store (negateCtx ctx width)) : Store ctx :=
       (negateZeroCtx ctx width).canonicalFreshKey_fresh store)
 
 /-- Complete actual outer store and branch path of the scoped negation. -/
-def withNegateStep (modulus right : CInputRef ctx (.unsignedWord width))
+def withNegateStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (withNegate modulus right output).Path :=
-  let result := negateBodyStep (underNegate modulus width) (underNegate right width)
+    Store ctx × (withNegate (model := model) modulus right output).Path :=
+  let result := negateBodyStep (model := model)
+    (underNegate modulus width) (underNegate right width)
     (negateRead (negateZeroCell ctx width)) (negateFlagCell ctx width)
     (writeUnderNegate output width) (enterNegate store width)
   (leaveNegate result.1, result.2)

@@ -213,18 +213,23 @@ def cells (ctx : RuntimeCtx kind) (N : Nat) :
   positive := positiveRef ctx N
   halfPower := halfPowerRef ctx N
 
+section Selected
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Run native factor recovery on the same actual original parameter and phase references. -/
 def body (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (context ctx N) (context ctx N) :=
-  NativeFactorTail.code source (liftInput parameter) (liftInput phase)
+    Circuit model (context ctx N) (context ctx N) :=
+  NativeFactorTail.code (model := model) source (liftInput parameter) (liftInput phase)
     (cells ctx N) (liftWrite output)
 
 /-- The genuine seven allocations enclose the same native tail and are all actually released. -/
 def code (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey
     (.canonicalResidue (modulusBits N)) ctx.canonicalFreshKey_fresh
     (.workspace (baseContext ctx N) (baseContext ctx N).canonicalFreshKey
@@ -240,7 +245,9 @@ def code (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusB
               .bit (activeContext ctx N).canonicalFreshKey_fresh
               (.workspace (positiveContext ctx N) (positiveContext ctx N).canonicalFreshKey
                 (.unsignedWord (modulusBits N)) (positiveContext ctx N).canonicalFreshKey_fresh
-                (body source parameter phase output)))))))
+                (body (model := model) source parameter phase output)))))))
+
+end Selected
 
 /-- The whole actual factor scope preserves the exact previously allocated quantum bank. -/
 theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :

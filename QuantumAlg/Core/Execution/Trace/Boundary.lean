@@ -18,13 +18,13 @@ same path's measured peak, including empty loops and lexical workspaces.
 
 namespace QuantumAlg.Circuit
 
-variable {kind : ProblemKind} {pre post : RuntimeCtx kind}
+variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 
 /-- Every actual path visits its complete original live context. -/
-theorem input_mem_visitedContexts (code : Circuit pre post) (path : code.Path) :
+theorem input_mem_visitedContexts (code : Circuit model pre post) (path : code.Path) :
     pre ∈ code.visitedContexts path := by
   induction code with
-  | id | classical | declaredCall | unitary | measureZ | randomBits | retain | prepare =>
+  | id | classical | classicalQuery | unitary | measureZ | retain | prepareZero =>
       exact List.mem_cons_self
   | seq first second firstIH _ =>
       exact List.mem_append_left _ (firstIH path.1)
@@ -34,12 +34,12 @@ theorem input_mem_visitedContexts (code : Circuit pre post) (path : code.Path) :
   | workspace => exact List.mem_cons_self
 
 /-- Every actual path visits its complete final live context. -/
-theorem output_mem_visitedContexts (code : Circuit pre post) (path : code.Path) :
+theorem output_mem_visitedContexts (code : Circuit model pre post) (path : code.Path) :
     post ∈ code.visitedContexts path := by
   induction code with
-  | id | classical | declaredCall | unitary | measureZ | randomBits =>
+  | id | classical | classicalQuery | unitary | measureZ =>
       exact List.mem_cons_self
-  | retain | prepare => exact List.mem_cons_of_mem _ List.mem_cons_self
+  | retain | prepareZero => exact List.mem_cons_of_mem _ List.mem_cons_self
   | seq first second _ secondIH =>
       exact List.mem_append_right _ (secondIH path.2)
   | branch input body bodyIH =>
@@ -48,22 +48,22 @@ theorem output_mem_visitedContexts (code : Circuit pre post) (path : code.Path) 
   | workspace => exact List.mem_cons_self
 
 /-- The real supplied input storage is bounded by the same actual resident peak. -/
-theorem input_residentSpace_le_peak (code : Circuit pre post) (path : code.Path) :
+theorem input_residentSpace_le_peak (code : Circuit model pre post) (path : code.Path) :
     pre.residentSpace ≤ code.peakResidentSpace path :=
   code.residentSpace_le_peak_of_visited path pre (code.input_mem_visitedContexts path)
 
 /-- The real supplied input roles are bounded by the same actual auxiliary peak. -/
-theorem input_auxiliarySpace_le_peak (code : Circuit pre post) (path : code.Path) :
+theorem input_auxiliarySpace_le_peak (code : Circuit model pre post) (path : code.Path) :
     pre.auxiliarySpace ≤ code.peakAuxiliarySpace path :=
   code.auxiliarySpace_le_peak_of_visited path pre (code.input_mem_visitedContexts path)
 
 /-- The real retained output storage contributes to the same actual resident peak. -/
-theorem output_residentSpace_le_peak (code : Circuit pre post) (path : code.Path) :
+theorem output_residentSpace_le_peak (code : Circuit model pre post) (path : code.Path) :
     post.residentSpace ≤ code.peakResidentSpace path :=
   code.residentSpace_le_peak_of_visited path post (code.output_mem_visitedContexts path)
 
 /-- The real retained output roles contribute to the same actual auxiliary peak. -/
-theorem output_auxiliarySpace_le_peak (code : Circuit pre post) (path : code.Path) :
+theorem output_auxiliarySpace_le_peak (code : Circuit model pre post) (path : code.Path) :
     post.auxiliarySpace ≤ code.peakAuxiliarySpace path :=
   code.auxiliarySpace_le_peak_of_visited path post (code.output_mem_visitedContexts path)
 

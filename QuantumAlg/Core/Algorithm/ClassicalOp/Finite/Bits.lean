@@ -14,8 +14,9 @@ import all QuantumAlg.Core.Algorithm.ClassicalOp
 
 The closed packing instruction reads an ordered collection of finite binary
 values and writes their Boolean encodings. It preserves order and every bit of
-information, including the empty collection. The same instruction owns its
-width-tagged native event; it is not an uncharged output transformation.
+information, including the empty collection. The descriptor carries its
+width-tagged operation label; the selected execution model determines the
+actual native event when the operation runs.
 -/
 
 namespace QuantumAlg.ClassicalOp
@@ -71,16 +72,5 @@ private theorem label_packFiniteBits_proof :
     (packFiniteBits count ctx input output).label =
       .nominalEncoding (.packFiniteBits count) :=
   label_packFiniteBits_proof count ctx input output
-
-public theorem event_packFiniteBits :
-    (packFiniteBits count ctx input output).event =
-      .classicalOperation (.nominalEncoding (.packFiniteBits count)) := by
-  rw [event_eq_classicalOperation, label_packFiniteBits]
-
-/-- The nominal conversion emits one actual event, even at width zero. -/
-public theorem eventTrace_packFiniteBits :
-    (packFiniteBits count ctx input output).eventTrace =
-      [.classicalOperation (.nominalEncoding (.packFiniteBits count))] := by
-  rw [eventTrace_eq_singleton, event_packFiniteBits]
 
 end QuantumAlg.ClassicalOp

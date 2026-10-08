@@ -33,22 +33,27 @@ def comparisonEventBound (width : Nat) : Nat :=
 theorem gidneyLowOffset_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     (lowOffsetProgram width constant).eventCost =
       (HRS.oneDirtyProgram width constant).eventCost :=
-  UnitaryCircuit.prodRight_eventCost (m := 1) (HRS.oneDirtyProgram width constant)
+  UnitaryCircuit.onCanonicalBinarySuffix_eventCost 1
+    (HRS.oneDirtyProgram width constant)
 
 theorem gidneyLowOffset_depth (width : Nat) (constant : Fin (2 ^ width))
-    (assign : Resource.Event .quantum → Nat) :
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (lowOffsetProgram width constant).evaluatedEventDepth assign =
       (HRS.oneDirtyProgram width constant).evaluatedEventDepth assign :=
-  UnitaryCircuit.prodRight_evaluatedEventDepth (m := 1) assign
+  UnitaryCircuit.onCanonicalBinarySuffix_evaluatedEventDepth 1 assign
     (HRS.oneDirtyProgram width constant)
 
 theorem gidneyFlagFlip_eventCost (width : Nat) :
-    (flagFlipProgram width).eventCost = ResourcePool.singleton (.gate (.builtin "x")) :=
+    (flagFlipProgram width).eventCost = ResourcePool.singleton
+      (.gate .singleQubit : Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   EncodedBit.GateSpec.program_eventCost (.x (flagBit width))
+    (QubitLayout.canonical (encoding width).width) .empty
 
 theorem gidneyFlagFlip_depth (width : Nat) :
     (flagFlipProgram width).evaluatedEventDepth (fun _ => 1) = 1 := by
-  change (EncodedBit.GateSpec.program (.x (flagBit width))).evaluatedEventDepth (fun _ => 1) = 1
+  change (EncodedBit.GateSpec.program (.x (flagBit width))
+    (QubitLayout.canonical (encoding width).width) .empty).evaluatedEventDepth
+      (fun _ => 1) = 1
   simp [UnitaryCircuit.evaluatedEventDepth]
 
 /-- The exact ledger retains the two actual offset ledgers and the one final native X. -/
@@ -57,15 +62,17 @@ theorem gidneyComparison_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
       if pivot.val = 0 then 0 else
         (HRS.oneDirtyProgram (1 + width) (extendedNegatedPivot width pivot.val)).eventCost +
           (HRS.oneDirtyProgram width (pivotWord width pivot.val)).eventCost +
-            ResourcePool.singleton (.gate (.builtin "x")) := by
+            ResourcePool.singleton
+              (.gate .singleQubit :
+                Resource.Event (.quantum AlgorithmGate.model .empty)) := by
   by_cases hzero : pivot.val = 0
   · simp only [comparisonProgram, if_pos hzero, identityProgram,
       UnitaryCircuit.identity_eventCost]
   · have hpacked := (gidneyPackedOffset_resources width
       (extendedNegatedPivot width pivot.val) (fun _ => 1)).1
     simp only [comparisonProgram, if_neg hzero, positiveComparisonProgram,
-      UnitaryCircuit.seq_eventCost, identityProgram, UnitaryCircuit.identity_eventCost,
-      add_zero, hpacked, gidneyLowOffset_eventCost, gidneyFlagFlip_eventCost]
+      UnitaryCircuit.seq_eventCost, hpacked, gidneyLowOffset_eventCost,
+      gidneyFlagFlip_eventCost]
 
 /-- Literal event cardinality, including the independently selected zero-pivot branch. -/
 theorem gidneyComparison_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
@@ -91,7 +98,7 @@ theorem gidneyComparison_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width +
     have hpacked := (gidneyPackedOffset_resources width
       (extendedNegatedPivot width pivot.val) (fun _ => 1)).2
     simp only [comparisonProgram, if_neg hzero, positiveComparisonProgram,
-      UnitaryCircuit.evaluatedEventDepth_seq, hidentity, Nat.add_zero,
+      UnitaryCircuit.evaluatedEventDepth_seq,
       hpacked, gidneyLowOffset_depth, gidneyFlagFlip_depth, HRS.hrsOneDirty_depth_eq_events]
 
 /-- The actual event count meets the independently stated logarithmic envelope. -/

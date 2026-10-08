@@ -26,65 +26,82 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind}
+variable {model : ExecutionModel}
 
-private theorem retain_pair_execute (ctx : RuntimeCtx kind)
+private theorem retain_pair_execute (ctx : RuntimeCtx model.kind)
     (firstKey : StorageKey) (firstShape : CShape) (firstFresh : firstKey ∉ ctx.keys)
     (secondKey : StorageKey) (secondShape : CShape)
     (secondFresh : secondKey ∉ (ctx.addRetained firstKey firstShape firstFresh).keys)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (Circuit.retain ctx firstKey firstShape firstFresh)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (Circuit.retain (model := model) ctx firstKey firstShape firstFresh)
       (Circuit.retain (ctx.addRetained firstKey firstShape firstFresh)
         secondKey secondShape secondFresh)).execute Reference state =
       state.mapClassical (fun entry =>
         ((entry.1.pushRetained firstKey firstShape firstFresh).pushRetained
-          secondKey secondShape secondFresh, (entry.2, ((), ())))) := by
+          secondKey secondShape secondFresh, (entry.2.1, (entry.2.2, ((), ()))))) := by
   simp only [Circuit.execute_seq, Circuit.execute_retain, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem sampled_sequence_execute {ctx : RuntimeCtx kind} (N : Nat)
-    (output : CWriteRef ctx (.bits (residueSamplingBits N))) (code : Circuit ctx ctx)
+variable [BitWord.Selected model]
+
+/-- A uniform source draw followed by any deterministic selected circuit
+preserves the complete ordered store, service state and actual path. -/
+theorem sampled_sequence_execute {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N))) (code : Circuit model ctx ctx)
     (update : Store ctx → Store ctx × code.Path)
     (codeEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History), code.execute Reference state =
-        state.mapClassical (fun entry => ((update entry.1).1, (entry.2, (update entry.1).2))))
+      (state : State ctx Reference (model.HiddenState × History)), code.execute Reference state =
+        state.mapClassical (fun entry =>
+          ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (PackedSample.draw N output) code).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (PackedSample.draw (model := model) N output) code).execute Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
         (fun entry =>
           let next := update (entry.1.1.write output (.bits (PackedSample.storedBits entry.2)))
-          (next.1, (entry.1.2, (entry.2, next.2)))) := by
-  let drawn : State ctx Reference (History × (PackedSample.draw N output).Path) :=
-    (PackedSample.draw N output).execute Reference state
+          (next.1, (entry.1.2.1, (entry.1.2.2,
+            ((PackedSample.drawPathEquiv (model := model) N output).symm entry.2, next.2))))) := by
+  let drawn : State ctx Reference
+      (model.HiddenState × (History × (PackedSample.draw (model := model) N output).Path)) :=
+    (PackedSample.draw (model := model) N output).execute Reference state
   have executed := codeEquation Reference drawn
   have regrouped := congrArg
-    (fun final : State ctx Reference ((History × (PackedSample.draw N output).Path) × code.Path) =>
-      final.mapHistory (fun history => (history.1.1, (history.1.2, history.2)))) executed
-  refine (Circuit.execute_seq (PackedSample.draw N output) code state).trans
+    (fun final : State ctx Reference (model.HiddenState ×
+        ((History × (PackedSample.draw (model := model) N output).Path) × code.Path)) =>
+      final.mapHistory
+        (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2))))) executed
+  refine (Circuit.execute_seq (PackedSample.draw (model := model) N output) code state).trans
     (regrouped.trans ?_)
   let randomState := uniformChoice state
     (⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩ : ℕ+)
-  let sampleMap : (Store ctx × History) × Fin (2 ^ residueSamplingBits N) →
-      Store ctx × (History × (PackedSample.draw N output).Path) := fun entry =>
-    (entry.1.1.write output (.bits (PackedSample.storedBits entry.2)), (entry.1.2, entry.2))
-  let advance : Store ctx × (History × (PackedSample.draw N output).Path) →
-      Store ctx × ((History × (PackedSample.draw N output).Path) × code.Path) := fun entry =>
-    ((update entry.1).1, (entry.2, (update entry.1).2))
-  let regroup : Store ctx × ((History × (PackedSample.draw N output).Path) × code.Path) →
-      Store ctx × (History × ((PackedSample.draw N output).Path × code.Path)) := fun entry =>
-    (entry.1, (entry.2.1.1, (entry.2.1.2, entry.2.2)))
+  let sampleMap : (Store ctx × (model.HiddenState × History)) × Fin (2 ^ residueSamplingBits N) →
+      Store ctx × (model.HiddenState ×
+        (History × (PackedSample.draw (model := model) N output).Path)) := fun entry =>
+    (entry.1.1.write output (.bits (PackedSample.storedBits entry.2)), (entry.1.2.1, (entry.1.2.2,
+        (PackedSample.drawPathEquiv (model := model) N output).symm entry.2)))
+  let advance : Store ctx × (model.HiddenState ×
+        (History × (PackedSample.draw (model := model) N output).Path)) →
+      Store ctx × (model.HiddenState ×
+        ((History × (PackedSample.draw (model := model) N output).Path) × code.Path)) :=
+    fun entry =>
+    ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))
+  let regroup : Store ctx × (model.HiddenState ×
+        ((History × (PackedSample.draw (model := model) N output).Path) × code.Path)) →
+      Store ctx × (model.HiddenState ×
+        (History × ((PackedSample.draw (model := model) N output).Path × code.Path))) :=
+    fun entry =>
+    (entry.1, (entry.2.1, (entry.2.2.1.1, (entry.2.2.1.2, entry.2.2.2))))
   have drawLaw : drawn = randomState.mapClassical sampleMap := by
     refine (PackedSample.packedSample_draw_execute N output Reference state).trans ?_
     congr 1
-    exact Subsingleton.elim _ _
   have firstComposition :=
     ExecutionState.executionState_mapClassical_comp drawn advance regroup
   have mappedDraw := congrArg
-    (fun source : State ctx Reference (History × (PackedSample.draw N output).Path) =>
+    (fun source : State ctx Reference
+        (model.HiddenState × (History × (PackedSample.draw (model := model) N output).Path)) =>
       source.mapClassical (regroup ∘ advance)) drawLaw
   have secondComposition :=
     ExecutionState.executionState_mapClassical_comp randomState sampleMap (regroup ∘ advance)
@@ -95,47 +112,53 @@ private theorem sampled_sequence_execute {ctx : RuntimeCtx kind} (N : Nat)
     · congr 1
       exact Subsingleton.elim _ _
   · congr 1
-    exact Subsingleton.elim _ _
 
+omit [BitWord.Selected model] in
 /-- Actual allocation extends the whole store and preserves every joint quantum-reference block. -/
-theorem samplerRetained_allocation_execute (ctx : RuntimeCtx kind) (N : Nat)
+theorem samplerRetained_allocation_execute (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (allocation ctx N).execute Reference state =
-      state.mapClassical (fun entry => (pushStore N entry.1, (entry.2, ((), ())))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (allocation (model := model) ctx N).execute Reference state =
+      state.mapClassical (fun entry =>
+        (pushStore N entry.1, (entry.2.1, (entry.2.2, ((), ()))))) := by
   exact retain_pair_execute ctx ctx.canonicalFreshKey (.bits (residueSamplingBits N))
     ctx.canonicalFreshKey_fresh (sampleContext ctx N).canonicalFreshKey
     (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh Reference state
 
 /-- Each actual sampled body path retains exactly one uniform fraction of every input block. -/
-theorem samplerRetained_body_execute (ctx : RuntimeCtx kind) (N : Nat)
+theorem samplerRetained_body_execute (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (body ctx N).execute Reference state =
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (body (model := model) ctx N).execute Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
-        (fun entry => ((outcomeStep ctx N entry.1.1 entry.2).1,
-          (entry.1.2, (outcomeStep ctx N entry.1.1 entry.2).2))) := by
+        (fun entry => ((outcomeStep (model := model) ctx N entry.1.1 entry.2).1,
+          (entry.1.2.1,
+            (entry.1.2.2, (outcomeStep (model := model) ctx N entry.1.1 entry.2).2)))) := by
   refine (sampled_sequence_execute N (sampleRef ctx N)
-    (Program.circuit N (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
-    (Program.step N (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
+    (Program.circuit (model := model) N
+      (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
+    (Program.step (model := model) N
+      (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
     (Program.samplerProgram_execute N (FirstAccepted.cellRead (sampleRef ctx N))
       (parameterRef ctx N)) Reference state).trans ?_
   congr 1
   exact Subsingleton.elim _ _
 
 /-- The actual body implements the independent complete output store with its uniform source law. -/
-theorem samplerRetained_body_source_execute (ctx : RuntimeCtx kind) {N : Nat}
+theorem samplerRetained_body_source_execute (ctx : RuntimeCtx model.kind) {N : Nat}
     (input : Input N) (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (body ctx N).execute Reference state =
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (body (model := model) ctx N).execute Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
         (fun entry => (outputStore input entry.1.1 entry.2,
-          (entry.1.2, (outcomeStep ctx N entry.1.1 entry.2).2))) := by
+          (entry.1.2.1,
+            (entry.1.2.2, (outcomeStep (model := model) ctx N entry.1.1 entry.2).2)))) := by
   rw [samplerRetained_body_execute]
   apply congrArg (fun update =>
     (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical update)
   funext entry
-  exact congrArg (fun store => (store, (entry.1.2, (outcomeStep ctx N entry.1.1 entry.2).2)))
+  exact congrArg (fun store => (store,
+    (entry.1.2.1, (entry.1.2.2, (outcomeStep (model := model) ctx N entry.1.1 entry.2).2))))
     (samplerRetained_outcome_store input entry.1.1 entry.2)
 
 end

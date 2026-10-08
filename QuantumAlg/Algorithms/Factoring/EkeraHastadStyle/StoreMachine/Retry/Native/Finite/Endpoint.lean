@@ -6,6 +6,15 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.KeyGeneration.Specification
+public import QuantumAlg.Algorithms.Factoring.Common
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Batch.Output.Layout
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Calibration
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Resources
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.State
+public import QuantumAlg.Core.Algorithm.Problem
+public import QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Round
+
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Resources
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Success
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.State
@@ -25,7 +34,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -33,23 +42,34 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- The executable input supplies only the original modulus data and exact total batch count. -/
 def algorithm (specification : Input N) (totalRounds : Nat) :
-    Algorithm .quantum base (context base noQuantum N totalRounds)
+    Algorithm RuntimeRound.model base (context base noQuantum N totalRounds)
       (LatticeBatchRecoveryOutput.OutputShape N) where
   run := run base noQuantum specification totalRounds
 
-/-- The independent finite-count problem accepts exactly the two original declared factors.
+/-- Complete native factoring at an independently specified finite batch count.
 
-Every normalized classical input and external-reference extension is admitted.
-Preparation, stored measurements, complete recovery and ordered selection are
-internal to the actual run. Its complete joint state requirement includes every
-live quantum wire and the full reference, even on failure. Native event and
-space bounds include actual outcome storage, retained outputs and reused work;
-unit-event depth is an independent serial bound. Zero batches are included.
+**Input.** The public modulus comes from the original good-key model of two distinct
+odd primes. Every normalized caller store and external-reference extension is admitted.
+Preparation, parameter selection and measured execution are internal to the run.
+**Output.** An optional factor word, accepted exactly when it contains one of the two
+original primes. The independent state requirement specifies every final quantum wire
+jointly with the reference, including failure; borrowed restoration is mandatory.
+**Resource budget.** The independent event envelope, resident and auxiliary space
+formulas include real native preparation, stored measurements, full classical recovery,
+ordered selection and actual reuse of the single bank. Unit-event whole-run depth is
+bounded by `depthBound N totalRounds`. Zero batches only allocate an empty result.
+**Success.** At count k, the required probability is at least 1 - batchFailure^k,
+using the original sampler-adjusted conditional batch floor and no added independence
+hypothesis on the incoming caller state.
+**Source.** [EH17, source.tex:878-966]; [E23, arxiv-v5.tex:329-355]. The complete native
+execution and independent finite-retry accounting are the implementation refinement.
 -/
-def fixedRoundProblem (model : GoodKeyModel N) (totalRounds : Nat) :
-    Problem .quantum base (context base noQuantum N totalRounds)
+public def fixedRoundProblem (model : GoodKeyModel N) (totalRounds : Nat) :
+    Problem (.quantum AlgorithmGate.model .empty BitWord.model) base
+      (context base noQuantum N totalRounds)
       (LatticeBatchRecoveryOutput.OutputShape N) where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ output => NativeRetrySelection.decodeFactor output ∈
     NativeBatchSuccess.accepts model
   successLB := ⟨1 - Calibration.batchFailure model.bitWidth ^ totalRounds, tsub_le_self⟩
@@ -58,10 +78,15 @@ def fixedRoundProblem (model : GoodKeyModel N) (totalRounds : Nat) :
     { events := eventEnvelope N totalRounds
       resident := base.residentSpace + additionalSpace N totalRounds
       auxiliary := base.auxiliarySpace + additionalSpace N totalRounds }
-  depth := .quantum (fun _ => 1) (depthBound N totalRounds)
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBound N totalRounds
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 private theorem accepts_probability (model : GoodKeyModel N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum model.input totalRounds).outputDistribution input).toOuterMeasure
         {output | NativeRetrySelection.decodeFactor output ∈ NativeBatchSuccess.accepts model} =
       ((run base noQuantum model.input totalRounds).outputDistribution input).toOuterMeasure
@@ -84,7 +109,8 @@ private theorem accepts_probability (model : GoodKeyModel N) (totalRounds : Nat)
         (by intro impossible; cases impossible)
 
 private theorem relational_probability (model : GoodKeyModel N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((algorithm base noQuantum model.input totalRounds).relationalDistribution input).toOuterMeasure
         {pair | (fixedRoundProblem base noQuantum model totalRounds).accepts pair.1 pair.2} =
       ((run base noQuantum model.input totalRounds).outputDistribution input).toOuterMeasure
@@ -107,29 +133,41 @@ theorem algorithm_solves_fixedRound (model : GoodKeyModel N) (totalRounds : Nat)
     Algorithm.Solves (algorithm base noQuantum model.input totalRounds)
       (fixedRoundProblem base noQuantum model totalRounds) := by
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialized
     rw [relational_probability]
     exact run_successProbability_ge base noQuantum model totalRounds input
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialized requirement present
     have same : requirement = stateRequirement base noQuantum N totalRounds :=
       List.mem_singleton.mp present
     subst requirement
     exact stateRequirement_holds base noQuantum N model.input totalRounds input
-  · intro Reference input _valid
+  · intro Reference input _valid _initialized
     exact run_restoresBorrowed base noQuantum model.input totalRounds input
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact run_pool_le base noQuantum model.input totalRounds path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact run_resident_le base noQuantum model.input totalRounds path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact run_auxiliary_le base noQuantum model.input totalRounds path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact run_depth_le base noQuantum model.input totalRounds path
 
-/-- The original rational target reserves half its failure mass for the independent key exception.
-Every state and resource obligation is the same finite-count independent contract. -/
-def problem (model : GoodKeyModel N) (budget : FailureBudget) :
-    Problem .quantum base (context base noQuantum N (Calibration.retryCount budget))
+/-- Calibrated native factoring under the original good-key condition.
+
+**Input.** The same good-key modulus and arbitrary normalized caller/reference state,
+with the original rational failure budget.
+**Output.** One of the two declared primes, with the same complete state and borrowed
+restoration requirements as `fixedRoundProblem`.
+**Resource budget.** The unchanged independent finite-count formulas at the original
+`Calibration.retryCount budget`, including native quantum and full classical work.
+**Success.** At least 1 - budget.value / 2 under the original well-formedness condition;
+the other half of the failure target remains reserved for the separate key exception.
+**Source.** The factoring reduction [EH17, source.tex:878-966] and lattice post-processing
+[E23, arxiv-v5.tex:329-355], with the proved conditional batch floor and rational retry
+calibration of `fixedRoundProblem`.
+-/
+public def problem (model : GoodKeyModel N) (budget : FailureBudget) :
+    Problem RuntimeRound.model base (context base noQuantum N (Calibration.retryCount budget))
       (LatticeBatchRecoveryOutput.OutputShape N) :=
   { fixedRoundProblem base noQuantum model (Calibration.retryCount budget) with
     successLB := ⟨1 - ENNReal.ofReal (budget.value / 2), tsub_le_self⟩ }
@@ -141,7 +179,7 @@ theorem algorithm_solves (model : GoodKeyModel N) (budget : FailureBudget)
       (problem base noQuantum model budget) := by
   refine { algorithm_solves_fixedRound base noQuantum model (Calibration.retryCount budget) with
     success := ?_ }
-  intro Reference input _valid
+  intro Reference input _valid _initialized
   change 1 - ENNReal.ofReal (budget.value / 2) ≤
     ((algorithm base noQuantum model.input (Calibration.retryCount budget)).relationalDistribution
       input).toOuterMeasure

@@ -26,14 +26,19 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfGCD
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- Independent coordinates retain every initialization and actual Euclidean operation kind. -/
-def eventEnvelope (kind : ProblemKind) (successor : Bool) (N : Nat) : ResourcePool kind :=
-  NativeAdjacentWord.eventEnvelope kind successor (modulusBits N) +
-    (ConstantWord.envelope kind (modulusBits N + 1) +
-      (ResourcePool.singleton (.classicalOperation (.wordBinary .bitXor (modulusBits N + 1))) +
-        NumberTheory.GCD.nativeEnvelope kind (modulusBits N + 1)))
+def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (successor : Bool) (N : Nat) :
+  ResourcePool model :=
+  NativeAdjacentWord.eventEnvelope model successor (modulusBits N) +
+    (ConstantWord.envelope model (modulusBits N + 1) +
+      (ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .bitXor (modulusBits N + 1)))) +
+        NumberTheory.GCD.nativeEnvelope model (modulusBits N + 1)))
 
 /-- Independent serial duration, including every constant-load bit and the real clearing XOR. -/
 def depthBound (successor : Bool) (N : Nat) : Nat :=
@@ -42,12 +47,14 @@ def depthBound (successor : Bool) (N : Nat) : Nat :=
 private theorem body_pool_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
-    (path : (body successor halfPower output).Path) :
-    (body successor halfPower output).resourcePool path ≤ eventEnvelope kind successor N := by
+    (path : (body (model := model) successor halfPower output).Path) :
+    (body (model := model) successor halfPower output).resourcePool path ≤ eventEnvelope model
+      successor N := by
   change ResourcePool.ofList
-    ((NativeAdjacentWord.code successor (liftInput halfPower) (adjacentRef ctx N)).eventTrace
-      path.1 ++ ((ConstantWord.circuit (modulusRef ctx N) N).eventTrace path.2.1 ++
-        (gcdTail output).eventTrace path.2.2)) ≤ _
+    ((NativeAdjacentWord.code (model := model) successor (liftInput halfPower) (adjacentRef ctx
+      N)).eventTrace
+      path.1 ++ ((ConstantWord.circuit (model := model) (modulusRef ctx N) N).eventTrace path.2.1 ++
+        (gcdTail (model := model) output).eventTrace path.2.2)) ≤ _
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append, gcdTail_eventTrace]
   exact add_le_add
     (NativeAdjacentWord.code_pool_le successor (liftInput halfPower) (adjacentRef ctx N) path.1)
@@ -59,31 +66,37 @@ private theorem body_pool_le (successor : Bool)
 theorem code_pool_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
-    (path : (code successor halfPower output).Path) :
-    (code successor halfPower output).resourcePool path ≤ eventEnvelope kind successor N :=
+    (path : (code (model := model) successor halfPower output).Path) :
+    (code (model := model) successor halfPower output).resourcePool path ≤ eventEnvelope model
+      successor N :=
   body_pool_le successor halfPower output path
 
 /-- Every native dependency is included in the actual adjacent, load, clear and GCD sequence. -/
 theorem code_unitDepth_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
-    (path : (code successor halfPower output).Path) :
-    (code successor halfPower output).depth (fun _ => 1) path ≤ depthBound successor N := by
-  have adjacent := NativeAdjacentWord.code_unitDepth_le successor
+    (path : (code (model := model) successor halfPower output).Path) :
+    (code (model := model) successor halfPower output).depth (fun _ => 1) path ≤ depthBound
+      successor N := by
+  have adjacent := NativeAdjacentWord.code_unitDepth_le (model := model) successor
     (liftInput halfPower) (adjacentRef ctx N) path.1
-  have loaded := ConstantWord.constantWord_depth_le (modulusRef ctx N) N
+  have loaded := ConstantWord.constantWord_depth_le (model := model) (modulusRef ctx N) N
     (fun _ => 1) path.2.1
-  have euclidean := NumberTheory.GCD.gcdLexical_depth_le (operands ctx N)
+  have euclidean := NumberTheory.GCD.gcdLexical_depth_le (model := model) (operands ctx N)
     (liftWrite output) (fun _ => 1) path.2.2.2
   rw [NumberTheory.GCD.gcdNativeDepthLimit_unit] at euclidean
-  change (NativeAdjacentWord.code successor (liftInput halfPower) (adjacentRef ctx N)).depth
+  change (NativeAdjacentWord.code (model := model) successor (liftInput halfPower) (adjacentRef
+    ctx N)).depth
     (fun _ => 1) path.1 +
-      ((ConstantWord.circuit (modulusRef ctx N) N).depth (fun _ => 1) path.2.1 +
-        (1 + (NumberTheory.GCD.lexicalBody (operands ctx N) (liftWrite output)).depth
+      ((ConstantWord.circuit (model := model) (modulusRef ctx N) N).depth (fun _ => 1) path.2.1 +
+        (1 + (NumberTheory.GCD.lexicalBody (model := model) (operands ctx N) (liftWrite
+          output)).depth
           (fun _ => 1) path.2.2.2)) ≤ _
-  change (ConstantWord.circuit (modulusRef ctx N) N).depth (fun _ => 1) path.2.1 ≤
+  change (ConstantWord.circuit (model := model) (modulusRef ctx N) N).depth (fun _ => 1) path.2.1 ≤
     (modulusBits N + 1) * (1 + 1) at loaded
   unfold depthBound
   omega
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfGCD

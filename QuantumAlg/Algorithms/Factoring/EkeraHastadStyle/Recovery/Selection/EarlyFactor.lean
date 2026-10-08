@@ -34,9 +34,14 @@ def earlyInputs (inputs : Inputs ctx N) : FirstAccepted.Inputs ctx (modulusBits 
   eligible := earlyFlag inputs
   candidate := earlyWord inputs
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Copy the stored early factor only when its flag is true and the latch is still clear. -/
 def earlyCircuit (inputs : Inputs ctx N) (refs : FirstAccepted.Refs ctx (modulusBits N)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   FirstAccepted.circuit (earlyInputs inputs) refs
 
 /-- The real selector update and its exact branch path. -/
@@ -44,17 +49,16 @@ noncomputable def earlyStep (inputs : Inputs ctx N) (refs : FirstAccepted.Refs c
     (store : Store ctx) : Store ctx × (earlyCircuit inputs refs).Path :=
   FirstAccepted.step (earlyInputs inputs) refs store
 
-noncomputable section
-
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The whole mixed state follows the actual selector store map on every reference. -/
 theorem nativeRecovery_early_execute (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (earlyCircuit inputs refs).execute Reference state =
       state.mapClassical (fun entry =>
-        ((earlyStep inputs refs entry.1).1, (entry.2, (earlyStep inputs refs entry.1).2))) :=
+        ((earlyStep inputs refs entry.1).1,
+          (entry.2.1, (entry.2.2, (earlyStep inputs refs entry.1).2)))) :=
   FirstAccepted.firstAccepted_execute (earlyInputs inputs) refs Reference state
 
 /-- The actual parameter flag and payload determine the persistent first-factor latches. -/
@@ -75,7 +79,7 @@ theorem nativeRecovery_early_latches (inputs : Inputs ctx N)
 /-- Intrinsic writable references preserve the complete borrowed joint state without assumptions. -/
 theorem nativeRecovery_early_borrowedRestored (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (earlyCircuit inputs refs).BorrowedRestored Reference state
       ((earlyCircuit inputs refs).execute Reference state) :=
   FirstAccepted.firstAccepted_borrowedRestored (earlyInputs inputs) refs Reference state
@@ -84,7 +88,7 @@ theorem nativeRecovery_early_borrowedRestored (inputs : Inputs ctx N)
 theorem nativeRecovery_early_pool_le (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (path : (earlyCircuit inputs refs).Path) :
     (earlyCircuit inputs refs).resourcePool path ≤
-      FirstAccepted.nativeEnvelope kind (modulusBits N) :=
+      FirstAccepted.nativeEnvelope model (modulusBits N) :=
   FirstAccepted.firstAccepted_pool_le (earlyInputs inputs) refs path
 
 /-- The actual branch has two or four unit-duration classical operations. -/

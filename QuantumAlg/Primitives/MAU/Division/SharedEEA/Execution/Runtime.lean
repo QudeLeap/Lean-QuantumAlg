@@ -28,82 +28,57 @@ noncomputable section
 
 open Execution ExecutionLayout Inversion.SharedEEA
 
-/-- The actual native arithmetic acts beside the original supplied flag qubit. -/
+/-- The arithmetic acts beside the original supplied flag in the same physical order. -/
 def flagProgram (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (nativeEncoding modulus.size).width) :=
-  UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (nativeEncoding modulus.size).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix 1
     (QuantumAlg.MAU.Division.SharedEEA.program modulus nontrivial)
 
-private theorem flagProgram_within (modulus : Nat) (nontrivial : 1 < modulus) :
-    (flagProgram modulus nontrivial).physical_idx ⊆
-      List.range (nativeEncoding modulus.size).width := by
-  apply UnitaryCircuit.prodLeft_physical_idx_subset_range
-  intro wire present
-  exact List.mem_range.mpr ((divisionProgram_physical modulus nontrivial wire).mp present)
-
-/-- Only representation association changes; the supplied body's physical identities remain. -/
+/-- Reassociate only the binary width of the retained physical carrier. -/
 def nontrivialProgram (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit
-      (Qubits (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width) :=
-  UnitaryCircuit.reindex (nativeLabelEquiv modulus.size) (flagProgram modulus nontrivial)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (PayloadRuntimeFrame.source modulus.size (payloadWidth modulus.size)) :=
+  (flagProgram modulus nontrivial).castCanonicalQubitWidth
+    (divisionPayload_width modulus.size)
 
-private theorem nontrivialProgram_within (modulus : Nat) (nontrivial : 1 < modulus) :
-    (nontrivialProgram modulus nontrivial).physical_idx ⊆
-      List.range (PayloadPreparation.frameEncoding modulus.size (payloadWidth
-        modulus.size)).width := by
-  intro wire present
-  have actual := List.mem_range.mp (flagProgram_within modulus nontrivial present)
-  apply List.mem_range.mpr
-  rw [← divisionPayload_width]
-  exact actual
-
-/-- Choose the full native arithmetic or a full-frame identity after the same fixed preparation. -/
+/-- Select full arithmetic or full-frame identity after the same preparation. -/
 def nativeProgram (modulus : Nat) :
-    UnitaryCircuit
-      (Qubits (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (PayloadRuntimeFrame.source modulus.size (payloadWidth modulus.size)) :=
   if nontrivial : 1 < modulus then nontrivialProgram modulus nontrivial
-  else UnitaryCircuit.identity
-    (Qubits (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width)
-    (List.range (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width)
-    List.nodup_range
+  else UnitaryCircuit.identity AlgorithmGate.model .empty
+    (PayloadRuntimeFrame.source modulus.size (payloadWidth modulus.size))
 
-/-- Every native branch uses only the full actual frame and supplied payload coordinates. -/
-theorem divisionExecution_native_within (modulus : Nat) :
-    (nativeProgram modulus).physical_idx ⊆
-      List.range (PayloadPreparation.frameEncoding modulus.size (payloadWidth
-        modulus.size)).width := by
-  by_cases nontrivial : 1 < modulus
-  · simpa only [nativeProgram, dif_pos nontrivial] using
-      nontrivialProgram_within modulus nontrivial
-  · simp only [nativeProgram, dif_neg nontrivial]
-    exact List.Subset.refl _
-
-/-- The same native body runs on the exact actual prepared runtime context. -/
-def program (modulus : Nat) : UnitaryCircuit (after modulus.size).register :=
+/-- Run the native matrix on the actual prepared context. -/
+def program (modulus : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (after modulus.size).quantumLayout :=
   PayloadRuntime.program modulus.size (payloadWidth modulus.size) (nativeProgram modulus)
 
-/-- All actual supplied and prepared identities occur in the final physical footprint. -/
-theorem divisionExecution_program_physical (modulus : Nat) :
-    (program modulus).physical_idx = (after modulus.size).physicalIdx :=
-  PayloadRuntime.payloadRuntime_program_physical modulus.size (payloadWidth modulus.size)
-    (nativeProgram modulus) (divisionExecution_native_within modulus)
-
-/-- The trivial branch fixes every complete prepared-frame column, beyond valid input support. -/
+/-- Modulus one fixes every full prepared-frame basis column. -/
 theorem divisionExecution_program_trivial_ket (modulus : Nat) (trivial : ¬1 < modulus)
     (basis : (after modulus.size).register.Index) :
     (program modulus).applyNormalized (NormalizedVector.ket basis) =
       NormalizedVector.ket basis := by
-  let identity := UnitaryCircuit.identity
-    (Qubits (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width)
-    (List.range (PayloadPreparation.frameEncoding modulus.size (payloadWidth modulus.size)).width)
-    List.nodup_range
-  have actual := PayloadRuntime.payloadRuntime_program_apply_ket modulus.size
-    (payloadWidth modulus.size) identity
-    (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size) basis) _
-    (UnitaryCircuit.applyNormalized_identity _ _ _
+  have native : (nativeProgram modulus).applyNormalized
       (NormalizedVector.ket
-        (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size) basis)))
-  simpa only [program, nativeProgram, dif_neg trivial, Equiv.symm_apply_apply] using actual
+        ((QubitLayout.canonical
+          (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+          (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size) basis))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+          (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+          (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size) basis)) := by
+    rw [nativeProgram, dif_neg trivial]
+    change (1 : UnitaryOperator (PayloadRuntimeFrame.source modulus.size
+      (payloadWidth modulus.size)).register).apply _ = _
+    exact UnitaryOperator.one_apply _
+  have selected := PayloadRuntimeFrame.selectedBasis_eq_basisEquiv modulus.size
+    (payloadWidth modulus.size) basis
+  exact PayloadRuntime.payloadRuntime_program_apply_ket modulus.size
+    (payloadWidth modulus.size) (nativeProgram modulus) _ _ native basis basis selected selected
 
 /-- Source and flag are retained while the arbitrary modular target receives quotient addition. -/
 def outputOld (modulus : Nat) (modulusPositive : 0 < modulus)
@@ -121,105 +96,136 @@ def outputBasis (modulus : Nat) (modulusPositive : 0 < modulus)
   PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
     ((InputPreparation.preparation modulus).value, outputOld modulus modulusPositive old)
 
-/-- Exact native action after value-preserving binary reassociation, retaining the original flag. -/
+private theorem cast_native_action {source target : Nat} (same : source = target)
+    (body : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical source).toQuantum)
+    (input output : Fin (2 ^ source))
+    (action : body.applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical source).basisEquiv.symm input)) =
+        NormalizedVector.ket ((QubitLayout.canonical source).basisEquiv.symm output)) :
+    (body.castCanonicalQubitWidth same).applyNormalized
+      (NormalizedVector.ket
+        ((QubitLayout.canonical target).basisEquiv.symm
+          (UnitaryCircuit.castQubitWidthIndex same input))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical target).basisEquiv.symm
+          (UnitaryCircuit.castQubitWidthIndex same output)) := by
+  cases same
+  exact action
+
+/-- Full native division and the retained flag have their exact prepared action. -/
 theorem divisionExecution_nontrivial_ket (modulus : Nat) (nontrivial : 1 < modulus)
     (denominator numerator target : Fin (2 ^ modulus.size))
     (coprime : Nat.Coprime denominator.val modulus) (positive : 0 < denominator.val)
     (bounded : denominator.val < modulus) (targetBounded : target.val < modulus) (flag : Bool) :
     (nontrivialProgram modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (nativeLabelEquiv modulus.size
+        (NormalizedVector.ket
+          ((QubitLayout.canonical
+            (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+            (nativeLabelEquiv modulus.size
+              ((nativeEncoding modulus.size).encode
+                ((InitialFrame.initial modulus denominator, numerator, target), flag))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+          (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+          (nativeLabelEquiv modulus.size
+            ((nativeEncoding modulus.size).encode
+              ((InitialFrame.initial modulus denominator, numerator,
+                output modulus (by omega) denominator.val numerator target), flag)))) := by
+  have native := divisionProgram_reference BinaryLabelEncoding.bool modulus nontrivial
+    denominator numerator target coprime positive bounded targetBounded flag
+  change (flagProgram modulus nontrivial).applyNormalized
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (nativeEncoding modulus.size).width).basisEquiv.symm
           ((nativeEncoding modulus.size).encode
             ((InitialFrame.initial modulus denominator, numerator, target), flag)))) =
-      NormalizedVector.ket (nativeLabelEquiv modulus.size
+    NormalizedVector.ket
+      ((QubitLayout.canonical (nativeEncoding modulus.size).width).basisEquiv.symm
         ((nativeEncoding modulus.size).encode
           ((InitialFrame.initial modulus denominator, numerator,
-            output modulus (by omega) denominator.val numerator target), flag))) :=
-  UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-    (nativeLabelEquiv modulus.size) (flagProgram modulus nontrivial) _ _
-    (divisionProgram_reference BinaryLabelEncoding.bool modulus nontrivial
-      denominator numerator target coprime positive bounded targetBounded flag)
+            output modulus (by omega) denominator.val numerator target), flag))) at native
+  exact cast_native_action (divisionPayload_width modulus.size)
+    (flagProgram modulus nontrivial)
+    ((nativeEncoding modulus.size).encode
+      ((InitialFrame.initial modulus denominator, numerator, target), flag))
+    ((nativeEncoding modulus.size).encode
+      ((InitialFrame.initial modulus denominator, numerator,
+        output modulus (by omega) denominator.val numerator target), flag)) native
 
-private theorem initialBasis (modulus : Nat) (old : (before modulus.size).register.Index) :
-    (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)).symm
-        (nativeLabelEquiv modulus.size
-          ((nativeEncoding modulus.size).encode
-            ((InitialFrame.initial modulus (inputBasisEquiv modulus.size old).1,
-              (inputBasisEquiv modulus.size old).2.1.1,
-              (inputBasisEquiv modulus.size old).2.1.2),
-              (inputBasisEquiv modulus.size old).2.2))) =
-      PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
-        ((InputPreparation.preparation modulus).value, old) := by
-  have actual := congrArg
-    (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)).symm
-    (divisionPayload_prepared_initial modulus old)
-  simpa only [Equiv.symm_apply_apply] using actual.symm
+/-- The chosen native branch maps prepared source and payload to the independent output. -/
+private theorem nativeProgram_prepared (modulus : Nat) (nontrivial : 1 < modulus)
+    (old : (before modulus.size).register.Index) (allowed : admissible modulus old) :
+    (nativeProgram modulus).applyNormalized
+        (NormalizedVector.ket
+          ((QubitLayout.canonical
+            (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+            (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)
+              (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
+                ((InputPreparation.preparation modulus).value, old))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+          (PayloadPreparation.frameEncoding modulus.size
+            (payloadWidth modulus.size)).width).basisEquiv.symm
+          (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)
+            (outputBasis modulus (by omega) old))) := by
+  have positive := ExecutionSpecification.divisionSpecification_positive modulus nontrivial
+    (inputBasisEquiv modulus.size old) allowed
+  rw [nativeProgram, dif_pos nontrivial, outputBasis,
+    divisionPayload_prepared_initial, divisionPayload_prepared_initial]
+  simp only [outputOld, Equiv.apply_symm_apply]
+  exact divisionExecution_nontrivial_ket modulus nontrivial
+    (inputBasisEquiv modulus.size old).1 (inputBasisEquiv modulus.size old).2.1.1
+    (inputBasisEquiv modulus.size old).2.1.2 allowed.2.1 positive allowed.1 allowed.2.2.2
+    (inputBasisEquiv modulus.size old).2.2
 
-private theorem finalBasis (modulus : Nat) (modulusPositive : 0 < modulus)
-    (old : (before modulus.size).register.Index) :
-    (PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)).symm
-        (nativeLabelEquiv modulus.size
-          ((nativeEncoding modulus.size).encode
-            ((InitialFrame.initial modulus (inputBasisEquiv modulus.size old).1,
-              (inputBasisEquiv modulus.size old).2.1.1,
-              output modulus modulusPositive (inputBasisEquiv modulus.size old).1.val
-                (inputBasisEquiv modulus.size old).2.1.1
-                (inputBasisEquiv modulus.size old).2.1.2),
-              (inputBasisEquiv modulus.size old).2.2))) =
-      outputBasis modulus modulusPositive old := by
-  simpa only [outputBasis, outputOld, Equiv.apply_symm_apply] using
-    initialBasis modulus (outputOld modulus modulusPositive old)
-
-/-- Exact runtime ket action restores the full initial EEA frame and all unchanged data fields. -/
+/-- Exact runtime ket action restores the EEA frame and unchanged supplied fields. -/
 theorem divisionExecution_program_prepared (modulus : Nat) (nontrivial : 1 < modulus)
-    (old : (before modulus.size).register.Index)
-    (allowed : admissible modulus old) :
+    (old : (before modulus.size).register.Index) (allowed : admissible modulus old) :
     (program modulus).applyNormalized
         (NormalizedVector.ket (R := (after modulus.size).register)
           (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
             ((InputPreparation.preparation modulus).value, old))) =
       NormalizedVector.ket (R := (after modulus.size).register)
         (outputBasis modulus (by omega) old) := by
-  have positive := ExecutionSpecification.divisionSpecification_positive modulus nontrivial
-    (inputBasisEquiv modulus.size old) allowed
-  have actual := divisionExecution_nontrivial_ket modulus nontrivial
-    (inputBasisEquiv modulus.size old).1 (inputBasisEquiv modulus.size old).2.1.1
-    (inputBasisEquiv modulus.size old).2.1.2 allowed.2.1 positive allowed.1 allowed.2.2.2
-    (inputBasisEquiv modulus.size old).2.2
-  have placed := PayloadRuntime.payloadRuntime_program_apply_ket modulus.size
-    (payloadWidth modulus.size) (nontrivialProgram modulus nontrivial) _ _ actual
-  have inputKet := congrArg (NormalizedVector.ket (R := (after modulus.size).register))
-    (initialBasis modulus old)
-  have outputKet := congrArg (NormalizedVector.ket (R := (after modulus.size).register))
-    (finalBasis modulus (by omega) old)
-  have exactRun := (congrArg
-    (PayloadRuntime.program modulus.size (payloadWidth modulus.size)
-      (nontrivialProgram modulus nontrivial)).applyNormalized inputKet.symm).trans
-        (placed.trans outputKet)
-  simpa only [program, nativeProgram, dif_pos nontrivial] using exactRun
+  exact PayloadRuntime.payloadRuntime_program_apply_ket modulus.size
+    (payloadWidth modulus.size) (nativeProgram modulus) _ _
+    (nativeProgram_prepared modulus nontrivial old allowed)
+    (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
+      ((InputPreparation.preparation modulus).value, old))
+    (outputBasis modulus (by omega) old)
+    (PayloadRuntimeFrame.selectedBasis_eq_basisEquiv modulus.size (payloadWidth modulus.size) _)
+    (PayloadRuntimeFrame.selectedBasis_eq_basisEquiv modulus.size (payloadWidth modulus.size) _)
 
-/-- Execute the one actual fixed preparation and the complete chosen arithmetic branch. -/
-def code (modulus : Nat) : Circuit (before modulus.size) (after modulus.size) :=
+/-- Execute zero allocation, fixed loading gates, and the complete arithmetic branch. -/
+def code (modulus : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before modulus.size) (after modulus.size) :=
   PayloadRuntime.code modulus (payloadWidth modulus.size) (nativeProgram modulus)
-    (divisionExecution_native_within modulus)
 
-/-- Exactly one preparation event precedes every event of the same chosen native body. -/
+/-- Every event trace contains preparation and the same selected native program. -/
 theorem divisionExecution_code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).eventTrace path =
-      (InputPreparation.preparation modulus).event :: (nativeProgram modulus).eventTrace :=
+      (ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout modulus.size) ++
+        (PayloadPreparation.loadProgram modulus (payloadWidth modulus.size)).eventTrace) ++
+        (nativeProgram modulus).eventTrace :=
   PayloadRuntime.payloadRuntime_code_eventTrace modulus (payloadWidth modulus.size)
-    (nativeProgram modulus) (divisionExecution_native_within modulus) path
+    (nativeProgram modulus) path
 
-/-- Fixed preparation and the selected complete native body determine the actual joint density. -/
+/-- Fixed preparation and selected native body determine the actual joint density. -/
 theorem divisionExecution_code_quantumMarginal (modulus : Nat)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (before modulus.size) Reference H) :
+    (state : State (before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     ((code modulus).execute Reference state).quantumMarginal =
       DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor (program modulus).matrix (1 : UnitaryOperator Reference))
         ((PayloadPreparation.circuit modulus (payloadWidth modulus.size)).execute
           Reference state).quantumMarginal :=
   PayloadRuntime.payloadRuntime_code_quantumMarginal modulus (payloadWidth modulus.size)
-    (nativeProgram modulus) (divisionExecution_native_within modulus) state
+    (nativeProgram modulus) state
 
 end
 

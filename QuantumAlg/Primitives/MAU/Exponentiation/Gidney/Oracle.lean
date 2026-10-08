@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Copy
 import all QuantumAlg.Util.Nat.FixedWidth.Unit.Power.Oracle
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 
 /-!
 # Actual reversible modular exponentiation with an arbitrary XOR target
@@ -40,15 +42,17 @@ private theorem bits_equiv_apply (exponentWidth width : Nat)
 /-- Place the actual selected-power computation before the separate XOR target. -/
 def forwardProgram (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) :
-    UnitaryCircuit (Qubits (oracleEncoding exponentWidth width).width) :=
-  UnitaryCircuit.prodLeft (n := width) (program exponentWidth width modulus base)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix width (program exponentWidth width modulus base)
 
 private theorem forward_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
       (forwardProgram exponentWidth width modulus base)
       (unitPowerForwardEquiv exponentWidth width modulus base) := by
-  apply (UnitaryCircuit.Realizes.prodLeft (right := BinaryLabelEncoding.finIdentity width)
+  apply (UnitaryCircuit.Realizes.onBinaryPrefix
+    (right := BinaryLabelEncoding.finIdentity width)
     (gidneyExponent_realizes exponentWidth width modulus base)).congrStep
   rintro ⟨state, target⟩
   exact congrArg (fun output => (output, target))
@@ -57,18 +61,19 @@ private theorem forward_realizes (exponentWidth width : Nat)
 /-- The literal three-part computation before recording the complete existing carrier. -/
 def oracleBody (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) :
-    UnitaryCircuit (Qubits (oracleEncoding exponentWidth width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum :=
   (forwardProgram exponentWidth width modulus base).seq
     ((copyProgram exponentWidth width).seq
-      (forwardProgram exponentWidth width modulus base).dagger)
+      ((forwardProgram exponentWidth width modulus base).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)))
 
-/-- Retain exactly the exponent, two work words, and original arbitrary target. -/
+/-- The complete exponent, two work words, and arbitrary target share one layout. -/
 def oracleProgram (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) :
-    UnitaryCircuit (Qubits (oracleEncoding exponentWidth width).width) :=
-  (oracleBody exponentWidth width modulus base).seq
-    (UnitaryCircuit.identity (Qubits (oracleEncoding exponentWidth width).width)
-      (List.range (exponentWidth + 3 * width)) List.nodup_range)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum :=
+  oracleBody exponentWidth width modulus base
 
 /-- Exact total action is defined independently of the actual circuit and its adjoint. -/
 theorem gidneyExponentOracle_realizes (exponentWidth width : Nat)
@@ -76,11 +81,16 @@ theorem gidneyExponentOracle_realizes (exponentWidth width : Nat)
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
       (oracleProgram exponentWidth width modulus base) (unitPowerOracleOutput modulus base) := by
   have forward := forward_realizes exponentWidth width modulus base
-  have inverse := forward.dagger_of_rightInverse
-    (Equiv.apply_symm_apply (unitPowerForwardEquiv exponentWidth width modulus base))
-  apply ((forward.seq ((gidneyExponentCopy_realizes exponentWidth width).seq inverse)).seq
-    (UnitaryCircuit.Realizes.identityAt (oracleEncoding exponentWidth width)
-      (List.range (exponentWidth + 3 * width)) List.nodup_range)).congrStep
+  have inverse : UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
+      ((forwardProgram exponentWidth width modulus base).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty))
+      (unitPowerForwardEquiv exponentWidth width modulus base).symm :=
+    forward.dagger_of_rightInverse
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
+      (Equiv.apply_symm_apply (unitPowerForwardEquiv exponentWidth width modulus base))
+  apply (forward.seq ((gidneyExponentCopy_realizes exponentWidth width).seq inverse)).congrStep
   intro state
   rfl
 
@@ -90,46 +100,19 @@ theorem gidneyExponentOracle_clean (exponentWidth width : Nat)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :
     (oracleProgram exponentWidth width modulus base).applyNormalized
-        (NormalizedVector.ket ((oracleEncoding exponentWidth width).encode
-          ((exponent, unitResidueWord modulus positive 1, 0), target))) =
-      NormalizedVector.ket ((oracleEncoding exponentWidth width).encode
-        ((exponent, unitResidueWord modulus positive 1, 0),
-          ⟨target.val ^^^ (unitResidueWord modulus positive (base ^ exponent.val)).val,
-            Nat.xor_lt_two_pow target.isLt
-              (unitResidueWord modulus positive (base ^ exponent.val)).isLt⟩)) := by
-  let initial : Registers exponentWidth width :=
-    (exponent, unitResidueWord modulus positive 1, 0)
-  let computed : Registers exponentWidth width :=
-    (exponent, unitResidueWord modulus positive (base ^ exponent.val), 0)
-  let toggled : Fin (2 ^ width) :=
-    ⟨target.val ^^^ computed.2.1.val, Nat.xor_lt_two_pow target.isLt computed.2.1.isLt⟩
-  have forward (value : Fin (2 ^ width)) :
-      (forwardProgram exponentWidth width modulus base).applyNormalized
-          (NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (initial, value))) =
-        NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (computed, value)) :=
-    UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
-      (encoding exponentWidth width) (BinaryLabelEncoding.finIdentity width)
-      (program exponentWidth width modulus base) initial computed value
-      (gidneyExponent_clean exponentWidth width modulus positive base exponent)
-  have copied :
-      (copyProgram exponentWidth width).applyNormalized
-          (NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (computed, target))) =
-        NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (computed, toggled)) :=
-    (gidneyExponentCopy_realizes exponentWidth width).apply_encoded_ket (computed, target)
-  have restored :
-      (forwardProgram exponentWidth width modulus base).dagger.applyNormalized
-          (NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (computed, toggled))) =
-        NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (initial, toggled)) :=
-    (congrArg (forwardProgram exponentWidth width modulus base).dagger.applyNormalized
-      (forward toggled)).symm.trans
-        (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
-          (forwardProgram exponentWidth width modulus base)
-          (NormalizedVector.ket ((oracleEncoding exponentWidth width).encode (initial, toggled))))
-  have body := UnitaryCircuit.applyNormalized_seq_of_eq (forward target)
-    (UnitaryCircuit.applyNormalized_seq_of_eq copied restored)
-  exact UnitaryCircuit.applyNormalized_seq_of_eq body
-    (UnitaryCircuit.applyNormalized_identity (Qubits (oracleEncoding exponentWidth width).width)
-      (List.range (exponentWidth + 3 * width)) List.nodup_range _)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (oracleEncoding exponentWidth width).width).basisEquiv.symm
+            ((oracleEncoding exponentWidth width).encode
+              ((exponent, unitResidueWord modulus positive 1, 0), target)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (oracleEncoding exponentWidth width).width).basisEquiv.symm
+          ((oracleEncoding exponentWidth width).encode
+            ((exponent, unitResidueWord modulus positive 1, 0),
+              ⟨target.val ^^^ (unitResidueWord modulus positive (base ^ exponent.val)).val,
+                Nat.xor_lt_two_pow target.isLt
+                  (unitResidueWord modulus positive (base ^ exponent.val)).isLt⟩))) := by
+  rw [(gidneyExponentOracle_realizes exponentWidth width modulus base).apply_encoded_ket]
+  rw [unitPowerOracleOutput_clean exponentWidth width modulus positive base exponent target]
 
 end
 

@@ -35,8 +35,8 @@ def code {shape : CShape} (m ell width N : Nat)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires) →
     CInputRef ctx shape →
     (Fin (RuntimeRound.resultBits m ell width) → CWriteRef ctx (.finite 2)) →
-    (count : Nat) → Circuit ctx (RuntimeResults.context m ell width ctx count)
-  | ctx, _, _, _, 0 => .id ctx
+    (count : Nat) → Circuit RuntimeRound.model ctx (RuntimeResults.context m ell width ctx count)
+  | ctx, _, _, _, 0 => .id (model := RuntimeRound.model) ctx
   | ctx, sameWires, parameter, cells, count + 1 =>
       let nextContext := RuntimeResults.next m ell width ctx
       let nextWires :=
@@ -45,7 +45,8 @@ def code {shape : CShape} (m ell width N : Nat)
         (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh
       let nextCells := fun index => (cells index).underRetained ctx.canonicalFreshKey
         (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh
-      .seq (.retain ctx ctx.canonicalFreshKey (.bits (RuntimeRound.resultBits m ell width))
+      .seq (.retain (model := RuntimeRound.model)
+        ctx ctx.canonicalFreshKey (.bits (RuntimeRound.resultBits m ell width))
         ctx.canonicalFreshKey_fresh)
         (.seq (RuntimeRound.code m ell width nextWires nextParameter N generator target
           nextCells (RuntimeResults.head m ell width ctx))
@@ -60,7 +61,7 @@ def run {shape : CShape} (m ell width N : Nat)
     (parameter : CInputRef ctx shape)
     (cells : Fin (RuntimeRound.resultBits m ell width) → CWriteRef ctx (.finite 2))
     (count : Nat) :
-    AlgorithmRun ctx (RuntimeResults.context m ell width ctx count)
+    AlgorithmRun RuntimeRound.model ctx (RuntimeResults.context m ell width ctx count)
       (.fixedVector count (.bits (RuntimeRound.resultBits m ell width))) where
   code := code m ell width N generator target ctx sameWires parameter cells count
   output := Output.all (RuntimeResults.context m ell width ctx count)
@@ -73,7 +74,8 @@ theorem shortDLP_runtimeRepetition_zero {shape : CShape} (m ell width N : Nat)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
     (parameter : CInputRef ctx shape)
     (cells : Fin (RuntimeRound.resultBits m ell width) → CWriteRef ctx (.finite 2)) :
-    code m ell width N generator target ctx sameWires parameter cells 0 = .id ctx := rfl
+    code m ell width N generator target ctx sameWires parameter cells 0 =
+      .id (model := RuntimeRound.model) ctx := rfl
 
 /-- Repetition leaves the exact same ordered physical bank in the complete output. -/
 theorem shortDLP_runtimeRepetition_wires (m ell width : Nat)

@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Core.Execution.Measurement.Sequence
 import all QuantumAlg.Core.Execution.Measurement.Distribution
 import all QuantumAlg.Core.Execution.Store
@@ -25,6 +26,9 @@ distribution.
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
 open Execution
 
 variable {ctx : RuntimeCtx .quantum}
@@ -33,13 +37,18 @@ variable {ctx : RuntimeCtx .quantum}
 theorem writeMeasurementPath_read_unwritten (readouts : List (ZReadout ctx))
     {shape : CShape} (observed : CStorageRef ctx shape)
     (different : ∀ item ∈ readouts, item.output.key ≠ observed.key)
-    (store : Store ctx) (path : (measurementSequence readouts).Path) :
-    (writeMeasurementPath readouts store path).read (.storage observed) =
+    (store : Store ctx) (path : (measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services)
+      readouts).Path) :
+    (writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) readouts store path).read
+      (.storage observed) =
       store.read (.storage observed) := by
   induction readouts generalizing store with
   | nil => rfl
   | cons head tail ih =>
-      change (writeMeasurementPath tail
+      change (writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) tail
         (store.write head.output (.finite path.1)) path.2).read (.storage observed) = _
       rw [ih (fun item present => different item (.tail head present))]
       exact Store.read_write_other store head.output observed (.finite path.1)
@@ -50,7 +59,10 @@ theorem writeMeasurementBasis_read (readouts : List (ZReadout ctx))
     (distinct : (readouts.map (fun item => item.output.key)).Nodup)
     (observed : ZReadout ctx) (present : observed ∈ readouts)
     (store : Store ctx) (basis : ctx.register.Index) :
-    (writeMeasurementPath readouts store (measurementBasisPath readouts basis)).read
+    (writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) readouts store
+      (measurementBasisPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) readouts basis)).read
       (.storage observed.output.toCStorageRef) = .finite (basis observed.wire) := by
   induction readouts generalizing store with
   | nil => cases present
@@ -59,10 +71,15 @@ theorem writeMeasurementBasis_read (readouts : List (ZReadout ctx))
       obtain ⟨freshHead, distinctTail⟩ := List.nodup_cons.mp distinct
       rcases List.mem_cons.mp present with same | inTail
       · subst observed
-        change (writeMeasurementPath tail
+        change (writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) tail
           (store.write head.output (.finite (basis head.wire)))
-          (measurementBasisPath tail basis)).read (.storage head.output.toCStorageRef) = _
-        rw [writeMeasurementPath_read_unwritten tail head.output.toCStorageRef
+          (measurementBasisPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) tail basis)).read (.storage
+            head.output.toCStorageRef) = _
+        rw [writeMeasurementPath_read_unwritten
+          (gates := gates) (oracles := oracles)
+          (operations := operations) (services := services) tail head.output.toCStorageRef
           (fun item member same => freshHead (List.mem_map.mpr ⟨item, member, same⟩))]
         exact Store.read_write_same store head.output (.finite (basis head.wire))
       · exact ih distinctTail inTail (store.write head.output (.finite (basis head.wire)))
@@ -104,7 +121,7 @@ namespace QuantumAlg.DensityOperator
 noncomputable section
 
 /-- Relabeling actual local coordinates beside the reference commutes with tracing the reference. -/
-theorem reindex_prod_marginalLeft {R S Reference : Register}
+public theorem reindex_prod_marginalLeft {R S Reference : Register}
     (state : DensityOperator (Register.prod R Reference)) (basisEquiv : R.Index ≃ S.Index) :
     (state.reindex (S := Register.prod S Reference)
       (basisEquiv.prodCongr (Equiv.refl Reference.Index))).marginalLeft =

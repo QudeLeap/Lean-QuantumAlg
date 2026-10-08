@@ -34,76 +34,112 @@ noncomputable section
 open EncodedBit.Word.OneDirtyLayout
 
 /-- Native elementary multiplicities of the selected minimal-work source reflection. -/
-def elementaryEventPool : Nat → ResourcePool .quantum
+def elementaryEventPool (oracles : OracleModel) (width : Nat)
+    (operations : ClassicalOpModel := .empty) (services : ClassicalOracleModel := .empty) :
+    ResourcePool (.quantum AlgorithmGate.model oracles operations services) :=
+  match width with
   | 0 => 0
-  | 1 => ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z"))
-  | 2 =>
-      2 • ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        ResourcePool.singleton (.gate (.builtin "cnot"))
-  | 3 =>
-      8 • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        ResourcePool.singleton (.gate (.builtin "toffoli"))
-  | extra + 4 =>
-      (2 * (extra + 4) + 2) • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        gateCount (extra + 3) • ResourcePool.singleton (.gate (.builtin "toffoli"))
+  | 1 => ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit)
+  | 2 => 4 • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .cnot)
+  | 3 => 9 • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .toffoli)
+  | extra + 4 => (2 * (extra + 4) + 3) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      gateCount (extra + 3) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .toffoli)
 
 /-- Independent total elementary count, also the sequential reflection depth. -/
 public def elementaryGateCount : Nat → Nat
   | 0 => 0
   | 1 => 1
   | 2 => 5
-  | 3 => 13
-  | extra + 4 => 2 * (extra + 4) + gateCount (extra + 3) + 6
+  | 3 => 10
+  | extra + 4 => 2 * (extra + 4) + gateCount (extra + 3) + 3
+
+/-- Independent single-qubit multiplicity of the selected source reflection. -/
+public def elementarySingleQubitCount : Nat → Nat
+  | 0 => 0
+  | 1 => 1
+  | 2 => 4
+  | 3 => 9
+  | extra + 4 => 2 * (extra + 4) + 3
+
+/-- Only the width-two source reflection uses a CNOT. -/
+public def elementaryCNOTCount : Nat → Nat
+  | 2 => 1
+  | _ => 0
+
+/-- Independent Toffoli multiplicity of the selected source reflection. -/
+public def elementaryToffoliCount : Nat → Nat
+  | 0 => 0
+  | 1 => 0
+  | 2 => 0
+  | 3 => 1
+  | extra + 4 => gateCount (extra + 3)
 
 namespace Small
 
-theorem program_eventCost (width : Nat) (small : width ≤ 3) :
-    (program width small).eventCost = elementaryEventPool width := by
+theorem program_eventCost (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
+    (small : width ≤ 3) :
+    (program oracles width physical small).eventCost = elementaryEventPool oracles width := by
   interval_cases width
   · rfl
-  · exact EncodedBit.pauliZ_eventCost _
-  · exact EncodedBit.twoWireZeroReflection_eventCost _ _ _
-  · exact EncodedBit.threeWireZeroReflection_eventCost _ _ _ _ _ _
+  · exact (BinaryLabelEncoding.finIdentityBit 1 0).pauliZ_eventCost physical oracles
+  · exact (BinaryLabelEncoding.finIdentityBit 2 0).twoWireZeroReflection_eventCost
+      physical oracles (BinaryLabelEncoding.finIdentityBit 2 1) (by decide)
+  · exact (BinaryLabelEncoding.finIdentityBit 3 0).threeWireZeroReflection_eventCost
+      physical oracles (BinaryLabelEncoding.finIdentityBit 3 1)
+      (BinaryLabelEncoding.finIdentityBit 3 2) (by decide) (by decide) (by decide)
 
-theorem program_unitDepth (width : Nat) (small : width ≤ 3) :
-    (program width small).evaluatedEventDepth (fun _ => 1) = elementaryGateCount width := by
+theorem program_unitDepth (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
+    (small : width ≤ 3) :
+    (program oracles width physical small).evaluatedEventDepth (fun _ => 1) =
+      elementaryGateCount width := by
   interval_cases width
   · rfl
-  · exact EncodedBit.pauliZ_unitDepth _
-  · exact EncodedBit.twoWireZeroReflection_unitDepth _ _ _
-  · exact EncodedBit.threeWireZeroReflection_unitDepth _ _ _ _ _ _
+  · exact (BinaryLabelEncoding.finIdentityBit 1 0).pauliZ_unitDepth physical oracles
+  · exact (BinaryLabelEncoding.finIdentityBit 2 0).twoWireZeroReflection_unitDepth
+      physical oracles (BinaryLabelEncoding.finIdentityBit 2 1) (by decide)
+  · exact (BinaryLabelEncoding.finIdentityBit 3 0).threeWireZeroReflection_unitDepth
+      physical oracles (BinaryLabelEncoding.finIdentityBit 3 1)
+      (BinaryLabelEncoding.finIdentityBit 3 2) (by decide) (by decide) (by decide)
 
 end Small
 
 namespace OneDirty
 
-theorem program_eventCost (controls : Nat) (large : 3 ≤ controls) :
-    (program controls).eventCost = elementaryEventPool (controls + 1) := by
+theorem program_eventCost (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) (large : 3 ≤ controls) :
+    (program oracles controls physical).eventCost = elementaryEventPool oracles (controls + 1) := by
   obtain ⟨extra, rfl⟩ : ∃ extra, controls = extra + 3 := ⟨controls - 3, by omega⟩
-  have actual := (layout (extra + 3)).zeroReflectionProgram_eventCost
-  change (program (extra + 3)).eventCost = _ at actual
+  have actual := (layout (extra + 3)).zeroReflectionProgram_eventCost physical oracles
+  change (program oracles (extra + 3) physical).eventCost =
+    _ at actual
   rw [gatePool, if_neg (by omega), if_neg (by omega)] at actual
   exact actual
 
-theorem program_unitDepth (controls : Nat) (large : 3 ≤ controls) :
-    (program controls).evaluatedEventDepth (fun _ => 1) = elementaryGateCount (controls + 1) := by
+theorem program_unitDepth (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) (large : 3 ≤ controls) :
+    (program oracles controls physical).evaluatedEventDepth (fun _ => 1) =
+      elementaryGateCount (controls + 1) := by
   obtain ⟨extra, rfl⟩ : ∃ extra, controls = extra + 3 := ⟨controls - 3, by omega⟩
-  have actual := (layout (extra + 3)).zeroReflectionProgram_unitDepth
-  change (program (extra + 3)).evaluatedEventDepth (fun _ => 1) = _ at actual
-  change _ = 2 * (extra + 4) + gateCount (extra + 3) + 6
+  have actual := (layout (extra + 3)).zeroReflectionProgram_unitDepth physical oracles
+  change (program oracles (extra + 3) physical).evaluatedEventDepth (fun _ => 1) = _ at actual
+  change _ = 2 * (extra + 4) + gateCount (extra + 3) + 3
   omega
 
 end OneDirty
 
 /-- No opaque subroutine coordinate occurs in the independent elementary reflection budget. -/
-theorem elementaryEventPool_queryCount (width : Nat) :
+theorem elementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .quantumSubroutine _ => 1 | _ => 0) (elementaryEventPool width) = 0 := by
+      | .oracle _ => 1 | _ => 0) (elementaryEventPool oracles width) = 0 := by
   match width with
   | 0 => rfl
   | 1 => rfl
@@ -115,9 +151,9 @@ theorem elementaryEventPool_queryCount (width : Nat) :
         mul_zero, add_zero]
 
 /-- Every counted occurrence belongs to the actual elementary gate family. -/
-theorem elementaryEventPool_gateCount (width : Nat) :
+theorem elementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) (elementaryEventPool width) = elementaryGateCount width := by
+      | .gate _ => 1 | _ => 0) (elementaryEventPool oracles width) = elementaryGateCount width := by
   match width with
   | 0 => rfl
   | 1 => rfl

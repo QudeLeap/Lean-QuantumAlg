@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Core.Execution.Interpret
 public import QuantumAlg.Core.Execution.Store
+import all QuantumAlg.Core.Execution.Classical.Composition.Record
 import all QuantumAlg.Core.Execution.Classical.Workspace
 
 /-!
@@ -28,42 +29,77 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-/-- Record the actual workspace push, proved body update and matching pop. -/
+/-- Record the actual workspace push, proved body transition and matching store pop. -/
 public def workspaceRecord (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
-    (update : Store (ctx.addWorkspace key shape fresh) →
-      Store (ctx.addWorkspace key shape fresh) × body.Path) (store : Store ctx) :
-    Store ctx × (Circuit.workspace ctx key shape fresh body).Path :=
-  let selected := update (store.pushWorkspace key shape fresh)
-  (Store.popWorkspace key shape fresh selected.1, selected.2)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (update : Store (ctx.addWorkspace key shape fresh) × model.HiddenState →
+      (Store (ctx.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
+    (entry : Store ctx × model.HiddenState) :
+    (Store ctx × model.HiddenState) × (Circuit.workspace ctx key shape fresh body).Path :=
+  let selected := update (entry.1.pushWorkspace key shape fresh, entry.2)
+  ((Store.popWorkspace key shape fresh selected.1.1, selected.1.2), selected.2)
 
+open scoped Classical in
 /-- A proved actual body equation gives the full CQ record of its real lexical workspace. -/
 public theorem execute_workspaceRecord (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (update : Store (ctx.addWorkspace key shape fresh) × model.HiddenState →
+      (Store (ctx.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
+    (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
+      (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
+      body.execute Reference state = state.mapClassical (fun entry =>
+        let result := update (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.workspace ctx key shape fresh body).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := workspaceRecord key shape fresh body update (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_workspace_mapClassical key shape fresh body update
+    ?_ Reference state).trans ?_
+  · intro reference history _ input
+    exact (equation reference input).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+/-- Record a lexical caller-store update whose body leaves service state unchanged. -/
+public def workspaceStoreRecord (key : StorageKey) (shape : CShape)
+    (fresh : key ∉ ctx.keys)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (update : Store (ctx.addWorkspace key shape fresh) →
+      Store (ctx.addWorkspace key shape fresh) × body.Path) (store : Store ctx) :
+    Store ctx × (Circuit.workspace ctx key shape fresh body).Path :=
+  let result := update (store.pushWorkspace key shape fresh)
+  (Store.popWorkspace key shape fresh result.1, result.2)
+
+open scoped Classical in
+/-- A store-only body equation lifts through lexical storage and persistent service state. -/
+public theorem execute_workspaceStoreRecord (key : StorageKey) (shape : CShape)
+    (fresh : key ∉ ctx.keys)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) →
       Store (ctx.addWorkspace key shape fresh) × body.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State (ctx.addWorkspace key shape fresh) Reference History),
-      letI : DecidableEq (Store (ctx.addWorkspace key shape fresh)) := Classical.decEq _
-      letI : DecidableEq History := Classical.decEq _
-      letI : DecidableEq body.Path := Classical.decEq _
+      (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
       body.execute Reference state = state.mapClassical (fun entry =>
-        ((update entry.1).1, (entry.2, (update entry.1).2))))
+        let result := update entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    letI : DecidableEq (Store ctx) := Classical.decEq _
-    letI : DecidableEq History := Classical.decEq _
-    letI : DecidableEq (Circuit.workspace ctx key shape fresh body).Path := Classical.decEq _
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.workspace ctx key shape fresh body).execute Reference state =
       state.mapClassical (fun entry =>
-        ((workspaceRecord key shape fresh body update entry.1).1,
-          (entry.2, (workspaceRecord key shape fresh body update entry.1).2))) := by
-  refine (Circuit.execute_workspace_mapClassical key shape fresh body update
-    equation Reference state).trans ?_
-  dsimp only [workspaceRecord]
+        let result := workspaceStoreRecord key shape fresh body update entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (execute_workspaceRecord key shape fresh body
+    (preserveHiddenRecord (model := model) update) ?_ Reference state).trans ?_
+  · intro reference history _ input
+    exact (equation reference input).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

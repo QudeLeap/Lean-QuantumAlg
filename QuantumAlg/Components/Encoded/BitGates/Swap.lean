@@ -29,6 +29,7 @@ noncomputable section
 namespace EncodedBit
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Three-CNOT swap of two encoded bits. -/
 def swapGates
@@ -43,16 +44,8 @@ def swapGates
 def swapProgram
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (swapGates left right hleftRight)
-
-/-- A compiled encoded-bit swap uses only wires of its shared encoding. -/
-theorem swapProgram_physical_idx_subset_range
-    (left right : EncodedBit encoding)
-    (hleftRight : left.wire ≠ right.wire) :
-    (swapProgram left right hleftRight).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (swapGates left right hleftRight)
 
 /-- Folded semantic action of the three-CNOT bit swap. -/
 def swapStep
@@ -66,17 +59,17 @@ theorem swap_realizes
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
-      (swapProgram left right hleftRight)
+      (swapProgram physical oracles left right hleftRight)
       (swapStep left right hleftRight) :=
-  GateSpec.realizesList (swapGates left right hleftRight)
+  GateSpec.realizesList physical oracles (swapGates left right hleftRight)
 
 /-- Direct realization proof for swapping two encoded bits. -/
 theorem swapWitness
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) :
-    UnitaryCircuit.Realizes encoding (swapProgram left right hleftRight)
+    UnitaryCircuit.Realizes encoding (swapProgram physical oracles left right hleftRight)
       (swapStep left right hleftRight) :=
-  swap_realizes left right hleftRight
+  swap_realizes physical oracles left right hleftRight
 
 /-- A three-CNOT bit swap returns the original right readout on the left. -/
 theorem swapStep_get_left
@@ -205,8 +198,8 @@ def controlledSwapProgram
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
     (hleftRight : left.wire ≠ right.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledSwapGates control left right
       hcontrolLeft hcontrolRight hleftRight)
 
@@ -228,11 +221,11 @@ theorem controlledSwap_realizes
     (hcontrolRight : control.wire ≠ right.wire)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledSwapProgram control left right
+      (controlledSwapProgram physical oracles control left right
         hcontrolLeft hcontrolRight hleftRight)
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledSwapGates control left right
       hcontrolLeft hcontrolRight hleftRight)
 
@@ -243,11 +236,11 @@ theorem controlledSwapWitness
     (hcontrolRight : control.wire ≠ right.wire)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledSwapProgram control left right
+      (controlledSwapProgram physical oracles control left right
         hcontrolLeft hcontrolRight hleftRight)
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
-  controlledSwap_realizes control left right
+  controlledSwap_realizes physical oracles control left right
     hcontrolLeft hcontrolRight hleftRight
 
 /-- A controlled bit swap preserves the control readout. -/

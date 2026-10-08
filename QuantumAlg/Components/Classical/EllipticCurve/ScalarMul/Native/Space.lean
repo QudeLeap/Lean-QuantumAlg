@@ -24,7 +24,8 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Only initialization or one complete addition has an active internal scope at a time. -/
 def scalarScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -35,7 +36,7 @@ private theorem scalarBitArm_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).peakResidentSpace path ≤
-      Add.Native.additionScratchSpace kind width + ctx.residentSpace := by
+      Add.Native.additionScratchSpace model.kind width + ctx.residentSpace := by
   cases value with
   | bit flag =>
       cases flag
@@ -49,7 +50,7 @@ private theorem scalarSlot_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
     (scalarSlot spec bits point accumulator index).peakResidentSpace path ≤
-      Add.Native.additionScratchSpace kind width + ctx.residentSpace := by
+      Add.Native.additionScratchSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
     (Add.Native.addInto spec (Add.Native.classifierRead accumulator)
       (Add.Native.classifierRead accumulator) accumulator)
@@ -63,14 +64,14 @@ theorem scalarInto_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
     (scalarInto spec bits point accumulator).peakResidentSpace path ≤
-      scalarScratchSpace kind width + ctx.residentSpace := by
+      scalarScratchSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq (Add.Native.infinityInto accumulator)
     (scalarFold spec bits point accumulator) path).le.trans ?_
   apply SpacePool.max_le
   · exact (Add.Native.infinityInto_resident accumulator path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
   · exact (Circuit.forRange_resident_le scalarWidth (scalarSlot spec bits point accumulator)
-      (Add.Native.additionScratchSpace kind width + ctx.residentSpace)
+      (Add.Native.additionScratchSpace model.kind width + ctx.residentSpace)
       (fun axis => Nat.le_add_left _ _) (scalarSlot_resident_le spec bits point accumulator)
       path.2).trans (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
@@ -80,7 +81,7 @@ theorem scalarRetained_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :
     (scalarRetained spec bits point key fresh).peakResidentSpace path ≤
-      scalarScratchSpace kind width + SpacePool.ofShape (PointShape width) +
+      scalarScratchSpace model.kind width + SpacePool.ofShape (PointShape width) +
         ctx.residentSpace := by
   let body := scalarInto spec (bits.underRetained key (PointShape width) fresh)
     (point.underRetained key (PointShape width) fresh)
@@ -97,7 +98,7 @@ theorem scalarRetained_resident_le (spec : CurveSpec width)
   have budget : SpacePool.max
       ((Circuit.retain ctx key (PointShape width) fresh).peakResidentSpace path.1)
       (body.peakResidentSpace path.2) ≤
-      scalarScratchSpace kind width +
+      scalarScratchSpace model.kind width +
         (ctx.addRetained key (PointShape width) fresh).residentSpace :=
     SpacePool.max_le (entered.trans (fun axis => Nat.le_add_left _ _))
       (scalarInto_resident_le spec _ _ _ path.2)
@@ -107,7 +108,7 @@ private theorem scalarBitArm_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).peakAuxiliarySpace path ≤
-      Add.Native.additionScratchSpace kind width + ctx.auxiliarySpace := by
+      Add.Native.additionScratchSpace model.kind width + ctx.auxiliarySpace := by
   cases value with
   | bit flag =>
       cases flag
@@ -121,7 +122,7 @@ private theorem scalarSlot_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
     (scalarSlot spec bits point accumulator index).peakAuxiliarySpace path ≤
-      Add.Native.additionScratchSpace kind width + ctx.auxiliarySpace := by
+      Add.Native.additionScratchSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
     (Add.Native.addInto spec (Add.Native.classifierRead accumulator)
       (Add.Native.classifierRead accumulator) accumulator)
@@ -135,14 +136,14 @@ theorem scalarInto_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
     (scalarInto spec bits point accumulator).peakAuxiliarySpace path ≤
-      scalarScratchSpace kind width + ctx.auxiliarySpace := by
+      scalarScratchSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq (Add.Native.infinityInto accumulator)
     (scalarFold spec bits point accumulator) path).le.trans ?_
   apply SpacePool.max_le
   · exact (Add.Native.infinityInto_auxiliary accumulator path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
   · exact (Circuit.forRange_auxiliary_le scalarWidth (scalarSlot spec bits point accumulator)
-      (Add.Native.additionScratchSpace kind width + ctx.auxiliarySpace)
+      (Add.Native.additionScratchSpace model.kind width + ctx.auxiliarySpace)
       (fun axis => Nat.le_add_left _ _) (scalarSlot_auxiliary_le spec bits point accumulator)
       path.2).trans (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
@@ -152,7 +153,7 @@ theorem scalarRetained_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :
     (scalarRetained spec bits point key fresh).peakAuxiliarySpace path ≤
-      scalarScratchSpace kind width + SpacePool.ofShape (PointShape width) +
+      scalarScratchSpace model.kind width + SpacePool.ofShape (PointShape width) +
         ctx.auxiliarySpace := by
   let body := scalarInto spec (bits.underRetained key (PointShape width) fresh)
     (point.underRetained key (PointShape width) fresh)
@@ -169,7 +170,7 @@ theorem scalarRetained_auxiliary_le (spec : CurveSpec width)
   have budget : SpacePool.max
       ((Circuit.retain ctx key (PointShape width) fresh).peakAuxiliarySpace path.1)
       (body.peakAuxiliarySpace path.2) ≤
-      scalarScratchSpace kind width +
+      scalarScratchSpace model.kind width +
         (ctx.addRetained key (PointShape width) fresh).auxiliarySpace :=
     SpacePool.max_le (entered.trans (fun axis => Nat.le_add_left _ _))
       (scalarInto_auxiliary_le spec _ _ _ path.2)

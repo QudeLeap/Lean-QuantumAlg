@@ -103,10 +103,10 @@ theorem Certificates.transport {kind : ProblemKind} {root middle inner : Runtime
   slotState := certificates.slotState.transport transport
 
 /-- Allocate exactly the three core packages used by actual pair-to-short-log execution. -/
-def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
-      (transport : Transport ctx inner), Certificates transport cells → Circuit inner inner) :
-    Circuit ctx ctx :=
+def withWorkspaces {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
+      (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner) :
+    Circuit model ctx ctx :=
   withCells ctx (LatticeCandidateSharedWorkspaceLayout.shapes N) fun
       shared sharedDistinct rootTransport sharedSeparated =>
     let sharedPackage : Live rootTransport (LatticeCandidateSharedWorkspaceLayout.shapes N) :=

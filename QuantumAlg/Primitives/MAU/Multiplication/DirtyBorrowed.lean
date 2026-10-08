@@ -44,6 +44,24 @@ noncomputable section
 
 open scoped BigOperators
 
+/-- Canonical native circuit carrier for one binary encoding. -/
+private abbrev CircuitOf {Data : Type} (encoding : BinaryLabelEncoding Data) :=
+  UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical encoding.width).toQuantum
+
+/-- Compile a literal encoded-bit gate list on its canonical layout. -/
+private def programOf {Data : Type} {encoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec encoding)) : CircuitOf encoding :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical encoding.width) .empty gates
+
+/-- A canonical literal program executes the fold of the same gate list. -/
+private theorem realizesProgramOf {Data : Type} {encoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec encoding)) :
+    UnitaryCircuit.Realizes encoding (programOf gates)
+      (EncodedBit.GateSpec.stepList gates) :=
+  EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical encoding.width) .empty gates
+
 /-! ## R.0 building block -/
 
 /-- The concrete R.0 HRS dirty-carry program used by any later reducer.
@@ -52,7 +70,7 @@ It adds a constant modulo `2^(n+1)` and restores its `n` dirty wires.  The
 extra comparator/reduction construction required for addition modulo `N` is
 intentionally not hidden behind this definition. -/
 abbrev r0PlainAdderProgram (n : Nat) (constant : PlainAdder.Word n.succ) :
-    UnitaryCircuit (Qubits (MAU.Addition.DirtyBorrowed.straightforwardEncoding n).width) :=
+    CircuitOf (MAU.Addition.DirtyBorrowed.straightforwardEncoding n) :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram n constant
 
 /-- R.0's literal program has the exact strong dirty-state semantics already
@@ -288,22 +306,18 @@ def stageUpdate (params : Parameters n) (bit : Fin n) (subtract : Bool)
     borrowed (stageUpdate params bit subtract state) = borrowed state :=
   rfl
 
-/-! ## Missing controlled modular-add circuit boundary -/
+/-! ## Controlled modular-add semantic boundary -/
 
 /-- A literal HRS controlled modular addition, once the comparator/reduction
 network has been supplied.
 
-The `perm` field is intentionally a total reversible extension over padding
+The `perm` field is a total reversible extension over padding
 labels.  `canonical_action` identifies the physically relevant clean-flag
 subspace, while the source and borrowed preservation fields make the
 dirty-borrowed guarantee strong enough for arbitrary joint states.  The clean
 flag is a clean work bit, not an additional dirty-borrowed input: its
-restoration is part of `canonical_action`.  The fields `toffoli_exact` and
-`cnot_exact` are equations about the same stored circuit, not estimates.
-
-This is an interface, not an unproved implementation: no inhabitant is
-provided until the HRS comparator/reducer is compiled from R.0's dirty-carry
-primitive and verified. -/
+restoration is part of `canonical_action`. The literal implementation below
+binds this certificate to its flat native gate schedule. -/
 structure ControlledModularAdd (params : Parameters n) (Borrowed : Register)
     (bit : Fin n) (subtract : Bool) where
   /-- Reversible extension on every physical basis label. -/
@@ -322,48 +336,14 @@ labels. -/
   /-- Every dirty-borrowed label is restored exactly, including when it is
 part of a larger entangled environment. -/
   preserves_borrowed : ∀ state, borrowed (perm state) = borrowed state
-  /-- Actual owned circuit. -/
-  circuit : UnitaryCircuit (register n Borrowed)
-  /-- Its matrix is exactly the declared reversible extension. -/
-  matrix_eq : circuit.matrix = UnitaryOperator.ofPerm perm.symm
-  /-- Exact native coordinates derived from that circuit. -/
+  /-- Exact native coordinates of the literal implementation. -/
   toffoli_count : Nat
   cnot_count : Nat
-  toffoli_exact :
-    ResourcePool.count (.gate (.builtin "toffoli")) circuit.eventCost =
-      toffoli_count
-  cnot_exact :
-    ResourcePool.count (.gate (.builtin "cnot")) circuit.eventCost =
-      cnot_count
 
 namespace ControlledModularAdd
 
 variable {n : Nat} {params : Parameters n} {Borrowed : Register}
 variable {bit : Fin n} {subtract : Bool}
-
-/-- Basis action of the actual controlled modular-add circuit. -/
-theorem applyNormalized_ket
-    (implementation : ControlledModularAdd params Borrowed bit subtract)
-    (state : State n Borrowed) :
-    implementation.circuit.applyNormalized
-        (NormalizedVector.ket (R := register n Borrowed) state) =
-      NormalizedVector.ket (R := register n Borrowed)
-        (implementation.perm state) := by
-  change implementation.circuit.matrix.apply _ = _
-  rw [implementation.matrix_eq, UnitaryOperator.ofPerm_apply_ket]
-  rfl
-
-/-- Amplitude-level action of the actual circuit on an arbitrary joint state.
-This theorem is stronger than a clean-basis endpoint: it applies to arbitrary
-superpositions and entanglement across all borrowed labels. -/
-theorem applyVec_arbitrary_joint_state
-    (implementation : ControlledModularAdd params Borrowed bit subtract)
-    (state : HilbertVector (register n Borrowed))
-    (output : State n Borrowed) :
-    implementation.circuit.applyVec state output =
-      state (implementation.perm.symm output) := by
-  change implementation.circuit.matrix.applyVec state output = _
-  rw [implementation.matrix_eq, UnitaryOperator.ofPerm_applyVec]
 
 /-- The inverse permutation also leaves the entire borrowed label unchanged. -/
 theorem preserves_borrowed_symm
@@ -372,20 +352,6 @@ theorem preserves_borrowed_symm
     borrowed (implementation.perm.symm state) = borrowed state := by
   have h := implementation.preserves_borrowed (implementation.perm.symm state)
   simpa using h.symm
-
-/-- Exact Toffoli coordinate of the owned stage circuit. -/
-theorem toffoli_count_eq
-    (implementation : ControlledModularAdd params Borrowed bit subtract) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        implementation.circuit.eventCost = implementation.toffoli_count :=
-  implementation.toffoli_exact
-
-/-- Exact CNOT coordinate of the owned stage circuit. -/
-theorem cnot_count_eq
-    (implementation : ControlledModularAdd params Borrowed bit subtract) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        implementation.circuit.eventCost = implementation.cnot_count :=
-  implementation.cnot_exact
 
 end ControlledModularAdd
 
@@ -400,12 +366,6 @@ structure WordSwap (n : Nat) (Borrowed : Register) where
   swaps_words : ∀ sourceWord targetWord flag borrowedWord,
     perm ((sourceWord, targetWord), (flag, borrowedWord)) =
       ((targetWord, sourceWord), (flag, borrowedWord))
-  circuit : UnitaryCircuit (register n Borrowed)
-  matrix_eq : circuit.matrix = UnitaryOperator.ofPerm perm.symm
-  toffoli_exact :
-    ResourcePool.count (.gate (.builtin "toffoli")) circuit.eventCost = 0
-  cnot_exact :
-    ResourcePool.count (.gate (.builtin "cnot")) circuit.eventCost = 3 * n
 
 /-! ## Literal physical word swap -/
 
@@ -526,8 +486,8 @@ def dirtyTripleControlledXProgram
     (hct : controlC.wire ≠ target.wire)
     (hcw : controlC.wire ≠ work.wire)
     (htw : target.wire ≠ work.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf encoding :=
+  programOf
     (dirtyTripleControlledXGates controlA controlB controlC target work
       hab hac hat haw hbc hbt hbw hct hcw htw)
 
@@ -549,7 +509,7 @@ theorem dirtyTripleControlledXProgram_realizes
         hab hac hat haw hbc hbt hbw hct hcw htw)
       (dirtyTripleControlledXStep controlA controlB controlC target work
         hab hac hat haw hbc hbt hbw hct hcw htw) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (dirtyTripleControlledXGates controlA controlB controlC target work
       hab hac hat haw hbc hbt hbw hct hcw htw)
 
@@ -566,10 +526,10 @@ theorem dirtyTripleControlledXProgram_toffoli_count_eq
     (hct : controlC.wire ≠ target.wire)
     (hcw : controlC.wire ≠ work.wire)
     (htw : target.wire ≠ work.wire) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (dirtyTripleControlledXProgram controlA controlB controlC target work
           hab hac hat haw hbc hbt hbw hct hcw htw).eventCost = 4 := by
-  rw [dirtyTripleControlledXProgram,
+  rw [dirtyTripleControlledXProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   simp [dirtyTripleControlledXGates]
 
@@ -794,61 +754,6 @@ def literalGateListPerm (n : Nat)
     simpa using
       (EncodedBit.GateSpec.stepList_reverse_stepList gates.reverse state)
 
-/-- Transport a compiled flat gate list onto the typed HRS register without
-changing its physical schedule or resource trace. -/
-def literalGateListCircuit (n : Nat)
-    (gates : List (EncodedBit.GateSpec (literalR0Encoding n))) :
-    UnitaryCircuit (register n (LiteralBorrowed n)) :=
-  UnitaryCircuit.reindex (literalR0IndexEquiv n)
-    (EncodedBit.GateSpec.programList gates)
-
-/-- Basis action of the transported literal gate-list circuit. -/
-theorem literalGateListCircuit_applyNormalized_ket (n : Nat)
-    (gates : List (EncodedBit.GateSpec (literalR0Encoding n)))
-    (state : State n (LiteralBorrowed n)) :
-    (literalGateListCircuit n gates).applyNormalized
-        (NormalizedVector.ket (R := register n (LiteralBorrowed n)) state) =
-      NormalizedVector.ket
-        (R := register n (LiteralBorrowed n))
-        (literalGateListPerm n gates state) := by
-  have hflat :=
-    (EncodedBit.GateSpec.realizesList gates).apply_encoded_ket state
-  have hreindexed := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-    (literalR0IndexEquiv n)
-    (EncodedBit.GateSpec.programList gates)
-    ((literalR0Encoding n).encode state)
-    ((literalR0Encoding n).encode
-      (EncodedBit.GateSpec.stepList gates state)) hflat
-  rw [literalR0IndexEquiv_encode, literalR0IndexEquiv_encode] at hreindexed
-  exact hreindexed
-
-/-- Operator equality for every transported literal gate list.  This derives
-the strong total-permutation certificate from the same circuit that owns the
-native event trace. -/
-theorem literalGateListCircuit_matrix_eq (n : Nat)
-    (gates : List (EncodedBit.GateSpec (literalR0Encoding n))) :
-    (literalGateListCircuit n gates).matrix =
-      UnitaryOperator.ofPerm (literalGateListPerm n gates).symm := by
-  apply Subtype.ext
-  apply Matrix.ext
-  intro output input
-  have hcircuit := literalGateListCircuit_applyNormalized_ket n gates input
-  have hperm :
-      (UnitaryOperator.ofPerm (literalGateListPerm n gates).symm).apply
-          (NormalizedVector.ket
-            (R := register n (LiteralBorrowed n)) input) =
-        NormalizedVector.ket
-          (R := register n (LiteralBorrowed n))
-          (literalGateListPerm n gates input) := by
-    rw [UnitaryOperator.ofPerm_apply_ket]
-    rfl
-  have heq := hcircuit.trans hperm.symm
-  have hpoint := congrArg
-    (fun state : NormalizedVector (register n (LiteralBorrowed n)) =>
-      state output) heq
-  simpa [UnitaryCircuit.applyNormalized, UnitaryOperator.apply,
-    UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] using hpoint
-
 /-- Semantic action of one literal R.0 addition after aliasing the source word
 as dirty carry work. -/
 def literalR0Step (n : Nat) (constant : PlainAdder.Word n.succ)
@@ -869,7 +774,7 @@ basis label; the source is the dirty work and is never initialized. -/
 
 /-- The actual X/CNOT/Toffoli R.0 circuit on the aliased HRS core. -/
 abbrev literalR0Program (n : Nat) (constant : PlainAdder.Word n.succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding n).width) :=
+    CircuitOf (literalR0Encoding n) :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram n constant
 
 /-- The wire-identical R.0 program realizes the aliased core transition. -/
@@ -886,11 +791,15 @@ theorem literalR0Program_realizes (n : Nat)
     simp [literalR0Step]
   change (MAU.Addition.DirtyBorrowed.straightforwardProgram n constant).applyNormalized
       (NormalizedVector.ket
-        ((MAU.Addition.DirtyBorrowed.straightforwardEncoding n).encode
-          (literalR0StateEquiv n state))) =
+        ((QubitLayout.canonical
+          (MAU.Addition.DirtyBorrowed.straightforwardEncoding n).width).basisEquiv.symm
+          ((MAU.Addition.DirtyBorrowed.straightforwardEncoding n).encode
+            (literalR0StateEquiv n state)))) =
     NormalizedVector.ket
-      ((MAU.Addition.DirtyBorrowed.straightforwardEncoding n).encode
-        (literalR0StateEquiv n (literalR0Step n constant state)))
+      ((QubitLayout.canonical
+        (MAU.Addition.DirtyBorrowed.straightforwardEncoding n).width).basisEquiv.symm
+        ((MAU.Addition.DirtyBorrowed.straightforwardEncoding n).encode
+          (literalR0StateEquiv n (literalR0Step n constant state))))
   rw [hstep]
   exact (MAU.Addition.DirtyBorrowed.straightforwardProgram_realizes n constant).apply_encoded_ket
     (literalR0StateEquiv n state)
@@ -898,14 +807,14 @@ theorem literalR0Program_realizes (n : Nat)
 /-- Exact Toffoli count of the aliased R.0 program. -/
 theorem literalR0Program_toffoli_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalR0Program n constant).eventCost = 2 * n * (n - 1) :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram_toffoli_count_eq n constant
 
 /-- Exact CNOT count of the same aliased R.0 program. -/
 theorem literalR0Program_cnot_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalR0Program n constant).eventCost =
       MAU.Addition.DirtyBorrowed.highCnotClosedForm constant n :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram_cnot_count_eq n constant
@@ -913,7 +822,7 @@ theorem literalR0Program_cnot_count_eq (n : Nat)
 /-- Exact X count of the same aliased R.0 program. -/
 theorem literalR0Program_x_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (literalR0Program n constant).eventCost =
       MAU.Addition.DirtyBorrowed.highXClosedForm constant n +
         MAU.Addition.DirtyBorrowed.constantBitMultiplicity constant 0 :=
@@ -1926,15 +1835,17 @@ theorem selectedLowerCarryGates_eventTrace_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     (selectedLowerCarryGates tail pivot constant bit).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.DirtyBorrowed.straightforwardCarryGates
-        tail constant bit).map EncodedBit.GateSpec.event := by
+        tail constant bit).map (EncodedBit.GateSpec.event .empty) := by
   match bit with
   | ⟨0, hbit⟩ =>
       by_cases hc : constant.val.testBit 0
       · simp [selectedLowerCarryGates,
           MAU.Addition.DirtyBorrowed.straightforwardCarryGates,
-          EncodedBit.GateSpec.event, hc]
+          EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
+          QubitPrimitive.event, QubitPrimitive.nativeToken,
+          hc]
       · simp [selectedLowerCarryGates,
           MAU.Addition.DirtyBorrowed.straightforwardCarryGates,
           hc]
@@ -1945,10 +1856,14 @@ theorem selectedLowerCarryGates_eventTrace_eq (tail : Nat)
       by_cases hc : constant.val.testBit (index + 1)
       · simp [selectedLowerCarryGates,
           MAU.Addition.DirtyBorrowed.straightforwardCarryGates,
-          EncodedBit.GateSpec.event, previous, hc, ih]
+          EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
+          QubitPrimitive.event, QubitPrimitive.nativeToken,
+          previous, hc, ih]
       · simp [selectedLowerCarryGates,
           MAU.Addition.DirtyBorrowed.straightforwardCarryGates,
-          EncodedBit.GateSpec.event, previous, hc, ih]
+          EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
+          QubitPrimitive.event, QubitPrimitive.nativeToken,
+          previous, hc, ih]
 termination_by bit.val
 decreasing_by omega
 
@@ -2039,8 +1954,8 @@ theorem stepList_get_of_forall_bitDisjoint
 /-- Actual compiled lower carry-prefix circuit. -/
 def selectedLowerCarryProgram (tail : Nat) (pivot : Fin tail.succ)
     (constant : PlainAdder.Word tail.succ) (bit : Fin tail) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (selectedLowerCarryGates tail pivot constant bit)
 
 /-- The compiled prefix realizes its literal folded encoded-bit action. -/
@@ -2051,17 +1966,17 @@ theorem selectedLowerCarryProgram_realizes (tail : Nat)
       (selectedLowerCarryProgram tail pivot constant bit)
       (EncodedBit.GateSpec.stepList
         (selectedLowerCarryGates tail pivot constant bit)) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (selectedLowerCarryGates tail pivot constant bit)
 
 /-- Exact Toffoli count of the actual selector-excluding carry prefix. -/
 theorem selectedLowerCarryProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (selectedLowerCarryProgram tail pivot constant bit).eventCost =
       2 * bit.val := by
-  rw [selectedLowerCarryProgram,
+  rw [selectedLowerCarryProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   calc
     ((selectedLowerCarryGates tail pivot constant bit).map
@@ -2079,11 +1994,11 @@ theorem selectedLowerCarryProgram_toffoli_count_eq (tail : Nat)
 theorem selectedLowerCarryProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (selectedLowerCarryProgram tail pivot constant bit).eventCost =
       MAU.Addition.DirtyBorrowed.carryCnotClosedForm
         constant (bit.val + 1) := by
-  rw [selectedLowerCarryProgram,
+  rw [selectedLowerCarryProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   calc
     ((selectedLowerCarryGates tail pivot constant bit).map
@@ -2102,10 +2017,10 @@ theorem selectedLowerCarryProgram_cnot_count_eq (tail : Nat)
 theorem selectedLowerCarryProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (selectedLowerCarryProgram tail pivot constant bit).eventCost =
       MAU.Addition.DirtyBorrowed.carryXClosedForm constant bit.val := by
-  rw [selectedLowerCarryProgram,
+  rw [selectedLowerCarryProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   calc
     ((selectedLowerCarryGates tail pivot constant bit).map
@@ -2290,8 +2205,8 @@ def sourceControlledOutputBitStep (tail : Nat)
 def sourceControlledOutputBitProgram (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (sourceControlledOutputBitGates tail pivot constant bit)
 
 /-- The compiled output-bit circuit realizes its folded encoded-bit action. -/
@@ -2301,14 +2216,14 @@ theorem sourceControlledOutputBitProgram_realizes (tail : Nat)
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
       (sourceControlledOutputBitProgram tail pivot constant bit)
       (sourceControlledOutputBitStep tail pivot constant bit) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (sourceControlledOutputBitGates tail pivot constant bit)
 
 /-- Exact Toffoli count of one source-controlled output-bit block. -/
 theorem sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (sourceControlledOutputBitProgram tail pivot constant bit).eventCost =
       4 * bit.val + 2 := by
   have hcarry :
@@ -2317,7 +2232,7 @@ theorem sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     rw [← EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
     exact selectedLowerCarryProgram_toffoli_count_eq
       tail pivot constant bit
-  rw [sourceControlledOutputBitProgram,
+  rw [sourceControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   unfold sourceControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -2327,7 +2242,7 @@ theorem sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
 theorem sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (sourceControlledOutputBitProgram tail pivot constant bit).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryCnotClosedForm
           constant (bit.val + 1) +
@@ -2341,7 +2256,7 @@ theorem sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     rw [← EncodedBit.GateSpec.programList_cnot_count_eq_sum]
     exact selectedLowerCarryProgram_cnot_count_eq
       tail pivot constant bit
-  rw [sourceControlledOutputBitProgram,
+  rw [sourceControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   unfold sourceControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -2352,7 +2267,7 @@ theorem sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
 theorem sourceControlledOutputBitProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (sourceControlledOutputBitProgram tail pivot constant bit).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryXClosedForm constant bit.val := by
   have hcarry :
@@ -2361,7 +2276,7 @@ theorem sourceControlledOutputBitProgram_x_count_eq (tail : Nat)
         MAU.Addition.DirtyBorrowed.carryXClosedForm constant bit.val := by
     rw [← EncodedBit.GateSpec.programList_x_count_eq_sum]
     exact selectedLowerCarryProgram_x_count_eq tail pivot constant bit
-  rw [sourceControlledOutputBitProgram,
+  rw [sourceControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   unfold sourceControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -2432,6 +2347,73 @@ def sourceControlledAdderGates (tail : Nat) (pivot : Fin tail.succ)
     List (EncodedBit.GateSpec (literalR0Encoding tail.succ)) :=
   sourceControlledHighGates tail pivot constant tail le_rfl ++
     sourceControlledLowGates tail pivot constant
+
+/-- Every gate in one non-low source-controlled output block is disjoint from
+the comparison flag.  This lets a surrounding construction borrow that flag
+as arbitrary dirty work while adding one further control to the block. -/
+theorem sourceControlledOutputBitGates_forall_bitDisjoint_flag (tail : Nat)
+    (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
+    (bit : Fin tail) :
+    (sourceControlledOutputBitGates tail pivot constant bit).Forall
+      (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
+  have hcarry := selectedLowerCarryGates_forall_bitDisjoint_flag
+    tail pivot constant bit
+  have hreverse :
+      (selectedLowerCarryGates tail pivot constant bit).reverse.Forall
+        (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
+    apply List.forall_iff_forall_mem.mpr
+    intro gate present
+    exact List.forall_iff_forall_mem.mp hcarry gate
+      (List.mem_reverse.mp present)
+  by_cases hc : constant.val.testBit (bit.val + 1) = true
+  <;> simp [sourceControlledOutputBitGates, hcarry, hreverse, hc,
+    EncodedBit.GateSpec.bitDisjoint,
+    literalSelectedSourceBit_wire_ne_flag,
+    literalCarryDirtyBit_wire_ne_flag,
+    literalTargetBit_wire_ne_flag]
+
+/-- The whole high-to-low controlled output sweep avoids the comparison flag. -/
+theorem sourceControlledHighGates_forall_bitDisjoint_flag (tail : Nat)
+    (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
+    (count : Nat) (hcount : count ≤ tail) :
+    (sourceControlledHighGates tail pivot constant count hcount).Forall
+      (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
+  induction count with
+  | zero => simp [sourceControlledHighGates]
+  | succ count ih =>
+      rw [show sourceControlledHighGates tail pivot constant
+            (count + 1) hcount =
+          sourceControlledOutputBitGates tail pivot constant
+              ⟨count, by omega⟩ ++
+            sourceControlledHighGates tail pivot constant count
+              (by omega) by rfl]
+      rw [List.forall_append]
+      exact ⟨sourceControlledOutputBitGates_forall_bitDisjoint_flag
+          tail pivot constant ⟨count, by omega⟩,
+        ih (by omega)⟩
+
+/-- The final controlled low-bit gate also avoids the comparison flag. -/
+theorem sourceControlledLowGates_forall_bitDisjoint_flag (tail : Nat)
+    (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
+    (sourceControlledLowGates tail pivot constant).Forall
+      (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
+  by_cases hc : constant.val.testBit 0
+  <;> simp [sourceControlledLowGates, hc,
+    EncodedBit.GateSpec.bitDisjoint,
+    literalSelectedSourceBit_wire_ne_flag,
+    literalTargetBit_wire_ne_flag]
+
+/-- The complete source-controlled fixed-width adder never touches the
+comparison flag. -/
+theorem sourceControlledAdderGates_forall_bitDisjoint_flag (tail : Nat)
+    (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
+    (sourceControlledAdderGates tail pivot constant).Forall
+      (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
+  rw [sourceControlledAdderGates, List.forall_append]
+  exact ⟨sourceControlledHighGates_forall_bitDisjoint_flag
+      tail pivot constant tail le_rfl,
+    sourceControlledLowGates_forall_bitDisjoint_flag
+      tail pivot constant⟩
 
 /-- Closed CNOT coordinate of the non-low controlled output sweep. -/
 def sourceControlledHighCnotClosedForm {width : Nat}
@@ -2524,8 +2506,8 @@ def sourceControlledAdderStep (tail : Nat) (pivot : Fin tail.succ)
 /-- Actual X/CNOT/Toffoli source-controlled fixed-width adder. -/
 def sourceControlledAdderProgram (tail : Nat) (pivot : Fin tail.succ)
     (constant : PlainAdder.Word tail.succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (sourceControlledAdderGates tail pivot constant)
 
 /-- The compiled controlled adder realizes its folded encoded-bit action. -/
@@ -2534,16 +2516,16 @@ theorem sourceControlledAdderProgram_realizesFoldedStep (tail : Nat)
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
       (sourceControlledAdderProgram tail pivot constant)
       (sourceControlledAdderStep tail pivot constant) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (sourceControlledAdderGates tail pivot constant)
 
 /-- Exact Toffoli count of the complete source-controlled adder. -/
 theorem sourceControlledAdderProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
       2 * tail * tail := by
-  rw [sourceControlledAdderProgram,
+  rw [sourceControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [sourceControlledAdderGates, sourceControlledLowGates, hc,
@@ -2552,11 +2534,11 @@ theorem sourceControlledAdderProgram_toffoli_count_eq (tail : Nat)
 /-- Exact CNOT count of the complete source-controlled adder. -/
 theorem sourceControlledAdderProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
       sourceControlledHighCnotClosedForm constant tail +
         MAU.Addition.DirtyBorrowed.constantBitMultiplicity constant 0 := by
-  rw [sourceControlledAdderProgram,
+  rw [sourceControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [sourceControlledAdderGates, sourceControlledLowGates, hc,
@@ -2566,10 +2548,10 @@ theorem sourceControlledAdderProgram_cnot_count_eq (tail : Nat)
 /-- Exact X count of the complete source-controlled adder. -/
 theorem sourceControlledAdderProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
       sourceControlledHighXClosedForm constant tail := by
-  rw [sourceControlledAdderProgram,
+  rw [sourceControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [sourceControlledAdderGates, sourceControlledLowGates, hc,
@@ -3197,8 +3179,8 @@ theorem flagControlledOutputBitGates_step (tail : Nat)
 def flagControlledOutputBitProgram (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (flagControlledOutputBitGates tail pivot constant bit)
 
 /-- The flag-controlled output circuit realizes its literal folded action. -/
@@ -3209,14 +3191,14 @@ theorem flagControlledOutputBitProgram_realizes (tail : Nat)
       (flagControlledOutputBitProgram tail pivot constant bit)
       (EncodedBit.GateSpec.stepList
         (flagControlledOutputBitGates tail pivot constant bit)) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (flagControlledOutputBitGates tail pivot constant bit)
 
 /-- Exact Toffoli count of one flag-controlled output bit. -/
 theorem flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (flagControlledOutputBitProgram tail pivot constant bit).eventCost =
       4 * bit.val + 2 := by
   have hcarry :
@@ -3225,7 +3207,7 @@ theorem flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     rw [← EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
     exact selectedLowerCarryProgram_toffoli_count_eq
       tail pivot constant bit
-  rw [flagControlledOutputBitProgram,
+  rw [flagControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   unfold flagControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -3235,7 +3217,7 @@ theorem flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
 theorem flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (flagControlledOutputBitProgram tail pivot constant bit).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryCnotClosedForm
           constant (bit.val + 1) +
@@ -3249,7 +3231,7 @@ theorem flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     rw [← EncodedBit.GateSpec.programList_cnot_count_eq_sum]
     exact selectedLowerCarryProgram_cnot_count_eq
       tail pivot constant bit
-  rw [flagControlledOutputBitProgram,
+  rw [flagControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   unfold flagControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -3260,7 +3242,7 @@ theorem flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
 theorem flagControlledOutputBitProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (flagControlledOutputBitProgram tail pivot constant bit).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryXClosedForm constant bit.val := by
   have hcarry :
@@ -3269,7 +3251,7 @@ theorem flagControlledOutputBitProgram_x_count_eq (tail : Nat)
         MAU.Addition.DirtyBorrowed.carryXClosedForm constant bit.val := by
     rw [← EncodedBit.GateSpec.programList_x_count_eq_sum]
     exact selectedLowerCarryProgram_x_count_eq tail pivot constant bit
-  rw [flagControlledOutputBitProgram,
+  rw [flagControlledOutputBitProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   unfold flagControlledOutputBitGates
   by_cases hc : constant.val.testBit (bit.val + 1) <;>
@@ -3410,8 +3392,8 @@ def flagControlledAdderStep (tail : Nat) (pivot : Fin tail.succ)
 /-- Actual clean-flag-controlled X/CNOT/Toffoli constant adder. -/
 def flagControlledAdderProgram (tail : Nat) (pivot : Fin tail.succ)
     (constant : PlainAdder.Word tail.succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (flagControlledAdderGates tail pivot constant)
 
 /-- The compiled flag-controlled adder realizes its folded action. -/
@@ -3420,16 +3402,16 @@ theorem flagControlledAdderProgram_realizesFoldedStep (tail : Nat)
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
       (flagControlledAdderProgram tail pivot constant)
       (flagControlledAdderStep tail pivot constant) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (flagControlledAdderGates tail pivot constant)
 
 /-- Exact Toffoli count of the complete flag-controlled adder. -/
 theorem flagControlledAdderProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (flagControlledAdderProgram tail pivot constant).eventCost =
       2 * tail * tail := by
-  rw [flagControlledAdderProgram,
+  rw [flagControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [flagControlledAdderGates, flagControlledLowGates, hc,
@@ -3438,11 +3420,11 @@ theorem flagControlledAdderProgram_toffoli_count_eq (tail : Nat)
 /-- Exact CNOT count of the complete flag-controlled adder. -/
 theorem flagControlledAdderProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (flagControlledAdderProgram tail pivot constant).eventCost =
       sourceControlledHighCnotClosedForm constant tail +
         MAU.Addition.DirtyBorrowed.constantBitMultiplicity constant 0 := by
-  rw [flagControlledAdderProgram,
+  rw [flagControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [flagControlledAdderGates, flagControlledLowGates, hc,
@@ -3452,10 +3434,10 @@ theorem flagControlledAdderProgram_cnot_count_eq (tail : Nat)
 /-- Exact X count of the complete flag-controlled adder. -/
 theorem flagControlledAdderProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (flagControlledAdderProgram tail pivot constant).eventCost =
       sourceControlledHighXClosedForm constant tail := by
-  rw [flagControlledAdderProgram,
+  rw [flagControlledAdderProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   by_cases hc : constant.val.testBit 0 <;>
     simp [flagControlledAdderGates, flagControlledLowGates, hc,
@@ -4180,8 +4162,8 @@ theorem selectedTerminalCarryGates_step (interior : Nat)
 def selectedTerminalCarryProgram (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding (interior + 2).succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding (interior + 2).succ) :=
+  programOf
     (selectedTerminalCarryGates interior pivot constant)
 
 /-- The compiled terminal list realizes its folded base-gate action. -/
@@ -4192,7 +4174,7 @@ theorem selectedTerminalCarryProgram_realizes (interior : Nat)
       (selectedTerminalCarryProgram interior pivot constant)
       (EncodedBit.GateSpec.stepList
         (selectedTerminalCarryGates interior pivot constant)) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (selectedTerminalCarryGates interior pivot constant)
 
 /-- The selected terminal block uses four Toffolis when the highest constant
@@ -4200,10 +4182,10 @@ bit is zero and six when it is one. -/
 theorem selectedTerminalCarryProgram_toffoli_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (selectedTerminalCarryProgram interior pivot constant).eventCost =
       if constant.val.testBit (interior + 2) then 6 else 4 := by
-  rw [selectedTerminalCarryProgram,
+  rw [selectedTerminalCarryProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   exact selectedTerminalCarryGates_toffoliMultiplicity_sum
     interior pivot constant
@@ -4212,9 +4194,9 @@ theorem selectedTerminalCarryProgram_toffoli_count_eq (interior : Nat)
 theorem selectedTerminalCarryProgram_cnot_count_eq_zero (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (selectedTerminalCarryProgram interior pivot constant).eventCost = 0 := by
-  rw [selectedTerminalCarryProgram,
+  rw [selectedTerminalCarryProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   exact selectedTerminalCarryGates_cnotMultiplicity_sum
     interior pivot constant
@@ -4223,9 +4205,9 @@ theorem selectedTerminalCarryProgram_cnot_count_eq_zero (interior : Nat)
 theorem selectedTerminalCarryProgram_x_count_eq_zero (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (selectedTerminalCarryProgram interior pivot constant).eventCost = 0 := by
-  rw [selectedTerminalCarryProgram,
+  rw [selectedTerminalCarryProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   exact selectedTerminalCarryGates_xMultiplicity_sum
     interior pivot constant
@@ -4635,8 +4617,8 @@ theorem selectedCarryIntoFlagStep_comparison (interior threshold : Nat)
 def selectedCarryIntoFlagProgram (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding (interior + 2).succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding (interior + 2).succ) :=
+  programOf
     (selectedCarryIntoFlagGates interior pivot constant)
 
 /-- The compiled circuit realizes the same folded basis action used by the
@@ -4647,14 +4629,14 @@ theorem selectedCarryIntoFlagProgram_realizes (interior : Nat)
     UnitaryCircuit.Realizes (literalR0Encoding (interior + 2).succ)
       (selectedCarryIntoFlagProgram interior pivot constant)
       (selectedCarryIntoFlagStep interior pivot constant) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (selectedCarryIntoFlagGates interior pivot constant)
 
 /-- Exact Toffoli coordinate of the complete compute-copy-uncompute block. -/
 theorem selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (selectedCarryIntoFlagProgram interior pivot constant).eventCost =
       4 * (interior + 1) +
         if constant.val.testBit (interior + 2) then 13 else 8 := by
@@ -4689,7 +4671,7 @@ theorem selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
         if constant.val.testBit (interior + 2) then 1 else 0 := by
     exact selectedCarryIntoFlagCorrectionGates_toffoliMultiplicity_sum
       interior pivot constant
-  rw [selectedCarryIntoFlagProgram,
+  rw [selectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   change ((lower ++ terminal ++ lower.reverse ++ terminal ++ correction).map
     EncodedBit.GateSpec.toffoliMultiplicity).sum = _
@@ -4703,7 +4685,7 @@ theorem selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
 theorem selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (selectedCarryIntoFlagProgram interior pivot constant).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryCnotClosedForm
         constant (interior + 2) := by
@@ -4739,7 +4721,7 @@ theorem selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
       (correction.map EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
     exact selectedCarryIntoFlagCorrectionGates_cnotMultiplicity_sum
       interior pivot constant
-  rw [selectedCarryIntoFlagProgram,
+  rw [selectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   change ((lower ++ terminal ++ lower.reverse ++ terminal ++ correction).map
     EncodedBit.GateSpec.cnotMultiplicity).sum = _
@@ -4753,7 +4735,7 @@ theorem selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
 theorem selectedCarryIntoFlagProgram_x_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (selectedCarryIntoFlagProgram interior pivot constant).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryXClosedForm
         constant (interior + 1) := by
@@ -4788,7 +4770,7 @@ theorem selectedCarryIntoFlagProgram_x_count_eq (interior : Nat)
       (correction.map EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
     exact selectedCarryIntoFlagCorrectionGates_xMultiplicity_sum
       interior pivot constant
-  rw [selectedCarryIntoFlagProgram,
+  rw [selectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   change ((lower ++ terminal ++ lower.reverse ++ terminal ++ correction).map
     EncodedBit.GateSpec.xMultiplicity).sum = _
@@ -4893,24 +4875,11 @@ def literalControlledModularAddPerm (interior : Nat)
   literalGateListPerm (interior + 2).succ
     (literalControlledModularAddGates interior pivot modulus addend)
 
-/-- Actual typed HRS circuit owning the modular-add gate schedule and its
-resource trace. -/
+/-- Actual HRS circuit owning the modular-add gate schedule and its resource trace. -/
 def literalControlledModularAddCircuit (interior : Nat)
     (pivot : Fin (interior + 2).succ) (modulus addend : Nat) :
-    UnitaryCircuit
-      (register (interior + 2).succ
-        (LiteralBorrowed (interior + 2).succ)) :=
-  literalGateListCircuit (interior + 2).succ
-    (literalControlledModularAddGates interior pivot modulus addend)
-
-/-- Exact operator certificate of the literal modular-add circuit on every
-physical basis label. -/
-theorem literalControlledModularAddCircuit_matrix_eq (interior : Nat)
-    (pivot : Fin (interior + 2).succ) (modulus addend : Nat) :
-    (literalControlledModularAddCircuit interior pivot modulus addend).matrix =
-      UnitaryOperator.ofPerm
-        (literalControlledModularAddPerm interior pivot modulus addend).symm :=
-  literalGateListCircuit_matrix_eq (interior + 2).succ
+    CircuitOf (literalR0Encoding (interior + 2).succ) :=
+  programOf
     (literalControlledModularAddGates interior pivot modulus addend)
 
 /-- The HRS overflow threshold is equivalent to the reduced sum lying below
@@ -5462,15 +5431,15 @@ coordinate, derived from the same compiled gate list. -/
 theorem literalControlledModularAddCircuit_toffoli_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalControlledModularAddCircuit
           interior pivot modulus addend).eventCost =
       literalControlledModularAddToffoliCount interior modulus addend := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (programOf
         (literalControlledModularAddGates
           interior pivot modulus addend)).eventCost = _
-  rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  rw [programOf, EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   unfold literalControlledModularAddGates
     literalControlledModularAddCoreGates
     literalControlledModularAddClearGates
@@ -5493,15 +5462,15 @@ coordinate, including the sole nonzero-addend source-to-flag CNOT. -/
 theorem literalControlledModularAddCircuit_cnot_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalControlledModularAddCircuit
           interior pivot modulus addend).eventCost =
       literalControlledModularAddCnotCount interior modulus addend := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+      (programOf
         (literalControlledModularAddGates
           interior pivot modulus addend)).eventCost = _
-  rw [EncodedBit.GateSpec.programList_cnot_count_eq_sum]
+  rw [programOf, EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   unfold literalControlledModularAddGates
     literalControlledModularAddCoreGates
     literalControlledModularAddClearGates
@@ -5523,15 +5492,15 @@ coordinate, including both optional flag-clear branches. -/
 theorem literalControlledModularAddCircuit_x_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (literalControlledModularAddCircuit
           interior pivot modulus addend).eventCost =
       literalControlledModularAddXCount interior modulus addend := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+      (programOf
         (literalControlledModularAddGates
           interior pivot modulus addend)).eventCost = _
-  rw [EncodedBit.GateSpec.programList_x_count_eq_sum]
+  rw [programOf, EncodedBit.GateSpec.programList_x_count_eq_sum]
   unfold literalControlledModularAddGates
     literalControlledModularAddCoreGates
     literalControlledModularAddClearGates
@@ -5591,18 +5560,10 @@ def literalControlledModularAdd
       (params.signedStageConstant subtract bit) state) = borrowed state
     exact literalControlledModularAddStep_borrowed interior bit params.modulus
       (params.signedStageConstant subtract bit) state
-  circuit := literalControlledModularAddCircuit interior bit params.modulus
-    (params.signedStageConstant subtract bit)
-  matrix_eq := literalControlledModularAddCircuit_matrix_eq interior bit
-    params.modulus (params.signedStageConstant subtract bit)
   toffoli_count := literalControlledModularAddToffoliCount interior
     params.modulus (params.signedStageConstant subtract bit)
   cnot_count := literalControlledModularAddCnotCount interior
     params.modulus (params.signedStageConstant subtract bit)
-  toffoli_exact := literalControlledModularAddCircuit_toffoli_count_eq
-    interior bit params.modulus (params.signedStageConstant subtract bit)
-  cnot_exact := literalControlledModularAddCircuit_cnot_count_eq
-    interior bit params.modulus (params.signedStageConstant subtract bit)
 
 /-! ## Literal unselected carry extraction -/
 
@@ -5635,8 +5596,8 @@ def unselectedCarryIntoFlagStep (tail : Nat)
 /-- Actual X/CNOT/Toffoli circuit for the unselected carry extractor. -/
 def unselectedCarryIntoFlagProgram (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
-    UnitaryCircuit (Qubits (literalR0Encoding tail.succ).width) :=
-  EncodedBit.GateSpec.programList
+    CircuitOf (literalR0Encoding tail.succ) :=
+  programOf
     (unselectedCarryIntoFlagGates tail constant)
 
 /-- Relabelling only conjugates the source dirty-carry step by the literal HRS
@@ -5757,15 +5718,15 @@ theorem unselectedCarryIntoFlagProgram_realizes (tail : Nat)
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
       (unselectedCarryIntoFlagProgram tail constant)
       (unselectedCarryIntoFlagStep tail constant) :=
-  EncodedBit.GateSpec.realizesList
+  realizesProgramOf
     (unselectedCarryIntoFlagGates tail constant)
 
 /-- Exact Toffoli coordinate of the literal full-width carry extractor. -/
 theorem unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (unselectedCarryIntoFlagProgram tail constant).eventCost = 4 * tail := by
-  rw [unselectedCarryIntoFlagProgram,
+  rw [unselectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   calc
     ((unselectedCarryIntoFlagGates tail constant).map
@@ -5775,7 +5736,7 @@ theorem unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
             EncodedBit.GateSpec.toffoliMultiplicity).sum := by
       apply EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
       exact EncodedBit.GateSpec.map_event_relabel
-        (literalR0StateEquiv tail.succ) _
+        .empty (literalR0StateEquiv tail.succ) _
     _ = 4 * tail := by
       simpa using
         (MAU.Addition.DirtyBorrowed.straightforwardOutputBitGates_toffoliMultiplicity_sum
@@ -5785,11 +5746,11 @@ theorem unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
 /-- Exact CNOT coordinate of the same carry extractor. -/
 theorem unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (unselectedCarryIntoFlagProgram tail constant).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryCnotClosedForm
           (unselectedCarryConstant tail constant) tail.succ + 2 := by
-  rw [unselectedCarryIntoFlagProgram,
+  rw [unselectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   calc
     ((unselectedCarryIntoFlagGates tail constant).map
@@ -5799,7 +5760,7 @@ theorem unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
             EncodedBit.GateSpec.cnotMultiplicity).sum := by
       apply EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
       exact EncodedBit.GateSpec.map_event_relabel
-        (literalR0StateEquiv tail.succ) _
+        .empty (literalR0StateEquiv tail.succ) _
     _ = 2 * MAU.Addition.DirtyBorrowed.carryCnotClosedForm
           (unselectedCarryConstant tail constant) tail.succ + 2 := by
       simpa using
@@ -5810,11 +5771,11 @@ theorem unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
 /-- Exact X coordinate of the same carry extractor. -/
 theorem unselectedCarryIntoFlagProgram_x_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (unselectedCarryIntoFlagProgram tail constant).eventCost =
       2 * MAU.Addition.DirtyBorrowed.carryXClosedForm
           (unselectedCarryConstant tail constant) tail := by
-  rw [unselectedCarryIntoFlagProgram,
+  rw [unselectedCarryIntoFlagProgram, programOf,
     EncodedBit.GateSpec.programList_x_count_eq_sum]
   calc
     ((unselectedCarryIntoFlagGates tail constant).map
@@ -5824,7 +5785,7 @@ theorem unselectedCarryIntoFlagProgram_x_count_eq (tail : Nat)
             EncodedBit.GateSpec.xMultiplicity).sum := by
       apply EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
       exact EncodedBit.GateSpec.map_event_relabel
-        (literalR0StateEquiv tail.succ) _
+        .empty (literalR0StateEquiv tail.succ) _
     _ = 2 * MAU.Addition.DirtyBorrowed.carryXClosedForm
           (unselectedCarryConstant tail constant) tail := by
       rw [MAU.Addition.DirtyBorrowed.straightforwardOutputBitGates_xMultiplicity_sum]
@@ -5841,8 +5802,8 @@ def literalSwapGates (n : Nat) :
 
 /-- The standard three-CNOT-per-bit physical HRS word swap. -/
 def literalSwapProgram (n : Nat) :
-    UnitaryCircuit (Qubits (literalSwapEncoding n).width) :=
-  EncodedBit.GateSpec.programList (literalSwapGates n)
+    CircuitOf (literalSwapEncoding n) :=
+  programOf (literalSwapGates n)
 
 /-- The folded semantic action of the actual literal word-swap circuit. -/
 def literalSwapStep (n : Nat) :
@@ -5920,8 +5881,7 @@ theorem literalSwapStep_swaps (n : Nat) (state : State n (LiteralBorrowed n)) :
 theorem literalSwapProgram_realizes (n : Nat) :
     UnitaryCircuit.Realizes (literalSwapEncoding n) (literalSwapProgram n)
       (literalSwapStep n) :=
-  EncodedBit.Word.swap_realizes (literalSourceWord n) (literalTargetWord n)
-    (literalSourceTargetBit_wire_ne n)
+  realizesProgramOf (literalSwapGates n)
 
 /-- Basis-state endpoint of the actual three-CNOT word-swap circuit in the
 HRS carrier, including exact preservation of the borrowed label. -/
@@ -5934,49 +5894,28 @@ theorem literalSwapProgram_realizes_standard (n : Nat) :
 
 /-- Exact native CNOT coordinate of the standard physical word swap. -/
 theorem literalSwapProgram_cnot_count_eq (n : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalSwapProgram n).eventCost = 3 * n := by
-  simpa only [literalSwapProgram, literalSwapGates,
-    EncodedBit.Word.swapCircuit, EncodedBit.Word.swapProgram] using
-    (EncodedBit.Word.swapCircuit_cnot_eventCount
-      (literalSourceWord n) (literalTargetWord n)
-      (literalSourceTargetBit_wire_ne n))
+  rw [literalSwapProgram, programOf,
+    EncodedBit.GateSpec.programList_cnot_count_eq_sum]
+  exact EncodedBit.Word.swapGates_cnotMultiplicity_sum
+    (literalSourceWord n) (literalTargetWord n)
+    (literalSourceTargetBit_wire_ne n)
 
 /-- The standard physical word swap contains no Toffoli leaves. -/
 theorem literalSwapProgram_toffoli_count_eq (n : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalSwapProgram n).eventCost = 0 := by
-  have hwire : ∀ bit : Fin n,
-      ((literalSourceWord n).bit bit).wire ≠
-        ((literalTargetWord n).bit bit).wire := by
-    intro bit
-    exact literalSourceTargetBit_wire_ne n bit
-  have hcount :
-      ResourcePool.count (.gate (.builtin "toffoli"))
-          (EncodedBit.Word.swapProgram (literalSourceWord n)
-            (literalTargetWord n) hwire).eventCost = 0 := by
-    rw [EncodedBit.Word.swapProgram,
-      EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
-    exact EncodedBit.Word.swapGates_toffoliMultiplicity_sum
-      (literalSourceWord n) (literalTargetWord n) hwire
-  simpa only [literalSwapProgram, literalSwapGates,
-    EncodedBit.Word.swapProgram] using hcount
+  rw [literalSwapProgram, programOf,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  exact EncodedBit.Word.swapGates_toffoliMultiplicity_sum
+    (literalSourceWord n) (literalTargetWord n)
+    (literalSourceTargetBit_wire_ne n)
 
 /-- Total permutation of the literal word-swap gate list. -/
 def literalWordSwapPerm (n : Nat) :
     Equiv.Perm (State n (LiteralBorrowed n)) :=
   literalGateListPerm n (literalSwapGates n)
-
-/-- Typed version of the same literal word-swap circuit. -/
-def literalWordSwapCircuit (n : Nat) :
-    UnitaryCircuit (register n (LiteralBorrowed n)) :=
-  literalGateListCircuit n (literalSwapGates n)
-
-/-- Exact operator certificate for the typed literal word swap. -/
-theorem literalWordSwapCircuit_matrix_eq (n : Nat) :
-    (literalWordSwapCircuit n).matrix =
-      UnitaryOperator.ofPerm (literalWordSwapPerm n).symm :=
-  literalGateListCircuit_matrix_eq n (literalSwapGates n)
 
 /-- Concrete three-CNOT-per-bit `WordSwap` certificate on the literal HRS
 carrier. -/
@@ -5988,30 +5927,10 @@ def literalWordSwap (n : Nat) : WordSwap n (LiteralBorrowed n) where
         ((sourceWord, targetWord), (flag, borrowedWord)) = _
     exact literalSwapStep_swaps n
       ((sourceWord, targetWord), (flag, borrowedWord))
-  circuit := literalWordSwapCircuit n
-  matrix_eq := literalWordSwapCircuit_matrix_eq n
-  toffoli_exact := by
-    change ResourcePool.count (.gate (.builtin "toffoli"))
-      (literalSwapProgram n).eventCost = 0
-    exact literalSwapProgram_toffoli_count_eq n
-  cnot_exact := by
-    change ResourcePool.count (.gate (.builtin "cnot"))
-      (literalSwapProgram n).eventCost = 3 * n
-    exact literalSwapProgram_cnot_count_eq n
 
 namespace WordSwap
 
 variable {n : Nat} {Borrowed : Register}
-
-/-- Basis action of a certified physical word swap. -/
-theorem applyNormalized_ket (swap : WordSwap n Borrowed)
-    (state : State n Borrowed) :
-    swap.circuit.applyNormalized
-        (NormalizedVector.ket (R := register n Borrowed) state) =
-      NormalizedVector.ket (R := register n Borrowed) (swap.perm state) := by
-  change swap.circuit.matrix.apply _ = _
-  rw [swap.matrix_eq, UnitaryOperator.ofPerm_apply_ket]
-  rfl
 
 /-- A certified word swap leaves every borrowed label unchanged. -/
 theorem preserves_borrowed (swap : WordSwap n Borrowed)
@@ -6034,6 +5953,21 @@ def selectedPerm {params : Parameters n} {Borrowed : Register}
   | [] => Equiv.refl _
   | bit :: bits =>
       (implementation bit).perm.trans (selectedPerm implementation bits)
+
+/-- Every selected-stage pass restores the complete borrowed label. -/
+theorem selectedPerm_preserves_borrowed
+    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
+    (implementation : ∀ bit : Fin n,
+      ControlledModularAdd params Borrowed bit subtract) :
+    ∀ (bits : List (Fin n)) (state : State n Borrowed),
+      borrowed (selectedPerm implementation bits state) = borrowed state
+  | [], _ => rfl
+  | bit :: bits, state => by
+      change borrowed
+          (selectedPerm implementation bits
+            ((implementation bit).perm state)) = borrowed state
+      rw [selectedPerm_preserves_borrowed implementation bits,
+        (implementation bit).preserves_borrowed]
 
 /-- Natural contribution selected by one source bit in either accumulation
 pass. -/
@@ -6453,80 +6387,7 @@ theorem selectedTarget_inverse_cancels_product (params : Parameters n)
   rw [Parameters.word_val]
   simpa only [inverseSum, Nat.zero_mod] using htotalMod
 
-/-- Compose the actual certified stage circuits in the same bit order. -/
-def selectedProgram {params : Parameters n} (Borrowed : Register)
-    {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract) :
-    List (Fin n) → UnitaryCircuit (register n Borrowed)
-  | [] => UnitaryCircuit.identity (register n Borrowed) [] (by simp)
-  | bit :: bits =>
-      UnitaryCircuit.seq (implementation bit).circuit
-        (selectedProgram Borrowed implementation bits)
-
-/-- The selected circuit fold acts by the selected permutation fold on every
-basis label, including padding labels. -/
-theorem selectedProgram_applyNormalized_ket
-    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract) :
-    ∀ (bits : List (Fin n)) (state : State n Borrowed),
-      (selectedProgram Borrowed implementation bits).applyNormalized
-          (NormalizedVector.ket (R := register n Borrowed) state) =
-        NormalizedVector.ket (R := register n Borrowed)
-          (selectedPerm implementation bits state)
-  | [], state => by
-      simp [selectedProgram, selectedPerm]
-  | bit :: bits, state => by
-      rw [selectedProgram, UnitaryCircuit.applyNormalized_seq,
-        (implementation bit).applyNormalized_ket,
-        selectedProgram_applyNormalized_ket implementation bits]
-      rfl
-
-/-- Operator equality for an arbitrary certified selected-stage pass. -/
-theorem selectedProgram_matrix_eq
-    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract)
-    (bits : List (Fin n)) :
-    (selectedProgram Borrowed implementation bits).matrix =
-      UnitaryOperator.ofPerm (selectedPerm implementation bits).symm := by
-  apply Subtype.ext
-  apply Matrix.ext
-  intro output input
-  have hcircuit :=
-    selectedProgram_applyNormalized_ket implementation bits input
-  have hperm :
-      (UnitaryOperator.ofPerm
-          (selectedPerm implementation bits).symm).apply
-          (NormalizedVector.ket (R := register n Borrowed) input) =
-        NormalizedVector.ket (R := register n Borrowed)
-          (selectedPerm implementation bits input) := by
-    rw [UnitaryOperator.ofPerm_apply_ket]
-    rfl
-  have heq := hcircuit.trans hperm.symm
-  have hpoint := congrArg
-    (fun state : NormalizedVector (register n Borrowed) => state output) heq
-  simpa [UnitaryCircuit.applyNormalized, UnitaryOperator.apply,
-    UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] using hpoint
-
-/-- Every selected-stage pass restores the complete borrowed label. -/
-theorem selectedPerm_preserves_borrowed
-    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract) :
-    ∀ (bits : List (Fin n)) (state : State n Borrowed),
-      borrowed (selectedPerm implementation bits state) = borrowed state
-  | [], _ => rfl
-  | bit :: bits, state => by
-      change borrowed
-          (selectedPerm implementation bits
-            ((implementation bit).perm state)) = borrowed state
-      rw [selectedPerm_preserves_borrowed implementation bits,
-        (implementation bit).preserves_borrowed]
-
-/-- Exact Toffoli coordinate of a selected-stage pass, expressed as the sum
-of the exact coordinates stored by its actual member circuits. -/
+/-- Exact Toffoli count obtained by summing the certified literal stages. -/
 def selectedToffoliCount {params : Parameters n} {Borrowed : Register}
     {subtract : Bool}
     (implementation : ∀ bit : Fin n,
@@ -6534,79 +6395,13 @@ def selectedToffoliCount {params : Parameters n} {Borrowed : Register}
     (bits : List (Fin n)) : Nat :=
   (bits.map fun bit => (implementation bit).toffoli_count).sum
 
-/-- Exact CNOT coordinate of a selected-stage pass. -/
+/-- Exact CNOT count obtained by summing the certified literal stages. -/
 def selectedCnotCount {params : Parameters n} {Borrowed : Register}
     {subtract : Bool}
     (implementation : ∀ bit : Fin n,
       ControlledModularAdd params Borrowed bit subtract)
     (bits : List (Fin n)) : Nat :=
   (bits.map fun bit => (implementation bit).cnot_count).sum
-
-/-- The folded actual circuit has exactly the summed Toffoli coordinate. -/
-theorem selectedProgram_toffoli_count_eq
-    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract) :
-    ∀ bits : List (Fin n),
-      ResourcePool.count (.gate (.builtin "toffoli"))
-          (selectedProgram Borrowed implementation bits).eventCost =
-        selectedToffoliCount implementation bits
-  | [] => by simp [selectedProgram, selectedToffoliCount]
-  | bit :: bits => by
-      rw [selectedProgram, UnitaryCircuit.seq_eventCost, ResourcePool.count_add,
-        (implementation bit).toffoli_exact,
-        selectedProgram_toffoli_count_eq implementation bits]
-      rfl
-
-/-- The folded actual circuit has exactly the summed CNOT coordinate. -/
-theorem selectedProgram_cnot_count_eq
-    {params : Parameters n} {Borrowed : Register} {subtract : Bool}
-    (implementation : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit subtract) :
-    ∀ bits : List (Fin n),
-      ResourcePool.count (.gate (.builtin "cnot"))
-          (selectedProgram Borrowed implementation bits).eventCost =
-        selectedCnotCount implementation bits
-  | [] => by simp [selectedProgram, selectedCnotCount]
-  | bit :: bits => by
-      rw [selectedProgram, UnitaryCircuit.seq_eventCost, ResourcePool.count_add,
-        (implementation bit).cnot_exact,
-        selectedProgram_cnot_count_eq implementation bits]
-      rfl
-
-/-- Ordered forward selected-add programs, one for each little-endian source
-bit.  Each element is an actual circuit supplied by a future literal HRS
-controlled modular-adder implementation. -/
-def forwardPrograms (params : Parameters n) (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false) :
-    List (UnitaryCircuit (register n Borrowed)) :=
-  List.ofFn fun bit => (forward bit).circuit
-
-/-- Forward repeated-addition program in HRS bit order. -/
-def forwardProgram (params : Parameters n) (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false) :
-    UnitaryCircuit (register n Borrowed) :=
-  selectedProgram Borrowed forward (List.ofFn fun bit : Fin n => bit)
-
-/-- Reverse selected-addition programs.  The list is reversed so the adjoint
-uncompute runs the high bit first, precisely undoing the forward low-to-high
-accumulation after the physical word swap. -/
-def inversePrograms (params : Parameters n) (Borrowed : Register)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true) :
-    List (UnitaryCircuit (register n Borrowed)) :=
-  (List.ofFn fun bit => (inverse bit).circuit).reverse
-
-/-- Reverse repeated-addition program in the HRS compute/swap/uncompute
-construction. -/
-def inverseProgram (params : Parameters n) (Borrowed : Register)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true) :
-    UnitaryCircuit (register n Borrowed) :=
-  selectedProgram Borrowed inverse
-    (List.ofFn fun bit : Fin n => bit).reverse
 
 /-- Total permutation of the forward low-to-high accumulation pass. -/
 def forwardPerm (params : Parameters n) (Borrowed : Register)
@@ -6632,69 +6427,6 @@ def inPlacePerm (params : Parameters n) (Borrowed : Register)
     Equiv.Perm (State n Borrowed) :=
   (forwardPerm params Borrowed forward).trans
     (swap.perm.trans (inversePerm params Borrowed inverse))
-
-/-- The complete HRS program is an actual `UnitaryCircuit.seq` composition of the
-forward selected-adds, the physical word swap, and inverse selected-adds.
-Its resource trace is consequently owned by one circuit tree. -/
-def program (params : Parameters n) (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false)
-    (swap : WordSwap n Borrowed)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true) :
-    UnitaryCircuit (register n Borrowed) :=
-  UnitaryCircuit.seq (forwardProgram params Borrowed forward)
-    (UnitaryCircuit.seq swap.circuit (inverseProgram params Borrowed inverse))
-
-/-- The assembled program acts by its composed certified permutation on every
-basis label. -/
-theorem program_applyNormalized_ket (params : Parameters n)
-    (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false)
-    (swap : WordSwap n Borrowed)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true)
-    (state : State n Borrowed) :
-    (program params Borrowed forward swap inverse).applyNormalized
-        (NormalizedVector.ket (R := register n Borrowed) state) =
-      NormalizedVector.ket (R := register n Borrowed)
-        (inPlacePerm params Borrowed forward swap inverse state) := by
-  rw [program, UnitaryCircuit.applyNormalized_seq,
-    forwardProgram, selectedProgram_applyNormalized_ket,
-    UnitaryCircuit.applyNormalized_seq, swap.applyNormalized_ket,
-    inverseProgram, selectedProgram_applyNormalized_ket]
-  rfl
-
-/-- Exact operator equality of the assembled circuit and its composed total
-permutation. -/
-theorem program_matrix_eq (params : Parameters n) (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false)
-    (swap : WordSwap n Borrowed)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true) :
-    (program params Borrowed forward swap inverse).matrix =
-      UnitaryOperator.ofPerm
-        (inPlacePerm params Borrowed forward swap inverse).symm := by
-  apply Subtype.ext
-  apply Matrix.ext
-  intro output input
-  have hcircuit :=
-    program_applyNormalized_ket params Borrowed forward swap inverse input
-  have hperm :
-      (UnitaryOperator.ofPerm
-          (inPlacePerm params Borrowed forward swap inverse).symm).apply
-          (NormalizedVector.ket (R := register n Borrowed) input) =
-        NormalizedVector.ket (R := register n Borrowed)
-          (inPlacePerm params Borrowed forward swap inverse input) := by
-    rw [UnitaryOperator.ofPerm_apply_ket]
-    rfl
-  have heq := hcircuit.trans hperm.symm
-  have hpoint := congrArg
-    (fun state : NormalizedVector (register n Borrowed) => state output) heq
-  simpa [UnitaryCircuit.applyNormalized, UnitaryOperator.apply,
-    UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] using hpoint
 
 /-- The total assembled permutation restores every borrowed label on the
 entire carrier. -/
@@ -6780,111 +6512,6 @@ theorem literalSwapEncoding_width_eq_coreQubitCount (n : Nat) :
     (literalSwapEncoding n).width = coreQubitCount n := by
   rw [literalSwapEncoding_width, coreQubitCount_eq]
 
-/-- A completed HRS assembly certificate.  Its equality fields bind the
-clean endpoint and exact native coordinates to one actual composed circuit. -/
-structure InPlaceRealization (params : Parameters n) (Borrowed : Register)
-    (forward : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit false)
-    (swap : WordSwap n Borrowed)
-    (inverse : ∀ bit : Fin n,
-      ControlledModularAdd params Borrowed bit true) where
-  /-- Total reversible extension implemented by the assembled circuit. -/
-  perm : Equiv.Perm (State n Borrowed)
-  matrix_eq :
-    (program params Borrowed forward swap inverse).matrix =
-      UnitaryOperator.ofPerm perm.symm
-  /-- The completed compute/swap/uncompute permutation preserves every
-borrowed label, including labels outside the clean computational-basis
-endpoint. -/
-  preserves_borrowed : ∀ state, borrowed (perm state) = borrowed state
-  /-- Clean endpoint required by HRS compute/swap/uncompute. -/
-  clean_endpoint : ∀ sourceWord borrowedWord,
-    sourceWord.val < params.modulus →
-    perm ((sourceWord, params.word 0), (false, borrowedWord)) =
-      ((params.word (params.constant.val * sourceWord.val), params.word 0),
-        (false, borrowedWord))
-  /-- Exact totals for the two literal accumulation passes. -/
-  forward_toffoli : Nat
-  inverse_toffoli : Nat
-  forward_cnot : Nat
-  inverse_cnot : Nat
-  forward_toffoli_exact :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (forwardProgram params Borrowed forward).eventCost = forward_toffoli
-  inverse_toffoli_exact :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (inverseProgram params Borrowed inverse).eventCost = inverse_toffoli
-  forward_cnot_exact :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (forwardProgram params Borrowed forward).eventCost = forward_cnot
-  inverse_cnot_exact :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (inverseProgram params Borrowed inverse).eventCost = inverse_cnot
-
-namespace InPlaceRealization
-
-variable {n : Nat} {params : Parameters n} {Borrowed : Register}
-variable {forward : ∀ bit : Fin n,
-  ControlledModularAdd params Borrowed bit false}
-variable {swap : WordSwap n Borrowed}
-variable {inverse : ∀ bit : Fin n,
-  ControlledModularAdd params Borrowed bit true}
-
-/-- The total assembled program has the exact closed-form Toffoli count from
-its two certified selected-addition passes. -/
-theorem toffoli_count_eq
-    (realization : InPlaceRealization params Borrowed forward swap inverse) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (program params Borrowed forward swap inverse).eventCost =
-      toffoliCount realization.forward_toffoli realization.inverse_toffoli := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      ((forwardProgram params Borrowed forward).eventCost +
-        (swap.circuit.eventCost +
-          (inverseProgram params Borrowed inverse).eventCost)) = _
-  rw [ResourcePool.count_add, ResourcePool.count_add,
-    realization.forward_toffoli_exact, swap.toffoli_exact,
-    realization.inverse_toffoli_exact]
-  simp [toffoliCount]
-
-/-- The total assembled program has the exact closed-form CNOT count from its
-two certified selected-addition passes plus the literal word swap. -/
-theorem cnot_count_eq
-    (realization : InPlaceRealization params Borrowed forward swap inverse) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (program params Borrowed forward swap inverse).eventCost =
-      cnotCount n realization.forward_cnot realization.inverse_cnot := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      ((forwardProgram params Borrowed forward).eventCost +
-        (swap.circuit.eventCost +
-          (inverseProgram params Borrowed inverse).eventCost)) = _
-  rw [ResourcePool.count_add, ResourcePool.count_add,
-    realization.forward_cnot_exact, swap.cnot_exact,
-    realization.inverse_cnot_exact]
-  simp [cnotCount, Nat.add_assoc]
-
-/-- The inverse total permutation also preserves every borrowed label. -/
-theorem preserves_borrowed_symm
-    (realization : InPlaceRealization params Borrowed forward swap inverse)
-    (state : State n Borrowed) :
-    borrowed (realization.perm.symm state) = borrowed state := by
-  have h := realization.preserves_borrowed (realization.perm.symm state)
-  simpa using h.symm
-
-/-- Arbitrary-joint-state amplitude law for a completed HRS assembly.  The
-clean endpoint above is only a corollary; the matrix equality controls every
-borrowed/environment label. -/
-theorem applyVec_arbitrary_joint_state
-    (realization : InPlaceRealization params Borrowed forward swap inverse)
-    (state : HilbertVector (register n Borrowed))
-    (output : State n Borrowed) :
-    (program params Borrowed forward swap inverse).applyVec state output =
-      state (realization.perm.symm output) := by
-  change (program params Borrowed forward swap inverse).matrix.applyVec
-      state output = _
-  rw [realization.matrix_eq, UnitaryOperator.ofPerm_applyVec]
-
-end InPlaceRealization
-
 /-! ## Complete literal HRS multiplier -/
 
 /-- Literal forward modular-add stage on the HRS `2n+1` carrier. -/
@@ -6928,17 +6555,6 @@ def literalInverseCnotCount (interior : Nat)
   selectedCnotCount (literalInverseAdd interior params)
     (List.ofFn fun bit : Fin (interior + 2).succ => bit).reverse
 
-/-- The actual literal HRS compute/swap/uncompute circuit. -/
-def literalInPlaceProgram (interior : Nat)
-    (params : Parameters (interior + 2).succ) :
-    UnitaryCircuit
-      (register (interior + 2).succ
-        (LiteralBorrowed (interior + 2).succ)) :=
-  program params (LiteralBorrowed (interior + 2).succ)
-    (literalForwardAdd interior params)
-    (literalWordSwap (interior + 2).succ)
-    (literalInverseAdd interior params)
-
 /-- Total basis permutation of the literal HRS circuit. -/
 def literalInPlacePerm (interior : Nat)
     (params : Parameters (interior + 2).succ) :
@@ -6950,111 +6566,6 @@ def literalInPlacePerm (interior : Nat)
     (literalWordSwap (interior + 2).succ)
     (literalInverseAdd interior params)
 
-/-- Complete no-sorry realization certificate for the literal HRS in-place
-constant modular multiplier. -/
-def literalInPlaceRealization (interior : Nat)
-    (params : Parameters (interior + 2).succ) :
-    InPlaceRealization params (LiteralBorrowed (interior + 2).succ)
-      (literalForwardAdd interior params)
-      (literalWordSwap (interior + 2).succ)
-      (literalInverseAdd interior params) where
-  perm := literalInPlacePerm interior params
-  matrix_eq := program_matrix_eq params
-    (LiteralBorrowed (interior + 2).succ)
-    (literalForwardAdd interior params)
-    (literalWordSwap (interior + 2).succ)
-    (literalInverseAdd interior params)
-  preserves_borrowed := inPlacePerm_preserves_borrowed params
-    (LiteralBorrowed (interior + 2).succ)
-    (literalForwardAdd interior params)
-    (literalWordSwap (interior + 2).succ)
-    (literalInverseAdd interior params)
-  clean_endpoint := inPlacePerm_clean_endpoint params
-    (LiteralBorrowed (interior + 2).succ)
-    (literalForwardAdd interior params)
-    (literalWordSwap (interior + 2).succ)
-    (literalInverseAdd interior params)
-  forward_toffoli := literalForwardToffoliCount interior params
-  inverse_toffoli := literalInverseToffoliCount interior params
-  forward_cnot := literalForwardCnotCount interior params
-  inverse_cnot := literalInverseCnotCount interior params
-  forward_toffoli_exact := by
-    simpa [forwardProgram, literalForwardToffoliCount] using
-      selectedProgram_toffoli_count_eq
-        (literalForwardAdd interior params)
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit)
-  inverse_toffoli_exact := by
-    simpa [inverseProgram, literalInverseToffoliCount] using
-      selectedProgram_toffoli_count_eq
-        (literalInverseAdd interior params)
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit).reverse
-  forward_cnot_exact := by
-    simpa [forwardProgram, literalForwardCnotCount] using
-      selectedProgram_cnot_count_eq
-        (literalForwardAdd interior params)
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit)
-  inverse_cnot_exact := by
-    simpa [inverseProgram, literalInverseCnotCount] using
-      selectedProgram_cnot_count_eq
-        (literalInverseAdd interior params)
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit).reverse
-
-/-- Exact total-permutation operator certificate of the actual literal
-multiplier circuit. -/
-theorem literalInPlaceProgram_matrix_eq (interior : Nat)
-    (params : Parameters (interior + 2).succ) :
-    (literalInPlaceProgram interior params).matrix =
-      UnitaryOperator.ofPerm (literalInPlacePerm interior params).symm :=
-  (literalInPlaceRealization interior params).matrix_eq
-
-/-- Computational-basis correctness of the actual literal circuit: multiply
-the source in place by the fixed unit modulo `N`, clear the second word, and
-restore the clean flag and zero-qubit environment. -/
-theorem literalInPlaceProgram_applyNormalized_clean_ket (interior : Nat)
-    (params : Parameters (interior + 2).succ)
-    (sourceWord : PlainAdder.Word (interior + 2).succ)
-    (borrowedWord : (LiteralBorrowed (interior + 2).succ).Index)
-    (hsource : sourceWord.val < params.modulus) :
-    (literalInPlaceProgram interior params).applyNormalized
-        (NormalizedVector.ket
-          (R := register (interior + 2).succ
-            (LiteralBorrowed (interior + 2).succ))
-          ((sourceWord, params.word 0), (false, borrowedWord))) =
-      NormalizedVector.ket
-        (R := register (interior + 2).succ
-          (LiteralBorrowed (interior + 2).succ))
-        ((params.word (params.constant.val * sourceWord.val), params.word 0),
-          (false, borrowedWord)) := by
-  rw [literalInPlaceProgram, program_applyNormalized_ket]
-  rw [inPlacePerm_clean_endpoint params
-    (LiteralBorrowed (interior + 2).succ)
-    (literalForwardAdd interior params)
-    (literalWordSwap (interior + 2).succ)
-    (literalInverseAdd interior params) sourceWord borrowedWord hsource]
-
-/-- Exact Toffoli equality projected from the complete literal circuit. -/
-theorem literalInPlaceProgram_toffoli_count_eq (interior : Nat)
-    (params : Parameters (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (literalInPlaceProgram interior params).eventCost =
-      toffoliCount (literalForwardToffoliCount interior params)
-        (literalInverseToffoliCount interior params) := by
-  simpa only [literalInPlaceProgram, literalInPlaceRealization] using
-    InPlaceRealization.toffoli_count_eq
-      (literalInPlaceRealization interior params)
-
-/-- Exact CNOT equality, including the physical three-CNOT-per-bit swap. -/
-theorem literalInPlaceProgram_cnot_count_eq (interior : Nat)
-    (params : Parameters (interior + 2).succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (literalInPlaceProgram interior params).eventCost =
-      cnotCount (interior + 2).succ
-        (literalForwardCnotCount interior params)
-        (literalInverseCnotCount interior params) := by
-  simpa only [literalInPlaceProgram, literalInPlaceRealization] using
-    InPlaceRealization.cnot_count_eq
-      (literalInPlaceRealization interior params)
-
 /-- Literal program width is the exact HRS core count `2n+1`; the source word
 is reused as dirty carry work rather than allocating a third word. -/
 theorem literalInPlaceProgram_qubit_count_eq (interior : Nat) :
@@ -7065,9 +6576,8 @@ theorem literalInPlaceProgram_qubit_count_eq (interior : Nat) :
 /-! ### Flat gate-list interface for exponent control -/
 
 /-- Concatenate the literal modular-add schedules selected by one HRS pass.
-This is the gate-list counterpart of `selectedProgram`; it is exposed so a
-later exponentiation layer can mechanically add an exponent-bit control to
-the actual X/CNOT/Toffoli schedule. -/
+This flat interface lets a later exponentiation layer mechanically add an
+exponent-bit control to the actual X/CNOT/Toffoli schedule. -/
 def literalSelectedGates (interior : Nat)
     (params : Parameters (interior + 2).succ) (subtract : Bool) :
     List (Fin (interior + 2).succ) →
@@ -7095,32 +6605,6 @@ theorem literalSelectedGates_stepList (interior : Nat)
   | bit :: bits, state => by
       rw [literalSelectedGates, EncodedBit.GateSpec.stepList_append]
       rw [literalSelectedGates_stepList interior params subtract bits]
-      rfl
-
-/-- The flat selected-pass list has exactly the strict event pool of the
-existing typed selected-program composition. -/
-theorem literalSelectedGates_eventCost_eq (interior : Nat)
-    (params : Parameters (interior + 2).succ) (subtract : Bool) :
-    ∀ bits : List (Fin (interior + 2).succ),
-      (EncodedBit.GateSpec.programList
-          (literalSelectedGates interior params subtract bits)).eventCost =
-        (selectedProgram (LiteralBorrowed (interior + 2).succ)
-          (fun bit => literalControlledModularAdd interior params bit subtract)
-          bits).eventCost
-  | [] => rfl
-  | bit :: bits => by
-      rw [literalSelectedGates, selectedProgram, UnitaryCircuit.seq_eventCost,
-        EncodedBit.GateSpec.programList_eventCost,
-        List.map_append, ResourcePool.ofList_append,
-        ← EncodedBit.GateSpec.programList_eventCost
-          (literalControlledModularAddGates interior bit params.modulus
-            (params.signedStageConstant subtract bit)),
-        ← EncodedBit.GateSpec.programList_eventCost
-          (literalSelectedGates interior params subtract bits),
-        literalSelectedGates_eventCost_eq interior params subtract bits]
-      change
-        (literalControlledModularAddCircuit interior bit params.modulus
-              (params.signedStageConstant subtract bit)).eventCost + _ = _
       rfl
 
 /-- One literal GateSpec list for the complete HRS
@@ -7152,33 +6636,143 @@ theorem literalInPlaceGates_stepList (interior : Nat)
     literalSelectedGates_stepList]
   rfl
 
-/-- Flattening the literal multiplier does not change its strict event pool;
-the list and the typed circuit are two views of the same physical schedule. -/
-theorem literalInPlaceGates_eventCost_eq (interior : Nat)
+/-- The actual literal HRS multiplier is compiled directly from the proved gate list. -/
+def literalInPlaceProgram (interior : Nat)
     (params : Parameters (interior + 2).succ) :
-    (EncodedBit.GateSpec.programList
-        (literalInPlaceGates interior params)).eventCost =
-      (literalInPlaceProgram interior params).eventCost := by
-  unfold literalInPlaceGates literalInPlaceProgram program forwardProgram
-    inverseProgram
-  rw [EncodedBit.GateSpec.programList_eventCost,
-    List.map_append, List.map_append,
-    ResourcePool.ofList_append, ResourcePool.ofList_append,
-    ← EncodedBit.GateSpec.programList_eventCost
-      (literalSelectedGates interior params false
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit)),
-    ← EncodedBit.GateSpec.programList_eventCost
-      (literalSwapGates (interior + 2).succ),
-    ← EncodedBit.GateSpec.programList_eventCost
-      (literalSelectedGates interior params true
-        (List.ofFn fun bit : Fin (interior + 2).succ => bit).reverse),
-    literalSelectedGates_eventCost_eq,
-    literalSelectedGates_eventCost_eq]
-  change _ + (literalSwapProgram (interior + 2).succ).eventCost + _ = _
-  rw [UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost]
-  simp only [literalWordSwap, literalWordSwapCircuit, literalGateListCircuit,
-    UnitaryCircuit.reindex_eventCost]
-  exact add_assoc _ _ _
+    CircuitOf (literalR0Encoding (interior + 2).succ) :=
+  programOf (literalInPlaceGates interior params)
+
+/-- The compiled multiplier realizes its total basis permutation. -/
+theorem literalInPlaceProgram_realizes (interior : Nat)
+    (params : Parameters (interior + 2).succ) :
+    UnitaryCircuit.Realizes (literalR0Encoding (interior + 2).succ)
+      (literalInPlaceProgram interior params)
+      (literalInPlacePerm interior params) :=
+  (realizesProgramOf (literalInPlaceGates interior params)).congrStep
+    (literalInPlaceGates_stepList interior params)
+
+private theorem literalControlledModularAddGates_toffoliMultiplicity_sum
+    (interior : Nat) (pivot : Fin (interior + 2).succ)
+    (modulus addend : Nat) :
+    ((literalControlledModularAddGates interior pivot modulus addend).map
+      EncodedBit.GateSpec.toffoliMultiplicity).sum =
+        literalControlledModularAddToffoliCount interior modulus addend := by
+  have exactCount := literalControlledModularAddCircuit_toffoli_count_eq
+    interior pivot modulus addend
+  rw [literalControlledModularAddCircuit, programOf,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum] at exactCount
+  exact exactCount
+
+private theorem literalControlledModularAddGates_cnotMultiplicity_sum
+    (interior : Nat) (pivot : Fin (interior + 2).succ)
+    (modulus addend : Nat) :
+    ((literalControlledModularAddGates interior pivot modulus addend).map
+      EncodedBit.GateSpec.cnotMultiplicity).sum =
+        literalControlledModularAddCnotCount interior modulus addend := by
+  have exactCount := literalControlledModularAddCircuit_cnot_count_eq
+    interior pivot modulus addend
+  rw [literalControlledModularAddCircuit, programOf,
+    EncodedBit.GateSpec.programList_cnot_count_eq_sum] at exactCount
+  exact exactCount
+
+private theorem literalSelectedGates_toffoliMultiplicity_sum
+    (interior : Nat) (params : Parameters (interior + 2).succ)
+    (subtract : Bool) :
+    ∀ bits : List (Fin (interior + 2).succ),
+      ((literalSelectedGates interior params subtract bits).map
+        EncodedBit.GateSpec.toffoliMultiplicity).sum =
+      selectedToffoliCount
+        (fun bit => literalControlledModularAdd interior params bit subtract)
+        bits
+  | [] => rfl
+  | bit :: bits => by
+      simp only [literalSelectedGates, List.map_append, List.sum_append,
+        selectedToffoliCount, List.map_cons, List.sum_cons]
+      rw [literalControlledModularAddGates_toffoliMultiplicity_sum,
+        literalSelectedGates_toffoliMultiplicity_sum interior params subtract bits]
+      rfl
+
+private theorem literalSelectedGates_cnotMultiplicity_sum
+    (interior : Nat) (params : Parameters (interior + 2).succ)
+    (subtract : Bool) :
+    ∀ bits : List (Fin (interior + 2).succ),
+      ((literalSelectedGates interior params subtract bits).map
+        EncodedBit.GateSpec.cnotMultiplicity).sum =
+      selectedCnotCount
+        (fun bit => literalControlledModularAdd interior params bit subtract)
+        bits
+  | [] => rfl
+  | bit :: bits => by
+      simp only [literalSelectedGates, List.map_append, List.sum_append,
+        selectedCnotCount, List.map_cons, List.sum_cons]
+      rw [literalControlledModularAddGates_cnotMultiplicity_sum,
+        literalSelectedGates_cnotMultiplicity_sum interior params subtract bits]
+      rfl
+
+/-- Exact Toffoli count of the direct literal multiplier circuit. -/
+theorem literalInPlaceProgram_toffoli_count_eq (interior : Nat)
+    (params : Parameters (interior + 2).succ) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+        (literalInPlaceProgram interior params).eventCost =
+      toffoliCount (literalForwardToffoliCount interior params)
+        (literalInverseToffoliCount interior params) := by
+  rw [literalInPlaceProgram, programOf,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  unfold literalInPlaceGates toffoliCount literalForwardToffoliCount
+    literalInverseToffoliCount
+  simp only [List.map_append, List.sum_append]
+  have swapCount := literalSwapProgram_toffoli_count_eq (interior + 2).succ
+  rw [literalSwapProgram, programOf,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum] at swapCount
+  rw [literalSelectedGates_toffoliMultiplicity_sum, swapCount,
+    literalSelectedGates_toffoliMultiplicity_sum]
+  rfl
+
+/-- Exact CNOT count, including the physical three-CNOT-per-bit swap. -/
+theorem literalInPlaceProgram_cnot_count_eq (interior : Nat)
+    (params : Parameters (interior + 2).succ) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+        (literalInPlaceProgram interior params).eventCost =
+      cnotCount (interior + 2).succ
+        (literalForwardCnotCount interior params)
+        (literalInverseCnotCount interior params) := by
+  rw [literalInPlaceProgram, programOf,
+    EncodedBit.GateSpec.programList_cnot_count_eq_sum]
+  unfold literalInPlaceGates cnotCount literalForwardCnotCount
+    literalInverseCnotCount
+  simp only [List.map_append, List.sum_append]
+  have swapCount := literalSwapProgram_cnot_count_eq (interior + 2).succ
+  rw [literalSwapProgram, programOf,
+    EncodedBit.GateSpec.programList_cnot_count_eq_sum] at swapCount
+  rw [literalSelectedGates_cnotMultiplicity_sum, swapCount,
+    literalSelectedGates_cnotMultiplicity_sum]
+  rfl
+
+/-- Computational-basis correctness of the actual literal multiplier. -/
+theorem literalInPlaceProgram_applyNormalized_clean_ket (interior : Nat)
+    (params : Parameters (interior + 2).succ)
+    (sourceWord : PlainAdder.Word (interior + 2).succ)
+    (borrowedWord : (LiteralBorrowed (interior + 2).succ).Index)
+    (hsource : sourceWord.val < params.modulus) :
+    (literalInPlaceProgram interior params).applyNormalized
+        (NormalizedVector.ket
+          ((QubitLayout.canonical
+            (literalR0Encoding (interior + 2).succ).width).basisEquiv.symm
+            ((literalR0Encoding (interior + 2).succ).encode
+              ((sourceWord, params.word 0), (false, borrowedWord))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+          (literalR0Encoding (interior + 2).succ).width).basisEquiv.symm
+          ((literalR0Encoding (interior + 2).succ).encode
+            ((params.word (params.constant.val * sourceWord.val), params.word 0),
+              (false, borrowedWord)))) := by
+  rw [(literalInPlaceProgram_realizes interior params).apply_encoded_ket]
+  rw [literalInPlacePerm, inPlacePerm_clean_endpoint params
+    (LiteralBorrowed (interior + 2).succ)
+    (literalForwardAdd interior params)
+    (literalWordSwap (interior + 2).succ)
+    (literalInverseAdd interior params) sourceWord borrowedWord hsource]
+
 
 end
 

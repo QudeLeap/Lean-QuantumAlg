@@ -8,6 +8,7 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.Circuit
+import all QuantumAlg.Components.GateModel.Algorithm
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
 
 /-!
@@ -38,7 +39,8 @@ structure StructuredWitness (n : Nat) where
   /-- Faithful encoding of plain-adder labels. -/
   encoding : BinaryLabelEncoding (Data n)
   /-- Program adding the left word into the right word. -/
-  program : UnitaryCircuit (Qubits encoding.width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical encoding.width).toQuantum
   /-- Correctness of the program on encoded plain-adder labels. -/
   realizes :
     UnitaryCircuit.Realizes encoding program Data.addIntoRight
@@ -51,33 +53,40 @@ variable {n : Nat}
 preserving normalization. -/
 theorem applyNormalized_ket (w : StructuredWitness n) (x : Data n) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (Data.addIntoRight x)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (Data.addIntoRight x))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Ordered strict events derived from the folded adder program. -/
-def eventTrace (w : StructuredWitness n) : List (Resource.Event .quantum) :=
+def eventTrace (w : StructuredWitness n) :
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventTrace
 
 /-- Strict event pool derived from the folded adder program. -/
-def eventCost (w : StructuredWitness n) : ResourcePool .quantum :=
+def eventCost (w : StructuredWitness n) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.program.eventCost
 
 /-- Strict symbolic event critical path of the folded adder program. -/
 def eventDepth (w : StructuredWitness n) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventDepth
 
 /-- Literal depth of one strict event coordinate in the adder program. -/
 def eventQueryDepth (w : StructuredWitness n)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.program.eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the adder event pool. -/
 def eventGateCount (w : StructuredWitness n)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.program.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.program.eventCost
 
 /-- Linearizing folded adder event depth recovers its exact strict event pool. -/
 theorem resourcesFromEventDepth_eq_eventCost (w : StructuredWitness n) :
@@ -108,7 +117,8 @@ structure StructuredWithWorkWitness (n : Nat) (Work : Type) where
   /-- Folded full-register semantic action of the base-gate program. -/
   step : Data n × Work -> Data n × Work
   /-- Program acting on the encoded data/work layout. -/
-  program : UnitaryCircuit (Qubits encoding.width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical encoding.width).toQuantum
   /-- Correctness of the program on encoded data/work labels. -/
   realizes : UnitaryCircuit.Realizes encoding program step
   /-- On clean work and clean carry inputs, the folded action is the plain
@@ -126,36 +136,41 @@ intrinsically preserving normalization. -/
 theorem applyNormalized_clean_ket (w : StructuredWithWorkWitness n Work) (x : Data n)
     (hcarry : x.CarryClean) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (x, w.cleanWork))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (Data.addIntoRight x, w.cleanWork)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (x, w.cleanWork)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (Data.addIntoRight x, w.cleanWork))) := by
   have h := w.realizes.apply_encoded_ket (x, w.cleanWork)
   simpa [w.cleanEndpoint x hcarry] using h
 
 /-- Ordered strict events derived from the folded data/work adder program. -/
 def eventTrace (w : StructuredWithWorkWitness n Work) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventTrace
 
 /-- Strict event pool derived from the folded data/work adder program. -/
-def eventCost (w : StructuredWithWorkWitness n Work) : ResourcePool .quantum :=
+def eventCost (w : StructuredWithWorkWitness n Work) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.program.eventCost
 
 /-- Strict symbolic event critical path of the data/work adder program. -/
 def eventDepth (w : StructuredWithWorkWitness n Work) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventDepth
 
 /-- Literal depth of one strict event coordinate in the data/work program. -/
 def eventQueryDepth (w : StructuredWithWorkWitness n Work)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.program.eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the data/work event pool. -/
 def eventGateCount (w : StructuredWithWorkWitness n Work)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.program.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.program.eventCost
 
 /-- Linearizing data/work event depth recovers its exact strict event pool. -/
 theorem resourcesFromEventDepth_eq_eventCost

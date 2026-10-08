@@ -25,7 +25,8 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {sourceWidth width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {sourceWidth width : Nat}
 
 /-- All old reads outside the selector's four writable cells retain their complete values. -/
 theorem nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
@@ -43,7 +44,8 @@ theorem nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
   have keyEquation : (underRead other width).storageKeys = other.storageKeys :=
     CInputRef.storageKeys_underWorkspace other ctx.canonicalFreshKey
       (.unsignedWord width) ctx.canonicalFreshKey_fresh
-  have actual := FirstAccepted.firstAccepted_read_other (inputs eligible width) (refs original)
+  have actual := FirstAccepted.firstAccepted_read_other (model := model)
+    (inputs eligible width) (refs original)
     (underRead other width)
     (keyEquation.symm ▸ availableFree) (keyEquation.symm ▸ takeFree)
     (keyEquation.symm ▸ acceptedFree) (keyEquation.symm ▸ selectedFree) resized
@@ -57,14 +59,14 @@ theorem nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
 theorem nativeQuadratic_narrow_borrowedRestored (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (code eligible candidate original).BorrowedRestored Reference state
       ((code eligible candidate original).execute Reference state) := by
   apply Circuit.borrowedRestored_workspace
   intro history historyFinite entered
-  exact Circuit.borrowedRestored_seq (.classical (resizeOp candidate width))
+  exact Circuit.borrowedRestored_seq (BitWord.instruction (resizeOp candidate width))
     (FirstAccepted.circuit (inputs eligible width) (refs original)) entered
-    (Circuit.borrowedRestored_classical (resizeOp candidate width) entered)
+    (Circuit.borrowedRestored_classical _ entered)
     (FirstAccepted.firstAccepted_borrowedRestored
       (inputs eligible width) (refs original) Reference _)
 

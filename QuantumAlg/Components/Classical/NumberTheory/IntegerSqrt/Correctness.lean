@@ -35,14 +35,15 @@ private theorem bitNotEval_toBool (value : CShape.Value .bit) :
   rfl
 
 /-- Every actual caller read outside the four prefix destinations survives the prefix. -/
-theorem roundPrefixInto_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem roundPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (midCarryAvoids : refs.midCarry.key ∉ other.storageKeys)
     (squareAvoids : refs.square.key ∉ other.storageKeys)
     (tooLargeAvoids : refs.tooLarge.key ∉ other.storageKeys)
     (takeAvoids : refs.take.key ∉ other.storageKeys) :
-    (roundPrefixStep input refs store).1.read other = store.read other := by
+    (roundPrefixStep (model := model) input refs store).1.read other = store.read other := by
   change ((((store.applyOp (addOp refs)).applyOp (squareOp refs)).applyOp
     (compareOp input refs)).applyOp (takeOp refs)).read other = _
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (takeOp refs) other takeAvoids,
@@ -51,13 +52,15 @@ theorem roundPrefixInto_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     Store.read_applyOp_of_not_mem_storageKeys _ (addOp refs) other midCarryAvoids]
 
 /-- The actual prefix materializes the original midpoint and its exact acceptance flag. -/
-theorem roundPrefixStep_values {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+theorem roundPrefixStep_values {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (separated : Separation input refs) (store : Store ctx)
     (initial : RoundInitial input refs store) :
-    ((roundPrefixStep input refs store).1.read (.first (writeInput refs.midCarry))).toNat =
+    ((roundPrefixStep (model := model) input refs store).1.read (.first (writeInput
+      refs.midCarry))).toNat =
         midpoint refs store ∧
-      ((roundPrefixStep input refs store).1.read (writeInput refs.take)).toBool =
+      ((roundPrefixStep (model := model) input refs store).1.read (writeInput refs.take)).toBool =
         decide (midpoint refs store * midpoint refs store ≤ (store.read input).toNat) := by
   rcases separated with ⟨inputAvoids, injective⟩
   have keyNe : ∀ {left right : Cell}, left ≠ right →
@@ -85,7 +88,7 @@ theorem roundPrefixStep_values {kind : ProblemKind} {ctx : RuntimeCtx kind} {wid
   have squareWritten := Store.read_applyOp_output afterAdd (squareOp refs)
   have compareWritten := Store.read_applyOp_output afterSquare (compareOp input refs)
   have takeWritten := Store.read_applyOp_output afterCompare (takeOp refs)
-  have prefixEval : (roundPrefixStep input refs store).1 = afterTake := rfl
+  have prefixEval : (roundPrefixStep (model := model) input refs store).1 = afterTake := rfl
   have midpointAtAdd :
       (afterAdd.read (CInputRef.first (writeInput refs.midCarry))).toNat =
         midpoint refs store := by
@@ -229,12 +232,13 @@ private theorem halfOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width
   exact written
 
 /-- The complete actual round frames every original read outside its six destinations. -/
-theorem roundInto_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+theorem roundInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell, writeKey refs cell ∉ other.storageKeys) :
-    (roundStep input refs store).1.read other = store.read other := by
-  let prefixResult := (roundPrefixStep input refs store).1
+    (roundStep (model := model) input refs store).1.read other = store.read other := by
+  let prefixResult := (roundPrefixStep (model := model) input refs store).1
   let chosen := (prefixResult.read (writeInput refs.take)).toBool
   change ((prefixResult.applyOp (rootOp refs chosen)).applyOp (halfOp refs)).read other = _
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (halfOp refs) other (avoids .half),
@@ -243,11 +247,12 @@ theorem roundInto_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {widt
     (avoids .square) (avoids .tooLarge) (avoids .take)
 
 /-- One actual refinement round implements the original binary choice and retains its interval. -/
-theorem roundStep_correct {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+theorem roundStep_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (separated : Separation input refs) (store : Store ctx)
     (initial : RoundInitial input refs store) :
-    RoundOutcome input refs store (roundStep input refs store).1 := by
+    RoundOutcome input refs store (roundStep (model := model) input refs store).1 := by
   have keyNe : ∀ {left right : Cell}, left ≠ right →
       writeKey refs left ≠ writeKey refs right := by
     intro left right different equal
@@ -258,10 +263,10 @@ theorem roundStep_correct {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : 
   have halfAvoids {cell : Cell} (different : Cell.half ≠ cell) :
       writeKey refs cell ∉ (writeInput refs.half).storageKeys :=
     storageRead_not_mem (keyNe different)
-  let prefixResult := (roundPrefixStep input refs store).1
+  let prefixResult := (roundPrefixStep (model := model) input refs store).1
   let chosen := (prefixResult.read (writeInput refs.take)).toBool
   let afterRoot := prefixResult.applyOp (rootOp refs chosen)
-  have prefixValues := roundPrefixStep_values input refs separated store initial
+  have prefixValues := roundPrefixStep_values (model := model) input refs separated store initial
   have rootAfterPrefix : prefixResult.read (writeInput refs.root) =
       store.read (writeInput refs.root) :=
     roundPrefixInto_callerFrame input refs store _
@@ -290,10 +295,12 @@ theorem roundStep_correct {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : 
     (writeInput refs.root) (rootAvoids (cell := .half) (by intro equal; cases equal))
   have halfAfterRoot := Store.read_applyOp_of_not_mem_storageKeys prefixResult (rootOp refs chosen)
     (writeInput refs.half) (halfAvoids (cell := .root) (by intro equal; cases equal))
-  have finalRoot : ((roundStep input refs store).1.read (writeInput refs.root)).toNat =
+  have finalRoot : ((roundStep (model := model) input refs store).1.read (writeInput
+    refs.root)).toNat =
       selectedRoot input refs store :=
     (congrArg CShape.Value.toNat rootAfterHalf).trans rootAtRoot
-  have finalHalf : ((roundStep input refs store).1.read (writeInput refs.half)).toNat =
+  have finalHalf : ((roundStep (model := model) input refs store).1.read (writeInput
+    refs.half)).toNat =
       (store.read (writeInput refs.half)).toNat / 2 := by
     change ((afterRoot.applyOp (halfOp refs)).read (writeInput refs.half)).toNat = _
     rw [halfOp_value, halfAfterRoot, halfAfterPrefix]

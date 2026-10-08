@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Reuse.Layout
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Reuse.Seed
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Seed
+import all QuantumAlg.Core.Execution.Basis.Seeded.Allocation
 
 /-!
 # Actual fresh sampling and sixteen more rounds on the same bank
@@ -31,19 +32,19 @@ variable (base : RuntimeCtx .quantum) (N : Nat)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- The stored new parameter selects sixteen complete rounds on the existing physical bank. -/
-def rounds : Circuit (sampledContext base N) (context base N) :=
+def rounds : Circuit RuntimeRound.model (sampledContext base N) (context base N) :=
   RuntimeRepetition.code (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N))
     (sampledContext base N) (nativeBatchReuse_sampled_wires base N sameWires)
     (parameter base N) (cells base N originalCells) 16
 
 /-- Fresh actual sampling feeds the same bank, with no quantum allocation in this continuation. -/
-def code : Circuit base (context base N) :=
-  .seq (ShorStyle.Canonical.Sampler.Retained.circuit base N)
+def code : Circuit RuntimeRound.model base (context base N) :=
+  .seq (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells)
 
 /-- Complete output lists the original bank and cells plus all newly retained source results. -/
-def run : AlgorithmRun base (context base N) (NativeBatch.resultShape N) where
+def run : AlgorithmRun RuntimeRound.model base (context base N) (NativeBatch.resultShape N) where
   code := code base N sameWires originalCells
   output := Output.all (context base N)
     (.read (.product (finalSample base N)
@@ -56,7 +57,7 @@ theorem nativeBatchReuse_output_listing :
 /-- The complete actual continuation restores the same seed in every complete store block. -/
 theorem nativeBatchReuse_code_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -68,10 +69,14 @@ theorem nativeBatchReuse_code_seedBlocks (input : Input N)
     (parameterUnit (N := N)) (parameterTarget (N := N)) 16
     (sampledContext base N) (nativeBatchReuse_sampled_wires base N sameWires)
     (parameter base N) (cells base N originalCells)
-    ((ShorStyle.Canonical.Sampler.Retained.circuit base N).execute Reference state) sampled
-  exact RuntimeRepetition.seq_seed (ShorStyle.Canonical.Sampler.Retained.circuit base N)
-    (rounds base N sameWires originalCells) (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-    (nativeBatchReuse_context_wires base N sameWires) state repeated
+    ((ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N).execute
+      Reference state) sampled
+  exact BasisSeeded.seq
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+    (rounds base N sameWires originalCells)
+    ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
+      (nativeBatchReuse_context_wires base N sameWires)).symm
+      (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state repeated
 
 end
 

@@ -55,16 +55,22 @@ def dataFrame (modulus : Nat) (modulusPositive : 0 < modulus) (value : Data modu
 /-- Native quotient accumulation realizes the original data map and restores every EEA field. -/
 theorem divisionProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
     (value : Data modulus) :
-    (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width)
+    (UnitaryCircuit.onBinaryPrefix BinaryLabelEncoding.bool.width
       (program modulus nontrivial)).applyNormalized
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod (frameEncoding modulus.size)
-            BinaryLabelEncoding.bool).encode (dataFrame modulus (by omega) value))) =
+          ((QubitLayout.canonical
+            (BinaryLabelEncoding.prod (frameEncoding modulus.size)
+              BinaryLabelEncoding.bool).width).basisEquiv.symm
+            ((BinaryLabelEncoding.prod (frameEncoding modulus.size)
+              BinaryLabelEncoding.bool).encode (dataFrame modulus (by omega) value)))) =
       NormalizedVector.ket
-        ((BinaryLabelEncoding.prod (frameEncoding modulus.size)
-          BinaryLabelEncoding.bool).encode
-            (dataFrame modulus (by omega) value.addQuotientIntoTarget)) := by
-  have actual := UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+        ((QubitLayout.canonical
+          (BinaryLabelEncoding.prod (frameEncoding modulus.size)
+            BinaryLabelEncoding.bool).width).basisEquiv.symm
+          ((BinaryLabelEncoding.prod (frameEncoding modulus.size)
+            BinaryLabelEncoding.bool).encode
+              (dataFrame modulus (by omega) value.addQuotientIntoTarget))) := by
+  have actual := UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
     (frameEncoding modulus.size) BinaryLabelEncoding.bool (program modulus nontrivial)
     _ _ value.flag
     (divisionProgram_unit modulus nontrivial value.denominator value.numerator value.target)

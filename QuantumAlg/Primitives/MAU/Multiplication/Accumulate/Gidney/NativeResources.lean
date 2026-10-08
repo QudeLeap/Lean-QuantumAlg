@@ -12,42 +12,35 @@ import all QuantumAlg.Primitives.MAU.Addition.Gidney.Native.Resources
 /-!
 # Independent finite native resource pool for modular accumulation
 
-The source selector adds one actual control to the offset alphabet. The
-resulting six coordinates are X, CNOT, and Toffoli with respectively one or
-two additional dimension-two controls. Each is independently capped by the
-closed all-width event envelope. The actual program's support proof is
-required before that cardinality estimate implies a coordinatewise budget.
+The source selector is expanded into actual default gates. Every instruction
+therefore belongs to the same three-coordinate native alphabet. The numerical
+budget includes both nested control expansions and is independent of the
+compiled coefficient and execution.
 -/
 
 namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
-/-- Six strict coordinates: the primitive labels with one or two additional qubit controls. -/
-def nativeAlphabet : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2 Addition.Gidney.offsetAlphabet
+/-- The three actual default-model coordinates emitted by the accumulation circuit. -/
+def nativeAlphabet : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  EncodedBit.GateSpec.primitiveAlphabet
 
-/-- Independent budget with the same explicit cap at each of the six native coordinates. -/
-def nativeBudget (width : Nat) : ResourcePool .quantum :=
+/-- Independent budget with the same explicit cap at each of the three native coordinates. -/
+def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (width * stageEventBound width) • nativeAlphabet
 
 theorem gidneyCanonicalStage_native_support (extra : Nat)
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
-    (focus : Resource.Event .quantum)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (canonicalProgram extra modulus constant).eventCost) :
-    focus ∈ nativeAlphabet := by
-  rw [gidneyCanonicalStage_eventCost] at present
-  change focus ∈ Multiset.map (fun event => event.controlForDimension 2)
-    (Addition.Gidney.modularOffsetProgram (extra + 3) modulus constant).eventCost at present
-  obtain ⟨event, membership, rfl⟩ := Multiset.mem_map.mp present
-  exact Multiset.mem_map.mpr ⟨event,
-    Addition.Gidney.gidneyModularOffset_native_support
-      (extra + 3) modulus constant event membership,
-    rfl⟩
+    focus ∈ nativeAlphabet :=
+  EncodedBit.GateSpec.programList_native_support _
+    (canonicalGates extra modulus constant) focus present
 
 theorem gidneyPlacedStage_native_support (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
-    (focus : Resource.Event .quantum)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (placedStageProgram extra selected modulus constant).eventCost) :
     focus ∈ nativeAlphabet := by
   rw [(gidneyPlacedStage_resources extra selected modulus constant (fun _ => 1)).1] at present
@@ -55,42 +48,36 @@ theorem gidneyPlacedStage_native_support (extra : Nat) (selected : Fin (extra + 
 
 theorem gidneySmallStage_native_support (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
-    (focus : Resource.Event .quantum)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (smallStageProgram width small selected modulus constant).eventCost) :
-    focus ∈ nativeAlphabet := by
-  rw [gidneySmallStage_eventCost] at present
-  change focus ∈ Multiset.map (fun event => event.controlForDimension 2)
-    (Addition.Gidney.Small.modularOffsetProgram width small modulus constant).eventCost at present
-  obtain ⟨event, membership, rfl⟩ := Multiset.mem_map.mp present
-  change event.controlForDimension 2 ∈ Multiset.map
-    (fun current => current.controlForDimension 2) Addition.Gidney.offsetAlphabet
-  apply Multiset.mem_map.mpr
-  refine ⟨event, ?_, rfl⟩
-  exact Multiset.mem_add.mpr (Or.inl
-    (Addition.Gidney.gidneySmallModularOffset_native_support
-      width small modulus constant event membership))
+    focus ∈ nativeAlphabet :=
+  EncodedBit.GateSpec.programList_native_support _
+    (smallStageGates width small selected modulus constant) focus present
 
-theorem gidneyStage_native_support : (width : Nat) → (selected : Fin width) →
-    (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
-    (focus : Resource.Event .quantum) →
-    focus ∈ (stageProgram width selected modulus constant).eventCost →
-      focus ∈ nativeAlphabet
-  | 0, selected, _, _, _, _ => Fin.elim0 selected
-  | 1, selected, modulus, constant, focus, present =>
-      gidneySmallStage_native_support 1 (by decide) selected modulus constant focus present
-  | 2, selected, modulus, constant, focus, present =>
-      gidneySmallStage_native_support 2 (by decide) selected modulus constant focus present
-  | extra + 3, selected, modulus, constant, focus, present =>
-      gidneyPlacedStage_native_support extra selected modulus constant focus present
+theorem gidneyStage_native_support (width : Nat) (selected : Fin width)
+    (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
+    (present : focus ∈ (stageProgram width selected modulus constant).eventCost) :
+    focus ∈ nativeAlphabet := by
+  rcases width with _ | width
+  · exact Fin.elim0 selected
+  rcases width with _ | width
+  · simp only [stageProgram] at present
+    exact gidneySmallStage_native_support 1 (by decide) selected modulus constant focus present
+  rcases width with _ | extra
+  · simp only [stageProgram] at present
+    exact gidneySmallStage_native_support 2 (by decide) selected modulus constant focus present
+  simp only [stageProgram] at present
+  exact gidneyPlacedStage_native_support extra selected modulus constant focus present
 
 theorem gidneyAccumulatePrefix_native_support (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width)
-    (focus : Resource.Event .quantum)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (prefixProgram width modulus coefficient count within).eventCost) :
     focus ∈ nativeAlphabet := by
   induction count with
   | zero =>
-      change focus ∈ (0 : ResourcePool .quantum) at present
+      change focus ∈ (0 : ResourcePool (.quantum AlgorithmGate.model .empty)) at present
       simp at present
   | succ index ih =>
       change focus ∈ ((prefixProgram width modulus coefficient index (by omega)).seq
@@ -102,16 +89,12 @@ theorem gidneyAccumulatePrefix_native_support (width : Nat)
       · exact gidneyStage_native_support width ⟨index, by omega⟩ modulus
           (Nat.FixedWidth.accumulateConstant modulus coefficient index) focus current
 
-/-- Every actual event belongs to the explicit six-coordinate alphabet. -/
+/-- Every actual event belongs to the explicit three-coordinate alphabet. -/
 theorem gidneyAccumulate_native_support (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : Nat) (focus : Resource.Event .quantum)
+    (coefficient : Nat) (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (program width modulus coefficient).eventCost) :
-    focus ∈ nativeAlphabet := by
-  change focus ∈ ((prefixProgram width modulus coefficient width (Nat.le_refl width)).seq
-    (UnitaryCircuit.identity (Qubits (encoding width).width)
-      (List.range (2 * width)) List.nodup_range)).eventCost at present
-  rw [UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero] at present
-  exact gidneyAccumulatePrefix_native_support width modulus coefficient width
+    focus ∈ nativeAlphabet :=
+  gidneyAccumulatePrefix_native_support width modulus coefficient width
     (Nat.le_refl width) focus present
 
 /-- The complete actual circuit meets the independent finite native-resource budget. -/

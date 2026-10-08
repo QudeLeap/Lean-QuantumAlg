@@ -27,15 +27,17 @@ open NumberTheory.Checked.Native
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent original preparation, checked inverse and selected recovery allowances. -/
-def singleRecoveryEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  preparationEnvelope kind spec + checkedRecoveryEnvelope kind spec
+def singleRecoveryEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  preparationEnvelope model spec + checkedRecoveryEnvelope model spec
 
 /-- The three original phases retain their chronological native-duration dependencies. -/
 def singleRecoveryDepthLimit (spec : ModulusSpec width)
-    (duration : Resource.Event kind → Nat) : Nat :=
+    (duration : Resource.Event model → Nat) : Nat :=
   preparationDepthLimit spec duration + checkedRecoveryDepthLimit spec duration
 
 /-- Decoder bits are released before checked results and later arithmetic workspaces are live. -/
@@ -48,18 +50,21 @@ def singleRecoveryActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kin
 theorem singleIntoResult_pool_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (singleIntoResult spec input result).Path) :
-    (singleIntoResult spec input result).resourcePool path ≤ singleRecoveryEnvelope kind spec := by
+    (path : (singleIntoResult (model := model) spec input result).Path) :
+    (singleIntoResult (model := model) spec input result).resourcePool path ≤
+      singleRecoveryEnvelope model spec := by
   exact withCellsFrom_pool_le (Transport.id ctx) (preparationShapes width)
     (fun cells _ transport _ => .seq
-      (preparationBody spec (transport.liftInput input) (preparationRefs cells))
-      (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)))
-    (singleRecoveryEnvelope kind spec) (by
+      (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
+      (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+        result)))
+    (singleRecoveryEnvelope model spec) (by
       intro inner cells distinct transport separated selected
       change ResourcePool.ofList
-        ((preparationBody spec (transport.liftInput input) (preparationRefs cells)).eventTrace
+        ((preparationBody (model := model) spec (transport.liftInput input) (preparationRefs
+          cells)).eventTrace
           selected.1 ++
-          (withCheckedSelection spec (preparationRefs cells)
+          (withCheckedSelection (model := model) spec (preparationRefs cells)
             (transport.liftWrite result)).eventTrace
             selected.2) ≤ _
       rw [ResourcePool.ofList_append]
@@ -69,14 +74,15 @@ theorem singleIntoResult_pool_le (spec : ModulusSpec width)
 /-- The actual full recovery sequence satisfies the original serial duration bound. -/
 theorem singleIntoResult_depth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
-    (result : CWriteRef ctx (OutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (singleIntoResult spec input result).Path) :
-    (singleIntoResult spec input result).depth duration path ≤
+    (result : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (singleIntoResult (model := model) spec input result).Path) :
+    (singleIntoResult (model := model) spec input result).depth duration path ≤
       singleRecoveryDepthLimit spec duration := by
   exact withCellsFrom_depth_le (Transport.id ctx) (preparationShapes width)
     (fun cells _ transport _ => .seq
-      (preparationBody spec (transport.liftInput input) (preparationRefs cells))
-      (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)))
+      (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
+      (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+        result)))
     duration (singleRecoveryDepthLimit spec duration) (by
       intro inner cells distinct transport separated selected
       exact Nat.add_le_add (preparationBody_depth_le _ _ _ duration selected.1)
@@ -86,25 +92,28 @@ theorem singleIntoResult_depth_le (spec : ModulusSpec width)
 theorem singleIntoResult_unitDepth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (singleIntoResult spec input result).Path) :
-    (singleIntoResult spec input result).depth (fun _ => 1) path ≤
-      8 * width + 24 + checkedInverseDepthLimit (kind := kind) spec (fun _ => 1) := by
+    (path : (singleIntoResult (model := model) spec input result).Path) :
+    (singleIntoResult (model := model) spec input result).depth (fun _ => 1) path ≤
+      8 * width + 24 + checkedInverseDepthLimit (model := model) spec (fun _ => 1) := by
   exact withCellsFrom_depth_le (Transport.id ctx) (preparationShapes width)
     (fun cells _ transport _ => .seq
-      (preparationBody spec (transport.liftInput input) (preparationRefs cells))
-      (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)))
-    (fun _ => 1) (8 * width + 24 + checkedInverseDepthLimit (kind := kind) spec (fun _ => 1)) (by
+      (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
+      (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+        result)))
+    (fun _ => 1) (8 * width + 24 + checkedInverseDepthLimit (model := model) spec (fun _ => 1)) (by
       intro inner cells distinct transport separated selected
       have prepared := preparationBody_unitDepth_le spec
         (transport.liftInput input) (preparationRefs cells) selected.1
       have later := withCheckedSelection_depth_le spec (preparationRefs cells)
         (transport.liftWrite result) (fun _ => 1) selected.2
-      change (withCheckedSelection spec (preparationRefs cells)
+      change (withCheckedSelection (model := model) spec (preparationRefs cells)
         (transport.liftWrite result)).depth (fun _ => 1) selected.2 ≤
-          checkedInverseDepthLimit (kind := kind) spec (fun _ => 1) + 9 at later
-      change (preparationBody spec (transport.liftInput input) (preparationRefs cells)).depth
+          checkedInverseDepthLimit (model := model) spec (fun _ => 1) + 9 at later
+      change (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs
+        cells)).depth
         (fun _ => 1) selected.1 +
-        (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)).depth
+        (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+          result)).depth
           (fun _ => 1) selected.2 ≤ _
       omega) path
 
@@ -112,15 +121,16 @@ theorem singleIntoResult_unitDepth_le (spec : ModulusSpec width)
 theorem singleIntoResult_resident_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (singleIntoResult spec input result).Path) :
-    (singleIntoResult spec input result).peakResidentSpace path ≤
+    (path : (singleIntoResult (model := model) spec input result).Path) :
+    (singleIntoResult (model := model) spec input result).peakResidentSpace path ≤
       ((preparationShapes width).map SpacePool.ofShape).sum +
-        singleRecoveryActiveSpace kind width + ctx.residentSpace := by
+        singleRecoveryActiveSpace model.kind width + ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (preparationShapes width)
     (fun cells _ transport _ => .seq
-      (preparationBody spec (transport.liftInput input) (preparationRefs cells))
-      (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)))
-    (singleRecoveryActiveSpace kind width) (by
+      (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
+      (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+        result)))
+    (singleRecoveryActiveSpace model.kind width) (by
       intro inner cells distinct transport separated selected
       refine (Circuit.peakResidentSpace_seq _ _ selected).le.trans (SpacePool.max_le ?_ ?_)
       · exact (preparationBody_resident_le _ _ _ selected.1).trans
@@ -132,15 +142,16 @@ theorem singleIntoResult_resident_le (spec : ModulusSpec width)
 theorem singleIntoResult_auxiliary_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (singleIntoResult spec input result).Path) :
-    (singleIntoResult spec input result).peakAuxiliarySpace path ≤
+    (path : (singleIntoResult (model := model) spec input result).Path) :
+    (singleIntoResult (model := model) spec input result).peakAuxiliarySpace path ≤
       ((preparationShapes width).map SpacePool.ofShape).sum +
-        singleRecoveryActiveSpace kind width + ctx.auxiliarySpace := by
+        singleRecoveryActiveSpace model.kind width + ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (preparationShapes width)
     (fun cells _ transport _ => .seq
-      (preparationBody spec (transport.liftInput input) (preparationRefs cells))
-      (withCheckedSelection spec (preparationRefs cells) (transport.liftWrite result)))
-    (singleRecoveryActiveSpace kind width) (by
+      (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
+      (withCheckedSelection (model := model) spec (preparationRefs cells) (transport.liftWrite
+        result)))
+    (singleRecoveryActiveSpace model.kind width) (by
       intro inner cells distinct transport separated selected
       refine (Circuit.peakAuxiliarySpace_seq _ _ selected).le.trans (SpacePool.max_le ?_ ?_)
       · exact (preparationBody_auxiliary_le _ _ _ selected.1).trans

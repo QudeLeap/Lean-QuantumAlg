@@ -17,23 +17,24 @@ are bounded by the sum of both branch sizes, not by a maximum of those sizes.
 
 namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.SignedReduction.Native
 
-open Modular.Reduce.Native
+open Execution Modular.Reduce.Native
 
-private theorem max_card_le_add {kind : ProblemKind} (left right : ResourcePool kind) :
+private theorem max_card_le_add {model : ExecutionModel} (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card :=
   (Multiset.card_le_card (Multiset.union_le_add left right)).trans_eq
     (Multiset.card_add left right)
 
 /-- Both original branch sites fit the same constant sixteen-instruction allowance. -/
-theorem signedReductionEnvelope_card_le (kind : ProblemKind) (width : Nat) :
-    (signedReductionEnvelope kind width).card ≤ 16 := by
+theorem signedReductionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
+  : Nat) :
+    (signedReductionEnvelope model width).card ≤ 16 := by
   have magnitude :
-      (ResourcePool.max (ResourcePool.ofList (signedMagnitudeEvents kind width true))
-        (ResourcePool.ofList (signedMagnitudeEvents kind width false))).card ≤ 4 :=
+      (ResourcePool.max (ResourcePool.ofList (signedMagnitudeEvents model width true))
+        (ResourcePool.ofList (signedMagnitudeEvents model width false))).card ≤ 4 :=
     (max_card_le_add _ _).trans_eq (by rfl)
   have correction :
-      (ResourcePool.max (ResourcePool.ofList (finalCorrectionEvents kind width true))
-        (ResourcePool.ofList (finalCorrectionEvents kind width false))).card ≤ 5 :=
+      (ResourcePool.max (ResourcePool.ofList (finalCorrectionEvents model width true))
+        (ResourcePool.ofList (finalCorrectionEvents model width false))).card ≤ 5 :=
     (max_card_le_add _ _).trans_eq (by rfl)
   unfold signedReductionEnvelope
   simp only [Multiset.card_add]

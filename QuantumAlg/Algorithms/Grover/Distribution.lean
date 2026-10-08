@@ -35,7 +35,7 @@ open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
 theorem outputDistribution_eq {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput (model marked).classicalOracles pre Reference) :
     (run marked k).outputDistribution input =
       ((zMeasure (layout n)).outcomePMF (evolvedState marked k)).map CShape.Value.bits := by
   apply PMF.ext
@@ -48,7 +48,8 @@ theorem outputDistribution_eq {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code marked k).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code marked k).execute Reference
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef n k).toCStorageRef))
       |>.block output).mass) = _
   rw [code_block_mass marked k _ (input.state.mapClassical_normalized input.normalized _)]
@@ -69,7 +70,7 @@ theorem outputDistribution_eq {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat
 /-- The actual relational marked event has the original exact success probability. -/
 theorem actual_success {n t : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
     (counted : markedCount marked = t) (positive : 0 < t)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput (model marked).classicalOracles pre Reference) :
     ((run marked k).relationalDistribution input).toOuterMeasure
       {pair | accepts marked pair.1 pair.2} = exactSuccessProbability n t k := by
   have projection :

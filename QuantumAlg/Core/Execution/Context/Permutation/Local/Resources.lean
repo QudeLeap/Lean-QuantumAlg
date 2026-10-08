@@ -24,24 +24,28 @@ noncomputable section
 open scoped BigOperators
 
 /-- The corresponding actual paths have identical ordered native events. -/
-theorem localCircuit_eventTrace : {kind : ProblemKind} →
-    {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) → (target : RuntimeCtx kind) →
+theorem localCircuit_eventTrace : {model : ExecutionModel} →
+    {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
+    (target : RuntimeCtx model.kind) →
     (same : pre.entries.Perm target.entries) → (path : code.Path) →
     (localCircuit code supported target same).eventTrace
       (localPathEquiv code supported target same path) = code.eventTrace path
   | _, _, _, .id _, _, _, _, _ => rfl
   | _, _, _, .classical _, supported, _, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _, _ => False.elim supported
-  | _, _, _, .unitary program _, _, _, same, _ =>
-      unitaryProgram_trace same program
-  | _, _, _, .measureZ (ctx := ctx) wire _, _, target, same, _ => by
-      change [Circuit.zEvent (target.quantumLayout.wire (positions same wire)).dimension] =
-          [Circuit.zEvent (ctx.quantumLayout.wire wire).dimension]
+  | _, _, _, .classicalQuery _, supported, _, _, _ => False.elim supported
+  | _, _, _, .unitary (operations := operations)
+      (classicalOracles := services) program, _, _, same, _ =>
+      unitaryProgram_trace same program operations services
+  | _, _, _, .measureZ (gates := gates) (oracles := oracles) (ctx := ctx)
+      (operations := operations) (classicalOracles := services) wire _, _, target, same, _ => by
+      change [Circuit.zEvent (gates := gates) (oracles := oracles)
+        (target.quantumLayout.wire (positions same wire)).dimension operations services] =
+          [Circuit.zEvent (gates := gates) (oracles := oracles)
+            (ctx.quantumLayout.wire wire).dimension operations services]
       rw [positions_wire]
-  | _, _, _, .randomBits _ _, supported, _, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, target, same, path =>
       congrArg₂ List.append (localCircuit_eventTrace first supported.1 target same path.1)
         (localCircuit_eventTrace second supported.2 target
@@ -54,33 +58,38 @@ theorem localCircuit_eventTrace : {kind : ProblemKind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _, _ => False.elim supported
 
 /-- Actual resource multiplicities follow by projecting the same ordered event trace. -/
-theorem localCircuit_resourcePool {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal) (target : RuntimeCtx kind)
+theorem localCircuit_resourcePool {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal) (target : RuntimeCtx model.kind)
     (same : pre.entries.Perm target.entries) (path : code.Path) :
     (localCircuit code supported target same).resourcePool
       (localPathEquiv code supported target same path) = code.resourcePool path :=
   congrArg ResourcePool.ofList (localCircuit_eventTrace code supported target same path)
 
 /-- Entry permutation preserves the actual depth for every assignment of native event durations. -/
-theorem localCircuit_depth : {kind : ProblemKind} →
-    {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) → (target : RuntimeCtx kind) →
+theorem localCircuit_depth : {model : ExecutionModel} →
+    {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
+    (target : RuntimeCtx model.kind) →
     (same : pre.entries.Perm target.entries) →
-    (duration : Resource.Event kind → Nat) → (path : code.Path) →
+    (duration : Resource.Event model → Nat) → (path : code.Path) →
     (localCircuit code supported target same).depth duration
       (localPathEquiv code supported target same path) = code.depth duration path
   | _, _, _, .id _, _, _, _, _, _ => rfl
   | _, _, _, .classical _, supported, _, _, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _, _, _ => False.elim supported
-  | _, _, _, .unitary program _, _, _, same, duration, _ =>
-      unitaryProgram_depth same program duration
-  | _, _, _, .measureZ (ctx := ctx) wire _, _, target, same, duration, _ => by
-      change duration (Circuit.zEvent (target.quantumLayout.wire (positions same wire)).dimension) =
-          duration (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension)
+  | _, _, _, .classicalQuery _, supported, _, _, _, _ => False.elim supported
+  | _, _, _, .unitary (operations := operations)
+      (classicalOracles := services) program, _, _, same, duration, _ =>
+      unitaryProgram_depth same program operations services duration
+  | _, _, _, .measureZ (gates := gates) (oracles := oracles) (ctx := ctx)
+      (operations := operations) (classicalOracles := services) wire _,
+      _, target, same, duration, _ => by
+      change duration (Circuit.zEvent (gates := gates) (oracles := oracles)
+        (target.quantumLayout.wire (positions same wire)).dimension operations services) =
+          duration (Circuit.zEvent (gates := gates) (oracles := oracles)
+            (ctx.quantumLayout.wire wire).dimension operations services)
       rw [positions_wire]
-  | _, _, _, .randomBits _ _, supported, _, _, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, target, same, duration, path =>
       congrArg₂ Nat.add (localCircuit_depth first supported.1 target same duration path.1)
         (localCircuit_depth second supported.2 target
@@ -94,18 +103,20 @@ theorem localCircuit_depth : {kind : ProblemKind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _, _, _ => False.elim supported
 
 /-- Every visited context is the unchanged target of the actual local circuit. -/
-theorem localCircuit_visited {kind : ProblemKind} {pre post target : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal)
+theorem localCircuit_visited {model : ExecutionModel}
+    {pre post target : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal)
     (same : pre.entries.Perm target.entries)
-    (path : (localCircuit code supported target same).Path) (visited : RuntimeCtx kind)
+    (path : (localCircuit code supported target same).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (localCircuit code supported target same).visitedContexts path) :
     visited = target :=
   ContextUnion.local_visited _ (localCircuit_isLocal code supported target same)
     path visited present
 
 /-- The actual resident peak counts precisely the original live entries. -/
-theorem localCircuit_peakResidentSpace {kind : ProblemKind} {pre post target : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal)
+theorem localCircuit_peakResidentSpace {model : ExecutionModel}
+    {pre post target : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal)
     (same : pre.entries.Perm target.entries)
     (path : (localCircuit code supported target same).Path) :
     (localCircuit code supported target same).peakResidentSpace path = pre.residentSpace := by
@@ -119,8 +130,9 @@ theorem localCircuit_peakResidentSpace {kind : ProblemKind} {pre post target : R
   exact (le_antisymm upper lower).trans (resident_space same).symm
 
 /-- Fixed auxiliary roles give the same actual auxiliary peak after permutation. -/
-theorem localCircuit_peakAuxiliarySpace {kind : ProblemKind} {pre post target : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal)
+theorem localCircuit_peakAuxiliarySpace {model : ExecutionModel}
+    {pre post target : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal)
     (same : pre.entries.Perm target.entries)
     (path : (localCircuit code supported target same).Path) :
     (localCircuit code supported target same).peakAuxiliarySpace path = pre.auxiliarySpace := by

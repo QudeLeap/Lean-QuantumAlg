@@ -84,10 +84,11 @@ def recoveryFieldCell (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat
           modulusWidth candidateWidth rest tail) index
 
 /-- Actual allocation and matching release around the recovery body. -/
-def scopeRecoveryFields (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat) :
+def scopeRecoveryFields {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+    (modulusWidth candidateWidth : Nat) :
     (fields : List RecoveryField) →
-      Circuit (fieldsContext ctx modulusWidth candidateWidth fields)
-        (fieldsContext ctx modulusWidth candidateWidth fields) → Circuit ctx ctx
+      Circuit model (fieldsContext ctx modulusWidth candidateWidth fields)
+        (fieldsContext ctx modulusWidth candidateWidth fields) → Circuit model ctx ctx
   | [], body => body
   | field :: rest, body =>
       .workspace ctx ctx.canonicalFreshKey (recoveryFieldShape modulusWidth candidateWidth field)

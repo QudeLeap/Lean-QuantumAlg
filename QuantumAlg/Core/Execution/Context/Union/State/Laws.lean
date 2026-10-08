@@ -121,6 +121,62 @@ theorem contextUnion_splitState_finiteSum {I : Type} [Fintype I]
   exact Finset.sum_congr rfl fun index _ =>
     (contextUnion_splitState_entry left right separate (states index) label row column).symm
 
+variable {Hidden : Type} [Fintype Hidden]
+
+/-- Separating a resident frame preserves total mass and the persistent service. -/
+theorem contextUnion_splitServiceState_mass
+    (state : State (left.disjointUnion right separate) Reference (Hidden × H)) :
+    (splitServiceState left right separate state).mass = state.mass := by
+  rw [splitServiceState, State.mapHistory_mass, contextUnion_splitState_mass]
+
+/-- Updating ordinary history leaves the service and complete resident store in place. -/
+theorem contextUnion_splitServiceState_mapHistory
+    (state : State (left.disjointUnion right separate) Reference (Hidden × H)) (update : H → K) :
+    splitServiceState left right separate
+        (state.mapHistory (fun record => (record.1, update record.2))) =
+      (splitServiceState left right separate state).mapHistory
+        (fun record => (record.1, (record.2.1, update record.2.2))) := by
+  dsimp only [splitServiceState]
+  rw [contextUnion_splitState_mapHistory]
+  simp only [State.mapHistory_comp, Function.comp_def]
+  rfl
+
+/-- A stored-value branch selects the same fiber with the service label retained. -/
+theorem contextUnion_splitServiceState_selectClassical
+    (state : State (left.disjointUnion right separate) Reference (Hidden × H))
+    {shape : CShape} (input : CInputRef left shape) (selected : shape.Value) :
+    splitServiceState left right separate
+        (state.selectClassical (fun record => record.1.read (inputLeft separate input)) selected) =
+      (splitServiceState left right separate state).selectClassical
+        (fun record => record.1.read input) selected := by
+  dsimp only [splitServiceState]
+  rw [contextUnion_splitState_selectClassical, State.mapHistory_selectClassical]
+
+/-- Finite branch sums preserve every service and resident-store correlation. -/
+theorem contextUnion_splitServiceState_finiteSum {I : Type} [Fintype I]
+    (states : I → State (left.disjointUnion right separate) Reference (Hidden × H))
+    (total : ∑ index, (states index).mass ≤ 1) :
+    splitServiceState left right separate (ExecutionState.finiteSum states total) =
+      ExecutionState.finiteSum (fun index => splitServiceState left right separate (states index))
+        (by simpa only [contextUnion_splitServiceState_mass] using total) := by
+  dsimp only [splitServiceState]
+  rw [contextUnion_splitState_finiteSum]
+  convert (ExecutionState.mapClassical_finiteSum
+    (fun index => splitState left right separate (states index))
+    (by simpa only [contextUnion_splitState_mass] using total)
+    (fun record => (record.1, serviceHistory right Hidden H record.2))) using 1 <;>
+    dsimp only [State.mapHistory] <;>
+    congr! 2
+  apply ExecutionState.ext
+  intro label
+  apply DensityOperator.ext
+  simp only [ExecutionState.finiteSum, ExecutionState.mapClassical_block_matrix]
+  apply Finset.sum_congr rfl
+  intro index _
+  apply Finset.sum_congr rfl
+  intro entry _
+  split_ifs <;> rfl
+
 end
 
 end QuantumAlg.Execution.ContextUnion

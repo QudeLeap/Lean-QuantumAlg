@@ -27,30 +27,36 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The four actual stages retain the scalar, comparator and two original AND allowances. -/
-def verificationStageEnvelope (kind : ProblemKind) (spec : CurveSpec width)
-    (scalarWidth : Nat) : Fin 4 → ResourcePool kind :=
-  let conjunction := ResourcePool.ofList [.classicalOperation (.bit .and)]
-  ![ScalarMul.Native.scalarEnvelope kind spec scalarWidth,
-    PointEquality.coreEnvelope width, conjunction, conjunction]
+def verificationStageEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width)
+    (scalarWidth : Nat) : Fin 4 → ResourcePool model :=
+  let conjunction := ResourcePool.ofList
+    [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))]
+  ![ScalarMul.Native.scalarEnvelope model spec scalarWidth,
+    PointEquality.coreEnvelope model width, conjunction, conjunction]
 
 /-- The original four stage allowances add without replacing any stage by a shared maximum. -/
-def verificationEnvelope (kind : ProblemKind) (spec : CurveSpec width) (scalarWidth : Nat) :
-    ResourcePool kind :=
-  ∑ index, verificationStageEnvelope kind spec scalarWidth index
+def verificationEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) (scalarWidth : Nat) : ResourcePool model :=
+  ∑ index, verificationStageEnvelope model spec scalarWidth index
 
 /-- Arbitrary native durations remain attached to each original chronological stage. -/
-def verificationStageDepthLimit (spec : CurveSpec width) (scalarWidth : Nat)
-    (duration : Resource.Event kind → Nat) : Fin 4 → Nat :=
+def verificationStageDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (scalarWidth : Nat)
+    (duration : Resource.Event model → Nat) : Fin 4 → Nat :=
   ![ScalarMul.Native.scalarDepthLimit spec scalarWidth duration,
-    ((PointEquality.coreTrace width).map duration).sum,
-    duration (.classicalOperation (.bit .and)), duration (.classicalOperation (.bit .and))]
+    ((PointEquality.coreTrace model width).map duration).sum,
+    duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))),
+    duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and)))]
 
 /-- The original dependent four-stage execution adds all its native duration allowances. -/
-def verificationDepthLimit (spec : CurveSpec width) (scalarWidth : Nat)
-    (duration : Resource.Event kind → Nat) : Nat :=
+def verificationDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (scalarWidth : Nat)
+    (duration : Resource.Event model → Nat) : Nat :=
   ∑ index, verificationStageDepthLimit spec scalarWidth duration index
 
 /-- Scalar arithmetic and complete comparison have successive actual internal scopes. -/
@@ -68,12 +74,18 @@ private theorem verificationStage_pool_le (spec : CurveSpec width)
       scalarResult accepted index).Path) :
     (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted index).resourcePool path ≤
-      verificationStageEnvelope kind spec scalarWidth index := by
+      verificationStageEnvelope model spec scalarWidth index := by
   fin_cases index
   · exact ScalarMul.Native.scalarInto_pool_le spec _ _ _ path
   · exact (PointEquality.Native.compareInto_resourcePool _ _ _ path).le
-  · exact le_rfl
-  · exact le_rfl
+  · change (BitWord.instruction (execution := model)
+      (conjunctionOp inverseSuccess accepted)).resourcePool path ≤ _
+    exact (congrArg ResourcePool.ofList
+      (BitWord.bitWord_instruction_eventTrace _ path)).le
+  · change (BitWord.instruction (execution := model)
+      (conjunctionOp reconstruction accepted)).resourcePool path ≤ _
+    exact (congrArg ResourcePool.ofList
+      (BitWord.bitWord_instruction_eventTrace _ path)).le
 
 /-- Every actual verification path keeps the four original stage resource allowances. -/
 theorem verifyInto_pool_le (spec : CurveSpec width)
@@ -84,11 +96,11 @@ theorem verifyInto_pool_le (spec : CurveSpec width)
     (path : (verifyInto spec candidate base target inverseSuccess reconstruction
       scalarResult accepted).Path) :
     (verifyInto spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted).resourcePool path ≤ verificationEnvelope kind spec scalarWidth :=
+      scalarResult accepted).resourcePool path ≤ verificationEnvelope model spec scalarWidth :=
   Circuit.forRange_pool_le_sum 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted)
-    (verificationStageEnvelope kind spec scalarWidth)
+    (verificationStageEnvelope model spec scalarWidth)
     (verificationStage_pool_le spec candidate base target inverseSuccess reconstruction
       scalarResult accepted) path
 
@@ -97,7 +109,7 @@ private theorem verificationStage_depth_le (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (index : Fin 4)
+    (duration : Resource.Event model → Nat) (index : Fin 4)
     (path : (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted index).Path) :
     (verificationStage spec candidate base target inverseSuccess reconstruction
@@ -106,8 +118,12 @@ private theorem verificationStage_depth_le (spec : CurveSpec width)
   fin_cases index
   · exact ScalarMul.Native.scalarInto_depth_le spec _ _ _ duration path
   · exact (PointEquality.Native.compareInto_depth _ _ _ duration path).le
-  · exact Nat.le_refl _
-  · exact Nat.le_refl _
+  · change (BitWord.instruction (execution := model)
+      (conjunctionOp inverseSuccess accepted)).depth duration path ≤ _
+    exact (BitWord.bitWord_instruction_depth _ duration path).le
+  · change (BitWord.instruction (execution := model)
+      (conjunctionOp reconstruction accepted)).depth duration path ≤ _
+    exact (BitWord.bitWord_instruction_depth _ duration path).le
 
 /-- Every original dependency duration is retained by the actual four-stage verification. -/
 theorem verifyInto_depth_le (spec : CurveSpec width)
@@ -115,7 +131,7 @@ theorem verifyInto_depth_le (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (verifyInto spec candidate base target inverseSuccess reconstruction
       scalarResult accepted).Path) :
     (verifyInto spec candidate base target inverseSuccess reconstruction
@@ -133,7 +149,7 @@ private theorem verificationStage_duration_eventTrace (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (index : Fin 4)
+    (duration : Resource.Event model → Nat) (index : Fin 4)
     (path : (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted index).Path) :
     (verificationStage spec candidate base target inverseSuccess reconstruction
@@ -154,7 +170,7 @@ theorem verifyInto_duration_eventTrace (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (verifyInto spec candidate base target inverseSuccess reconstruction
       scalarResult accepted).Path) :
     (verifyInto spec candidate base target inverseSuccess reconstruction
@@ -174,7 +190,7 @@ theorem retainedCircuit_pool_le (spec : CurveSpec width)
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (path : (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).resourcePool path ≤
-      verificationEnvelope kind spec scalarWidth :=
+      verificationEnvelope model spec scalarWidth :=
   verifyInto_pool_le spec _ _ _ _ _ _ _ path.2
 
 /-- Both actual retained allocations add no native dependency event. -/
@@ -182,7 +198,7 @@ theorem retainedCircuit_depth_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).depth duration path ≤
       verificationDepthLimit spec scalarWidth duration := by
@@ -195,7 +211,7 @@ theorem retainedCircuit_duration_eventTrace (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).depth duration path =
       (((retainedCircuit spec candidate base target inverseSuccess reconstruction).eventTrace
@@ -214,10 +230,10 @@ theorem verifyInto_resident_le (spec : CurveSpec width)
       scalarResult accepted).Path) :
     (verifyInto spec candidate base target inverseSuccess reconstruction
       scalarResult accepted).peakResidentSpace path ≤
-      verificationScratchSpace kind width + ctx.residentSpace := by
+      verificationScratchSpace model.kind width + ctx.residentSpace := by
   refine Circuit.forRange_resident_le 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted) (verificationScratchSpace kind width + ctx.residentSpace)
+      scalarResult accepted) (verificationScratchSpace model.kind width + ctx.residentSpace)
     le_add_self ?_ path
   intro index selected
   fin_cases index
@@ -228,7 +244,8 @@ theorem verifyInto_resident_le (spec : CurveSpec width)
   · exact (Circuit.peakResidentSpace_classical _ selected).le.trans le_add_self
   · exact (Circuit.peakResidentSpace_classical _ selected).le.trans le_add_self
 
-private theorem retainOutputs_resident_le (ctx : RuntimeCtx kind) (width : Nat)
+omit [BitWord.Selected model] in
+private theorem retainOutputs_resident_le (ctx : RuntimeCtx model.kind) (width : Nat)
     (path : (retainOutputs ctx width).Path) :
     (retainOutputs ctx width).peakResidentSpace path ≤ (retainedCtx ctx width).residentSpace := by
   have first : ctx.residentSpace ≤ (acceptedCtx ctx).residentSpace := le_add_self
@@ -249,7 +266,7 @@ theorem retainedCircuit_resident_le (spec : CurveSpec width)
     (path : (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).peakResidentSpace
       path ≤
-      verificationScratchSpace kind width + SpacePool.ofShape (PointShape width) +
+      verificationScratchSpace model.kind width + SpacePool.ofShape (PointShape width) +
         SpacePool.ofShape .bit + ctx.residentSpace := by
   let body := verifyInto spec (retainedInput width candidate) (retainedInput width base)
     (retainedInput width target) (retainedInput width inverseSuccess)
@@ -257,7 +274,7 @@ theorem retainedCircuit_resident_le (spec : CurveSpec width)
   refine (Circuit.peakResidentSpace_seq (retainOutputs ctx width) body path).le.trans ?_
   have bounded : SpacePool.max ((retainOutputs ctx width).peakResidentSpace path.1)
       (body.peakResidentSpace path.2) ≤
-      verificationScratchSpace kind width + (retainedCtx ctx width).residentSpace :=
+      verificationScratchSpace model.kind width + (retainedCtx ctx width).residentSpace :=
     SpacePool.max_le ((retainOutputs_resident_le ctx width path.1).trans le_add_self)
       (verifyInto_resident_le spec _ _ _ _ _ _ _ path.2)
   simpa only [retainedCtx, acceptedCtx, RuntimeCtx.residentSpace_addRetained, add_assoc]
@@ -273,10 +290,10 @@ theorem verifyInto_auxiliary_le (spec : CurveSpec width)
       scalarResult accepted).Path) :
     (verifyInto spec candidate base target inverseSuccess reconstruction
       scalarResult accepted).peakAuxiliarySpace path ≤
-      verificationScratchSpace kind width + ctx.auxiliarySpace := by
+      verificationScratchSpace model.kind width + ctx.auxiliarySpace := by
   refine Circuit.forRange_auxiliary_le 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted) (verificationScratchSpace kind width + ctx.auxiliarySpace)
+      scalarResult accepted) (verificationScratchSpace model.kind width + ctx.auxiliarySpace)
     le_add_self ?_ path
   intro index selected
   fin_cases index
@@ -287,7 +304,8 @@ theorem verifyInto_auxiliary_le (spec : CurveSpec width)
   · exact (Circuit.peakAuxiliarySpace_classical _ selected).le.trans le_add_self
   · exact (Circuit.peakAuxiliarySpace_classical _ selected).le.trans le_add_self
 
-private theorem retainOutputs_auxiliary_le (ctx : RuntimeCtx kind) (width : Nat)
+omit [BitWord.Selected model] in
+private theorem retainOutputs_auxiliary_le (ctx : RuntimeCtx model.kind) (width : Nat)
     (path : (retainOutputs ctx width).Path) :
     (retainOutputs ctx width).peakAuxiliarySpace path ≤ (retainedCtx ctx width).auxiliarySpace := by
   have first : ctx.auxiliarySpace ≤ (acceptedCtx ctx).auxiliarySpace := le_add_self
@@ -308,7 +326,7 @@ theorem retainedCircuit_auxiliary_le (spec : CurveSpec width)
     (path : (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).peakAuxiliarySpace
       path ≤
-      verificationScratchSpace kind width + SpacePool.ofShape (PointShape width) +
+      verificationScratchSpace model.kind width + SpacePool.ofShape (PointShape width) +
         SpacePool.ofShape .bit + ctx.auxiliarySpace := by
   let body := verifyInto spec (retainedInput width candidate) (retainedInput width base)
     (retainedInput width target) (retainedInput width inverseSuccess)
@@ -316,7 +334,7 @@ theorem retainedCircuit_auxiliary_le (spec : CurveSpec width)
   refine (Circuit.peakAuxiliarySpace_seq (retainOutputs ctx width) body path).le.trans ?_
   have bounded : SpacePool.max ((retainOutputs ctx width).peakAuxiliarySpace path.1)
       (body.peakAuxiliarySpace path.2) ≤
-      verificationScratchSpace kind width + (retainedCtx ctx width).auxiliarySpace :=
+      verificationScratchSpace model.kind width + (retainedCtx ctx width).auxiliarySpace :=
     SpacePool.max_le ((retainOutputs_auxiliary_le ctx width path.1).trans le_add_self)
       (verifyInto_auxiliary_le spec _ _ _ _ _ _ _ path.2)
   simpa only [retainedCtx, acceptedCtx, RuntimeCtx.auxiliarySpace_addRetained, add_assoc]

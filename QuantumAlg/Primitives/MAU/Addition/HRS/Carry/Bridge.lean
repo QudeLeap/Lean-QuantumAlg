@@ -96,8 +96,10 @@ def carryBridgeGates (increment complement carry : List (EncodedBit.GateSpec enc
 
 /-- Compile the actual six-block list. -/
 def carryBridgeProgram (increment complement carry : List (EncodedBit.GateSpec encoding)) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  programList (carryBridgeGates increment complement carry)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty
+    (carryBridgeGates increment complement carry)
 
 /-- Component exact actions imply the exact all-input action of their real composition. -/
 theorem hrsCarryBridge_step (increment complement carry : List (EncodedBit.GateSpec encoding))
@@ -119,7 +121,8 @@ theorem hrsCarryBridge_realizes (increment complement carry : List (EncodedBit.G
     (hcarry : ∀ state, stepList carry state = bridgeCarryStep predicate state) :
     UnitaryCircuit.Realizes encoding (carryBridgeProgram increment complement carry)
       (bridgeOutput predicate) :=
-  realizesList_congrStep (carryBridgeGates increment complement carry)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (carryBridgeGates increment complement carry)
     (hrsCarryBridge_step increment complement carry predicate hincrement hcomplement hcarry)
 
 /-- The semantic result restores the entire lower component and the dirty bit. -/
@@ -131,11 +134,14 @@ theorem hrsCarryBridge_restores (predicate : Low → Bool)
 /-- Native coordinates count each actual component list twice. -/
 theorem hrsCarryBridge_native_count
     (increment complement carry : List (EncodedBit.GateSpec encoding))
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (carryBridgeProgram increment complement carry).eventCost =
-      2 * (ResourcePool.count focus (programList increment).eventCost +
-        ResourcePool.count focus (programList complement).eventCost +
-        ResourcePool.count focus (programList carry).eventCost) := by
+      2 * (ResourcePool.count focus
+          (programList (QubitLayout.canonical _) .empty increment).eventCost +
+        ResourcePool.count focus
+          (programList (QubitLayout.canonical _) .empty complement).eventCost +
+        ResourcePool.count focus
+          (programList (QubitLayout.canonical _) .empty carry).eventCost) := by
   simp only [carryBridgeProgram, carryBridgeGates,
     programList_event_count_eq_sum_eventMultiplicity, List.map_append, List.sum_append]
   omega

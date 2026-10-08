@@ -23,12 +23,13 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 /-- The actual first-batch code restores every borrowed classical-reference correlation. -/
 theorem nativeBatch_borrowedRestored (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (Reference : Register)
-    {History : Type} [Fintype History] (state : State base Reference History) :
+    {History : Type} [Fintype History]
+    (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base noQuantum N).BorrowedRestored Reference state
       ((code base noQuantum N).execute Reference state) := by
   have noBorrowed : base.borrowedQuantumWires = [] := by

@@ -13,10 +13,7 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.MAU.Addition.VBE.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.MK.StructuredWitness
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Physical
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.VBECircuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Correction
 
 /-! # Structural resource certificate for inversion correction stages -/
@@ -80,8 +77,8 @@ theorem liftFixedGates_events_eq_source
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth))) :
     (liftFixedGates tail counterWidth gates).map
-        EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold liftFixedGates
   exact
     (EncodedBit.GateSpec.map_event_prodLeft
@@ -96,8 +93,8 @@ theorem liftWorkGates_events_eq_source
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
     (liftWorkGates tail counterWidth gates).map
-        EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold liftWorkGates
   exact
     (EncodedBit.GateSpec.map_event_prodLeft
@@ -114,6 +111,7 @@ theorem liftWorkGates_events_eq_source
         EncodedBit.GateSpec.cnotMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum :=
   EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+    .empty
     (liftFixedGates_events_eq_source tail counterWidth gates)
 
 /-- Fixed-register lifting preserves the strict Toffoli coordinate. -/
@@ -125,6 +123,7 @@ theorem liftWorkGates_events_eq_source
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum :=
   EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+    .empty
     (liftFixedGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict X coordinate. -/
@@ -136,6 +135,7 @@ theorem liftWorkGates_events_eq_source
         EncodedBit.GateSpec.xMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.xMultiplicity).sum :=
   EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+    .empty
     (liftWorkGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict CNOT coordinate. -/
@@ -147,6 +147,7 @@ theorem liftWorkGates_events_eq_source
         EncodedBit.GateSpec.cnotMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum :=
   EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+    .empty
     (liftWorkGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict Toffoli coordinate. -/
@@ -158,6 +159,7 @@ theorem liftWorkGates_events_eq_source
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum :=
   EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+    .empty
     (liftWorkGates_events_eq_source tail counterWidth gates)
 
 /-- Width-only primitive-leaf bound for one static unit multiplication. -/
@@ -253,9 +255,9 @@ theorem fixedComputeGates_toffoliMultiplicity_sum
 private theorem sourceLiftedModularAddGates_events_eq_source
     (n p : Nat) :
     (MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddGates n p).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates n p).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   simp only [MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddGates,
     List.map_map]
   apply List.map_congr_left
@@ -265,9 +267,9 @@ private theorem sourceLiftedModularAddGates_events_eq_source
 private theorem liftedWorkModularAddGates_events_eq_source
     (tail counterWidth p : Nat) :
     (liftedWorkModularAddGates tail counterWidth p).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates tail.succ p).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   unfold liftedWorkModularAddGates
   exact
     (liftWorkGates_events_eq_source tail counterWidth _).trans
@@ -291,6 +293,7 @@ theorem liftedWorkModularAddGates_toffoliMultiplicity_sum
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       stagedTargetAddToffoliCount tail := by
   rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+    .empty
     (liftedWorkModularAddGates_events_eq_source tail counterWidth p)]
   exact MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum
     tail.succ p
@@ -303,6 +306,7 @@ theorem liftedWorkModularAddGates_cnotMultiplicity_sum_le
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       18 * tail.succ + 14 := by
   rw [EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+    .empty
     (liftedWorkModularAddGates_events_eq_source tail counterWidth p)]
   exact MAU.Addition.VBECircuit.modularAddGates_cnotMultiplicity_sum_le
     tail.succ p
@@ -748,100 +752,6 @@ theorem stagedTargetAddGates_toffoliMultiplicity_sum
     EncodedBit.Word.xorIntoGates_toffoliMultiplicity_sum,
     liftedWorkModularAddGates_toffoliMultiplicity_sum]
   omega
-
-private abbrev QuantumSubroutineFree {R : Register} (program : UnitaryCircuit R) : Prop :=
-  ∀ label : QuantumAlg.Resource.QuantumSubroutineLabel,
-    ResourcePool.count (.quantumSubroutine label) program.eventCost = 0
-
-private theorem qfree_fixedCompute
-    (tail counterWidth : Nat)
-    (comparisonIndex : Fin tail.succ)
-    (workIndex : Fin (counterWidth - 1)) :
-    QuantumSubroutineFree
-      (fixedComputeProgram tail counterWidth comparisonIndex workIndex) := by
-  intro label
-  unfold fixedComputeProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_liftedUnitMultiplication
-    (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
-    QuantumSubroutineFree
-      (liftedUnitMultiplicationProgram tail counterWidth p unit) := by
-  intro label
-  unfold liftedUnitMultiplicationProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_rawPseudoResidueLoad
-    (tail counterWidth p : Nat) :
-    QuantumSubroutineFree (rawPseudoResidueLoadProgram tail counterWidth p) := by
-  intro label
-  unfold rawPseudoResidueLoadProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_counterCorrection
-    (tail counterWidth p : Nat) (hpOdd : Odd p) :
-    QuantumSubroutineFree
-      (counterCorrectionProgram tail counterWidth p hpOdd) := by
-  intro label
-  unfold counterCorrectionProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_signCorrection (tail counterWidth p : Nat) :
-    QuantumSubroutineFree (signCorrectionProgram tail counterWidth p) := by
-  intro label
-  unfold signCorrectionProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_correctionCompute
-    (tail counterWidth p : Nat) (hpOdd : Odd p) :
-    QuantumSubroutineFree
-      (correctionComputeProgram tail counterWidth p hpOdd) := by
-  intro label
-  unfold correctionComputeProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-private theorem qfree_stagedTargetAdd (tail counterWidth p : Nat) :
-    QuantumSubroutineFree (stagedTargetAddProgram tail counterWidth p) := by
-  intro label
-  unfold stagedTargetAddProgram
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
-
-/-- The lifted input-independent fixed-round fold contains no
-quantum-subroutine event. -/
-theorem fixedComputeProgram_quantumSubroutine_count_zero
-    (tail counterWidth : Nat)
-    (comparisonIndex : Fin tail.succ)
-    (workIndex : Fin (counterWidth - 1))
-    (label : QuantumAlg.Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (fixedComputeProgram tail counterWidth comparisonIndex workIndex).eventCost = 0 :=
-  qfree_fixedCompute tail counterWidth comparisonIndex workIndex label
-
-/-- A lifted static unit multiplication has no quantum-subroutine event. -/
-theorem liftedUnitMultiplicationProgram_quantumSubroutine_count_zero
-    (tail counterWidth p : Nat) (unit : (ZMod p)ˣ)
-    (label : QuantumAlg.Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (liftedUnitMultiplicationProgram tail counterWidth p unit).eventCost = 0 :=
-  qfree_liftedUnitMultiplication tail counterWidth p unit label
-
-/-- The raw reduction, counter correction, and sign correction circuit has no
-quantum-subroutine event. -/
-theorem correctionComputeProgram_quantumSubroutine_count_zero
-    (tail counterWidth p : Nat) (hpOdd : Odd p)
-    (label : QuantumAlg.Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (correctionComputeProgram tail counterWidth p hpOdd).eventCost = 0 :=
-  qfree_correctionCompute tail counterWidth p hpOdd label
-
-/-- The exact target-transfer/add/untransfer circuit has no
-quantum-subroutine event. -/
-theorem stagedTargetAddProgram_quantumSubroutine_count_zero
-    (tail counterWidth p : Nat)
-    (label : QuantumAlg.Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (stagedTargetAddProgram tail counterWidth p).eventCost = 0 :=
-  qfree_stagedTargetAdd tail counterWidth p label
 
 end
 

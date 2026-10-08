@@ -23,23 +23,24 @@ open Execution.ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {topCtx inner : RuntimeCtx kind}
+variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N), top.Distinct →
       (topTransport : Transport ctx topCtx) → top.TransportSeparated topTransport →
       (cells : LatticePairFactorWorkspaceSeparation.Cells inner N) →
       (pairTransport : Transport topCtx inner) →
-      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells → Circuit inner inner)
+      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells →
+        Circuit model inner inner)
 
 /-- Lift one compositional property through all eight actually nested cell packages. -/
 theorem withWorkspaces_property
-    (property : ∀ {inner : RuntimeCtx kind}, Circuit inner inner → Prop)
-    (workspaceProperty : ∀ (inner : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
+    (property : ∀ {inner : RuntimeCtx model.kind}, Circuit model inner inner → Prop)
+    (workspaceProperty : ∀ (inner : RuntimeCtx model.kind) (key : StorageKey) (shape : CShape)
       (fresh : key ∉ inner.keys)
-      (code : Circuit (inner.addWorkspace key shape fresh)
+      (code : Circuit model (inner.addWorkspace key shape fresh)
         (inner.addWorkspace key shape fresh)),
       property code → property (Circuit.workspace inner key shape fresh code))
-    (bodyProperty : ∀ {topCtx inner : RuntimeCtx kind}
+    (bodyProperty : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -60,8 +61,8 @@ theorem withWorkspaces_property
   exact bodyProperty _ _ _ _ _ _ _
 
 /-- Native coordinates follow the same actual callback path. -/
-theorem withWorkspaces_pool_le (budget : ResourcePool kind)
-    (bodyBound : ∀ {topCtx inner : RuntimeCtx kind}
+theorem withWorkspaces_pool_le (budget : ResourcePool model)
+    (bodyBound : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -80,8 +81,8 @@ theorem withWorkspaces_pool_le (budget : ResourcePool kind)
   exact bound path
 
 /-- Actual dependency depth retains the independent callback budget. -/
-theorem withWorkspaces_depth_le (duration : Resource.Event kind → Nat) (budget : Nat)
-    (bodyBound : ∀ {topCtx inner : RuntimeCtx kind}
+theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
+    (bodyBound : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -101,29 +102,31 @@ theorem withWorkspaces_depth_le (duration : Resource.Event kind → Nat) (budget
 
 /-- Complete borrowed resources retain their external-reference correlations after release. -/
 theorem withWorkspaces_borrowedRestored (Reference : Register)
-    (bodyRestores : ∀ {topCtx inner : RuntimeCtx kind}
+    (bodyRestores : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
       (cells : LatticePairFactorWorkspaceSeparation.Cells inner N)
       (pairTransport : Transport topCtx inner)
       (certificates : LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells)
-      {History : Type} [Fintype History] (state : State inner Reference History),
+      {History : Type} [Fintype History]
+      (state : State inner Reference (model.HiddenState × History)),
       (body top topDistinct topTransport topSeparated cells pairTransport
         certificates).BorrowedRestored
         Reference
         state
         ((body top topDistinct topTransport topSeparated cells pairTransport certificates).execute
           Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (withWorkspaces ctx N body).BorrowedRestored Reference state
       ((withWorkspaces ctx N body).execute Reference state) := by
-  have restores : ∀ {Past : Type} [Fintype Past] (initial : State ctx Reference Past),
+  have restores : ∀ {Past : Type} [Fintype Past]
+      (initial : State ctx Reference (model.HiddenState × Past)),
       (withWorkspaces ctx N body).BorrowedRestored Reference initial
         ((withWorkspaces ctx N body).execute Reference initial) :=
     withWorkspaces_property ctx N body
       (fun {inner} code => ∀ {Past : Type} [Fintype Past]
-        (initial : State inner Reference Past),
+        (initial : State inner Reference (model.HiddenState × Past)),
         code.BorrowedRestored Reference initial (code.execute Reference initial))
       (fun _ key shape fresh code available =>
         Circuit.borrowedRestored_workspace key shape fresh code Reference available)
@@ -131,14 +134,14 @@ theorem withWorkspaces_borrowedRestored (Reference : Register)
   exact restores state
 
 /-- Independent sum of every shape list allocated around the actual batch callback. -/
-def allocationSpace : SpacePool kind :=
+def allocationSpace {kind : ProblemKind} : SpacePool kind :=
   ((LatticeBatchRecoveryWorkspaceLayout.topShapes N).map SpacePool.ofShape).sum +
     LatticePairRecoveryWorkspace.allocationSpace N +
     ((QuadraticScratchLayout.shapes N).map SpacePool.ofShape).sum
 
 /-- The actual resident peak charges every simultaneously live allocation once. -/
-theorem withWorkspaces_resident_le (additional : SpacePool kind)
-    (bodyBound : ∀ {topCtx inner : RuntimeCtx kind}
+theorem withWorkspaces_resident_le (additional : SpacePool model.kind)
+    (bodyBound : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -155,7 +158,7 @@ theorem withWorkspaces_resident_le (additional : SpacePool kind)
     (withWorkspaces ctx N body).peakResidentSpace
         path ≤
       allocationSpace N + additional + ctx.residentSpace := by
-  let quadraticSpace : SpacePool kind :=
+  let quadraticSpace : SpacePool model.kind :=
     ((QuadraticScratchLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (withCellsFrom_resident_le _ _ _
@@ -171,8 +174,8 @@ theorem withWorkspaces_resident_le (additional : SpacePool kind)
   · exact le_of_eq (by simp only [allocationSpace, quadraticSpace, add_assoc])
 
 /-- The actual auxiliary peak charges every simultaneously live allocation once. -/
-theorem withWorkspaces_auxiliary_le (additional : SpacePool kind)
-    (bodyBound : ∀ {topCtx inner : RuntimeCtx kind}
+theorem withWorkspaces_auxiliary_le (additional : SpacePool model.kind)
+    (bodyBound : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -189,7 +192,7 @@ theorem withWorkspaces_auxiliary_le (additional : SpacePool kind)
     (withWorkspaces ctx N body).peakAuxiliarySpace
         path ≤
       allocationSpace N + additional + ctx.auxiliarySpace := by
-  let quadraticSpace : SpacePool kind :=
+  let quadraticSpace : SpacePool model.kind :=
     ((QuadraticScratchLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (withCellsFrom_auxiliary_le _ _ _

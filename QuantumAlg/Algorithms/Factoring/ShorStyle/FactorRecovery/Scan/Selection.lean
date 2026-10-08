@@ -78,17 +78,22 @@ theorem unpack_result (cells : Cells ctx N)
       CShape.unpackOption (store.read (.storage result.toCStorageRef)) :=
   Store.read_applyOp_output store (unpackOp cells result)
 
+section Selected
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The actual selection step keeps the earlier present result, otherwise its true candidate. -/
 theorem selection_latchValue (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separate : FirstAccepted.Separated (selectorInputs cells) (selectorRefs cells))
     (candidateAccepted : cells.candidate.key ≠ cells.accepted.key)
     (candidateSelected : cells.candidate.key ≠ cells.selected.key) (store : Store ctx) :
-    latchValue cells (selectionStep cells result store).1 =
+    latchValue cells (selectionStep (model := model) cells result store).1 =
       firstPresent (latchValue cells store) (store.read (.storage result.toCStorageRef)) := by
   let decoded := store.applyOp (unpackOp cells result)
-  let selected := FirstAccepted.step (selectorInputs cells) (selectorRefs cells) decoded
-  have actual := FirstAccepted.firstAccepted_latches
+  let selected := FirstAccepted.step (model := model) (selectorInputs cells) (selectorRefs cells)
+    decoded
+  have actual := FirstAccepted.firstAccepted_latches (model := model)
     (selectorInputs cells) (selectorRefs cells) separate decoded
   change
     (selected.1.read (.storage cells.accepted.toCStorageRef)).toBool =
@@ -121,7 +126,7 @@ theorem selection_latchValue (cells : Cells ctx N)
     (decoded.read (.storage cells.selected.toCStorageRef))
     (decoded.read (selectorInputs cells).candidate)
     (selected.1.read (.storage cells.selected.toCStorageRef)) actual.1 actual.2
-  change latchValue cells (selectionStep cells result store).1 = _ at packed
+  change latchValue cells (selectionStep (model := model) cells result store).1 = _ at packed
   refine packed.trans ?_
   rw [acceptedSame, selectedSame, eligibleValue, candidateValue]
   have pair : CShape.Value.product
@@ -132,6 +137,8 @@ theorem selection_latchValue (cells : Cells ctx N)
     rfl
   rw [pair, CShape.packOption_unpackOption]
   exact (firstPresent_packed _ _ _).symm
+
+end Selected
 
 /-- The actual initial XOR produces the absent latch result for every original store. -/
 theorem clear_latchValue (cells : Cells ctx N) (store : Store ctx) :

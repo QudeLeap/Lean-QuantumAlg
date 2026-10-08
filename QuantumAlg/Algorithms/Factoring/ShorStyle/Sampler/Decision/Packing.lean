@@ -26,16 +26,6 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-/-- Complete output read of the actual initialization, acceptance branch and final pack. -/
-theorem decision_read (shared : Proposal.SharedRefs ctx width)
-    (scratch : Proposal.ScratchRefs ctx width)
-    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
-    (step shared scratch gcdResult output store).1.read (FirstAccepted.cellRead output) =
-      fields shared scratch
-        (acceptanceStep shared scratch gcdResult (initializationStore shared scratch store)).1 :=
-  decisionPack_read shared scratch output _
-
 /-- The rejected arm executes one payload clear while preserving the full unit and tag values. -/
 theorem decisionRejected_fields (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
@@ -57,6 +47,22 @@ theorem decisionRejected_fields (shared : Proposal.SharedRefs ctx width)
       scratch.eligible.toCStorageRef _ candidateFlag
   unfold fields
   rw [unitRead, flagRead, decision_clearWord_read]
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- Complete output read of the actual initialization, acceptance branch and final pack. -/
+theorem decision_read (shared : Proposal.SharedRefs ctx width)
+    (scratch : Proposal.ScratchRefs ctx width)
+    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
+    (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
+    (step (model := model) shared scratch gcdResult output store).1.read
+      (FirstAccepted.cellRead output) =
+      fields shared scratch
+        (acceptanceStep (model := model) shared scratch gcdResult
+          (initializationStore shared scratch store)).1 :=
+  decisionPack_read shared scratch output _
+
 
 end
 

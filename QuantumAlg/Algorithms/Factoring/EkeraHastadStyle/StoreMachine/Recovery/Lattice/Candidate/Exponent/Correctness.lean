@@ -19,7 +19,8 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every original raw output, Boolean check and external caller read after actual execution. -/
 structure Outcome (refs : Refs ctx width) (exponentBits : Nat) (candidate : Int)
@@ -46,7 +47,8 @@ theorem candidateExponentInto_correct (refs : Refs ctx width) (separation : Sepa
     initial.candidateSignedFits
   have magnitudeValue : (normalized.read (writeInput refs.magnitude)).toNat =
       candidate.natAbs :=
-    (normalizeMagnitude_correct (candidateInput refs) refs.negative refs.magnitude store
+    (normalizeMagnitude_correct (model := model) (candidateInput refs)
+      refs.negative refs.magnitude store
       (separation.sourceAvoidsMutable .candidateThird .negative)).trans decoded.2
   have different : refs.magnitude.key ≠ refs.negative.key := by
     intro equal
@@ -54,7 +56,8 @@ theorem candidateExponentInto_correct (refs : Refs ctx width) (separation : Sepa
     cases impossible
   have negativeValue : (normalized.read (writeInput refs.negative)).toBool =
       decide (candidate < 0) :=
-    (normalizeMagnitude_sign (candidateInput refs) refs.negative refs.magnitude store
+    (normalizeMagnitude_sign (model := model) (candidateInput refs)
+      refs.negative refs.magnitude store
       different).trans decoded.1
   have zeroValue : (normalized.read refs.zero).toNat = 0 := by
     have frame := normalize_source_frame refs separation store .zero

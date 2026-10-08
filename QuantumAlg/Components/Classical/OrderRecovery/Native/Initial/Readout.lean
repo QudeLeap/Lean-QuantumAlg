@@ -60,16 +60,18 @@ theorem nativeRecovery_initialBit_read (modulusWidth phaseBits : Nat)
     rfl
 
 /-- The existing actual decoder writes exactly the original full-register sampled index. -/
-theorem nativeRecovery_decoded_numerator (modulusWidth phaseBits : Nat)
+theorem nativeRecovery_decoded_numerator {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
-    ((TerminalDecode.foldStep
+    ((TerminalDecode.foldStep (model := model)
       (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator
       (List.ofFn (initialPhaseBitRefs ctx modulusWidth phaseBits sample))
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
         (cellRead (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator)).toNat =
       (ClassicalAlgorithms.OrderRecovery.fullRegisterIndex
         (fun bit => ((store.read sample).bitGet bit).toBool)).val := by
-  have actual := TerminalDecode.terminalDecode_intoFromBitRefs_read_output .bigEndian
+  have actual := TerminalDecode.terminalDecode_intoFromBitRefs_read_output
+    (model := model) .bigEndian
     (initialPhaseBitRefs ctx modulusWidth phaseBits sample)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator
     (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)

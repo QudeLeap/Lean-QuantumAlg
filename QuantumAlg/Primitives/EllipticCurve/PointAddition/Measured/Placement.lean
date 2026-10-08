@@ -32,7 +32,8 @@ open Execution
 /-- The same actual measured body with every native address and storage operand mapped. -/
 def body {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) :
-    Circuit (context p.size keys physical) (context p.size keys physical) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (context p.size keys physical) (context p.size keys physical) :=
   ContextRelabeling.localCircuit (MeasuredPointAddition.body E Q)
     (MeasuredPointAddition.body_isLocal E Q) keys physical
 

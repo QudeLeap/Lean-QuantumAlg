@@ -9,6 +9,8 @@ module
 public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Program
 public import QuantumAlg.Core.Base.Accounting.ResourcePool
 public import QuantumAlg.Core.Base.Accounting.Space
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Program
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Selection.Resources
@@ -24,12 +26,13 @@ or complete run. Temporary quantum capacity is independent of positive count.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
 /-- Independent native events distinguish actual zero batches and positive selected chains. -/
-public def eventEnvelope (N : Nat) : Nat → ResourcePool .quantum
+public def eventEnvelope (N : Nat) : Nat →
+    ResourcePool (.quantum AlgorithmGate.model .empty BitWord.model)
   | 0 => 0
   | count + 1 => NativeRetrySelection.eventEnvelope N count
 
@@ -47,7 +50,7 @@ public def additionalSpace (N : Nat) : Nat → SpacePool .quantum
 theorem eventEnvelope_zero (N : Nat) : eventEnvelope N 0 = 0 := rfl
 
 /-- Positive requested batches use exactly the original selected-chain ledger. -/
-theorem eventEnvelope_succ (N count : Nat) :
+theorem eventEnvelope_positive (N count : Nat) :
     eventEnvelope N (count + 1) = NativeRetrySelection.eventEnvelope N count := rfl
 
 /-- Empty-result allocation has no native event duration. -/

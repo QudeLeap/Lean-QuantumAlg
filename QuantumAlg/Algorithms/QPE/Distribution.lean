@@ -36,8 +36,8 @@ open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
 theorem outputDistribution_eq {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    {Reference : Register} (input : Input (pre t n) Reference)
-    (promised : inputPromise P t input.localState.quantumMarginal) :
+    {Reference : Register} (input : OracleInput ClassicalOracleModel.empty (pre t n) Reference)
+    (promised : inputPromise P t input.caller.localState.quantumMarginal) :
     (run P t).outputDistribution input =
       ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).map CShape.Value.bits := by
   apply PMF.ext
@@ -50,13 +50,16 @@ theorem outputDistribution_eq {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code P t).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code P t).execute Reference
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))
       |>.block output).mass) = _
   have actualPromise : inputPromise P t
-      (input.state.mapClassical (fun store => (store, store))).quantumMarginal.marginalLeft := by
-    rw [ExecutionState.mapClassical_quantumMarginal, ← Input.localState_quantumMarginal]
-    exact promised
+      (input.state.mapClassical
+        (fun value => (value.1, (value.2, value.1)))).quantumMarginal.marginalLeft := by
+    rw [Input.localState_quantumMarginal, OracleInput.oracleInput_caller_quantumMarginal]
+      at promised
+    simpa only [ExecutionState.mapClassical_quantumMarginal] using promised
   rw [code_block_mass P t _ actualPromise]
   rw [ENNReal.ofReal_sum_of_nonneg (fun basis _ => by
     split
@@ -88,8 +91,8 @@ private theorem accepts_iff_encoded {n : Nat} (P : QPEEigenstateInput n) (t : Na
 
 /-- The original circular precision event holds on the actual initial-store/result distribution. -/
 theorem actual_success {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    {Reference : Register} (input : Input (pre t n) Reference)
-    (promised : inputPromise P t input.localState.quantumMarginal) :
+    {Reference : Register} (input : OracleInput ClassicalOracleModel.empty (pre t n) Reference)
+    (promised : inputPromise P t input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (4 / Real.pi ^ 2) ≤
       ((run P t).relationalDistribution input).toOuterMeasure
         {pair | accepts P t pair.1 pair.2} := by
@@ -102,7 +105,7 @@ theorem actual_success {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
       PMF.toOuterMeasure_map_apply]
     congr 1
     ext record
-    exact accepts_iff_encoded P t record.2.1 ((run P t).result record)
+    exact accepts_iff_encoded P t record.2.2.1 ((run P t).result record)
   rw [projection, outputDistribution_eq P t input promised, PMF.toOuterMeasure_map_apply,
     Set.preimage_image_eq _ (fun _ _ same => CShape.Value.bits.inj same)]
   exact born_successProbability_ge P t

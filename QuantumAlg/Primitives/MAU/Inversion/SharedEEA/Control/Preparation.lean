@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Layout
 import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Preparation.Laws
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Components.GateModel.Algorithm
 
 /-!
 # Actual internal preparation of the shared-EEA Ctrl wire
@@ -19,7 +20,7 @@ all four lengths, and the four phase/sign/parity bits
 [LYL+26, sec_EEA/sub_regshare.tex:16-26]. This internal preparation stage
 takes those preceding physical systems in an arbitrary joint state and
 allocates precisely the missing Ctrl system in basis zero. It uses the
-single `Circuit.prepare` instruction, with its actual native event and
+single `Circuit.prepareZero` instruction, with its actual native event and
 space extension.
 
 All old context-reference matrix entries are preserved, with no separation
@@ -84,9 +85,10 @@ def preparation (width : Nat) : BasisPreparation (controlLayout width) :=
   BasisPreparation.zero (controlLayout width)
 
 /-- The sole execution syntax allocates and prepares the actual missing source Ctrl. -/
-def circuit (width : Nat) : Circuit (before width) (after width) :=
-  .prepare (before width) controlKey (controlLayout width)
-    (control_fresh width) (control_disjoint width) (preparation width)
+def circuit (width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty) (before width) (after width) :=
+  .prepareZero (before width) controlKey (controlLayout width)
+    (control_fresh width) (control_disjoint width)
 
 /-- The fresh wire has exactly the physical identity of the native semantic Ctrl lens. -/
 theorem control_identity (width : Nat) :
@@ -109,7 +111,8 @@ theorem prepared_control_zero (width : Nat) : (preparation width).value 0 = 0 :=
 
 /-- The native preparation event is retained in every execution path. -/
 theorem circuit_eventTrace (width : Nat) (path : (circuit width).Path) :
-    (circuit width).eventTrace path = [(preparation width).event] := rfl
+    (circuit width).eventTrace path =
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty (controlLayout width) := rfl
 
 variable {Reference : Register} {H : Type} [Fintype H]
 
@@ -121,7 +124,8 @@ def joined (width : Nat) (fresh : (controlLayout width).register.Index)
     (control_fresh width) (control_disjoint width) (fresh, old)
 
 /-- Actual preparation retains every old joint coherence, including arbitrary external reference. -/
-theorem execute_joined_entry (width : Nat) (state : State (before width) Reference H)
+theorem execute_joined_entry (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (newRow newColumn : (controlLayout width).register.Index)
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index) :
     ((circuit width).execute Reference state).quantumMarginal.matrix
@@ -129,8 +133,9 @@ theorem execute_joined_entry (width : Nat) (state : State (before width) Referen
         ((preparation width).normalized.vec newRow *
           star ((preparation width).normalized.vec newColumn)) *
             state.quantumMarginal.matrix oldRow oldColumn :=
-  Circuit.prepare_joined_entry state controlKey (controlLayout width)
-    (control_fresh width) (control_disjoint width) (preparation width)
+  Circuit.prepareZero_joined_entry (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := .empty) (classicalOracles := .empty) state controlKey (controlLayout width)
+    (control_fresh width) (control_disjoint width)
     newRow newColumn oldRow oldColumn
 
 private theorem preparation_vec (width : Nat) (basis : (controlLayout width).register.Index) :
@@ -139,7 +144,8 @@ private theorem preparation_vec (width : Nat) (basis : (controlLayout width).reg
   NormalizedVector.ket_apply _ _
 
 /-- On the prepared zero coordinate, the actual full matrix is exactly the old joint matrix. -/
-theorem execute_zero_entry (width : Nat) (state : State (before width) Reference H)
+theorem execute_zero_entry (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index) :
     ((circuit width).execute Reference state).quantumMarginal.matrix
       (joined width (preparation width).value oldRow)
@@ -149,7 +155,8 @@ theorem execute_zero_entry (width : Nat) (state : State (before width) Reference
   simp only [preparation_vec, ↓reduceIte, star_one, one_mul]
 
 /-- No actual matrix row has nonzero support when the fresh Ctrl value is nonzero. -/
-theorem execute_nonzero_control_row (width : Nat) (state : State (before width) Reference H)
+theorem execute_nonzero_control_row (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (newRow newColumn : (controlLayout width).register.Index)
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index)
     (nonzero : newRow 0 ≠ 0) :
@@ -163,7 +170,8 @@ theorem execute_nonzero_control_row (width : Nat) (state : State (before width) 
   rw [execute_joined_entry, preparation_vec, if_neg different, zero_mul, zero_mul]
 
 /-- Neither off-diagonal column support nor any reference coherence can hide a nonzero Ctrl. -/
-theorem execute_nonzero_control_column (width : Nat) (state : State (before width) Reference H)
+theorem execute_nonzero_control_column (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (newRow newColumn : (controlLayout width).register.Index)
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index)
     (nonzero : newColumn 0 ≠ 0) :
@@ -178,17 +186,20 @@ theorem execute_nonzero_control_column (width : Nat) (state : State (before widt
     mul_zero, zero_mul]
 
 /-- The complete external-reference matrix is unchanged by the actual preparation instruction. -/
-theorem execute_reference_entry (width : Nat) (state : State (before width) Reference H)
+theorem execute_reference_entry (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (left right : Reference.Index) :
     (∑ basis : (after width).register.Index,
       ((circuit width).execute Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (before width).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) :=
-  Circuit.prepare_reference_entry state controlKey (controlLayout width)
-    (control_fresh width) (control_disjoint width) (preparation width) left right
+  Circuit.prepareZero_reference_entry (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := .empty) (classicalOracles := .empty) state controlKey (controlLayout width)
+    (control_fresh width) (control_disjoint width) left right
 
-theorem execute_mass (width : Nat) (state : State (before width) Reference H) :
+theorem execute_mass (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
     ((circuit width).execute Reference state).mass = state.mass :=
   Circuit.execute_mass (circuit width) Reference state
 

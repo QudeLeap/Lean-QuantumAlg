@@ -73,10 +73,12 @@ theorem firstComparison_separation (metric : LatticeMetricMachine.Refs ctx width
   simpa only [CInputRef.storageKeys, List.mem_singleton, LatticeMetricMachine.metricCellRef]
     using avoids
 
-/-- Execute the actual first Lovasz decision through the shared native comparison. -/
-def firstLovaszInto (metric : LatticeMetricMachine.Refs ctx width) (refs : FirstLovaszRefs ctx) :
-    Circuit ctx ctx :=
-  ClassicalRoutines.Comparison.Doubled.compareInto (firstComparisonRefs metric refs)
+/-- Execute the actual first Lovasz decision through the shared selected comparison. -/
+def firstLovaszInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (metric : LatticeMetricMachine.Refs ctx width)
+    (refs : FirstLovaszRefs ctx) : Circuit model ctx ctx :=
+  ClassicalRoutines.Comparison.Doubled.compareInto (model := model)
+    (firstComparisonRefs metric refs)
 
 /-- Actual chronological store of the first Lovasz decision. -/
 def firstLovaszStore
@@ -85,11 +87,15 @@ def firstLovaszStore
   ClassicalRoutines.Comparison.Doubled.comparedStore (firstComparisonRefs metric refs) store
 
 /-- Full actual first-test execution retains histories and quantum-reference correlations. -/
-theorem firstLovaszInto_execute (metric : LatticeMetricMachine.Refs ctx width)
+theorem firstLovaszInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (metric : LatticeMetricMachine.Refs ctx width)
     (refs : FirstLovaszRefs ctx) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (firstLovaszInto metric refs).execute Reference state = state.mapClassical (fun entry =>
-      (firstLovaszStore metric refs entry.1, (entry.2, ((), ((), ()))))) :=
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (firstLovaszInto (model := model) metric refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := ClassicalRoutines.Comparison.Doubled.executionStep (model := model)
+          (firstComparisonRefs metric refs) entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_execute _ Reference state
 
 /-- Original unsigned norm bounds give the actual first-test decision bit. -/
@@ -152,36 +158,41 @@ theorem firstLovaszInto_preservesGram (metric : LatticeMetricMachine.Refs ctx wi
   exact represented entry
 
 /-- The actual first Lovasz trace is the common independent three-operation formula. -/
-theorem firstLovaszInto_events
-    (metric : LatticeMetricMachine.Refs ctx width) (refs : FirstLovaszRefs ctx)
-    (path : (firstLovaszInto metric refs).Path) :
-    (firstLovaszInto metric refs).eventTrace path =
-      ClassicalRoutines.Comparison.Doubled.comparisonTrace width :=
+theorem firstLovaszInto_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (metric : LatticeMetricMachine.Refs ctx width)
+    (refs : FirstLovaszRefs ctx)
+    (path : (firstLovaszInto (model := model) metric refs).Path) :
+    (firstLovaszInto (model := model) metric refs).eventTrace path =
+      ClassicalRoutines.Comparison.Doubled.comparisonTrace (model := model) width :=
   ClassicalRoutines.Comparison.Doubled.compareInto_events (firstComparisonRefs metric refs) path
 
 /-- Actual native multiplicities come from that same independent formula. -/
 theorem firstLovaszInto_resourcePool
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (metric : LatticeMetricMachine.Refs ctx width) (refs : FirstLovaszRefs ctx)
-    (path : (firstLovaszInto metric refs).Path) :
-    (firstLovaszInto metric refs).resourcePool path =
-      ResourcePool.ofList (ClassicalRoutines.Comparison.Doubled.comparisonTrace width) :=
+    (path : (firstLovaszInto (model := model) metric refs).Path) :
+    (firstLovaszInto (model := model) metric refs).resourcePool path =
+      ResourcePool.ofList
+        (ClassicalRoutines.Comparison.Doubled.comparisonTrace (model := model) width) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_resourcePool
     (firstComparisonRefs metric refs) path
 
 /-- The actual first Lovasz test has unit-duration serial depth three. -/
-theorem firstLovaszInto_depth
-    (metric : LatticeMetricMachine.Refs ctx width) (refs : FirstLovaszRefs ctx)
-    (path : (firstLovaszInto metric refs).Path) :
-    (firstLovaszInto metric refs).depth (fun _ => 1) path = 3 :=
+theorem firstLovaszInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (metric : LatticeMetricMachine.Refs ctx width)
+    (refs : FirstLovaszRefs ctx)
+    (path : (firstLovaszInto (model := model) metric refs).Path) :
+    (firstLovaszInto (model := model) metric refs).depth (fun _ => 1) path = 3 :=
   ClassicalRoutines.Comparison.Doubled.compareInto_depth (firstComparisonRefs metric refs) path
 
 /-- The actual first test restores borrowed correlations jointly with external references. -/
-theorem firstLovaszInto_borrowedRestored
-    (metric : LatticeMetricMachine.Refs ctx width) (refs : FirstLovaszRefs ctx)
+theorem firstLovaszInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (metric : LatticeMetricMachine.Refs ctx width)
+    (refs : FirstLovaszRefs ctx)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (firstLovaszInto metric refs).BorrowedRestored Reference state
-      ((firstLovaszInto metric refs).execute Reference state) :=
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (firstLovaszInto (model := model) metric refs).BorrowedRestored Reference state
+      ((firstLovaszInto (model := model) metric refs).execute Reference state) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_borrowedRestored
     (firstComparisonRefs metric refs) Reference state
 

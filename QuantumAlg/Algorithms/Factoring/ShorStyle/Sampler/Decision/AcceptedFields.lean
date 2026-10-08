@@ -52,6 +52,9 @@ private theorem cell_free {shape : CShape} (other : CWriteRef ctx shape)
     key ∉ (FirstAccepted.cellRead other).storageKeys := by
   simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using different
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 private theorem preserved_cell (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
@@ -60,11 +63,13 @@ private theorem preserved_cell (shared : Proposal.SharedRefs ctx width)
     (gcdOther : gcdResult.key ≠ other.key)
     (positiveOther : scratch.positive.key ≠ other.key) (store : Store ctx) :
     (comparisonStore shared scratch gcdResult
-      (reducedStore shared scratch gcdResult store)).read (FirstAccepted.cellRead other) =
+      (reducedStore (model := model)
+        shared scratch gcdResult store)).read (FirstAccepted.cellRead other) =
         store.read (FirstAccepted.cellRead other) :=
   (decisionComparison_read_other shared scratch gcdResult (FirstAccepted.cellRead other)
     (cell_free other _ extendedOther) (cell_free other _ positiveOther) _).trans
-      (decisionReduction_read_other shared scratch gcdResult (FirstAccepted.cellRead other)
+      (decisionReduction_read_other (model := model)
+        shared scratch gcdResult (FirstAccepted.cellRead other)
         (cell_free other _ extendedOther) (cell_free other _ gcdOther) store)
 
 /-- Exact complete fields obtained from the actual accepted GCD and stored result branch. -/
@@ -73,7 +78,7 @@ theorem decisionAccepted_fields (shared : Proposal.SharedRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (separated : AcceptedSeparated shared scratch gcdResult) (store : Store ctx)
     (resultZero : (store.read (FirstAccepted.cellRead gcdResult)).toNat = 0) :
-    fields shared scratch (acceptedStep shared scratch gcdResult store).1 =
+    fields shared scratch (acceptedStep (model := model) shared scratch gcdResult store).1 =
       if Nat.gcd (store.read (FirstAccepted.cellRead scratch.candidate)).toNat
           (store.read shared.modulus).toNat =
             (store.read (FirstAccepted.cellRead shared.selector.selected)).toNat then
@@ -86,16 +91,16 @@ theorem decisionAccepted_fields (shared : Proposal.SharedRefs ctx width)
             (CShape.wordOfNat width
               (Nat.gcd (store.read (FirstAccepted.cellRead scratch.candidate)).toNat
                 (store.read shared.modulus).toNat))) := by
-  let reduced := reducedStore shared scratch gcdResult store
+  let reduced := reducedStore (model := model) shared scratch gcdResult store
   let compared := comparisonStore shared scratch gcdResult reduced
   have reducedGcd : (reduced.read (FirstAccepted.cellRead gcdResult)).toNat =
       Nat.gcd (store.read (FirstAccepted.cellRead scratch.candidate)).toNat
         (store.read shared.modulus).toNat :=
-    decisionReduction_value shared scratch gcdResult separated.extendedGcd
+    decisionReduction_value (model := model) shared scratch gcdResult separated.extendedGcd
       separated.extendedModulus store resultZero
   have reducedUnit : reduced.read (FirstAccepted.cellRead shared.selector.selected) =
       store.read (FirstAccepted.cellRead shared.selector.selected) :=
-    decisionReduction_read_other shared scratch gcdResult
+    decisionReduction_read_other (model := model) shared scratch gcdResult
       (FirstAccepted.cellRead shared.selector.selected)
       (cell_free shared.selector.selected _ separated.extendedUnit)
       (cell_free shared.selector.selected _ separated.gcdUnit) store
@@ -108,15 +113,17 @@ theorem decisionAccepted_fields (shared : Proposal.SharedRefs ctx width)
     exact actual
   have candidateRead : compared.read (FirstAccepted.cellRead scratch.candidate) =
       store.read (FirstAccepted.cellRead scratch.candidate) :=
-    preserved_cell shared scratch gcdResult scratch.candidate separated.extendedCandidate
+    preserved_cell (model := model)
+      shared scratch gcdResult scratch.candidate separated.extendedCandidate
       separated.gcdCandidate separated.positiveCandidate store
   have unitRead : compared.read (FirstAccepted.cellRead shared.selector.selected) =
       store.read (FirstAccepted.cellRead shared.selector.selected) :=
-    preserved_cell shared scratch gcdResult shared.selector.selected separated.extendedUnit
+    preserved_cell (model := model)
+      shared scratch gcdResult shared.selector.selected separated.extendedUnit
       separated.gcdUnit separated.positiveUnit store
   have flagRead : compared.read (FirstAccepted.cellRead scratch.eligible) =
       store.read (FirstAccepted.cellRead scratch.eligible) :=
-    preserved_cell shared scratch gcdResult scratch.eligible separated.extendedFlag
+    preserved_cell (model := model) shared scratch gcdResult scratch.eligible separated.extendedFlag
       separated.gcdFlag separated.positiveFlag store
   have gcdValue : (compared.read (FirstAccepted.cellRead gcdResult)).toNat =
       Nat.gcd (store.read (FirstAccepted.cellRead scratch.candidate)).toNat

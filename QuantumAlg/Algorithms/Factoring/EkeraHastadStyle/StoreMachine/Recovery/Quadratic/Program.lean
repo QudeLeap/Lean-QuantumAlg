@@ -167,28 +167,31 @@ structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Na
   callerFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
     CallerFrameAvoids refs other → after.read other = before.read other
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Generate both candidates, then check and select them in their original order. -/
-def into (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
+def into (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
   .seq (QuadraticCandidates.into refs.candidates) (QuadraticCandidatePairSelect.into refs.pair)
 
 /-- The complete actual caller store and chronological path of candidate construction and checks. -/
 def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into refs).Path :=
-  let candidates := QuadraticCandidates.step refs.candidates store
-  let pair := QuadraticCandidatePairSelect.step refs.pair candidates.1
-  (pair.1, (candidates.2, pair.2))
+  Circuit.sequenceStoreRecord (QuadraticCandidates.into refs.candidates)
+    (QuadraticCandidatePairSelect.into refs.pair)
+    (QuadraticCandidates.step refs.candidates) (QuadraticCandidatePairSelect.step refs.pair) store
 
 /-- The full interpreter equation holds for every history and external quantum reference. -/
 theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
-  simp only [into, step, Circuit.execute_seq, QuadraticCandidates.into_execute,
-    QuadraticCandidatePairSelect.into_execute, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord (QuadraticCandidates.into refs.candidates)
+    (QuadraticCandidatePairSelect.into refs.pair)
+    (QuadraticCandidates.step refs.candidates) (QuadraticCandidatePairSelect.step refs.pair)
+    (QuadraticCandidates.into_execute refs.candidates)
+    (QuadraticCandidatePairSelect.into_execute refs.pair) Reference state
 
 /-- Every disjoint caller read survives both actual computation stages. -/
 theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
@@ -244,7 +247,7 @@ theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
   simpa only [previous, firstOptionValue, secondOptionValue] using pair.selected
 
 /-- Independent allowance for candidate construction and both ordered proper-divisor checks. -/
-def eventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
   QuadraticCandidates.eventEnvelope shortWidth +
     QuadraticCandidatePairSelect.eventEnvelope shortWidth
 
@@ -275,7 +278,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
 
 /-- Candidate construction and checked selection keep every supplied runtime entry live. -/
 theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (QuadraticCandidates.into refs.candidates).visitedContexts path.1 ++
     (QuadraticCandidatePairSelect.into refs.pair).visitedContexts path.2 at present
@@ -299,7 +302,8 @@ theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path)
 
 /-- Actual quadratic recovery restores borrowed storage jointly with arbitrary references. -/
 theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact QuadraticCandidates.into_borrowedRestored refs.candidates Reference state

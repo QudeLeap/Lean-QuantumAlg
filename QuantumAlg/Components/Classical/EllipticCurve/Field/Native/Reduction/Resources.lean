@@ -23,22 +23,25 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.Field.Native
 open Execution ClassicalAlgorithms.Modular
 open Modular.Reduce.Native
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {sourceWidth width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {sourceWidth width : Nat}
 
 /-- Exact original MSB-first modulus loading followed by the two native reduction events. -/
-def loadedReductionTrace (kind : ProblemKind) (sourceWidth : Nat) (spec : ModulusSpec width) :
-    List (Resource.Event kind) :=
-  ConstantWord.loaderTrace kind (width + 1)
+def loadedReductionTrace (model : ExecutionModel) [BitWord.Selected model]
+    (sourceWidth : Nat) (spec : ModulusSpec width) : List (Resource.Event model) :=
+  ConstantWord.loaderTrace model (width + 1)
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus)) ++
-      reductionEvents kind sourceWidth width
+      reductionEvents model sourceWidth width
 
 /-- Actual modulus allocation and release retain precisely the original native event trace. -/
 theorem fieldReduceIntoWord_eventTrace (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (reduceIntoWord spec numerator output).Path) :
-    (reduceIntoWord spec numerator output).eventTrace path =
-      loadedReductionTrace kind sourceWidth spec := by
+    (path : (reduceIntoWord (model := model) spec numerator output).Path) :
+    (reduceIntoWord (model := model) spec numerator output).eventTrace path =
+      loadedReductionTrace model sourceWidth spec := by
   change (ConstantWord.circuit _ spec.modulus).eventTrace path.1 ++
     (reduceWord _ _ _).eventTrace path.2 = _
   exact congrArg₂ List.append
@@ -50,18 +53,18 @@ theorem fieldReduceIntoWord_eventTrace (spec : ModulusSpec width)
 theorem reduceIntoWord_resourcePool (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (reduceIntoWord spec numerator output).Path) :
-    (reduceIntoWord spec numerator output).resourcePool path =
-      ResourcePool.ofList (loadedReductionTrace kind sourceWidth spec) :=
+    (path : (reduceIntoWord (model := model) spec numerator output).Path) :
+    (reduceIntoWord (model := model) spec numerator output).resourcePool path =
+      ResourcePool.ofList (loadedReductionTrace model sourceWidth spec) :=
   congrArg ResourcePool.ofList (fieldReduceIntoWord_eventTrace spec numerator output path)
 
 /-- Arbitrary durations retain the exact original serial dependency depth. -/
 theorem reduceIntoWord_durationDepth (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
-    (path : (reduceIntoWord spec numerator output).Path) :
-    (reduceIntoWord spec numerator output).depth duration path =
-      ((loadedReductionTrace kind sourceWidth spec).map duration).sum := by
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
+    (path : (reduceIntoWord (model := model) spec numerator output).Path) :
+    (reduceIntoWord (model := model) spec numerator output).depth duration path =
+      ((loadedReductionTrace model sourceWidth spec).map duration).sum := by
   change (ConstantWord.circuit _ spec.modulus).depth duration path.1 +
     (reduceWord _ _ _).depth duration path.2 = _
   refine (congrArg₂ Nat.add
@@ -77,11 +80,12 @@ theorem reduceIntoWord_durationDepth (spec : ModulusSpec width)
 theorem reduceIntoWord_resident (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (reduceIntoWord spec numerator output).Path) :
-    (reduceIntoWord spec numerator output).peakResidentSpace path =
+    (path : (reduceIntoWord (model := model) spec numerator output).Path) :
+    (reduceIntoWord (model := model) spec numerator output).peakResidentSpace path =
       SpacePool.ofShape (.unsignedWord (width + 1)) +
         SpacePool.ofShape (divisionShape sourceWidth width) + ctx.residentSpace := by
-  have bodyPeak : (loadedReductionPlaced spec numerator output).peakResidentSpace path =
+  have bodyPeak :
+      (loadedReductionPlaced (model := model) spec numerator output).peakResidentSpace path =
       SpacePool.ofShape (divisionShape sourceWidth width) +
         (loadedReductionCtx ctx width).residentSpace := by
     refine (Circuit.peakResidentSpace_seq (ConstantWord.circuit (loadedModulusCell ctx width)
@@ -104,11 +108,12 @@ theorem reduceIntoWord_resident (spec : ModulusSpec width)
 theorem reduceIntoWord_auxiliary (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (reduceIntoWord spec numerator output).Path) :
-    (reduceIntoWord spec numerator output).peakAuxiliarySpace path =
+    (path : (reduceIntoWord (model := model) spec numerator output).Path) :
+    (reduceIntoWord (model := model) spec numerator output).peakAuxiliarySpace path =
       SpacePool.ofShape (.unsignedWord (width + 1)) +
         SpacePool.ofShape (divisionShape sourceWidth width) + ctx.auxiliarySpace := by
-  have bodyPeak : (loadedReductionPlaced spec numerator output).peakAuxiliarySpace path =
+  have bodyPeak :
+      (loadedReductionPlaced (model := model) spec numerator output).peakAuxiliarySpace path =
       SpacePool.ofShape (divisionShape sourceWidth width) +
         (loadedReductionCtx ctx width).auxiliarySpace := by
     refine (Circuit.peakAuxiliarySpace_seq (ConstantWord.circuit (loadedModulusCell ctx width)
@@ -126,5 +131,7 @@ theorem reduceIntoWord_auxiliary (spec : ModulusSpec width)
   rw [SpacePool.max_eq_right enlarged]
   change _ + (_ + ctx.auxiliarySpace) = _
   ac_rfl
+
+end
 
 end QuantumAlg.ClassicalRoutines.EllipticCurve.Field.Native

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters.Source
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Util.Combinatorics
 

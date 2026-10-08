@@ -27,14 +27,6 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-/-- Actual store after the candidate resize and the expanded Euclidean circuit. -/
-def reducedStore (shared : Proposal.SharedRefs ctx width)
-    (scratch : Proposal.ScratchRefs ctx width)
-    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) : Store ctx :=
-  (NumberTheory.GCD.lexicalStep
-    (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult
-    (store.applyOp (Proposal.extendOp scratch))).1
-
 /-- Widening the actual candidate preserves its full natural value, including at width zero. -/
 theorem decisionExtend_value (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (Proposal.extendOp scratch)).read
@@ -51,6 +43,17 @@ theorem decisionExtend_value (scratch : Proposal.ScratchRefs ctx width) (store :
       (ClassicalOp.eval_wordResize_exact width (width + 1) ctx
         (FirstAccepted.cellRead scratch.candidate) scratch.extended _ widened)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- Actual store after the candidate resize and the expanded Euclidean circuit. -/
+def reducedStore (shared : Proposal.SharedRefs ctx width)
+    (scratch : Proposal.ScratchRefs ctx width)
+    (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) : Store ctx :=
+  (NumberTheory.GCD.lexicalStep (model := model)
+    (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult
+    (store.applyOp (Proposal.extendOp scratch))).1
+
 /-- The actually executed GCD stores the exact natural GCD of the original candidate and modulus. -/
 theorem decisionReduction_value (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
@@ -59,7 +62,7 @@ theorem decisionReduction_value (shared : Proposal.SharedRefs ctx width)
     (extendedModulus : scratch.extended.key ∉ shared.modulus.storageKeys)
     (store : Store ctx)
     (resultZero : (store.read (FirstAccepted.cellRead gcdResult)).toNat = 0) :
-    ((reducedStore shared scratch gcdResult store).read
+    ((reducedStore (model := model) shared scratch gcdResult store).read
       (FirstAccepted.cellRead gcdResult)).toNat =
         Nat.gcd (store.read (FirstAccepted.cellRead scratch.candidate)).toNat
           (store.read shared.modulus).toNat := by
@@ -74,7 +77,7 @@ theorem decisionReduction_value (shared : Proposal.SharedRefs ctx width)
     Store.read_applyOp_of_not_mem_storageKeys store (Proposal.extendOp scratch)
       shared.modulus extendedModulus
   have actual := congrArg CShape.Value.toNat
-    (NumberTheory.GCD.gcdLexical_read_result
+    (NumberTheory.GCD.gcdLexical_read_result (model := model)
       (.product (FirstAccepted.cellRead scratch.extended) shared.modulus)
       gcdResult widened zeroValue)
   have arithmetic (left right : CShape.Word (width + 1)) :
@@ -97,8 +100,8 @@ theorem decisionReduction_read_other (shared : Proposal.SharedRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (extendedFree : scratch.extended.key ∉ other.storageKeys)
     (resultFree : gcdResult.key ∉ other.storageKeys) (store : Store ctx) :
-    (reducedStore shared scratch gcdResult store).read other = store.read other :=
-  (NumberTheory.GCD.gcdLexical_read_other
+    (reducedStore (model := model) shared scratch gcdResult store).read other = store.read other :=
+  (NumberTheory.GCD.gcdLexical_read_other (model := model)
     (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult
     other resultFree _).trans
       (Store.read_applyOp_of_not_mem_storageKeys store (Proposal.extendOp scratch)

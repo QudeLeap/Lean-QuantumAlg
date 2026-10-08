@@ -56,11 +56,11 @@ structure Certificates {kind : ProblemKind}
   lllNearest : Execution.ClassicalWorkspace.CrossSeparated cells.lll cells.nearest
 
 /-- Allocate every reusable package required by one pair recovery. -/
-def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+def withWorkspaces {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner),
-      Certificates transport cells → Circuit inner inner) :
-    Circuit ctx ctx :=
+      Certificates transport cells → Circuit model inner inner) :
+    Circuit model ctx ctx :=
   LatticePairCoreWorkspace.withWorkspaces ctx N fun
       core coreTransport coreCertificates =>
     withCells _

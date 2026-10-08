@@ -67,14 +67,17 @@ theorem resultStore_read_liftInput (source : Input N) {shape : CShape}
       (.bits (PackedSample.storedBits sample)) (liftInput (N := N) input) sampleSeparate).trans
       (pushStore_read_liftInput store input))
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The real uniform sample and parameter retain the joint earlier-input reference weights. -/
 theorem samplerRetained_reference_input (source : Input N) {shape : CShape}
     (input : CInputRef ctx shape) {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History)
+    (state : State ctx Reference (model.HiddenState × History))
     (weight : shape.Value → (ParameterShape (modulusBits N)).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((circuit ctx N).execute Reference state)
+    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute Reference state)
         (fun entry _ => weight (entry.1.read (liftInput (N := N) input))
           (entry.1.read (FirstAccepted.cellRead (parameterRef ctx N)))
           (entry.1.read (FirstAccepted.cellRead (sampleRef ctx N)))) leftRef rightRef =
@@ -88,7 +91,7 @@ theorem samplerRetained_reference_input (source : Input N) {shape : CShape}
       (store.read (FirstAccepted.cellRead (parameterRef ctx N)))
       (store.read (FirstAccepted.cellRead (sampleRef ctx N)))) leftRef rightRef).trans ?_
   apply congrArg
-    (fun observe : Store ctx × History → ctx.register.Index → ℂ =>
+    (fun observe : Store ctx × (model.HiddenState × History) → ctx.register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observe leftRef rightRef)
   funext entry _
   apply Finset.sum_congr rfl

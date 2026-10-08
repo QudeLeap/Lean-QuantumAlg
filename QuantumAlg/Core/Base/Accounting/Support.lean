@@ -19,8 +19,8 @@ that alphabet by the cardinality bound dominates each native coordinate.
 namespace QuantumAlg.ResourcePool
 
 /-- Finite support and total cardinality together imply the scaled coordinatewise bound. -/
-theorem le_scaled_of_support_card_le {kind : ProblemKind}
-    (pool alphabet : ResourcePool kind) (bound : Nat)
+theorem le_scaled_of_support_card_le {model : ExecutionModel}
+    (pool alphabet : ResourcePool model) (bound : Nat)
     (supported : ∀ focus ∈ pool, focus ∈ alphabet) (bounded : pool.card ≤ bound) :
     pool ≤ bound • alphabet := by
   apply ResourcePool.le_iff_count.mpr

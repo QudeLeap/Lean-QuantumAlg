@@ -58,7 +58,8 @@ private theorem step_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact
     {Reference : Register} {H : Type} [Fintype H]
     (original : State ((MeasuredPointAddition.Placement.context p.size
       (storageMap p.size active) (physicalMap p.size active)).disjointUnion
-        (ambientContext p.size active) (ambient_disjoint p.size active)) Reference H) :
+        (ambientContext p.size active) (ambient_disjoint p.size active)) Reference
+          (ClassicalOracleModel.empty.HiddenState × H)) :
     ((step E Q active).execute Reference
       (ContextPermutation.state (framed_entries p.size active) original)).quantumMarginal =
         ((residentBody E Q active).execute Reference original).quantumMarginal.reindex
@@ -66,7 +67,8 @@ private theorem step_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact
   have actual := step_execute E Q active original
   have marginal := congrArg
     (fun result : State (readyContext p.size count) Reference
-      (H × (step E Q active).Path) => result.quantumMarginal) actual
+      (ClassicalOracleModel.empty.HiddenState × (H × (step E Q active).Path)) =>
+        result.quantumMarginal) actual
   exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans
     (permuted_marginal (framed_entries p.size active) _))
 
@@ -74,23 +76,23 @@ private theorem step_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact
 theorem step_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (readyContext p.size count) Reference H)
+    (original : State (readyContext p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (readyContext p.size count).register Reference).Index,
       ¬stepAdmissible E Q active input.1 → original.quantumMarginal.matrix input input = 0) :
     ((step E Q active).execute Reference original).quantumMarginal =
       DensityOperator.applyUnitary (stepTarget E Q active Reference) original.quantumMarginal := by
   let coordinates := ContextPermutation.referenceBasis (framed_entries p.size active) Reference
-  let labels := ContextPermutation.recordEquiv (framed_entries p.size active) H
-  let reversed : State ((MeasuredPointAddition.Placement.context p.size
-      (storageMap p.size active) (physicalMap p.size active)).disjointUnion
-        (ambientContext p.size active) (ambient_disjoint p.size active)) Reference H :=
-    (original.mapClassical labels.symm).reindex coordinates.symm
-  have roundtrip : ContextPermutation.state (framed_entries p.size active) reversed = original :=
-    ExecutionState.coordinate_transport_inverse original labels.symm coordinates.symm
+  obtain ⟨reversed, roundtrip⟩ :=
+    ContextPermutation.state_surjective (framed_entries p.size active) original
   have reversedMarginal : reversed.quantumMarginal =
       original.quantumMarginal.reindex coordinates.symm := by
-    dsimp only [reversed]
-    rw [MeasuredPointAddition.reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
+    have mapped := permuted_marginal (framed_entries p.size active) reversed
+    rw [roundtrip] at mapped
+    have back := congrArg (fun density => density.reindex coordinates.symm) mapped.symm
+    rw [DensityOperator.reindex_trans, Equiv.self_trans_symm,
+      DensityOperator.reindex_refl] at back
+    exact back
   have originalSupport : ∀ input,
       ¬MeasuredPointAddition.Placement.Framing.admissible E Q (storageMap p.size active)
         (physicalMap p.size active) (ambientContext p.size active)

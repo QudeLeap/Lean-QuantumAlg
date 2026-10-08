@@ -6,7 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Quadratic.Candidates.Initialized
+import all
+  QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Quadratic.Candidates.Initialized
 import all QuantumAlg.Components.Classical.NumberTheory.Native.Sub.Preservation
 import all QuantumAlg.Components.Classical.NumberTheory.Native.Sqrt.Preservation
 
@@ -25,20 +26,23 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines.NumberTheory
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every actual input read outside the four arithmetic destinations keeps its complete value. -/
 theorem nativeQuadratic_candidates_read_other (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (separated : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :
-    (candidatesStep input modulus refs store).1.read other = store.read other := by
+    (candidatesStep (model := model) input modulus refs store).1.read other = store.read other := by
   let widened := store.applyOp (widenOp input refs)
   let centered := widened.applyOp (centerOp refs)
   let squared := centered.applyOp (squareOp refs)
-  let reduced := NativeSub.intoStep (.storage refs.root.toCStorageRef) modulus refs.root squared
-  let rooted := NativeSqrt.intoStep (.storage refs.root.toCStorageRef) refs.root reduced.1
-  let lower := NativeSub.intoStep (.storage refs.center.toCStorageRef)
+  let reduced := NativeSub.intoStep (model := model) (.storage refs.root.toCStorageRef) modulus
+    refs.root squared
+  let rooted := NativeSqrt.intoStep (model := model) (.storage refs.root.toCStorageRef) refs.root
+    reduced.1
+  let lower := NativeSub.intoStep (model := model) (.storage refs.center.toCStorageRef)
     (.storage refs.root.toCStorageRef) refs.first rooted.1
   have centerFree : refs.center.key ∉ other.storageKeys :=
     separated _ (by simp [writeKeys])
@@ -49,11 +53,13 @@ theorem nativeQuadratic_candidates_read_other (input : CInputRef ctx (.unsignedW
   have secondFree : refs.second.key ∉ other.storageKeys :=
     separated _ (by simp [writeKeys])
   exact (Store.read_applyOp_of_not_mem_storageKeys lower.1 (secondOp refs) other secondFree).trans
-    ((NativeSub.nativeSub_into_read_unchanged (.storage refs.center.toCStorageRef)
+    ((NativeSub.nativeSub_into_read_unchanged (model := model) (.storage refs.center.toCStorageRef)
       (.storage refs.root.toCStorageRef) refs.first other firstFree rooted.1).trans
-      ((NativeSqrt.nativeSqrt_into_read_unchanged (.storage refs.root.toCStorageRef)
+      ((NativeSqrt.nativeSqrt_into_read_unchanged (model := model) (.storage
+        refs.root.toCStorageRef)
         refs.root other rootFree reduced.1).trans
-        ((NativeSub.nativeSub_into_read_unchanged (.storage refs.root.toCStorageRef)
+        ((NativeSub.nativeSub_into_read_unchanged (model := model) (.storage
+          refs.root.toCStorageRef)
           modulus refs.root other rootFree squared).trans
           ((Store.read_applyOp_of_not_mem_storageKeys centered (squareOp refs)
             other rootFree).trans
@@ -67,45 +73,47 @@ theorem nativeQuadratic_initialized_read_other (input : CInputRef ctx (.unsigned
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (separated : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :
-    (Initialized.step input modulus refs store).1.read other = store.read other :=
+    (Initialized.step (model := model) input modulus refs store).1.read other = store.read other :=
   (CheckConstants.nativeQuadratic_check_one_read_other refs.center other
-    (separated _ (by simp [writeKeys])) (candidatesStep input modulus refs store).1).trans
+    (separated _ (by simp [writeKeys])) (candidatesStep (model := model) input modulus refs
+      store).1).trans
     (nativeQuadratic_candidates_read_other input modulus refs other separated store)
 
 /-- The actual candidate arithmetic restores every complete borrowed joint state. -/
 theorem nativeQuadratic_candidates_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (candidates input modulus refs).BorrowedRestored Reference state
-      ((candidates input modulus refs).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (candidates (model := model) input modulus refs).BorrowedRestored Reference state
+      ((candidates (model := model) input modulus refs).execute Reference state) := by
   unfold candidates
   apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical (widenOp input refs) state
+  · exact Circuit.borrowedRestored_classical _ state
   · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical (centerOp refs) _
+    · exact Circuit.borrowedRestored_classical _ _
     · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical (squareOp refs) _
+      · exact Circuit.borrowedRestored_classical _ _
       · apply Circuit.borrowedRestored_seq
-        · exact NativeSub.nativeSub_into_borrowedRestored
+        · exact NativeSub.nativeSub_into_borrowedRestored (model := model)
             (.storage refs.root.toCStorageRef) modulus refs.root Reference _
         · apply Circuit.borrowedRestored_seq
-          · exact NativeSqrt.nativeSqrt_into_borrowedRestored
+          · exact NativeSqrt.nativeSqrt_into_borrowedRestored (model := model)
               (.storage refs.root.toCStorageRef) refs.root Reference _
           · apply Circuit.borrowedRestored_seq
-            · exact NativeSub.nativeSub_into_borrowedRestored
+            · exact NativeSub.nativeSub_into_borrowedRestored (model := model)
                 (.storage refs.center.toCStorageRef) (.storage refs.root.toCStorageRef)
                 refs.first Reference _
-            · exact Circuit.borrowedRestored_classical (secondOp refs) _
+            · exact Circuit.borrowedRestored_classical _ _
 
 /-- Appending the two real one-loading instructions preserves the same full borrowed interface. -/
 theorem nativeQuadratic_initialized_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Initialized.code input modulus refs).BorrowedRestored Reference state
-      ((Initialized.code input modulus refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (candidates input modulus refs) (CheckConstants.code refs.center)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Initialized.code (model := model) input modulus refs).BorrowedRestored Reference state
+      ((Initialized.code (model := model) input modulus refs).execute Reference state) :=
+  Circuit.borrowedRestored_seq (candidates (model := model) input modulus refs)
+    (CheckConstants.code (model := model) refs.center)
     state (nativeQuadratic_candidates_borrowedRestored input modulus refs Reference state)
     (CheckConstants.nativeQuadratic_check_one_borrowedRestored refs.center Reference _)
 

@@ -109,29 +109,28 @@ theorem grouping_control (width : Nat) (state : Registers width) :
 
 /-- Map the native Work1/shift/control addresses onto their actual source wires. -/
 def physicalIndex (width index : Nat) : Nat :=
-  if index < width + 3 then index
-  else if index < width + 3 + width.size then
-    2 * (width + 3) + 3 * width.size + (index - (width + 3))
+  if index < width.size then 2 * (width + 3) + 3 * width.size + index
+  else if index < width.size + (width + 3) then index - width.size
   else 2 * (width + 3) + 4 * width.size + 1
 
 theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
-    physicalIndex width index.val = (firstWordBit width index).wire.val := by
+    physicalIndex width (width.size + index.val) = (firstWordBit width index).wire.val := by
   rw [firstWordBit_wire]
-  exact if_pos index.isLt
-
-theorem physicalIndex_shift (width : Nat) (index : Fin width.size) :
-    physicalIndex width (width + 3 + index.val) = (shiftBit width index).wire.val := by
-  rw [shiftBit_wire]
-  have lower : ¬width + 3 + index.val < width + 3 := by omega
-  have upper : width + 3 + index.val < width + 3 + width.size := by
+  have lower : ¬width.size + index.val < width.size := by omega
+  have upper : width.size + index.val < width.size + (width + 3) := by
     have bound := index.isLt
     omega
   simp only [physicalIndex, if_neg lower, if_pos upper, Nat.add_sub_cancel_left]
 
+theorem physicalIndex_shift (width : Nat) (index : Fin width.size) :
+    physicalIndex width index.val = (shiftBit width index).wire.val := by
+  rw [shiftBit_wire]
+  simp only [physicalIndex, if_pos index.isLt]
+
 theorem physicalIndex_control (width : Nat) :
-    physicalIndex width (width + 3 + width.size) = (phase2Bit width).wire.val := by
+    physicalIndex width (width.size + (width + 3)) = (phase2Bit width).wire.val := by
   rw [phase2Bit_wire]
-  have lower : ¬width + 3 + width.size < width + 3 := by omega
+  have lower : ¬width.size + (width + 3) < width.size := by omega
   simp only [physicalIndex, if_neg lower, Nat.lt_irrefl, if_false]
 
 /-- Every native incrementer wire already lies inside the original complete source frame. -/

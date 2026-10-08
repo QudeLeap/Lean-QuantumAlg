@@ -125,9 +125,9 @@ theorem separation {kind : ProblemKind}
 
 /-- Allocate the shared and quadratic packages and expose their complete
 physical initialization interface in the deepest scope. -/
-def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
+def withWorkspaces {model : ExecutionModel} (ctx : RuntimeCtx model.kind) {N : Nat}
     (parameter : CInputRef ctx (ParameterShape N))
-    (body : ∀ {inner : RuntimeCtx kind}
+    (body : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N), shared.Distinct →
       (quadratic : Quadratic.Cells inner N) → quadratic.Distinct →
       (transport : Transport ctx inner) →
@@ -136,7 +136,7 @@ def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
       (cross : CrossSeparated shared quadratic) →
       LatticeSharedQuadraticInitialization.Separation
         (refs shared quadratic transport parameter) →
-      Circuit inner inner) : Circuit ctx ctx :=
+      Circuit model inner inner) : Circuit model ctx ctx :=
   withCells ctx
       (LatticeCandidateSharedWorkspaceLayout.shapes N) fun
       shared sharedDistinct sharedTransport sharedSeparated =>
@@ -162,19 +162,19 @@ def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
             combinedTransport sharedAtSeparated quadraticOuterSeparated cross
               parameter)
 
-variable {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
+variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) {N : Nat}
     (parameter : CInputRef ctx (ParameterShape N))
-    (body : ∀ {inner : RuntimeCtx kind}
+    (body : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N), shared.Distinct →
       (quadratic : Quadratic.Cells inner N) → quadratic.Distinct →
       (transport : Transport ctx inner) → shared.TransportSeparated transport →
       quadratic.TransportSeparated transport → (cross : CrossSeparated shared quadratic) →
       LatticeSharedQuadraticInitialization.Separation
-        (refs shared quadratic transport parameter) → Circuit inner inner)
+        (refs shared quadratic transport parameter) → Circuit model inner inner)
 
 /-- Actual allocation preserves a uniform native bound for every physical callback scope. -/
-theorem withWorkspaces_pool_le (budget : ResourcePool kind)
-    (bodyBound : ∀ {inner : RuntimeCtx kind}
+theorem withWorkspaces_pool_le (budget : ResourcePool model)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
       (transport : Transport ctx inner) (sharedSeparated : shared.TransportSeparated transport)
@@ -196,8 +196,8 @@ theorem withWorkspaces_pool_le (budget : ResourcePool kind)
   exact bodyBound _ _ _ _ _ _ _ _ _ chosen
 
 /-- Lexical allocation preserves the complete actual callback dependency depth. -/
-theorem withWorkspaces_depth_le (duration : Resource.Event kind → Nat) (budget : Nat)
-    (bodyBound : ∀ {inner : RuntimeCtx kind}
+theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
       (transport : Transport ctx inner) (sharedSeparated : shared.TransportSeparated transport)
@@ -220,7 +220,7 @@ theorem withWorkspaces_depth_le (duration : Resource.Event kind → Nat) (budget
 
 /-- Both actual allocation boundaries preserve full borrowed-reference restoration of the body. -/
 theorem withWorkspaces_borrowedRestored (Reference : Register)
-    (bodyRestores : ∀ {inner : RuntimeCtx kind}
+    (bodyRestores : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
       (transport : Transport ctx inner) (sharedSeparated : shared.TransportSeparated transport)
@@ -228,12 +228,14 @@ theorem withWorkspaces_borrowedRestored (Reference : Register)
       (cross : CrossSeparated shared quadratic)
       (initialization : LatticeSharedQuadraticInitialization.Separation
         (refs shared quadratic transport parameter))
-      {History : Type} [Fintype History] (state : State inner Reference History),
+      {History : Type} [Fintype History]
+      (state : State inner Reference (model.HiddenState × History)),
       (body shared sharedDistinct quadratic quadraticDistinct transport
           sharedSeparated quadraticSeparated cross initialization).BorrowedRestored Reference state
         ((body shared sharedDistinct quadratic quadraticDistinct transport
           sharedSeparated quadraticSeparated cross initialization).execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (withWorkspaces ctx parameter body).BorrowedRestored Reference state
       ((withWorkspaces ctx parameter body).execute Reference state) := by
   unfold withWorkspaces

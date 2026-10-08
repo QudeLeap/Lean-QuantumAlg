@@ -191,33 +191,45 @@ theorem clockGates_step (width : Nat) (state : Registers width) :
   exact conditional_flip_xor _ state
 
 def singleProgram (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (singleGates width field enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (singleGates width field enough)
 
 theorem singleProgram_realizes (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (singleProgram width field enough)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (singleProgram width field enough)
       (fun state => xorControl (decide (lengthValue field state = 0)) state) :=
-  GateSpec.realizesList_congrStep _ (singleGates_step width field enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (singleGates_step width field enough)
 
 def pairProgram (width : Nat) (first second : LengthField) (different : first ≠ second)
-    (enough : 2 ≤ width.size) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (pairGates width first second different enough)
+    (enough : 2 ≤ width.size) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty
+    (pairGates width first second different enough)
 
 theorem pairProgram_realizes (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (pairProgram width first second different enough)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (pairProgram width first second different enough)
       (fun state => xorControl (decide
         (lengthValue first state = 0 ∧ lengthValue second state = 0)) state) :=
-  GateSpec.realizesList_congrStep _ (pairGates_step width first second different enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (pairGates_step width first second different enough)
 
-def clockProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (clockGates width)
+def clockProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (clockGates width)
 
 theorem clockProgram_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (clockProgram width)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (clockProgram width)
       (fun state => xorControl (decide
         (NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0 ∧ state.shift = 0)) state) :=
-  GateSpec.realizesList_congrStep _ (clockGates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (clockGates_step width)
 
 /-- Closed elementary gate count for a tested word with `tail + 2` source bits. -/
 def gateCount (tail : Nat) : Nat := 2 * (tail + 2) + if tail = 0 then 1 else 4 * tail

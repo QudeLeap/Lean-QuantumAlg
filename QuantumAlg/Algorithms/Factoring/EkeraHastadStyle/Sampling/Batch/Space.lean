@@ -12,8 +12,8 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Space
 /-!
 # Every actually live first-batch frame fits the independent allowance
 
-The proof follows the real sampler, the two contexts visited by its one owned
-preparation, actual measurement-cell allocation and the sixteen-round trace.
+The proof follows the real sampler, zero allocation and X loading on the one
+owned bank, actual measurement-cell allocation and the sixteen-round trace.
 All retained outcomes remain counted. The reset workspace is counted while
 live, and the same bank supplies the only additional quantum systems.
 -/
@@ -110,27 +110,36 @@ private theorem visited_bounds (path : (code base noQuantum N).Path)
     (present : frame ∈ (code base noQuantum N).visitedContexts path) :
     frame.residentSpace ≤ base.residentSpace + additionalSpace N ∧
       frame.auxiliarySpace ≤ base.auxiliarySpace + additionalSpace N := by
-  let sampler := ShorStyle.Canonical.Sampler.Retained.circuit base N
-  let allocate := MeasurementCells.allocate (bankContext base noQuantum N) 2 (measurementBits N)
-  change frame ∈ (((sampler.visitedContexts path.1.1.1 ++
-    [sampledContext base N, bankContext base noQuantum N]) ++
-      allocate.visitedContexts path.1.2) ++
-        (rounds base noQuantum N).visitedContexts path.2) at present
-  simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at present
-  rcases present with ((sampled | (rfl | rfl)) | allocated) | repeated
+  let sampler := ShorStyle.Canonical.Sampler.Retained.circuit
+    (model := RuntimeRound.model) base N
+  let allocate := MeasurementCells.allocate (model := RuntimeRound.model)
+    (bankContext base noQuantum N) 2 (measurementBits N)
+  change frame ∈ List.append (α := RuntimeCtx .quantum)
+    (List.append (α := RuntimeCtx .quantum)
+      (List.append (α := RuntimeCtx .quantum) (sampler.visitedContexts path.1.1.1)
+        [sampledContext base N, bankContext base noQuantum N, bankContext base noQuantum N])
+      (allocate.visitedContexts path.1.2))
+    ((rounds base noQuantum N).visitedContexts path.2) at present
+  simp only [List.append_eq, List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at present
+  rcases present with ((sampled | (rfl | rfl | rfl)) | allocated) | repeated
   · exact ⟨((Circuit.residentSpace_le_peak_of_visited sampler path.1.1.1 frame sampled).trans
-        (ShorStyle.Canonical.Sampler.Retained.samplerRetained_resident_le base N path.1.1.1)).trans
+        (ShorStyle.Canonical.Sampler.Retained.samplerRetained_resident_le
+          (model := RuntimeRound.model) base N path.1.1.1)).trans
           (sampler_budget N base.residentSpace),
       ((Circuit.auxiliarySpace_le_peak_of_visited sampler path.1.1.1 frame sampled).trans
-        (ShorStyle.Canonical.Sampler.Retained.samplerRetained_auxiliary_le base N path.1.1.1)).trans
+        (ShorStyle.Canonical.Sampler.Retained.samplerRetained_auxiliary_le
+          (model := RuntimeRound.model) base N path.1.1.1)).trans
           (sampler_budget N base.auxiliarySpace)⟩
   · exact sampled_bounds base noQuantum N
   · exact bank_bounds base noQuantum N
+  · exact bank_bounds base noQuantum N
   · exact ⟨((Circuit.residentSpace_le_peak_of_visited allocate path.1.2 frame allocated).trans
-        (MeasurementCells.allocate_peakResidentSpace (bankContext base noQuantum N)
+        (MeasurementCells.allocate_peakResidentSpace (model := RuntimeRound.model)
+          (bankContext base noQuantum N)
           2 (measurementBits N) path.1.2)).trans (ready_bounds base noQuantum N).1,
       ((Circuit.auxiliarySpace_le_peak_of_visited allocate path.1.2 frame allocated).trans
-        (MeasurementCells.allocate_peakAuxiliarySpace (bankContext base noQuantum N)
+        (MeasurementCells.allocate_peakAuxiliarySpace (model := RuntimeRound.model)
+          (bankContext base noQuantum N)
           2 (measurementBits N) path.1.2)).trans (ready_bounds base noQuantum N).2⟩
   · exact ⟨((Circuit.residentSpace_le_peak_of_visited (rounds base noQuantum N)
         path.2 frame repeated).trans

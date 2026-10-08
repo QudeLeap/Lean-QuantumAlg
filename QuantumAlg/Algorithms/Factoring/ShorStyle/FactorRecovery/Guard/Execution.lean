@@ -35,18 +35,6 @@ def guardStore (cells : Cells ctx N) (store : Store ctx) : Store ctx :=
   ((((store.applyOp (clearZeroOp cells)).applyOp (evenOrderOp cells)).applyOp
     (positiveOrderOp cells)).applyOp (positiveEvenOp cells)).applyOp (acceptedOrderOp cells)
 
-/-- The same real guard circuit preserves full quantum-reference blocks while writing its record. -/
-theorem guard_execute (cells : Cells ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (guardOrder cells).execute Reference state =
-      state.mapClassical (fun entry =>
-        (guardStore cells entry.1, (entry.2, ((), ((), ((), ((), ()))))))) := by
-  simp only [guardOrder, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def,
-    guardStore]
-  congr 1
-  exact Subsingleton.elim _ _
-
 /-- No structural read outside the actual zero and comparison cells changes in the guard. -/
 theorem guard_read_other (cells : Cells ctx N) {shape : CShape} (other : CInputRef ctx shape)
     (zeroFree : cells.zero.key ∉ other.storageKeys)
@@ -67,17 +55,59 @@ theorem guard_read_other (cells : Cells ctx N) {shape : CShape} (other : CInputR
           other activeFree).trans
           (Store.read_applyOp_of_not_mem_storageKeys store (clearZeroOp cells) other zeroFree))))
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- The actual five writes return their real values in chronological order. -/
+def guardStep (cells : Cells ctx N) (store : Store ctx) :
+    Store ctx × (guardOrder (model := model) cells).Path :=
+  let cleared := BitWord.instructionStep (execution := model) (clearZeroOp cells) store
+  let even := BitWord.instructionStep (execution := model) (evenOrderOp cells) cleared.1
+  let positive := BitWord.instructionStep (execution := model) (positiveOrderOp cells) even.1
+  let combined := BitWord.instructionStep (execution := model) (positiveEvenOp cells) positive.1
+  let accepted := BitWord.instructionStep (execution := model) (acceptedOrderOp cells) combined.1
+  (accepted.1, (cleared.2, (even.2, (positive.2, (combined.2, accepted.2)))))
+
+/-- The actual returned record retains the original five-operation store update. -/
+theorem guardStep_store (cells : Cells ctx N) (store : Store ctx) :
+    (guardStep (model := model) cells store).1 = guardStore cells store := rfl
+
+/-- The same real guard preserves history, service state and complete quantum-reference blocks. -/
+theorem guard_execute (cells : Cells ctx N) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (guardOrder (model := model) cells).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := guardStep (model := model) cells entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [guardOrder, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 /-- All five native guard operations remain in their actual execution order. -/
-theorem guard_eventTrace (cells : Cells ctx N) (path : (guardOrder cells).Path) :
-    (guardOrder cells).eventTrace path =
-      [Resource.Event.classicalOperation (.wordBinary .bitXor (phaseBits N + 1)),
-        .classicalOperation (.bit .not),
-        .classicalOperation (.wordBinary .lessThan (phaseBits N + 1)),
-        .classicalOperation (.bit .and), .classicalOperation (.bit .and)] := rfl
+theorem guard_eventTrace (cells : Cells ctx N)
+    (path : (guardOrder (model := model) cells).Path) :
+    (guardOrder (model := model) cells).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .bitXor (phaseBits N + 1))),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .lessThan (phaseBits N + 1))),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))] := by
+  change (BitWord.instruction (execution := model) (clearZeroOp cells)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (evenOrderOp cells)).eventTrace path.2.1 ++
+      ((BitWord.instruction (execution := model) (positiveOrderOp cells)).eventTrace path.2.2.1 ++
+        ((BitWord.instruction (execution := model) (positiveEvenOp cells)).eventTrace
+            path.2.2.2.1 ++
+          (BitWord.instruction (execution := model) (acceptedOrderOp cells)).eventTrace
+            path.2.2.2.2))) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- The real sequential guard has exactly five native unit-depth events. -/
-theorem guard_unitDepth (cells : Cells ctx N) (path : (guardOrder cells).Path) :
-    (guardOrder cells).depth (fun _ => 1) path = 5 := rfl
+theorem guard_unitDepth (cells : Cells ctx N)
+    (path : (guardOrder (model := model) cells).Path) :
+    (guardOrder (model := model) cells).depth (fun _ => 1) path = 5 := rfl
 
 end
 

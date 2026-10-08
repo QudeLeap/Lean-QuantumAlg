@@ -182,17 +182,22 @@ def cells (ctx : RuntimeCtx kind) (N : Nat) :
   upper := upperRef ctx N
   payload := payloadRef ctx N
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Load the two actual constants before reading them in the genuine GCD-selection circuit. -/
 def body (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (context ctx N) (context ctx N) :=
-  .seq (ConstantWord.circuit (oneRef ctx N) 1)
-    (.seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output)))
+    Circuit model (context ctx N) (context ctx N) :=
+  .seq (ConstantWord.circuit (model := model) (oneRef ctx N) 1)
+    (.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
+      (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+          output)))
 
 /-- Enter all six real scratch cells and release them after the actual factor result is written. -/
 def code (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1))
     ctx.canonicalFreshKey_fresh
     (.workspace (candidateContext ctx N) (candidateContext ctx N).canonicalFreshKey
@@ -208,7 +213,9 @@ def code (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
             (.workspace (upperContext ctx N) (upperContext ctx N).canonicalFreshKey
               (.unsignedWord (modulusBits N))
               (upperContext ctx N).canonicalFreshKey_fresh
-              (body halfPower output))))))
+              (body (model := model) halfPower output))))))
+
+end
 
 /-- The entire half-factor scope keeps exactly the original physical quantum bank. -/
 theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :

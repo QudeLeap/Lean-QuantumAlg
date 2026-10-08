@@ -6,28 +6,29 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Core.Execution.Owned.Qubits
+public import QuantumAlg.Core.Execution.Supplied.Qubits
 public import QuantumAlg.Core.Execution.Preparation
-import all QuantumAlg.Core.Execution.Owned.Qubits
+import all QuantumAlg.Core.Execution.Supplied.Qubits
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Util.Nat.FixedWidth.Unit.Power.Word
 import all QuantumAlg.Util.FinPow
+import all QuantumAlg.Util.FinPow.BinaryBasis.Zero
 
 /-!
 # Native input and internally prepared exponentiation work words
 
-The input owns the exponent and arbitrary XOR target on consecutive physical
-identities. One actual basis preparation allocates exactly the two work words
-after them, with power one modulo the modulus and auxiliary zero. All systems
-remain live and retained. A block preparation is one native instruction whose
-declared values specify both words [VBE95, 9511018.tex:372-416].
+The caller supplies the exponent and arbitrary XOR target on consecutive
+physical identities. One zero-state preparation allocates exactly two work
+words after them. The native circuit loads and unloads the identity word with
+actual gates, so both internal words are returned to zero. All systems remain
+live and retained [VBE95, 9511018.tex:372-416].
 -/
 
 namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
-open Execution.OwnedQubits Nat.FixedWidth
+open Execution.SuppliedQubits Nat.FixedWidth
 
 def workKey : StorageKey := ⟨1⟩
 
@@ -60,7 +61,7 @@ theorem gidneyExponentWork_fresh (exponentWidth width : Nat) :
 theorem gidneyExponentWork_disjoint (exponentWidth width : Nat) :
     List.Disjoint (workLayout exponentWidth width).identities
       (context (exponentWidth + width)).physicalIdx := by
-  rw [gidneyExponentWork_identities, ownedQubits_physicalIdx]
+  rw [gidneyExponentWork_identities, suppliedQubits_physicalIdx]
   apply List.disjoint_left.mpr
   intro wire work original
   have newBound := List.mem_range'.mp work
@@ -72,21 +73,29 @@ public def preparedContext (exponentWidth width : Nat) : RuntimeCtx .quantum :=
   (context (exponentWidth + width)).addOwnedLayout workKey (workLayout exponentWidth width)
     (gidneyExponentWork_fresh exponentWidth width) (gidneyExponentWork_disjoint exponentWidth width)
 
-/-- Compile the canonical identity power and zero auxiliary into the actual two-word layout. -/
-def workPreparation (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
-    (positive : 0 < modulus.val) : BasisPreparation (workLayout exponentWidth width) :=
-  ⟨(workQubitLayout exponentWidth width).binaryIndexEquiv.symm
-    (prodEquiv (m := width) (n := width) (unitResidueWord modulus positive 1, 0))⟩
+/-- Both internal words use the declared zero-state preparation. -/
+def workPreparation (exponentWidth width : Nat) :
+    BasisPreparation (workLayout exponentWidth width) :=
+  ⟨(workLayout exponentWidth width).zeroLabel⟩
 
-/-- The actual prepared basis has precisely the compiled power and zero auxiliary values. -/
+/-- The actual prepared basis contains two zero words. -/
 theorem gidneyExponentWork_prepared_words (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
+    :
     (prodEquiv (m := width) (n := width)).symm
       ((workQubitLayout exponentWidth width).binaryIndexEquiv
-        (workPreparation exponentWidth width modulus positive).value) =
-      (unitResidueWord modulus positive 1, 0) := by
-  unfold workPreparation
-  rw [Equiv.apply_symm_apply, Equiv.symm_apply_apply]
+        (workPreparation exponentWidth width).value) =
+      (0, 0) := by
+  change (prodEquiv (m := width) (n := width)).symm
+      (BinaryBasis.bigEndianEquiv (width + width)
+        (fun _ : Fin (width + width) => (0 : Fin 2))) = (0, 0)
+  rw [BinaryBasis.bigEndianEquiv_zero]
+  apply Prod.ext <;> apply Fin.ext
+  · simpa using
+      (prodEquiv_symm_fst_val (m := width) (n := width)
+        (0 : Fin (2 ^ (width + width))))
+  · simpa using
+      (prodEquiv_symm_snd_val (m := width) (n := width)
+        (0 : Fin (2 ^ (width + width))))
 
 /-- Context order places the freshly prepared work before the unchanged supplied input. -/
 public theorem gidneyExponentPreparedContext_physical (exponentWidth width : Nat) :
@@ -98,7 +107,7 @@ public theorem gidneyExponentPreparedContext_physical (exponentWidth width : Nat
   rw [List.map_append, ← layout_identities_eq_map_wires]
   change (workLayout exponentWidth width).identities ++
     (context (exponentWidth + width)).physicalIdx = _
-  rw [gidneyExponentWork_identities, ownedQubits_physicalIdx]
+  rw [gidneyExponentWork_identities, suppliedQubits_physicalIdx]
 
 theorem gidneyExponentPreparedContext_contains (exponentWidth width : Nat) :
     List.range (exponentWidth + 3 * width) ⊆

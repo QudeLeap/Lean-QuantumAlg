@@ -26,7 +26,7 @@ noncomputable section
 
 open Execution
 
-private def retainedLocalFrame {kind : ProblemKind} (key : StorageKey) (shape : CShape) :
+def retainedLocalFrame {kind : ProblemKind} (key : StorageKey) (shape : CShape) :
     RuntimeCtx kind :=
   RuntimeCtx.empty.addRetained key shape (by simp [RuntimeCtx.keys])
 
@@ -48,8 +48,8 @@ private theorem retainedLocalPermutation {kind : ProblemKind} (ctx : RuntimeCtx 
         (ctx.addRetained key shape fresh).entries :=
   List.perm_append_comm
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
-  (code : Circuit ctx ctx) (supported : code.IsLocal)
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+  (code : Circuit model ctx ctx) (supported : code.IsLocal)
   (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
 
 private def retainedFramed :=
@@ -61,7 +61,8 @@ private theorem retainedFramed_isLocal : (retainedFramed code supported key shap
     (retainedLocalDisjoint ctx key shape fresh)
 
 /-- Run the same actual local instructions with one existing retained head cell left resident. -/
-def underRetained : Circuit (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh) :=
+def underRetained :
+    Circuit model (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh) :=
   ContextPermutation.localCircuit (retainedFramed code supported key shape fresh)
     (retainedFramed_isLocal code supported key shape fresh) (ctx.addRetained key shape fresh)
     (retainedLocalPermutation ctx key shape fresh)

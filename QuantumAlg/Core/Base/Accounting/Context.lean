@@ -27,8 +27,9 @@ one context-wide joint register. No state or independence assumption is stored
 in the placement descriptor.
 
 Resident space counts all live entries. Auxiliary space uses their fixed
-storage roles: borrowed input and designated output storage are excluded,
-while workspace, retained values, and owned quantum storage are included.
+storage roles: borrowed input, supplied quantum interface, and designated
+output storage are excluded, while workspace, retained values, and
+algorithm-owned quantum storage are included.
 Designating one output cell does not remove any other entry or change a
 quantum state. Complete Output and state restoration are execution contracts;
 they are not context filters or liveness shortcuts.
@@ -152,6 +153,11 @@ public inductive RuntimeEntry : ProblemKind → Type where
   not a consequence of this placement tag [RNSL17, ECDLP.tex:302]. -/
   | borrowedLayout (key : StorageKey) {systemCount : Nat}
       (layout : QuantumLayout systemCount) : RuntimeEntry .quantum
+  /-- Caller-supplied systems that the algorithm may transform and retain.
+  They are part of the input/output interface, rather than borrowed state that
+  must be restored or algorithm-allocated auxiliary storage. -/
+  | suppliedLayout (key : StorageKey) {systemCount : Nat}
+      (layout : QuantumLayout systemCount) : RuntimeEntry .quantum
   /-- Algorithm-owned systems, with actual finite dimensions and identities. -/
   | ownedLayout (key : StorageKey) {systemCount : Nat}
       (layout : QuantumLayout systemCount) : RuntimeEntry .quantum
@@ -165,6 +171,7 @@ namespace RuntimeEntry
 public def key {kind : ProblemKind} : RuntimeEntry kind → StorageKey
   | .storage key _ _ => key
   | .borrowedLayout key _ => key
+  | .suppliedLayout key _ => key
   | .ownedLayout key _ => key
   | .ownedCopies key _ => key
 
@@ -173,6 +180,7 @@ public def key {kind : ProblemKind} : RuntimeEntry kind → StorageKey
 public def quantumWires {kind : ProblemKind} : RuntimeEntry kind → List QuantumWire
   | .storage _ _ _ => []
   | .borrowedLayout _ layout => layout.wires
+  | .suppliedLayout _ layout => layout.wires
   | .ownedLayout _ layout => layout.wires
   | .ownedCopies _ bank => bank.quantumWires
 
@@ -184,6 +192,7 @@ public def physicalIdx {kind : ProblemKind} (entry : RuntimeEntry kind) : List N
 public def residentSpace {kind : ProblemKind} : RuntimeEntry kind → SpacePool kind
   | .storage _ _ shape => SpacePool.ofShape shape
   | .borrowedLayout _ layout => SpacePool.ofQuantumLayout layout
+  | .suppliedLayout _ layout => SpacePool.ofQuantumLayout layout
   | .ownedLayout _ layout => SpacePool.ofQuantumLayout layout
   | .ownedCopies _ bank => bank.space
 
@@ -194,6 +203,7 @@ public def auxiliarySpace {kind : ProblemKind} : RuntimeEntry kind → SpacePool
   | .storage _ .retained shape => SpacePool.ofShape shape
   | .storage _ .finalOutput _ => 0
   | .borrowedLayout _ _ => 0
+  | .suppliedLayout _ _ => 0
   | .ownedLayout _ layout => SpacePool.ofQuantumLayout layout
   | .ownedCopies _ bank => bank.space
 
@@ -204,6 +214,7 @@ theorem residentSpace_quantumSystems (entry : RuntimeEntry .quantum) (dimension 
   cases entry with
   | storage => rfl
   | borrowedLayout _ layout => exact layout_dimensionCount_eq_count_wires layout dimension
+  | suppliedLayout _ layout => exact layout_dimensionCount_eq_count_wires layout dimension
   | ownedLayout _ layout => exact layout_dimensionCount_eq_count_wires layout dimension
   | ownedCopies _ bank => exact bank.count_quantumSystems_space dimension
 
@@ -280,7 +291,7 @@ an empty layout, so the same state interpreter can handle both problem kinds. -/
 public abbrev register {kind : ProblemKind} (ctx : RuntimeCtx kind) : Register :=
   ctx.quantumLayout.register
 
-theorem quantumLayout_wires {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+public theorem quantumLayout_wires {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.quantumLayout.wires = ctx.quantumWires :=
   QuantumLayout.wires_ofWires ctx.quantumWires ctx.identitiesNodup
 
@@ -409,6 +420,20 @@ public theorem runtimeCtx_register_addRetained {kind : ProblemKind}
     rw [List.map_append, ← layout_identities_eq_map_wires]
     exact layout.identities_nodup.append ctx.identitiesNodup disjoint
 
+/-- Add a caller-supplied mutable quantum interface after checking key
+freshness and physical disjointness. These systems stay resident, may change,
+and do not contribute to auxiliary space. -/
+@[reducible] public def addSuppliedLayout (ctx : RuntimeCtx .quantum) (key : StorageKey)
+    {systemCount : Nat} (layout : QuantumLayout systemCount)
+    (fresh : key ∉ ctx.keys)
+    (disjoint : List.Disjoint layout.identities ctx.physicalIdx) : RuntimeCtx .quantum where
+  entries := .suppliedLayout key layout :: ctx.entries
+  keysNodup := List.nodup_cons.mpr ⟨fresh, ctx.keysNodup⟩
+  identitiesNodup := by
+    change ((layout.wires ++ ctx.quantumWires).map QuantumWire.identity).Nodup
+    rw [List.map_append, ← layout_identities_eq_map_wires]
+    exact layout.identities_nodup.append ctx.identitiesNodup disjoint
+
 /-- Add owned systems with their actual dimensions and physical placement. -/
 @[reducible] public def addOwnedLayout (ctx : RuntimeCtx .quantum) (key : StorageKey)
     {systemCount : Nat} (layout : QuantumLayout systemCount)
@@ -434,6 +459,21 @@ public theorem runtimeCtx_quantumWires_addOwnedLayout (ctx : RuntimeCtx .quantum
     (ctx.addOwnedLayout key layout fresh disjoint).quantumWires =
       layout.wires ++ ctx.quantumWires :=
   quantumWires_addOwnedLayout_eq ctx key layout fresh disjoint
+
+private theorem quantumWires_addSuppliedLayout_eq (ctx : RuntimeCtx .quantum)
+    (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
+    (fresh : key ∉ ctx.keys)
+    (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (ctx.addSuppliedLayout key layout fresh disjoint).quantumWires =
+      layout.wires ++ ctx.quantumWires := rfl
+
+/-- Adding a supplied interface prepends its actual wires to the complete layout. -/
+public theorem runtimeCtx_quantumWires_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+    (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
+    (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (ctx.addSuppliedLayout key layout fresh disjoint).quantumWires =
+      layout.wires ++ ctx.quantumWires :=
+  quantumWires_addSuppliedLayout_eq ctx key layout fresh disjoint
 
 /-- Add every wire of an owned layout bank to the same context-wide joint frame. -/
 @[reducible] public def addOwnedCopies (ctx : RuntimeCtx .quantum) (key : StorageKey)
@@ -477,6 +517,12 @@ instance instDecidablePhysicallyDisjoint {kind : ProblemKind}
 public def StorageDisjoint {kind : ProblemKind} (left right : RuntimeCtx kind) : Prop :=
   KeysDisjoint left right ∧ PhysicallyDisjoint left right
 
+/-- Storage separation includes separation of physical wire identities. -/
+public theorem physicallyDisjoint_of_storageDisjoint {kind : ProblemKind}
+    {left right : RuntimeCtx kind} (disjoint : StorageDisjoint left right) :
+    PhysicallyDisjoint left right :=
+  disjoint.2
+
 instance instDecidableStorageDisjoint {kind : ProblemKind}
     (left right : RuntimeCtx kind) : Decidable (StorageDisjoint left right) := by
   unfold StorageDisjoint
@@ -489,7 +535,7 @@ theorem keysDisjoint_iff_listDisjoint {kind : ProblemKind}
   List.disjoint_toFinset_iff_disjoint
 
 /-- The decidable physical guard is equivalent to list disjointness. -/
-theorem physicallyDisjoint_iff_listDisjoint {kind : ProblemKind}
+public theorem physicallyDisjoint_iff_listDisjoint {kind : ProblemKind}
     (left right : RuntimeCtx kind) :
     PhysicallyDisjoint left right ↔ List.Disjoint left.physicalIdx right.physicalIdx :=
   List.disjoint_toFinset_iff_disjoint
@@ -512,7 +558,7 @@ public def disjointUnion {kind : ProblemKind} (left right : RuntimeCtx kind)
     (disjointUnion left right disjoint).keys = left.keys ++ right.keys := by
   simp [keys, disjointUnion]
 
-@[simp] theorem quantumWires_disjointUnion {kind : ProblemKind}
+@[simp] public theorem quantumWires_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).quantumWires =
       left.quantumWires ++ right.quantumWires := by
@@ -623,6 +669,19 @@ private theorem foldSpace_append {kind : ProblemKind}
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addBorrowedLayout key layout fresh disjoint).auxiliarySpace = ctx.auxiliarySpace := by
+  ext axis
+  simp [auxiliarySpace, RuntimeEntry.auxiliarySpace]
+
+@[simp] theorem residentSpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+    (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
+    (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (ctx.addSuppliedLayout key layout fresh disjoint).residentSpace =
+      SpacePool.ofQuantumLayout layout + ctx.residentSpace := rfl
+
+@[simp] theorem auxiliarySpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+    (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
+    (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (ctx.addSuppliedLayout key layout fresh disjoint).auxiliarySpace = ctx.auxiliarySpace := by
   ext axis
   simp [auxiliarySpace, RuntimeEntry.auxiliarySpace]
 

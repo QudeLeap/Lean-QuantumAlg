@@ -27,42 +27,45 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual retention and execution return one initialized-and-written complete caller store. -/
 theorem xgcdNativeRetained_actualRecord
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    ∃ record : Store ctx →
-        Store (retainedCtx ctx width key fresh) × (retainedCircuit input key fresh).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store (retainedCtx ctx width key fresh) × model.HiddenState) × (retainedCircuit (model :=
+          model) input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (retainedCircuit input key fresh).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (retainedCircuit (model := model) input key fresh).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
-        (before.pushRetained key (XGCDOutputShape width) fresh).write
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
+        (before.1.pushRetained key (XGCDOutputShape width) fresh).write
           (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh)
-          (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read input))).gcd,
-            ((PureXGCD.eval (GCD.decodeOperands (before.read input))).leftCoefficient,
-              (PureXGCD.eval (GCD.decodeOperands (before.read input))).rightCoefficient))) := by
+          (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.1.read input))).gcd,
+            ((PureXGCD.eval (GCD.decodeOperands (before.1.read input))).leftCoefficient,
+              (PureXGCD.eval (GCD.decodeOperands (before.1.read input))).rightCoefficient))) := by
   let lifted := input.underRetained key (XGCDOutputShape width) fresh
   let output := CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh
   obtain ⟨bodyRecord, bodyEquation, bodyCorrect⟩ :=
     xgcdNativePublicIntoResult_actualRecord lifted output
-  let record (before : Store ctx) :=
-    let final := bodyRecord (before.pushRetained key (XGCDOutputShape width) fresh)
+  let record (before : Store ctx × model.HiddenState) :=
+    let final := bodyRecord (before.1.pushRetained key (XGCDOutputShape width) fresh, before.2)
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
     refine (Circuit.execute_retain_seq_mapClassical ctx key (XGCDOutputShape width) fresh
-      (publicIntoResult lifted output) bodyRecord bodyEquation reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+      (publicIntoResult (model := model) lifted output) bodyRecord bodyEquation reference
+        state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro before
-    have actual := bodyCorrect (before.pushRetained key (XGCDOutputShape width) fresh)
-    rw [show (before.pushRetained key (XGCDOutputShape width) fresh).read lifted =
-      before.read input from Store.read_pushRetained_underRetained before key
+    have actual := bodyCorrect (before.1.pushRetained key (XGCDOutputShape width) fresh, before.2)
+    rw [show (before.1.pushRetained key (XGCDOutputShape width) fresh).read lifted =
+      before.1.read input from Store.read_pushRetained_underRetained before.1 key
         (XGCDOutputShape width) fresh input] at actual
     exact actual
 
@@ -70,16 +73,18 @@ theorem xgcdNativeRetained_actualRecord
 theorem xgcdNativeRetained_accepts
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    ∃ record : Store ctx →
-        Store (retainedCtx ctx width key fresh) × (retainedCircuit input key fresh).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store (retainedCtx ctx width key fresh) × model.HiddenState) × (retainedCircuit (model :=
+          model) input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (retainedCircuit input key fresh).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (retainedCircuit (model := model) input key fresh).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
-        let value := decodeXGCDTuple ((record before).1.read (retainedRead ctx width key fresh))
-        PureXGCD.accepts (GCD.decodeOperands (before.read input))
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        let value := decodeXGCDTuple ((record before).1.1.read (retainedRead ctx width key fresh))
+        PureXGCD.accepts (GCD.decodeOperands (before.1.read input))
           ⟨value.1, value.2.1, value.2.2⟩ := by
   obtain ⟨record, equation, correct⟩ := xgcdNativeRetained_actualRecord input key fresh
   refine ⟨record, equation, ?_⟩
@@ -87,7 +92,7 @@ theorem xgcdNativeRetained_accepts
   dsimp only
   rw [correct before]
   simp only [retainedRead]
-  exact PureXGCD.xgcdEval_accepts (GCD.decodeOperands (before.read input))
+  exact PureXGCD.xgcdEval_accepts (GCD.decodeOperands (before.1.read input))
 
 end
 

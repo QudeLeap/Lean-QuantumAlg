@@ -16,11 +16,9 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
 import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
-import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
 import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
 import all QuantumAlg.Components.Encoded.BitGates.Word.CopyValue
-import all QuantumAlg.Components.Encoded.BitGates.Control
 import all QuantumAlg.Components.Encoded.BitGates.Word.ZeroTest
 
 /-!

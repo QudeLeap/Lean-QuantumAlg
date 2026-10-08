@@ -10,6 +10,8 @@ public import QuantumAlg.Core.Execution.Owned.Qubits
 public import QuantumAlg.Core.Execution.Prepare
 import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Preparation.Laws
+import all QuantumAlg.Core.Execution.Preparation.Resources
+import all QuantumAlg.Core.Base.Layout.Signature
 import all QuantumAlg.Core.Execution.Context.Layout
 import all QuantumAlg.Core.Execution.Borrowed
 import all QuantumAlg.Core.Execution.Trace
@@ -144,18 +146,42 @@ theorem pre_noBorrowedQuantum (freshWidth width : Nat) :
 theorem post_noBorrowedQuantum (freshWidth width : Nat) :
     (post freshWidth width).borrowedQuantumWires = [] := rfl
 
-/-- Exactly the fresh prefix is initialized by the one preparation instruction. -/
+/-- The actual zero vector of the reserved physical prefix. -/
 def zeroPreparation (freshWidth : Nat) :
     BasisPreparation (prefixLayout freshWidth).toQuantumLayout :=
-  ⟨(prefixLayout freshWidth).binaryIndexEquiv.symm (0 : Fin (2 ^ freshWidth))⟩
+  BasisPreparation.zero (prefixLayout freshWidth).toQuantumLayout
 
-def prepareCode (freshWidth width : Nat) : Circuit (pre freshWidth width) (post freshWidth width) :=
-  .prepare (pre freshWidth width) ⟨0⟩ (prefixLayout freshWidth).toQuantumLayout
-    (prefix_fresh freshWidth width) (prefix_disjoint freshWidth width) (zeroPreparation freshWidth)
+/-- Allocate exactly the reserved prefix through the fixed zero-preparation instruction. -/
+def prepareCode (gates : GateModel) (oracles : OracleModel) (freshWidth width : Nat)
+    (operations : ClassicalOpModel := .empty) (services : ClassicalOracleModel := .empty) :
+    Circuit (.quantum gates oracles operations services)
+      (pre freshWidth width) (post freshWidth width) :=
+  .prepareZero (pre freshWidth width) ⟨0⟩ (prefixLayout freshWidth).toQuantumLayout
+    (prefix_fresh freshWidth width) (prefix_disjoint freshWidth width)
 
-/-- The prefix is paid for as one real basis preparation, including an empty prefix. -/
-theorem prepareCode_events (freshWidth width : Nat) (path : (prepareCode freshWidth width).Path) :
-    (prepareCode freshWidth width).eventTrace path = [(zeroPreparation freshWidth).event] := rfl
+/-- Preparation pays once per physical prefix qubit and nothing for an empty prefix. -/
+theorem prepareCode_events (gates : GateModel) (oracles : OracleModel) (freshWidth width : Nat)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel)
+    (path : (prepareCode gates oracles freshWidth width operations services).Path) :
+    (prepareCode gates oracles freshWidth width operations services).eventTrace path =
+      List.replicate freshWidth
+        (.preparation (model := .quantum gates oracles operations services) (2 : ℕ+)) := by
+  exact ZeroPreparation.zeroPreparation_uniform_trace gates oracles
+    (prefixLayout freshWidth).toQuantumLayout 2 (fun _ => rfl) operations services
+
+/-- The prepared word is exactly the canonical prefix followed by the original input wires. -/
+theorem post_canonical_wires (freshWidth width : Nat) :
+    (QuantumSignature.qubits (freshWidth + width)).canonicalPlacement.layout.wires =
+      (post freshWidth width).quantumLayout.wires := by
+  rw [RuntimeCtx.quantumLayout_wires]
+  change List.ofFn (fun index : Fin (freshWidth + width) =>
+      ({ identity := index.val, dimension := 2 } : QuantumWire)) =
+    List.ofFn (fun index : Fin freshWidth =>
+      ({ identity := index.val, dimension := 2 } : QuantumWire)) ++
+      (List.ofFn (fun index : Fin width =>
+        ({ identity := freshWidth + index.val, dimension := 2 } : QuantumWire)) ++ [])
+  rw [List.append_nil, List.ofFn_add]
+  rfl
 
 end
 

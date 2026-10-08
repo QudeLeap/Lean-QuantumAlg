@@ -37,16 +37,20 @@ private theorem history_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     Finset.sum_ite_eq', Finset.mem_univ, if_true]
 
 /-- Exact complete-state correspondence for the actual local compiler. -/
-def Natural {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal) : Prop :=
+def Natural {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal) : Prop :=
   ∀ (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (Reference : Register) {H : Type} [Fintype H] (original : State pre Reference H),
+    (Reference : Register) {H : Type} [Fintype H]
+    (original : State pre Reference (model.HiddenState × H)),
     (localCircuit code supported keys physical).execute Reference (state keys physical original) =
       (state keys physical (code.execute Reference original)).mapHistory
-        (fun record => (record.1, localPathEquiv code supported keys physical record.2))
+        (fun record =>
+          (record.1, (record.2.1, localPathEquiv code supported keys physical record.2.2)))
 
-private theorem natural_seq {kind : ProblemKind} {pre mid post : RuntimeCtx kind}
-    (first : Circuit pre mid) (second : Circuit mid post)
+set_option maxHeartbeats 400000 in
+-- Composing the model-indexed history transports exceeded the default 200000-step budget.
+private theorem natural_seq {model : ExecutionModel} {pre mid post : RuntimeCtx model.kind}
+    (first : Circuit model pre mid) (second : Circuit model mid post)
     (supported : (first.seq second).IsLocal)
     (firstNatural : Natural first supported.1) (secondNatural : Natural second supported.2) :
     Natural (first.seq second) supported := by
@@ -55,35 +59,41 @@ private theorem natural_seq {kind : ProblemKind} {pre mid post : RuntimeCtx kind
   let compiledSecond := localCircuit second supported.2 keys physical
   change ((compiledSecond.execute Reference
       (compiledFirst.execute Reference (state keys physical original))).mapHistory
-        (fun record => (record.1.1, (record.1.2, record.2)))) =
+        (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))) =
     (state keys physical ((first.seq second).execute Reference original)).mapHistory _
-  rw [firstNatural keys physical Reference, Circuit.execute_mapHistory,
-    secondNatural keys physical Reference, Circuit.execute_seq, state_mapHistory]
+  rw [firstNatural keys physical Reference]
+  erw [Circuit.execute_mapHistory compiledSecond Reference
+    (state keys physical (first.execute Reference original))
+    (fun record : H × first.Path =>
+      (record.1, localPathEquiv first supported.1 keys physical record.2))]
+  erw [secondNatural keys physical Reference]
+  conv_rhs => erw [Circuit.execute_seq, state_mapHistory]
   simp only [State.mapHistory_comp, Function.comp_def, localPathEquiv]
   erw [State.mapHistory_comp]
   rfl
 
-private theorem natural_branch {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (ref : CInputRef pre shape) (body : shape.Value → Circuit pre post)
+private theorem natural_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (ref : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
     (supported : (Circuit.branch ref body).IsLocal)
     (natural : ∀ value, Natural (body value) (supported value)) :
     Natural (.branch ref body) supported := by
   intro keys physical Reference H _ original
   let code := Circuit.branch ref body
   let compiled := localCircuit code supported keys physical
-  let parts (value : shape.Value) : State pre Reference H :=
+  let parts (value : shape.Value) : State pre Reference (model.HiddenState × H) :=
     original.selectClassical (fun record => record.1.read ref) value
-  let originalParts (value : shape.Value) : State post Reference (H × code.Path) :=
+  let originalParts (value : shape.Value) :
+      State post Reference (model.HiddenState × (H × code.Path)) :=
     ((body value).execute Reference (parts value)).mapHistory
-      (fun record => (record.1, ⟨value, record.2⟩))
+      (fun record => (record.1, (record.2.1, ⟨value, record.2.2⟩)))
   let targetParts (value : shape.Value) :
-      State (post.relabel keys physical) Reference (H × compiled.Path) :=
+      State (post.relabel keys physical) Reference (model.HiddenState × (H × compiled.Path)) :=
     ((localCircuit (body value) (supported value) keys physical).execute Reference
       ((state keys physical original).selectClassical
         (fun record => record.1.read (input keys physical ref)) value)).mapHistory
-          (fun record => (record.1, ⟨value, record.2⟩))
-  let histories := fun record : H × code.Path =>
-    (record.1, localPathEquiv code supported keys physical record.2)
+          (fun record => (record.1, (record.2.1, ⟨value, record.2.2⟩)))
+  let histories := fun record : model.HiddenState × (H × code.Path) =>
+    (record.1, (record.2.1, localPathEquiv code supported keys physical record.2.2))
   have originalTotal : ∑ value, (originalParts value).mass ≤ 1 := by
     simp only [originalParts, parts, State.mapHistory_mass, Circuit.execute_mass,
       ExecutionState.sum_selectClassical_mass]
@@ -135,18 +145,21 @@ private theorem natural_branch {kind : ProblemKind} {pre post : RuntimeCtx kind}
       intro entry _
       split_ifs <;> rfl
 
-private theorem natural_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (body : Circuit ctx ctx) (supported : body.IsLocal) (natural : Natural body supported)
+private theorem natural_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (body : Circuit model ctx ctx) (supported : body.IsLocal) (natural : Natural body supported)
     (count : Nat) : Natural (.iterate count body) supported := by
   intro keys physical Reference H _ original
   induction count generalizing H with
   | zero =>
-      change ((state keys physical original).mapHistory (fun history => (history, Fin.elim0))) =
+      change ((state keys physical original).mapHistory
+        (fun history => (history.1, (history.2, Fin.elim0)))) =
         (state keys physical (original.mapHistory
-          (fun history => (history, Fin.elim0)))).mapHistory _
+          (fun history => (history.1, (history.2, Fin.elim0))))).mapHistory _
       erw [state_mapHistory, State.mapHistory_comp]
       congr 1
       funext history
+      apply Prod.ext
+      · rfl
       apply Prod.ext
       · rfl
       funext index
@@ -157,16 +170,20 @@ private theorem natural_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
         (state keys physical original)) =
         (state keys physical
           ((Circuit.iterate (count + 1) body).execute Reference original)).mapHistory
-          (fun record => (record.1, fun index =>
-            localPathEquiv body supported keys physical (record.2 index)))
-      erw [Circuit.execute_iterate_succ, natural keys physical Reference,
-        Circuit.execute_mapHistory, ih]
+          (fun record => (record.1, (record.2.1, fun index =>
+            localPathEquiv body supported keys physical (record.2.2 index))))
+      erw [Circuit.execute_iterate_succ, natural keys physical Reference]
+      erw [Circuit.execute_mapHistory (Circuit.iterate count compiledBody) Reference
+        (state keys physical (body.execute Reference original))
+        (fun record : H × body.Path =>
+          (record.1, localPathEquiv body supported keys physical record.2))]
+      erw [ih]
       conv_rhs => rw [Circuit.execute_iterate_succ]
       have reassociate := state_mapHistory keys physical
         ((Circuit.iterate count body).execute Reference (body.execute Reference original))
-        (fun history : (H × body.Path) × (Fin count → body.Path) =>
-          (history.1.1, Fin.cons (α := fun _ : Fin (count + 1) => body.Path)
-            history.1.2 history.2))
+        (fun history : model.HiddenState × ((H × body.Path) × (Fin count → body.Path)) =>
+          (history.1, (history.2.1.1, Fin.cons (α := fun _ : Fin (count + 1) => body.Path)
+            history.2.1.2 history.2.2)))
       erw [reassociate]
       simp only [State.mapHistory_comp, Function.comp_def]
       repeat' erw [State.mapHistory_comp]
@@ -174,30 +191,38 @@ private theorem natural_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
       funext record
       apply Prod.ext
       · rfl
+      apply Prod.ext
+      · rfl
       funext index
       exact Fin.cases rfl (fun tail => rfl) index
 
 /-- The existing interpreter commutes with the actual local injective-placement compiler. -/
-theorem localCircuit_execute {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal) : Natural code supported := by
+theorem localCircuit_execute {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal) : Natural code supported := by
   induction code with
   | id ctx =>
       intro keys physical Reference H _ original
-      change (state keys physical original).skip = (state keys physical original.skip).mapHistory id
-      rw [← state_mapHistory]
-      change (state keys physical original).skip =
-        state keys physical ((original.mapHistory (fun history => (history, ()))).mapHistory id)
-      rw [State.mapHistory_comp]
-      exact (state_mapHistory keys physical original (fun history => (history, ()))).symm
-  | classical | declaredCall | randomBits | retain | prepare | workspace =>
+      change ((state keys physical original).skip.mapHistory
+        (fun record => (record.1.1, (record.1.2, record.2)))) =
+        (state keys physical (original.skip.mapHistory
+          (fun record => (record.1.1, (record.1.2, record.2))))).mapHistory id
+      rw [history_id, state_mapHistory]
+      change (((state keys physical original).mapHistory (fun history => (history, ()))).mapHistory
+        (fun record => (record.1.1, (record.1.2, record.2)))) =
+        (state keys physical (original.mapHistory (fun history => (history, ())))).mapHistory _
+      rw [state_mapHistory]
+  | classical | classicalQuery | retain | prepareZero | workspace =>
       exact False.elim supported
-  | @unitary ctx program placed =>
+  | @unitary gates oracles ctx operations services program =>
       intro keys physical Reference H _ original
-      change (state keys physical original).unitary
-        (unitaryProgram ctx keys physical program placed) =
-        (state keys physical (original.unitary program)).mapHistory id
+      change (Circuit.unitary (operations := operations) (classicalOracles := services)
+        (unitaryProgram ctx keys physical program)).execute Reference
+          (state keys physical original) =
+        (state keys physical ((Circuit.unitary (operations := operations)
+          (classicalOracles := services) program).execute Reference original)).mapHistory id
       rw [history_id]
-      exact (state_unitary keys physical program placed original).symm
+      exact (state_unitary (operations := operations) (services := services)
+        keys physical program original).symm
   | measureZ wire output =>
       intro keys physical Reference H _ original
       exact (state_measureZ _ keys physical wire original output).symm

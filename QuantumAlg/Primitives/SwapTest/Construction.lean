@@ -6,63 +6,81 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Gates.Swap.Controlled.Register.Semantics
+public import QuantumAlg.Components.Gates.Swap.Controlled.Register.Resources
+public import QuantumAlg.Components.Gates.SingleQubit.First.Binary
 import all QuantumAlg.Primitives.SwapTest.Basic
-import all QuantumAlg.Components.Encoded.BitGates.RegisterSwap.Semantics
-import all QuantumAlg.Components.Encoded.BitGates.RegisterSwap.Resources
 import all QuantumAlg.Primitives.HadamardTest.Basic
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Components.Gates.Swap.Controlled.Register.Semantics
+import all QuantumAlg.Components.Gates.Swap.Controlled.Register.Resources
+import all QuantumAlg.Components.Gates.Swap.Controlled.Register
+import all QuantumAlg.Components.Gates.SingleQubit.First.Binary
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
-# The SWAP test built from actual Hadamard and Toffoli occurrences
+# The SWAP test from actual Hadamards, CNOTs and Toffolis
 
-The controlled exchange uses three literal Toffolis per original word position.
-It acts between the two actual control Hadamards, with no auxiliary quantum
-word [BCWdW01, main.tex:287-328].
+The original control drives two CNOTs and one Toffoli for each pair of supplied
+word positions. Both boundary Hadamards are actual native one-qubit operations.
+No auxiliary quantum word is used [BCWdW01, main.tex:287-329].
 -/
 
 namespace QuantumAlg.SwapTest
 
 noncomputable section
 
-/-- Actual elementary gate sequence for the original SWAP-test operator. -/
-def sourceCircuit (width : Nat) : UnitaryCircuit (Qubits (1 + (width + width))) :=
-  (((hadamardTestHadamardLayer (width + width)).seq
-    (EncodedRegisterSwap.program width)).seq
-      (hadamardTestHadamardLayer (width + width))).seq
-        (UnitaryCircuit.identity (Qubits (1 + (width + width)))
-          (List.range (1 + (width + width))) List.nodup_range)
+private def boundary (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (Gate.ControlledRegisterSwap.layout width) :=
+  Gate.singleQubitAt (Gate.ControlledRegisterSwap.layout width) .empty Gate.HOp
+    (0 : Fin (1 + (width + width))) rfl
 
+/-- The complete native word acts on the original control and both full input words. -/
+def sourceCircuit (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (Gate.ControlledRegisterSwap.layout width) :=
+  ((boundary width).seq (Gate.ControlledRegisterSwap.circuit .empty width)).seq (boundary width)
+
+/-- The full exact operator equals the independently specified mathematical SWAP test. -/
 theorem sourceCircuit_matrix (width : Nat) :
-    (sourceCircuit width).matrix = swapTest width := by
-  change 1 * ((hadamardTestHadamardOp (width + width)) *
-    ((EncodedRegisterSwap.program width).matrix * hadamardTestHadamardOp (width + width))) = _
-  rw [one_mul, EncodedRegisterSwap.program_matrix]
+    (sourceCircuit width).binaryMatrix = swapTest width := by
+  rw [sourceCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    Gate.ControlledRegisterSwap.controlledRegisterSwap_binaryMatrix]
+  have matrix : (boundary width).binaryMatrix =
+      Gate.HOp.tensor (1 : UnitaryOperator (Qubits (width + width))) :=
+    Gate.singleQubitAt_first_binaryMatrix .empty (width + width) Gate.HOp
+  rw [matrix]
   rfl
 
-/-- Physical normalization keeps the actual complete register and adds no operation. -/
-theorem sourceCircuit_physicalIdx (width : Nat) :
-    (sourceCircuit width).physical_idx = List.range (1 + (width + width)) := by
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  have boundary : (hadamardTestHadamardLayer (width + width)).physical_idx ⊆
-      List.range (1 + (width + width)) := by
-    intro wire present
-    change wire ∈ [0] at present
-    obtain rfl := List.mem_singleton.mp present
-    simp
-  exact UnitaryCircuit.seq_physical_idx_subset _ _
-    (UnitaryCircuit.seq_physical_idx_subset _ _ boundary
-      (EncodedRegisterSwap.program_physical_idx_subset width)) boundary
+/-- Every original pair contributes exactly two CNOTs and one Toffoli. -/
+theorem sourceCircuit_eventCost (width : Nat) :
+    (sourceCircuit width).eventCost =
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) 2 +
+        (ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .cnot) (2 * width) +
+          ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .toffoli) width) := by
+  rw [sourceCircuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
+    Gate.ControlledRegisterSwap.controlledRegisterSwap_eventCost]
+  change (ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) + _) +
+    ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) =
+      (ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) +
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit)) + _
+  ac_rfl
 
-/-- The ordered native list contains both boundary Hadamards and every elementary Toffoli. -/
-theorem sourceCircuit_eventTrace (width : Nat) :
-    (sourceCircuit width).eventTrace =
-      [.gate (.builtin "hadamard")] ++
-        List.replicate (3 * width) (.gate (.builtin "toffoli")) ++
-          [.gate (.builtin "hadamard")] := by
-  simp only [sourceCircuit, UnitaryCircuit.seq_eventTrace, UnitaryCircuit.identity_eventTrace,
-    hadamardTestHadamardLayer_eventTrace, EncodedRegisterSwap.program_eventTrace,
-    List.append_nil]
-  rfl
+/-- The common control orders every native layer, including both boundary Hadamards. -/
+theorem sourceCircuit_depth (width : Nat) :
+    (sourceCircuit width).evaluatedEventDepth (fun _ => 1) = 3 * width + 2 := by
+  rw [sourceCircuit, UnitaryCircuit.evaluatedEventDepth_seq,
+    UnitaryCircuit.evaluatedEventDepth_seq,
+    Gate.ControlledRegisterSwap.controlledRegisterSwap_unit_depth]
+  change (1 + 3 * width) + 1 = _
+  omega
 
 end
 

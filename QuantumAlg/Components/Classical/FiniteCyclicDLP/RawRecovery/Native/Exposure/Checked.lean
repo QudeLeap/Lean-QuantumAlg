@@ -28,7 +28,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual checked store supplies the three copied values and their original interpretation. -/
 theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
@@ -43,46 +44,56 @@ theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
     (inverseRight : inverse.key ∉ negatedRight.storageKeys)
     (successModulus : success.key ∉ modulus.storageKeys)
     (inverseModulus : inverse.key ∉ modulus.storageKeys) :
-    ∃ record : Store ctx → Store ctx × (checkedExposureBody spec left negatedRight modulus
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (checkedExposureBody (model := model) spec left negatedRight modulus
         success inverse inverseSuccess candidate reconstruction).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (checkedExposureBody spec left negatedRight modulus success inverse inverseSuccess
+        (state : State ctx Reference (model.HiddenState × History)),
+        (checkedExposureBody (model := model) spec left negatedRight modulus success inverse
+          inverseSuccess
           candidate reconstruction).execute Reference state = state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, ∃ checked : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, ∃ checked : Store ctx,
         ∃ value : CShape.Value (.product .bit (FiniteCyclicDLP.OutputShape width)),
           (∀ {shape : CShape} (other : CInputRef ctx shape),
             success.key ∉ other.storageKeys → inverse.key ∉ other.storageKeys →
-              checked.read other = before.read other) ∧
-          (record before).1 = exposureWrite inverseSuccess candidate reconstruction checked value ∧
+              checked.read other = before.1.read other) ∧
+          (record before).1.1 = exposureWrite inverseSuccess candidate reconstruction checked
+            value ∧
           ∀ original : CShape.Value (InputShape width),
-            (before.read modulus).toNat = spec.modulus →
-            (before.read left).toNat = (normalize spec original).left.val →
-            (before.read negatedRight).toNat = (negateRight spec (normalize spec original)).val →
+            (before.1.read modulus).toNat = spec.modulus →
+            (before.1.read left).toNat = (normalize spec original).left.val →
+            (before.1.read negatedRight).toNat = (negateRight spec (normalize spec original)).val →
             value = RawRecovery.outputCells spec original := by
   obtain ⟨checkedRecord, checkedEquation, checkedCorrect⟩ :=
-    NumberTheory.Checked.Native.withCheckedInverse_actualRecord spec left success inverse
+    NumberTheory.Checked.Native.withCheckedInverse_actualRecord (model := model) spec left success
+      inverse
   let recoveryInput := CInputRef.product left (.product negatedRight (scaleRead inverse))
   obtain ⟨selectedRecord, selectedEquation, selectedCorrect⟩ :=
-    withSelectedExposure_actualRecord recoveryInput modulus (scaleRead success)
+    withSelectedExposure_actualRecord (model := model) recoveryInput modulus (scaleRead success)
       inverseSuccess candidate reconstruction
-  refine ⟨Circuit.sequenceRecord _ _ checkedRecord selectedRecord,
-    Circuit.execute_sequenceRecord _ _ _ _ checkedEquation selectedEquation, ?_⟩
+  let first := NumberTheory.Checked.Native.withCheckedInverse (model := model)
+    spec left success inverse
+  let second := withSelectedExposure (model := model) recoveryInput modulus (scaleRead success)
+    inverseSuccess candidate reconstruction
+  refine ⟨Circuit.sequenceRecord first second checkedRecord selectedRecord,
+    Circuit.execute_sequenceRecord first second checkedRecord selectedRecord
+      checkedEquation selectedEquation, ?_⟩
   intro before
-  let checked := (checkedRecord before).1
+  let checked := (checkedRecord before).1.1
   refine ⟨checked, .product (checked.read (scaleRead success))
     (if (checked.read (scaleRead success)).toBool then
       recoveryValue (checked.read left) (checked.read negatedRight)
         (checked.read (scaleRead inverse)) (checked.read modulus)
       else CShape.initialValue (FiniteCyclicDLP.OutputShape width)),
-    (checkedCorrect before).1, selectedCorrect checked, ?_⟩
+    (checkedCorrect before).1, selectedCorrect (checkedRecord before).1, ?_⟩
   intro original modulusValue leftValue rightValue
-  have leftRead : checked.read left = before.read left :=
+  have leftRead : checked.read left = before.1.read left :=
     (checkedCorrect before).1 left successLeft inverseLeft
-  have rightRead : checked.read negatedRight = before.read negatedRight :=
+  have rightRead : checked.read negatedRight = before.1.read negatedRight :=
     (checkedCorrect before).1 negatedRight successRight inverseRight
-  have modulusRead : checked.read modulus = before.read modulus :=
+  have modulusRead : checked.read modulus = before.1.read modulus :=
     (checkedCorrect before).1 modulus successModulus inverseModulus
   have actual := (checkedCorrect before).2 (normalize spec original).left leftValue
   exact exposedRecoveryValue_original spec original (checked.read (scaleRead success))
@@ -96,24 +107,27 @@ theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) :
-    ∃ record : Store ctx → Store ctx ×
-        (withCheckedExposure spec refs inverseSuccess candidate reconstruction).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+        (withCheckedExposure (model := model) spec refs inverseSuccess candidate
+          reconstruction).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withCheckedExposure spec refs inverseSuccess candidate reconstruction).execute
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withCheckedExposure (model := model) spec refs inverseSuccess candidate
+          reconstruction).execute
           Reference state = state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape),
           inverseSuccess.key ∉ other.storageKeys → candidate.key ∉ other.storageKeys →
             reconstruction.key ∉ other.storageKeys →
-              (record before).1.read other = before.read other) ∧
+              (record before).1.1.read other = before.1.read other) ∧
         ∀ original : CShape.Value (InputShape width),
-          (before.read (scaleRead refs.modulusWide)).toNat = spec.modulus →
-          (before.read (scaleRead refs.left)).toNat = (normalize spec original).left.val →
-          (before.read (scaleRead refs.negatedRight)).toNat =
+          (before.1.read (scaleRead refs.modulusWide)).toNat = spec.modulus →
+          (before.1.read (scaleRead refs.left)).toNat = (normalize spec original).left.val →
+          (before.1.read (scaleRead refs.negatedRight)).toNat =
             (negateRight spec (normalize spec original)).val →
-          (record before).1 = exposureWrite inverseSuccess candidate reconstruction before
+          (record before).1.1 = exposureWrite inverseSuccess candidate reconstruction before.1
             (RawRecovery.outputCells spec original) := by
   let Post (before after : Store ctx) : Prop :=
     (∀ {shape : CShape} (other : CInputRef ctx shape),
@@ -139,7 +153,7 @@ theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
       | cons success rest =>
         cases rest
         exact ⟨separated.2.1 input, separated.1 input⟩
-  obtain ⟨record, equation, correct⟩ := checkedExposureBody_actualRecord spec
+  obtain ⟨record, equation, correct⟩ := checkedExposureBody_actualRecord (model := model) spec
     (transport.liftInput (scaleRead refs.left))
     (transport.liftInput (scaleRead refs.negatedRight))
     (transport.liftInput (scaleRead refs.modulusWide))
@@ -152,32 +166,32 @@ theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
   refine ⟨record, equation, ?_⟩
   intro before _initialized
   obtain ⟨checked, value, checkedFrame, written, interpreted⟩ := correct before
-  have entered : transport.ReadsAs (transport.restrict before) before :=
-    transport.workspaceTransport_restrict_readsAs before
-  have checkedReads : transport.ReadsAs (transport.restrict before) checked := by
+  have entered : transport.ReadsAs (transport.restrict before.1) before.1 :=
+    transport.workspaceTransport_restrict_readsAs before.1
+  have checkedReads : transport.ReadsAs (transport.restrict before.1) checked := by
     intro shape other
     exact (checkedFrame (transport.liftInput other) (free other).1 (free other).2).trans
       (entered other)
   have finalReads : transport.ReadsAs
-      (exposureWrite inverseSuccess candidate reconstruction (transport.restrict before) value)
-      (record before).1 := by
+      (exposureWrite inverseSuccess candidate reconstruction (transport.restrict before.1) value)
+      (record before).1.1 := by
     rw [written]
     intro shape other
     exact exposureWrite_readsAs transport inverseSuccess candidate reconstruction
-      (transport.restrict before) checked checkedReads value other
+      (transport.restrict before.1) checked checkedReads value other
   have exactStore := (transport.workspaceTransport_readsAs_restrict_iff).mp finalReads
   constructor
   · intro shape other successFree candidateFree reconstructionFree
     rw [exactStore]
     exact exposureWrite_read_other inverseSuccess candidate reconstruction
-      (transport.restrict before) value other successFree candidateFree reconstructionFree
+      (transport.restrict before.1) value other successFree candidateFree reconstructionFree
   · intro original modulusValue leftValue rightValue
     have actual := interpreted original
       ((congrArg CShape.Value.toNat (entered (scaleRead refs.modulusWide))).trans modulusValue)
       ((congrArg CShape.Value.toNat (entered (scaleRead refs.left))).trans leftValue)
       ((congrArg CShape.Value.toNat (entered (scaleRead refs.negatedRight))).trans rightValue)
     exact exactStore.trans (congrArg
-      (exposureWrite inverseSuccess candidate reconstruction (transport.restrict before)) actual)
+      (exposureWrite inverseSuccess candidate reconstruction (transport.restrict before.1)) actual)
 
 end
 

@@ -10,6 +10,7 @@ import QuantumAlg.Init
 public import QuantumAlg.Primitives.Arithmetic.PlainAdder
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
 import all QuantumAlg.Primitives.MAU.Multiplication.VBECircuit
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 public import Mathlib.Algebra.Ring.Parity
 -- Intentional exception: machine-readable source-owner markers keep full module names on one line.
 set_option linter.style.longLine false
@@ -579,8 +580,9 @@ def accumulatorSwapGates : List (EncodedBit.GateSpec rawEncoding) :=
     rawAccumulator_inPlaceAccumulator_ne
 
 /-- Circuit compiled from the literal external-accumulator exchange list. -/
-def accumulatorSwapCircuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList accumulatorSwapGates
+def accumulatorSwapCircuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty accumulatorSwapGates
 
 /-- Folded semantic action of the external-accumulator exchange. -/
 def rawAccumulatorSwapStep : RawRegisters → RawRegisters :=
@@ -596,7 +598,8 @@ set_option exponentiation.threshold 2048 in
 theorem accumulatorSwap_realizes :
     UnitaryCircuit.Realizes encoding accumulatorSwapCircuit accumulatorSwapStep := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
-    (EncodedBit.Word.swap_realizes rawAccumulatorWord rawInPlaceAccumulatorWord
+    (EncodedBit.Word.swap_realizes (QubitLayout.canonical _) .empty
+      rawAccumulatorWord rawInPlaceAccumulatorWord
       rawAccumulator_inPlaceAccumulator_ne)
 
 /-- Actual bitwise CNOT routing from the stored in-place source into the low
@@ -606,8 +609,9 @@ def sourceCopyGates : List (EncodedBit.GateSpec rawEncoding) :=
     rawInPlaceActiveSourceWord rawInPlaceMultiplicand_activeSource_ne
 
 /-- Circuit compiled from the literal source-copy list. -/
-def sourceCopyCircuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList sourceCopyGates
+def sourceCopyCircuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty sourceCopyGates
 
 /-- Folded raw action of the source copy/unload xor. -/
 def rawSourceCopyStep : RawRegisters → RawRegisters :=
@@ -623,7 +627,8 @@ set_option exponentiation.threshold 2048 in
 theorem sourceCopy_realizes :
     UnitaryCircuit.Realizes encoding sourceCopyCircuit sourceCopyStep := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
-    (EncodedBit.Word.xorInto_realizes rawInPlaceMultiplicandWord
+    (EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty
+      rawInPlaceMultiplicandWord
       rawInPlaceActiveSourceWord rawInPlaceMultiplicand_activeSource_ne)
 
 /-- Unloading uses the same self-inverse CNOT program after its corresponding
@@ -632,8 +637,9 @@ def sourceUnloadGates : List (EncodedBit.GateSpec rawEncoding) :=
   sourceCopyGates
 
 /-- Circuit compiled from the literal source-unload list. -/
-def sourceUnloadCircuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList sourceUnloadGates
+def sourceUnloadCircuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty sourceUnloadGates
 
 /-- The source-unload step is the same xor action as the source-copy step. -/
 def sourceUnloadStep : Registers → Registers :=
@@ -735,8 +741,10 @@ def rawStageGates (bit : Fin params.width) : List (EncodedBit.GateSpec rawEncodi
     (rawMultiplierDisjoint bit) rawWorkDisjoint (rawMultiplierWork_ne bit)
 
 /-- Actual primitive circuit for one selected variable modular-add stage. -/
-def stageCircuit (bit : Fin params.width) : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList (rawStageGates bit)
+def stageCircuit (bit : Fin params.width) : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (rawStageGates bit)
 
 /-- Raw folded action of one selected controlled modular-add stage. -/
 def rawStageStep (bit : Fin params.width) : RawRegisters → RawRegisters :=
@@ -754,6 +762,7 @@ theorem stage_realizes (bit : Fin params.width) :
     UnitaryCircuit.Realizes encoding (stageCircuit bit) (stageStep bit) := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
     (EncodedBit.GateSpec.controlledListWithWorkWitness
+      (QubitLayout.canonical _) .empty
       (rawMultiplierBit bit) rawWorkBit rawArithmeticGates
       (rawMultiplierDisjoint bit) rawWorkDisjoint (rawMultiplierWork_ne bit))
 
@@ -1663,17 +1672,6 @@ def liftInPlaceGates
     withWork.map (EncodedBit.GateSpec.prodRight wordEncoding)
   withAccumulator.map (EncodedBit.GateSpec.prodRight wordEncoding)
 
-set_option exponentiation.threshold 2048 in
-/-- Lift an actual VBE in-place program through the complete common carrier.
-The three product lifts preserve, in order, the clean work bit, external
-accumulator, and preserved multiplier. -/
-def liftInPlaceProgram
-    (program : UnitaryCircuit (Qubits inPlaceEncoding.width)) :
-    UnitaryCircuit (Qubits rawEncoding.width) :=
-  UnitaryCircuit.prodRight (m := wordEncoding.width)
-    (UnitaryCircuit.prodRight (m := wordEncoding.width)
-      (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width) program))
-
 /-- Lift an in-place semantic step while preserving multiplier, accumulator,
 and control-work fields of the common physical carrier. -/
 def liftInPlaceStep
@@ -1714,21 +1712,6 @@ theorem liftInPlaceGates_stepList
         EncodedBit.GateSpec.stepList_prodLeft BinaryLabelEncoding.bool gates
           (inPlace, work)]
   rfl
-
-set_option exponentiation.threshold 2048 in
-/-- The exact three product lifts preserve realization of every actual
-in-place program; no fresh workspace is introduced. -/
-theorem liftInPlace_realizes
-    {program : UnitaryCircuit (Qubits inPlaceEncoding.width)}
-    {step : InPlaceRegisters → InPlaceRegisters}
-    (h : UnitaryCircuit.Realizes inPlaceEncoding program step) :
-    UnitaryCircuit.Realizes rawEncoding (liftInPlaceProgram program)
-      (liftInPlaceStep step) := by
-  have hwithWork :=
-    UnitaryCircuit.Realizes.prodLeft (right := BinaryLabelEncoding.bool) h
-  have hsuffix :=
-    UnitaryCircuit.Realizes.prodRight (left := wordEncoding) hwithWork
-  exact UnitaryCircuit.Realizes.prodRight (left := wordEncoding) hsuffix
 
 /-- The modulus is odd, so the static residue `2` is invertible. -/
 theorem primeModulus_odd : Odd params.modulus.val :=
@@ -2399,8 +2382,9 @@ private theorem rawDoublingCleanupStep_routing
 
 set_option exponentiation.threshold 2048 in
 /-- Actual shift/reduce source-doubling circuit in the common carrier. -/
-def doublingCircuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList doublingGates
+def doublingCircuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty doublingGates
 
 /-- Raw action of the literal shift/reduce source-doubling circuit. -/
 def rawDoublingStep : RawRegisters → RawRegisters :=
@@ -2488,11 +2472,12 @@ theorem doubling_realizes :
   have raw : UnitaryCircuit.Realizes rawEncoding doublingCircuit rawDoublingStep := by
     unfold doublingCircuit
     exact EncodedBit.GateSpec.realizesList_congrStep
+      (QubitLayout.canonical _) .empty
       doublingGates doublingGates_stepList
   exact UnitaryCircuit.Realizes.relabel registersEquiv raw
 
 /-- Strict event pool derived from the actual lifted source-doubling circuit. -/
-def doublingEventCost : ResourcePool .quantum :=
+def doublingEventCost : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   doublingCircuit.eventCost
 
 /-- Strict event critical path derived from the actual lifted source-doubling
@@ -2532,8 +2517,10 @@ theorem selectedAddGates_stepList (bit : Fin params.width) (x : RawRegisters) :
 
 /-- Circuit compiled from the literal selected modular-addition route. -/
 def selectedAddCircuit (bit : Fin params.width) :
-    UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList (selectedAddGates bit)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (selectedAddGates bit)
 
 /-- Full named action of the actual selected modular-addition routing. -/
 def selectedAddStep (bit : Fin params.width) : Registers → Registers :=
@@ -2561,6 +2548,7 @@ theorem selectedAdd_realizes (bit : Fin params.width) :
       (rawSelectedAddStep bit) := by
     unfold selectedAddCircuit
     exact EncodedBit.GateSpec.realizesList_congrStep
+      (QubitLayout.canonical _) .empty
       (selectedAddGates bit) (selectedAddGates_stepList bit)
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.relabel registersEquiv raw)
@@ -2766,7 +2754,8 @@ theorem selectedAddStep_cleanEndpoint (bit : Fin params.width) (x : Data) :
         _ = cleanRegisters (Data.addSelected bit x) := houtput.symm
 
 /-- Strict event pool derived from one actual selected-add routing circuit. -/
-def selectedAddEventCost (bit : Fin params.width) : ResourcePool .quantum :=
+def selectedAddEventCost (bit : Fin params.width) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (selectedAddCircuit bit).eventCost
 
 /-- Strict event critical path derived from one actual selected-add routing
@@ -2800,8 +2789,10 @@ theorem roundGates_stepList (bit : Fin params.width) (x : RawRegisters) :
   rfl
 
 /-- Circuit compiled from the literal selected-add/doubling round. -/
-def roundCircuit (bit : Fin params.width) : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList (roundGates bit)
+def roundCircuit (bit : Fin params.width) : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (roundGates bit)
 
 /-- Named action of one actual variable-multiplication round. -/
 def roundStep (bit : Fin params.width) : Registers → Registers :=
@@ -2821,6 +2812,7 @@ theorem roundCircuit_realizes (bit : Fin params.width) :
   have raw : UnitaryCircuit.Realizes rawEncoding (roundCircuit bit) (rawRoundStep bit) := by
     unfold roundCircuit
     exact EncodedBit.GateSpec.realizesList_congrStep
+      (QubitLayout.canonical _) .empty
       (roundGates bit) (roundGates_stepList bit)
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.relabel registersEquiv raw)
@@ -2830,7 +2822,8 @@ theorem roundCircuit_realizes (bit : Fin params.width) :
   simp only [Equiv.apply_symm_apply]
 
 /-- Strict event pool derived from one actual selected-add/doubling round. -/
-def roundEventCost (bit : Fin params.width) : ResourcePool .quantum :=
+def roundEventCost (bit : Fin params.width) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (roundCircuit bit).eventCost
 
 /-- Strict event critical path derived from one actual selected-add/doubling

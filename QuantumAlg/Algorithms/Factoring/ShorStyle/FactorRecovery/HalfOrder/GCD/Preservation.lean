@@ -8,7 +8,8 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Execution
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Layout.Laws
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Adjacent.Correctness
+import all
+  QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Adjacent.Correctness
 import all QuantumAlg.Components.Classical.NumberTheory.GCD.Preservation
 
 /-!
@@ -49,13 +50,15 @@ private theorem input_separation {shape : CShape} (input : CInputRef ctx shape) 
     exact fun present => (adjacentContext ctx N).canonicalFreshKey_fresh
       (CInputRef.storageKeys_subset_context first present)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem gcdTail_read_other
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef (context ctx N) shape)
     (separate : (liftWrite (N := N) output).key ∉ other.storageKeys)
     (store : Store (context ctx N)) :
-    (gcdTailStep output store).1.read other = store.read other :=
-  (NumberTheory.GCD.gcdLexical_read_other (operands ctx N) (liftWrite output)
+    (gcdTailStep (model := model) output store).1.read other = store.read other :=
+  (NumberTheory.GCD.gcdLexical_read_other (model := model) (operands ctx N) (liftWrite output)
     other separate (store.applyOp (clearOp output))).trans
     (Store.read_applyOp_of_not_mem_storageKeys store (clearOp output) other separate)
 
@@ -65,17 +68,18 @@ theorem body_read_other (successor : Bool)
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store (context ctx N)) :
-    (bodyStep successor halfPower output store).1.read (liftInput other) =
+    (bodyStep (model := model) successor halfPower output store).1.read (liftInput other) =
       store.read (liftInput other) := by
   have separated := input_separation (N := N) other
   have resultFree : (liftWrite (N := N) output).key ∉
       (liftInput (N := N) other).storageKeys := by
     rw [input_keys]
     exact separate
-  let adjacent := NativeAdjacentWord.step successor (liftInput halfPower) (adjacentRef ctx N) store
-  let loaded := ConstantWord.foldStep (modulusRef ctx N)
+  let adjacent := NativeAdjacentWord.step (model := model) successor (liftInput halfPower)
+    (adjacentRef ctx N) store
+  let loaded := ConstantWord.foldStep (model := model) (modulusRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) adjacent.1
-  exact (gcdTail_read_other output (liftInput other) resultFree loaded.1).trans
+  exact (gcdTail_read_other (model := model) output (liftInput other) resultFree loaded.1).trans
     ((ConstantWord.constantWord_fold_read_other (modulusRef ctx N)
       (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N))
       (liftInput other) separated.2 adjacent.1).trans
@@ -88,9 +92,11 @@ theorem read_other (successor : Bool)
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step successor halfPower output store).1.read other = store.read other :=
-  (popStore_read other (bodyStep successor halfPower output (pushStore N store)).1).trans
-    ((body_read_other successor halfPower output other separate (pushStore N store)).trans
+    (step (model := model) successor halfPower output store).1.read other = store.read other :=
+  (popStore_read other (bodyStep (model := model) successor halfPower output (pushStore N
+    store)).1).trans
+    ((body_read_other (model := model) successor halfPower output other separate (pushStore N
+      store)).trans
       (pushStore_read other store))
 
 end

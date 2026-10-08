@@ -9,6 +9,9 @@ module
 import QuantumAlg.Init
 public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Mathematics
 public import QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Layout.Qubit
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary.Width
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Primitives.EllipticCurve.Arithmetic.VariableModularMultiplication
 public import QuantumAlg.Primitives.EllipticCurve.PointAddition.Basic
 public import QuantumAlg.Primitives.EllipticCurve.PointAddition.ClosedForms
@@ -54,8 +57,9 @@ private theorem translationGateLengthBoundFor_eq_closed (fieldWidth : Nat) :
 /-- Canonical production circuit for addition by the fixed classical point. -/
 def program (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (Q : AffinePoint E) :
-    UnitaryCircuit (Qubits
-      GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width).toQuantum :=
   GenericPointAddition.ExceptionalCleanup.translationProgram (E := E) (Q := Q)
 
 /-- Clean public boundary: one control, one mutable affine point, and zeroed
@@ -107,51 +111,62 @@ theorem program_width_exact :
     Arithmetic.ModularInversion.counterWidthFor]
   omega
 
-/-- Logical basis transport from the private cleanup layout to the exact
-public qubit width. -/
-private def publicIndexEquiv
-    (hfieldWidth : params.width = Nat.clog 2 params.modulus.val) :
-    Fin (2 ^ GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width) ≃
-      Fin (2 ^ logicalQubitCount (Nat.clog 2 params.modulus.val)) :=
-  Equiv.cast (congrArg (fun width => Fin (2 ^ width))
-    ((program_width_exact (params := params)).trans
-      (congrArg logicalQubitCount hfieldWidth)))
+/-- Clean computational-basis state on the fixed public-width carrier.  The
+private arithmetic and selector fields are initialized to their canonical
+zero values inside this constructor. -/
+public def cleanState (control : Bool) (P : AffinePoint E) :
+    NormalizedVector
+      (QubitLayout.canonical (logicalQubitCount params.width)).toQuantum.register :=
+  (program_width_exact (params := params)) ▸
+    GenericPointAddition.ExceptionalCleanup.encodedKet (cleanBoundary control P)
 
-/-- Public computational-basis label of a clean control and affine input.  All
-private physical work registers are initialized canonically. -/
-public def inputLabel
-    (hfieldWidth : params.width = Nat.clog 2 params.modulus.val)
-    (control : Bool) (P : AffinePoint E) :
-    Fin (2 ^ logicalQubitCount (Nat.clog 2 params.modulus.val)) :=
-  publicIndexEquiv hfieldWidth
-    (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-      (cleanBoundary control P))
-
-/-- Public computational-basis label after controlled point addition, with all
-private physical work registers restored. -/
-public def outputLabel
-    (hfieldWidth : params.width = Nat.clog 2 params.modulus.val)
+/-- The literal implementation regrouped to its public logical width. -/
+private def publicProgram
     (E : PrimeFieldShortWeierstrass params.modulus.val)
-    [Fact params.modulus.val.Prime] (Q : AffinePoint E) (control : Bool)
-    (P : AffinePoint E) (hPQ : P ≠ Q)
-    (hPnegQ : P ≠ AffinePoint.negate Q) :
-    Fin (2 ^ logicalQubitCount (Nat.clog 2 params.modulus.val)) :=
-  publicIndexEquiv hfieldWidth
-    (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-      (cleanBoundary control
-        (controlledResultPoint E Q control P hPQ hPnegQ)))
+    [Fact params.modulus.val.Prime] (Q : AffinePoint E) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (logicalQubitCount params.width)).toQuantum :=
+  (program E Q).castCanonicalQubitWidth (program_width_exact (params := params))
 
 /-- Same-circuit Toffoli projection, bounded by the closed width family. -/
 theorem program_toffoli_count_le
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (Q : AffinePoint E) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (program E Q).eventCost ≤ toffoliCountBound params.width := by
   rw [← translationToffoliBoundFor_eq_closed params.width]
   simpa only [program,
     GenericPointAddition.ExceptionalCleanup.translationToffoliBound] using
     (GenericPointAddition.ExceptionalCleanup.translationProgram_toffoli_count_le
       (E := E) (Q := Q))
+
+/-- The same actual program obeys the normalized polynomial bound used by the
+public statement. -/
+theorem program_toffoli_count_le_published
+    (hcharacteristic : 3 < params.modulus.val)
+    (hfieldWidth : params.width = Nat.clog 2 params.modulus.val)
+    (E : PrimeFieldShortWeierstrass params.modulus.val)
+    [Fact params.modulus.val.Prime] (Q : AffinePoint E) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+        (program E Q).eventCost ≤
+      publishedToffoliCountBound (Nat.clog 2 params.modulus.val) := by
+  have fieldWidthPositive : 0 < Nat.clog 2 params.modulus.val :=
+    Nat.clog_pos (by norm_num) (by omega)
+  have fieldWidthGreaterThanOne : 1 < Nat.clog 2 params.modulus.val :=
+    (Nat.lt_clog_iff_pow_lt (by norm_num)).2 (by norm_num; omega)
+  have heightAtLeastTwo :
+      2 ≤ Nat.clog 2 (2 * Nat.clog 2 params.modulus.val) := by
+    have logarithmGreaterThanOne :
+        1 < Nat.clog 2 (2 * Nat.clog 2 params.modulus.val) :=
+      (Nat.lt_clog_iff_pow_lt (by norm_num)).2 (by norm_num; omega)
+    omega
+  calc
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+        (program E Q).eventCost ≤ toffoliCountBound params.width :=
+      program_toffoli_count_le E Q
+    _ = publishedToffoliCountBound (Nat.clog 2 params.modulus.val) :=
+      (congrArg toffoliCountBound hfieldWidth).trans
+        (toffoliCountBound_eq_published _ fieldWidthPositive heightAtLeastTwo)
 
 /-- Same-circuit sequential unit-depth projection, bounded by the closed width
 family. -/
@@ -174,13 +189,11 @@ theorem program_clean_ket
     (P : AffinePoint E) (hPQ : P ≠ Q)
     (hPnegQ : P ≠ AffinePoint.negate Q) :
     (program E Q).applyNormalized
-        (NormalizedVector.ket
-          (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-            (cleanBoundary control P))) =
-      NormalizedVector.ket
-        (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-          (cleanBoundary control
-            (controlledResultPoint E Q control P hPQ hPnegQ))) := by
+        (GenericPointAddition.ExceptionalCleanup.encodedKet
+          (cleanBoundary control P)) =
+      GenericPointAddition.ExceptionalCleanup.encodedKet
+        (cleanBoundary control
+          (controlledResultPoint E Q control P hPQ hPnegQ)) := by
   let input : GenericPointAddition.Input E Q :=
     ⟨P, genericAddDomain_of_ne_of_ne_negate E P Q hPQ hPnegQ⟩
   have h :=
@@ -194,18 +207,41 @@ theorem program_clean_ket
       simpa [program, cleanBoundary, controlledResultPoint, input,
         GenericPointAddition.Pipeline.resultWords] using h
 
+/-- The public-width regrouping retains the exact clean controlled action. -/
+theorem publicProgram_clean_ket
+    (E : PrimeFieldShortWeierstrass params.modulus.val)
+    [Fact params.modulus.val.Prime] (Q : AffinePoint E) (control : Bool)
+    (P : AffinePoint E) (hPQ : P ≠ Q)
+    (hPnegQ : P ≠ AffinePoint.negate Q) :
+    (publicProgram E Q).applyNormalized (cleanState control P) =
+      cleanState control (controlledResultPoint E Q control P hPQ hPnegQ) := by
+  let same := program_width_exact (params := params)
+  let input := GenericPointAddition.ExceptionalCleanup.encodedKet (cleanBoundary control P)
+  let output := GenericPointAddition.ExceptionalCleanup.encodedKet
+    (cleanBoundary control (controlledResultPoint E Q control P hPQ hPnegQ))
+  have action : (program E Q).applyNormalized input = output := by
+    simpa [input, output] using
+      program_clean_ket E Q control P hPQ hPnegQ
+  calc
+    (publicProgram E Q).applyNormalized (cleanState control P) =
+        same ▸ (program E Q).applyNormalized input := by
+      simpa [publicProgram, cleanState, same, input] using
+        UnitaryCircuit.castCanonicalQubitWidth_applyNormalized same (program E Q) input
+    _ = same ▸ output := congrArg (fun state => same ▸ state) action
+    _ = cleanState control
+        (controlledResultPoint E Q control P hPQ hPnegQ) := by
+      rfl
+
 /-- A false control leaves every clean affine input unchanged, including the
 two inputs excluded from the active generic-addition domain. -/
 theorem program_clean_ket_of_control_false
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (Q P : AffinePoint E) :
     (program E Q).applyNormalized
-        (NormalizedVector.ket
-          (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-            (cleanBoundary false P))) =
-      NormalizedVector.ket
-        (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-          (cleanBoundary false P)) := by
+        (GenericPointAddition.ExceptionalCleanup.encodedKet
+          (cleanBoundary false P)) =
+      GenericPointAddition.ExceptionalCleanup.encodedKet
+        (cleanBoundary false P) := by
   have action :=
     (GenericPointAddition.ExceptionalCleanup.translationProgram_realizes
       (E := E) (Q := Q)).apply_encoded_ket (cleanBoundary false P)
@@ -213,58 +249,45 @@ theorem program_clean_ket_of_control_false
     GenericPointAddition.ExceptionalCleanup.translationStep_eq_self_of_control_false
       (E := E) (Q := Q) (cleanBoundary false P) (by rfl)
   rw [unchanged] at action
-  simpa only [program, cleanBoundary] using action
+  simpa only [program, cleanBoundary,
+    GenericPointAddition.ExceptionalCleanup.encodedKet] using action
 
 /-- **Elliptic-curve point addition.**  For a prime characteristic above three
 and its canonical binary field width, the same literal circuit has the exact
-logical width, the stated Toffoli and sequential circuit-depth bounds, and the
-controlled in-place group-shift action for every affine input distinct from the
-fixed addend and its inverse. -/
-public theorem main (_hcharacteristic : 3 < params.modulus.val)
+logical and auxiliary widths, the published Toffoli and existing sequential
+depth bounds, and the controlled in-place group-shift action for every affine
+input distinct from the fixed addend and its inverse. -/
+public theorem main (hcharacteristic : 3 < params.modulus.val)
     (hfieldWidth : params.width = Nat.clog 2 params.modulus.val)
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (Q : AffinePoint E) :
-    ∃ circuit : UnitaryCircuit (Qubits
-        (logicalQubitCount (Nat.clog 2 params.modulus.val))),
-      ResourcePool.count (.gate (.builtin "toffoli"))
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical (logicalQubitCount params.width)).toQuantum,
+      logicalQubitCount (Nat.clog 2 params.modulus.val) =
+          (1 + 2 * Nat.clog 2 params.modulus.val) +
+            auxiliaryQubitCount (Nat.clog 2 params.modulus.val) ∧
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           circuit.eventCost ≤
-        toffoliCountBound (Nat.clog 2 params.modulus.val) ∧
+        publishedToffoliCountBound (Nat.clog 2 params.modulus.val) ∧
       circuit.evaluatedEventDepth (fun _ => 1) ≤
         circuitDepthBound (Nat.clog 2 params.modulus.val) ∧
       ∀ (control : Bool) (P : AffinePoint E)
         (hPQ : P ≠ Q) (hPnegQ : P ≠ AffinePoint.negate Q),
         circuit.applyNormalized
-            (NormalizedVector.ket (inputLabel hfieldWidth control P)) =
-          NormalizedVector.ket
-            (outputLabel hfieldWidth E Q control P hPQ hPnegQ) ∧
+            (cleanState control P) =
+          cleanState control
+            (controlledResultPoint E Q control P hPQ hPnegQ) ∧
         (controlledResultPoint E Q control P hPQ hPnegQ).toMathlib =
           P.toMathlib + if control then Q.toMathlib else 0 := by
-  let equiv :
-      (Qubits
-          GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width).Index ≃
-        (Qubits
-          (logicalQubitCount (Nat.clog 2 params.modulus.val))).Index :=
-    publicIndexEquiv (params := params) hfieldWidth
-  let circuit : UnitaryCircuit (Qubits
-      (logicalQubitCount (Nat.clog 2 params.modulus.val))) :=
-    UnitaryCircuit.reindex equiv (program E Q)
-  refine ⟨circuit, ?_, ?_, ?_⟩
-  · simpa [circuit, UnitaryCircuit.reindex_eventCost, hfieldWidth] using
-      program_toffoli_count_le E Q
-  · simpa [circuit, UnitaryCircuit.evaluatedEventDepth,
-      UnitaryCircuit.reindex_eventDepth, hfieldWidth] using
-      program_unitDepth_le E Q
+  refine ⟨publicProgram E Q,
+    logicalQubitCount_eq_public_add_auxiliary _, ?_, ?_, ?_⟩
+  · rw [publicProgram, UnitaryCircuit.castCanonicalQubitWidth_eventCost]
+    exact program_toffoli_count_le_published hcharacteristic hfieldWidth E Q
+  · rw [publicProgram, UnitaryCircuit.castCanonicalQubitWidth_evaluatedEventDepth]
+    simpa [hfieldWidth] using program_unitDepth_le E Q
   · intro control P hPQ hPnegQ
-    have h := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-      equiv (program E Q)
-      (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-        (cleanBoundary control P))
-      (GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.encode
-        (cleanBoundary control
-          (controlledResultPoint E Q control P hPQ hPnegQ)))
-      (program_clean_ket E Q control P hPQ hPnegQ)
-    refine ⟨?_, controlledResultPoint_group_law E Q control P hPQ hPnegQ⟩
-    simpa [circuit, equiv, inputLabel, outputLabel] using h
+    exact ⟨publicProgram_clean_ket E Q control P hPQ hPnegQ,
+      controlledResultPoint_group_law E Q control P hPQ hPnegQ⟩
 
 end
 

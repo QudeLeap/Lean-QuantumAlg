@@ -11,6 +11,7 @@ public import QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Algorithms.Simon.FixedSample.Spec
 import all QuantumAlg.Algorithms.Simon.FixedSample.Native.Resources
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Algorithm.Borrowed
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 
 /-!
@@ -32,9 +33,10 @@ universe u
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem output_probability_le_relational {kind : ProblemKind}
-    {pre post : RuntimeCtx kind} {shape : CShape} (run : AlgorithmRun pre post shape)
-    {Reference : Register} (input : Input pre Reference) (value : shape.Value) :
+private theorem output_probability_le_relational {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} {shape : CShape} (run : AlgorithmRun model pre post shape)
+    {Reference : Register} (input : OracleInput model.classicalOracles pre Reference) (value :
+      shape.Value) :
     run.outputDistribution input value ≤
       (run.relationalDistribution input).toOuterMeasure {pair | pair.2 = value} := by
   rw [← PMF.toOuterMeasure_apply_singleton]
@@ -46,7 +48,8 @@ private theorem output_probability_le_relational {kind : ProblemKind}
 
 /-- The actual algorithm takes the sampling circuit and slack, with no hidden-word input. -/
 public def algorithm {n : Nat} (sampling : SamplingCircuit n) (κ : SecurityParameter) :
-    Algorithm .quantum inputContext (outputContext n κ) (.option (.unsignedWord n)) where
+    Algorithm (executionModel sampling.oracle) inputContext (outputContext n κ) (.option
+      (.unsignedWord n)) where
   run := Native.recoveryRun inputContext rfl n (sampleCount n κ) sampling
 
 attribute [local irreducible] Native.recoveryCode Native.code Native.sampleBatch Native.allocate
@@ -56,41 +59,46 @@ public theorem main {n : Nat} {α : Type u} {f : Simon.Oracle n α}
     {secret : Simon.BitVec n} (model : Model f secret) (κ : SecurityParameter) :
     (algorithm model.sampling κ).Solves (problem model κ) where
   success := by
-    intro Reference input promise
+    intro Reference input promise initialization
     exact (Native.nativeSimon_recovery_success inputContext rfl n model κ promise input).trans
       (output_probability_le_relational (algorithm model.sampling κ).run input
         (.optionSome (.unsignedWord model.secret)))
   states := by
-    intro Reference input valid requirement member
+    intro Reference input valid initialization requirement member
     cases member
   borrowed := by
-    intro Reference input valid
-    exact Circuit.borrowedRestored_of_noBorrowedQuantum _ rfl Reference
-      (input.state.mapClassical (fun store => (store, store)))
+    intro Reference input valid initialization
+    apply AlgorithmRun.restoresBorrowed_of_circuit
+    intro reference history _ state
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum
+      (Native.recoveryCode inputContext rfl n (sampleCount n κ) model.sampling)
+      rfl reference state
   events := by
-    intro Reference input valid path supported
+    intro Reference input valid initialization path supported
     exact Native.nativeSimon_recovery_pool_le inputContext rfl n (sampleCount n κ)
       model.sampling path
   resident := by
-    intro Reference input valid path supported
+    intro Reference input valid initialization path supported
     change (Native.recoveryCode inputContext rfl n (sampleCount n κ)
       model.sampling).peakResidentSpace path ≤
-        Native.recoveryScratchSpace n (sampleCount n κ) + Native.samplingSpace n (sampleCount n κ)
+        Native.recoveryScratchSpace (sourceModel model.sampling.oracle) n (sampleCount n κ) +
+          Native.samplingSpace n (sampleCount n κ)
     have emptySpace : inputContext.residentSpace = 0 := RuntimeCtx.residentSpace_empty
     simpa only [emptySpace, add_zero] using
       Native.nativeSimon_recovery_resident_le inputContext rfl n (sampleCount n κ)
         model.sampling path
   auxiliary := by
-    intro Reference input valid path supported
+    intro Reference input valid initialization path supported
     change (Native.recoveryCode inputContext rfl n (sampleCount n κ)
       model.sampling).peakAuxiliarySpace path ≤
-        Native.recoveryScratchSpace n (sampleCount n κ) + Native.samplingSpace n (sampleCount n κ)
+        Native.recoveryScratchSpace (sourceModel model.sampling.oracle) n (sampleCount n κ) +
+          Native.samplingSpace n (sampleCount n κ)
     have emptySpace : inputContext.auxiliarySpace = 0 := RuntimeCtx.auxiliarySpace_empty
     simpa only [emptySpace, add_zero] using
       Native.nativeSimon_recovery_auxiliary_le inputContext rfl n (sampleCount n κ)
         model.sampling path
   depth := by
-    intro Reference input valid path supported
+    intro Reference input valid initialization path supported
     exact Native.nativeSimon_recovery_depth_le inputContext rfl n (sampleCount n κ)
       model.sampling path
 

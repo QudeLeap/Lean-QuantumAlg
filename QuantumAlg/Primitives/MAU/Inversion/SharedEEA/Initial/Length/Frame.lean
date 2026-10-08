@@ -68,7 +68,8 @@ theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (InitialLengthWrite.program width)
       (fun state => { state with divisorLength :=
         state.divisorLength ^^^ BitVec.ofNat width.size (payloadValue state).size }) :=
-  GateSpec.realizesList_congrStep (InitialLengthWrite.gates width) (gates_step_eq width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (gates_step_eq width)
 
 end
 

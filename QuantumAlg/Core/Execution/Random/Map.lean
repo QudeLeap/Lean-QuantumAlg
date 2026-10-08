@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Random
-import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Core.Execution.Classical.Pushforward
 
 /-!
 # Independent finite sampling and deterministic classical maps

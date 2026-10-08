@@ -56,129 +56,90 @@ def relabel {Other : Type} (layout : Other ≃ Data) :
       .toffoli (controlA.relabel layout) (controlB.relabel layout)
         (target.relabel layout) hab ha hb
 
-/-- Strict event of one encoded-bit gate specification. Wire addresses and
-disjointness proofs do not affect the event coordinate. -/
-def event : GateSpec encoding → Resource.Event .quantum
-  | .x _ => .gate (.builtin "x")
-  | .cnot _ _ _ => .gate (.builtin "cnot")
-  | .toffoli _ _ _ _ _ _ => .gate (.builtin "toffoli")
+/-- The addressed primitive retains the exact source wire arguments and disjointness. -/
+def primitive : GateSpec encoding → QubitPrimitive encoding.width
+  | .x target => .x target.wire
+  | .cnot control target different => .cnot control.wire target.wire different
+  | .toffoli first second target distinct firstTarget secondTarget =>
+      .toffoli first.wire second.wire target.wire distinct firstTarget secondTarget
 
-/-- Semantic relabeling preserves a primitive's strict event coordinate. -/
-@[simp] theorem event_relabel {Other : Type} (layout : Other ≃ Data)
-    (gate : GateSpec encoding) : event (relabel layout gate) = event gate := by
+/-- The actual default-model coordinate in the independently selected oracle environment. -/
+def event (oracles : OracleModel) (gate : GateSpec encoding) :
+    Resource.Event (.quantum AlgorithmGate.model oracles) :=
+  (primitive gate).event oracles
+
+/-- Semantic relabeling keeps the physical primitive and its model-owned event unchanged. -/
+@[simp] theorem event_relabel (oracles : OracleModel) {Other : Type}
+    (layout : Other ≃ Data) (gate : GateSpec encoding) :
+    event oracles (relabel layout gate) = event oracles gate := by
   cases gate <;> rfl
 
-/-- Relabeling a complete literal gate list preserves its ordered strict event
-trace. -/
-theorem map_event_relabel {Other : Type} (layout : Other ≃ Data)
+/-- Relabeling the semantic data preserves the ordered native event trace. -/
+theorem map_event_relabel (oracles : OracleModel) {Other : Type} (layout : Other ≃ Data)
     (gates : List (GateSpec encoding)) :
-    (gates.map (relabel layout)).map event = gates.map event := by
+    (gates.map (relabel layout)).map (event oracles) = gates.map (event oracles) := by
   induction gates with
   | nil => rfl
   | cons gate gates ih =>
-      change event (relabel layout gate) ::
-          ((gates.map (relabel layout)).map event) =
-        event gate :: gates.map event
+      change event oracles (relabel layout gate) ::
+          ((gates.map (relabel layout)).map (event oracles)) =
+        event oracles gate :: gates.map (event oracles)
       rw [event_relabel, ih]
 
-/-- Right-associated symbolic depth of an ordered strict event trace. -/
-def depthOfEvents : List (Resource.Event .quantum) →
-    DepthExpr (Resource.Event .quantum)
+/-- Right-associated dependency depth of an ordered trace in the selected model. -/
+def depthOfEvents {model : ExecutionModel} : List (Resource.Event model) →
+    DepthExpr (Resource.Event model)
   | [] => .id
-  | event :: rest => .seq (.atom event) (depthOfEvents rest)
+  | emitted :: rest => .seq (.atom emitted) (depthOfEvents rest)
 
+/-- Compile one semantic bit operation on its actual physical interface. -/
+def program (gate : GateSpec encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
+  (primitive gate).circuit layout oracles
 
+/-- The actual native instruction emits precisely its declaration-owned event. -/
+@[simp] theorem program_eventTrace (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    (gate.program layout oracles).eventTrace = [event oracles gate] :=
+  QubitPrimitive.primitiveCircuit_eventTrace (primitive gate) layout oracles
 
+/-- Native multiplicity is computed from the same instruction that executes. -/
+@[simp] theorem program_eventCost (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    (gate.program layout oracles).eventCost = ResourcePool.singleton (event oracles gate) :=
+  QubitPrimitive.primitiveCircuit_eventCost (primitive gate) layout oracles
 
+/-- An addressed source primitive executes as one native dependency step. -/
+@[simp] theorem program_eventDepth (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    (gate.program layout oracles).eventDepth = .atom (event oracles gate) :=
+  QubitPrimitive.primitiveCircuit_eventDepth (primitive gate) layout oracles
 
+/-- Native bit instructions perform no query, even when an oracle environment is available. -/
+theorem program_oracle_count_zero (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    (query : oracles.Coordinate) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.oracle query)
+      (gate.program layout oracles).eventCost = 0 := by
+  rw [program_eventCost]
+  apply ResourcePool.count_singleton_of_ne
+  cases gate <;> simp [event, primitive, QubitPrimitive.event, QubitPrimitive.nativeToken]
 
+/-- The actual primitive contributes one native event, independently of its wire positions. -/
+theorem program_eventCost_card (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    (gate.program layout oracles).eventCost.card = 1 := by
+  rw [program_eventCost]
+  simp [ResourcePool.singleton]
 
-/-- Compile one encoded-bit operation directly to its actual circuit. -/
-def program : GateSpec encoding → UnitaryCircuit (Qubits encoding.width)
-  | x target => (QubitPrimitive.x target.wire).circuit
-  | cnot control target hct =>
-      (QubitPrimitive.cnot control.wire target.wire hct).circuit
-  | toffoli controlA controlB target hab ha hb =>
-      (QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-        hab ha hb).circuit
-
-/-- Direct compilation preserves the exact ordered primitive event. -/
-@[simp] theorem program_eventTrace (gate : GateSpec encoding) :
-    gate.program.eventTrace = [gate.event] := by
-  cases gate <;> rfl
-
-/-- Direct compilation charges exactly the declared primitive event. -/
-@[simp] theorem program_eventCost (gate : GateSpec encoding) :
-    gate.program.eventCost = ResourcePool.singleton gate.event := by
-  cases gate <;> rfl
-
-/-- Direct compilation exposes exactly one declared event-depth atom. -/
-@[simp] theorem program_eventDepth (gate : GateSpec encoding) :
-    gate.program.eventDepth = .atom gate.event := by
-  cases gate <;> rfl
-
-/-- One directly compiled encoded-bit primitive cannot emit an opaque
-quantum-subroutine event. -/
-theorem program_quantumSubroutine_count_zero
-    (gate : GateSpec encoding) (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label) gate.program.eventCost = 0 := by
-  cases gate <;>
-    change ResourcePool.count (.quantumSubroutine label)
-      (ResourcePool.singleton (.gate _)) = 0 <;>
-    exact ResourcePool.count_singleton_of_ne (by simp) 1
-
-/-- One directly compiled encoded-bit primitive contributes exactly one
-strict execution event. -/
-theorem program_eventCost_card (gate : GateSpec encoding) :
-    gate.program.eventCost.card = 1 := by
-  cases gate <;>
-    simp [program, QubitPrimitive.circuit, QubitPrimitive.leaf,
-      QubitPrimitive.qubitPrimitiveLeafAt, ResourcePool.singleton]
-
-/-- A strict gate coordinate distinct from X, CNOT, and Toffoli cannot occur
-in one encoded-bit primitive. -/
-theorem program_gate_count_zero_of_ne
-    (gate : GateSpec encoding) (label : Resource.GateLabel)
-    (hx : label ≠ .builtin "x")
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") :
-    ResourcePool.count (.gate label) gate.program.eventCost = 0 := by
-  cases gate with
-  | x target =>
-      exact ResourcePool.count_singleton_of_ne (by
-        intro equality
-        injection equality with equality
-        exact hx equality) 1
-  | cnot control target hct =>
-      exact ResourcePool.count_singleton_of_ne (by
-        intro equality
-        injection equality with equality
-        exact hcnot equality) 1
-  | toffoli controlA controlB target hab ha hb =>
-      exact ResourcePool.count_singleton_of_ne (by
-        intro equality
-        injection equality with equality
-        exact htoffoli equality) 1
-
-/-- Every physical wire of one compiled encoded-bit gate lies in the
-canonical range of its semantic encoding. -/
-theorem program_physical_idx_subset_range (gate : GateSpec encoding) :
-    gate.program.physical_idx ⊆ List.range encoding.width := by
-  cases gate with
-  | x target =>
-      exact QubitPrimitive.systemIdx_subset_range
-        (QubitPrimitive.x target.wire)
-  | cnot control target hct =>
-      exact QubitPrimitive.systemIdx_subset_range
-        (QubitPrimitive.cnot control.wire target.wire hct)
-  | toffoli controlA controlB target hab ha hb =>
-      exact QubitPrimitive.systemIdx_subset_range
-        (QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-          hab ha hb)
-
-
-
-
+/-- Every coordinate distinct from this actual instruction receives zero charge. -/
+theorem program_event_count_zero_of_ne (gate : GateSpec encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    (focus : Resource.Event (.quantum AlgorithmGate.model oracles))
+    (different : focus ≠ event oracles gate) :
+    ResourcePool.count focus (gate.program layout oracles).eventCost = 0 := by
+  rw [program_eventCost]
+  exact ResourcePool.count_singleton_of_ne different 1
 
 /-- Semantic action of one encoded-bit operation. -/
 def step : GateSpec encoding → Data → Data
@@ -315,128 +276,116 @@ theorem step_get_of_bitDisjoint
       exact EncodedBit.toffoliStep_get_of_target_ne
         controlA controlB target observed h.2.2 x
 
-/-- One encoded-bit operation realizes its semantic action. -/
+variable (layout : QubitLayout encoding.width) (oracles : OracleModel)
+
+/-- One actual placed native operation realizes its original semantic update. -/
 theorem realizes (gate : GateSpec encoding) :
-    UnitaryCircuit.Realizes encoding gate.program gate.step := by
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (gate.program layout oracles) gate.step := by
   cases gate with
-  | x target =>
-      exact x_realizes target
-  | cnot control target hct =>
-      exact cnot_realizes control target hct
-  | toffoli controlA controlB target hab ha hb =>
-      exact toffoli_realizes controlA controlB target hab ha hb
+  | x target => exact x_realizes target
+  | cnot control target different => exact cnot_realizes control target different
+  | toffoli first second target distinct firstTarget secondTarget =>
+      exact toffoli_realizes first second target distinct firstTarget secondTarget
 
-/-- Compile a gate-spec list directly to one actual circuit in list execution
-order.  The recursion remains right-associated so its symbolic depth tree is
-the same right fold as the source schedule. -/
-def programList : List (GateSpec encoding) →
-    UnitaryCircuit (Qubits encoding.width)
-  | [] => UnitaryCircuit.identity (Qubits encoding.width) [] (by simp)
-  | gate :: rest => UnitaryCircuit.seq gate.program (programList rest)
+/-- Execute the literal list on the complete supplied physical layout. -/
+def programList (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    List (GateSpec encoding) → UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model oracles layout.toQuantum
+  | gate :: rest => (gate.program layout oracles).seq (programList layout oracles rest)
 
-/-- The ordered circuit trace is exactly the mapped GateSpec event schedule. -/
+/-- The event trace comes from the actual native instructions, in list order. -/
 @[simp] theorem programList_eventTrace (gates : List (GateSpec encoding)) :
-    (programList gates).eventTrace = gates.map event := by
+    (programList layout oracles gates).eventTrace = gates.map (event oracles) := by
   induction gates with
   | nil => rfl
-  | cons gate rest ih => simp [programList, ih]
+  | cons gate rest ih =>
+      rw [programList, UnitaryCircuit.seq_eventTrace, program_eventTrace, ih]
+      rfl
 
-/-- The circuit event pool is the literal multiset of the GateSpec schedule. -/
+/-- The actual event pool retains literal multiplicity in the selected model. -/
 @[simp] theorem programList_eventCost (gates : List (GateSpec encoding)) :
-    (programList gates).eventCost = ResourcePool.ofList (gates.map event) := by
+    (programList layout oracles gates).eventCost =
+      ResourcePool.ofList (gates.map (event oracles)) := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, programList_eventTrace]
 
-/-- The circuit event critical path is the ordered GateSpec event schedule. -/
+/-- The actual dependency tree is the right-associated source event schedule. -/
 @[simp] theorem programList_eventDepth (gates : List (GateSpec encoding)) :
-    (programList gates).eventDepth = depthOfEvents (gates.map event) := by
+    (programList layout oracles gates).eventDepth =
+      depthOfEvents (gates.map (event oracles)) := by
   induction gates with
   | nil => rfl
   | cons gate rest ih =>
-      change DepthExpr.seq gate.program.eventDepth
-          (programList rest).eventDepth = DepthExpr.seq _ _
+      change DepthExpr.seq (gate.program layout oracles).eventDepth
+        (programList layout oracles rest).eventDepth = DepthExpr.seq _ _
       rw [program_eventDepth, ih]
 
-/-- A directly compiled encoded-bit gate list cannot emit an opaque
-quantum-subroutine event.  This is derived from the same primitive circuits
-that execute the list, rather than from a separately supplied resource pool. -/
-theorem programList_quantumSubroutine_count_zero
-    (gates : List (GateSpec encoding))
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (programList gates).eventCost = 0 := by
+/-- A list of native instructions makes no quantum oracle query. -/
+theorem programList_oracle_count_zero (gates : List (GateSpec encoding))
+    (query : oracles.Coordinate) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.oracle query)
+      (programList layout oracles gates).eventCost = 0 := by
   induction gates with
-  | nil => simp [programList]
+  | nil => rfl
   | cons gate rest ih =>
       rw [programList, UnitaryCircuit.seq_eventCost, ResourcePool.count_add,
-        program_quantumSubroutine_count_zero, ih]
+        program_oracle_count_zero, ih, Nat.zero_add]
 
-/-- The strict event ledger of a compiled gate list has one occurrence per
-source GateSpec. -/
-theorem programList_eventCost_card
-    (gates : List (GateSpec encoding)) :
-    (programList gates).eventCost.card = gates.length := by
+/-- The literal native list has exactly one executed event per source operation. -/
+theorem programList_eventCost_card (gates : List (GateSpec encoding)) :
+    (programList layout oracles gates).eventCost.card = gates.length := by
   rw [programList_eventCost]
   simp [ResourcePool.ofList]
 
-/-- Under unit primitive durations, the strict sequential depth of a compiled
-gate list is exactly its source-list length. -/
-@[simp] theorem programList_evaluatedEventDepth_unit
-    (gates : List (GateSpec encoding)) :
-    (programList gates).evaluatedEventDepth (fun _ => 1) = gates.length := by
+/-- With unit durations, the actual sequential depth is exactly the list length. -/
+@[simp] theorem programList_evaluatedEventDepth_unit (gates : List (GateSpec encoding)) :
+    (programList layout oracles gates).evaluatedEventDepth (fun _ => 1) = gates.length := by
   induction gates with
   | nil => rfl
   | cons gate rest ih =>
-      change gate.program.evaluatedEventDepth (fun _ => 1) +
-          (programList rest).evaluatedEventDepth (fun _ => 1) =
-        rest.length + 1
-      rw [ih]
-      have hgate : gate.program.evaluatedEventDepth (fun _ => 1) = 1 := by
-        simp [UnitaryCircuit.evaluatedEventDepth]
-      rw [hgate]
+      rw [programList, UnitaryCircuit.evaluatedEventDepth_seq, ih]
+      have head : (gate.program layout oracles).evaluatedEventDepth (fun _ => 1) = 1 := by
+        rw [UnitaryCircuit.evaluatedEventDepth, program_eventDepth]
+        rfl
+      rw [head, List.length_cons]
       omega
 
-/-- Indicator that one encoded-bit primitive emits a selected strict event.
-This is the list-level bridge used when a client needs a gate-coordinate count
-rather than the total primitive envelope. -/
-def eventMultiplicity (focus : Resource.Event .quantum)
+/-- Indicator of an actual selected-model event emitted by one native source operation. -/
+def eventMultiplicity (oracles : OracleModel)
+    (focus : Resource.Event (.quantum AlgorithmGate.model oracles))
     (gate : GateSpec encoding) : Nat :=
-  if event gate = focus then 1 else 0
+  if event oracles gate = focus then 1 else 0
 
-/-- Equal strict events have equal selected-coordinate indicators. -/
+/-- Equal events have equal indicators in the same declared environment. -/
 theorem eventMultiplicity_eq_of_event_eq
-    (focus : Resource.Event .quantum) {left right : GateSpec encoding}
-    (h : event left = event right) :
-    eventMultiplicity focus left = eventMultiplicity focus right := by
-  simp [eventMultiplicity, h]
+    (focus : Resource.Event (.quantum AlgorithmGate.model oracles))
+    {left right : GateSpec encoding} (same : event oracles left = event oracles right) :
+    eventMultiplicity oracles focus left = eventMultiplicity oracles focus right := by
+  simp [eventMultiplicity, same]
 
-/-- Equal strict event schedules have equal sums for every selected gate
-coordinate. -/
+/-- Equal literal traces preserve every coordinate count. -/
 theorem sum_eventMultiplicity_eq_of_events_eq
-    (focus : Resource.Event .quantum)
-    {Left Right : Type}
-    {leftEncoding : BinaryLabelEncoding Left}
+    (focus : Resource.Event (.quantum AlgorithmGate.model oracles))
+    {Left Right : Type} {leftEncoding : BinaryLabelEncoding Left}
     {rightEncoding : BinaryLabelEncoding Right}
-    {left : List (GateSpec leftEncoding)}
-    {right : List (GateSpec rightEncoding)}
-    (h : left.map event = right.map event) :
-    (left.map (eventMultiplicity focus)).sum =
-      (right.map (eventMultiplicity focus)).sum := by
-  have hmap :
-      left.map (eventMultiplicity focus) =
-        (left.map event).map fun emitted => if emitted = focus then 1 else 0 := by
+    {left : List (GateSpec leftEncoding)} {right : List (GateSpec rightEncoding)}
+    (same : left.map (event oracles) = right.map (event oracles)) :
+    (left.map (eventMultiplicity oracles focus)).sum =
+      (right.map (eventMultiplicity oracles focus)).sum := by
+  have first : left.map (eventMultiplicity oracles focus) =
+      (left.map (event oracles)).map (fun emitted => if emitted = focus then 1 else 0) := by
     simp [eventMultiplicity, List.map_map, Function.comp_def]
-  have hmap' :
-      right.map (eventMultiplicity focus) =
-        (right.map event).map fun emitted => if emitted = focus then 1 else 0 := by
+  have second : right.map (eventMultiplicity oracles focus) =
+      (right.map (event oracles)).map (fun emitted => if emitted = focus then 1 else 0) := by
     simp [eventMultiplicity, List.map_map, Function.comp_def]
-  rw [hmap, hmap', h]
+  rw [first, second, same]
 
-/-- A selected strict-event multiplicity is the sum of its per-gate indicators
-over the actual source list compiled by `programList`. -/
+/-- Coordinate multiplicity follows from the same native list that is executed. -/
 theorem programList_event_count_eq_sum_eventMultiplicity
-    (focus : Resource.Event .quantum) (gates : List (GateSpec encoding)) :
-    ResourcePool.count focus (programList gates).eventCost =
-      (gates.map (eventMultiplicity focus)).sum := by
+    (focus : Resource.Event (.quantum AlgorithmGate.model oracles))
+    (gates : List (GateSpec encoding)) :
+    ResourcePool.count focus (programList layout oracles gates).eventCost =
+      (gates.map (eventMultiplicity oracles focus)).sum := by
   rw [programList_eventCost, ResourcePool.count_ofList]
   induction gates with
   | nil => rfl
@@ -445,51 +394,68 @@ theorem programList_event_count_eq_sum_eventMultiplicity
       rw [ih]
       simp [eventMultiplicity, Nat.add_comm]
 
-/-- Per-source-gate multiplicity of the strict X coordinate. -/
-def xMultiplicity (gate : GateSpec encoding) : Nat :=
-  eventMultiplicity (.gate (.builtin "x")) gate
+/-- A source X instruction is charged to the default single-qubit coordinate. -/
+def xMultiplicity : GateSpec encoding → Nat
+  | .x _ => 1
+  | _ => 0
 
-/-- Per-source-gate multiplicity of the strict CNOT coordinate. -/
-def cnotMultiplicity (gate : GateSpec encoding) : Nat :=
-  eventMultiplicity (.gate (.builtin "cnot")) gate
+/-- Indicator of a source CNOT instruction. -/
+def cnotMultiplicity : GateSpec encoding → Nat
+  | .cnot _ _ _ => 1
+  | _ => 0
 
-/-- Per-source-gate multiplicity of the strict Toffoli coordinate. -/
-def toffoliMultiplicity (gate : GateSpec encoding) : Nat :=
-  eventMultiplicity (.gate (.builtin "toffoli")) gate
+/-- Indicator of a source Toffoli instruction. -/
+def toffoliMultiplicity : GateSpec encoding → Nat
+  | .toffoli _ _ _ _ _ _ => 1
+  | _ => 0
 
+private theorem eventMultiplicity_singleQubit :
+    (eventMultiplicity oracles (.gate .singleQubit) : GateSpec encoding → Nat) =
+      xMultiplicity := by
+  funext gate
+  cases gate <;> rfl
+
+private theorem eventMultiplicity_cnot :
+    (eventMultiplicity oracles (.gate .cnot) : GateSpec encoding → Nat) =
+      cnotMultiplicity := by
+  funext gate
+  cases gate <;> rfl
+
+private theorem eventMultiplicity_toffoli :
+    (eventMultiplicity oracles (.gate .toffoli) : GateSpec encoding → Nat) =
+      toffoliMultiplicity := by
+  funext gate
+  cases gate <;> rfl
+
+/-- Equal native traces retain the source X multiplicity. -/
 theorem sum_xMultiplicity_eq_of_events_eq
-    {Left Right : Type}
-    {leftEncoding : BinaryLabelEncoding Left}
+    {Left Right : Type} {leftEncoding : BinaryLabelEncoding Left}
     {rightEncoding : BinaryLabelEncoding Right}
-    {left : List (GateSpec leftEncoding)}
-    {right : List (GateSpec rightEncoding)}
-    (h : left.map event = right.map event) :
+    {left : List (GateSpec leftEncoding)} {right : List (GateSpec rightEncoding)}
+    (same : left.map (event oracles) = right.map (event oracles)) :
     (left.map xMultiplicity).sum = (right.map xMultiplicity).sum := by
-  unfold xMultiplicity
-  exact sum_eventMultiplicity_eq_of_events_eq _ h
+  have counts := sum_eventMultiplicity_eq_of_events_eq oracles (.gate .singleQubit) same
+  simpa only [eventMultiplicity_singleQubit] using counts
 
+/-- Equal native traces retain the source CNOT multiplicity. -/
 theorem sum_cnotMultiplicity_eq_of_events_eq
-    {Left Right : Type}
-    {leftEncoding : BinaryLabelEncoding Left}
+    {Left Right : Type} {leftEncoding : BinaryLabelEncoding Left}
     {rightEncoding : BinaryLabelEncoding Right}
-    {left : List (GateSpec leftEncoding)}
-    {right : List (GateSpec rightEncoding)}
-    (h : left.map event = right.map event) :
+    {left : List (GateSpec leftEncoding)} {right : List (GateSpec rightEncoding)}
+    (same : left.map (event oracles) = right.map (event oracles)) :
     (left.map cnotMultiplicity).sum = (right.map cnotMultiplicity).sum := by
-  unfold cnotMultiplicity
-  exact sum_eventMultiplicity_eq_of_events_eq _ h
+  have counts := sum_eventMultiplicity_eq_of_events_eq oracles (.gate .cnot) same
+  simpa only [eventMultiplicity_cnot] using counts
 
+/-- Equal native traces retain the source TOFFOLI multiplicity. -/
 theorem sum_toffoliMultiplicity_eq_of_events_eq
-    {Left Right : Type}
-    {leftEncoding : BinaryLabelEncoding Left}
+    {Left Right : Type} {leftEncoding : BinaryLabelEncoding Left}
     {rightEncoding : BinaryLabelEncoding Right}
-    {left : List (GateSpec leftEncoding)}
-    {right : List (GateSpec rightEncoding)}
-    (h : left.map event = right.map event) :
-    (left.map toffoliMultiplicity).sum =
-      (right.map toffoliMultiplicity).sum := by
-  unfold toffoliMultiplicity
-  exact sum_eventMultiplicity_eq_of_events_eq _ h
+    {left : List (GateSpec leftEncoding)} {right : List (GateSpec rightEncoding)}
+    (same : left.map (event oracles) = right.map (event oracles)) :
+    (left.map toffoliMultiplicity).sum = (right.map toffoliMultiplicity).sum := by
+  have counts := sum_eventMultiplicity_eq_of_events_eq oracles (.gate .toffoli) same
+  simpa only [eventMultiplicity_toffoli] using counts
 
 @[simp] theorem xMultiplicity_x (target : EncodedBit encoding) :
     xMultiplicity (.x target) = 1 := rfl
@@ -547,126 +513,56 @@ theorem length_eq_multiplicity_sums (gates : List (GateSpec encoding)) :
   | cons gate rest ih =>
       cases gate <;> simp [ih] <;> omega
 
-/-- Coordinate-specific X count for a compiled GateSpec source list. -/
+/-- The actual singleQubit coordinate counts precisely its source instructions. -/
 theorem programList_x_count_eq_sum (gates : List (GateSpec encoding)) :
-    ResourcePool.count (.gate (.builtin "x"))
-        (programList gates).eventCost =
-      (gates.map xMultiplicity).sum :=
-  programList_event_count_eq_sum_eventMultiplicity _ gates
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .singleQubit) (programList layout oracles gates).eventCost =
+      (gates.map xMultiplicity).sum := by
+  rw [programList_event_count_eq_sum_eventMultiplicity, eventMultiplicity_singleQubit]
 
-/-- Coordinate-specific CNOT count for a compiled GateSpec source list. -/
+/-- The actual cnot coordinate counts precisely its source instructions. -/
 theorem programList_cnot_count_eq_sum (gates : List (GateSpec encoding)) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (programList gates).eventCost =
-      (gates.map cnotMultiplicity).sum :=
-  programList_event_count_eq_sum_eventMultiplicity _ gates
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .cnot) (programList layout oracles gates).eventCost =
+      (gates.map cnotMultiplicity).sum := by
+  rw [programList_event_count_eq_sum_eventMultiplicity, eventMultiplicity_cnot]
 
-/-- Coordinate-specific Toffoli count for a compiled GateSpec source list. -/
+/-- The actual toffoli coordinate counts precisely its source instructions. -/
 theorem programList_toffoli_count_eq_sum (gates : List (GateSpec encoding)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (programList gates).eventCost =
-      (gates.map toffoliMultiplicity).sum :=
-  programList_event_count_eq_sum_eventMultiplicity _ gates
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .toffoli) (programList layout oracles gates).eventCost =
+      (gates.map toffoliMultiplicity).sum := by
+  rw [programList_event_count_eq_sum_eventMultiplicity, eventMultiplicity_toffoli]
 
-/-- A coordinate outside the encoded-bit X/CNOT/Toffoli language has zero
-multiplicity in every directly compiled gate list. -/
-theorem programList_gate_count_zero_of_ne
-    (gates : List (GateSpec encoding)) (label : Resource.GateLabel)
-    (hx : label ≠ .builtin "x")
-    (hcnot : label ≠ .builtin "cnot")
-    (htoffoli : label ≠ .builtin "toffoli") :
-    ResourcePool.count (.gate label) (programList gates).eventCost = 0 := by
-  induction gates with
-  | nil => rfl
-  | cons gate rest ih =>
-      rw [programList, UnitaryCircuit.seq_eventCost, ResourcePool.count_add,
-        program_gate_count_zero_of_ne gate label hx hcnot htoffoli, ih,
-        Nat.zero_add]
+/-- Count the three actual default native coordinates of a supplied physical circuit. -/
+def primitiveEventCount {count : Nat} {physical : QuantumLayout count}
+    {oracles : OracleModel} (circuit : UnitaryCircuit AlgorithmGate.model oracles physical) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .singleQubit) circuit.eventCost +
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .cnot) circuit.eventCost +
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
+      (.gate .toffoli) circuit.eventCost
 
-/-- A compiled gate list never addresses a physical wire outside its encoded
-register. -/
-theorem programList_physical_idx_subset_range
-    (gates : List (GateSpec encoding)) :
-    (programList gates).physical_idx ⊆ List.range encoding.width := by
-  induction gates with
-  | nil =>
-      intro index hindex
-      simp [programList, UnitaryCircuit.identity] at hindex
-  | cons gate rest ih =>
-      intro index hindex
-      change index ∈ UnitaryCircuit.unionPhysicalIdx
-        gate.program.physical_idx (programList rest).physical_idx at hindex
-      change index ∈ gate.program.physical_idx ∪
-        (programList rest).physical_idx at hindex
-      exact (List.mem_union_iff.mp hindex).elim
-        (fun hgate => program_physical_idx_subset_range gate hgate)
-        (fun hrest => ih hrest)
+/-- The source list emits exactly one of the three native coordinates per instruction. -/
+@[simp] theorem primitiveEventCount_programList (gates : List (GateSpec encoding)) :
+    primitiveEventCount (programList layout oracles gates) = gates.length := by
+  rw [primitiveEventCount, programList_x_count_eq_sum, programList_cnot_count_eq_sum,
+    programList_toffoli_count_eq_sum]
+  exact (length_eq_multiplicity_sums gates).symm
 
+/-- Equal source traces give equal actual native resource pools. -/
+theorem programList_eventCost_eq_of_events_eq (left right : List (GateSpec encoding))
+    (same : left.map (event oracles) = right.map (event oracles)) :
+    (programList layout oracles left).eventCost = (programList layout oracles right).eventCost := by
+  rw [programList_eventCost, programList_eventCost, same]
 
-
-/-- Exact count of the three strict event coordinates emitted by encoded-bit
-primitive compilation. Unlike collection cardinality, this definition states
-the target event predicate explicitly. -/
-def primitiveEventCount {R : Register} (circuit : UnitaryCircuit R) : Nat :=
-  ResourcePool.count (.gate (.builtin "x")) circuit.eventCost +
-    ResourcePool.count (.gate (.builtin "cnot")) circuit.eventCost +
-    ResourcePool.count (.gate (.builtin "toffoli")) circuit.eventCost
-
-/-- Compiling a GateSpec list creates exactly one targeted primitive event per
-source gate. -/
-@[simp] theorem primitiveEventCount_programList
-    (gates : List (GateSpec encoding)) :
-    primitiveEventCount (programList gates) = gates.length := by
-  induction gates with
-  | nil => rfl
-  | cons gate rest ih =>
-      unfold primitiveEventCount at ih ⊢
-      rw [programList, UnitaryCircuit.seq_eventCost, program_eventCost]
-      simp only [ResourcePool.count_add, List.length_cons]
-      cases gate with
-      | x target =>
-          simp only [event, ResourcePool.count_singleton_self]
-          rw [ResourcePool.count_singleton_of_ne (by decide),
-            ResourcePool.count_singleton_of_ne (by decide)]
-          omega
-      | cnot control target hct =>
-          simp only [event, ResourcePool.count_singleton_self]
-          rw [ResourcePool.count_singleton_of_ne (by decide),
-            ResourcePool.count_singleton_of_ne (by decide)]
-          omega
-      | toffoli controlA controlB target hab ha hb =>
-          simp only [event, ResourcePool.count_singleton_self]
-          rw [ResourcePool.count_singleton_of_ne (by decide),
-            ResourcePool.count_singleton_of_ne (by decide)]
-          omega
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/-- Equal ordered strict-event schedules have equal compiled event pools. -/
-theorem programList_eventCost_eq_of_events_eq
-    (left right : List (GateSpec encoding))
-    (hevents : left.map event = right.map event) :
-    (programList left).eventCost = (programList right).eventCost := by
-  rw [programList_eventCost, programList_eventCost, hevents]
-
-/-- Equal ordered strict-event schedules have equal compiled event paths. -/
-theorem programList_eventDepth_eq_of_events_eq
-    (left right : List (GateSpec encoding))
-    (hevents : left.map event = right.map event) :
-    (programList left).eventDepth = (programList right).eventDepth := by
-  rw [programList_eventDepth, programList_eventDepth, hevents]
+/-- Equal source traces give equal actual dependency paths. -/
+theorem programList_eventDepth_eq_of_events_eq (left right : List (GateSpec encoding))
+    (same : left.map (event oracles) = right.map (event oracles)) :
+    (programList layout oracles left).eventDepth =
+      (programList layout oracles right).eventDepth := by
+  rw [programList_eventDepth, programList_eventDepth, same]
 
 /-- Semantic action of a list of encoded-bit operations, in list execution
 order. -/
@@ -772,31 +668,35 @@ theorem stepList_eq_foldl (gates : List (GateSpec encoding)) (x : Data) :
 
 /-- A list of encoded-bit operations realizes its folded semantic action. -/
 theorem realizesList (gates : List (GateSpec encoding)) :
-    UnitaryCircuit.Realizes encoding (programList gates) (stepList gates) := by
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles gates) (stepList gates) := by
   induction gates with
   | nil =>
-      simpa [programList, stepList] using UnitaryCircuit.Realizes.identity encoding
+      simpa [programList, stepList] using
+        UnitaryCircuit.Realizes.identityAt AlgorithmGate.model oracles encoding layout
   | cons gate rest ih =>
       simpa [programList, stepList] using
         UnitaryCircuit.Realizes.seq
           (firstStep := gate.step) (secondStep := stepList rest)
-          (realizes gate) ih
+          (realizes layout oracles gate) ih
 
 /-- A gate list realizes any step pointwise equal to its folded semantic
 action. -/
 theorem realizesList_congrStep (gates : List (GateSpec encoding))
     {step : Data -> Data}
     (hstep : ∀ x, stepList gates x = step x) :
-    UnitaryCircuit.Realizes encoding (programList gates) step where
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles gates) step where
   apply_encoded_ket := by
     intro x
-    rw [(realizesList gates).apply_encoded_ket x]
+    rw [(realizesList layout oracles gates).apply_encoded_ket x]
     rw [hstep x]
 
 /-- Proof that the actual compiled list realizes its folded semantic step. -/
 theorem witnessList (gates : List (GateSpec encoding)) :
-    UnitaryCircuit.Realizes encoding (programList gates) (stepList gates) :=
-  realizesList gates
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles gates) (stepList gates) :=
+  realizesList layout oracles gates
 
 /-- A clean-work controlled version of one encoded-bit gate.  X becomes CNOT,
 CNOT becomes Toffoli, and Toffoli is implemented by compute-control-uncompute
@@ -860,13 +760,13 @@ theorem controlledWithWorkGates_bitDisjoint
     · exact ⟨hgateObserved.1, hgateObserved.2.1, hworkObserved⟩
 
 /-- Strict event expansion induced by one clean-work control lift. -/
-def controlledEventExpansion : GateSpec encoding →
-    List (Resource.Event .quantum)
-  | .x _ => [.gate (.builtin "cnot")]
-  | .cnot _ _ _ => [.gate (.builtin "toffoli")]
+def controlledEventExpansion (oracles : OracleModel) : GateSpec encoding →
+    List (Resource.Event (.quantum AlgorithmGate.model oracles))
+  | .x _ => [.gate .cnot]
+  | .cnot _ _ _ => [.gate .toffoli]
   | .toffoli _ _ _ _ _ _ =>
-      [.gate (.builtin "toffoli"), .gate (.builtin "toffoli"),
-        .gate (.builtin "toffoli")]
+      [.gate .toffoli, .gate .toffoli,
+        .gate .toffoli]
 
 /-- The controlled gate list exposes exactly the source gate's strict event
 expansion, independently of wire addresses and proof fields. -/
@@ -876,7 +776,7 @@ theorem map_event_controlledWithWorkGates
     (hwork : bitDisjoint work gate)
     (hcontrolWork : control.wire ≠ work.wire) :
     (controlledWithWorkGates control work gate hcontrol hwork
-        hcontrolWork).map event = controlledEventExpansion gate := by
+        hcontrolWork).map (event oracles) = controlledEventExpansion oracles gate := by
   cases gate <;> rfl
 
 
@@ -899,11 +799,11 @@ theorem controlledWithWorkWitness
     (hcontrol : bitDisjoint control gate)
     (hwork : bitDisjoint work gate)
     (hcontrolWork : control.wire ≠ work.wire) :
-    UnitaryCircuit.Realizes encoding
-      (programList
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles
         (controlledWithWorkGates control work gate hcontrol hwork hcontrolWork))
       (controlledWithWorkStep control work gate hcontrol hwork hcontrolWork) :=
-  witnessList (controlledWithWorkGates control work gate hcontrol hwork
+  witnessList layout oracles (controlledWithWorkGates control work gate hcontrol hwork
     hcontrolWork)
 
 /-- If the extra control is false, the clean-work controlled gate is a no-op. -/
@@ -1208,7 +1108,7 @@ theorem map_event_controlledListWithWorkGates
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
     (hcontrolWork : control.wire ≠ work.wire) :
     (controlledListWithWorkGates control work gates hcontrol hwork
-        hcontrolWork).map event = gates.flatMap controlledEventExpansion := by
+        hcontrolWork).map (event oracles) = gates.flatMap (controlledEventExpansion oracles) := by
   induction gates with
   | nil => rfl
   | cons gate rest ih =>
@@ -1234,13 +1134,13 @@ theorem controlledListWithWorkWitness
     (hcontrol : ∀ gate, gate ∈ gates -> bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates -> bitDisjoint work gate)
     (hcontrolWork : control.wire ≠ work.wire) :
-    UnitaryCircuit.Realizes encoding
-      (programList
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles
         (controlledListWithWorkGates control work gates hcontrol hwork
           hcontrolWork))
       (controlledListWithWorkStep control work gates hcontrol hwork
         hcontrolWork) :=
-  witnessList (controlledListWithWorkGates control work gates hcontrol hwork
+  witnessList layout oracles (controlledListWithWorkGates control work gates hcontrol hwork
     hcontrolWork)
 
 /-- If the extra control is false, the clean-work controlled gate list is a

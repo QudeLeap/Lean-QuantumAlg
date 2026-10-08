@@ -8,6 +8,10 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.BellPair.Construction
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Components.Kets
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Basic
 public import QuantumAlg.Primitives.Communication
 
 /-!

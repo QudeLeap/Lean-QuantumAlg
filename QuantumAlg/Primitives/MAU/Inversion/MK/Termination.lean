@@ -362,8 +362,11 @@ theorem activeVZeroGates_bitDisjoint_target
 
 /-- Physical circuit compiled from the exact active-`v=0` gate list. -/
 def activeVZeroProgram (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList (activeVZeroGates tail counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (activeVZeroGates tail counterWidth)
 
 /-- Folded semantic step of the active-`v=0` detector. -/
 def activeVZeroStep (tail counterWidth : Nat) :
@@ -375,7 +378,8 @@ theorem activeVZero_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (activeVZeroProgram tail counterWidth)
       (activeVZeroStep tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (activeVZeroGates tail counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (activeVZeroGates tail counterWidth)
 
 /-- Exact X coordinate: two outer active X gates plus the clean zero test. -/
 theorem activeVZeroGates_xMultiplicity_sum (tail counterWidth : Nat) :
@@ -410,7 +414,8 @@ theorem activeVZeroGates_length (tail counterWidth : Nat) :
 
 /-- The compiled detector retains its exact X count. -/
 theorem activeVZeroProgram_x_count (tail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (activeVZeroProgram tail counterWidth).eventCost = 2 * tail + 6 := by
   rw [activeVZeroProgram,
     EncodedBit.GateSpec.programList_x_count_eq_sum,
@@ -418,7 +423,8 @@ theorem activeVZeroProgram_x_count (tail counterWidth : Nat) :
 
 /-- The compiled detector retains its exact zero CNOT count. -/
 theorem activeVZeroProgram_cnot_count (tail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (activeVZeroProgram tail counterWidth).eventCost = 0 := by
   rw [activeVZeroProgram,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum,
@@ -426,7 +432,8 @@ theorem activeVZeroProgram_cnot_count (tail counterWidth : Nat) :
 
 /-- The compiled detector retains its exact Toffoli count. -/
 theorem activeVZeroProgram_toffoli_count (tail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (activeVZeroProgram tail counterWidth).eventCost = 2 * tail + 1 := by
   rw [activeVZeroProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
@@ -763,8 +770,11 @@ def terminationRoutePrefixStep (fieldTail counterWidth : Nat) :
 
 /-- Physical circuit for the compact termination-route prefix. -/
 def terminationRoutePrefixProgram (fieldTail counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList (terminationRoutePrefixGates fieldTail counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (terminationRoutePrefixGates fieldTail counterWidth)
 
 /-- The physical route-prefix circuit realizes exactly its folded bit-lens
 action. -/
@@ -772,7 +782,7 @@ theorem terminationRoutePrefix_realizes (fieldTail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding fieldTail.succ counterWidth)
       (terminationRoutePrefixProgram fieldTail counterWidth)
       (terminationRoutePrefixStep fieldTail counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (terminationRoutePrefixGates fieldTail counterWidth)
 
 /-- The route prefix adds no X leaves to the active-`v=0` detector. -/
@@ -817,7 +827,8 @@ theorem terminationRoutePrefixGates_length (fieldTail counterWidth : Nat) :
 
 /-- The compiled route prefix retains its exact X count. -/
 theorem terminationRoutePrefixProgram_x_count (fieldTail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (terminationRoutePrefixProgram fieldTail counterWidth).eventCost =
       2 * fieldTail + 6 := by
   rw [terminationRoutePrefixProgram,
@@ -827,7 +838,8 @@ theorem terminationRoutePrefixProgram_x_count (fieldTail counterWidth : Nat) :
 /-- The compiled route prefix has the detector CNOT count plus three route
 leaves. -/
 theorem terminationRoutePrefixProgram_cnot_count (fieldTail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (terminationRoutePrefixProgram fieldTail counterWidth).eventCost = 3 := by
   rw [terminationRoutePrefixProgram,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum,
@@ -836,7 +848,8 @@ theorem terminationRoutePrefixProgram_cnot_count (fieldTail counterWidth : Nat) 
 /-- The compiled route prefix retains its exact Toffoli count. -/
 theorem terminationRoutePrefixProgram_toffoli_count
     (fieldTail counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (terminationRoutePrefixProgram fieldTail counterWidth).eventCost =
       2 * fieldTail + 1 := by
   rw [terminationRoutePrefixProgram,
@@ -1117,8 +1130,10 @@ theorem counterOneGates_bitDisjoint_target
 
 /-- Physical circuit for the compact padding-counter-one detector. -/
 def counterOneProgram (n tail : Nat) (htail : tail ≤ n) :
-    UnitaryCircuit (Qubits (encoding n (tail + 2)).width) :=
-  EncodedBit.GateSpec.programList (counterOneGates n tail htail)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n (tail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (counterOneGates n tail htail)
 
 /-- Folded semantic action of the compact padding-counter-one detector. -/
 def counterOneStep (n tail : Nat) (htail : tail ≤ n) :
@@ -1129,7 +1144,8 @@ def counterOneStep (n tail : Nat) (htail : tail ≤ n) :
 theorem counterOne_realizes (n tail : Nat) (htail : tail ≤ n) :
     UnitaryCircuit.Realizes (encoding n (tail + 2))
       (counterOneProgram n tail htail) (counterOneStep n tail htail) :=
-  EncodedBit.GateSpec.realizesList (counterOneGates n tail htail)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (counterOneGates n tail htail)
 
 private theorem positiveCounterOneConstant_oneIndices_length (tail : Nat) :
     (EncodedBit.Word.constantOneIndices (positiveCounterOneConstant tail)).length = 1 := by
@@ -1401,8 +1417,10 @@ theorem terminationHandoffGates_bitDisjoint_target
 /-- Physical program for the compact positive-counter termination handoff. -/
 def terminationHandoffProgram (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ) :
-    UnitaryCircuit (Qubits (encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (terminationHandoffGates fieldTail counterTail hfit)
 
 /-- Folded state action of the compact positive-counter termination handoff. -/
@@ -1419,7 +1437,7 @@ theorem terminationHandoff_realizes (fieldTail counterTail : Nat)
     UnitaryCircuit.Realizes (encoding fieldTail.succ (counterTail + 2))
       (terminationHandoffProgram fieldTail counterTail hfit)
       (terminationHandoffStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (terminationHandoffGates fieldTail counterTail hfit)
 
 /-- Reverse gate order for exact reversible handoff cleanup. -/
@@ -1431,8 +1449,10 @@ def terminationHandoffReverseGates (fieldTail counterTail : Nat)
 /-- Physical reverse program for the compact termination handoff. -/
 def terminationHandoffReverseProgram (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ) :
-    UnitaryCircuit (Qubits (encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (terminationHandoffReverseGates fieldTail counterTail hfit)
 
 /-- Folded inverse action of the compact termination handoff. -/
@@ -1449,7 +1469,7 @@ theorem terminationHandoffReverse_realizes (fieldTail counterTail : Nat)
     UnitaryCircuit.Realizes (encoding fieldTail.succ (counterTail + 2))
       (terminationHandoffReverseProgram fieldTail counterTail hfit)
       (terminationHandoffReverseStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (terminationHandoffReverseGates fieldTail counterTail hfit)
 
 /-- Running the reverse handoff after the forward handoff restores every
@@ -1525,7 +1545,8 @@ theorem terminationHandoffGates_length
 /-- The compiled handoff retains its exact X coordinate. -/
 theorem terminationHandoffProgram_x_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (terminationHandoffProgram fieldTail counterTail hfit).eventCost =
       2 * fieldTail + 2 * counterTail + 14 := by
   rw [terminationHandoffProgram,
@@ -1535,7 +1556,8 @@ theorem terminationHandoffProgram_x_count
 /-- The compiled handoff retains its exact CNOT coordinate. -/
 theorem terminationHandoffProgram_cnot_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (terminationHandoffProgram fieldTail counterTail hfit).eventCost =
       2 * counterTail + 7 := by
   rw [terminationHandoffProgram,
@@ -1545,7 +1567,8 @@ theorem terminationHandoffProgram_cnot_count
 /-- The compiled handoff retains its exact Toffoli coordinate. -/
 theorem terminationHandoffProgram_toffoli_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (terminationHandoffProgram fieldTail counterTail hfit).eventCost =
       2 * fieldTail + 8 * counterTail + 8 := by
   rw [terminationHandoffProgram,
@@ -1662,13 +1685,16 @@ def counterOneWidthOneStep (n : Nat) :
 
 /-- Physical circuit for the width-one boundary detector. -/
 def counterOneWidthOneProgram (n : Nat) :
-    UnitaryCircuit (Qubits (encoding n 1).width) :=
-  EncodedBit.GateSpec.programList (counterOneWidthOneGates n)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n 1).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (counterOneWidthOneGates n)
 
 theorem counterOneWidthOne_realizes (n : Nat) :
     UnitaryCircuit.Realizes (encoding n 1)
       (counterOneWidthOneProgram n) (counterOneWidthOneStep n) :=
-  EncodedBit.GateSpec.realizesList (counterOneWidthOneGates n)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (counterOneWidthOneGates n)
 
 /-- The width-one boundary xors its sole counter bit directly into control. -/
 theorem counterOneWidthOneStep_controlBit_get

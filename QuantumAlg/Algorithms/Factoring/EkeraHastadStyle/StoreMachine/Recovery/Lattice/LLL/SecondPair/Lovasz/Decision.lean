@@ -64,18 +64,26 @@ theorem secondComparison_separation (refs : SecondLovaszRefs ctx width)
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separation.doubledAvoidsPass
 
 /-- Execute the actual second Lovasz test on the original area inputs. -/
-def secondLovaszInto (refs : SecondLovaszRefs ctx width) : Circuit ctx ctx :=
-  ClassicalRoutines.Comparison.Doubled.compareInto (secondComparisonRefs refs)
+def secondLovaszInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width) :
+    Circuit model ctx ctx :=
+  ClassicalRoutines.Comparison.Doubled.compareInto (model := model)
+    (secondComparisonRefs refs)
 
 /-- Actual chronological store of the second area decision. -/
 def secondLovaszStore (refs : SecondLovaszRefs ctx width) (store : Store ctx) : Store ctx :=
   ClassicalRoutines.Comparison.Doubled.comparedStore (secondComparisonRefs refs) store
 
-/-- Full actual second-test execution preserves histories and quantum-reference correlations. -/
-theorem secondLovaszInto_execute (refs : SecondLovaszRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (secondLovaszInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (secondLovaszStore refs entry.1, (entry.2, ((), ((), ()))))) :=
+/-- Full actual second-test execution preserves service history and reference correlations. -/
+theorem secondLovaszInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (secondLovaszInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := ClassicalRoutines.Comparison.Doubled.executionStep (model := model)
+          (secondComparisonRefs refs) entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_execute _ Reference state
 
 /-- Original area representations and capacity bounds give the actual second-test decision bit. -/
@@ -109,31 +117,37 @@ theorem secondLovaszInto_preservesAreas (refs : SecondLovaszRefs ctx width)
     (secondComparison_separation refs separation) store
 
 /-- The actual second Lovasz trace is the common independent three-operation formula. -/
-theorem secondLovaszInto_events (refs : SecondLovaszRefs ctx width)
-    (path : (secondLovaszInto refs).Path) :
-    (secondLovaszInto refs).eventTrace path =
-      ClassicalRoutines.Comparison.Doubled.comparisonTrace width :=
+theorem secondLovaszInto_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
+    (path : (secondLovaszInto (model := model) refs).Path) :
+    (secondLovaszInto (model := model) refs).eventTrace path =
+      ClassicalRoutines.Comparison.Doubled.comparisonTrace (model := model) width :=
   ClassicalRoutines.Comparison.Doubled.compareInto_events (secondComparisonRefs refs) path
 
 /-- Actual native multiplicities come from that same independent formula. -/
-theorem secondLovaszInto_resourcePool (refs : SecondLovaszRefs ctx width)
-    (path : (secondLovaszInto refs).Path) :
-    (secondLovaszInto refs).resourcePool path =
-      ResourcePool.ofList (ClassicalRoutines.Comparison.Doubled.comparisonTrace width) :=
+theorem secondLovaszInto_resourcePool
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (refs : SecondLovaszRefs ctx width)
+    (path : (secondLovaszInto (model := model) refs).Path) :
+    (secondLovaszInto (model := model) refs).resourcePool path =
+      ResourcePool.ofList
+        (ClassicalRoutines.Comparison.Doubled.comparisonTrace (model := model) width) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_resourcePool (secondComparisonRefs refs) path
 
 /-- The actual second Lovasz test has unit-duration serial depth three. -/
-theorem secondLovaszInto_depth (refs : SecondLovaszRefs ctx width)
-    (path : (secondLovaszInto refs).Path) :
-    (secondLovaszInto refs).depth (fun _ => 1) path = 3 :=
+theorem secondLovaszInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
+    (path : (secondLovaszInto (model := model) refs).Path) :
+    (secondLovaszInto (model := model) refs).depth (fun _ => 1) path = 3 :=
   ClassicalRoutines.Comparison.Doubled.compareInto_depth (secondComparisonRefs refs) path
 
 /-- The actual second test restores borrowed correlations jointly with external references. -/
-theorem secondLovaszInto_borrowedRestored (refs : SecondLovaszRefs ctx width)
+theorem secondLovaszInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (secondLovaszInto refs).BorrowedRestored Reference state
-      ((secondLovaszInto refs).execute Reference state) :=
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (secondLovaszInto (model := model) refs).BorrowedRestored Reference state
+      ((secondLovaszInto (model := model) refs).execute Reference state) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_borrowedRestored
     (secondComparisonRefs refs) Reference state
 

@@ -20,35 +20,49 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent five-instruction multiply-add formula for each original basis column. -/
-def coordinateTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width)]
+def coordinateTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width))]
 
 /-- Independent three-addition coefficient prefix and three original column dot products. -/
-def candidateTrace (width : Nat) : List (Resource.Event kind) :=
-  List.replicate 3 (.classicalOperation (.wordBinary .add width)) ++
+def candidateTrace (width : Nat) : List (Resource.Event model) :=
+  List.replicate 3 (.classicalOperation
+    (BitWord.selectedCoordinate (execution := model) (.wordBinary .add width))) ++
     (coordinateTrace width ++ (coordinateTrace width ++ coordinateTrace width))
 
 /-- Every actual candidate path emits exactly the independently specified native instructions. -/
 theorem candidatePointInto_events (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
-    (candidatePointInto refs).eventTrace path = candidateTrace width := rfl
+    (candidatePointInto refs).eventTrace path = candidateTrace width := by
+  simp only [candidatePointInto, coefficientInto, pointInto, coordinateCombination,
+    Circuit.eventTrace, BitWord.bitWord_instruction_eventTrace,
+    LatticeDotRefresh.refreshInto_events]
+  rfl
 
 /-- The original candidate formula accounts for every actual native operation multiplicity. -/
 theorem candidatePointInto_resourcePool (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
-    (candidatePointInto refs).resourcePool path = ResourcePool.ofList (candidateTrace width) := rfl
+    (candidatePointInto refs).resourcePool path = ResourcePool.ofList (candidateTrace width) :=
+  congrArg ResourcePool.ofList (candidatePointInto_events refs path)
 
 /-- The actual path uses exactly eighteen original native arithmetic instructions. -/
 theorem candidatePointInto_eventCount (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
-    ((candidatePointInto refs).eventTrace path).length = 18 := rfl
+    ((candidatePointInto refs).eventTrace path).length = 18 := by
+  rw [candidatePointInto_events]
+  rfl
 
 /-- Unit-duration dependency depth charges all eighteen sequential instructions. -/
 theorem candidatePointInto_depth (refs : Refs ctx width)
@@ -57,17 +71,21 @@ theorem candidatePointInto_depth (refs : Refs ctx width)
 
 /-- Actual coefficient addition restores the complete borrowed-reference joint state. -/
 theorem coefficientInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (coefficientInto refs).BorrowedRestored Reference state
       ((coefficientInto refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (.classical (coefficientOp refs .first)) _ state
-    (Circuit.borrowedRestored_classical _ state) ?_
-  exact Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
-    (Circuit.borrowedRestored_classical _ _)
+  refine Circuit.borrowedRestored_seq
+    (BitWord.instruction (execution := model) (coefficientOp refs .first)) _ state
+    (Circuit.borrowedRestored_classical (model := model) _ state) ?_
+  exact Circuit.borrowedRestored_seq _ _ _
+    (Circuit.borrowedRestored_classical (model := model) _ _)
+    (Circuit.borrowedRestored_classical (model := model) _ _)
 
 /-- All three actual column dot products preserve every borrowed-reference correlation. -/
 theorem pointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pointInto refs).BorrowedRestored Reference state
       ((pointInto refs).execute Reference state) := by
   refine Circuit.borrowedRestored_seq (coordinateCombination refs .first) _ state
@@ -78,7 +96,8 @@ theorem pointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register
 
 /-- The complete actual candidate restores the joint borrowed state with arbitrary references. -/
 theorem candidatePointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePointInto refs).BorrowedRestored Reference state
       ((candidatePointInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (coefficientInto_borrowedRestored refs Reference state)

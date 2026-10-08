@@ -53,25 +53,51 @@ theorem eventCountBound_le_scalar (N totalRounds : Nat) :
   cases totalRounds with
   | zero => exact Nat.le_refl 0
   | succ count =>
-    have measured := RuntimeRound.eventCountBound_le_widthBound
+    have compiled := polynomialPrimitiveBound_le_widthBound
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-    rw [← RuntimeRound.eventEnvelope_card] at measured
+    have reload := seedReload_count_le_one
+      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
+    have bank := bank_qubits_ge_three N
+    have measured :
+        16 * (RuntimeRound.eventEnvelope
+          (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N).card +
+          ShortDLP.totalQubits
+            (ShortDLP.CompiledMAU.registerParameters
+              (shortLogBits N) (tradeoffBits N) (arithmeticBits N)) +
+          reloadXCount (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N ≤
+        16 * RuntimeRound.eventCountWidthBound
+          (shortLogBits N) (tradeoffBits N) (arithmeticBits N) := by
+      rw [RuntimeRound.eventEnvelope_card]
+      unfold RuntimeRound.eventCountBound RuntimeRound.eventCountWidthBound
+      omega
     have recovered := LatticeFixedBatchRecoveryMachine.eventEnvelope_card_le
-      (kind := .quantum) N
-    have batch := Nat.add_le_add (Nat.mul_le_mul_left 16 measured) recovered
-    have repeated := Nat.mul_le_mul_left (count + 1) (Nat.add_le_add_left batch
-      (44 * modulusBits N + 166))
-    simpa only [eventCountBound, scalarEventCountBound,
-      LatticePairCandidateRecovery.Width, LatticeWideLllMachine.Width, Nat.add_assoc] using
-      Nat.add_le_add_right repeated 2
+      (model := RuntimeRound.model) N
+    unfold LatticePairCandidateRecovery.Width LatticeWideLllMachine.Width at recovered
+    have first := Nat.add_le_add measured recovered
+    have later :
+        44 * modulusBits N + 166 +
+          16 * (RuntimeRound.eventEnvelope
+            (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N).card +
+          (LatticeFixedBatchRecoveryMachine.eventEnvelope
+            (model := RuntimeRound.model) N).card ≤
+        44 * modulusBits N + 166 +
+          16 * RuntimeRound.eventCountWidthBound
+            (shortLogBits N) (tradeoffBits N) (arithmeticBits N) +
+          LatticeFixedBatchRecoveryMachine.eventCountBound
+            (modulusBits N) (shortLogBits N) (tradeoffBits N)
+            (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N)) := by
+      omega
+    have repeated := Nat.mul_le_mul_left count later
+    unfold eventCountBound scalarEventCountBound
+    nlinarith
 
 private theorem sampler_classicalWeight_le (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope .quantum N) ≤
+      (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope RuntimeRound.model N) ≤
       44 * modulusBits N + 163 := by
   have weighted := Multiset.sum_map_le_sum_map Resource.Event.classicalOperationWeight
-    (fun _ : Resource.Event .quantum => 1)
-    (s := ShorStyle.Canonical.Sampler.Retained.nativeEnvelope .quantum N)
+    (fun _ : Resource.Event RuntimeRound.model => 1)
+    (s := ShorStyle.Canonical.Sampler.Retained.nativeEnvelope RuntimeRound.model N)
     (fun event _ => by cases event <;> simp [Resource.Event.classicalOperationWeight])
   simpa only [ResourcePool.weightedCount, Multiset.map_const',
     Multiset.sum_replicate,
@@ -86,7 +112,7 @@ theorem classicalOperationBound_le_scalar (N totalRounds : Nat) :
   | succ count =>
     have sampler := sampler_classicalWeight_le N
     have recovery := LatticeFixedBatchRecoveryMachine.eventEnvelope_classicalWeight_le
-      (kind := .quantum) N
+      (model := RuntimeRound.model) N
     unfold LatticePairCandidateRecovery.Width LatticeWideLllMachine.Width at recovery
     have batch : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
         (NativeBatchReuseRecovery.eventEnvelope N) ≤

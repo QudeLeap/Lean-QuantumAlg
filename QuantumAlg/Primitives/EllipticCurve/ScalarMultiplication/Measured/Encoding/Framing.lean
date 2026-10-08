@@ -31,19 +31,11 @@ open Execution MeasuredUncompute
 /-- The actual coordinate instruction tensors its original program with all real indexed systems. -/
 def readyProgram (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    UnitaryCircuit (readyContext width count).register :=
+    UnitaryCircuit AlgorithmGate.model .empty (readyContext width count).quantumLayout :=
   ContextUnion.frameUnitary (NumeratorMeasurement.context width)
     (indexedContext width (List.range (count + 1)) List.nodup_range)
     (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)
     (runtimeProgram width modulus coefficient coordinate)
-    (runtimeProgram_physical width modulus coefficient coordinate)
-
-/-- The same instruction lists precisely all original and indexed physical wires. -/
-theorem readyProgram_physical (width count : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    (readyProgram width count modulus coefficient coordinate).physical_idx =
-      (readyContext width count).physicalIdx :=
-  ContextUnion.contextUnion_frameUnitary_physical _ _ _ _ _
 
 private theorem readyProgram_matrix (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
@@ -54,15 +46,32 @@ private theorem readyProgram_matrix (width count : Nat) (modulus : Fin (2 ^ widt
           (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)).symm
         (UnitaryOperator.prodTensor (runtimeProgram width modulus coefficient coordinate).matrix
           (1 : UnitaryOperator
-            (indexedContext width (List.range (count + 1)) List.nodup_range).register)) :=
-  ContextUnion.frameUnitary_matrix _ _ _ _ _
+          (indexedContext width (List.range (count + 1)) List.nodup_range).register)) := by
+  apply Subtype.ext
+  funext row column
+  change (ContextUnion.frameUnitary (NumeratorMeasurement.context width)
+      (indexedContext width (List.range (count + 1)) List.nodup_range)
+      (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)
+      (runtimeProgram width modulus coefficient coordinate)).matrix row column = _
+  rw [ContextUnion.contextUnion_frameUnitary_entry]
+  change _ =
+    (UnitaryOperator.prodTensor (runtimeProgram width modulus coefficient coordinate).matrix
+      (1 : UnitaryOperator
+        (indexedContext width (List.range (count + 1)) List.nodup_range).register))
+      ((ContextUnion.unionBasisEquiv (NumeratorMeasurement.context width)
+        (indexedContext width (List.range (count + 1)) List.nodup_range)
+        (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)) row)
+      ((ContextUnion.unionBasisEquiv (NumeratorMeasurement.context width)
+        (indexedContext width (List.range (count + 1)) List.nodup_range)
+        (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)) column)
+  rw [UnitaryOperator.prodTensor_apply]
+  rfl
 
 /-- The framed native unitary is exactly the instruction already emitted by coordinateCircuit. -/
 theorem coordinateCircuit_unitary (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
     coordinateCircuit width count modulus coefficient coordinate =
-      Circuit.unitary (readyProgram width count modulus coefficient coordinate)
-        (readyProgram_physical width count modulus coefficient coordinate) := rfl
+      Circuit.unitary (readyProgram width count modulus coefficient coordinate) := rfl
 
 /-- The actual coordinate operator includes identity on every external reference system. -/
 def coordinateOperator (width count : Nat) (modulus : Fin (2 ^ width + 1))
@@ -76,28 +85,30 @@ def coordinateOperator (width count : Nat) (modulus : Fin (2 ^ width + 1))
 theorem coordinateCircuit_density (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (readyContext width count) Reference History) :
+    (state : State (readyContext width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     ((coordinateCircuit width count modulus coefficient coordinate).execute
       Reference state).quantumMarginal =
         DensityOperator.applyUnitary
           (coordinateOperator width count modulus coefficient coordinate Reference)
           state.quantumMarginal :=
-  Circuit.unitary_jointDensity (readyProgram width count modulus coefficient coordinate)
-    (readyProgram_physical width count modulus coefficient coordinate) state
+  Circuit.unitary_jointDensity (readyProgram width count modulus coefficient coordinate) state
 
 /-- Every original finite store survives in its own exact transformed block. -/
 theorem coordinateCircuit_block (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (readyContext width count) Reference History)
-    (stored : Store (readyContext width count)) (history : History) :
+    (state : State (readyContext width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
+    (stored : Store (readyContext width count))
+    (hidden : ClassicalOracleModel.empty.HiddenState) (history : History) :
     ((coordinateCircuit width count modulus coefficient coordinate).execute Reference state).block
-      (stored, (history, ())) =
+      (stored, (hidden, (history, ()))) =
         DensityOperator.applyUnitary
           (coordinateOperator width count modulus coefficient coordinate Reference)
-          (state.block (stored, history)) :=
+          (state.block (stored, (hidden, history))) :=
   Circuit.execute_unitary_block state (readyProgram width count modulus coefficient coordinate)
-    (readyProgram_physical width count modulus coefficient coordinate) stored history
+    stored hidden history
 
 /-- The exact actual union basis assembles the arithmetic and complete indexed registers. -/
 def readyLabel (width count : Nat)
@@ -176,7 +187,8 @@ def pairOperator (width count : Nat) (modulus : Fin (2 ^ width + 1))
 /-- Actual pair conversion has an exact full density action on any mixed correlated input. -/
 theorem pairCircuit_density (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (readyContext width count) Reference History) :
+    (state : State (readyContext width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     ((pairCircuit width count modulus coefficient).execute Reference state).quantumMarginal =
       DensityOperator.applyUnitary (pairOperator width count modulus coefficient Reference)
         state.quantumMarginal := by
@@ -187,25 +199,30 @@ theorem pairCircuit_density (width count : Nat) (modulus : Fin (2 ^ width + 1))
 /-- Both actual calls preserve every original finite store and its transformed density block. -/
 theorem pairCircuit_block (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (readyContext width count) Reference History)
-    (stored : Store (readyContext width count)) (history : History) :
+    (state : State (readyContext width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
+    (stored : Store (readyContext width count))
+    (hidden : ClassicalOracleModel.empty.HiddenState) (history : History) :
     ((pairCircuit width count modulus coefficient).execute Reference state).block
-      (stored, (history, ((), ()))) =
+      (stored, (hidden, (history, ((), ())))) =
         DensityOperator.applyUnitary (pairOperator width count modulus coefficient Reference)
-          (state.block (stored, history)) := by
+          (state.block (stored, (hidden, history))) := by
   have associated := ContextUnion.historyEquiv_block
     ((coordinateCircuit width count modulus coefficient .y).execute Reference
       ((coordinateCircuit width count modulus coefficient .x).execute Reference state))
-    (Equiv.prodAssoc History Unit Unit) stored (history, ((), ()))
+    (Equiv.prodCongr (Equiv.refl ClassicalOracleModel.empty.HiddenState)
+      (Equiv.prodAssoc History Unit Unit)) stored (hidden, (history, ((), ())))
   have sequence := congrArg
-    (fun result : State (readyContext width count) Reference (History × (Unit × Unit)) =>
-      result.block (stored, (history, ((), ()))))
+    (fun result : State (readyContext width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × (History × (Unit × Unit))) =>
+      result.block (stored, (hidden, (history, ((), ())))))
     (Circuit.execute_seq (coordinateCircuit width count modulus coefficient .x)
       (coordinateCircuit width count modulus coefficient .y) state)
   have second := coordinateCircuit_block width count modulus coefficient .y
     ((coordinateCircuit width count modulus coefficient .x).execute Reference state)
-    stored (history, ())
-  have first := coordinateCircuit_block width count modulus coefficient .x state stored history
+    stored hidden (history, ())
+  have first := coordinateCircuit_block width count modulus coefficient .x
+    state stored hidden history
   refine sequence.trans (associated.trans (second.trans ?_))
   exact (congrArg
     (DensityOperator.applyUnitary (coordinateOperator width count modulus coefficient .y Reference))

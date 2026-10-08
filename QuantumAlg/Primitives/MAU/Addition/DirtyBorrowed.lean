@@ -18,9 +18,8 @@ for computational-basis inputs or a distinguished clean ancilla.
 
 The contract follows the dirty-ancilla convention of [HRS16,
 paper.tex:169-180,354]: borrowed qubits may be in an unknown, entangled state
-and must be returned exactly.  Concrete implementations must inhabit
-`CircuitRealization`; their semantics, event trace, cost, and depth then come
-from one stored `UnitaryCircuit`.
+and must be returned exactly. The literal construction below compiles one
+X/CNOT/Toffoli list whose semantics and resources come from the same circuit.
 -/
 
 section
@@ -29,186 +28,6 @@ namespace QuantumAlg
 namespace MAU.Addition.DirtyBorrowed
 
 noncomputable section
-
-/-- Register of one `n`-bit target word. -/
-@[implicit_reducible]
-def targetRegister (n : Nat) : Register where
-  Index := PlainAdder.Word n
-  fintype := inferInstance
-  decEq := inferInstance
-
-/-- Add a classical constant to an `n`-bit word. -/
-def addConstant {n : Nat} (constant target : PlainAdder.Word n) :
-    PlainAdder.Word n :=
-  target + constant
-
-/-- Subtract a classical constant from an `n`-bit word. -/
-def subConstant {n : Nat} (constant target : PlainAdder.Word n) :
-    PlainAdder.Word n :=
-  target - constant
-
-/-- Reversible in-place addition by one classical constant. -/
-def addConstantEquiv (n : Nat) (constant : PlainAdder.Word n) :
-    Equiv.Perm (PlainAdder.Word n) where
-  toFun := addConstant constant
-  invFun := subConstant constant
-  left_inv := by
-    intro target
-    simp [addConstant, subConstant]
-  right_inv := by
-    intro target
-    simp [addConstant, subConstant]
-
-@[simp] theorem addConstantEquiv_apply {n : Nat}
-    (constant target : PlainAdder.Word n) :
-    addConstantEquiv n constant target = target + constant :=
-  rfl
-
-@[simp] theorem addConstantEquiv_symm_apply {n : Nat}
-    (constant target : PlainAdder.Word n) :
-    (addConstantEquiv n constant).symm target = target - constant :=
-  rfl
-
-/-- The target-only constant-adder operator. -/
-def targetOp (n : Nat) (constant : PlainAdder.Word n) :
-    UnitaryOperator (targetRegister n) :=
-  UnitaryOperator.ofPerm (addConstantEquiv n constant).symm
-
-/-- Basis action of the target-only constant adder. -/
-@[simp] theorem targetOp_apply_ket (n : Nat)
-    (constant target : PlainAdder.Word n) :
-    (targetOp n constant).apply
-        (NormalizedVector.ket (R := targetRegister n) target) =
-      NormalizedVector.ket (R := targetRegister n) (target + constant) := by
-  rw [targetOp, UnitaryOperator.ofPerm_apply_ket]
-  rfl
-
-/-- Joint basis permutation: update the target and preserve the entire
-borrowed label.  The abstract borrowed register may itself include an external
-environment, so this definition does not assume a product input state. -/
-def jointEquiv (n : Nat) (Borrowed : Register)
-    (constant : PlainAdder.Word n) :
-    Equiv.Perm ((Register.prod (targetRegister n) Borrowed).Index) :=
-  Equiv.prodCongr (addConstantEquiv n constant) (Equiv.refl Borrowed.Index)
-
-@[simp] theorem jointEquiv_apply (n : Nat) (Borrowed : Register)
-    (constant target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    jointEquiv n Borrowed constant (target, borrowed) =
-      (target + constant, borrowed) :=
-  rfl
-
-@[simp] theorem jointEquiv_symm_apply (n : Nat) (Borrowed : Register)
-    (constant target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    (jointEquiv n Borrowed constant).symm (target, borrowed) =
-      (target - constant, borrowed) :=
-  rfl
-
-/-- Exact constant-adder operator with identity action on an arbitrary
-borrowed register. -/
-def op (n : Nat) (Borrowed : Register)
-    (constant : PlainAdder.Word n) :
-    UnitaryOperator (Register.prod (targetRegister n) Borrowed) :=
-  UnitaryOperator.ofPerm (jointEquiv n Borrowed constant).symm
-
-/-- Exact basis action preserves every borrowed label. -/
-@[simp] theorem op_apply_ket (n : Nat) (Borrowed : Register)
-    (constant target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    (op n Borrowed constant).apply
-        (NormalizedVector.ket
-          (R := Register.prod (targetRegister n) Borrowed)
-          (target, borrowed)) =
-      NormalizedVector.ket
-        (R := Register.prod (targetRegister n) Borrowed)
-        (target + constant, borrowed) := by
-  rw [op, UnitaryOperator.ofPerm_apply_ket]
-  rfl
-
-/-- Strong dirty-state restoration law.  For an arbitrary joint state, the
-output amplitude at `(target, borrowed)` reads the input amplitude at
-`(target - constant, borrowed)`.  In particular, no amplitude ever moves
-between distinct borrowed labels.  Taking `Borrowed` to include an external
-environment covers borrowed ancillas entangled with that environment. -/
-theorem op_applyVec_arbitrary_joint_state (n : Nat) (Borrowed : Register)
-    (constant : PlainAdder.Word n)
-    (state : HilbertVector (Register.prod (targetRegister n) Borrowed))
-    (target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    (op n Borrowed constant).applyVec state (target, borrowed) =
-      state (target - constant, borrowed) := by
-  rw [op, UnitaryOperator.ofPerm_applyVec]
-  rfl
-
-/-- One concrete circuit realization of dirty-borrowed constant addition.
-The exact operator equality prevents an implementation from proving only a
-clean-basis special case or attaching unrelated accounting metadata. -/
-structure CircuitRealization (n : Nat) (Borrowed : Register)
-    (constant : PlainAdder.Word n) where
-  /-- Executable circuit owning semantics and all strict event metadata. -/
-  circuit : UnitaryCircuit (Register.prod (targetRegister n) Borrowed)
-  /-- The circuit is target addition tensor identity on the entire borrowed
-  register. -/
-  matrix_eq : circuit.matrix = op n Borrowed constant
-
-namespace CircuitRealization
-
-variable {n : Nat} {Borrowed : Register}
-variable {constant : PlainAdder.Word n}
-
-/-- Ordered strict events derived from the realized circuit. -/
-def eventTrace (realization : CircuitRealization n Borrowed constant) :
-    List (Resource.Event .quantum) :=
-  realization.circuit.eventTrace
-
-/-- Strict event pool derived from the realized circuit. -/
-def eventCost (realization : CircuitRealization n Borrowed constant) :
-    ResourcePool .quantum :=
-  realization.circuit.eventCost
-
-/-- Strict symbolic critical path derived from the realized circuit. -/
-def eventDepth (realization : CircuitRealization n Borrowed constant) :
-    DepthExpr (Resource.Event .quantum) :=
-  realization.circuit.eventDepth
-
-/-- Exact multiplicity of one native gate coordinate. -/
-def eventGateCount (realization : CircuitRealization n Borrowed constant)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) realization.circuit.eventCost
-
-/-- Linearizing the circuit depth recovers the same strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
-    (realization : CircuitRealization n Borrowed constant) :
-    realization.circuit.resourcesFromEventDepth =
-      realization.circuit.eventCost :=
-  UnitaryCircuit.resourcesFromEventDepth_eq_eventCost realization.circuit
-
-/-- Realized basis action returns every borrowed basis label unchanged. -/
-theorem applyNormalized_ket
-    (realization : CircuitRealization n Borrowed constant)
-    (target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    realization.circuit.applyNormalized
-        (NormalizedVector.ket
-          (R := Register.prod (targetRegister n) Borrowed)
-          (target, borrowed)) =
-      NormalizedVector.ket
-        (R := Register.prod (targetRegister n) Borrowed)
-        (target + constant, borrowed) := by
-  change realization.circuit.matrix.apply _ = _
-  rw [realization.matrix_eq]
-  exact op_apply_ket n Borrowed constant target borrowed
-
-/-- Realized strong restoration law for every joint state, including states
-where the borrowed ancilla is entangled with an external subsystem included in
-`Borrowed`. -/
-theorem applyVec_arbitrary_joint_state
-    (realization : CircuitRealization n Borrowed constant)
-    (state : HilbertVector (Register.prod (targetRegister n) Borrowed))
-    (target : PlainAdder.Word n) (borrowed : Borrowed.Index) :
-    realization.circuit.applyVec state (target, borrowed) =
-      state (target - constant, borrowed) := by
-  change realization.circuit.matrix.applyVec state (target, borrowed) = _
-  rw [realization.matrix_eq]
-  exact op_applyVec_arbitrary_joint_state n Borrowed constant state target borrowed
-
-end CircuitRealization
 
 /-! ## Straightforward dirty-carry implementation -/
 
@@ -250,20 +69,6 @@ def straightforwardLabelEquiv (n : Nat) :
     (straightforwardEncoding n).encode state =
       straightforwardLabelEquiv n state :=
   rfl
-
-/-- Register-typed direction of the exact flat-label equivalence. -/
-def straightforwardIndexEquiv (n : Nat) :
-    (Qubits (straightforwardEncoding n).width).Index ≃
-      (Register.prod (targetRegister n.succ) (Qubits n)).Index :=
-  (straightforwardLabelEquiv n).symm
-
-theorem straightforwardIndexEquiv_encode (n : Nat)
-    (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
-    straightforwardIndexEquiv n ((straightforwardEncoding n).encode state) =
-      state := by
-  change (straightforwardLabelEquiv n).symm
-      (straightforwardLabelEquiv n state) = state
-  exact Equiv.symm_apply_apply (straightforwardLabelEquiv n) state
 
 /-- One little-endian target bit in the straight-forward HRS layout. -/
 def straightforwardTargetBit (n : Nat) (bit : Fin n.succ) :
@@ -1633,13 +1438,16 @@ theorem straightforwardGates_step (n : Nat)
 gate list.  Its trace, resource pool, and depth are therefore all derived
 from the same physical circuit. -/
 def straightforwardProgram (n : Nat) (constant : PlainAdder.Word n.succ) :
-    UnitaryCircuit (Qubits (straightforwardEncoding n).width) :=
-  EncodedBit.GateSpec.programList (straightforwardGates n constant)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (straightforwardEncoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList
+    (QubitLayout.canonical (straightforwardEncoding n).width) .empty
+    (straightforwardGates n constant)
 
 /-- Exact Toffoli count of the actual compiled R.0 program. -/
 theorem straightforwardProgram_toffoli_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (straightforwardProgram n constant).eventCost =
       2 * n * (n - 1) := by
   rw [straightforwardProgram,
@@ -1649,7 +1457,7 @@ theorem straightforwardProgram_toffoli_count_eq
 /-- Exact CNOT count of the actual compiled R.0 program. -/
 theorem straightforwardProgram_cnot_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (straightforwardProgram n constant).eventCost =
       highCnotClosedForm constant n := by
   rw [straightforwardProgram,
@@ -1659,7 +1467,7 @@ theorem straightforwardProgram_cnot_count_eq
 /-- Exact X count of the actual compiled R.0 program. -/
 theorem straightforwardProgram_x_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (straightforwardProgram n constant).eventCost =
       highXClosedForm constant n + constantBitMultiplicity constant 0 := by
   rw [straightforwardProgram,
@@ -1673,7 +1481,9 @@ theorem straightforwardProgram_realizesFoldedStep (n : Nat)
     UnitaryCircuit.Realizes (straightforwardEncoding n)
       (straightforwardProgram n constant)
       (EncodedBit.GateSpec.stepList (straightforwardGates n constant)) :=
-  EncodedBit.GateSpec.realizesList (straightforwardGates n constant)
+  EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical (straightforwardEncoding n).width) .empty
+    (straightforwardGates n constant)
 
 /-- The flat physical program realizes exact addition while restoring every
 dirty basis label. -/
@@ -1685,113 +1495,6 @@ theorem straightforwardProgram_realizes (n : Nat)
   UnitaryCircuit.Realizes.congrStep
     (straightforwardProgram_realizesFoldedStep n constant)
     (straightforwardGates_step n constant)
-
-/-- The same physical program transported from its flat qubit label to the
-typed target/borrowed product carrier. -/
-def straightforwardCircuit (n : Nat)
-    (constant : PlainAdder.Word n.succ) :
-    UnitaryCircuit (Register.prod (targetRegister n.succ) (Qubits n)) :=
-  UnitaryCircuit.reindex (straightforwardIndexEquiv n)
-    (straightforwardProgram n constant)
-
-/-- Reindexing to the typed target/borrowed carrier preserves the exact
-Toffoli coordinate. -/
-theorem straightforwardCircuit_toffoli_count_eq
-    (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (straightforwardCircuit n constant).eventCost =
-      2 * n * (n - 1) := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (straightforwardProgram n constant).eventCost = _
-  exact straightforwardProgram_toffoli_count_eq n constant
-
-/-- Reindexing to the typed target/borrowed carrier preserves the exact CNOT
-coordinate. -/
-theorem straightforwardCircuit_cnot_count_eq
-    (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (straightforwardCircuit n constant).eventCost =
-      highCnotClosedForm constant n := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (straightforwardProgram n constant).eventCost = _
-  exact straightforwardProgram_cnot_count_eq n constant
-
-/-- Reindexing to the typed target/borrowed carrier preserves the exact X
-coordinate. -/
-theorem straightforwardCircuit_x_count_eq
-    (n : Nat) (constant : PlainAdder.Word n.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
-        (straightforwardCircuit n constant).eventCost =
-      highXClosedForm constant n + constantBitMultiplicity constant 0 := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (straightforwardProgram n constant).eventCost = _
-  exact straightforwardProgram_x_count_eq n constant
-
-/-- Basis action of the transported concrete circuit. -/
-theorem straightforwardCircuit_applyNormalized_ket (n : Nat)
-    (constant target : PlainAdder.Word n.succ)
-    (dirty : (Qubits n).Index) :
-    (straightforwardCircuit n constant).applyNormalized
-        (NormalizedVector.ket
-          (R := Register.prod (targetRegister n.succ) (Qubits n))
-          (target, dirty)) =
-      NormalizedVector.ket
-        (R := Register.prod (targetRegister n.succ) (Qubits n))
-        (target + constant, dirty) := by
-  have hflat :=
-    (straightforwardProgram_realizes n constant).apply_encoded_ket
-      (target, dirty)
-  have hreindexed := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-    (R := Qubits (straightforwardEncoding n).width)
-    (S := Register.prod (targetRegister n.succ) (Qubits n))
-    (straightforwardIndexEquiv n)
-    (straightforwardProgram n constant)
-    ((straightforwardEncoding n).encode (target, dirty))
-    ((straightforwardEncoding n).encode (target + constant, dirty))
-    hflat
-  rw [straightforwardIndexEquiv_encode,
-    straightforwardIndexEquiv_encode] at hreindexed
-  unfold straightforwardCircuit
-  convert hreindexed using 1
-
-/-- Operator equality of the transported literal circuit with the strong
-dirty-borrowed constant-adder specification. -/
-theorem straightforwardCircuit_matrix_eq (n : Nat)
-    (constant : PlainAdder.Word n.succ) :
-    (straightforwardCircuit n constant).matrix =
-      op n.succ (Qubits n) constant := by
-  apply Subtype.ext
-  apply Matrix.ext
-  intro output input
-  rcases input with ⟨target, dirty⟩
-  have hcircuit := straightforwardCircuit_applyNormalized_ket n constant
-    target dirty
-  have hop := op_apply_ket n.succ (Qubits n) constant target dirty
-  have heq := hcircuit.trans hop.symm
-  have hpoint := congrArg
-    (fun state : NormalizedVector
-      (Register.prod (targetRegister n.succ) (Qubits n)) => state output) heq
-  simpa [UnitaryCircuit.applyNormalized, UnitaryOperator.apply,
-    UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] using hpoint
-
-/-- Same-circuit realization of the exact dirty-borrowed contract. -/
-def straightforwardRealization (n : Nat)
-    (constant : PlainAdder.Word n.succ) :
-    CircuitRealization n.succ (Qubits n) constant where
-  circuit := straightforwardCircuit n constant
-  matrix_eq := straightforwardCircuit_matrix_eq n constant
-
-/-- The concrete HRS schedule restores arbitrary dirty joint amplitudes, not
-only clean or computational-basis ancillas. -/
-theorem straightforwardCircuit_applyVec_arbitrary_joint_state (n : Nat)
-    (constant : PlainAdder.Word n.succ)
-    (state : HilbertVector
-      (Register.prod (targetRegister n.succ) (Qubits n)))
-    (target : PlainAdder.Word n.succ) (dirty : (Qubits n).Index) :
-    (straightforwardCircuit n constant).applyVec state (target, dirty) =
-      state (target - constant, dirty) :=
-  CircuitRealization.applyVec_arbitrary_joint_state
-    (straightforwardRealization n constant) state target dirty
 
 end
 

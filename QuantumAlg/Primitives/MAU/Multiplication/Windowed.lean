@@ -61,14 +61,16 @@ def prepareAddressStep (n : Nat) (expectedA expectedB : Bool) :
 
 /-- Actual address preparation program. -/
 def prepareAddressProgram (n : Nat) (expectedA expectedB : Bool) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (prepareAddressGates n expectedA expectedB)
 
 /-- Reverse-list address restoration program. -/
 def restoreAddressProgram (n : Nat) (expectedA expectedB : Bool) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (prepareAddressGates n expectedA expectedB).reverse
 
 /-- Folded action of the reverse address preparation gates. -/
@@ -81,13 +83,13 @@ theorem prepareAddress_realizes (n : Nat) (expectedA expectedB : Bool) :
     UnitaryCircuit.Realizes (encoding n)
       (prepareAddressProgram n expectedA expectedB)
       (prepareAddressStep n expectedA expectedB) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem restoreAddress_realizes (n : Nat) (expectedA expectedB : Bool) :
     UnitaryCircuit.Realizes (encoding n)
       (restoreAddressProgram n expectedA expectedB)
       (restoreAddressStep n expectedA expectedB) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- Address preparation changes only the two control fields. -/
 theorem prepareAddressStep_eq (n : Nat) (expectedA expectedB : Bool)
@@ -112,7 +114,8 @@ theorem restoreAddressStep_after_prepareAddressStep
 existing doubly controlled load/modular-add/unload program, then restore the
 address bits. -/
 def rowProgram (n N : Nat) (constant : PlainAdder.Word n)
-    (expectedA expectedB : Bool) : UnitaryCircuit (Qubits (encoding n).width) :=
+    (expectedA expectedB : Bool) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
   UnitaryCircuit.seq (prepareAddressProgram n expectedA expectedB)
     (UnitaryCircuit.seq (MAU.Addition.VBECircuit.controlledAddProgram n N constant)
       (restoreAddressProgram n expectedA expectedB))
@@ -233,7 +236,8 @@ theorem tableConstant_lt (n N : Nat) (coefficient : PlainAdder.Word n)
 /-- Three exact rows for the nonzero little-endian two-bit addresses `01`,
 `10`, and `11`. -/
 def windowProgram (n N : Nat) (coefficient : PlainAdder.Word n)
-    (offset : Nat) : UnitaryCircuit (Qubits (encoding n).width) :=
+    (offset : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
   UnitaryCircuit.seq
     (rowProgram n N (tableConstant n N coefficient offset 1) true false)
     (UnitaryCircuit.seq
@@ -274,8 +278,9 @@ theorem doubleControlledXorConstantProgram_toffoli_count_eq
       controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit,
       controlB.wire ≠ (target.bit bit).wire) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (EncodedBit.Word.doubleControlledXorConstantProgram
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
+        (EncodedBit.Word.doubleControlledXorConstantProgram (QubitLayout.canonical _) .empty
           controlA controlB target constant hcontrols hcontrolATarget
           hcontrolBTarget).eventCost =
       (EncodedBit.Word.constantOneIndices constant).length := by
@@ -307,8 +312,9 @@ theorem doubleControlledXorConstantUnloadProgram_toffoli_count_eq
       controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit,
       controlB.wire ≠ (target.bit bit).wire) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
-        (EncodedBit.Word.doubleControlledXorConstantUnloadProgram
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
+        (EncodedBit.Word.doubleControlledXorConstantUnloadProgram (QubitLayout.canonical _) .empty
           controlA controlB target constant hcontrols hcontrolATarget
           hcontrolBTarget).eventCost =
       (EncodedBit.Word.constantOneIndices constant).length := by
@@ -339,7 +345,8 @@ def rowToffoliCount (n : Nat) (constant : PlainAdder.Word n) : Nat :=
 
 theorem prepareAddressProgram_toffoli_count_eq
     (n : Nat) (expectedA expectedB : Bool) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (prepareAddressProgram n expectedA expectedB).eventCost = 0 := by
   rw [prepareAddressProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
@@ -348,7 +355,8 @@ theorem prepareAddressProgram_toffoli_count_eq
 
 theorem restoreAddressProgram_toffoli_count_eq
     (n : Nat) (expectedA expectedB : Bool) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (restoreAddressProgram n expectedA expectedB).eventCost = 0 := by
   rw [restoreAddressProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
@@ -357,7 +365,8 @@ theorem restoreAddressProgram_toffoli_count_eq
 
 theorem controlledLoadProgram_toffoli_count_eq
     (n : Nat) (constant : PlainAdder.Word n) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (MAU.Addition.VBECircuit.controlledLoadProgram n constant).eventCost =
       (EncodedBit.Word.constantOneIndices
         (MAU.Addition.VBECircuit.controlledConstantLabel n constant)).length := by
@@ -366,7 +375,8 @@ theorem controlledLoadProgram_toffoli_count_eq
 
 theorem controlledUnloadProgram_toffoli_count_eq
     (n : Nat) (constant : PlainAdder.Word n) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (MAU.Addition.VBECircuit.controlledUnloadProgram n constant).eventCost =
       (EncodedBit.Word.constantOneIndices
         (MAU.Addition.VBECircuit.controlledConstantLabel n constant)).length := by
@@ -374,24 +384,33 @@ theorem controlledUnloadProgram_toffoli_count_eq
   exact doubleControlledXorConstantUnloadProgram_toffoli_count_eq _ _ _ _ _ _ _
 
 theorem controlledArithmeticProgram_toffoli_count_eq (n N : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (MAU.Addition.VBECircuit.controlledArithmeticProgram n N).eventCost =
       30 * n := by
-  have hcost :
-      (MAU.Addition.VBECircuit.controlledArithmeticProgram n N).eventCost =
-        (MAU.Addition.VBECircuit.modularAddProgram n N).eventCost := by
-    exact UnitaryCircuit.prodRight_eventCost
-      (m := MAU.Addition.VBECircuit.controlPairEncoding.width)
-      (MAU.Addition.VBECircuit.modularAddProgram n N)
-  rw [hcost]
-  exact MAU.Addition.VBECircuit.modularAddProgram_toffoli_count_eq n N
+  rw [MAU.Addition.VBECircuit.controlledArithmeticProgram,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  have events :
+      (MAU.Addition.VBECircuit.controlledArithmeticGates n N).map
+          (EncodedBit.GateSpec.event .empty) =
+        (MAU.Addition.VBECircuit.modularAddGates n N).map
+          (EncodedBit.GateSpec.event .empty) := by
+    unfold MAU.Addition.VBECircuit.controlledArithmeticGates
+      MAU.Addition.VBECircuit.controlledEncoding
+      MAU.Addition.VBECircuit.rawControlledEncoding
+    rw [EncodedBit.GateSpec.map_event_relabel,
+      EncodedBit.GateSpec.map_event_prodRight]
+  rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty events]
+  exact MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum n N
 
 theorem controlledAddProgram_toffoli_count_eq
     (n N : Nat) (constant : PlainAdder.Word n) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (MAU.Addition.VBECircuit.controlledAddProgram n N constant).eventCost =
       rowToffoliCount n constant := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+    (.gate .toffoli)
       ((MAU.Addition.VBECircuit.controlledLoadProgram n constant).eventCost +
         ((MAU.Addition.VBECircuit.controlledArithmeticProgram n N).eventCost +
           ((MAU.Addition.VBECircuit.controlledUnloadProgram n constant).eventCost +
@@ -408,7 +427,8 @@ theorem controlledAddProgram_toffoli_count_eq
 that proves the clean endpoint. -/
 theorem rowProgram_toffoli_count_eq (n N : Nat)
     (constant : PlainAdder.Word n) (expectedA expectedB : Bool) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (rowProgram n N constant expectedA expectedB).eventCost =
       rowToffoliCount n constant := by
   rw [rowProgram, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
@@ -436,7 +456,8 @@ def windowToffoliCount (n N : Nat) (coefficient : PlainAdder.Word n)
 
 theorem windowProgram_toffoli_count_eq (n N : Nat)
     (coefficient : PlainAdder.Word n) (offset : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (windowProgram n N coefficient offset).eventCost =
       windowToffoliCount n N coefficient offset := by
   rw [windowProgram, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
@@ -527,8 +548,9 @@ def loadGates (n : Nat) (constant : PlainAdder.Word n)
 /-- Physical load program on the complete multiplier layout. -/
 def loadProgram (n : Nat) (constant : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.Word.doubleControlledXorConstantProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.Word.doubleControlledXorConstantProgram (QubitLayout.canonical _) .empty
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit n bitA)
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit n bitB)
     (MAU.Multiplication.Accumulate.VBECircuit.activeSourceWord n)
@@ -558,7 +580,8 @@ theorem load_realizes (n : Nat) (constant : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
     UnitaryCircuit.Realizes (encoding n) (loadProgram n constant bitA bitB hne)
       (loadStep n constant bitA bitB hne) :=
-  EncodedBit.Word.doubleControlledXorConstant_realizes _ _ _ _ _ _ _
+  EncodedBit.Word.doubleControlledXorConstant_realizes
+    (QubitLayout.canonical _) .empty _ _ _ _ _ _ _
 
 /-- Loading into a zero active-source word selects the classical row exactly
 when both addressed source bits are one, while preserving the full multiplier
@@ -815,8 +838,9 @@ def unloadGates (n : Nat) (constant : PlainAdder.Word n)
 /-- Physical unload program on the complete multiplier layout. -/
 def unloadProgram (n : Nat) (constant : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.Word.doubleControlledXorConstantUnloadProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.Word.doubleControlledXorConstantUnloadProgram (QubitLayout.canonical _) .empty
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit n bitA)
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit n bitB)
     (MAU.Multiplication.Accumulate.VBECircuit.activeSourceWord n)
@@ -846,7 +870,8 @@ theorem unload_realizes (n : Nat) (constant : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
     UnitaryCircuit.Realizes (encoding n) (unloadProgram n constant bitA bitB hne)
       (unloadStep n constant bitA bitB hne) :=
-  EncodedBit.Word.doubleControlledXorConstantUnload_realizes _ _ _ _ _ _ _
+  EncodedBit.Word.doubleControlledXorConstantUnload_realizes
+    (QubitLayout.canonical _) .empty _ _ _ _ _ _ _
 
 /-- The reverse physical list exactly removes its matching load on every
 full-layout basis label. -/
@@ -871,8 +896,9 @@ def fullRowGates (n N : Nat) (constant : PlainAdder.Word n)
 /-- Actual circuit compiled from one complete table-row gate list. -/
 def fullRowProgram (n N : Nat) (constant : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRowGates n N constant bitA bitB hne)
 
 /-- Folded basis action of one complete table-row gate list. -/
@@ -899,7 +925,7 @@ theorem fullRow_realizes (n N : Nat) (constant : PlainAdder.Word n)
     UnitaryCircuit.Realizes (encoding n)
       (fullRowProgram n N constant bitA bitB hne)
       (fullRowStep n N constant bitA bitB hne) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- One complete table row conditionally adds its constant modulo `N` and
 returns the active-source word and every VBE work field to the clean boundary. -/
@@ -1012,7 +1038,8 @@ theorem fullRowStep_cleanEndpoint (n N : Nat)
 theorem loadProgram_toffoli_count_eq (n : Nat)
     (constant : PlainAdder.Word n) (bitA bitB : Fin n)
     (hne : bitA ≠ bitB) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (loadProgram n constant bitA bitB hne).eventCost =
       (EncodedBit.Word.constantOneIndices
         (MAU.Addition.VBECircuit.controlledConstantLabel n constant)).length := by
@@ -1022,7 +1049,8 @@ theorem loadProgram_toffoli_count_eq (n : Nat)
 theorem unloadProgram_toffoli_count_eq (n : Nat)
     (constant : PlainAdder.Word n) (bitA bitB : Fin n)
     (hne : bitA ≠ bitB) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (unloadProgram n constant bitA bitB hne).eventCost =
       (EncodedBit.Word.constantOneIndices
         (MAU.Addition.VBECircuit.controlledConstantLabel n constant)).length := by
@@ -1030,18 +1058,14 @@ theorem unloadProgram_toffoli_count_eq (n : Nat)
   exact doubleControlledXorConstantUnloadProgram_toffoli_count_eq _ _ _ _ _ _ _
 
 theorem liftedModularAddProgram_toffoli_count_eq (n N : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddProgram
           n N).eventCost = 30 * n := by
-  have hcost :
-      (MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddProgram
-          n N).eventCost =
-        (MAU.Addition.VBECircuit.modularAddProgram n N).eventCost := by
-    exact UnitaryCircuit.prodRight_eventCost
-      (m := (PlainAdder.Schedule.PowerOfTwo.wordEncoding n).width)
-      (MAU.Addition.VBECircuit.modularAddProgram n N)
-  rw [hcost]
-  exact MAU.Addition.VBECircuit.modularAddProgram_toffoli_count_eq n N
+  rw [MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddProgram,
+    EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
+  exact MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddGates_toffoliMultiplicity_sum
+    n N
 
 @[simp] theorem liftArithmeticGate_toffoliMultiplicity (n : Nat)
     (gate : EncodedBit.GateSpec (MAU.Addition.VBECircuit.encoding n)) :
@@ -1080,20 +1104,21 @@ def fullRowToffoliCount (n : Nat) (constant : PlainAdder.Word n) : Nat :=
 theorem fullRowProgram_toffoli_count_eq (n N : Nat)
     (constant : PlainAdder.Word n) (bitA bitB : Fin n)
     (hne : bitA ≠ bitB) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (fullRowProgram n N constant bitA bitB hne).eventCost =
       fullRowToffoliCount n constant := by
   rw [fullRowProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   simp only [fullRowGates, List.map_append, List.sum_append]
   rw [← EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
-    show EncodedBit.GateSpec.programList
+    show EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (loadGates n constant bitA bitB hne) =
       loadProgram n constant bitA bitB hne from rfl,
     loadProgram_toffoli_count_eq]
   rw [fullLayoutLiftedModularAddGates_toffoliMultiplicity_sum]
   rw [← EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
-    show EncodedBit.GateSpec.programList
+    show EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (unloadGates n constant bitA bitB hne) =
       unloadProgram n constant bitA bitB hne from rfl,
     unloadProgram_toffoli_count_eq]
@@ -1342,8 +1367,9 @@ theorem lookupLoadStep_get_target (n : Nat)
 def lookupLoadProgram (n : Nat)
     (first second third : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (lookupLoadGates n first second third bitA bitB hne)
 
 theorem lookupLoad_realizes (n : Nat)
@@ -1352,7 +1378,8 @@ theorem lookupLoad_realizes (n : Nat)
     UnitaryCircuit.Realizes (encoding n)
       (lookupLoadProgram n first second third bitA bitB hne)
       (lookupLoadStep n first second third bitA bitB hne) := by
-  apply UnitaryCircuit.Realizes.congrStep (EncodedBit.GateSpec.realizesList _)
+  apply UnitaryCircuit.Realizes.congrStep (EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty _)
   exact lookupLoadStep_eq_gateList n first second third bitA bitB hne
 
 /-- Classical constant selected by the two-bit QROM address. -/
@@ -1582,8 +1609,9 @@ def qromWindowGates (n N : Nat)
 def qromWindowProgram (n N : Nat)
     (first second third : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (qromWindowGates n N first second third bitA bitB hne)
 
 /-- Folded basis action of one one-add QROM window. -/
@@ -1613,7 +1641,7 @@ theorem qromWindow_realizes (n N : Nat)
     UnitaryCircuit.Realizes (encoding n)
       (qromWindowProgram n N first second third bitA bitB hne)
       (qromWindowStep n N first second third bitA bitB hne) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- A one-add QROM window adds the selected table row modulo `N` and returns
 the lookup word and all VBE work fields to zero. -/
@@ -1820,7 +1848,8 @@ def qromWindowToffoliCount (n : Nat)
 theorem qromWindowProgram_toffoli_count_eq (n N : Nat)
     (first second third : PlainAdder.Word n)
     (bitA bitB : Fin n) (hne : bitA ≠ bitB) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (qromWindowProgram n N first second third bitA bitB hne).eventCost =
       qromWindowToffoliCount n first second third := by
   rw [qromWindowProgram,

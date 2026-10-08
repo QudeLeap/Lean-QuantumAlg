@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
+
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Storage
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Execution
@@ -118,8 +120,15 @@ private theorem visited_spaces {n : Nat} (f : WalshHadamard.Oracle n)
   change frame ∈
     ([pre, preparedContext n] ++
       ([preparedContext n] ++ ([preparedContext n, resultContext n] ++
-        (MeasurementCells.allocate (resultContext n) 2 n).visitedContexts path.1.2.2.2))) ++
-      ((Circuit.measurementSequence (readouts n)).visitedContexts path.2.1 ++ [post n]) at present
+        (show List (RuntimeCtx .quantum) from
+          (MeasurementCells.allocate (model :=
+          .quantum AlgorithmGate.model (XorOracle.model f) BitWord.model .empty)
+          (resultContext n) 2 n).visitedContexts
+          path.1.2.2.2)))) ++
+      ((show List (RuntimeCtx .quantum) from
+        (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := XorOracle.model f)
+        (operations := BitWord.model) (classicalOracles := .empty) (readouts n)).visitedContexts
+          path.2.1) ++ [post n]) at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
     or_false] at present
   rcases present with ((same | same) | (same | ((same | same) | allocated))) |
@@ -134,7 +143,8 @@ private theorem visited_spaces {n : Nat} (f : WalshHadamard.Oracle n)
     exact prepared_spaces n
   · subst frame
     exact allocated_spaces n 0 (Nat.zero_le n)
-  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts
+  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts (model :=
+          .quantum AlgorithmGate.model (XorOracle.model f) BitWord.model .empty)
       (resultContext n) 2 n path.1.2.2.2 frame allocated
     exact allocated_spaces n used bounded
   · rw [Circuit.measurementSequence_visitedContexts] at measured

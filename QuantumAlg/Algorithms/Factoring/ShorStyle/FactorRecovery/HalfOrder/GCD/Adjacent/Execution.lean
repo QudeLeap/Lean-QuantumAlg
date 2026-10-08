@@ -25,122 +25,97 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width : Nat}
 
 /-- The actual selected arm leaves the word alone or performs its real self-XOR. -/
 def trimArmStep (output : CWriteRef ctx (.unsignedWord (width + 1))) :
-    (value : CShape.Value .bit) → Store ctx → Store ctx × (trimArm output value).Path
+    (value : CShape.Value .bit) → Store ctx →
+      Store ctx × (trimArm (model := model) output value).Path
   | .bit false, store => (store, ())
-  | .bit true, store => (store.applyOp (clearOp output), ())
+  | .bit true, store => BitWord.instructionStep (execution := model) (clearOp output) store
 
 /-- Record the actual bit read, the selected path and its true store update. -/
 def trimStep (output : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (trim output).Path :=
+    Store ctx × (trim (model := model) output).Path :=
   let value := store.read (highBit output)
-  let next := trimArmStep output value store
+  let next := trimArmStep (model := model) output value store
   (next.1, ⟨value, next.2⟩)
 
 /-- The two compile-time directions use their actual atomic or sequential paths. -/
 def tailStep (output : CWriteRef ctx (.unsignedWord (width + 1))) :
-    (successor : Bool) → Store ctx → Store ctx × (tail successor output).Path
+    (successor : Bool) → Store ctx → Store ctx × (tail (model := model) successor output).Path
   | false, store =>
-      let next := trimStep output (store.applyOp (adjacentOp false output))
-      (next.1, ((), next.2))
-  | true, store => (store.applyOp (adjacentOp true output), ())
+      let adjacent := BitWord.instructionStep (execution := model) (adjacentOp false output) store
+      let next := trimStep (model := model) output adjacent.1
+      (next.1, (adjacent.2, next.2))
+  | true, store => BitWord.instructionStep (execution := model) (adjacentOp true output) store
 
 /-- The actual complete adjacent-word record starts with its physical widening instruction. -/
 def step (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (code successor input output).Path :=
-  let next := tailStep output successor (store.applyOp (resizeOp input output))
-  (next.1, ((), next.2))
+    Store ctx × (code (model := model) successor input output).Path :=
+  let widened := BitWord.instructionStep (execution := model) (resizeOp input output) store
+  let next := tailStep (model := model) output successor widened.1
+  (next.1, (widened.2, next.2))
 
 private theorem trimArm_execute (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (trimArm output value).execute Reference state =
-      state.mapClassical (fun entry => ((trimArmStep output value entry.1).1,
-        (entry.2, (trimArmStep output value entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (trimArm (model := model) output value).execute Reference state =
+      state.mapClassical (fun entry => ((trimArmStep (model := model) output value entry.1).1,
+        (entry.2.1, (entry.2.2, (trimArmStep (model := model) output value entry.1).2)))) := by
   cases value with
   | bit value =>
       cases value
       · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-        exact congrArg
-          (fun decision : DecidableEq (Store ctx × (History × Unit)) =>
-            @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-              decision state (fun entry => (entry.1, (entry.2, ())))) (Subsingleton.elim _ _)
-      · refine (Circuit.execute_classical_mapClassical (clearOp output) Reference state).trans ?_
-        exact congrArg
-          (fun decision : DecidableEq (Store ctx × (History × Unit)) =>
-            @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-              decision state (fun entry => (entry.1.applyOp (clearOp output), (entry.2, ()))))
-          (Subsingleton.elim _ _)
+        exact ExecutionState.executionState_mapClassical_congr _ rfl
+      · refine (BitWord.bitWord_instruction_execute (clearOp output) state).trans ?_
+        exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual stored highest bit chooses the same complete store-reference execution. -/
 theorem trim_execute (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (trim output).execute Reference state =
-      state.mapClassical (fun entry => ((trimStep output entry.1).1,
-        (entry.2, (trimStep output entry.1).2))) := by
-  refine (Circuit.execute_branch_mapClassical (highBit output) (trimArm output) (trimArmStep output)
-    (trimArm_execute output) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (trim output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((trimStep output entry.1).1, (entry.2, (trimStep output entry.1).2))))
-    (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (trim (model := model) output).execute Reference state =
+      state.mapClassical (fun entry => ((trimStep (model := model) output entry.1).1,
+        (entry.2.1, (entry.2.2, (trimStep (model := model) output entry.1).2)))) := by
+  exact Circuit.execute_branch_mapClassical (highBit output) _
+    (fun value entry =>
+      let next := trimArmStep (model := model) output value entry.1
+      ((next.1, entry.2), next.2))
+    (trimArm_execute output) Reference state
 
 /-- Both actual adjacent tails preserve every original quantum-reference matrix block. -/
 theorem tail_execute (successor : Bool) (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (tail successor output).execute Reference state =
-      state.mapClassical (fun entry => ((tailStep output successor entry.1).1,
-        (entry.2, (tailStep output successor entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (tail (model := model) successor output).execute Reference state =
+      state.mapClassical (fun entry => ((tailStep (model := model) output successor entry.1).1,
+        (entry.2.1, (entry.2.2, (tailStep (model := model) output successor entry.1).2)))) := by
   cases successor
-  · have actual := Circuit.execute_seq_mapClassical (.classical (adjacentOp false output))
-      (trim output) (fun store => (store.applyOp (adjacentOp false output), ()))
-      (trimStep output)
-      (fun reference {_} _ initial => by
-        simpa only [Circuit.mapClassical_canonicalDecision] using
-          Circuit.execute_classical_mapClassical (adjacentOp false output) reference initial)
-      (trim_execute output) Reference state
-    refine actual.trans ?_
-    exact congrArg
-      (fun decision : DecidableEq (Store ctx × (History × (tail false output).Path)) =>
-        @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-          (fun entry => ((tailStep output false entry.1).1,
-            (entry.2, (tailStep output false entry.1).2)))) (Subsingleton.elim _ _)
-  · refine (Circuit.execute_classical_mapClassical
-      (adjacentOp true output) Reference state).trans ?_
-    exact congrArg
-      (fun decision : DecidableEq (Store ctx × (History × Unit)) =>
-        @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-          (fun entry => (entry.1.applyOp (adjacentOp true output), (entry.2, ()))))
-      (Subsingleton.elim _ _)
+  · change ((BitWord.instruction (execution := model) (adjacentOp false output)).seq
+      (trim (model := model) output)).execute Reference state = _
+    simp only [Circuit.execute_seq,
+      BitWord.bitWord_instruction_execute, trim_execute, State.mapHistory,
+      ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+    congr 1
+    exact Subsingleton.elim _ _
+  · refine (BitWord.bitWord_instruction_execute (adjacentOp true output) state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual widening and the selected native tail compose on the unchanged complete register. -/
 theorem code_execute (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code successor input output).execute Reference state =
-      state.mapClassical (fun entry => ((step successor input output entry.1).1,
-        (entry.2, (step successor input output entry.1).2))) := by
-  have actual := Circuit.execute_seq_mapClassical (.classical (resizeOp input output))
-    (tail successor output) (fun store => (store.applyOp (resizeOp input output), ()))
-    (tailStep output successor)
-    (fun reference {_} _ initial => by
-      simpa only [Circuit.mapClassical_canonicalDecision] using
-        Circuit.execute_classical_mapClassical (resizeOp input output) reference initial)
-    (tail_execute successor output) Reference state
-  refine actual.trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (code successor input output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((step successor input output entry.1).1,
-          (entry.2, (step successor input output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) successor input output).execute Reference state =
+      state.mapClassical (fun entry => ((step (model := model) successor input output entry.1).1,
+        (entry.2.1, (entry.2.2, (step (model := model) successor input output entry.1).2)))) := by
+  simp only [code, Circuit.execute_seq, BitWord.bitWord_instruction_execute, tail_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  congr 1
+  exact Subsingleton.elim _ _
 
 end
 

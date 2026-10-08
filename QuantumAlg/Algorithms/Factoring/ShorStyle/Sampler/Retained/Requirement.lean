@@ -49,16 +49,21 @@ def requirement (ctx : RuntimeCtx kind) (N : Nat) : StateRequirement ctx (contex
   .jointReference Finset.univ .unit fun Reference input _ =>
     .mixed (incomingTarget ctx N Reference input) (incomingTarget_normalized ctx N Reference input)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+
 /-- Actual retained sampling satisfies the independent full-state promise for every reference. -/
-theorem samplerRetainedRequirement_holds (ctx : RuntimeCtx kind) {N : Nat}
-    (specification : Input N) {Reference : Register} (input : Execution.Input ctx Reference) :
-    (requirement ctx N).Holds input ((run ctx N).finalState Reference input.state) := by
+theorem samplerRetainedRequirement_holds (ctx : RuntimeCtx model.kind) {N : Nat}
+    (specification : Input N) {Reference : Register}
+      (input : Execution.OracleInput model.classicalOracles ctx Reference) :
+    (requirement ctx N).Holds input.caller
+      ((run (model := model) ctx N).finalState Reference input.state) := by
   intro value
   cases value with
   | unit =>
-      let result := (run ctx N).finalState Reference input.state
-      have actual : result.quantumMarginal = input.state.quantumMarginal :=
-        samplerRetained_run_quantumMarginal ctx specification Reference input.state
+      let result := (run (model := model) ctx N).finalState Reference input.state
+      have actual : result.quantumMarginal = input.caller.state.quantumMarginal :=
+        (samplerRetained_run_quantumMarginal ctx specification Reference input.state).trans
+          input.oracleInput_caller_quantumMarginal.symm
       have observed := congrArg
         (fun density : DensityOperator (Register.prod (context ctx N).register Reference) =>
           DensityOperator.observeSelectionWithReference (context ctx N).quantumLayout
@@ -66,17 +71,17 @@ theorem samplerRetainedRequirement_holds (ctx : RuntimeCtx kind) {N : Nat}
         ((ExecutionState.executionState_mapClassical_const_block result CShape.Value.unit).trans
           actual)
       have targetHolds :
-          (StatePromise.mixed (incomingTarget ctx N Reference input)
-            (incomingTarget_normalized ctx N Reference input)).Holds
-              (incomingTarget ctx N Reference input) := by
-        change (incomingTarget ctx N Reference input).matrix =
-          ((incomingTarget ctx N Reference input).mass : ℝ) •
-            (incomingTarget ctx N Reference input).matrix
+          (StatePromise.mixed (incomingTarget ctx N Reference input.caller)
+            (incomingTarget_normalized ctx N Reference input.caller)).Holds
+              (incomingTarget ctx N Reference input.caller) := by
+        change (incomingTarget ctx N Reference input.caller).matrix =
+          ((incomingTarget ctx N Reference input.caller).mass : ℝ) •
+            (incomingTarget ctx N Reference input.caller).matrix
         rw [incomingTarget_normalized]
         simp only [one_smul]
       exact (congrArg
-        (StatePromise.mixed (incomingTarget ctx N Reference input)
-          (incomingTarget_normalized ctx N Reference input)).Holds observed).mpr targetHolds
+        (StatePromise.mixed (incomingTarget ctx N Reference input.caller)
+          (incomingTarget_normalized ctx N Reference input.caller)).Holds observed).mpr targetHolds
 
 end
 

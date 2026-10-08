@@ -62,12 +62,13 @@ instance : HSMul ℂ (NormalizedVector R) (HilbertVector R) :=
   ⟨fun c ψ => c • (ψ : HilbertVector R)⟩
 
 /-- Certify a raw vector once its norm-one proof is available. -/
-def ofVector (vec : HilbertVector R) (norm_eq_one : ‖vec‖ = 1) : NormalizedVector R where
+@[expose] public def ofVector (vec : HilbertVector R)
+    (norm_eq_one : ‖vec‖ = 1) : NormalizedVector R where
   vec := vec
   norm_eq_one := norm_eq_one
 
 @[simp]
-theorem coe_ofVector (vec : HilbertVector R) (h : ‖vec‖ = 1) :
+public theorem coe_ofVector (vec : HilbertVector R) (h : ‖vec‖ = 1) :
     ((ofVector vec h : NormalizedVector R) : HilbertVector R) = vec := rfl
 
 /-- Normalize a nonzero raw vector.  The nonzero hypothesis is required because
@@ -102,7 +103,7 @@ public def ket (x : R.Index) : NormalizedVector R :=
   ofVector (PiLp.single 2 x 1) (by simp)
 
 @[simp]
-theorem ket_apply (x i : R.Index) :
+public theorem ket_apply (x i : R.Index) :
     ket x i = if i = x then 1 else 0 := by
   simp [ket]
 

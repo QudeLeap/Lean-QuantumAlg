@@ -22,7 +22,8 @@ open Execution ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- Validation preserves the four actual source cursor coordinates. -/
 theorem nativeScan_validation_cursor {width : Nat}
@@ -31,7 +32,8 @@ theorem nativeScan_validation_cursor {width : Nat}
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : CursorReads cells.cursor store cursor) :
     CursorReads cells.cursor
-      (validateStep spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+      (validateStep (model := model) spec base (cellRead cells.cursor.candidate)
+        cells.zero cells.one
         cells.power cells.positive cells.valid store).1 cursor := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · exact (congrArg CShape.Value.toNat (nativeValidation_read_other spec base
@@ -75,7 +77,8 @@ theorem nativeScan_validation_cursor {width : Nat}
 theorem nativeScan_validation_candidate {width : Nat}
     (spec : ModulusSpec modulusWidth) (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (separated : cells.Separated) (store : Store ctx) :
-    (validateStep spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+    (validateStep (model := model) spec base (cellRead cells.cursor.candidate)
+        cells.zero cells.one
       cells.power cells.positive cells.valid store).1.read (cellRead cells.cursor.candidate) =
         store.read (cellRead cells.cursor.candidate) :=
   nativeValidation_read_other spec base (cellRead cells.cursor.candidate) cells.zero cells.one
@@ -93,7 +96,8 @@ theorem nativeScan_validation_division {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (divisionFree : ∀ key ∈ cells.writeKeys, division.key ≠ key) (store : Store ctx) :
-    (validateStep spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+    (validateStep (model := model) spec base (cellRead cells.cursor.candidate)
+        cells.zero cells.one
       cells.power cells.positive cells.valid store).1.read (cellRead division) =
         store.read (cellRead division) :=
   nativeValidation_read_other spec base (cellRead cells.cursor.candidate) cells.zero cells.one
@@ -114,7 +118,8 @@ theorem nativeScan_validation_source
     (baseFree : ∀ key ∈ cells.writeKeys, key ∉ base.storageKeys)
     (store : Store ctx) (reads : ScanSourceReads spec input base cells store) :
     ScanSourceReads spec input base cells
-      (validateStep spec.modulusSpec base (cellRead cells.cursor.candidate) cells.zero cells.one
+      (validateStep (model := model) spec.modulusSpec base (cellRead cells.cursor.candidate)
+        cells.zero cells.one
         cells.power cells.positive cells.valid store).1 := by
   refine ⟨?_, ?_, ?_⟩
   · exact (nativeValidation_read_other spec.modulusSpec base (cellRead cells.cursor.candidate)

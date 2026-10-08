@@ -20,7 +20,7 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Distinct original mutable cells have disjoint actual storage identities. -/
 theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
@@ -95,8 +95,9 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
     (∀ cell, mutableKey refs cell ∉ other.storageKeys) → after.read other = before.read other
 
 /-- Every actual read outside the complete original write footprint remains unchanged. -/
-theorem candidatePointInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
-    CallerFrame refs store (candidateStep refs store).1 := by
+theorem candidatePointInto_callerFrame [BitWord.Selected model]
+    (refs : Refs ctx width) (store : Store ctx) :
+    CallerFrame refs store (candidateStep (model := model) refs store).1 := by
   intro shape other avoids
   change (pointStore refs (coefficientStore refs store)).read other = _
   rw [pointInto_callerFrame refs _ other

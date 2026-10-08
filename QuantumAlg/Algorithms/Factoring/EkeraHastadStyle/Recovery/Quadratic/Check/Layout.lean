@@ -200,8 +200,8 @@ theorem nativeQuadratic_checkLayout_quantumWires (ctx : RuntimeCtx kind) (width 
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 /-- Actual five-cell allocation encloses both checks and consumes their bits before release. -/
-def scopes (ctx : RuntimeCtx kind) (width : Nat)
-    (inner : Circuit (context ctx width) (context ctx width)) : Circuit ctx ctx :=
+def scopes {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat)
+    (inner : Circuit model (context ctx width) (context ctx width)) : Circuit model ctx ctx :=
   let lastScope := Circuit.workspace (firstCtx ctx width) (firstCtx ctx width).canonicalFreshKey
     .bit (firstCtx ctx width).canonicalFreshKey_fresh inner
   let firstScope := Circuit.workspace (dividesCtx ctx width)

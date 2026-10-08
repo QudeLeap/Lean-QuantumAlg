@@ -24,42 +24,49 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original ordered pivot-row writes share the same actual zero-word source. -/
 def pivotRowsClearBody (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (zero : CWriteRef ctx (.unsignedWord rowCount)) : Circuit ctx ctx :=
-  Circuit.forRange width (fun column => .classical (pivotRowWriteOp rows zero column))
+    (zero : CWriteRef ctx (.unsignedWord rowCount)) : Circuit model ctx ctx :=
+  Circuit.forRange width (fun column =>
+    BitWord.instruction (execution := model) (pivotRowWriteOp rows zero column))
 
 /-- The fresh row word is the real initializer of every pivot-row record. -/
 def placedPivotRowsClear (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount))) :
-    Circuit (pivotMaskContext ctx rowCount) (pivotMaskContext ctx rowCount) :=
-  pivotRowsClearBody
+    Circuit model (pivotMaskContext ctx rowCount) (pivotMaskContext ctx rowCount) :=
+  pivotRowsClearBody (model := model)
     (rows.underWorkspace ctx.canonicalFreshKey (.unsignedWord rowCount)
       ctx.canonicalFreshKey_fresh) (pivotMaskCell ctx rowCount)
 
 /-- Allocate one real zero row word, perform all original vector writes, then release it. -/
 def clearPivotRows (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount))) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord rowCount) ctx.canonicalFreshKey_fresh
-    (placedPivotRowsClear rows)
+    (placedPivotRowsClear (model := model) rows)
 
 /-- The original three initializations precede the complete increasing column traversal. -/
 def reduceMatrix (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (columns : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (Word.PowerOfTwo.clearOp used))
-    (.seq (.classical (Word.PowerOfTwo.clearOp columns))
-      (.seq (clearPivotRows rows)
-        (Circuit.forRange width (reduceColumn matrix used rows columns))))
+    (columns : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (.seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (.seq (clearPivotRows (model := model) rows)
+        (Circuit.forRange width (reduceColumn (model := model) matrix used rows columns))))
 
 /-- The exact original loading and reduction prefix leaves its four actual output cells live. -/
 def loadAndReduce (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (columns : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (loadMatrix input matrix) (reduceMatrix matrix used rows columns)
+    (columns : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (loadMatrix (model := model) input matrix)
+    (reduceMatrix (model := model) matrix used rows columns)
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

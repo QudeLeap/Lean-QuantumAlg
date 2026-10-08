@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Layout
 import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
+import all QuantumAlg.Core.Base.UnitaryCircuit.Adjoint
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 
 /-!
 # Native controlled exchange of the two actual shared words
@@ -185,13 +187,16 @@ theorem gates_step (width : Nat) (state : Registers width) :
       rfl
 
 /-- Compile the same actual Toffoli list, without allocating any additional system. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact all-label circuit action, and hence preservation of arbitrary relative phases. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- Both complete words return after a second selected exchange, with all other fields retained. -/
 theorem step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
@@ -200,14 +205,18 @@ theorem step_twice {width : Nat} (state : Registers width) : step (step state) =
 
 /-- The actual inverse circuit implements the same complete controlled exchange. -/
 theorem inverse_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width).dagger step :=
-  (program_realizes width).dagger_of_rightInverse step_twice
+    UnitaryCircuit.Realizes (encoding width)
+      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) step := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes width)
+  · rw [UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · exact step_twice
 
 private theorem indices_trace (width : Nat) (indices : List (Fin (width + 3))) :
     (indices.flatMap fun index => EncodedBit.controlledSwapGates (controlBit width)
       ((leftWord width).bit index) ((rightWord width).bit index)
       (control_left width index) (control_right width index) (left_right width index index)).map
-        GateSpec.event = List.replicate (3 * indices.length) (.gate (.builtin "toffoli")) := by
+        (GateSpec.event .empty) = List.replicate (3 * indices.length) (.gate .toffoli) := by
   induction indices with
   | nil => rfl
   | cons index rest ih =>
@@ -220,19 +229,14 @@ private theorem indices_trace (width : Nat) (indices : List (Fin (width + 3))) :
 /-- Every original word position contributes its three literal Toffoli events. -/
 theorem program_eventTrace (width : Nat) :
     (program width).eventTrace =
-      List.replicate (3 * (width + 3)) (.gate (.builtin "toffoli")) := by
+      List.replicate (3 * (width + 3)) (.gate .toffoli) := by
   rw [program, GateSpec.programList_eventTrace]
   change ((List.ofFn fun index : Fin (width + 3) => index).flatMap fun index =>
     EncodedBit.controlledSwapGates (controlBit width)
       ((leftWord width).bit index) ((rightWord width).bit index)
       (control_left width index) (control_right width index) (left_right width index index)).map
-        GateSpec.event = _
+        (GateSpec.event .empty) = _
   rw [indices_trace, List.length_ofFn]
-
-/-- The program's actual placement is contained in the original complete frame. -/
-theorem program_physical_idx_subset (width : Nat) :
-    (program width).physical_idx ⊆ List.range (encoding width).width :=
-  GateSpec.programList_physical_idx_subset_range _
 
 end
 

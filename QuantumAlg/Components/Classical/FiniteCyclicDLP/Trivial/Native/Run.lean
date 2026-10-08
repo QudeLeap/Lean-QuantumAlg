@@ -28,9 +28,10 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The original actual order-one circuit and complete manifest form one executable run. -/
-def zeroRun {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat)
+def zeroRun {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    AlgorithmRun ctx (ctx.addRetained key (.option (.unsignedWord width)) fresh)
+    AlgorithmRun model ctx (ctx.addRetained key (.option (.unsignedWord width)) fresh)
       (.option (.unsignedWord width)) where
   code := zeroRetained ctx width key fresh
   output := Output.all (ctx.addRetained key (.option (.unsignedWord width)) fresh)
@@ -38,15 +39,16 @@ def zeroRun {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat)
       (.option (.unsignedWord width)) fresh).toCStorageRef))
 
 /-- Every certified input gives the actual retained some-zero output with probability one. -/
-theorem zeroRun_output_probability {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat)
+theorem zeroRun_output_probability {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) {Reference : Register}
-    (initial : Input ctx Reference) :
+    (initial : OracleInput model.classicalOracles ctx Reference) :
     (zeroRun ctx width key fresh).outputDistribution initial
       (.optionSome (CShape.wordOfNat width 0)) = 1 := by
   rw [AlgorithmRun.outputDistribution_apply_eq_effectWeight]
   change ENNReal.ofReal
     (((zeroRetained ctx width key fresh).execute Reference
-      (initial.state.mapClassical (fun store => (store, store)))).effectWeight
+      (initial.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))).effectWeight
       (fun entry => if entry.1.read (.storage (CWriteRef.retainedHead ctx key
           (.option (.unsignedWord width)) fresh).toCStorageRef) =
           .optionSome (CShape.wordOfNat width 0) then

@@ -24,18 +24,19 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem source_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written : DifferenceCell) (source : SourceCell) :
-    (store.applyOp (differenceOp refs written)).read (sourceInput refs source) =
+    (store.applyOp (differenceOp (model := model) refs written)).read (sourceInput refs source) =
       store.read (sourceInput refs source) :=
-  Store.read_applyOp_of_not_mem_storageKeys store (differenceOp refs written) _
+  Store.read_applyOp_of_not_mem_storageKeys store (differenceOp (model := model) refs written) _
     (separation.sourceAvoidsDifference source written)
 
 private theorem output_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written saved : DifferenceCell) (different : written ≠ saved) :
-    (store.applyOp (differenceOp refs written)).read (writeInput (differenceRef refs saved)) =
+    (store.applyOp (differenceOp (model := model) refs written)).read
+      (writeInput (differenceRef refs saved)) =
       store.read (writeInput (differenceRef refs saved)) := by
   apply Store.read_applyOp_of_not_mem_storageKeys
   change differenceKey refs written ∉ [differenceKey refs saved]
@@ -47,10 +48,10 @@ private theorem coordinate_correct (refs : Refs ctx width) (cell : DifferenceCel
     (store : Store ctx) (left right : Int)
     (leftRep : RawSignedRepresents (store.read (sourceInput refs (pointSource cell))) left)
     (rightRep : RawSignedRepresents (store.read (sourceInput refs (targetSource cell))) right) :
-    RawSignedRepresents ((store.applyOp (differenceOp refs cell)).read
+    RawSignedRepresents ((store.applyOp (differenceOp (model := model) refs cell)).read
       (writeInput (differenceRef refs cell))) (left - right) := by
-  change RawSignedRepresents ((store.applyOp (differenceOp refs cell)).read
-    (.storage (differenceOp refs cell).outputRef.toCStorageRef)) _
+  change RawSignedRepresents ((store.applyOp (differenceOp (model := model) refs cell)).read
+    (.storage (differenceOp (model := model) refs cell).outputRef.toCStorageRef)) _
   rw [Store.read_applyOp_output]
   exact rawSignedWordRepresents_sub (store.read (sourceInput refs (pointSource cell)))
     (store.read (sourceInput refs (targetSource cell))) left right leftRep rightRep
@@ -60,7 +61,8 @@ theorem pointDifferenceInto_correct (refs : Refs ctx width) (separation : Separa
     (store : Store ctx) (point target : NumberTheory.IntegerPoint3)
     (pointRep : LatticeArithmetic.PointRawRepresents store refs.point point)
     (targetRep : LatticeArithmetic.PointRawRepresents store refs.target target) :
-    LatticeArithmetic.PointRawRepresents (differenceStore refs store) refs.difference
+    LatticeArithmetic.PointRawRepresents
+      (differenceStore (model := model) refs store) refs.difference
       (point.sub target) := by
   unfold differenceStore
   refine ⟨?_, ?_, ?_⟩

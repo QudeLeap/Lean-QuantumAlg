@@ -26,15 +26,18 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {modulusWidth phaseBits : Nat}
 
 /-- Allocate the actual optional word and execute native recovery into that cell. -/
 def retainedCircuit (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    Circuit ctx (ctx.addRetained key (outputShape phaseBits) fresh) :=
+    Circuit model ctx (ctx.addRetained key (outputShape phaseBits) fresh) :=
   .seq (.retain ctx key (outputShape phaseBits) fresh)
-    (into spec
+    (into (model := model) spec
       (.first (input.underRetained key (outputShape phaseBits) fresh))
       (.second (input.underRetained key (outputShape phaseBits) fresh))
       (CWriteRef.retainedHead ctx key (outputShape phaseBits) fresh))
@@ -44,9 +47,9 @@ theorem nativeRecovery_retained_pool_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit spec input key fresh).Path) :
-    (retainedCircuit spec input key fresh).resourcePool path ≤
-      eventEnvelope kind modulusWidth phaseBits := by
+    (path : (retainedCircuit (model := model) spec input key fresh).Path) :
+    (retainedCircuit (model := model) spec input key fresh).resourcePool path ≤
+      eventEnvelope model modulusWidth phaseBits := by
   exact nativeRecovery_into_pool_le spec _ _ _ path.2
 
 /-- The retained option and reused recovery workspace are counted in resident storage. -/
@@ -54,8 +57,8 @@ theorem nativeRecovery_retained_resident_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit spec input key fresh).Path) :
-    (retainedCircuit spec input key fresh).peakResidentSpace path ≤
+    (path : (retainedCircuit (model := model) spec input key fresh).Path) :
+    (retainedCircuit (model := model) spec input key fresh).peakResidentSpace path ≤
       (ctx.addRetained key (outputShape phaseBits) fresh).residentSpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -64,7 +67,7 @@ theorem nativeRecovery_retained_resident_le
   rcases List.mem_append.mp present with allocation | recovery
   · simp only [List.mem_cons, List.not_mem_nil, or_false] at allocation
     rcases allocation with rfl | rfl
-    all_goals intro axis; cases axis <;> simp [SpacePool.ofShape] <;> omega
+    all_goals intro axis; cases model <;> cases axis <;> simp [SpacePool.ofShape] <;> omega
   · exact (nativeRecovery_into_visited_space_le spec _ _ _ path.2 visited recovery).1
 
 /-- The actual result remains auxiliary storage after the temporary fields have been released. -/
@@ -72,8 +75,8 @@ theorem nativeRecovery_retained_auxiliary_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit spec input key fresh).Path) :
-    (retainedCircuit spec input key fresh).peakAuxiliarySpace path ≤
+    (path : (retainedCircuit (model := model) spec input key fresh).Path) :
+    (retainedCircuit (model := model) spec input key fresh).peakAuxiliarySpace path ≤
       (ctx.addRetained key (outputShape phaseBits) fresh).auxiliarySpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -82,10 +85,8 @@ theorem nativeRecovery_retained_auxiliary_le
   rcases List.mem_append.mp present with allocation | recovery
   · simp only [List.mem_cons, List.not_mem_nil, or_false] at allocation
     rcases allocation with rfl | rfl
-    all_goals intro axis; cases axis <;> simp [SpacePool.ofShape] <;> omega
+    all_goals intro axis; cases model <;> cases axis <;> simp [SpacePool.ofShape] <;> omega
   · exact (nativeRecovery_into_visited_space_le spec _ _ _ path.2 visited recovery).2
-
-noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -94,8 +95,8 @@ def retainedStep (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth pha
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (store : Store ctx) :
     Store (ctx.addRetained key (outputShape phaseBits) fresh) ×
-      (retainedCircuit spec input key fresh).Path :=
-  let recovered := intoStep spec
+      (retainedCircuit (model := model) spec input key fresh).Path :=
+  let recovered := intoStep (model := model) spec
     (.first (input.underRetained key (outputShape phaseBits) fresh))
     (.second (input.underRetained key (outputShape phaseBits) fresh))
     (CWriteRef.retainedHead ctx key (outputShape phaseBits) fresh)
@@ -107,11 +108,13 @@ theorem nativeRecovery_retained_execute
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (retainedCircuit spec input key fresh).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState
+      × History)) :
+    (retainedCircuit (model := model) spec input key fresh).execute Reference state =
       state.mapClassical (fun entry =>
-        ((retainedStep spec input key fresh entry.1).1,
-          (entry.2, (retainedStep spec input key fresh entry.1).2))) := by
+        ((retainedStep (model := model) spec input key fresh entry.1).1,
+          (entry.2.1, (entry.2.2, (retainedStep (model := model) spec input key fresh
+            entry.1).2)))) := by
   simp only [retainedCircuit, Circuit.execute_seq, Circuit.execute_retain,
     nativeRecovery_into_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def, retainedStep]
@@ -125,7 +128,7 @@ theorem nativeRecovery_retained_result
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (store : Store ctx)
     (represented : store.read input = encodeInput source) :
-    (retainedStep spec input key fresh store).1.read
+    (retainedStep (model := model) spec input key fresh store).1.read
       (cellRead (CWriteRef.retainedHead ctx key (outputShape phaseBits) fresh)) =
         encodeOutput (ClassicalAlgorithms.OrderRecovery.recoverUnitOrder spec source) := by
   apply nativeRecovery_into_result spec source
@@ -143,9 +146,10 @@ theorem nativeRecovery_retained_borrowedRestored
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (retainedCircuit spec input key fresh).BorrowedRestored Reference state
-      ((retainedCircuit spec input key fresh).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState
+      × History)) :
+    (retainedCircuit (model := model) spec input key fresh).BorrowedRestored Reference state
+      ((retainedCircuit (model := model) spec input key fresh).execute Reference state) := by
   unfold retainedCircuit
   apply Circuit.borrowedRestored_seq
   · exact Circuit.borrowedRestored_retain key (outputShape phaseBits) fresh state

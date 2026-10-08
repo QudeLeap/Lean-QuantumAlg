@@ -13,7 +13,7 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.Dirty.Conjunction.Program
 import all QuantumAlg.Components.Encoded.BitGates.Word.Dirty.Conjunction.Cancellation
 import all QuantumAlg.Components.Encoded.BitGates.Dirty.Predicate
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.Circuit
 
 /-!
 # Four actual conjunction calls with one restored dirty bit
@@ -31,6 +31,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 private def allBits {width : Nat} (bits : Fin width → EncodedBit encoding) (state : Data) : Bool :=
   decide (∀ index, (bits index).get state = true)
@@ -139,10 +140,12 @@ theorem balancedGates_step (large : 3 ≤ controls) (state : Data) :
 
 /-- The literal elementary program has the complete all-input encoded conjunction action. -/
 theorem balancedGates_realizes (large : 3 ≤ controls) :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList (layout.balancedGates large))
+    UnitaryCircuit.Realizes encoding
+      (GateSpec.programList physical oracles (layout.balancedGates large))
       (fun state => if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep (layout.balancedGates large) (layout.balancedGates_step large)
+  GateSpec.realizesList_congrStep physical oracles
+    (layout.balancedGates large) (layout.balancedGates_step large)
 
 private theorem subcall_length {tail : Nat}
     (sublayout : ZeroTestLayout (encoding := encoding) tail) :

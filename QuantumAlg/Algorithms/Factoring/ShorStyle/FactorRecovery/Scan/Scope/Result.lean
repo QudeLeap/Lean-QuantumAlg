@@ -98,26 +98,32 @@ private theorem enteredRepresents (source : Input N)
   exact ⟨(enter_read entry.1.parameter store).trans (represented entry original).1,
     (enter_read entry.1.phase store).trans (represented entry original).2⟩
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The released real scan returns the first source factor with all scratch conditions internal. -/
 theorem result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (outputFree : ∀ entry ∈ entries,
       output.key ∉ entry.1.parameter.storageKeys ∧ output.key ∉ entry.1.phase.storageKeys)
     (represented : NativeFactorScan.Represents source entries store) :
-    (step source (entries.map Prod.fst) output store).1.read (.storage output.toCStorageRef) =
+    (step (model := model) source (entries.map Prod.fst) output store).1.read (.storage
+      output.toCStorageRef) =
       sourceResults source (entries.map Prod.snd) := by
   let entered := enter N store
-  have actual := NativeFactorScan.code_result source (liftEntries entries) (cells ctx N)
+  have actual := NativeFactorScan.code_result (model := model) source (liftEntries entries) (cells
+    ctx N)
     (liftWrite output) (separated output) entered (enteredFrames entries output outputFree)
     (enteredRepresents source entries store represented)
-  have sameStore : (NativeFactorScan.step source ((liftEntries entries).map Prod.fst)
+  have sameStore : (NativeFactorScan.step (model := model) source ((liftEntries entries).map
+    Prod.fst)
       (cells ctx N) (liftWrite output) entered).1 =
-        (bodyStep source (entries.map Prod.fst) output entered).1 :=
+        (bodyStep (model := model) source (entries.map Prod.fst) output entered).1 :=
     congrArg (fun inputs =>
-      (NativeFactorScan.step source inputs (cells ctx N) (liftWrite output) entered).1)
+      (NativeFactorScan.step (model := model) source inputs (cells ctx N) (liftWrite output)
+        entered).1)
       (liftEntries_inputs entries)
   refine (leave_read (.storage output.toCStorageRef)
-    (bodyStep source (entries.map Prod.fst) output entered).1).trans ?_
+    (bodyStep (model := model) source (entries.map Prod.fst) output entered).1).trans ?_
   refine (congrArg (fun final : Store (context ctx N) =>
     final.read (.storage (liftWrite output).toCStorageRef)) sameStore.symm).trans ?_
   exact actual.trans (congrArg (sourceResults source) (liftEntries_outcomes entries))
@@ -127,9 +133,10 @@ theorem read_other (source : Input N) (inputs : List (Inputs ctx N))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {shape : CShape} (other : CInputRef ctx shape) (outputFree : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (step source inputs output store).1.read other = store.read other :=
-  (leave_read other (bodyStep source inputs output (enter N store)).1).trans
-    ((NativeFactorScan.read_other source (inputs.map liftInputs) (cells ctx N) (liftWrite output)
+    (step (model := model) source inputs output store).1.read other = store.read other :=
+  (leave_read other (bodyStep (model := model) source inputs output (enter N store)).1).trans
+    ((NativeFactorScan.read_other (model := model) source (inputs.map liftInputs) (cells ctx N)
+      (liftWrite output)
       (liftInput other) (frame_free output other outputFree) (enter N store)).trans
       (enter_read other store))
 

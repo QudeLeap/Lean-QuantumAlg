@@ -16,7 +16,6 @@ import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
-import all QuantumAlg.Primitives.MAU.CleanInterface
 import all QuantumAlg.Primitives.MAU.Addition
 
 /-!

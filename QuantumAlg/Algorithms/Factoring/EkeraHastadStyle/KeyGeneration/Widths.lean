@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.KeyGeneration.Specification
+import all QuantumAlg.Primitives.ShortDLP.Oracle.Mathematics
 
 /-!
 # Original short-log width conditions supplied by the proof-side RSA key

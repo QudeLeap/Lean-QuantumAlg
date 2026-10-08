@@ -6,159 +6,76 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-public import QuantumAlg.Core.Base.Accounting.Kind
-import all QuantumAlg.Core.Base.Accounting.Kind
-import all QuantumAlg.Core.Base.Accounting.ResourcePool
-import all QuantumAlg.Core.Base.Gate.Unitary
+public import QuantumAlg.Core.Base.Gate.Placement
+public import QuantumAlg.Core.Base.Oracle.Placement
+public import QuantumAlg.Core.Base.Accounting.Event
+import all QuantumAlg.Core.Base.Gate.Placement
+import all QuantumAlg.Core.Base.Oracle.Placement
 
 /-!
-# One sealed circuit leaf
+# Native gates and independently granted queries
 
-`UnitaryLeaf` is the sole atomic execution object used by the circuit syntax.
-It fixes one role/label, one placement, and one certified unitary operator.
-The event coordinate is a deterministic projection of that same role;
-callers cannot supply a ledger or a depth expression.
-
-Sealing establishes projection coherence, not mathematical label truth.  A
-`UnitaryOperator` proves unitarity, but this module cannot prove that an
-operator deserves its declared gate or opaque-subroutine label.  That
-declaration is an explicit, auditable trust boundary.  An opaque subroutine
-also makes no claim about a hidden expansion, ancilla usage, or hardware cost.
+A leaf contains one model-owned instance applied to its actual physical wires.
+There is no independent operator, event label or resource witness. Gate tokens
+and oracle queries inhabit separate declaration-owned types; neither can be
+created by relabeling an unsupported operation.
 -/
-
-section
 
 namespace QuantumAlg
 
-namespace Resource.GateLabel
-
-/-- A standard gate coordinate. -/
-public def builtin (name : String) (parameters : List Nat := []) : GateLabel :=
-  { family := "builtin", name := name, parameters := parameters }
-
-/-- A declaration-scoped non-builtin gate coordinate. -/
-def declared (family name : String) (parameters : List Nat := []) : GateLabel :=
-  { family := family, name := name, parameters := parameters }
-
-end Resource.GateLabel
-
-/-- The two and only two semantic roles of a unitary circuit leaf. -/
-inductive UnitaryLeafRole where
-  | gate (label : Resource.GateLabel)
-  | subroutine (label : Resource.SubroutineLabel)
-deriving DecidableEq
-
-namespace UnitaryLeafRole
-
-/-- The strict event coordinate fixed by a leaf role. -/
-def event : UnitaryLeafRole → Resource.Event .quantum
-  | .gate label => .gate label
-  | .subroutine label => .quantumSubroutine label.quantum
-
-@[simp] theorem event_gate (label : Resource.GateLabel) :
-    event (.gate label) = (.gate label : Resource.Event .quantum) := rfl
-
-@[simp] theorem event_subroutine (label : Resource.SubroutineLabel) :
-    event (.subroutine label) =
-      (.quantumSubroutine label.quantum : Resource.Event .quantum) := rfl
-
-end UnitaryLeafRole
-
-/-- One sealed atomic circuit execution.  Resource ledgers and depth are
-intentionally absent from the stored object. -/
-structure UnitaryLeaf (R : Register) where
-  private mk ::
-  /-- Gate versus opaque-subroutine role, including its event label. -/
-  role : UnitaryLeafRole
-  /-- Physical systems touched by this occurrence. -/
-  systemIdx : List Nat
-  /-- Certified unitary semantics of this occurrence. -/
-  operator : UnitaryOperator R
+/-- The only atomic unitary operations in a selected execution language. -/
+public inductive UnitaryLeaf (gates : GateModel) (oracles : OracleModel)
+    {count : Nat} (layout : QuantumLayout count) where
+  /-- A gate from the selected native model on its dimension-correct wires. -/
+  | gate (application : GateModel.Application gates layout)
+  /-- A query explicitly granted by the independent oracle declaration. -/
+  | oracle (application : OracleModel.Application oracles layout)
 
 namespace UnitaryLeaf
 
-noncomputable section
+variable {gates : GateModel} {oracles : OracleModel}
+variable {count : Nat} {layout : QuantumLayout count}
 
-/-- Declare one gate occurrence.  The label/operator association is an explicit
-trust boundary; resource and depth metadata cannot be supplied. -/
-def gate {R : Register} (label : Resource.GateLabel) (systemIdx : List Nat)
-    (operator : UnitaryOperator R) : UnitaryLeaf R :=
-  .mk (.gate label) systemIdx operator
+/-- The single native event fixed by the actual applied instance. -/
+@[expose]
+public def event (leaf : UnitaryLeaf gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    Resource.Event (.quantum gates oracles operations classicalOracles) :=
+  match leaf with
+  | .gate application => .gate application.coordinate
+  | .oracle application => .oracle application.coordinate
 
-/-- Declare one opaque-subroutine occurrence.  The declaration claims no
-hidden expansion or hidden space usage. -/
-def subroutine {R : Register} (label : Resource.SubroutineLabel)
-    (systemIdx : List Nat) (operator : UnitaryOperator R) : UnitaryLeaf R :=
-  .mk (.subroutine label) systemIdx operator
+/-- Unitary semantics come from the same native or query instance. -/
+@[expose]
+public noncomputable def operator : UnitaryLeaf gates oracles layout →
+    UnitaryOperator layout.register
+  | .gate application => application.operator
+  | .oracle application => application.operator
 
-/-- Strict event coordinate projected from the sealed role. -/
-def event {R : Register} (leaf : UnitaryLeaf R) : Resource.Event .quantum :=
-  leaf.role.event
+/-- The actual ordered physical footprint of the native or query instance. -/
+@[expose]
+public def systemIdx : UnitaryLeaf gates oracles layout → List Nat
+  | .gate application => application.occurrence.placement.layout.identities
+  | .oracle application => application.occurrence.placement.layout.identities
 
-/-- Rewrite placement without changing role, event, or operator. -/
-def rewriteSystemIdx {R : Register} (mapping : Nat → Nat)
-    (leaf : UnitaryLeaf R) : UnitaryLeaf R :=
-  .mk leaf.role (leaf.systemIdx.map mapping) leaf.operator
+/-- Every leaf retains a duplicate-free physical footprint. -/
+public theorem leaf_systemIdx_nodup (leaf : UnitaryLeaf gates oracles layout) :
+    leaf.systemIdx.Nodup := by
+  cases leaf with
+  | gate application => exact application.occurrence.placement.layout.identities_nodup
+  | oracle application => exact application.occurrence.placement.layout.identities_nodup
 
-@[simp] theorem gate_role {R : Register} (label : Resource.GateLabel)
-    (systemIdx : List Nat) (operator : UnitaryOperator R) :
-    (gate label systemIdx operator).role = .gate label := rfl
+/-- A gate event is determined by the same token as its operator. -/
+@[simp] public theorem leaf_gate_event (application : GateModel.Application gates layout) :
+    (gate (oracles := oracles) application).event =
+      .gate (gates.coordinate application.occurrence.token) := rfl
 
-@[simp] theorem gate_systemIdx {R : Register} (label : Resource.GateLabel)
-    (systemIdx : List Nat) (operator : UnitaryOperator R) :
-    (gate label systemIdx operator).systemIdx = systemIdx := rfl
-
-@[simp] theorem gate_operator {R : Register} (label : Resource.GateLabel)
-    (systemIdx : List Nat) (operator : UnitaryOperator R) :
-    (gate label systemIdx operator).operator = operator := rfl
-
-@[simp] theorem gate_event {R : Register} (label : Resource.GateLabel)
-    (systemIdx : List Nat) (operator : UnitaryOperator R) :
-    (gate label systemIdx operator).event =
-      (.gate label : Resource.Event .quantum) := rfl
-
-@[simp] theorem subroutine_role {R : Register}
-    (label : Resource.SubroutineLabel) (systemIdx : List Nat)
-    (operator : UnitaryOperator R) :
-    (subroutine label systemIdx operator).role = .subroutine label := rfl
-
-@[simp] theorem subroutine_systemIdx {R : Register}
-    (label : Resource.SubroutineLabel) (systemIdx : List Nat)
-    (operator : UnitaryOperator R) :
-    (subroutine label systemIdx operator).systemIdx = systemIdx := rfl
-
-@[simp] theorem subroutine_operator {R : Register}
-    (label : Resource.SubroutineLabel) (systemIdx : List Nat)
-    (operator : UnitaryOperator R) :
-    (subroutine label systemIdx operator).operator = operator := rfl
-
-@[simp] theorem subroutine_event {R : Register}
-    (label : Resource.SubroutineLabel) (systemIdx : List Nat)
-    (operator : UnitaryOperator R) :
-    (subroutine label systemIdx operator).event =
-      (.quantumSubroutine label.quantum : Resource.Event .quantum) := rfl
-
-@[simp] theorem rewriteSystemIdx_role {R : Register} (mapping : Nat → Nat)
-    (leaf : UnitaryLeaf R) :
-    (leaf.rewriteSystemIdx mapping).role = leaf.role := rfl
-
-@[simp] theorem rewriteSystemIdx_systemIdx {R : Register}
-    (mapping : Nat → Nat) (leaf : UnitaryLeaf R) :
-    (leaf.rewriteSystemIdx mapping).systemIdx = leaf.systemIdx.map mapping := rfl
-
-@[simp] theorem rewriteSystemIdx_operator {R : Register}
-    (mapping : Nat → Nat) (leaf : UnitaryLeaf R) :
-    (leaf.rewriteSystemIdx mapping).operator = leaf.operator := rfl
-
-@[simp] theorem rewriteSystemIdx_event {R : Register} (mapping : Nat → Nat)
-    (leaf : UnitaryLeaf R) :
-    (leaf.rewriteSystemIdx mapping).event = leaf.event := rfl
-
-end
+/-- Query accounting cannot acquire an ungranted access form. -/
+@[simp] public theorem leaf_oracle_event (application : OracleModel.Application oracles layout) :
+    (oracle (gates := gates) application).event =
+      .oracle (oracles.coordinate application.occurrence.query) := rfl
 
 end UnitaryLeaf
 
 end QuantumAlg
-
-end

@@ -21,15 +21,18 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.ScalarMul.Native
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Every original slot retains both actual complete-addition allowances. -/
-theorem scalarEnvelope_card_le (kind : ProblemKind) (spec : CurveSpec width)
+theorem scalarEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width)
     (scalarWidth : Nat) :
-    (scalarEnvelope kind spec scalarWidth).card ≤ 2 + scalarWidth * (248 * width + 644) := by
-  have addition := Add.Native.additionEnvelope_card_le kind spec
-  have doubled : (Add.Native.additionEnvelope kind spec).card +
-      (Add.Native.additionEnvelope kind spec).card ≤ 248 * width + 644 := by omega
+    (scalarEnvelope model spec scalarWidth).card ≤
+      2 + scalarWidth * (248 * width + 644) := by
+  have addition := Add.Native.additionEnvelope_card_le model spec
+  have doubled : (Add.Native.additionEnvelope model spec).card +
+      (Add.Native.additionEnvelope model spec).card ≤ 248 * width + 644 := by omega
   simp only [scalarEnvelope, Multiset.card_add, ResourcePool.scale, Multiset.card_nsmul]
   exact Nat.add_le_add_left (Nat.mul_le_mul_left scalarWidth doubled) 2
 
@@ -41,6 +44,6 @@ theorem scalarInto_eventCount_le (spec : CurveSpec width)
     ((scalarInto spec bits point accumulator).eventTrace path).length ≤
       2 + scalarWidth * (248 * width + 644) :=
   (Multiset.card_le_card (scalarInto_pool_le spec bits point accumulator path)).trans
-    (scalarEnvelope_card_le kind spec scalarWidth)
+    (scalarEnvelope_card_le model spec scalarWidth)
 
 end QuantumAlg.ClassicalRoutines.EllipticCurve.ScalarMul.Native

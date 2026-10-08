@@ -14,7 +14,8 @@ import all QuantumAlg.Core.Base.Gate.Effect.FixedInput
 /-!
 # Uniform actual observations from a fixed local basis
 
-A uniform pure-reference observation bound at every actual input Store
+A uniform pure-reference observation bound at every actual caller Store
+and persistent-service input
 extends to every classical-quantum state supported on that local basis.
 The original conditional reference matrices keep their own masses. The proof
 uses the same interpreter, its history naturality and its certified pulled
@@ -49,38 +50,49 @@ private theorem mapClassical_single {C D : Type} [Fintype C] [Fintype D] {R : Re
   · rw [if_pos same, if_pos same.symm]
   · rw [if_neg same, if_neg (Ne.symm same)]
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
 private theorem execute_single_history {pre post : RuntimeCtx .quantum}
-    (code : Circuit pre post) (Reference : Register) {H : Type} [Fintype H]
-    (store : Store pre) (history : H)
+    (code : Circuit (.quantum gates oracles operations services) pre post) (Reference : Register)
+    {H : Type} [Fintype H]
+    (store : Store pre) (hidden : services.HiddenState) (history : H)
     (density : DensityOperator (pre.register.prod Reference)) :
-    (code.execute Reference (ExecutionState.ofValue (store, history) density)).quantumMarginal =
-      (code.execute Reference (ExecutionState.ofValue (store, ()) density)).quantumMarginal := by
+    (code.execute Reference (ExecutionState.ofValue (store, (hidden, history))
+      density)).quantumMarginal =
+      (code.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+        density)).quantumMarginal := by
   have same :
-      State.mapHistory (ctx := pre) (ExecutionState.ofValue (store, ()) density)
-          (fun _ : Unit => history) =
-        ExecutionState.ofValue (store, history) density := by
+      State.mapHistory (ctx := pre) (ExecutionState.ofValue (store, (hidden, ())) density)
+          (fun entry : services.HiddenState × Unit => (entry.1, history)) =
+        ExecutionState.ofValue (store, (hidden, history)) density := by
     unfold State.mapHistory
-    refine (State.mapClassical_decision _ (Classical.decEq (Store pre × H)) _ _).trans ?_
-    convert mapClassical_single (Classical.decEq (Store pre × Unit))
-      (Classical.decEq (Store pre × H)) (store, ()) density
-      (fun record => (record.1, history)) using 1 <;> congr 2 <;>
+    refine (State.mapClassical_decision _
+      (Classical.decEq (Store pre × (services.HiddenState × H))) _ _).trans ?_
+    convert mapClassical_single (Classical.decEq (Store pre × (services.HiddenState × Unit)))
+      (Classical.decEq (Store pre × (services.HiddenState × H))) (store, (hidden, ())) density
+      (fun record => (record.1, (record.2.1, history))) using 1 <;> congr 2 <;>
       exact Subsingleton.elim _ _
-  rw [← same, execute_mapHistory, State.mapHistory_quantumMarginal]
+  rw [← same]
+  erw [execute_mapHistory code Reference
+    (ExecutionState.ofValue (store, (hidden, ())) density) (fun _ : Unit => history),
+    State.mapHistory_quantumMarginal]
 
 /-- A fixed local basis extends uniform actual pure-input bounds to every original mixed block. -/
 theorem observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
-    (code : Circuit pre post) (Reference : Register)
+    (code : Circuit (.quantum gates oracles operations services) pre post) (Reference : Register)
     (observed : Effect (post.register.prod Reference)) (label : pre.register.Index)
     (input : NormalizedVector Reference → NormalizedVector (pre.register.prod Reference))
     (represented : ∀ reference localBasis external,
       input reference (localBasis, external) =
         NormalizedVector.ket (R := pre.register) label localBasis * reference external)
     (lower : ℝ)
-    (bound : ∀ (store : Store pre) (reference : NormalizedVector Reference),
+    (bound : ∀ (store : Store pre) (hidden : services.HiddenState)
+      (reference : NormalizedVector Reference),
       lower ≤ observed.weight
-        ((code.execute Reference (ExecutionState.ofValue (store, ())
+        ((code.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
           (DensityOperator.ofPure (input reference)))).quantumMarginal))
-    {H : Type} [Fintype H] (state : State pre Reference H)
+    {H : Type} [Fintype H] (state : State pre Reference (services.HiddenState × H))
     (support : ∀ basis : (pre.register.prod Reference).Index, basis.1 ≠ label →
       state.quantumMarginal.matrix basis basis = 0) :
     state.mass * lower ≤ observed.weight (code.execute Reference state).quantumMarginal := by
@@ -117,8 +129,10 @@ theorem observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
     rw [ExecutionState.effectWeight_constant, ExecutionState.effectWeight_ofValue_decision]
       at actualPure
     change lower ≤ (code.effectPullback Reference (fun _ => observed) record).weight _
-    rw [← actualPure, execute_single_history]
-    exact bound record.1 reference
+    rw [← actualPure]
+    erw [execute_single_history code Reference record.1 record.2.1 record.2.2
+      (DensityOperator.ofPure (input reference))]
+    exact bound record.1 record.2.1 reference
 
 end
 

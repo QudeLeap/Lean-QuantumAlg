@@ -33,6 +33,7 @@ namespace EncodedBit
 namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Gates for swapping one adjacent pair of word bits. -/
 def adjacentSwapGates
@@ -160,8 +161,8 @@ theorem adjacentShiftRightGates_toffoliMultiplicity_sum
 def adjacentShiftLeftProgram
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (adjacentShiftLeftGates word hword)
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (adjacentShiftLeftGates word hword)
 
 /-- Folded semantic action for the adjacent-swap cyclic shift. -/
 def adjacentShiftLeftStep
@@ -174,8 +175,8 @@ def adjacentShiftLeftStep
 def adjacentShiftRightProgram
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (adjacentShiftRightGates word hword)
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (adjacentShiftRightGates word hword)
 
 /-- Folded semantic action for the inverse adjacent-swap cyclic shift. -/
 def adjacentShiftRightStep
@@ -545,9 +546,9 @@ theorem adjacentShiftLeft_realizes
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (adjacentShiftLeftProgram word hword)
+      (adjacentShiftLeftProgram physical oracles word hword)
       (adjacentShiftLeftStep word hword) :=
-  GateSpec.realizesList (adjacentShiftLeftGates word hword)
+  GateSpec.realizesList physical oracles (adjacentShiftLeftGates word hword)
 
 /-- The inverse adjacent-swap cyclic-shift program realizes its folded
 semantics. -/
@@ -555,25 +556,26 @@ theorem adjacentShiftRight_realizes
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (adjacentShiftRightProgram word hword)
+      (adjacentShiftRightProgram physical oracles word hword)
       (adjacentShiftRightStep word hword) :=
-  GateSpec.realizesList (adjacentShiftRightGates word hword)
+  GateSpec.realizesList physical oracles (adjacentShiftRightGates word hword)
 
 /-- Direct realization proof for the adjacent-swap cyclic shift. -/
 theorem adjacentShiftLeftWitness
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit.Realizes encoding (adjacentShiftLeftProgram word hword)
+    UnitaryCircuit.Realizes encoding (adjacentShiftLeftProgram physical oracles word hword)
       (adjacentShiftLeftStep word hword) :=
-  adjacentShiftLeft_realizes word hword
+  adjacentShiftLeft_realizes physical oracles word hword
 
 /-- Direct realization proof for the inverse adjacent-swap cyclic shift. -/
 theorem adjacentShiftRightWitness
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit.Realizes encoding (adjacentShiftRightProgram word hword)
+    UnitaryCircuit.Realizes encoding
+      (adjacentShiftRightProgram physical oracles word hword)
       (adjacentShiftRightStep word hword) :=
-  adjacentShiftRight_realizes word hword
+  adjacentShiftRight_realizes physical oracles word hword
 
 /-- The inverse adjacent-swap cyclic shift undoes the low-to-high sweep. -/
 theorem adjacentShiftRightStep_adjacentShiftLeftStep
@@ -909,8 +911,8 @@ def controlledAdjacentShiftLeftProgram
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledAdjacentShiftLeftGates control word hcontrol hword)
 
 /-- Folded semantic action for the single-control adjacent-swap cyclic shift. -/
@@ -928,8 +930,8 @@ def controlledAdjacentShiftRightProgram
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledAdjacentShiftRightGates control word hcontrol hword)
 
 /-- Folded semantic action for the inverse single-control adjacent-swap cyclic
@@ -949,9 +951,9 @@ theorem controlledAdjacentShiftLeft_realizes
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftLeftProgram control word hcontrol hword)
+      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword)
       (controlledAdjacentShiftLeftStep control word hcontrol hword) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledAdjacentShiftLeftGates control word hcontrol hword)
 
 /-- The inverse single-control adjacent-swap cyclic-shift program realizes its
@@ -961,9 +963,9 @@ theorem controlledAdjacentShiftRight_realizes
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftRightProgram control word hcontrol hword)
+      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword)
       (controlledAdjacentShiftRightStep control word hcontrol hword) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledAdjacentShiftRightGates control word hcontrol hword)
 
 /-- Direct realization proof for the controlled adjacent cyclic shift. -/
@@ -972,9 +974,9 @@ theorem controlledAdjacentShiftLeftWitness
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftLeftProgram control word hcontrol hword)
+      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword)
       (controlledAdjacentShiftLeftStep control word hcontrol hword) :=
-  controlledAdjacentShiftLeft_realizes control word hcontrol hword
+  controlledAdjacentShiftLeft_realizes physical oracles control word hcontrol hword
 
 /-- Direct realization proof for the inverse controlled adjacent cyclic
 shift. -/
@@ -983,9 +985,9 @@ theorem controlledAdjacentShiftRightWitness
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftRightProgram control word hcontrol hword)
+      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword)
       (controlledAdjacentShiftRightStep control word hcontrol hword) :=
-  controlledAdjacentShiftRight_realizes control word hcontrol hword
+  controlledAdjacentShiftRight_realizes physical oracles control word hcontrol hword
 
 /-- The inverse single-control adjacent-swap cyclic shift undoes the
 low-to-high controlled sweep. -/

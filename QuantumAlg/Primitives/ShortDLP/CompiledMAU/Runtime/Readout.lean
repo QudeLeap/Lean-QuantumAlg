@@ -60,11 +60,17 @@ theorem shortDLP_runtimeReadouts_keys_nodup
 theorem shortDLP_runtimeMeasuredCell_value
     (distinct : Function.Injective (fun index => (cells index).key))
     (store : Store ctx) (basis : ctx.register.Index) (index : Fin (resultBits m ell width)) :
-    ((Circuit.writeMeasurementPath (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (readouts m ell width sameWires cells) basis)).read
+    ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) basis)).read
         (.storage (cells index).toCStorageRef)).toFin.val =
       (basis (measuredWire m ell width sameWires index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (readouts m ell width sameWires cells)
+  have actual :=
+    Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := BitWord.model) (services := .empty) (readouts m ell width sameWires cells)
     (shortDLP_runtimeReadouts_keys_nodup m ell width sameWires cells distinct)
     (readout m ell width sameWires cells index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
@@ -123,14 +129,22 @@ theorem shortDLP_runtimePacking_measured_value
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     (store : Store ctx) (basis : ctx.register.Index) :
     (packing m ell width cells result).eval
-      ((Circuit.writeMeasurementPath (readouts m ell width sameWires cells) store
-        (Circuit.measurementBasisPath (readouts m ell width sameWires cells) basis)).read
+      ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) store
+        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) basis)).read
           (packing m ell width cells result).inputRef) =
       CShape.Value.bits ((ShortDLP.measurement (registerParameters m ell width)).readout
         (RuntimePlacement.basisEquiv m ell width sameWires basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (readouts m ell width sameWires cells) basis)).read
+    (((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) basis)).read
         (.storage (cells index).toCStorageRef)).toFin.val = 1)) = _
   apply congrArg CShape.Value.bits
   funext index

@@ -40,7 +40,8 @@ open NumberTheory.SharedEEA
 
 /-- Fixed load, the same actual corrected schedule, and literal output-port operations. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   (InitialPortProgram.program modulus).seq
     ((CorrectedSchedule.program modulus nontrivial).seq (OutputPortProgram.program modulus))
 
@@ -54,10 +55,12 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (result modulus input.val positive bounded)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (result modulus input.val positive bounded))) := by
   rw [program, UnitaryCircuit.applyNormalized_seq,
     InitialPortProgram.program_initial, UnitaryCircuit.applyNormalized_seq,
     CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded,
@@ -164,14 +167,21 @@ theorem result_product (modulus input : Nat) (coprime : Nat.Coprime input modulu
 theorem dagger_result (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).dagger.applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (result modulus input.val positive bounded))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input)) := by
+    ((program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (result modulus input.val positive bounded)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input))) := by
   have forward := program_initial modulus nontrivial input coprime positive bounded
-  exact (congrArg (program modulus nontrivial).dagger.applyNormalized forward).symm.trans
-    (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial) _)
+  exact (congrArg (fun state => ((program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state) forward).symm.trans
+    (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
+      (program modulus nontrivial)
+      ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+      (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) _)
 
 end
 

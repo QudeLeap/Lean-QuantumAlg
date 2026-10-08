@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Observe
+public import QuantumAlg.Core.Base.Accounting.Context
+public import QuantumAlg.Core.Base.Layout.Quantum.Selection
 import all QuantumAlg.Core.Base.Accounting.Context
 import Mathlib.Data.List.Flatten
 import Mathlib.Data.List.Nodup
@@ -38,6 +40,7 @@ namespace RuntimeEntry
 def borrowedQuantumWires {kind : ProblemKind} : RuntimeEntry kind → List QuantumWire
   | .storage _ _ _ => []
   | .borrowedLayout _ layout => layout.wires
+  | .suppliedLayout _ _ => []
   | .ownedLayout _ _ => []
   | .ownedCopies _ _ => []
 
@@ -47,6 +50,7 @@ theorem borrowedQuantumWires_sublist {kind : ProblemKind} (entry : RuntimeEntry 
   cases entry with
   | storage => exact List.Sublist.refl _
   | borrowedLayout => exact List.Sublist.refl _
+  | suppliedLayout => exact List.nil_sublist _
   | ownedLayout => exact List.nil_sublist _
   | ownedCopies => exact List.nil_sublist _
 
@@ -142,7 +146,7 @@ theorem ownedLayout_wire_not_borrowed (ctx : RuntimeCtx .quantum)
   exact disjoint (List.mem_ofFn.mpr ⟨index, rfl⟩) (List.mem_map_of_mem live)
 
 /-- Select precisely those global positions whose actual wire is borrowed. -/
-def borrowedSelection (ctx : RuntimeCtx kind) : Finset (Fin ctx.systemCount) :=
+public def borrowedSelection (ctx : RuntimeCtx kind) : Finset (Fin ctx.systemCount) :=
   Finset.univ.filter fun index => ctx.quantumLayout.wire index ∈ ctx.borrowedQuantumWires
 
 @[simp] theorem mem_borrowedSelection (ctx : RuntimeCtx kind) (index : Fin ctx.systemCount) :
@@ -268,25 +272,25 @@ namespace Circuit
 
 /-- Circuit allocation and classical lexical release preserve the full borrowed wire list.
 This is a placement invariant, not a claim that the quantum state has been restored. -/
-theorem borrowedQuantumWires_preserved {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) : post.borrowedQuantumWires = pre.borrowedQuantumWires := by
+theorem borrowedQuantumWires_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) : post.borrowedQuantumWires = pre.borrowedQuantumWires := by
   induction code with
-  | id | classical | declaredCall | unitary | measureZ | randomBits | iterate | workspace => rfl
+  | id | classical | classicalQuery | unitary | measureZ | iterate | workspace => rfl
   | retain ctx key shape fresh => exact ctx.borrowedQuantumWires_addRetained key shape fresh
-  | prepare ctx key layout fresh disjoint preparation =>
+  | prepareZero ctx key layout fresh disjoint =>
       exact ctx.borrowedQuantumWires_addOwnedLayout key layout fresh disjoint
   | seq first second firstIH secondIH => exact secondIH.trans firstIH
   | branch input body bodyIH => exact bodyIH (CShape.initialValue _)
 
 /-- Before and after a circuit, the common borrowed register uses identical wire records. -/
-theorem borrowedRegister_preserved {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) :
+theorem borrowedRegister_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) :
     post.borrowedQuantumLayout.register = pre.borrowedQuantumLayout.register :=
   RuntimeCtx.borrowedRegister_eq code.borrowedQuantumWires_preserved
 
 /-- Coordinate transport for comparing borrowed observations across this exact circuit. -/
-def borrowedBasisTransport {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) :
+def borrowedBasisTransport {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) :
     post.borrowedQuantumLayout.register.Index ≃ pre.borrowedQuantumLayout.register.Index :=
   Equiv.cast (congrArg Register.Index code.borrowedRegister_preserved)
 

@@ -8,6 +8,11 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.BellPair.Construction
+import all QuantumAlg.Components.Gates.Pauli
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Components.Kets
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Basic
 public import QuantumAlg.Primitives.Communication
 public import Mathlib.Data.Complex.Basic
 
@@ -78,11 +83,8 @@ def teleportCorrection (a b : Bool) : UnitaryOperator (Qubits 1) :=
 /-- The Bell-pair resource can be prepared by the already-proved Bell-state
 circuit. This pins teleportation's shared EPR-pair to `bell_state_prep`. -/
 theorem teleportation_uses_bell_state_prep :
-    CNOT.applyNormalized
-        (BellStatePreparation.hadamardLayer.applyNormalized
-          BellStatePreparation.input) = bell := by
-  simpa [BellStatePreparation.circuit, UnitaryCircuit.applyNormalized_seq] using
-    BellStatePreparation.bellPreparation_eq
+    BellStatePreparation.circuit.binaryMatrix.apply BellStatePreparation.input = bell :=
+  BellStatePreparation.bellPreparation_eq
 
 /-- Three-qubit computational basis vectors as intrinsic normalized states. -/
 def teleKet3 (j : Fin (2 ^ 3)) : NormalizedVector (Qubits 3) :=
@@ -158,24 +160,23 @@ theorem teleportation_correction_correct (a b : Bool) (α β : ℂ) :
       (ket1 : HilbertVector (Qubits 1)) :=
     by
       have h := congrArg (fun ψ : NormalizedVector (Qubits 1) =>
-        (ψ : HilbertVector (Qubits 1))) X_apply_ket0
-      simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, X_matrix] using h
+        (ψ : HilbertVector (Qubits 1))) pauliXOperator_apply_ket0
+      simpa only [UnitaryOperator.apply_coe] using h
   have hX1 : XOp.applyVec (ket1 : HilbertVector (Qubits 1)) =
       (ket0 : HilbertVector (Qubits 1)) :=
     by
       have h := congrArg (fun ψ : NormalizedVector (Qubits 1) =>
-        (ψ : HilbertVector (Qubits 1))) X_apply_ket1
-      simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, X_matrix] using h
+        (ψ : HilbertVector (Qubits 1))) pauliXOperator_apply_ket1
+      simpa only [UnitaryOperator.apply_coe] using h
   have hZ0 : ZOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ket0 : HilbertVector (Qubits 1)) :=
     by
       have h := congrArg (fun ψ : NormalizedVector (Qubits 1) =>
-        (ψ : HilbertVector (Qubits 1))) Z_apply_ket0
-      simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, Z_matrix] using h
+        (ψ : HilbertVector (Qubits 1))) pauliZOperator_apply_ket0
+      simpa only [UnitaryOperator.apply_coe] using h
   have hZ1 : ZOp.applyVec (ket1 : HilbertVector (Qubits 1)) =
       -(ket1 : HilbertVector (Qubits 1)) := by
-    simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, Z_matrix] using
-      coe_Z_apply_ket1
+    exact pauliZOperator_applyVec_ket1
   cases a <;> cases b <;>
     simp [teleportCorrection, teleportBranchGate, UnitaryOperator.mul_applyVec,
       teleportInput, hX0, hX1, hZ0, hZ1]

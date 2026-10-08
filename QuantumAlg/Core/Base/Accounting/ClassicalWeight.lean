@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Core.Base.Accounting.Kind
+public import QuantumAlg.Core.Base.Accounting.Event
 
 /-!
 # Unit weight for actual classical operations
@@ -18,8 +18,8 @@ receive zero weight; no implementation or event conversion is inferred.
 
 namespace QuantumAlg.Resource.Event
 
-/-- Count one actual classical operation and zero events of every other kind. -/
-@[expose] public def classicalOperationWeight {kind : ProblemKind} : Event kind → Nat
+/-- Count one actual classical operation and zero events of every other model. -/
+@[expose] public def classicalOperationWeight {model : ExecutionModel} : Event model → Nat
   | .classicalOperation _ => 1
   | _ => 0
 

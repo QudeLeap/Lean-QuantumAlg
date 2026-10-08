@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Workspace
+import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Placement
 import Mathlib.Data.List.Perm.Basic
 
 /-!

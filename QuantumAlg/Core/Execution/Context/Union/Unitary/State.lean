@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.State.History
 import all QuantumAlg.Core.Execution.Context.Union.State
 import all QuantumAlg.Core.Execution.Context.Union.Unitary
 import all QuantumAlg.Core.Execution.Local.Marginals
@@ -29,14 +30,16 @@ open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable (left right : RuntimeCtx .quantum)
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+  (left right : RuntimeCtx .quantum)
   (separate : RuntimeCtx.StorageDisjoint left right)
-  (program : UnitaryCircuit left.register) (placed : program.physical_idx = left.physicalIdx)
+  (program : UnitaryCircuit gates oracles left.quantumLayout)
 
 /-- The actual framed operator is the original unitary beside the full reassociated reference. -/
 theorem contextUnion_unitary_referenceBasis (Reference : Register) :
     UnitaryOperator.reindex (referenceBasis left right separate Reference)
-      (UnitaryOperator.prodTensor (frameUnitary left right separate program placed).matrix
+      (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
         (1 : UnitaryOperator Reference)) =
       UnitaryOperator.prodTensor program.matrix
         (1 : UnitaryOperator (Register.prod right.register Reference)) := by
@@ -45,7 +48,7 @@ theorem contextUnion_unitary_referenceBasis (Reference : Register) :
   obtain ⟨leftRow, rightRow, refRow⟩ := row
   obtain ⟨leftColumn, rightColumn, refColumn⟩ := column
   change (UnitaryOperator.prodTensor
-    (frameUnitary left right separate program placed).matrix (1 : UnitaryOperator Reference))
+    (frameUnitary left right separate program).matrix (1 : UnitaryOperator Reference))
       ((unionBasisEquiv left right separate).symm (leftRow, rightRow), refRow)
       ((unionBasisEquiv left right separate).symm (leftColumn, rightColumn), refColumn) =
     (UnitaryOperator.prodTensor program.matrix
@@ -69,11 +72,12 @@ theorem contextUnion_unitary_referenceBasis (Reference : Register) :
   by_cases rightSame : rightRow = rightColumn <;>
     by_cases refSame : refRow = refColumn <;> simp [rightSame, refSame]
 
-private theorem density_naturality {Reference : Register}
+/-- Reindexing a complete framed density commutes with the resident unitary. -/
+theorem density_naturality {Reference : Register}
     (density : DensityOperator
       (Register.prod (left.disjointUnion right separate).register Reference)) :
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor (frameUnitary left right separate program placed).matrix
+      (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
         (1 : UnitaryOperator Reference)) density).reindex
           (referenceBasis left right separate Reference) =
       DensityOperator.applyUnitary
@@ -81,12 +85,12 @@ private theorem density_naturality {Reference : Register}
           (1 : UnitaryOperator (Register.prod right.register Reference)))
         (density.reindex (referenceBasis left right separate Reference)) :=
   (DensityOperator.applyUnitary_reindex
-    (UnitaryOperator.prodTensor (frameUnitary left right separate program placed).matrix
+    (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
       (1 : UnitaryOperator Reference)) density
     (referenceBasis left right separate Reference)).trans
       (congrArg (fun operator => DensityOperator.applyUnitary operator
         (density.reindex (referenceBasis left right separate Reference)))
-        (contextUnion_unitary_referenceBasis left right separate program placed Reference))
+        (contextUnion_unitary_referenceBasis left right separate program Reference))
 
 variable {Reference : Register} {History : Type} [Fintype History]
 
@@ -122,58 +126,46 @@ private theorem historyEquiv_block {kind : ProblemKind} {ctx : RuntimeCtx kind}
       exact Prod.ext rfl (histories.apply_symm_apply history)
   simp only [key, Finset.sum_ite_eq', Finset.mem_univ, if_true]
 
-private theorem historyAssoc_block
-    (state : State left (Register.prod right.register Reference)
-      ((Store right × History) × Unit))
-    (first : Store left) (second : Store right) (history : History) :
-    (state.mapHistory (fun record => (record.1.1, (record.1.2, record.2)))).block
-      (first, (second, (history, ()))) = state.block (first, ((second, history), ())) := by
-  exact historyEquiv_block state (Equiv.prodAssoc (Store right) History Unit)
-    first (second, (history, ()))
+private def executedHistory (Hidden History : Type) :
+    Hidden × ((Store right × History) × Unit) ≃ Store right × (Hidden × (History × Unit)) where
+  toFun record := (record.2.1.1, (record.1, (record.2.1.2, record.2.2)))
+  invFun record := (record.2.1, ((record.1, record.2.2.1), record.2.2.2))
+  left_inv _ := rfl
+  right_inv _ := rfl
 
-/-- Actual unitary execution preserves the entire frame under exact block coordinates. -/
+/-- Actual unitary execution retains the complete resident frame and persistent service. -/
 theorem contextUnion_splitState_unitary
-    (state : State (left.disjointUnion right separate) Reference History) :
+    (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History)) :
     splitState left right separate
-      (state.unitary (frameUnitary left right separate program placed)) =
-      ((splitState left right separate state).unitary program).mapHistory
-        (fun record => (record.1.1, (record.1.2, record.2))) := by
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        (frameUnitary left right separate program)).execute Reference state) =
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        program).execute (Register.prod right.register Reference)
+          (splitServiceState left right separate state)).mapHistory
+            (executedHistory right services.HiddenState History) := by
   apply ExecutionState.ext
-  rintro ⟨first, second, history, path⟩
+  rintro ⟨first, second, hidden, history, path⟩
   cases path
-  let basis := referenceBasis left right separate Reference
-  let fullOperator := UnitaryOperator.prodTensor
-    (frameUnitary left right separate program placed).matrix (1 : UnitaryOperator Reference)
-  let localOperator := UnitaryOperator.prodTensor program.matrix
-    (1 : UnitaryOperator (Register.prod right.register Reference))
-  let original := state.block (join separate first second, history)
-  calc
-    (splitState left right separate
-        (state.unitary (frameUnitary left right separate program placed))).block
-          (first, (second, (history, ()))) =
-        ((state.unitary (frameUnitary left right separate program placed)).block
-          (join separate first second, (history, ()))).reindex basis :=
-      split_block left right separate _ first second (history, ())
-    _ = (DensityOperator.applyUnitary fullOperator original).reindex basis :=
-      congrArg (fun density => density.reindex basis)
-        (Circuit.execute_unitary_block state (frameUnitary left right separate program placed)
-          (contextUnion_frameUnitary_physical left right separate program placed)
-          (join separate first second) history)
-    _ = DensityOperator.applyUnitary localOperator (original.reindex basis) :=
-      density_naturality left right separate program placed original
-    _ = DensityOperator.applyUnitary localOperator
-        ((splitState left right separate state).block (first, (second, history))) :=
-      congrArg (DensityOperator.applyUnitary localOperator)
-        (split_block left right separate state first second history).symm
-    _ = ((splitState left right separate state).unitary program).block
-        (first, ((second, history), ())) :=
-      (Circuit.execute_unitary_block (splitState left right separate state)
-        program placed first (second, history)).symm
-    _ = (((splitState left right separate state).unitary program).mapHistory
-        (fun record => (record.1.1, (record.1.2, record.2)))).block
-          (first, (second, (history, ()))) :=
-      (historyAssoc_block left right
-        ((splitState left right separate state).unitary program) first second history).symm
+  rw [split_block, Circuit.execute_unitary_block, density_naturality]
+  rw [historyEquiv_block]
+  erw [Circuit.execute_unitary_block]
+  rw [splitServiceState, historyEquiv_block]
+  erw [split_block]
+
+/-- The service remains first when complete frame coordinates are used for execution. -/
+theorem contextUnion_splitServiceState_unitary
+    (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History)) :
+    splitServiceState left right separate
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        (frameUnitary left right separate program)).execute Reference state) =
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        program).execute (Register.prod right.register Reference)
+          (splitServiceState left right separate state)).mapHistory
+            (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) := by
+  change (splitState left right separate _).mapHistory
+    (serviceHistory right services.HiddenState (History × Unit)) = _
+  rw [contextUnion_splitState_unitary, State.mapHistory_comp]
+  rfl
 
 end
 

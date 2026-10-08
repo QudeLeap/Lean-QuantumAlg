@@ -30,7 +30,8 @@ open Execution MeasuredUncompute
 def convertedCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) :
-    Circuit (readyContext p.size count) (readyContext p.size count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext p.size count) (readyContext p.size count) :=
   (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹).seq
     ((cascade E points order).seq
       (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient))

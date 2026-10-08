@@ -26,15 +26,15 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width resultWidth : Nat}
 
 private theorem check_scopes_restore (width : Nat)
-    (inner : Circuit (CheckLayout.context ctx width) (CheckLayout.context ctx width))
+    (inner : Circuit model (CheckLayout.context ctx width) (CheckLayout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
-      (state : State (CheckLayout.context ctx width) Reference History),
+      (state : State (CheckLayout.context ctx width) Reference (model.HiddenState × History)),
       inner.BorrowedRestored Reference state (inner.execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (CheckLayout.scopes ctx width inner).BorrowedRestored Reference state
       ((CheckLayout.scopes ctx width inner).execute Reference state) := by
   unfold CheckLayout.scopes
@@ -51,12 +51,12 @@ private theorem check_scopes_restore (width : Nat)
   exact restores entered4
 
 private theorem candidate_scopes_restore (width : Nat)
-    (inner : Circuit (Layout.context ctx width) (Layout.context ctx width))
+    (inner : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
-      (state : State (Layout.context ctx width) Reference History),
+      (state : State (Layout.context ctx width) Reference (model.HiddenState × History)),
       inner.BorrowedRestored Reference state (inner.execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (Layout.scopes ctx width inner).BorrowedRestored Reference state
       ((Layout.scopes ctx width inner).execute Reference state) := by
   unfold Layout.scopes
@@ -71,12 +71,12 @@ private theorem candidate_scopes_restore (width : Nat)
   exact restores entered3
 
 private theorem selection_scopes_restore (width : Nat)
-    (inner : Circuit (SelectionLayout.context ctx width) (SelectionLayout.context ctx width))
+    (inner : Circuit model (SelectionLayout.context ctx width) (SelectionLayout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
-      (state : State (SelectionLayout.context ctx width) Reference History),
+      (state : State (SelectionLayout.context ctx width) Reference (model.HiddenState × History)),
       inner.BorrowedRestored Reference state (inner.execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (SelectionLayout.scopes ctx width inner).BorrowedRestored Reference state
       ((SelectionLayout.scopes ctx width inner).execute Reference state) := by
   unfold SelectionLayout.scopes
@@ -90,18 +90,20 @@ private theorem selection_scopes_restore (width : Nat)
   intro history3 finite3 entered3
   exact restores entered3
 
+variable [BitWord.Selected model]
+
 /-- Both complete checks, local selection and actual final conversion restore the borrowed state.
 -/
 theorem nativeQuadratic_checkedBody_borrowedRestored
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (LocalLayout.context ctx width) Reference History) :
-    (checkedBody modulus original).BorrowedRestored Reference state
-      ((checkedBody modulus original).execute Reference state) := by
+    (state : State (LocalLayout.context ctx width) Reference (model.HiddenState × History)) :
+    (checkedBody (model := model) modulus original).BorrowedRestored Reference state
+      ((checkedBody (model := model) modulus original).execute Reference state) := by
   let pair := LocalLayout.pairRefs modulus
-  exact Circuit.borrowedRestored_seq (Pair.code pair)
-    (NarrowSelection.code (FirstAccepted.cellRead pair.selection.accepted)
+  exact Circuit.borrowedRestored_seq (Pair.code (model := model) pair)
+    (NarrowSelection.code (model := model) (FirstAccepted.cellRead pair.selection.accepted)
       (FirstAccepted.cellRead pair.selection.selected) (LocalLayout.persistentRefs original width))
     state (nativeQuadratic_pair_borrowedRestored pair Reference state)
     (NarrowSelection.nativeQuadratic_narrow_borrowedRestored
@@ -116,30 +118,33 @@ theorem nativeQuadratic_candidateBody_borrowedRestored
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (LocalLayout.candidateContext ctx width) Reference History) :
-    (candidateBody input modulus original).BorrowedRestored Reference state
-      ((candidateBody input modulus original).execute Reference state) := by
+    (state : State (LocalLayout.candidateContext ctx width) Reference
+      (model.HiddenState × History)) :
+    (candidateBody (model := model) input modulus original).BorrowedRestored Reference state
+      ((candidateBody (model := model) input modulus original).execute Reference state) := by
   exact Circuit.borrowedRestored_seq
-    (Initialized.code (LocalLayout.arithmeticRead input width)
+    (Initialized.code (model := model) (LocalLayout.arithmeticRead input width)
       (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width))
     (CheckLayout.scopes (LocalLayout.candidateContext ctx width) (RSA.quadraticWordWidth width)
-      (checkedBody modulus original)) state
+      (checkedBody (model := model) modulus original)) state
     (nativeQuadratic_initialized_borrowedRestored (LocalLayout.arithmeticRead input width)
       (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width)
       Reference state)
-    (check_scopes_restore (RSA.quadraticWordWidth width) (checkedBody modulus original) Reference
+    (check_scopes_restore (RSA.quadraticWordWidth width)
+      (checkedBody (model := model) modulus original) Reference
       (nativeQuadratic_checkedBody_borrowedRestored modulus original Reference) _)
 
 /-- The complete actual quadratic program restores every arbitrary borrowed joint interface. -/
 theorem nativeQuadratic_program_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (program input modulus original).BorrowedRestored Reference state
-      ((program input modulus original).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (program (model := model) input modulus original).BorrowedRestored Reference state
+      ((program (model := model) input modulus original).execute Reference state) := by
   apply selection_scopes_restore
   intro history historyFinite entered
-  exact candidate_scopes_restore width (candidateBody input modulus original) Reference
+  exact candidate_scopes_restore width
+    (candidateBody (model := model) input modulus original) Reference
     (nativeQuadratic_candidateBody_borrowedRestored input modulus original Reference) entered
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic

@@ -47,17 +47,26 @@ structure Input (width : Nat) where
 abbrev Output (width : Nat) := Word width
 
 /-- Append one bit to a most-significant-bit-first natural accumulator. -/
-def appendBit (accumulator : Nat) (bit : Bool) : Nat :=
+@[expose] public def appendBit (accumulator : Nat) (bit : Bool) : Nat :=
   2 * accumulator + bit.toNat
 
 /-- Head-recursive accumulator fold, in the same increasing-index order used
 by a machine `forRange`.  It is kept beside the mathematically convenient
 last-recursive fold so routine proofs do not need a trace replay. -/
-def accumulatorFold : (width : Nat) → Nat → (Fin width → Bool) → Nat
+@[expose] public def accumulatorFold : (width : Nat) → Nat → (Fin width → Bool) → Nat
   | 0, accumulator, _bits => accumulator
   | width + 1, accumulator, bits =>
       accumulatorFold width (appendBit accumulator (bits 0))
         (bits ∘ Fin.succ)
+
+@[simp] public theorem accumulatorFold_zero (accumulator : Nat)
+    (bits : Fin 0 → Bool) : accumulatorFold 0 accumulator bits = accumulator := rfl
+
+@[simp] public theorem accumulatorFold_succ (width accumulator : Nat)
+    (bits : Fin (width + 1) → Bool) :
+    accumulatorFold (width + 1) accumulator bits =
+      accumulatorFold width (2 * accumulator + (bits 0).toNat)
+        (bits ∘ Fin.succ) := rfl
 
 private theorem accumulatorFold_eq_ofBits {width : Nat}
     (accumulator : Nat) (bits : Fin width → Bool) :

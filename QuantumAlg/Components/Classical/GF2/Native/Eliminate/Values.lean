@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem nativeXor_value (left right : ClassicalAlgorithms.Word width) :
     CShape.wordBitXor width (.unsignedWord left) (.unsignedWord right) =
@@ -61,6 +62,7 @@ private theorem eliminateStep_update (samples : ClassicalAlgorithms.GF2.Samples 
     · simp [ClassicalAlgorithms.GF2.eliminateStep, ClassicalAlgorithms.GF2.eliminateRow,
         same, active]
 
+omit [BitWord.Selected model] in
 /-- The actual stored pivot-column test is the original pure MSB-first bit. -/
 theorem gf2EliminationBit_of_rows
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
@@ -162,8 +164,8 @@ theorem gf2EliminateWithPivot_read_matrix
       (eliminatedPrefix samples pivot column target.val) established
     rw [eliminatedPrefix_update] at actual
     exact actual
-  have completed := Circuit.forRangeRecord_invariant rowCount
-    (fun target => eliminateTarget matrix pivot target column)
+  have completed := Circuit.forRangeStoreRecord_invariant rowCount
+    (fun target => eliminateTarget (model := model) matrix pivot target column)
     (fun target => eliminateTargetStep matrix pivot target column)
     invariant advance store initial
   change invariant rowCount (eliminateWithPivotStep matrix pivot column store).1 at completed

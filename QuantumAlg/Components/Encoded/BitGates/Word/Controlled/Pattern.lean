@@ -117,12 +117,13 @@ theorem controlledPatternGates_work (expected : Fin controls → Bool) (state : 
 
 /-- Actual pattern control retains exact encoded amplitudes and every original non-output value. -/
 theorem controlledPatternGates_realizes (expected : Fin controls → Bool) :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList
-      (layout.controlledPatternGates control sources output work expected))
+    UnitaryCircuit.Realizes encoding (layout := QubitLayout.canonical encoding.width)
+      (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
+        (layout.controlledPatternGates control sources output work expected))
       (fun state => if control.get state then
         (if layout.PatternMatches expected state then layout.output.flip state else state)
       else state) :=
-  GateSpec.realizesList_congrStep _
+  GateSpec.realizesList_congrStep (QubitLayout.canonical encoding.width) .empty _
     (layout.controlledPatternGates_step control sources output work expected)
 
 /-- Exact emitted length includes both original masks and the enlarged native conjunction. -/
@@ -144,11 +145,11 @@ theorem controlledPatternGates_length_le (expected : Fin controls → Bool) :
 
 /-- Strict unit duration uses the complete actual elementary list. -/
 theorem controlledPatternGates_unitDepth (expected : Fin controls → Bool) :
-    (GateSpec.programList
+    (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
       (layout.controlledPatternGates control sources output work expected)).evaluatedEventDepth
         (fun _ => 1) =
       (layout.controlledPatternGates control sources output work expected).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit _ _ _
 
 end
 

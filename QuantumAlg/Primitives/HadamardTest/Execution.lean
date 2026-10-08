@@ -71,27 +71,28 @@ def readout (width : Nat) : ZReadout (post width) where
     exact resultRef width
 
 def beforeMeasurement {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Circuit (pre width) (post width) :=
-  .seq (OwnedQubitPrefix.prepareCode 1 width)
-    (.seq (.unitary (nativeProgram unitary) (nativeProgram_placement unitary))
-      (.retain (prepared width) ⟨2⟩ (.finite 2) (resultFresh width)))
+    Circuit (model unitary) (pre width) (post width) :=
+  .seq (OwnedQubitPrefix.prepareCode AlgorithmGate.model (UnitarySource.model unitary true) 1 width)
+    (.seq (.unitary (nativeProgram unitary))
+      (.retain (model := model unitary) (prepared width) ⟨2⟩ (.finite 2) (resultFresh width)))
 
-def readoutCode (width : Nat) : Circuit (post width) (post width) :=
+def readoutCode {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+    Circuit (model unitary) (post width) (post width) :=
   Circuit.measurementSequence [readout width]
 
 /-- Every preparation, gate and stored measurement belongs to this one circuit. -/
 def code {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Circuit (pre width) (post width) :=
-  .seq (beforeMeasurement unitary) (readoutCode width)
+    Circuit (model unitary) (pre width) (post width) :=
+  .seq (beforeMeasurement unitary) (readoutCode unitary)
 
 def run {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    AlgorithmRun (pre width) (post width) (.finite 2) where
+    AlgorithmRun (model unitary) (pre width) (post width) (.finite 2) where
   code := code unitary
   output := Output.all (post width) (.read (.storage (resultRef width).toCStorageRef))
 
 /-- The algorithm contains only the same complete native run. -/
 public def algorithm {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Algorithm .quantum (pre width) (post width) (.finite 2) := ⟨run unitary⟩
+    Algorithm (model unitary) (pre width) (post width) (.finite 2) := ⟨run unitary⟩
 
 theorem run_output_listing {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
     (run unitary).output.listing = (post width).keys := rfl

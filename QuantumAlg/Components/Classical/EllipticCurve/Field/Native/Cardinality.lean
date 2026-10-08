@@ -24,17 +24,19 @@ coefficient path always computes raw XGCD and signed reduction.
 
 namespace QuantumAlg.ClassicalRoutines.EllipticCurve.Field.Native
 
+open Execution
 open ClassicalAlgorithms.Modular Modular.Reduce.Native
 open NumberTheory.XGCD.Native NumberTheory.Checked.SignedReduction.Native
 
-variable {width : Nat} (kind : ProblemKind) (spec : ModulusSpec width)
+variable {width : Nat} (model : ExecutionModel) [BitWord.Selected model]
+  (spec : ModulusSpec width)
 
 /-- The actual total coefficient allowance has the original linear event ceiling. -/
 theorem coefficientEnvelope_card_le :
-    (coefficientEnvelope kind spec).card ≤ 30 * width + 70 := by
-  have loaded := ConstantWord.constantLoader_length_le kind (width + 1) spec.modulus
-  have raw := rawEnvelope_card kind (width + 1)
-  have signed := signedReductionEnvelope_card_le kind width
+    (coefficientEnvelope model spec).card ≤ 30 * width + 70 := by
+  have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
+  have raw := rawEnvelope_card model (width + 1)
+  have signed := signedReductionEnvelope_card_le model width
   unfold coefficientEnvelope
   simp only [Multiset.card_add, ResourcePool.ofList, Multiset.coe_card,
     List.length_cons, List.length_nil]
@@ -42,32 +44,32 @@ theorem coefficientEnvelope_card_le :
 
 /-- One actual loaded reduction pays for its loader, division and remainder resize. -/
 theorem loadedReductionTrace_length_le (sourceWidth : Nat) :
-    (loadedReductionTrace kind sourceWidth spec).length ≤ 2 * width + 4 := by
-  have loaded := ConstantWord.constantLoader_length_le kind (width + 1) spec.modulus
+    (loadedReductionTrace model sourceWidth spec).length ≤ 2 * width + 4 := by
+  have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
   simp only [loadedReductionTrace, reductionEvents, List.length_append,
     List.length_cons, List.length_nil]
   omega
 
 /-- Full multiplication precedes its actual loaded reduction. -/
 theorem multiplicationTrace_length_le :
-    (multiplicationTrace kind spec).length ≤ 2 * width + 5 := by
-  have reduced := loadedReductionTrace_length_le kind spec (width + width)
-  change (loadedReductionTrace kind (width + width) spec).length + 1 ≤ _
+    (multiplicationTrace model spec).length ≤ 2 * width + 5 := by
+  have reduced := loadedReductionTrace_length_le model spec (width + width)
+  change (loadedReductionTrace model (width + width) spec).length + 1 ≤ _
   omega
 
 /-- Both original widenings and flagged addition precede the actual loaded reduction. -/
 theorem additionTrace_length_le :
-    (additionTrace kind spec).length ≤ 2 * width + 7 := by
-  have reduced := loadedReductionTrace_length_le kind spec (width + 1)
+    (additionTrace model spec).length ≤ 2 * width + 7 := by
+  have reduced := loadedReductionTrace_length_le model spec (width + 1)
   simp only [additionTrace, additionPrefixTrace, List.length_append,
     List.length_cons, List.length_nil]
   omega
 
 /-- The original subtraction trace retains both real modulus loaders. -/
 theorem subtractionTrace_length_le :
-    (subtractionTrace kind spec).length ≤ 4 * width + 10 := by
-  have loaded := ConstantWord.constantLoader_length_le kind (width + 1) spec.modulus
-  have reduced := loadedReductionTrace_length_le kind spec (width + 1)
+    (subtractionTrace model spec).length ≤ 4 * width + 10 := by
+  have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
+  have reduced := loadedReductionTrace_length_le model spec (width + 1)
   simp only [subtractionTrace, subtractionPrefixTrace, List.length_append,
     List.length_cons, List.length_nil]
   omega

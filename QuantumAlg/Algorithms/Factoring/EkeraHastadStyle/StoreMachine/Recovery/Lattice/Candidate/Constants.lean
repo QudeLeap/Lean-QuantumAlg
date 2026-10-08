@@ -40,38 +40,47 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   zeroAvoidsUpper :
     refs.upperBound.key ∉ (writeInput refs.zero).storageKeys
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Clear the original zero cell, then self-initialize and load the original upper bound. -/
-def loadInto (m : Nat) (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
+def loadInto (m : Nat) (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model)
+      (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
     (ClassicalRoutines.Word.PowerOfTwo.into m refs.upperBound)
 
 /-- The actual zero initialization and upper-bound stores with their full chronological paths. -/
 def loadStep (m : Nat) (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (loadInto m refs).Path :=
+  let cleared := BitWord.instructionStep (execution := model)
+    (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero) store
   let upper := ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound
-    (store.applyOp (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
-  (upper.1, ((), upper.2))
+    cleared.1
+  (upper.1, (cleared.2, upper.2))
 
 /-- The complete actual constant initializer retains all original execution-state blocks. -/
 theorem loadInto_execute (m : Nat) (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadInto m refs).execute Reference state = state.mapClassical (fun entry =>
-      ((loadStep m refs entry.1).1, (entry.2, (loadStep m refs entry.1).2))) := by
+      let actual := loadStep m refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (.classical (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
+    (BitWord.instruction (execution := model)
+      (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
     (ClassicalRoutines.Word.PowerOfTwo.into m refs.upperBound)
-    (fun store => (store.applyOp (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero), ()))
-    (ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound) (by
-      intro Reference History _ state
-      refine (Circuit.execute_classical_mapClassical
-        (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero) Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (ClassicalRoutines.Word.PowerOfTwo.into_execute m refs.upperBound) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model)
+        (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current =>
+      ClassicalRoutines.Word.PowerOfTwo.into_execute m refs.upperBound reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual read outside the two original constant destinations remains unchanged. -/
 def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=

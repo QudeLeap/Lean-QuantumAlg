@@ -48,21 +48,28 @@ def parameterRef (ctx : RuntimeCtx kind) (N : Nat) :
   CWriteRef.retainedHead (sampleContext ctx N) (sampleContext ctx N).canonicalFreshKey
     (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+
 /-- Two genuine retention instructions allocate precisely those two result cells. -/
-def allocation (ctx : RuntimeCtx kind) (N : Nat) : Circuit ctx (context ctx N) :=
+def allocation (ctx : RuntimeCtx model.kind) (N : Nat) : Circuit model ctx (context ctx N) :=
   .seq (.retain ctx ctx.canonicalFreshKey (.bits (residueSamplingBits N))
     ctx.canonicalFreshKey_fresh)
     (.retain (sampleContext ctx N) (sampleContext ctx N).canonicalFreshKey
       (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh)
 
 /-- Draw the actual source sample and execute the expanded native parameter preparation. -/
-def body (ctx : RuntimeCtx kind) (N : Nat) : Circuit (context ctx N) (context ctx N) :=
-  .seq (PackedSample.draw N (sampleRef ctx N))
-    (Program.circuit N (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
+def body (ctx : RuntimeCtx model.kind) (N : Nat) : Circuit model (context ctx N) (context ctx N) :=
+  .seq (PackedSample.draw (model := model) N (sampleRef ctx N))
+    (Program.circuit (model := model)
+      N (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N))
 
 /-- The complete native residue sampler retains its source sample and full computed parameter. -/
-def circuit (ctx : RuntimeCtx kind) (N : Nat) : Circuit ctx (context ctx N) :=
-  .seq (allocation ctx N) (body ctx N)
+def circuit (ctx : RuntimeCtx model.kind) (N : Nat) : Circuit model ctx (context ctx N) :=
+  .seq (allocation (model := model) ctx N) (body (model := model) ctx N)
+
+end
 
 /-- The exact store extension produced by the two real retention instructions. -/
 def pushStore {ctx : RuntimeCtx kind} (N : Nat) (store : Store ctx) : Store (context ctx N) :=

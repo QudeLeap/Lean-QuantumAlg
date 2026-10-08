@@ -9,6 +9,8 @@ module
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Control.Placement
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.ExtendedClock.Increment
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Work2.PhaseRotation
+import all QuantumAlg.Core.Base.UnitaryCircuit.Adjoint
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 
 /-!
 # Actual Ctrl-controlled Work2 and complete existing-wire clock operations
@@ -69,22 +71,31 @@ private theorem exchanged_counter (width : Nat)
   cases control <;> rfl
 
 /-- The actual left Toffoli sweep, controlled by the existing Ctrl instead of Phase2. -/
-def leftWordProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  ControlPlacement.place width (GateSpec.programList (Work2PhaseRotation.leftGates width))
+def leftWordProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  ControlPlacement.place width (GateSpec.programList (QubitLayout.canonical _) .empty
+    (Work2PhaseRotation.leftGates width))
 
 /-- The actual right Toffoli sweep with the same physical Ctrl placement. -/
-def rightWordProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  ControlPlacement.place width (GateSpec.programList (Work2PhaseRotation.rightGates width))
+def rightWordProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  ControlPlacement.place width (GateSpec.programList (QubitLayout.canonical _) .empty
+    (Work2PhaseRotation.rightGates width))
 
 /-- The actual HRS incrementer on the existing source fields, controlled by Ctrl. -/
-def incrementProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def incrementProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   ControlPlacement.place width (ExtendedClockIncrement.program width)
 
 private theorem leftWord_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (leftWordProgram width)
       (wordStep (fun word => word.rotateLeft 1)) :=
   (ControlPlacement.place_realizes width
-    (GateSpec.realizesList_congrStep (Work2PhaseRotation.leftGates width)
+    (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+      (Work2PhaseRotation.leftGates width)
       (Work2PhaseRotation.left_step width))).congrStep (by
         intro state
         exact exchanged_word width (fun word => word.rotateLeft 1) state)
@@ -93,7 +104,8 @@ private theorem rightWord_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (rightWordProgram width)
       (wordStep (fun word => word.rotateRight 1)) :=
   (ControlPlacement.place_realizes width
-    (GateSpec.realizesList_congrStep (Work2PhaseRotation.rightGates width)
+    (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+      (Work2PhaseRotation.rightGates width)
       (Work2PhaseRotation.right_step width))).congrStep (by
         intro state
         exact exchanged_word width (fun word => word.rotateRight 1) state)
@@ -107,28 +119,36 @@ private theorem increment_realizes (width : Nat) :
       exact exchanged_counter width PaddingClock.increment state)
 
 private theorem decrement_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (incrementProgram width).dagger
+    UnitaryCircuit.Realizes (encoding width)
+      ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
       (counterStep PaddingClock.decrement) := by
-  apply (increment_realizes width).dagger_of_rightInverse
-  intro state
-  rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
-    ⟨p1, p2, sign, iter⟩, control⟩
-  cases control with
-  | false => rfl
-  | true =>
-      simp only [counterStep, if_true]
-      exact congrArg
-        (fun pair : BitVec (width + 3) × BitVec width.size =>
-          Registers.mk pair.1 word2 lengthT lengthQ lengthR pair.2 ⟨p1, p2, sign, iter⟩ true)
-        (PaddingClock.increment_decrement (word1, shift))
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse (increment_realizes width)
+  · rw [UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · intro state
+    rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
+      ⟨p1, p2, sign, iter⟩, control⟩
+    cases control with
+    | false => rfl
+    | true =>
+        simp only [counterStep, if_true]
+        exact congrArg
+          (fun pair : BitVec (width + 3) × BitVec width.size =>
+            Registers.mk pair.1 word2 lengthT lengthQ lengthR pair.2 ⟨p1, p2, sign, iter⟩ true)
+          (PaddingClock.increment_decrement (word1, shift))
 
 /-- One actual left rotation is followed by the actual finite increment. -/
-def leftProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def leftProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   (leftWordProgram width).seq (incrementProgram width)
 
 /-- One actual right rotation is followed by the actual finite decrement. -/
-def rightProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (rightWordProgram width).seq (incrementProgram width).dagger
+def rightProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (rightWordProgram width).seq
+    ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
 
 /-- Retain all fields while applying the ordered left-word/increment assignment on Ctrl. -/
 def leftStep {width : Nat} (state : Registers width) : Registers width :=
@@ -168,20 +188,19 @@ theorem right_realizes (width : Nat) :
 /-- The actual left trace retains both the Toffoli sweep and every native HRS event in order. -/
 theorem left_eventTrace (width : Nat) :
     (leftProgram width).eventTrace =
-      (Work2PhaseRotation.leftGates width).map GateSpec.event ++
+      (Work2PhaseRotation.leftGates width).map (GateSpec.event .empty) ++
         (ExtendedClockIncrement.program width).eventTrace := by
   rw [leftProgram, UnitaryCircuit.seq_eventTrace, leftWordProgram,
     ControlPlacement.place_eventTrace, GateSpec.programList_eventTrace,
     incrementProgram, ControlPlacement.place_eventTrace]
 
-/-- The actual right trace retains the word sweep followed by the reversed finite-counter trace. -/
+/-- The actual right trace retains the word sweep followed by the native generated inverse. -/
 theorem right_eventTrace (width : Nat) :
     (rightProgram width).eventTrace =
-      (Work2PhaseRotation.rightGates width).map GateSpec.event ++
-        (ExtendedClockIncrement.program width).eventTrace.reverse := by
+      (Work2PhaseRotation.rightGates width).map (GateSpec.event .empty) ++
+        ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace := by
   rw [rightProgram, UnitaryCircuit.seq_eventTrace, rightWordProgram,
-    ControlPlacement.place_eventTrace, GateSpec.programList_eventTrace,
-    UnitaryCircuit.dagger_eventTrace, incrementProgram, ControlPlacement.place_eventTrace]
+    ControlPlacement.place_eventTrace, GateSpec.programList_eventTrace]
 
 end
 

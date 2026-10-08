@@ -60,6 +60,27 @@ theorem state_inverse (original : State source Reference H) :
     (recordEquiv (source := source) keys physical H)
     (referenceBasis (source := source) keys physical Reference)
 
+/-- The inverse store and basis coordinates assemble back to the supplied target state. -/
+theorem state_reverse (target : State (source.relabel keys physical) Reference H) :
+    state keys physical
+      ((target.mapClassical
+        (recordEquiv (source := source) keys physical H).symm).reindex
+          (referenceBasis (source := source) keys physical Reference).symm) = target := by
+  let labels := recordEquiv (source := source) keys physical H
+  let coordinates := referenceBasis (source := source) keys physical Reference
+  change (((target.mapClassical labels.symm).reindex coordinates.symm).mapClassical
+    labels).reindex coordinates = target
+  simpa only [Equiv.symm_symm] using
+    (ExecutionState.coordinate_transport_inverse target labels.symm coordinates.symm)
+
+/-- Every complete target state comes from one state in the original coordinates. -/
+theorem state_surjective (target : State (source.relabel keys physical) Reference H) :
+    ∃ original : State source Reference H, state keys physical original = target :=
+  ⟨(target.mapClassical
+    (recordEquiv (source := source) keys physical H).symm).reindex
+      (referenceBasis (source := source) keys physical Reference).symm,
+    state_reverse keys physical target⟩
+
 /-- Each transported matrix entry is exactly the original entry at the inverse coordinates. -/
 theorem state_entry (original : State source Reference H)
     (label : Store (source.relabel keys physical) × H)

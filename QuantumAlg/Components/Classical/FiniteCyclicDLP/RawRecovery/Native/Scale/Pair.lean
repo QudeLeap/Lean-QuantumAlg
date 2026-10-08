@@ -24,16 +24,9 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+section Descriptor
 
-/-- The original six native instructions share both arithmetic scratch cells. -/
-def scalePairBody (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
-    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
-    (division : CWriteRef ctx (scaleDivisionShape width))
-    (left right : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (scaleBody rawLeft modulus denominator product division left)
-    (scaleBody rawRight modulus denominator product division right)
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The second scaling starts in the actual first scaling's returned store. -/
 def scalePairStore (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
@@ -43,37 +36,6 @@ def scalePairStore (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (left right : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) : Store ctx :=
   scaleStore rawRight modulus denominator product division right
     (scaleStore rawLeft modulus denominator product division left store)
-
-/-- Both original scaling calls retain the complete quantum-reference state and actual paths. -/
-theorem scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
-    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
-    (division : CWriteRef ctx (scaleDivisionShape width))
-    (left right : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (scalePairBody rawLeft rawRight modulus denominator product division left right).execute
-      Reference state = state.mapClassical (fun entry =>
-        (scalePairStore rawLeft rawRight modulus denominator product division left right entry.1,
-          (entry.2, (((), ((), ())), ((), ((), ())))))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (scaleBody rawLeft modulus denominator product division left)
-    (scaleBody rawRight modulus denominator product division right)
-    (fun before => (scaleStore rawLeft modulus denominator product division left before,
-      ((), ((), ()))))
-    (fun before => (scaleStore rawRight modulus denominator product division right before,
-      ((), ((), ()))))
-    (fun reference {_} _ before => by
-      refine (scaleBody_execute rawLeft modulus denominator product division left
-        reference before).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ before => by
-      refine (scaleBody_execute rawRight modulus denominator product division right
-        reference before).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
 
 /-- Protect the later source reads and first output while the original scratch is reused. -/
 structure ScalePairSeparation (rawRight : CInputRef ctx (.unsignedWord width))
@@ -142,16 +104,82 @@ theorem scalePairBody_read_other (rawLeft rawRight : CInputRef ctx (.unsignedWor
     (scaleBody_read_other rawLeft modulus denominator product division left other
       productFree divisionFree leftFree store)
 
+end Descriptor
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
+
+/-- The original six native instructions share both arithmetic scratch cells. -/
+def scalePairBody (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (left right : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (scaleBody (model := model) rawLeft modulus denominator product division left)
+    (scaleBody (model := model) rawRight modulus denominator product division right)
+
+/-- Both actual triples record their values at the shared scratch stores they really use. -/
+def scalePairStep (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (left right : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx ×
+      (scalePairBody (model := model) rawLeft rawRight modulus denominator
+        product division left right).Path :=
+  let first := scaleStep (model := model) rawLeft modulus denominator product division left store
+  let second := scaleStep (model := model) rawRight modulus denominator product division
+    right first.1
+  (second.1, (first.2, second.2))
+
+/-- Both original calls preserve the complete service, history and quantum-reference state. -/
+theorem scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (left right : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scalePairBody (model := model) rawLeft rawRight modulus denominator product division
+      left right).execute Reference state = state.mapClassical (fun entry =>
+        let result := scalePairStep (model := model) rawLeft rawRight modulus denominator
+          product division left right entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (scaleBody (model := model) rawLeft modulus denominator product division left)
+    (scaleBody (model := model) rawRight modulus denominator product division right)
+    (fun before =>
+      let result := scaleStep (model := model) rawLeft modulus denominator product division
+        left before.1
+      ((result.1, before.2), result.2))
+    (fun before =>
+      let result := scaleStep (model := model) rawRight modulus denominator product division
+        right before.1
+      ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ before
+    exact (scaleBody_execute (model := model) rawLeft modulus denominator product division left
+      reference before).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · intro reference history _ before
+    exact (scaleBody_execute (model := model) rawRight modulus denominator product division right
+      reference before).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 /-- Exactly the original two full-product, division and resize triples are executed. -/
 theorem scalePairBody_eventTrace (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
     (left right : CWriteRef ctx (.unsignedWord width))
-    (path : (scalePairBody rawLeft rawRight modulus denominator product division left right).Path) :
-    (scalePairBody rawLeft rawRight modulus denominator product division left right).eventTrace
-        path =
-      scaleBodyEvents kind width ++ scaleBodyEvents kind width := rfl
+    (path : (scalePairBody (model := model) rawLeft rawRight modulus denominator
+      product division left right).Path) :
+    (scalePairBody (model := model) rawLeft rawRight modulus denominator
+      product division left right).eventTrace path =
+      scaleBodyEvents (model := model) width ++ scaleBodyEvents (model := model) width := by
+  change (scaleBody (model := model) rawLeft modulus denominator product division left).eventTrace
+      path.1 ++
+    (scaleBody (model := model) rawRight modulus denominator product division right).eventTrace
+      path.2 = _
+  rw [scaleBody_eventTrace, scaleBody_eventTrace]
 
 end
 

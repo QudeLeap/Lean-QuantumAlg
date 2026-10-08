@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Execution.Store
 
 /-!
@@ -20,7 +21,7 @@ it does not permit an arbitrary computation in a read reference.
 namespace QuantumAlg.CInputRef
 
 /-- Actual stored keys traversed by one closed structural input reference. -/
-def storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape} :
+@[expose] public def storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape} :
     CInputRef ctx shape → List StorageKey
   | .storage ref => [ref.key]
   | .product left right => storageKeys left ++ storageKeys right
@@ -32,7 +33,7 @@ def storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape} :
   | .wordBitGet input _index => storageKeys input
 
 /-- Every structurally read key names a real existing context entry. -/
-theorem storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape) :
     input.storageKeys ⊆ ctx.keys := by
   induction input with
@@ -56,7 +57,7 @@ theorem storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx kind}
   | wordBitGet input index ih => exact ih
 
 /-- Lifting an old reference under a retained cell preserves its exact read support. -/
-theorem storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (retainedShape : CShape) (fresh : key ∉ ctx.keys) :
     (input.underRetained key retainedShape fresh).storageKeys = input.storageKeys := by
@@ -72,7 +73,7 @@ theorem storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
   | wordBitGet input index ih => exact ih
 
 /-- A fresh retained output cannot alias any pre-existing structural input. -/
-theorem fresh_not_mem_storageKeys_underRetained {kind : ProblemKind}
+public theorem fresh_not_mem_storageKeys_underRetained {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (retainedShape : CShape) (fresh : key ∉ ctx.keys) :
     key ∉ (input.underRetained key retainedShape fresh).storageKeys := by
@@ -84,7 +85,7 @@ end QuantumAlg.CInputRef
 namespace QuantumAlg.Execution.Store
 
 /-- A write outside the structural input's actual key support preserves its complete value. -/
-theorem read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {written observed : CShape} (store : Store ctx) (output : CWriteRef ctx written)
     (value : written.Value) (input : CInputRef ctx observed)
     (separate : output.key ∉ input.storageKeys) :
@@ -115,7 +116,7 @@ theorem read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx
       exact congrArg (fun entry => entry.wordBitGet index) (ih separate)
 
 /-- A closed operation changes no structural input outside its actual written key. -/
-theorem read_applyOp_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem read_applyOp_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output observed : CShape} (store : Store ctx)
     (op : ClassicalOp input output ctx ctx) (other : CInputRef ctx observed)
     (separate : op.outputRef.key ∉ other.storageKeys) :

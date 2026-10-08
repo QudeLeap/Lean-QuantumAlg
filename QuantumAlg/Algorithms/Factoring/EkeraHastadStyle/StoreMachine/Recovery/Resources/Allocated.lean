@@ -20,9 +20,12 @@ the same independent width polynomial after the caller result is preserved.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticeRecoveryResources
 
+open Execution
+
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The complete allocated caller program satisfies the independent fixed-batch event bound. -/
 theorem fixedBatchRecovery_eventCount_le (input : Input N)

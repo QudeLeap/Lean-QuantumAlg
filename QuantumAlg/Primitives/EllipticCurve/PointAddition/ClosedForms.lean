@@ -7,7 +7,8 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import Mathlib.Data.Nat.Log
+public import Mathlib.Data.Nat.Log
+import Mathlib.Tactic.Ring
 
 /-!
 # Closed resource formulas for controlled elliptic-curve point addition
@@ -30,6 +31,31 @@ namespace ControlledPointAddition
 /-- Exact logical carrier width of one controlled affine point addition. -/
 public def logicalQubitCount (fieldWidth : Nat) : Nat :=
   37 * fieldWidth + 27 + 3 * Nat.clog 2 (2 * fieldWidth)
+
+/-- Auxiliary carrier after excluding the public control and mutable affine
+point from the complete controlled-addition layout. -/
+public def auxiliaryQubitCount (fieldWidth : Nat) : Nat :=
+  35 * fieldWidth + 26 + 3 * Nat.clog 2 (2 * fieldWidth)
+
+/-- The public logical carrier equals its explicit scalar formula. -/
+public theorem logicalQubitCount_eq_closed (fieldWidth : Nat) :
+    logicalQubitCount fieldWidth =
+      37 * fieldWidth + 27 + 3 * Nat.clog 2 (2 * fieldWidth) := by
+  rfl
+
+/-- The public auxiliary carrier equals its explicit scalar formula. -/
+public theorem auxiliaryQubitCount_eq_closed (fieldWidth : Nat) :
+    auxiliaryQubitCount fieldWidth =
+      35 * fieldWidth + 26 + 3 * Nat.clog 2 (2 * fieldWidth) := by
+  rfl
+
+/-- The complete carrier splits into the public control and affine point plus
+the stated auxiliary carrier. -/
+theorem logicalQubitCount_eq_public_add_auxiliary (fieldWidth : Nat) :
+    logicalQubitCount fieldWidth =
+      (1 + 2 * fieldWidth) + auxiliaryQubitCount fieldWidth := by
+  unfold logicalQubitCount auxiliaryQubitCount
+  omega
 
 namespace ClosedForms
 
@@ -173,6 +199,52 @@ end ClosedForms
 /-- Width-only Toffoli upper bound of one controlled affine point addition. -/
 public def toffoliCountBound (fieldWidth : Nat) : Nat :=
   ClosedForms.translationToffoli fieldWidth
+
+/-- Published polynomial form of the controlled point-addition Toffoli bound. -/
+public def publishedToffoliCountBound (fieldWidth : Nat) : Nat :=
+  let height := Nat.clog 2 (2 * fieldWidth)
+  (22656 * height + 247488) * fieldWidth ^ 2 +
+    (23120 * height - 41836) * fieldWidth + 3550
+
+/-- The published Toffoli ceiling equals its explicit scalar polynomial. -/
+public theorem publishedToffoliCountBound_eq_closed (fieldWidth : Nat) :
+    publishedToffoliCountBound fieldWidth =
+        (22656 * Nat.clog 2 (2 * fieldWidth) + 247488) * fieldWidth ^ 2 +
+          (23120 * Nat.clog 2 (2 * fieldWidth) - 41836) * fieldWidth + 3550 := by
+  rfl
+
+/-- The actual arithmetic-ledger bound normalizes to the published polynomial.
+The lower bounds make every predecessor and coefficient subtraction exact. -/
+theorem toffoliCountBound_eq_published (fieldWidth : Nat)
+    (fieldWidthPositive : 0 < fieldWidth)
+    (heightAtLeastTwo : 2 ≤ Nat.clog 2 (2 * fieldWidth)) :
+    toffoliCountBound fieldWidth = publishedToffoliCountBound fieldWidth := by
+  obtain ⟨fieldTail, rfl⟩ := Nat.exists_eq_add_of_le fieldWidthPositive
+  generalize heightEq : Nat.clog 2 (2 * (1 + fieldTail)) = height at heightAtLeastTwo ⊢
+  obtain ⟨heightTail, rfl⟩ := Nat.exists_eq_add_of_le heightAtLeastTwo
+  have coefficient :
+      23120 * (2 + heightTail) - 41836 = 4404 + 23120 * heightTail := by
+    omega
+  have heightPred : 2 + heightTail - 1 = 1 + heightTail := by
+    omega
+  unfold toffoliCountBound publishedToffoliCountBound
+  unfold ClosedForms.translationToffoli ClosedForms.additionGateLength
+    ClosedForms.additionCnot ClosedForms.additionToffoli ClosedForms.divisionGateLength
+    ClosedForms.inversionGateLength ClosedForms.inversionCnot
+    ClosedForms.inversionToffoli ClosedForms.foldGateLength
+    ClosedForms.roundGateLength ClosedForms.activeRouteGateLength
+    ClosedForms.terminatingRouteGateLength ClosedForms.correctionComputeGateLength
+    ClosedForms.correctionComputeCnot ClosedForms.correctionComputeToffoli
+    ClosedForms.counterCorrectionBitGateLength
+    ClosedForms.counterCorrectionBitToffoli ClosedForms.unitMultiplicationGateLength
+    ClosedForms.unitMultiplicationCnot ClosedForms.unitMultiplicationToffoli
+    ClosedForms.stagedTargetAddGateLength ClosedForms.stagedTargetAddCnot
+    ClosedForms.stagedTargetAddToffoli ClosedForms.variableEvent
+    ClosedForms.variableCnot ClosedForms.variableToffoli ClosedForms.arithmeticWidth
+    ClosedForms.counterWidth
+  simp only [heightEq, coefficient, heightPred, Nat.add_sub_cancel_left,
+    Nat.succ_eq_add_one]
+  ring
 
 /-- Width-only sequential unit-gate-depth upper bound of one controlled affine
 point addition. -/

@@ -54,6 +54,24 @@ theorem state_inverse (original : State source Reference H) :
   ExecutionState.coordinate_transport_inverse original (recordEquiv same H)
     (referenceBasis same Reference)
 
+/-- Reversing the store and basis coordinates reconstructs the supplied target state. -/
+theorem state_reverse (targetState : State target Reference H) :
+    state same
+      ((targetState.mapClassical (recordEquiv same H).symm).reindex
+        (referenceBasis same Reference).symm) = targetState := by
+  let labels := recordEquiv same H
+  let coordinates := referenceBasis same Reference
+  change (((targetState.mapClassical labels.symm).reindex coordinates.symm).mapClassical
+    labels).reindex coordinates = targetState
+  simpa only [Equiv.symm_symm] using
+    (ExecutionState.coordinate_transport_inverse targetState labels.symm coordinates.symm)
+
+/-- Every target state has a source with the same complete permuted density blocks. -/
+theorem state_surjective (targetState : State target Reference H) :
+    ∃ original : State source Reference H, state same original = targetState :=
+  ⟨(targetState.mapClassical (recordEquiv same H).symm).reindex
+    (referenceBasis same Reference).symm, state_reverse same targetState⟩
+
 /-- Each transported matrix entry is exactly the original entry at the inverse coordinates. -/
 theorem state_entry (original : State source Reference H) (label : Store target × H)
     (row column : (Register.prod target.register Reference).Index) :

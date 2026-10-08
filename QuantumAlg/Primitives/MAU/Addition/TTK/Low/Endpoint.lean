@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Core.Algorithm
 public import QuantumAlg.Core.Execution.Owned.Qubits
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Primitives.MAU.Addition.TTK.Low.Semantics
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
@@ -17,8 +18,10 @@ import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Borrowed.Empty
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
-import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Low.Semantics
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Resources
 
@@ -44,23 +47,46 @@ open Execution.OwnedQubits
 private def semanticOperator (width : Nat) : UnitaryOperator (context (width + width)).register :=
   UnitaryOperator.reindex (basisEquiv (width + width)).symm (lowOperator width)
 
-private def program (width : Nat) : UnitaryCircuit (context (width + width)).register :=
-  UnitaryCircuit.reindex (basisEquiv (width + width)).symm (completeLowProgram width)
+private theorem supplied_wires (width : Nat) :
+    (QubitLayout.canonical (encoding width).width).toQuantum.wires =
+      (context (width + width)).quantumLayout.wires := by
+  rw [ttkEncoding_width, two_mul]
+  exact Execution.OwnedQubits.canonical_wires (width + width)
+
+private def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (context (width + width)).quantumLayout :=
+  Execution.unitaryOfEqualWires
+    (QubitLayout.canonical (encoding width).width).toQuantum
+    (context (width + width)).quantumLayout (supplied_wires width)
+      (lowRippleProgram width)
 
 private theorem program_matrix (width : Nat) :
     (program width).matrix = semanticOperator width := by
-  exact (UnitaryCircuit.reindex_matrix (basisEquiv (width + width)).symm
-    (completeLowProgram width)).trans
-      (congrArg (UnitaryOperator.reindex (basisEquiv (width + width)).symm)
-        (ttkCompleteLow_matrix width))
+  unfold semanticOperator
+  have sourceMatrix : (lowRippleProgram width).matrix =
+      UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (lowOperator width) := by
+    have binary := congrArg
+      (UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm)
+      (ttkLowRipple_matrix width)
+    change UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (UnitaryOperator.reindex
+            (QubitLayout.canonical (encoding width).width).basisEquiv
+            (lowRippleProgram width).matrix) = _ at binary
+    rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
+    exact binary
+  rw [program, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
+  apply Subtype.ext
+  ext row column
+  rfl
 
-private theorem placement (width : Nat) :
-    (program width).physical_idx = (context (width + width)).physicalIdx := by
-  change (completeLowProgram width).physical_idx = (context (width + width)).physicalIdx
-  rw [ttkCompleteLow_physical, ownedQubits_physicalIdx]
-
-private def code (width : Nat) : Circuit (context (width + width)) (context (width + width)) :=
-  .unitary (program width) (placement width)
+private def code (width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (context (width + width)) (context (width + width)) :=
+  .unitary (program width)
 
 /-- Independent complete two-word addition contract.
 
@@ -82,30 +108,42 @@ schedule and its boundary-width counts are proved for this implementation;
 the source's parallel schedule is not used for this depth bound.
 -/
 public def problem (width : Nat) :
-    Problem .quantum (context (width + width)) (context (width + width)) .unit where
+    Problem (.quantum AlgorithmGate.model .empty)
+      (context (width + width)) (context (width + width)) .unit where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [StateRequirement.unitary (semanticOperator width)]
   resources :=
     { events := (width + 2 * (width - 1) + 2 * (width - 2)) •
-        ResourcePool.singleton (.gate (.builtin "cnot")) +
-        (2 * (width - 1)) • ResourcePool.singleton (.gate (.builtin "toffoli"))
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+          (.gate .cnot) +
+        (2 * (width - 1)) •
+          ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+            (.gate .toffoli)
       resident := space (width + width)
       auxiliary := space (width + width) }
-  depth := .quantum (fun _ => 1) (width + 4 * (width - 1) + 2 * (width - 2))
+  depth :=
+    { duration := fun _ => 1
+      limit := width + 4 * (width - 1) + 2 * (width - 2)
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute the literal low-word ripple and retain both supplied operands. -/
 public def algorithm (width : Nat) :
-    Algorithm .quantum (context (width + width)) (context (width + width)) .unit where
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (context (width + width)) (context (width + width)) .unit where
   run := { code := code width, output := Output.all (context (width + width)) .unit }
 
 private theorem actual_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path = (problem width).resources.events := by
   change ResourcePool.ofList (program width).eventTrace = _
   have cost : (program width).eventCost = (lowRippleProgram width).eventCost :=
-    (UnitaryCircuit.reindex_eventCost (basisEquiv (width + width)).symm
-      (completeLowProgram width)).trans (ttkCompleteLow_eventCost width)
+    Execution.unitaryOfEqualWires_cost
+      (QubitLayout.canonical (encoding width).width).toQuantum
+      (context (width + width)).quantumLayout (supplied_wires width)
+      (lowRippleProgram width) .empty .empty
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, cost]
   apply Multiset.ext.mpr
   intro event
@@ -128,36 +166,42 @@ private theorem actual_auxiliary (width : Nat) (path : (code width).Path) :
   rw [ownedQubits_auxiliary]
   exact le_of_eq (Nat.max_zero _)
 
+private theorem actual_depth (width : Nat) (path : (code width).Path) :
+    (code width).depth (fun _ => 1) path =
+      width + 4 * (width - 1) + 2 * (width - 2) := by
+  change DepthExpr.depthEval (fun _ => 1) ((program width).eventDepth .empty .empty) = _
+  rw [program, Execution.unitaryOfEqualWires_depth]
+  exact ttkLowRipple_serial_depth width
+
 /-- The actual ancilla-free ripple solves the independent all-state addition problem. -/
 public theorem main (width : Nat) :
     ∃ candidate, Algorithm.Solves candidate (problem width) := by
   refine ⟨algorithm width, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (semanticOperator width) :=
       List.mem_singleton.mp present
     subst requirement
     exact StateRequirement.unitary_holds (semanticOperator width)
-      (program width) (placement width) (program_matrix width)
+      (program width) (program_matrix width)
       (Output.all (context (width + width)) .unit) input
-  · intro Reference input _valid
-    exact Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
-      (program width) (placement width)
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initialized
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+      (program width) (Output.all (context (width + width)) .unit) input
+  · intro _Reference _input _valid _initialized path _supported
     exact le_of_eq (actual_events width path)
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact actual_resident width path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact actual_auxiliary width path
-  · intro _Reference _input _valid path _supported
-    exact le_of_eq (ttkCompleteLow_depth width)
+  · intro _Reference _input _valid _initialized path _supported
+    exact le_of_eq (actual_depth width path)
 
 end
 

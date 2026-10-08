@@ -7,18 +7,18 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Base.Layout.Quantum
-public import QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Core.Base.UnitaryCircuit
+public import QuantumAlg.Core.Base.Gate.Unitary
+public import QuantumAlg.Core.Base.State.Normalized
 import all QuantumAlg.Core.Base.Gate.Unitary
 public import Mathlib.Algebra.Group.Fin.Basic
 
 /-!
 # Cyclic shifts on one finite-dimensional physical system
 
-A declared shift adds a fixed finite value at one selected wire of a
+The mathematical shift adds a fixed finite value at one selected wire of a
 heterogeneous quantum layout. Every other basis coordinate is unchanged.
-The native gate coordinate records the selected dimension and shift amount;
-its placement is the selected wire's actual physical identity.
+This operator does not declare a native gate. Execution requires an actual
+realization in the selected gate and oracle model.
 
 The operator is certified by its computational-basis permutation. Its use in
 state evolution follows unitary conjugation [dW19, qcnotes.tex:5405].
@@ -66,7 +66,7 @@ theorem operator_apply_ket (layout : QuantumLayout systemCount) (wire : Fin syst
   exact UnitaryOperator.ofPerm_apply_ket (R := layout.register)
     (labelShift layout wire amount).symm basis
 
-/-- Public basis action of the declared finite-dimensional shift. -/
+/-- Public basis action of the finite-dimensional shift operator. -/
 public theorem quditShift_operator_apply_ket (layout : QuantumLayout systemCount)
     (wire : Fin systemCount) (amount : Fin (layout.wire wire).dimension) (basis : layout.Basis) :
     (operator layout wire amount).apply (NormalizedVector.ket basis) =
@@ -88,74 +88,6 @@ theorem shifted_other_value (layout : QuantumLayout systemCount) (wire : Fin sys
     (Function.update basis wire (basis wire + amount)) other = basis other := by
   simp [Function.update_of_ne different]
 
-/-- The declaration owns the native gate name, dimension, and modular shift. -/
-def gateLabel {dimension : ℕ+} (amount : Fin dimension) : Resource.GateLabel :=
-  .builtin "qudit-cyclic-shift" [dimension, amount.val]
-
-/-- One gate occurrence at the selected wire's actual physical identity. -/
-def leafAt (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) : UnitaryLeaf layout.register :=
-  UnitaryLeaf.gate (gateLabel amount) [(layout.wire wire).identity]
-    (operator layout wire amount)
-
-/-- The atomic placement contains precisely the selected physical system. -/
-theorem leafAt_systemIdx (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (leafAt layout wire amount).systemIdx = [(layout.wire wire).identity] := rfl
-
-/-- The gate occurrence has the declared native coordinate. -/
-theorem leafAt_event (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (leafAt layout wire amount).event = .gate (gateLabel amount) := rfl
-
-/-- Execute the selected one-system gate within the complete physical layout. -/
-public def program (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) : UnitaryCircuit layout.register :=
-  UnitaryCircuit.ofLeafAt layout.identities (leafAt layout wire amount)
-    layout.identities_nodup (by simp [leafAt]) (by
-      intro identity member
-      have same : identity = (layout.wire wire).identity := by
-        simpa [leafAt] using member
-      subst identity
-      exact List.mem_ofFn.mpr ⟨wire, rfl⟩)
-
-/-- Gate execution uses exactly the certified shift operator. -/
-theorem program_matrix (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).matrix = operator layout wire amount := rfl
-
-/-- The full layout remains available after the selected gate. -/
-theorem program_physical_idx (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).physical_idx = layout.identities := rfl
-
-/-- The public placed program executes the certified shift operator. -/
-public theorem quditShift_program_matrix (layout : QuantumLayout systemCount)
-    (wire : Fin systemCount) (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).matrix = operator layout wire amount :=
-  program_matrix layout wire amount
-
-/-- The public placed program retains the exact complete physical footprint. -/
-public theorem quditShift_program_physical_idx (layout : QuantumLayout systemCount)
-    (wire : Fin systemCount) (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).physical_idx = layout.identities :=
-  program_physical_idx layout wire amount
-
-/-- The actual native trace consists of the one selected gate occurrence. -/
-theorem program_eventTrace (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).eventTrace = [.gate (gateLabel amount)] := rfl
-
-/-- The event pool is recovered from that same one-gate program. -/
-theorem program_eventCost (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).eventCost =
-      ResourcePool.singleton (.gate (gateLabel amount)) := rfl
-
-/-- The event critical path is the one declared gate occurrence. -/
-theorem program_eventDepth (layout : QuantumLayout systemCount) (wire : Fin systemCount)
-    (amount : Fin (layout.wire wire).dimension) :
-    (program layout wire amount).eventDepth = .atom (.gate (gateLabel amount)) := rfl
 
 end
 

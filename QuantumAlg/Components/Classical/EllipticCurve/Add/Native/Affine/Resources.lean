@@ -31,29 +31,34 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Distinct original native allowances in their actual chronological positions. -/
-def affineStageEnvelope (kind : ProblemKind) (spec : ModulusSpec width) :
-    Fin 9 → ResourcePool kind :=
-  let product := ResourcePool.ofList (multiplicationTrace kind spec)
-  let subtraction := ResourcePool.ofList (subtractionTrace kind spec)
-  ![coefficientEnvelope kind spec, product, product, subtraction, subtraction,
+def affineStageEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : Fin 9 → ResourcePool model :=
+  let product := ResourcePool.ofList (multiplicationTrace model spec)
+  let subtraction := ResourcePool.ofList (subtractionTrace model spec)
+  ![coefficientEnvelope model spec, product, product, subtraction, subtraction,
     subtraction, product, subtraction,
-    ResourcePool.ofList [.classicalOperation (.nominalEncoding (.packEllipticCurvePoint width))]]
+    ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.packEllipticCurvePoint width)))]]
 
 /-- The original nine distinct allowances are added, with every loader counted at each call. -/
-def affineEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  ∑ index, affineStageEnvelope kind spec index
+def affineEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  ∑ index, affineStageEnvelope model spec index
 
 /-- Original stage duration allowances retain each real field-constant loader. -/
-def affineStageDepthLimit (spec : ModulusSpec width) (duration : Resource.Event kind → Nat) :
+def affineStageDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : ModulusSpec width) (duration : Resource.Event model → Nat) :
     Fin 9 → Nat :=
-  let product := ((multiplicationTrace kind spec).map duration).sum
-  let subtraction := ((subtractionTrace kind spec).map duration).sum
+  let product := ((multiplicationTrace model spec).map duration).sum
+  let subtraction := ((subtractionTrace model spec).map duration).sum
   ![coefficientDepthLimit spec duration, product, product, subtraction, subtraction,
     subtraction, product, subtraction,
-    duration (.classicalOperation (.nominalEncoding (.packEllipticCurvePoint width)))]
+    duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.packEllipticCurvePoint width))))]
 
 /-- The original serial dependency allowance adds the nine actual calls. -/
-def affineDepthLimit (spec : ModulusSpec width) (duration : Resource.Event kind → Nat) : Nat :=
+def affineDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : ModulusSpec width) (duration : Resource.Event model → Nat) : Nat :=
   ∑ index, affineStageDepthLimit spec duration index
 
 /-- Only one of the original arithmetic scopes is active at a time. -/
@@ -64,6 +69,11 @@ def affineActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
       (((subtractionShapes width).map SpacePool.ofShape).sum +
         subtractionReductionSpace kind width))
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 private theorem affineStage_pool_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
@@ -71,35 +81,37 @@ private theorem affineStage_pool_le (spec : ModulusSpec width)
     (path : (affineStage spec leftX rightX leftY numerator denominator scratch output index).Path) :
     (affineStage spec leftX rightX leftY numerator denominator scratch output index).resourcePool
       path ≤
-      affineStageEnvelope kind spec index := by
-  fin_cases index
+      affineStageEnvelope model spec index := by
+  revert path
+  fin_cases index <;> intro path
   all_goals first
     | exact coefficientIntoWord_pool_le _ _ _ path
     | exact (mulIntoWord_resourcePool _ _ _ _ path).le
     | exact (subIntoWord_resourcePool _ _ _ _ path).le
-    | exact le_rfl
+    | exact (congrArg ResourcePool.ofList (repackRawInto_eventTrace _ _ path)).le
 
 private theorem affineBody_pool_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
     (affineBody spec leftX rightX leftY numerator denominator scratch output).resourcePool path ≤
-      affineEnvelope kind spec :=
+      affineEnvelope model spec :=
   Circuit.forRange_pool_le_sum 9
     (affineStage spec leftX rightX leftY numerator denominator scratch output)
-    (affineStageEnvelope kind spec)
+    (affineStageEnvelope model spec)
     (affineStage_pool_le spec leftX rightX leftY numerator denominator scratch output) path
 
 private theorem affineStage_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (index : Fin 9)
     (path : (affineStage spec leftX rightX leftY numerator denominator scratch output index).Path) :
     (affineStage spec leftX rightX leftY numerator denominator scratch output index).depth
       duration path ≤
       affineStageDepthLimit spec duration index := by
-  fin_cases index
+  revert path
+  fin_cases index <;> intro path
   all_goals first
     | exact coefficientIntoWord_depth_le _ _ _ duration path
     | exact (mulIntoWord_durationDepth _ _ _ _ duration path).le
@@ -109,7 +121,7 @@ private theorem affineStage_depth_le (spec : ModulusSpec width)
 private theorem affineBody_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
     (affineBody spec leftX rightX leftY numerator denominator scratch output).depth duration path ≤
       affineDepthLimit spec duration :=
@@ -122,7 +134,7 @@ private theorem affineBody_depth_le (spec : ModulusSpec width)
 private theorem affineStage_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (index : Fin 9)
     (path : (affineStage spec leftX rightX leftY numerator denominator scratch output index).Path) :
     (affineStage spec leftX rightX leftY numerator denominator scratch output index).depth
@@ -130,7 +142,8 @@ private theorem affineStage_duration_eventTrace (spec : ModulusSpec width)
       ((((affineStage spec leftX rightX leftY numerator denominator scratch output
           index).eventTrace
         path).map duration).sum) := by
-  fin_cases index
+  revert path
+  fin_cases index <;> intro path
   all_goals first
     | exact coefficientIntoWord_duration_eventTrace _ _ _ duration path
     | exact (mulIntoWord_durationDepth _ _ _ _ duration path).trans
@@ -144,7 +157,7 @@ private theorem affineStage_duration_eventTrace (spec : ModulusSpec width)
 private theorem affineBody_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
     (affineBody spec leftX rightX leftY numerator denominator scratch output).depth duration path =
       ((((affineBody spec leftX rightX leftY numerator denominator scratch output).eventTrace
@@ -160,12 +173,12 @@ theorem affineInto_pool_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
     (affineInto spec leftX rightX leftY numerator denominator output).resourcePool path ≤
-      affineEnvelope kind spec := by
+      affineEnvelope model spec := by
   exact withCellsFrom_property (Transport.id ctx) (affineShapes width)
     (fun cells _ transport _ => affineBody spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
-    (fun _ code => ∀ selected, code.resourcePool selected ≤ affineEnvelope kind spec)
+    (fun _ code => ∀ selected, code.resourcePool selected ≤ affineEnvelope model spec)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => affineBody_pool_le _ _ _ _ _ _ _ _ selected) path
 
@@ -173,7 +186,7 @@ theorem affineInto_pool_le (spec : ModulusSpec width)
 theorem affineInto_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
     (affineInto spec leftX rightX leftY numerator denominator output).depth duration path ≤
       affineDepthLimit spec duration := by
@@ -189,7 +202,7 @@ theorem affineInto_depth_le (spec : ModulusSpec width)
 theorem affineInto_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
     (affineInto spec leftX rightX leftY numerator denominator output).depth duration path =
       (((affineInto spec leftX rightX leftY numerator denominator output).eventTrace path).map
@@ -210,12 +223,13 @@ private theorem affineBody_resident_le (spec : ModulusSpec width)
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
     (affineBody spec leftX rightX leftY numerator denominator scratch output).peakResidentSpace
       path ≤
-      affineActiveSpace kind width + ctx.residentSpace := by
+      affineActiveSpace model.kind width + ctx.residentSpace := by
   refine Circuit.forRange_resident_le 9
     (affineStage spec leftX rightX leftY numerator denominator scratch output)
-    (affineActiveSpace kind width + ctx.residentSpace) le_add_self ?_ path
+    (affineActiveSpace model.kind width + ctx.residentSpace) le_add_self ?_ path
   intro index selected
-  fin_cases index
+  revert selected
+  fin_cases index <;> intro selected
   all_goals first
     | exact (coefficientIntoWord_resident_le _ _ _ selected).trans
         (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -232,13 +246,13 @@ theorem affineInto_resident_le (spec : ModulusSpec width)
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
     (affineInto spec leftX rightX leftY numerator denominator output).peakResidentSpace
       path ≤
-      ((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace kind width +
+      ((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace model.kind width +
         ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (affineShapes width)
     (fun cells _ transport _ => affineBody spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
-    (affineActiveSpace kind width)
+    (affineActiveSpace model.kind width)
     (fun cells _ transport _ selected => affineBody_resident_le _ _ _ _ _ _ _ _ selected) path
 
 private theorem affineBody_auxiliary_le (spec : ModulusSpec width)
@@ -247,12 +261,13 @@ private theorem affineBody_auxiliary_le (spec : ModulusSpec width)
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
     (affineBody spec leftX rightX leftY numerator denominator scratch output).peakAuxiliarySpace
       path ≤
-      affineActiveSpace kind width + ctx.auxiliarySpace := by
+      affineActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine Circuit.forRange_auxiliary_le 9
     (affineStage spec leftX rightX leftY numerator denominator scratch output)
-    (affineActiveSpace kind width + ctx.auxiliarySpace) le_add_self ?_ path
+    (affineActiveSpace model.kind width + ctx.auxiliarySpace) le_add_self ?_ path
   intro index selected
-  fin_cases index
+  revert selected
+  fin_cases index <;> intro selected
   all_goals first
     | exact (coefficientIntoWord_auxiliary_le _ _ _ selected).trans
         (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -269,14 +284,16 @@ theorem affineInto_auxiliary_le (spec : ModulusSpec width)
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
     (affineInto spec leftX rightX leftY numerator denominator output).peakAuxiliarySpace
       path ≤
-      ((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace kind width +
+      ((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace model.kind width +
         ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (affineShapes width)
     (fun cells _ transport _ => affineBody spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
-    (affineActiveSpace kind width)
+    (affineActiveSpace model.kind width)
     (fun cells _ transport _ selected => affineBody_auxiliary_le _ _ _ _ _ _ _ _ selected) path
+
+end
 
 end
 

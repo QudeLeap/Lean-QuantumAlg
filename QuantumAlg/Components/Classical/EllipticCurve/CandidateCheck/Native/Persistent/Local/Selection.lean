@@ -24,27 +24,29 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
 /-- Local execution preserves a common acceptance bit without fixing the selected word. -/
 theorem underPersistent_acceptance_supported
-    (code : Circuit ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) (flag : Bool)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
+    (flag : Bool)
     (holds : ∀ entry, 0 < (state.block entry).mass →
       (entry.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         flag)
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (underPersistent code supported width scalarWidth).Path))
+      (model.HiddenState × (H × (underPersistent code supported width scalarWidth).Path)))
     (positive : 0 < (((underPersistent code supported width scalarWidth).execute
       Reference state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
       flag := by
   have kept := retained_observation_supported (persistentCoordinates ctx width scalarWidth)
-    (persistentStores ctx width scalarWidth) (@persistentStores_mass kind ctx width scalarWidth)
+    (persistentStores ctx width scalarWidth)
+    (@persistentStores_mass model.kind ctx width scalarWidth)
     code (underPersistent code supported width scalarWidth)
     (underPersistentPathEquiv code supported width scalarWidth)
-    (@persistentCoordinates_execute kind ctx code supported width scalarWidth)
+    (@persistentCoordinates_execute model ctx code supported width scalarWidth)
     (fun history => (savedLatches width scalarWidth history).1) flag state
     (fun original positive =>
       (congrArg Prod.fst (persistentStores_latches width scalarWidth original.1)).trans
@@ -72,20 +74,6 @@ private theorem gated_weight_supported {C : Type} [Fintype C] {R : Register}
   simp only [ExecutionState.effectWeight, termwise]
   split_ifs <;> simp
 
-private theorem execute_weight_select_sum {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) {Reference : Register} {H : Type} [Fintype H]
-    (state : State pre Reference H) (read : Store pre × H → Bool)
-    (effects : Circuit.EffectFamily post Reference (H × code.Path)) :
-    (code.execute Reference state).effectWeight effects =
-      ∑ flag : Bool, (code.execute Reference (state.selectClassical read flag)).effectWeight
-        effects := by
-  simp only [Circuit.effectWeight_execute]
-  have same := congrArg (fun current : State pre Reference H =>
-    current.effectWeight (code.effectPullback Reference effects))
-      (ExecutionState.finiteSum_selectClassical state read)
-  rw [ExecutionState.effectWeight_finiteSum] at same
-  exact same.symm
-
 private theorem selected_supported {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (read : C → Bool) (flag : Bool)
     (entry : C) (positive : 0 < ((state.selectClassical read flag).block entry).mass) :
@@ -95,18 +83,20 @@ private theorem selected_supported {C : Type} [Fintype C] {R : Register}
   rw [zero, DensityOperator.zero_mass] at positive
   exact (lt_irrefl 0) positive
 
-private theorem execute_gated_weight {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) {Reference : Register} {H : Type} [Fintype H]
-    (readInput : Store pre × H → Bool) (readOutput : Store post × (H × code.Path) → Bool)
-    (preserves : ∀ (state : State pre Reference H) (flag : Bool),
+private theorem execute_gated_weight {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) {Reference : Register} {H : Type} [Fintype H]
+    (readInput : Store pre × (model.HiddenState × H) → Bool)
+    (readOutput : Store post × (model.HiddenState × (H × code.Path)) → Bool)
+    (preserves : ∀ (state : State pre Reference (model.HiddenState × H)) (flag : Bool),
       (∀ entry, 0 < (state.block entry).mass → readInput entry = flag) →
       ∀ entry, 0 < ((code.execute Reference state).block entry).mass → readOutput entry = flag)
-    (state : State pre Reference H) (wanted : Bool)
-    (effects : Circuit.EffectFamily post Reference (H × code.Path)) :
+    (state : State pre Reference (model.HiddenState × H)) (wanted : Bool)
+    (effects : Circuit.EffectFamily post Reference
+      (model.HiddenState × (H × code.Path))) :
     (code.execute Reference state).effectWeight
         (fun entry => if readOutput entry = wanted then effects entry else Effect.zero _) =
       (code.execute Reference (state.selectClassical readInput wanted)).effectWeight effects := by
-  rw [execute_weight_select_sum code state readInput]
+  rw [Circuit.effectWeight_execute_partition code state readInput]
   have summands : ∀ flag : Bool,
       (code.execute Reference (state.selectClassical readInput flag)).effectWeight
           (fun entry => if readOutput entry = wanted then effects entry else Effect.zero _) =
@@ -120,11 +110,12 @@ private theorem execute_gated_weight {pre post : RuntimeCtx kind}
 
 /-- A joint observation at one acceptance value equals execution on that actual input fiber. -/
 theorem underPersistent_acceptance_effectWeight
-    (code : Circuit ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) (flag : Bool)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
+    (flag : Bool)
     (effects : Circuit.EffectFamily (persistentCtx ctx width scalarWidth) Reference
-      (H × (underPersistent code supported width scalarWidth).Path)) :
+      (model.HiddenState × (H × (underPersistent code supported width scalarWidth).Path))) :
     ((underPersistent code supported width scalarWidth).execute Reference state).effectWeight
         (fun entry => if (entry.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = flag

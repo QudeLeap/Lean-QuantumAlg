@@ -19,13 +19,14 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual original target-power check and first-success selection. -/
 def powerSelectionInto (spec : ModulusSpec modulusWidth)
-    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit ctx ctx :=
+    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit model ctx ctx :=
   .seq (LatticeCandidatePowerMachine.candidatePowerInto spec refs.power)
     (LatticeCandidateSelector.candidateSelectorInto refs.selector)
 
@@ -42,24 +43,19 @@ def powerSelectionStep (spec : ModulusSpec modulusWidth)
 quantum-reference block. -/
 theorem powerSelectionInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (powerSelectionInto spec refs).execute Reference state = state.mapClassical (fun entry =>
-      ((powerSelectionStep spec refs entry.1).1,
-        (entry.2, (powerSelectionStep spec refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeCandidatePowerMachine.candidatePowerInto spec refs.power)
-    (LatticeCandidateSelector.candidateSelectorInto refs.selector)
-    (LatticeCandidatePowerMachine.candidateStep spec refs.power)
-    (LatticeCandidateSelector.selectorStep refs.selector)
-    (LatticeCandidatePowerMachine.candidatePowerInto_execute spec refs.power)
-    (LatticeCandidateSelector.candidateSelectorInto_execute refs.selector)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := powerSelectionStep spec refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [powerSelectionInto, Circuit.execute_seq,
+    LatticeCandidatePowerMachine.candidatePowerInto_execute,
+    LatticeCandidateSelector.candidateSelectorInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual original exponent classification followed by power and selection. -/
 def exponentChecksInto (spec : ModulusSpec modulusWidth)
-    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit ctx ctx :=
+    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit model ctx ctx :=
   .seq (LatticeCandidateExponent.candidateExponentInto refs.exponent) (powerSelectionInto spec refs)
 
 /-- Complete chronological store and selected paths of the actual original exponent
@@ -75,22 +71,18 @@ def exponentChecksStep (spec : ModulusSpec modulusWidth)
 incoming quantum-reference block. -/
 theorem exponentChecksInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (exponentChecksInto spec refs).execute Reference state = state.mapClassical (fun entry =>
-      ((exponentChecksStep spec refs entry.1).1,
-        (entry.2, (exponentChecksStep spec refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeCandidateExponent.candidateExponentInto refs.exponent) (powerSelectionInto spec refs)
-    (LatticeCandidateExponent.exponentStep refs.exponent) (powerSelectionStep spec refs)
-    (LatticeCandidateExponent.candidateExponentInto_execute refs.exponent)
-    (powerSelectionInto_execute spec refs)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := exponentChecksStep spec refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [exponentChecksInto, Circuit.execute_seq,
+    LatticeCandidateExponent.candidateExponentInto_execute, powerSelectionInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual original distance range check and remaining candidate checks. -/
 def rangeChecksInto (spec : ModulusSpec modulusWidth)
-    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit ctx ctx :=
+    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit model ctx ctx :=
   .seq (LatticeNearTargetScale.scaleInto refs.nearTarget) (exponentChecksInto spec refs)
 
 /-- Complete chronological store and selected paths of the actual original distance range
@@ -106,23 +98,19 @@ def rangeChecksStep (spec : ModulusSpec modulusWidth)
 incoming quantum-reference block. -/
 theorem rangeChecksInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (rangeChecksInto spec refs).execute Reference state = state.mapClassical (fun entry =>
-      ((rangeChecksStep spec refs entry.1).1,
-        (entry.2, (rangeChecksStep spec refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeNearTargetScale.scaleInto refs.nearTarget) (exponentChecksInto spec refs)
-    (LatticeNearTargetScale.scaleStep refs.nearTarget) (exponentChecksStep spec refs)
-    (LatticeNearTargetScale.scaleInto_execute refs.nearTarget)
-    (exponentChecksInto_execute spec refs)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := rangeChecksStep spec refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [rangeChecksInto, Circuit.execute_seq,
+    LatticeNearTargetScale.scaleInto_execute, exponentChecksInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual original offset, candidate distance and complete candidate checks. -/
 def candidateSlotInto (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3)
-    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit ctx ctx :=
+    (refs : Refs ctx coordinateWidth modulusWidth) : Circuit model ctx ctx :=
   .seq (LatticeCandidateDistancePrefix.candidateDistancePrefixInto offset refs.distance)
     (rangeChecksInto spec refs)
 
@@ -141,19 +129,15 @@ incoming quantum-reference block. -/
 theorem candidateSlotInto_execute (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSlotInto spec offset refs).execute Reference state = state.mapClassical (fun entry =>
-      ((candidateSlotStep spec offset refs entry.1).1,
-        (entry.2, (candidateSlotStep spec offset refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeCandidateDistancePrefix.candidateDistancePrefixInto offset refs.distance)
-    (rangeChecksInto spec refs)
-    (LatticeCandidateDistancePrefix.prefixStep offset refs.distance) (rangeChecksStep spec refs)
-    (LatticeCandidateDistancePrefix.candidateDistancePrefixInto_execute offset refs.distance)
-    (rangeChecksInto_execute spec refs)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := candidateSlotStep spec offset refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [candidateSlotInto, Circuit.execute_seq,
+    LatticeCandidateDistancePrefix.candidateDistancePrefixInto_execute,
+    rangeChecksInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 
 end

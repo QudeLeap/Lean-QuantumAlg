@@ -11,11 +11,6 @@ import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
 import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
-import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
-import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
 
 /-!
 # Unconditional encoded-word swaps
@@ -36,6 +31,7 @@ namespace EncodedBit
 namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Three-CNOT swaps for every corresponding bit of two encoded words. -/
 def swapGates (left right : Word encoding width)
@@ -47,16 +43,8 @@ def swapGates (left right : Word encoding width)
 /-- Base-gate program for bitwise swap of two encoded words. -/
 def swapProgram (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (swapGates left right hleftRight)
-
-/-- A word-swap program uses only wires of its shared encoding. -/
-theorem swapProgram_physical_idx_subset_range
-    (left right : Word encoding width)
-    (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    (swapProgram left right hleftRight).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (swapGates left right hleftRight)
 
 /-- Semantic action of bitwise swap of two encoded words. -/
 def swapStep (left right : Word encoding width)
@@ -476,33 +464,33 @@ theorem swapStep_eq_id_of_width_zero
 theorem swap_realizes (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (swapProgram left right hleftRight)
+      (swapProgram physical oracles left right hleftRight)
       (swapStep left right hleftRight) :=
-  GateSpec.realizesList (swapGates left right hleftRight)
+  GateSpec.realizesList physical oracles (swapGates left right hleftRight)
 
 /-- Direct realization proof for bitwise swap of two encoded words. -/
 theorem swapWitness (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    UnitaryCircuit.Realizes encoding (swapProgram left right hleftRight)
+    UnitaryCircuit.Realizes encoding (swapProgram physical oracles left right hleftRight)
       (swapStep left right hleftRight) :=
-  swap_realizes left right hleftRight
+  swap_realizes physical oracles left right hleftRight
 
 /-- Typed circuit folded from the exact word-swap program. -/
 def swapCircuit (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  swapProgram left right hleftRight
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  swapProgram physical oracles left right hleftRight
 
 /-- Normalized encoded-basis endpoint of the exact word-swap circuit. -/
 theorem swapCircuit_applyNormalized_encoded_ket
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (x : Data) :
-    (swapCircuit left right hleftRight).applyNormalized
-        (NormalizedVector.ket (encoding.encode x)) =
+    (swapCircuit physical oracles left right hleftRight).applyNormalized
+        (NormalizedVector.ket (physical.basisEquiv.symm (encoding.encode x))) =
       NormalizedVector.ket
-        (encoding.encode (swapStep left right hleftRight x)) :=
-  (swapWitness left right hleftRight).apply_encoded_ket x
+        (physical.basisEquiv.symm (encoding.encode (swapStep left right hleftRight x))) :=
+  (swapWitness physical oracles left right hleftRight).apply_encoded_ket x
 
 /-- The exact gate list contains three CNOTs per word bit. -/
 theorem swapGates_length (left right : Word encoding width)
@@ -573,7 +561,7 @@ theorem swapGates_toffoliMultiplicity_sum
 /-- The word-swap program emits exactly three targeted primitive events per bit. -/
 theorem swapProgram_primitiveEventCount (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    GateSpec.primitiveEventCount (swapProgram left right hleftRight) =
+    GateSpec.primitiveEventCount (swapProgram physical oracles left right hleftRight) =
       3 * width := by
   rw [swapProgram, GateSpec.primitiveEventCount_programList,
     swapGates_length]
@@ -597,8 +585,8 @@ private theorem swapGates_isCnot (left right : Word encoding width)
 
 private theorem cnotList_eventCount (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (GateSpec.programList gates).eventCost = gates.length := by
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
+        (GateSpec.programList physical oracles gates).eventCost = gates.length := by
   induction gates with
   | nil => rfl
   | cons gate rest ih =>
@@ -609,9 +597,10 @@ private theorem cnotList_eventCount (gates : List (GateSpec encoding))
       | x target => simp [isCnotGate] at hgate
       | cnot control target hct =>
           change
-            ResourcePool.count (.gate (.builtin "cnot"))
-                (ResourcePool.singleton (.gate (.builtin "cnot")) +
-                  (GateSpec.programList rest).eventCost) =
+            ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
+                (ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
+                    (.gate .cnot) +
+                  (GateSpec.programList physical oracles rest).eventCost) =
               (GateSpec.cnot control target hct :: rest).length
           rw [ResourcePool.count_add, ResourcePool.count_singleton_self,
             ih hrest]
@@ -624,7 +613,7 @@ private theorem cnotList_eventCount (gates : List (GateSpec encoding))
 
 private theorem cnotList_unitEventDepth (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
-    (GateSpec.programList gates).evaluatedEventDepth (fun _ => 1) =
+    (GateSpec.programList physical oracles gates).evaluatedEventDepth (fun _ => 1) =
       gates.length := by
   induction gates with
   | nil => rfl
@@ -637,7 +626,7 @@ private theorem cnotList_unitEventDepth (gates : List (GateSpec encoding))
       | cnot control target hct =>
           change
             1 +
-                (GateSpec.programList rest).evaluatedEventDepth (fun _ => 1) =
+                (GateSpec.programList physical oracles rest).evaluatedEventDepth (fun _ => 1) =
               (GateSpec.cnot control target hct :: rest).length
           simp [ih hrest, Nat.add_comm]
       | toffoli controlA controlB target hab ha hb =>
@@ -647,8 +636,9 @@ private theorem cnotList_unitEventDepth (gates : List (GateSpec encoding))
 
 private theorem cnotList_eventQueryDepth (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
-    (GateSpec.programList gates).eventQueryDepth
-        (.gate (.builtin "cnot")) = gates.length := by
+    (GateSpec.programList physical oracles gates).eventQueryDepth
+        (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) =
+      gates.length := by
   induction gates with
   | nil => rfl
   | cons gate rest ih =>
@@ -660,8 +650,8 @@ private theorem cnotList_eventQueryDepth (gates : List (GateSpec encoding))
       | cnot control target hct =>
           change
             1 +
-                (GateSpec.programList rest).eventQueryDepth
-                  (.gate (.builtin "cnot")) =
+                (GateSpec.programList physical oracles rest).eventQueryDepth
+                  (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) =
               (GateSpec.cnot control target hct :: rest).length
           simp [ih hrest, Nat.add_comm]
       | toffoli controlA controlB target hab ha hb =>
@@ -672,14 +662,14 @@ private theorem cnotList_eventQueryDepth (gates : List (GateSpec encoding))
 /-- Exact CNOT-event coefficient in the circuit's strict event pool. -/
 theorem swapCircuit_cnot_eventCount (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (swapCircuit left right hleftRight).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
+        (swapCircuit physical oracles left right hleftRight).eventCost =
       3 * width := by
   change
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (GateSpec.programList (swapGates left right hleftRight)).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
+        (GateSpec.programList physical oracles (swapGates left right hleftRight)).eventCost =
       3 * width
-  rw [cnotList_eventCount (swapGates left right hleftRight)
+  rw [cnotList_eventCount physical oracles (swapGates left right hleftRight)
     (swapGates_isCnot left right hleftRight)]
   exact swapGates_length left right hleftRight
 
@@ -688,13 +678,13 @@ theorem swapCircuit_cnot_eventCount (left right : Word encoding width)
 /-- Exact unit-weight strict event depth of the sequential circuit. -/
 theorem swapCircuit_unit_eventDepth (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    (swapCircuit left right hleftRight).evaluatedEventDepth (fun _ => 1) =
+    (swapCircuit physical oracles left right hleftRight).evaluatedEventDepth (fun _ => 1) =
       3 * width := by
   change
-    (GateSpec.programList
+    (GateSpec.programList physical oracles
         (swapGates left right hleftRight)).evaluatedEventDepth (fun _ => 1) =
       3 * width
-  rw [cnotList_unitEventDepth (swapGates left right hleftRight)
+  rw [cnotList_unitEventDepth physical oracles (swapGates left right hleftRight)
     (swapGates_isCnot left right hleftRight)]
   exact swapGates_length left right hleftRight
 
@@ -703,13 +693,14 @@ theorem swapCircuit_unit_eventDepth (left right : Word encoding width)
 /-- Exact CNOT-event query depth of the sequential circuit. -/
 theorem swapCircuit_cnot_eventQueryDepth (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    (swapCircuit left right hleftRight).eventQueryDepth
-        (.gate (.builtin "cnot")) = 3 * width := by
+    (swapCircuit physical oracles left right hleftRight).eventQueryDepth
+        (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) =
+      3 * width := by
   change
-    (GateSpec.programList
+    (GateSpec.programList physical oracles
         (swapGates left right hleftRight)).eventQueryDepth
-          (.gate (.builtin "cnot")) = 3 * width
-  rw [cnotList_eventQueryDepth (swapGates left right hleftRight)
+          (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) = 3 * width
+  rw [cnotList_eventQueryDepth physical oracles (swapGates left right hleftRight)
     (swapGates_isCnot left right hleftRight)]
   exact swapGates_length left right hleftRight
 
@@ -719,10 +710,10 @@ theorem swapCircuit_cnot_eventQueryDepth (left right : Word encoding width)
 theorem swapCircuit_resourcesFromEventDepth_eq_eventCost
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    (swapCircuit left right hleftRight).resourcesFromEventDepth =
-      (swapCircuit left right hleftRight).eventCost :=
+    (swapCircuit physical oracles left right hleftRight).resourcesFromEventDepth =
+      (swapCircuit physical oracles left right hleftRight).eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost
-    (swapCircuit left right hleftRight)
+    (swapCircuit physical oracles left right hleftRight)
 
 end Word
 end EncodedBit

@@ -27,74 +27,57 @@ noncomputable section
 
 open Execution MAU.Inversion.SharedEEA ContextUnion
 
-/-- Place the native matrix through the actual union basis and list every resident wire. -/
-def runtimeProgram (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width))) :
-    UnitaryCircuit (context width).register :=
-  (UnitaryCircuit.reindex (basis width).symm native).seq
-    (.identity (context width).register (context width).physicalIdx (context width).identitiesNodup)
+/-- Execute the complete native word at its unchanged physical identities in the real context. -/
+def runtimeProgram (width : Nat) (native : NativeCircuit width) :
+    UnitaryCircuit AlgorithmGate.model .empty (context width).quantumLayout :=
+  UnitaryCircuit.placeAt (nativeLayout width).toQuantum (context width).quantumLayout
+    (nativePosition width) (nativePosition_dimensions width) native
 
-theorem runtimeProgram_physical (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width)))
-    (within : native.physical_idx ⊆ List.range (1 + frameWidth width)) :
-    (runtimeProgram width native).physical_idx = (context width).physicalIdx := by
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  intro wire present
-  exact native_contained width (within present)
-
-theorem runtimeProgram_matrix (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width)))
+/-- Exact matrix entries read the complete original physical placement. -/
+theorem runtimeProgram_matrix (width : Nat) (native : NativeCircuit width)
     (row column : (context width).register.Index) :
     (runtimeProgram width native).matrix row column =
-      native.matrix (basis width row) (basis width column) := by
-  have matrix : ((runtimeProgram width native).matrix : HilbertOperator (context width).register) =
-      Matrix.reindex (basis width).symm (basis width).symm
-        (native.matrix : HilbertOperator (Qubits (1 + frameWidth width))) := by
-    change (1 : HilbertOperator (context width).register) * _ = _
-    exact Matrix.one_mul _
-  rw [matrix]
-  rfl
+      native.matrix (nativeBasis width row) (nativeBasis width column) := by
+  rw [runtimeProgram, UnitaryCircuit.placeAt_matrix]
+  exact UnitaryCircuit.operatorAt_entry_of_surjective _ _ _ _
+    (nativePosition_surjective width) _ row column
 
-theorem runtimeProgram_trace (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width))) :
-    (runtimeProgram width native).eventTrace = native.eventTrace := by
-  rw [runtimeProgram, UnitaryCircuit.seq_eventTrace, UnitaryCircuit.reindex_eventTrace]
-  exact List.append_nil _
+/-- Physical placement preserves the ordered actual native trace. -/
+theorem runtimeProgram_trace (width : Nat) (native : NativeCircuit width) :
+    (runtimeProgram width native).eventTrace = native.eventTrace :=
+  UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
-theorem runtimeProgram_cost (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width))) :
-    (runtimeProgram width native).eventCost = native.eventCost := by
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, runtimeProgram_trace,
-    UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+/-- Every actual native coordinate keeps exactly its original multiplicity. -/
+theorem runtimeProgram_cost (width : Nat) (native : NativeCircuit width) :
+    (runtimeProgram width native).eventCost = native.eventCost :=
+  UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
-/-- The unique real unitary instruction executes this exact placed native program. -/
-def nativeCode (width : Nat)
-    (native : UnitaryCircuit (Qubits (1 + frameWidth width)))
-    (within : native.physical_idx ⊆ List.range (1 + frameWidth width)) :
-    Circuit (context width) (context width) :=
-  .unitary (runtimeProgram width native) (runtimeProgram_physical width native within)
+/-- The typed unitary instruction executes exactly the physically placed native word. -/
+def nativeCode (width : Nat) (native : NativeCircuit width) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
+  .unitary (runtimeProgram width native)
 
 private theorem reset_local (width : Nat) : (NumeratorReset.code width).IsLocal :=
   ⟨trivial, ⟨Circuit.measurementSequence_isLocal (NumeratorMeasurement.readouts width),
     fun _ => trivial⟩⟩
 
 /-- The existing unconditional measured reset keeps the actual owned control as a resident frame. -/
-def reset (width : Nat) : Circuit (context width) (context width) :=
+def reset (width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
   frameLocal (NumeratorReset.code width) (reset_local width) (controlContext width)
     (control_disjoint width)
 
 /-- The same real finite cells select the suffix, without reading the quantum control. -/
 def selectedSuffix (operation : InPlaceTarget.Operation) (modulus : Nat)
-    (prime : Nat.Prime modulus) : Circuit (context modulus.size) (context modulus.size) :=
+    (prime : Nat.Prime modulus) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context modulus.size) (context modulus.size) :=
   .branch (resultInput modulus.size) (fun value =>
-    nativeCode modulus.size (suffix operation modulus prime value)
-      (suffix_within operation modulus prime value))
+    nativeCode modulus.size (suffix operation modulus prime value))
 
 /-- One native prefix, one actual unconditional reset, and one actual stored-result suffix. -/
 def body (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (context modulus.size) (context modulus.size) :=
-  .seq (nativeCode modulus.size (beforeReset operation modulus prime)
-    (beforeReset_within operation modulus prime))
+    Circuit (.quantum AlgorithmGate.model .empty) (context modulus.size) (context modulus.size) :=
+  .seq (nativeCode modulus.size (beforeReset operation modulus prime))
     (.seq (reset modulus.size) (selectedSuffix operation modulus prime))
 
 /-- The body allocates nothing and retains every owned bank and every actual stored outcome. -/
@@ -116,7 +99,8 @@ theorem output_read (width : Nat) (store : Store (context width)) :
 /-- Actual stored-result selection preserves all joint reference entries in its interpretation. -/
 theorem selectedSuffix_reference (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context modulus.size) Reference History) :
+    (state : State (context modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     ((selectedSuffix operation modulus prime).execute Reference state).quantumMarginal =
       (state.applyUnitary (fun entry => UnitaryOperator.prodTensor
         (runtimeProgram modulus.size
@@ -124,7 +108,7 @@ theorem selectedSuffix_reference (operation : InPlaceTarget.Operation) (modulus 
         (1 : UnitaryOperator Reference))).quantumMarginal :=
   Circuit.selectedUnitary_quantumMarginal (resultInput modulus.size)
     (fun value => runtimeProgram modulus.size (suffix operation modulus prime value))
-    (fun value => runtimeProgram_physical _ _ (suffix_within operation modulus prime value)) state
+    state
 
 end
 

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Coordinate
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual three-coordinate row copy
@@ -48,10 +49,12 @@ def copyOp (source target : CWriteRef ctx (.unsignedWord width)) :
   .wordUnary .copy width ctx (writeInput source) target
 
 /-- Copy the three actual source words into their ordered target destinations. -/
-def pointCopy (source target : LatticeState.PointRefs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (copyOp source.first target.first))
-    (.seq (.classical (copyOp source.second target.second))
-      (.classical (copyOp source.third target.third)))
+def pointCopy {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (copyOp source.first target.first))
+    (.seq (BitWord.instruction (execution := model) (copyOp source.second target.second))
+      (BitWord.instruction (execution := model) (copyOp source.third target.third)))
 
 /-- The actual chronological store after the three copy instructions. -/
 def pointCopyStore (source target : LatticeState.PointRefs ctx width)
@@ -59,16 +62,36 @@ def pointCopyStore (source target : LatticeState.PointRefs ctx width)
   ((store.applyOp (copyOp source.first target.first)).applyOp
     (copyOp source.second target.second)).applyOp (copyOp source.third target.third)
 
+/-- Actual ordered copy stores and value-bearing selected operation paths. -/
+def pointCopyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (store : Store ctx) : Store ctx × (pointCopy (model := model) source target).Path :=
+  let first := BitWord.instructionStep (execution := model) (copyOp source.first target.first) store
+  let second := BitWord.instructionStep (execution := model)
+    (copyOp source.second target.second) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (copyOp source.third target.third) second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem pointCopyStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (store : Store ctx) :
+    (pointCopyStep (model := model) source target store).1 =
+      pointCopyStore source target store := rfl
+
 /-- Full actual execution preserves history and all quantum-reference correlations. -/
-theorem pointCopy_execute (source target : LatticeState.PointRefs ctx width)
+theorem pointCopy_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pointCopy source target).execute Reference state = state.mapClassical (fun entry =>
-      (pointCopyStore source target entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [pointCopy, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointCopy (model := model) source target).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := pointCopyStep (model := model) source target entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [pointCopy, pointCopyStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem copy_read (source target : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
@@ -129,54 +152,74 @@ theorem pointCopy_callerFrame (source target : LatticeState.PointRefs ctx width)
     Store.read_applyOp_of_not_mem_storageKeys _ (copyOp source.second target.second) other second,
     Store.read_applyOp_of_not_mem_storageKeys _ (copyOp source.first target.first) other first]
 
-/-- Independent native instruction formula for one ordered three-word copy. -/
-def pointCopyTrace (width : Nat) : List (Resource.Event kind) :=
-  List.replicate 3 (.classicalOperation (.wordUnary .copy width))
+/-- Independent selected instruction formula for one ordered three-word copy. -/
+def pointCopyTrace {model : ExecutionModel} [BitWord.Selected model] (width : Nat) :
+    List (Resource.Event model) :=
+  List.replicate 3 (.classicalOperation
+    (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)))
 
 /-- Actual copy events equal the independent three-copy instruction formula. -/
-theorem pointCopy_events (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).eventTrace path = pointCopyTrace width := rfl
+theorem pointCopy_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).eventTrace path =
+      pointCopyTrace (model := model) width := by
+  change _ ++ (_ ++ _) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Actual native multiplicities are counted from the independent copy instruction formula. -/
-theorem pointCopy_resourcePool (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).resourcePool path = ResourcePool.ofList (pointCopyTrace width) := rfl
+theorem pointCopy_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).resourcePool path =
+      ResourcePool.ofList (pointCopyTrace (model := model) width) := by
+  change ResourcePool.ofList ((pointCopy (model := model) source target).eventTrace path) = _
+  rw [pointCopy_events]
 
 /-- The actual serial copy depth is exactly three at unit instruction duration. -/
-theorem pointCopy_depth (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).depth (fun _ => 1) path = 3 := rfl
+theorem pointCopy_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).depth (fun _ => 1) path = 3 := rfl
 
 /-- All actual row copies restore borrowed correlations jointly with external references. -/
-theorem pointCopy_borrowedRestored (source target : LatticeState.PointRefs ctx width)
+theorem pointCopy_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pointCopy source target).BorrowedRestored Reference state
-      ((pointCopy source target).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (.classical (copyOp source.first target.first)) _ state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointCopy (model := model) source target).BorrowedRestored Reference state
+      ((pointCopy (model := model) source target).execute Reference state) := by
+  refine Circuit.borrowedRestored_seq
+    (BitWord.instruction (execution := model) (copyOp source.first target.first)) _ state
     (Circuit.borrowedRestored_classical _ state) ?_
   exact Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
     (Circuit.borrowedRestored_classical _ _)
 
 /-- All three actual copies visit the complete original caller context. -/
-theorem pointCopy_visited (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).visitedContexts path = List.replicate 3 ctx := rfl
+theorem pointCopy_visited {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).visitedContexts path =
+      List.replicate 3 ctx := rfl
 
 /-- Resident space counts every supplied quantum dimension and classical cell during copying. -/
-theorem pointCopy_resident_le (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).peakResidentSpace path ≤ ctx.residentSpace := by
+theorem pointCopy_resident_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [pointCopy_visited] at present
   rw [(List.mem_replicate.mp present).2]
 
 /-- Auxiliary storage retains its original roles during the entire actual copy. -/
-theorem pointCopy_auxiliary_le (source target : LatticeState.PointRefs ctx width)
-    (path : (pointCopy source target).Path) :
-    (pointCopy source target).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+theorem pointCopy_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (source target : LatticeState.PointRefs ctx width)
+    (path : (pointCopy (model := model) source target).Path) :
+    (pointCopy (model := model) source target).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [pointCopy_visited] at present

@@ -23,20 +23,21 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent allowance for shared constants and the original modular setup. -/
-def sharedEventEnvelope (N : Nat) : ResourcePool kind :=
+def sharedEventEnvelope (N : Nat) : ResourcePool model :=
   ResourcePool.ofList (LatticeCandidateConstants.loadTrace (shortLogBits N) (Width N)) +
-    LatticeCandidateModularSetup.setupEventEnvelope kind (modulusBits N)
+    LatticeCandidateModularSetup.setupEventEnvelope model (modulusBits N)
 
 /-- Independent allowance for original pair reduction and both shared initializers. -/
-def prefixEventEnvelope (N : Nat) : ResourcePool kind :=
+def prefixEventEnvelope (N : Nat) : ResourcePool model :=
   LatticePairNearestPlaneSavedTarget.eventEnvelope N + sharedEventEnvelope N
 
 /-- Independent full allowance includes every slot of the original initialized candidate scan. -/
-def recoveryEventEnvelope (N : Nat) : ResourcePool kind :=
-  prefixEventEnvelope N + LatticeCandidateScanInitialized.initializedScanEventEnvelope kind N
+def recoveryEventEnvelope (N : Nat) : ResourcePool model :=
+  prefixEventEnvelope N + LatticeCandidateScanInitialized.initializedScanEventEnvelope model N
     (shortLogBits N) (tradeoffBits N)
 
 /-- Actual shared initialization satisfies its independent complete coordinate allowance. -/
@@ -46,7 +47,7 @@ theorem sharedInto_pool_le (input : Input N) (refs : Refs ctx N)
   have constants := LatticeCandidateConstants.loadInto_resourcePool
     (shortLogBits N) refs.constants path.1
   have setup : (LatticeCandidateModularSetup.setupInto input refs.setup).resourcePool path.2 ≤
-      LatticeCandidateModularSetup.setupEventEnvelope kind (modulusBits N) :=
+      LatticeCandidateModularSetup.setupEventEnvelope model (modulusBits N) :=
     LatticeCandidateModularSetup.setupInto_pool_le input refs.setup path.2
   unfold sharedEventEnvelope
   rw [sharedInto_resourcePool]
@@ -74,7 +75,7 @@ theorem pairCandidateRecoveryInto_pool_le (input : Input N) (refs : Refs ctx N)
     pairCandidatePrefix_pool_le input refs path.1
   have scan :
       (LatticeCandidateScanInitialized.initializedScanInto input refs.scan).resourcePool path.2 ≤
-      LatticeCandidateScanInitialized.initializedScanEventEnvelope kind N (shortLogBits N)
+      LatticeCandidateScanInitialized.initializedScanEventEnvelope model N (shortLogBits N)
         (tradeoffBits N) :=
     LatticeCandidateScanInitialized.initializedScanInto_pool_le input refs.scan path.2
   unfold recoveryEventEnvelope

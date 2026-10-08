@@ -31,47 +31,54 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 def decoderInputs (refs : Refs ctx N) (index : Fin (measurementBits N)) : CInputRef ctx .bit :=
   .bitsGet (terminalInput refs) (Fin.rev index)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual native full-word decoding in the original terminal bit order. -/
-def fullDecodeInto (refs : Refs ctx N) : Circuit ctx ctx :=
-  TerminalDecode.intoFromBitRefs .littleEndian (decoderInputs refs) refs.full
+def fullDecodeInto (refs : Refs ctx N) : Circuit model ctx ctx :=
+  TerminalDecode.intoFromBitRefs (model := model) .littleEndian (decoderInputs refs) refs.full
 
 /-- The actual full-word store and chronological decoded-bit path. -/
 def fullDecodeStep (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (fullDecodeInto refs).Path :=
-  TerminalDecode.foldStep refs.full
+  TerminalDecode.foldStep (model := model) refs.full
     (List.ofFn (fun index => decoderInputs refs (TerminalDecode.sourceIndex .littleEndian index)))
     store
 
 /-- The original low/high split shares the original work and output identities. -/
-abbrev splitRefs (refs : Refs ctx N) : Word.Split.Refs ctx (JWidth N) (KWidth N) where
+abbrev splitRefs {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    (refs : Refs ctx N) : Word.Split.Refs ctx (JWidth N) (KWidth N) where
   work := refs.scratch
   high := refs.j
   low := refs.k
 
 /-- Actual resize/shift/resize splitting of the original full-width work word. -/
-def splitFullInto (refs : Refs ctx N) : Circuit ctx ctx := Word.Split.splitInto (splitRefs refs)
+def splitFullInto (refs : Refs ctx N) : Circuit model ctx ctx :=
+  Word.Split.splitInto (model := model) (splitRefs refs)
 
 /-- Actual native split store and path, using the reusable word-split interpreter equation. -/
 def splitFullStep (refs : Refs ctx N) (store : Store ctx) :
-    Store ctx × (splitFullInto refs).Path := Word.Split.splitStep (splitRefs refs) store
+    Store ctx × (splitFullInto refs).Path :=
+  Word.Split.splitStep (model := model) (splitRefs refs) store
 
 /-- The actual decoded full word is copied into the original destructive working cell. -/
-def copyOp (refs : Refs ctx N) :
+def copyOp {kind : ProblemKind} {ctx : RuntimeCtx kind} (refs : Refs ctx N) :
     ClassicalOp (.unsignedWord (measurementBits N)) (.unsignedWord (measurementBits N)) ctx ctx :=
   .wordUnary .copy (measurementBits N) ctx (.storage refs.full.toCStorageRef) refs.scratch
 
 /-- Original copy followed by the actual native work-word split. -/
-def copySplitInto (refs : Refs ctx N) : Circuit ctx ctx :=
-  .seq (.classical (copyOp refs)) (splitFullInto refs)
+def copySplitInto (refs : Refs ctx N) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (copyOp refs)) (splitFullInto refs)
 
 /-- The actual copied word feeds the actual split store and path. -/
 def copySplitStep (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (copySplitInto refs).Path :=
-  let split := splitFullStep refs (store.applyOp (copyOp refs))
-  (split.1, ((), split.2))
+  let copied := BitWord.instructionStep (execution := model) (copyOp refs) store
+  let split := splitFullStep refs copied.1
+  (split.1, (copied.2, split.2))
 
 /-- Actual stored terminal bits materialize the original full word and source-shaped pair. -/
-def decodeInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def decodeInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (fullDecodeInto refs) (copySplitInto refs)
 
 /-- Actual final decoder store and complete chronological bit-decoding and splitting path. -/
@@ -81,7 +88,7 @@ def decodeStep (refs : Refs ctx N) (store : Store ctx) : Store ctx × (decodeInt
   (split.1, (decoded.2, split.2))
 
 /-- Both original terminal outcomes are decoded in sequence on their actual shared store. -/
-def decodePairInto (refs : PairRefs ctx N) : Circuit ctx ctx :=
+def decodePairInto (refs : PairRefs ctx N) : Circuit model ctx ctx :=
   .seq (decodeInto refs.first) (decodeInto refs.second)
 
 /-- The first actual decoder store feeds the second decoder and retains both original paths. -/

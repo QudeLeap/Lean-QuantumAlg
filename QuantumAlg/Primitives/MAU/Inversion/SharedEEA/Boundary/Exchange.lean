@@ -136,32 +136,37 @@ theorem step_eq_sourceStep {width : Nat} (state : Registers width)
 
 /-- Compile precisely the same predicate, swap, parity, and inverse-predicate native list. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Exact full-register circuit realization on every encoded basis label. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width enough) (gates_step width enough)
 
 /-- The source specialization is an action of the actual native program on the prepared subspace. -/
 theorem program_apply_prepared (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) (preparedControl : state.control = false) :
-    (program width enough).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep state)) := by
+    (program width enough).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep state))) := by
   rw [(program_realizes width enough).apply_encoded_ket, step_eq_sourceStep state preparedControl]
 
 /-- Exact actual native trace, including both complete predicate passes after word movement. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace =
-      (conditionGates width enough).map GateSpec.event ++
-        List.replicate (3 * (width + 3)) (.gate (.builtin "toffoli")) ++
-          [.gate (.builtin "cnot")] ++
-            ((conditionGates width enough).map GateSpec.event).reverse := by
-  have wordTrace : (WorkWordExchange.gates width).map GateSpec.event =
-      List.replicate (3 * (width + 3)) (.gate (.builtin "toffoli")) :=
-    (GateSpec.programList_eventTrace (WorkWordExchange.gates width)).symm.trans
-      (WorkWordExchange.program_eventTrace width)
+      (conditionGates width enough).map (GateSpec.event .empty) ++
+        List.replicate (3 * (width + 3)) (.gate .toffoli) ++
+          [.gate .cnot] ++
+            ((conditionGates width enough).map (GateSpec.event .empty)).reverse := by
+  have wordTrace : (WorkWordExchange.gates width).map (GateSpec.event .empty) =
+      List.replicate (3 * (width + 3)) (.gate .toffoli) := by
+    simpa only [WorkWordExchange.program, GateSpec.programList_eventTrace] using
+      WorkWordExchange.program_eventTrace width
   rw [program, GateSpec.programList_eventTrace]
   simp only [gates, List.map_append, List.map_reverse, wordTrace]
   rfl

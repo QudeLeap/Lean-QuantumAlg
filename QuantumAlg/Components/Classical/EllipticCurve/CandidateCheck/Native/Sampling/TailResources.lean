@@ -23,16 +23,19 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The actual interleaved loop is followed by its one original final pack instruction. -/
-def sampledRecoveryEnvelope (kind : ProblemKind) (sampleBudget : ResourcePool kind)
+def sampledRecoveryEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (sampleBudget : ResourcePool model)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth) (count : Nat) :
-    ResourcePool kind :=
-  sampledAttemptsEnvelope kind sampleBudget curve modulus count +
-    ResourcePool.ofList [.classicalOperation (.nominalEncoding (.packOption scalarWidth))]
+    ResourcePool model :=
+  sampledAttemptsEnvelope model sampleBudget curve modulus count +
+    ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.packOption scalarWidth)))]
 
-variable (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+variable (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -44,44 +47,46 @@ theorem sampledRecoveryTail_eventTrace
     (sampledRecoveryTail sampleCode supported count curve modulus sample base target).eventTrace
       path =
         (sampledAttempts sampleCode supported count curve modulus sample base target).eventTrace
-          path.1.2 ++ [.classicalOperation (.nominalEncoding (.packOption scalarWidth))] := by
+          path.1.2 ++ [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.nominalEncoding (.packOption scalarWidth)))] := by
   change ((retainPersistent ctx width scalarWidth).eventTrace path.1.1 ++ _) ++
     (packBatchResult ctx width scalarWidth).eventTrace path.2 = _
   rw [retainPersistent_eventTrace, List.nil_append, packBatchResult_eventTrace]
 
 /-- The exact loop duration is followed by the one actual final packing dependency. -/
-theorem sampledRecoveryTail_duration (duration : Resource.Event kind → Nat)
+theorem sampledRecoveryTail_duration (duration : Resource.Event model → Nat)
     (path :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     (sampledRecoveryTail sampleCode supported count curve modulus sample base target).depth
       duration path =
         (sampledAttempts sampleCode supported count curve modulus sample base target).depth
           duration path.1.2 +
-            duration (.classicalOperation (.nominalEncoding (.packOption scalarWidth))) := by
+            duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+              (.nominalEncoding (.packOption scalarWidth)))) := by
   change ((retainPersistent ctx width scalarWidth).depth duration path.1.1 + _) +
     (packBatchResult ctx width scalarWidth).depth duration path.2 = _
   rw [retainPersistent_depth, zero_add, packBatchResult_depth]
   rfl
 
 /-- Every round's actual events and the final real pack remain in the complete native allowance. -/
-theorem sampledRecoveryTail_pool_le (sampleBudget : ResourcePool kind)
+theorem sampledRecoveryTail_pool_le (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     (sampledRecoveryTail sampleCode supported count curve modulus sample base target).resourcePool
-      path ≤ sampledRecoveryEnvelope kind sampleBudget curve modulus count := by
+      path ≤ sampledRecoveryEnvelope model sampleBudget curve modulus count := by
   rw [Circuit.resourcePool, sampledRecoveryTail_eventTrace, ResourcePool.ofList_append]
   exact add_le_add (sampledAttempts_pool_le sampleCode supported curve modulus sample base target
     count sampleBudget sampleBound path.1.2) le_rfl
 
 /-- Counting the actual budget includes all native classical instructions as well as sampling. -/
-theorem sampledRecoveryTail_eventCount_le (sampleBudget : ResourcePool kind)
+theorem sampledRecoveryTail_eventCount_le (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     ((sampledRecoveryTail sampleCode supported count curve modulus sample base target).eventTrace
       path).length ≤
-        count * (sampleBudget.card + (attemptEnvelope kind curve modulus).card) + 1 := by
+        count * (sampleBudget.card + (attemptEnvelope model curve modulus).card) + 1 := by
   have bounded := Multiset.card_le_card (sampledRecoveryTail_pool_le sampleCode supported count
     curve modulus sample base target sampleBudget sampleBound path)
   simpa only [Circuit.resourcePool, ResourcePool.ofList, Multiset.coe_card,
@@ -89,13 +94,14 @@ theorem sampledRecoveryTail_eventCount_le (sampleBudget : ResourcePool kind)
     Multiset.card_nsmul, smul_eq_mul, List.length_singleton] using bounded
 
 /-- Arbitrary durations sum across all actual rounds and the final pack, including count zero. -/
-theorem sampledRecoveryTail_depth_le (duration : Resource.Event kind → Nat)
+theorem sampledRecoveryTail_depth_le (duration : Resource.Event model → Nat)
     (sampleDepth : Nat) (sampleBound : ∀ path, sampleCode.depth duration path ≤ sampleDepth)
     (path :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     (sampledRecoveryTail sampleCode supported count curve modulus sample base target).depth
       duration path ≤ count * (sampleDepth + attemptDepthLimit curve modulus duration) +
-        duration (.classicalOperation (.nominalEncoding (.packOption scalarWidth))) := by
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.nominalEncoding (.packOption scalarWidth)))) := by
   rw [sampledRecoveryTail_duration]
   exact Nat.add_le_add (sampledAttempts_depth_le sampleCode supported curve modulus sample base
     target count duration sampleDepth sampleBound path.1.2) le_rfl
@@ -106,12 +112,12 @@ theorem sampledRecoveryTail_resident_le
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     (sampledRecoveryTail sampleCode supported count curve modulus sample base
       target).peakResidentSpace
-      path ≤ recoveryTailScratchSpace kind width scalarWidth +
-        persistentCellSpace kind width scalarWidth + ctx.residentSpace := by
+      path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
+        persistentCellSpace model.kind width scalarWidth + ctx.residentSpace := by
   have bounded :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base
       target).peakResidentSpace
-        path ≤ recoveryTailScratchSpace kind width scalarWidth +
+        path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
           (persistentCtx ctx width scalarWidth).residentSpace := by
     refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
     · refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
@@ -129,12 +135,12 @@ theorem sampledRecoveryTail_auxiliary_le
       (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
     (sampledRecoveryTail sampleCode supported count curve modulus sample base
       target).peakAuxiliarySpace
-      path ≤ recoveryTailScratchSpace kind width scalarWidth +
-        persistentCellSpace kind width scalarWidth + ctx.auxiliarySpace := by
+      path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
+        persistentCellSpace model.kind width scalarWidth + ctx.auxiliarySpace := by
   have bounded :
       (sampledRecoveryTail sampleCode supported count curve modulus sample base
       target).peakAuxiliarySpace
-        path ≤ recoveryTailScratchSpace kind width scalarWidth +
+        path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
           (persistentCtx ctx width scalarWidth).auxiliarySpace := by
     refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
     · refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)

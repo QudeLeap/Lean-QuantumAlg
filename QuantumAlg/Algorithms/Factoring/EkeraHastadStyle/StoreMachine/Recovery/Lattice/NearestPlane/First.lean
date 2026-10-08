@@ -30,7 +30,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Four actual stages compute the nearest coefficient and update the residual target. -/
-def firstInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def firstInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeDotRefresh.refreshInto refs.target refs.basis.first (numeratorDotRefs refs))
     (.seq (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (.seq (SignedWord.RoundedDiv.body refs.division)
@@ -38,106 +39,135 @@ def firstInto (refs : Refs ctx width) : Circuit ctx ctx :=
           refs.basis.first refs.target refs.reduceProduct)))
 
 /-- Actual division writes and coordinate writes, with the division's selected path. -/
-def divisionReductionStep (refs : Refs ctx width) (store : Store ctx) :
+def divisionReductionStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
         refs.basis.first refs.target refs.reduceProduct)).Path :=
   let divided := SignedWord.RoundedDiv.bodyStep refs.division store
-  (LatticeArithmetic.pointStore (SignedWord.writeInput refs.division.output)
-    refs.basis.first refs.target refs.reduceProduct divided.1,
-      (divided.2, (((), ()), (((), ()), ((), ())))))
+  let reduced := LatticeArithmetic.pointStep (SignedWord.writeInput refs.division.output)
+    refs.basis.first refs.target refs.reduceProduct divided.1
+  (reduced.1, (divided.2, reduced.2))
 
 /-- Norm refresh feeds its actual resulting store into division and reduction. -/
-def normReductionStep (refs : Refs ctx width) (store : Store ctx) :
+def normReductionStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (Circuit.seq
       (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
           refs.basis.first refs.target refs.reduceProduct))).Path :=
-  let normed := LatticeNormRefresh.refreshStore refs.basis.first (denominatorNormRefs refs) store
-  let reduced := divisionReductionStep refs normed
-  (reduced.1, (((), (((), ()), ((), ()))), reduced.2))
+  let normed := LatticeDotRefresh.refreshStep refs.basis.first refs.basis.first
+    (LatticeNormRefresh.dotRefs (denominatorNormRefs refs)) store
+  let reduced := divisionReductionStep refs normed.1
+  (reduced.1, (normed.2, reduced.2))
 
 /-- Complete chronological native updates and actual selected path of the first phase. -/
-def firstStep (refs : Refs ctx width) (store : Store ctx) : Store ctx × (firstInto refs).Path :=
-  let dotted := LatticeDotRefresh.refreshStore refs.target refs.basis.first
+def firstStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (firstInto refs).Path :=
+  let dotted := LatticeDotRefresh.refreshStep refs.target refs.basis.first
     (numeratorDotRefs refs) store
-  let reduced := normReductionStep refs dotted
-  (reduced.1, (((), (((), ()), ((), ()))), reduced.2))
+  let reduced := normReductionStep refs dotted.1
+  (reduced.1, (dotted.2, reduced.2))
 
-private theorem divisionReduction_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+/-- The selected path has the chronological pure first-phase store. -/
+theorem firstStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    (firstStep refs store).1 =
+      LatticeArithmetic.pointStore (writeInput refs.division.output)
+        refs.basis.first refs.target refs.reduceProduct
+        (SignedWord.RoundedDiv.bodyStep refs.division
+          (LatticeNormRefresh.refreshStore refs.basis.first (denominatorNormRefs refs)
+            (LatticeDotRefresh.refreshStore refs.target refs.basis.first
+              (numeratorDotRefs refs) store))).1 := rfl
+
+private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
         refs.basis.first refs.target refs.reduceProduct)).execute Reference state =
-      state.mapClassical (fun entry => ((divisionReductionStep refs entry.1).1,
-        (entry.2, (divisionReductionStep refs entry.1).2))) := by
+      state.mapClassical (fun entry =>
+        let actual := divisionReductionStep refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (SignedWord.RoundedDiv.body refs.division)
     (LatticeArithmetic.pointReduce (writeInput refs.division.output)
       refs.basis.first refs.target refs.reduceProduct)
-    (SignedWord.RoundedDiv.bodyStep refs.division)
-    (fun store => (LatticeArithmetic.pointStore (SignedWord.writeInput refs.division.output)
-      refs.basis.first refs.target refs.reduceProduct store, (((), ()), (((), ()), ((), ())))))
-    (SignedWord.RoundedDiv.body_execute refs.division)
-    (by
-      intro ref history _ current
-      refine (LatticeArithmetic.pointReduce_execute (writeInput refs.division.output)
-        refs.basis.first refs.target refs.reduceProduct ref current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := SignedWord.RoundedDiv.bodyStep refs.division before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeArithmetic.pointStep (writeInput refs.division.output)
+        refs.basis.first refs.target refs.reduceProduct before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => SignedWord.RoundedDiv.body_execute
+      refs.division reference current)
+    (fun reference _history _ current =>
+      LatticeArithmetic.pointReduce_execute (writeInput refs.division.output)
+        refs.basis.first refs.target refs.reduceProduct reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem normReduction_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (Circuit.seq (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
+private theorem normReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq
+      (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
           refs.basis.first refs.target refs.reduceProduct))).execute Reference state =
-      state.mapClassical (fun entry => ((normReductionStep refs entry.1).1,
-        (entry.2, (normReductionStep refs entry.1).2))) := by
+      state.mapClassical (fun entry =>
+        let actual := normReductionStep refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
     (.seq (SignedWord.RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
         refs.basis.first refs.target refs.reduceProduct))
-    (fun store => (LatticeNormRefresh.refreshStore refs.basis.first
-      (denominatorNormRefs refs) store,
-      ((), (((), ()), ((), ()))))) (divisionReductionStep refs)
-    (by
-      intro ref history _ current
-      refine (LatticeNormRefresh.refreshInto_execute refs.basis.first
-        (denominatorNormRefs refs) ref current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (divisionReduction_execute refs)
+    (fun before =>
+      let actual := LatticeDotRefresh.refreshStep refs.basis.first refs.basis.first
+        (LatticeNormRefresh.dotRefs (denominatorNormRefs refs)) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := divisionReductionStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeNormRefresh.refreshInto_execute refs.basis.first (denominatorNormRefs refs)
+        reference current)
+    (fun reference _history _ current => divisionReduction_execute refs reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- Complete real execution preserves prior histories and full quantum-reference correlations. -/
-theorem firstInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+/-- Complete actual execution preserves the selected hidden state and reference correlations. -/
+theorem firstInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (firstInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((firstStep refs entry.1).1, (entry.2, (firstStep refs entry.1).2))) := by
+      let actual := firstStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (LatticeDotRefresh.refreshInto refs.target refs.basis.first (numeratorDotRefs refs))
     (.seq (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (.seq (SignedWord.RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (writeInput refs.division.output)
           refs.basis.first refs.target refs.reduceProduct)))
-    (fun store => (LatticeDotRefresh.refreshStore refs.target refs.basis.first
-      (numeratorDotRefs refs) store, ((), (((), ()), ((), ()))))) (normReductionStep refs)
-    (by
-      intro ref history _ current
-      refine (LatticeDotRefresh.refreshInto_execute refs.target refs.basis.first
-        (numeratorDotRefs refs) ref current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (normReduction_execute refs)
+    (fun before =>
+      let actual := LatticeDotRefresh.refreshStep refs.target refs.basis.first
+        (numeratorDotRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := normReductionStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeDotRefresh.refreshInto_execute refs.target refs.basis.first
+        (numeratorDotRefs refs) reference current)
+    (fun reference _history _ current => normReduction_execute refs reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

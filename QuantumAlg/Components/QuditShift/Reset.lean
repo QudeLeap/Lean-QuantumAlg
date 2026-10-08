@@ -48,7 +48,7 @@ theorem operator_density_entry (layout : QuantumLayout systemCount) (wire : Fin 
 def resetBranch (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (outcome : Fin (layout.wire wire).dimension) (ρ : DensityOperator layout.register) :
     DensityOperator layout.register :=
-  DensityOperator.applyUnitary (program layout wire (-outcome)).matrix
+  DensityOperator.applyUnitary (operator layout wire (-outcome))
     (ZMeasurement.branch (R := layout.register)
       (fun basis : layout.Basis => basis wire) outcome ρ)
 
@@ -61,7 +61,7 @@ theorem resetBranch_entry (layout : QuantumLayout systemCount) (wire : Fin syste
       if left wire = 0 ∧ right wire = 0 then
         ρ.matrix (Function.update left wire outcome) (Function.update right wire outcome)
       else 0 := by
-  rw [resetBranch, program_matrix, operator_density_entry]
+  rw [resetBranch, operator_density_entry]
   refine (ZMeasurement.branch_matrix (R := layout.register)
     (fun basis : layout.Basis => basis wire) outcome ρ
     (Function.update left wire (left wire - -outcome))

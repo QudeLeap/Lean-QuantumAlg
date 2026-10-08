@@ -11,7 +11,6 @@ import all QuantumAlg.Components.QubitPrimitive
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -20,8 +19,6 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
 import all QuantumAlg.Util.ZModUnits
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.MAU.Addition.StructuredCircuit
-import all QuantumAlg.Primitives.MAU.Addition.Physical
-import all QuantumAlg.Primitives.MAU.Addition.VBE.Circuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.Basic
 import all QuantumAlg.Primitives.MAU.Inversion.Schedule
 
@@ -193,8 +190,9 @@ def toggleFlag {N : Nat} (s : StageState N) : StageState N where
 
 /-- One X gate on the field-encoded cleanup flag. -/
 def toggleFlagProgram {N n : Nat} (E : BinaryResidueEncoding N n) :
-    UnitaryCircuit (Qubits (fieldEncoding E).width) :=
-  (QubitPrimitive.x (flagBit E).wire).circuit
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (fieldEncoding E).width).toQuantum :=
+  (QubitPrimitive.x (flagBit E).wire).circuit (QubitLayout.canonical _) .empty
 
 /-- The flag X gate realizes cleanup-flag toggling on the same field encoding. -/
 theorem toggleFlagProgram_realizes {N n : Nat}

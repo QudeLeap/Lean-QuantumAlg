@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Workspace
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Native
 import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Program
 
 /-!

@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Checked
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.PublicInput.Space
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Cardinality
+import all QuantumAlg.Components.Classical.Model.BitWord.Promotion.Depth
 
 /-!
 # Resources of the same complete checked quantum execution
@@ -30,21 +31,34 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
+private abbrev CheckedModel : ExecutionModel :=
+  .quantum AlgorithmGate.model .empty BitWord.model
+
 /-- Every actual native event is covered by the original sample and complete recovery budgets. -/
 theorem exponentCheckedRun_budget (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (nontrivial : 2 ≤ problem.order)
     (path : (exponentCheckedRun E fieldTail odd problem points nontrivial).code.Path) :
     (exponentCheckedRun E fieldTail odd problem points nontrivial).code.resourcePool path ≤
-      ((exponentPreparationCircuit problem).eventCost +
+      BitWord.liftQuantumPool ((exponentPreparationCircuit problem).eventCost +
         Encoding.convertedEventBudget p (2 * orderWidth problem) (2 * orderWidth problem) +
           (exponentReadoutCircuit problem).eventCost +
             (2 * orderWidth problem) • ResourcePool.singleton (Circuit.zEvent 2)) +
-        recoveryTailEnvelope .quantum (Canonical.Layout.curveSpec E)
+        recoveryTailEnvelope CheckedModel (Canonical.Layout.curveSpec E)
           (recoveryModulusSpec problem nontrivial) 1 := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
-  exact add_le_add (PublicInput.exponentRun_budget E fieldTail odd problem points path.1)
+  change (BitWord.selectForCircuit
+    (PublicInput.exponentRun E fieldTail odd problem points).code).resourcePool path.1 +
+      _ ≤ _
+  let original := (BitWord.selectForCircuitPathEquiv
+    (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1
+  have selected := BitWord.selectForCircuit_resourcePool
+    (PublicInput.exponentRun E fieldTail odd problem points).code original
+  simp only [original, Equiv.apply_symm_apply] at selected
+  rw [selected]
+  exact add_le_add (Multiset.map_le_map
+    (PublicInput.exponentRun_budget E fieldTail odd problem points original))
     (recoveryTail_pool_le (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) _ _ _ path.2)
 
@@ -52,15 +66,26 @@ theorem exponentCheckedRun_budget (fieldTail : Nat) (odd : Odd p)
 theorem exponentCheckedRun_duration (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (nontrivial : 2 ≤ problem.order)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event CheckedModel → Nat)
     (path : (exponentCheckedRun E fieldTail odd problem points nontrivial).code.Path) :
     (exponentCheckedRun E fieldTail odd problem points nontrivial).code.depth duration path ≤
-      (PublicInput.exponentRun E fieldTail odd problem points).code.depth duration path.1 +
+      (PublicInput.exponentRun E fieldTail odd problem points).code.depth
+        (duration ∘ BitWord.liftQuantumEvent)
+        ((BitWord.selectForCircuitPathEquiv
+          (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1) +
         attemptDepthLimit (Canonical.Layout.curveSpec E)
           (recoveryModulusSpec problem nontrivial) duration +
-        duration (.classicalOperation (.nominalEncoding (.packOption (orderWidth problem)))) := by
-  change (PublicInput.exponentRun E fieldTail odd problem points).code.depth duration path.1 +
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := CheckedModel)
+          (.nominalEncoding (.packOption (orderWidth problem))))) := by
+  change (BitWord.selectForCircuit
+    (PublicInput.exponentRun E fieldTail odd problem points).code).depth duration path.1 +
     _ ≤ _
+  let original := (BitWord.selectForCircuitPathEquiv
+    (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1
+  have selected := BitWord.selectForCircuit_depth
+    (PublicInput.exponentRun E fieldTail odd problem points).code duration original
+  simp only [original, Equiv.apply_symm_apply] at selected
+  rw [selected]
   have recovery := recoveryTail_depth_le (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) _ _ _ duration path.2
   simp only [one_mul] at recovery
@@ -73,15 +98,20 @@ theorem exponentCheckedRun_depth (fieldTail : Nat) (odd : Odd p)
     (path : (exponentCheckedRun E fieldTail odd problem points nontrivial).code.Path) :
     (exponentCheckedRun E fieldTail odd problem points nontrivial).code.depth (fun _ => 1) path ≤
       ((exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
-        (2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
+        (ResourcePool.weightedCount (fun _ => 1)
+          (ResourcePool.ofList (Allocation.initializationTrace p
+            (2 * orderWidth problem))) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
           (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size)) +
         (exponentReadoutCircuit problem).evaluatedEventDepth (fun _ => 1) +
           2 * orderWidth problem) +
-        attemptDepthLimit (kind := .quantum) (Canonical.Layout.curveSpec E)
+        attemptDepthLimit (model := CheckedModel) (Canonical.Layout.curveSpec E)
           (recoveryModulusSpec problem nontrivial) (fun _ => 1) + 1 :=
   (exponentCheckedRun_duration E fieldTail odd problem points nontrivial (fun _ => 1) path).trans
     (Nat.add_le_add_right (Nat.add_le_add_right
-      (PublicInput.exponentRun_depth E fieldTail odd problem points path.1) _) 1)
+      (PublicInput.exponentRun_depth E fieldTail odd problem points
+        ((BitWord.selectForCircuitPathEquiv
+          (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1)) _) 1)
 
 /-- Actual recovery storage stays beside every original quantum system and public input. -/
 theorem exponentCheckedRun_resident (fieldTail : Nat) (odd : Odd p)
@@ -95,7 +125,12 @@ theorem exponentCheckedRun_resident (fieldTail : Nat) (odd : Odd p)
         readySpace p.size (2 * orderWidth problem) +
           2 • SpacePool.ofShape (Canonical.Runtime.Context.PointShape E)) := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · rw [PublicInput.exponentRun_resident]
+  · have selected := BitWord.selectForCircuit_peakResidentSpace
+      (PublicInput.exponentRun E fieldTail odd problem points).code
+      ((BitWord.selectForCircuitPathEquiv
+        (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1)
+    simp only [Equiv.apply_symm_apply] at selected
+    rw [selected, PublicInput.exponentRun_resident]
     exact fun _ => Nat.le_add_left _ _
   · have recovery := recoveryTail_resident_le (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) _ _ _ path.2
@@ -115,7 +150,12 @@ theorem exponentCheckedRun_auxiliary (fieldTail : Nat) (odd : Odd p)
       ((2 * orderWidth problem) • SpacePool.ofShape (.finite 2) +
         readySpace p.size (2 * orderWidth problem)) := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · rw [PublicInput.exponentRun_auxiliary]
+  · have selected := BitWord.selectForCircuit_peakAuxiliarySpace
+      (PublicInput.exponentRun E fieldTail odd problem points).code
+      ((BitWord.selectForCircuitPathEquiv
+        (PublicInput.exponentRun E fieldTail odd problem points).code).symm path.1)
+    simp only [Equiv.apply_symm_apply] at selected
+    rw [selected, PublicInput.exponentRun_auxiliary]
     exact fun _ => Nat.le_add_left _ _
   · have recovery := recoveryTail_auxiliary_le (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) _ _ _ path.2

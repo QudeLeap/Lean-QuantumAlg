@@ -19,7 +19,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -29,11 +30,11 @@ def packOp (refs : Refs ctx N) :
   .packCanonicalResidue (modulusBits N) ctx (parameterBaseInput refs) refs.generator
 
 /-- Width-many literal native shifts materialize the original public modulus. -/
-def modulusInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def modulusInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   ClassicalRoutines.ConstantWord.circuit refs.modulus N
 
 /-- The original public target exponent is materialized by actual width-many native shifts. -/
-def exponentInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def exponentInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   ClassicalRoutines.ConstantWord.circuit refs.targetExponent (RSA.targetExponent N)
 
 /-- Actual shared modulus initialization and its complete store and instruction path. -/
@@ -48,17 +49,19 @@ def exponentStep (refs : Refs ctx N) (store : Store ctx) : Store ctx × (exponen
     store
 
 /-- Actual base packing precedes original modulus and exponent materialization. -/
-def prepareInto (refs : Refs ctx N) : Circuit ctx ctx :=
-  .seq (.classical (packOp refs)) (.seq (modulusInto refs) (exponentInto refs))
+def prepareInto (refs : Refs ctx N) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (packOp refs))
+    (.seq (modulusInto refs) (exponentInto refs))
 
 /-- The actual three chronological shared-input updates and paths. -/
 def prepareStep (refs : Refs ctx N) (store : Store ctx) : Store ctx × (prepareInto refs).Path :=
-  let loaded := modulusStep refs (store.applyOp (packOp refs))
+  let packed := BitWord.instructionStep (execution := model) (packOp refs) store
+  let loaded := modulusStep refs packed.1
   let exponent := exponentStep refs loaded.1
-  (exponent.1, ((), (loaded.2, exponent.2)))
+  (exponent.1, (packed.2, (loaded.2, exponent.2)))
 
 /-- Actual shared target powering reads the real initialized generator and target exponent. -/
-def powerInto (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def powerInto (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   ClassicalRoutines.Modular.NativePower.into (modulusSpec input)
     (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower
 
@@ -70,7 +73,7 @@ def powerStep (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
 
 /-- Initialize original shared inputs and execute actual target powering before candidate
 scanning. -/
-def setupInto (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def setupInto (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (prepareInto refs) (powerInto input refs)
 
 /-- Complete actual shared setup state and all four chronological component paths. -/
@@ -80,47 +83,77 @@ def setupStep (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
   let powered := powerStep input refs prepared.1
   (powered.1, (prepared.2, powered.2))
 
+private theorem modulusExponent_execute (refs : Refs ctx N) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (modulusInto refs) (exponentInto refs)).execute Reference state =
+      state.mapClassical (fun entry =>
+        let loaded := modulusStep refs entry.1
+        let exponent := exponentStep refs loaded.1
+        (exponent.1, (entry.2.1, (entry.2.2, (loaded.2, exponent.2))))) := by
+  refine (Circuit.execute_seq_mapClassical (modulusInto refs) (exponentInto refs)
+    (fun before =>
+      let actual := modulusStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := exponentStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      ClassicalRoutines.ConstantWord.constantWord_fold_execute refs.modulus _
+        reference current)
+    (fun reference _history _ current =>
+      ClassicalRoutines.ConstantWord.constantWord_fold_execute refs.targetExponent _
+        reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 /-- Actual base packing and constant materialization retain all incoming histories and
 references. -/
 theorem prepareInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (prepareInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((prepareStep refs entry.1).1, (entry.2, (prepareStep refs entry.1).2))) := by
-  have constants := Circuit.execute_seq_mapClassical (modulusInto refs) (exponentInto refs)
-    (modulusStep refs) (exponentStep refs)
-    (ClassicalRoutines.ConstantWord.constantWord_fold_execute refs.modulus _)
-    (ClassicalRoutines.ConstantWord.constantWord_fold_execute refs.targetExponent _)
-  refine (Circuit.execute_seq_mapClassical (.classical (packOp refs))
+      let actual := prepareStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (packOp refs))
     (.seq (modulusInto refs) (exponentInto refs))
-    (fun store => (store.applyOp (packOp refs), ()))
-    (fun store =>
-      let loaded := modulusStep refs store
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model) (packOp refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let loaded := modulusStep refs before.1
       let exponent := exponentStep refs loaded.1
-      (exponent.1, (loaded.2, exponent.2)))
-    (fun Reference History _ state => by
-      refine (Circuit.execute_classical_mapClassical (packOp refs) Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun Reference History _ state => by
-      refine (constants Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      ((exponent.1, before.2), (loaded.2, exponent.2)))
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current =>
+      (modulusExponent_execute refs reference current).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl))
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual full interpreter connects the retained base, initialized constants and target
 power. -/
 theorem setupInto_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (setupInto input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((setupStep input refs entry.1).1, (entry.2, (setupStep input refs entry.1).2))) := by
+      let actual := setupStep input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (prepareInto refs) (powerInto input refs)
-    (prepareStep refs) (powerStep input refs) (prepareInto_execute refs)
-    (ClassicalRoutines.Modular.NativePower.nativePower_into_execute (modulusSpec input)
-      (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower)
+    (fun before =>
+      let actual := prepareStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := powerStep input refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => prepareInto_execute refs reference current)
+    (fun reference _history _ current =>
+      ClassicalRoutines.Modular.NativePower.nativePower_into_execute (modulusSpec input)
+        (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower
+        reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

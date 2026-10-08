@@ -27,12 +27,15 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent complete native formula for both initialized lower-row powers. -/
-def powerRowsTrace (m ell width : Nat) : List (Resource.Event kind) :=
+def powerRowsTrace (m ell width : Nat) : List (Resource.Event model) :=
   Word.PowerOfTwo.powerTrace width (ell + m) ++ Word.PowerOfTwo.powerTrace width (ell + m)
 
 /-- Independent full source-basis instruction formula in its original execution order. -/
-def basisTrace (N m ell width : Nat) : List (Resource.Event kind) :=
+def basisTrace (N m ell width : Nat) : List (Resource.Event model) :=
   firstRowTrace N width ++ powerRowsTrace m ell width
 
 /-- Every actual lower-row path emits both complete independent native power formulas. -/
@@ -51,7 +54,7 @@ theorem loadBasisInto_events (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (powerRowsInto_events m ell output path.2)
 
 /-- Independent complete native multiplicity budget for the original source-basis loader. -/
-def basisEventEnvelope (N m ell width : Nat) : ResourcePool kind :=
+def basisEventEnvelope (N m ell width : Nat) : ResourcePool model :=
   ResourcePool.ofList (basisTrace N m ell width)
 
 /-- Actual source-basis multiplicities equal the complete independent native envelope. -/
@@ -108,7 +111,7 @@ theorem loadBasisInto_depth (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
 /-- Both actual lower-row powers restore all borrowed storage jointly with external references. -/
 theorem powerRowsInto_borrowedRestored (m ell : Nat) (output : RawOutputRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (powerRowsInto m ell output).BorrowedRestored Reference state
       ((powerRowsInto m ell output).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -118,7 +121,8 @@ theorem powerRowsInto_borrowedRestored (m ell : Nat) (output : RawOutputRefs ctx
 /-- Complete actual source-basis loading restores every borrowed-reference correlation jointly. -/
 theorem loadBasisInto_borrowedRestored (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadBasisInto (m := m) (ell := ell) pair output).BorrowedRestored Reference state
       ((loadBasisInto (m := m) (ell := ell) pair output).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -127,7 +131,7 @@ theorem loadBasisInto_borrowedRestored (m ell : Nat) (pair : BatchMachine.PairRe
 
 /-- Both actual lower-row powers keep every original context entry live. -/
 theorem powerRowsInto_visited (m ell : Nat) (output : RawOutputRefs ctx width)
-    (path : (powerRowsInto m ell output).Path) (visited : RuntimeCtx kind)
+    (path : (powerRowsInto m ell output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (powerRowsInto m ell output).visitedContexts path) : visited = ctx := by
   change visited ∈ _ ++ _ at present
   exact (List.mem_append.mp present).elim
@@ -137,7 +141,8 @@ theorem powerRowsInto_visited (m ell : Nat) (output : RawOutputRefs ctx width)
 /-- Every actual source-basis instruction uses only the complete original context. -/
 theorem loadBasisInto_visited (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
-    (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) (visited : RuntimeCtx kind)
+    (path : (loadBasisInto (m := m) (ell := ell) pair output).Path)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadBasisInto (m := m) (ell := ell) pair output).visitedContexts path) :
     visited = ctx := by
   change visited ∈ _ ++ _ at present

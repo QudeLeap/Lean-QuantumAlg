@@ -28,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open Execution FiniteCyclicDLP Canonical.Probability
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
-    {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The original selected-event mass is retained in the actual recovered-secret output event. -/
 theorem rawRecoveryIntoResult_selected_eventWeight_le
@@ -38,7 +38,7 @@ theorem rawRecoveryIntoResult_selected_eventWeight_le
     (result : CWriteRef ctx
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.OutputShape (orderWidth problem)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     state.effectWeight (fun entry =>
       if selectedExponentEvent problem input
           (QubitReadouts.mask (entry.1.read measured)) = true then
@@ -58,10 +58,11 @@ theorem rawRecoveryIntoResult_selected_eventWeight_le
   intro entry _present
   by_cases selected :
       selectedExponentEvent problem input (QubitReadouts.mask (entry.1.read measured)) = true
-  · have written : (record entry.1).1.read (.storage result.toCStorageRef) =
+  · have written : (record (entry.1, entry.2.1)).1.1.read
+        (.storage result.toCStorageRef) =
         .optionSome (.product (CShape.wordOfNat (orderWidth problem) input.secret.val)
           (.bit true)) := by
-      rw [correct entry.1 selected, Store.read_write_same]
+      rw [correct (entry.1, entry.2.1) selected, Store.read_write_same]
     simp only [selected, written, if_true, le_refl]
   · simp only [selected, Bool.false_eq_true, if_false, Effect.weight_zero]
     split_ifs

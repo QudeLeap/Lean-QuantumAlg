@@ -37,7 +37,7 @@ open Execution
 
 /-- Under the original promise the actual relational result makes the correct decision surely. -/
 theorem actual_success {n : Nat} (f : WalshHadamard.Oracle n) (promised : Promise f)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput ClassicalOracleModel.empty pre Reference) :
     ((run f).relationalDistribution input).toOuterMeasure
       {pair | accepts f pair.1 pair.2} = 1 := by
   have projection :

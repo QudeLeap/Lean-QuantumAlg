@@ -25,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The genuine inner factor circuit has its complete store and path map on every CQ input. -/
 theorem body_execute (source : Input N)
@@ -33,19 +34,15 @@ theorem body_execute (source : Input N)
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (body source parameter phase output).execute Reference state =
-      state.mapClassical (fun entry => ((bodyStep source parameter phase output entry.1).1,
-        (entry.2, (bodyStep source parameter phase output entry.1).2))) := by
-  refine (NativeFactorTail.code_execute source (liftInput parameter) (liftInput phase)
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (body (model := model) source parameter phase output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := bodyStep (model := model) source parameter phase output entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (NativeFactorTail.code_execute (model := model) source
+    (liftInput parameter) (liftInput phase)
     (cells ctx N) (liftWrite output) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store (context ctx N) ×
-        (History × (body source parameter phase output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((bodyStep source parameter phase output entry.1).1,
-          (entry.2, (bodyStep source parameter phase output entry.1).2))))
-    (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

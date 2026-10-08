@@ -7,8 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm.Problem
+public import QuantumAlg.Components.Oracle.AmplitudeAmplification
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Primitives.AmplitudeAmplification.Model
 public import QuantumAlg.Primitives.AmplitudeAmplification.Context
+import all QuantumAlg.Primitives.AmplitudeAmplification.Execution
 import all QuantumAlg.Primitives.AmplitudeAmplification.Model
 import all QuantumAlg.Primitives.AmplitudeAmplification.Context
 import all QuantumAlg.Primitives.AmplitudeAmplification.Program.Resources
@@ -33,16 +36,11 @@ noncomputable section
 
 open QuantumAlg.ZeroReflection.Workspace
 
-/-- The independently named all-zero preparation occurrence for the complete actual register. -/
-def basisPreparationEvent (width : Nat) : Resource.Event .quantum :=
-  .preparation
-    { family := "builtin", name := "computational-basis"
-      parameters := width :: (List.replicate width 2 ++ List.replicate width 0) }
-
-/-- Initial basis preparation followed by the independent source-iterate account. -/
-def eventBudget (n k : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (basisPreparationEvent (totalQubits n k)) +
-    Native.unitaryEventPool n k
+/-- One zero preparation per physical qubit, followed by independent source-iterate counts. -/
+def eventBudget {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
+    ResourcePool (model M) :=
+  totalQubits n k • ResourcePool.singleton (model := model M) (.preparation (2 : ℕ+)) +
+    Native.unitaryEventPool M.preparation M.good k
 
 /-- Every prepared source or helper system remains live and owned; no classical cells exist. -/
 def spaceBudget (n k : Nat) : SpacePool .quantum
@@ -80,7 +78,7 @@ normalized external-reference states are admitted.
 **Output.** The source has bad/good amplitudes cos((2k+1)θ) and sin((2k+1)θ).
 Every selected helper is retained in its original prepared zero state; the
 complete Output keeps the entire joint source/helper register and returns unit.
-**Resource budget.** One actual all-zero basis preparation, k+1 ordinary A
+**Resource budget.** One zero preparation per actual source/helper qubit, k+1 ordinary A
 queries, k inverse-A queries and k distinguishing good-reflection queries.
 Each known positive zero reflection uses the independently counted elementary
 gates, for k times that count in total. There are n+h owned quantum systems,
@@ -93,16 +91,23 @@ mandatory restoration of the complete external reference, at every angle and k.
 phase and a restored helper; no controlled access to A is assumed.
 -/
 public def problem {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    Problem .quantum pre (post n k) .unit where
+    Problem (.quantum AlgorithmGate.model
+      (AmplitudeAmplificationSource.model M.preparation M.good true false))
+      pre (post n k) .unit where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [stateRequirement M k]
   resources :=
-    { events := eventBudget n k
+    { events := eventBudget M k
       resident := spaceBudget n k
       auxiliary := spaceBudget n k }
-  depth := .quantum (fun _ => 1) (depthBudget n k)
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBudget n k
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

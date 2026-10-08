@@ -25,19 +25,21 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Two original initialization events and both original additions in every declared slot. -/
-def scalarEnvelope (kind : ProblemKind) (spec : CurveSpec width) (scalarWidth : Nat) :
-    ResourcePool kind :=
-  ResourcePool.ofList (Add.Native.infinityTrace width) +
+def scalarEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) (scalarWidth : Nat) : ResourcePool model :=
+  ResourcePool.ofList (Add.Native.infinityTrace model width) +
     ResourcePool.scale scalarWidth
-      (Add.Native.additionEnvelope kind spec + Add.Native.additionEnvelope kind spec)
+      (Add.Native.additionEnvelope model spec + Add.Native.additionEnvelope model spec)
 
 /-- Original serial durations preserve all scalar slots, including leading zero bits. -/
-def scalarDepthLimit (spec : CurveSpec width) (scalarWidth : Nat)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  ((Add.Native.infinityTrace width).map duration).sum +
+def scalarDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (scalarWidth : Nat)
+    (duration : Resource.Event model → Nat) : Nat :=
+  ((Add.Native.infinityTrace model width).map duration).sum +
     scalarWidth * (Add.Native.additionDepthLimit spec duration +
       Add.Native.additionDepthLimit spec duration)
 
@@ -45,7 +47,7 @@ private theorem scalarBitArm_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).resourcePool path ≤
-      Add.Native.additionEnvelope kind spec := by
+      Add.Native.additionEnvelope model spec := by
   cases value with
   | bit flag =>
       cases flag
@@ -57,7 +59,7 @@ private theorem scalarSlot_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
     (scalarSlot spec bits point accumulator index).resourcePool path ≤
-      Add.Native.additionEnvelope kind spec + Add.Native.additionEnvelope kind spec := by
+      Add.Native.additionEnvelope model spec + Add.Native.additionEnvelope model spec := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (Add.Native.addInto_pool_le spec _ _ accumulator path.1)
@@ -69,7 +71,7 @@ theorem scalarInto_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
     (scalarInto spec bits point accumulator).resourcePool path ≤
-      scalarEnvelope kind spec scalarWidth := by
+      scalarEnvelope model spec scalarWidth := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (Add.Native.infinityInto_resourcePool accumulator path.1).le
@@ -82,12 +84,12 @@ theorem scalarRetained_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :
     (scalarRetained spec bits point key fresh).resourcePool path ≤
-      scalarEnvelope kind spec scalarWidth :=
+      scalarEnvelope model spec scalarWidth :=
   scalarInto_pool_le spec _ _ _ path.2
 
 private theorem scalarBitArm_depth_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (value : CShape.Value .bit) (duration : Resource.Event kind → Nat)
+    (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).depth duration path ≤
       Add.Native.additionDepthLimit spec duration := by
@@ -100,7 +102,7 @@ private theorem scalarBitArm_depth_le (spec : CurveSpec width)
 private theorem scalarSlot_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (index : Fin scalarWidth) (duration : Resource.Event kind → Nat)
+    (index : Fin scalarWidth) (duration : Resource.Event model → Nat)
     (path : (scalarSlot spec bits point accumulator index).Path) :
     (scalarSlot spec bits point accumulator index).depth duration path ≤
       Add.Native.additionDepthLimit spec duration + Add.Native.additionDepthLimit spec duration :=
@@ -111,7 +113,7 @@ private theorem scalarSlot_depth_le (spec : CurveSpec width)
 theorem scalarInto_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat) (path : (scalarInto spec bits point accumulator).Path) :
+    (duration : Resource.Event model → Nat) (path : (scalarInto spec bits point accumulator).Path) :
     (scalarInto spec bits point accumulator).depth duration path ≤
       scalarDepthLimit spec scalarWidth duration := by
   have folded := Circuit.forRange_depth_le_sum scalarWidth
@@ -126,7 +128,7 @@ theorem scalarInto_depth_le (spec : CurveSpec width)
 theorem scalarRetained_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (scalarRetained spec bits point key fresh).Path) :
     (scalarRetained spec bits point key fresh).depth duration path ≤
       scalarDepthLimit spec scalarWidth duration := by
@@ -136,7 +138,7 @@ theorem scalarRetained_depth_le (spec : CurveSpec width)
 
 private theorem scalarBitArm_duration_eventTrace (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (value : CShape.Value .bit) (duration : Resource.Event kind → Nat)
+    (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).depth duration path =
       (((scalarBitArm spec point accumulator value).eventTrace path).map duration).sum := by
@@ -149,7 +151,7 @@ private theorem scalarBitArm_duration_eventTrace (spec : CurveSpec width)
 private theorem scalarSlot_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (index : Fin scalarWidth) (duration : Resource.Event kind → Nat)
+    (index : Fin scalarWidth) (duration : Resource.Event model → Nat)
     (path : (scalarSlot spec bits point accumulator index).Path) :
     (scalarSlot spec bits point accumulator index).depth duration path =
       (((scalarSlot spec bits point accumulator index).eventTrace path).map duration).sum := by
@@ -163,7 +165,7 @@ private theorem scalarSlot_duration_eventTrace (spec : CurveSpec width)
 theorem scalarInto_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat) (path : (scalarInto spec bits point accumulator).Path) :
+    (duration : Resource.Event model → Nat) (path : (scalarInto spec bits point accumulator).Path) :
     (scalarInto spec bits point accumulator).depth duration path =
       (((scalarInto spec bits point accumulator).eventTrace path).map duration).sum := by
   change _ + _ = (List.map duration (_ ++ _)).sum
@@ -179,7 +181,7 @@ theorem scalarInto_duration_eventTrace (spec : CurveSpec width)
 theorem scalarRetained_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (scalarRetained spec bits point key fresh).Path) :
     (scalarRetained spec bits point key fresh).depth duration path =
       (((scalarRetained spec bits point key fresh).eventTrace path).map duration).sum := by

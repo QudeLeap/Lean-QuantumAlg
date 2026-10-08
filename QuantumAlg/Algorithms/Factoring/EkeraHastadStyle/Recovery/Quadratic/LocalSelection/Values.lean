@@ -25,7 +25,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {width : Nat}
 
 private theorem choice_toNat (accepted firstValid secondValid : Bool)
     (old first second : CShape.Value (.unsignedWord width)) :
@@ -51,6 +51,9 @@ private theorem choice_replace
   cases secondEq
   rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 set_option maxHeartbeats 800000 in -- Normalize reads through the thirteen actual lexical cells.
 /-- Actual entry, native arithmetic, both complete checks and selection give the source result. -/
 theorem nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord width))
@@ -61,18 +64,20 @@ theorem nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord 
     let secondValid := decide (1 < source.2 ∧ source.2 < (store.read modulus).toNat ∧
       (store.read modulus).toNat % source.2 = 0)
     let entered := CheckLayout.pushStore (RSA.quadraticWordWidth width)
-      (initializedStore input modulus store)
-    let final := (Pair.step (pairRefs modulus) entered).1
+      (initializedStore (model := model) input modulus store)
+    let final := (Pair.step (model := model) (pairRefs modulus) entered).1
     (final.read (FirstAccepted.cellRead (pairRefs modulus).selection.accepted)).toBool =
         (firstValid || secondValid) ∧
       (final.read (FirstAccepted.cellRead (pairRefs modulus).selection.selected)).toNat =
         if firstValid then source.1 else if secondValid then source.2 else 0 := by
   let work := RSA.quadraticWordWidth width
-  let initialized : Store (candidateContext ctx width) := initializedStore input modulus store
+  let initialized : Store (candidateContext ctx width) :=
+    initializedStore (model := model) input modulus store
   let entered : Store (CheckLayout.context (candidateContext ctx width) work) :=
     CheckLayout.pushStore work initialized
   let source := RSA.quadraticFactorCandidates (store.read modulus).toNat (store.read input).toNat
-  have materialized := nativeQuadratic_local_initialized_values input modulus store
+  have materialized := nativeQuadratic_local_initialized_values (model := model)
+    input modulus store
   have firstOriginal : (entered.read (CheckLayout.underRead (operands modulus).first work)).toNat =
       source.1 :=
     (congrArg CShape.Value.toNat (CheckLayout.nativeQuadratic_checkLayout_push_read
@@ -87,7 +92,8 @@ theorem nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord 
     (congrArg CShape.Value.toNat (CheckLayout.nativeQuadratic_checkLayout_push_read
       (.storage (arithmeticRefs ctx width).center.toCStorageRef) work initialized)).trans
       materialized.2
-  have modulusKept := nativeQuadratic_initialized_read_other (arithmeticRead input width)
+  have modulusKept := nativeQuadratic_initialized_read_other (model := model)
+    (arithmeticRead input width)
     (arithmeticRead modulus width) (arithmeticRefs ctx width) (arithmeticRead modulus width)
     (nativeQuadratic_layout_separated
       (SelectionLayout.underRead modulus work)).modulusFree (entryStore width store)
@@ -104,21 +110,23 @@ theorem nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord 
     congrArg CShape.Value.toBool
       ((CheckLayout.nativeQuadratic_checkLayout_push_read
         (FirstAccepted.cellRead (localRefs ctx width).accepted) work initialized).trans
-        (nativeQuadratic_local_initialized_accepted input modulus store))
+        (nativeQuadratic_local_initialized_accepted (model := model) input modulus store))
   have selectedBefore :
       (entered.read (CheckLayout.underRead
         (FirstAccepted.cellRead (operands modulus).selection.selected) work)).toNat = 0 :=
     (congrArg CShape.Value.toNat
       ((CheckLayout.nativeQuadratic_checkLayout_push_read
         (FirstAccepted.cellRead (localRefs ctx width).selected) work initialized).trans
-        (nativeQuadratic_local_initialized_selected input modulus store))).trans (Nat.zero_mod _)
+        (nativeQuadratic_local_initialized_selected (model := model)
+          input modulus store))).trans (Nat.zero_mod _)
   have firstTest := congrArg₂ (fun modulus candidate : Nat =>
     decide (1 < candidate ∧ candidate < modulus ∧ modulus % candidate = 0))
     modulusOriginal firstOriginal
   have secondTest := congrArg₂ (fun modulus candidate : Nat =>
     decide (1 < candidate ∧ candidate < modulus ∧ modulus % candidate = 0))
     modulusOriginal secondOriginal
-  have actual := CheckLayout.nativeQuadratic_checked_pair_latches (operands modulus)
+  have actual := CheckLayout.nativeQuadratic_checked_pair_latches (model := model)
+    (operands modulus)
     (nativeQuadratic_local_operands_separated modulus)
     (nativeQuadratic_local_selector_separated modulus) entered oneValue
     (CheckLayout.nativeQuadratic_checkLayout_push_zero_toNat work initialized)

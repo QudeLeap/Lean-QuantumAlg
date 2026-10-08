@@ -53,11 +53,14 @@ def doublingScratch (cells : Cells ctx (doublingShapes width)) : DoublingScratch
   numerator := (cellAt cells ⟨1, by change 1 < 6; decide⟩).ref
   denominator := (cellAt cells ⟨0, by change 0 < 6; decide⟩).ref
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Every arithmetic and constant-loading call precedes the original tail in its original slot. -/
 def doublingStage (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width)) :
-    Fin 7 → Circuit ctx ctx :=
+    Fin 7 → Circuit model ctx ctx :=
   ![Field.Native.mulIntoWord spec.field pointX pointX scratch.xSquared,
     Field.Native.addIntoWord spec.field (classifierRead scratch.xSquared)
       (classifierRead scratch.xSquared) scratch.doubledXSquared,
@@ -74,13 +77,13 @@ def doublingStage (spec : CurveSpec width)
 def doublingBody (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   Circuit.forRange 7 (doublingStage spec pointX pointY scratch output)
 
 /-- Allocate all original doubling-prefix cells and retain the complete actual point snapshot. -/
 def doublingInto (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
-    (output : CWriteRef ctx (PointShape width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (PointShape width)) : Circuit model ctx ctx :=
   withCells ctx (doublingShapes width) fun cells _ transport _ =>
     let pointAt := transport.liftInput point
     doublingBody spec (.first (.second pointAt)) (.second (.second pointAt))

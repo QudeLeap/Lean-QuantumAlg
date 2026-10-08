@@ -13,7 +13,7 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit.Depth
 
 Each runtime parameter selects the real two-exponentiation circuit. All
 members share the same actual exponent, power and auxiliary wires; the
-independent budgets retain native control labels and bound every duration
+independent budgets retain every actual native instruction and bound every duration
 assignment. The source preparation, QFT readout and Born semantics are
 provided by the same circuit graph.
 -/
@@ -25,7 +25,8 @@ noncomputable section
 /-- Parameter-selected actual members, complete native pools, and a common literal wire layout. -/
 def compiledCircuitFamily {Parameter : Type} (m ell width N : Nat)
     (generator target : Parameter → (ZMod N)ˣ) :
-    UnitaryCircuitFamily Parameter (Qubits (totalQubits (registerParameters m ell width))) where
+    UnitaryCircuitFamily Parameter AlgorithmGate.model .empty
+      (QubitLayout.canonical (totalQubits (registerParameters m ell width))).toQuantum where
   member parameter := compiledCircuit m ell width N (generator parameter) (target parameter)
   eventEnvelope := compiledCircuitEventEnvelope m ell width N
   member_eventCost_le parameter :=
@@ -33,9 +34,7 @@ def compiledCircuitFamily {Parameter : Type} (m ell width N : Nat)
   depthEnvelope := compiledCircuitDepthEnvelope m ell width N
   member_eventDepth_le parameter assignment :=
     compiledCircuit_eventDepth_le m ell width N (generator parameter) (target parameter) assignment
-  commonPhysicalIdx := List.range (totalQubits (registerParameters m ell width))
-  member_physical_idx parameter :=
-    compiledCircuit_physical_idx m ell width N (generator parameter) (target parameter)
+
 
 end
 

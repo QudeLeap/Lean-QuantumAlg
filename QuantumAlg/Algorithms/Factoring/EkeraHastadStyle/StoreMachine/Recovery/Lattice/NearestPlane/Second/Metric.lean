@@ -75,7 +75,9 @@ abbrev metricRight : Metric → InputPoint
   | .denominator => .cross
 
 /-- One actual native five-instruction dot refresh. -/
-def metricInto (refs : Refs ctx width) (metric : Metric) : Circuit ctx ctx :=
+def metricInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (metric : Metric) :
+    Circuit model ctx ctx :=
   LatticeDotRefresh.refreshInto (inputPointRefs refs (metricLeft metric))
     (inputPointRefs refs (metricRight metric)) (metricRefs refs metric)
 

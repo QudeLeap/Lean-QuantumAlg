@@ -27,7 +27,8 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The native decision writes the source's complete parameter for the actual scan choice. -/
 theorem samplerDecision_source (input : Input N)
@@ -41,7 +42,7 @@ theorem samplerDecision_source (input : Input N)
       (FirstAccepted.cellRead (Layout.modulusCell ctx (modulusBits N)))).toNat = N)
     (resultZero : (store.read
       (FirstAccepted.cellRead (Layout.gcdResultCell ctx (modulusBits N)))).toNat = 0) :
-    (step (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))
+    (step (model := model) (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))
       (Layout.gcdResultCell ctx (modulusBits N)) output store).1.read
         (FirstAccepted.cellRead output) = parameterValue input value := by
   let shared := Layout.shared ctx (modulusBits N)
@@ -109,7 +110,8 @@ theorem samplerDecision_source (input : Input N)
       have positive : 0 < candidate := eligible.1
       have below : candidate < N := eligible.2
       rw [if_pos rfl,
-        decisionAccepted_fields shared scratch gcdResult separated initialized zeroRead]
+        decisionAccepted_fields (model := model) shared scratch gcdResult
+          separated initialized zeroRead]
       rw [candidateRead, unitRead, flagRead, modulusRead, oneValue]
       by_cases coprime : Nat.Coprime candidate N
       · have expected := sampler_parameterValue_of_coprime input value prepared below coprime

@@ -10,10 +10,13 @@ import all QuantumAlg.Algorithms.AmplitudeEstimation.Construction
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Context
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Storage
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.ProgramLaws
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Layout.Quantum.Append
 import all QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Core.Execution.Measurement.Cells.Laws
 import all QuantumAlg.Core.Base.State.Density
 import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Base.Tensor.Certified
 
 /-!
@@ -73,6 +76,58 @@ theorem inputPreparation_density_original {n : Nat} (E : GeneralAmplitudeEstimat
     DensityOperator.ofPure_matrix, DensityOperator.ofPure_matrix]
   simp only [Equiv.symm_symm, value]
 
+private theorem preparedLayoutEquiv_eq_wireBasis (t n : Nat) :
+    preparedLayoutEquiv t n =
+      basisOfEqualWires
+        (runtimeLayout t n)
+        (preparedContext t n).quantumLayout (prepared_canonical_wires t n) := by
+  apply Equiv.ext
+  intro basis
+  funext target
+  let layout :=
+    (runtimeLayout t n)
+  obtain ⟨index, rfl⟩ :=
+    (positionsOfEqualWires layout (preparedContext t n).quantumLayout
+      (prepared_canonical_wires t n)).surjective
+      target
+  apply Fin.ext
+  have position :
+      positionsOfEqualWires layout (preparedContext t n).quantumLayout
+        (prepared_canonical_wires t n) index =
+        pre.addOwnedLayoutPositionEquiv ⟨0⟩ (runtimeLayout t n) preparationFresh
+          (preparationDisjoint t n) (Fin.castAdd pre.systemCount index) := by
+    apply Fin.ext
+    rfl
+  have prepared :
+      (preparedLayoutEquiv t n basis
+        (positionsOfEqualWires layout (preparedContext t n).quantumLayout
+          (prepared_canonical_wires t n) index)).val = (basis index).val := by
+    rw [position]
+    exact (pre.addOwnedLayout_basis_value_preserved ⟨0⟩ (runtimeLayout t n)
+      preparationFresh (preparationDisjoint t n) _ (Fin.castAdd pre.systemCount index)).trans
+        (QuantumLayout.appendJoinBasis_left_value _ _ _ basis
+          (emptyContextBasis pre pre_systemCount) index)
+  exact prepared.trans
+    (basisOfEqualWires_value layout (preparedContext t n).quantumLayout
+      (prepared_canonical_wires t n) basis index).symm
+
+private theorem nativeProgram_matrix {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+    (t : Nat) :
+    (nativeProgram E t).matrix =
+      UnitaryOperator.reindex (preparedBasisEquiv t n).symm (runtimeProgram E t).binaryMatrix := by
+  rw [nativeProgram, unitaryOfEqualWires_matrix, UnitaryCircuit.binaryMatrix,
+    UnitaryOperator.unitaryOperator_reindex_trans]
+  rw [preparedBasisEquiv, preparedLayoutEquiv_eq_wireBasis]
+  exact congrArg (fun equivalence => UnitaryOperator.reindex equivalence
+    (runtimeProgram E t).matrix) (by
+      apply Equiv.ext
+      intro basis
+      simp only [Equiv.symm_trans_apply, Equiv.trans_apply]
+      apply congrArg (basisOfEqualWires (runtimeLayout t n)
+        (preparedContext t n).quantumLayout (prepared_canonical_wires t n))
+      exact ((QuantumSignature.qubitsIndexEquiv
+        (t + (Elementary.helperWidth t n + n))).symm_apply_apply basis).symm)
+
 /-- The actual elementary circuit has the independent source operator on every basis value. -/
 theorem nativeProgram_matrix_original {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) (empty : Elementary.helperWidth t n = 0) :
@@ -81,14 +136,16 @@ theorem nativeProgram_matrix_original {n : Nat} (E : GeneralAmplitudeEstimationI
   calc
     _ = UnitaryOperator.reindex (preparedOriginalBasisEquiv t n empty).symm
         (UnitaryOperator.reindex (Elementary.unextendedBasisEquiv t n empty)
-          (Elementary.program t E.source.preparation E.source.good).matrix) := by
+          (Elementary.program t E.source.preparation E.source.good).binaryMatrix) := by
       apply Subtype.ext
       ext row column
-      simp only [nativeProgram, UnitaryCircuit.reindex_matrix, UnitaryOperator.coe_reindex,
+      rw [nativeProgram_matrix, runtimeProgram, Elementary.castCircuit_matrix]
+      simp only [UnitaryOperator.coe_reindex,
         Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm]
       congr 1
     _ = _ := by
-      rw [Elementary.program_matrix_of_noHelper]
+      rw [Elementary.program_matrix_of_noHelper,
+        QuantumPhaseEstimation.Native.qpeNative_circuit_binaryMatrix]
       rfl
 
 /-- The actual phase readout is the original readout, with each phase bit preserved. -/

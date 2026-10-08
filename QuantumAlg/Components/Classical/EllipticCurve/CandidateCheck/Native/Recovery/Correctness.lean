@@ -29,8 +29,10 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
+omit [BitWord.Selected model] in
 private theorem exposure_reads (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
     (reconstruction : CWriteRef ctx .bit) (before : Store ctx)
@@ -64,13 +66,14 @@ theorem recoveryStore_preserves_read (curve : CurveSpec width)
     (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (before : Store ctx) {shape : CShape} (observed : CInputRef ctx shape)
+    (before : Store ctx) (hidden : model.HiddenState)
+    {shape : CShape} (observed : CInputRef ctx shape)
     (free : ∀ key ∈ [inverseSuccess.key, candidate.key, reconstruction.key,
       scalarResult.key, accepted.key], key ∉ observed.storageKeys) :
     (recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
-      scalarResult accepted before).read observed = before.read observed := by
-  unfold recoveryStore
-  rw [verifyStep_preserves_read _ _ _ _ _ _ _ _ _ observed
+      scalarResult accepted (before, hidden)).read observed = before.read observed := by
+  rw [recoveryStore_eq]
+  rw [verifyStep_preserves_read _ _ _ _ _ _ _ _ _ _ observed
     (free scalarResult.key (by simp)) (free accepted.key (by simp))]
   exact FiniteCyclicDLP.RawRecovery.Native.exposureWrite_read_other
     inverseSuccess candidate reconstruction before _ observed
@@ -86,13 +89,13 @@ theorem recoveryStore_observations (curve : CurveSpec width)
     (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (before : Store ctx)
+    (before : Store ctx) (hidden : model.HiddenState)
     (distinct : [inverseSuccess.key, candidate.key, reconstruction.key,
       scalarResult.key, accepted.key].Nodup) :
     let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
       (FiniteCyclicDLP.RawRecovery.Native.preparationInput (before.read sample))
     let after := recoveryStore curve modulus sample base target inverseSuccess candidate
-      reconstruction scalarResult accepted before
+      reconstruction scalarResult accepted (before, hidden)
     after.read (.storage inverseSuccess.toCStorageRef) = raw.first ∧
       after.read (.storage candidate.toCStorageRef) = raw.second.first ∧
       after.read (.storage reconstruction.toCStorageRef) = raw.second.second := by
@@ -106,12 +109,13 @@ theorem recoveryStore_observations (curve : CurveSpec width)
       (scalarFree : scalarResult.key ∉ observed.storageKeys)
       (acceptedFree : accepted.key ∉ observed.storageKeys) :
       (recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
-        scalarResult accepted before).read observed =
+        scalarResult accepted (before, hidden)).read observed =
         (FiniteCyclicDLP.RawRecovery.Native.exposureWrite inverseSuccess candidate reconstruction
           before raw).read observed := by
+    rw [recoveryStore_eq]
     exact verifyStep_preserves_read curve (.storage candidate.toCStorageRef) base target
       (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
-      scalarResult accepted _ observed scalarFree acceptedFree
+      scalarResult accepted _ _ observed scalarFree acceptedFree
   dsimp only
   constructor
   · exact (preserved (.storage inverseSuccess.toCStorageRef)
@@ -146,7 +150,8 @@ theorem recoveryStore_accepts_iff (curve : CurveSpec width)
     (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (before : Store ctx) (basePoint targetPoint : Pure.Point curve)
+    (before : Store ctx) (hidden : model.HiddenState)
+    (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve (before.read base) basePoint)
     (targetRep : PointRepresents curve (before.read target) targetPoint)
     (distinct : [inverseSuccess.key, candidate.key, reconstruction.key,
@@ -158,7 +163,8 @@ theorem recoveryStore_accepts_iff (curve : CurveSpec width)
     let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
       (FiniteCyclicDLP.RawRecovery.Native.preparationInput (before.read sample))
     ((recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
-      scalarResult accepted before).read (.storage accepted.toCStorageRef)).toBool = true ↔
+      scalarResult accepted (before, hidden)).read
+        (.storage accepted.toCStorageRef)).toBool = true ↔
       raw.second.first.toNat • basePoint = targetPoint ∧
         raw.first.toBool = true ∧ raw.second.second.toBool = true := by
   let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
@@ -187,9 +193,13 @@ theorem recoveryStore_accepts_iff (curve : CurveSpec width)
       inverseSuccess candidate reconstruction before raw target
       (targetFree inverseSuccess.key (by simp)) (targetFree candidate.key (by simp))
       (targetFree reconstruction.key (by simp))
+  let rawHidden : model.HiddenState :=
+    (Classical.choose
+      (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
+        modulus sample inverseSuccess candidate reconstruction) (before, hidden)).1.2
   have actual := verifyStep_accepts_iff curve (.storage candidate.toCStorageRef) base target
     (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
-    scalarResult accepted recovered scalar basePoint targetPoint
+    scalarResult accepted recovered rawHidden scalar basePoint targetPoint
     (reads.2.1.trans scalarValue)
     (by rw [rawBase]; exact baseRep) (by rw [rawTarget]; exact targetRep)
     (by simpa only [CInputRef.storageKeys, List.mem_singleton] using
@@ -209,6 +219,7 @@ theorem recoveryStore_accepts_iff (curve : CurveSpec width)
       (show accepted.key ≠ reconstruction.key from
         by intro equality; simp [equality] at distinct))
   rw [reads.1, reads.2.2] at actual
+  rw [recoveryStore_eq]
   exact actual
 
 end

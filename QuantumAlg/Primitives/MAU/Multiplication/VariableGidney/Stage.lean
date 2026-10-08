@@ -6,8 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Program
-import all QuantumAlg.Components.Encoded.BitGates.Control
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Gates
+import all QuantumAlg.Components.Encoded.BitGates.Controlled.Product
+import all QuantumAlg.Components.Encoded.BitGates.Controlled.Small
 
 /-!
 # A coherent variable-product stage on three existing words
@@ -28,7 +29,7 @@ namespace QuantumAlg.MAU.Multiplication.VariableGidney
 
 noncomputable section
 
-open Nat.FixedWidth
+open Nat.FixedWidth EncodedBit GateSpec
 
 /-- Two unchanged quantum input words followed by the modular accumulator. -/
 abbrev Registers (width : Nat) := Fin (2 ^ width) × Accumulate.Gidney.Registers width
@@ -55,27 +56,69 @@ def stageOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (index : Fin width
   (state.1, if state.1.val.testBit index.val then
     Accumulate.Gidney.prefixOutput modulus (2 ^ index.val) width state.2 else state.2)
 
-/-- Actual coherent control of the existing native two-word MAC. -/
+private theorem inputBits_wire (width : Nat)
+    (position : Fin (BinaryLabelEncoding.finIdentity width).width) :
+    (BinaryLabelEncoding.finIdentityBit width position).wire = position := rfl
+
+/-- Every bit of the inner two-word MAC has its original physical position. -/
+private def bodyBits (width : Nat) :
+    Fin (Accumulate.Gidney.encoding width).width →
+      EncodedBit (Accumulate.Gidney.encoding width) :=
+  productBit (BinaryLabelEncoding.finIdentityBit width)
+    (BinaryLabelEncoding.finIdentityBit width)
+
+private theorem bodyBits_wire (width : Nat)
+    (position : Fin (Accumulate.Gidney.encoding width).width) :
+    (bodyBits width position).wire = position :=
+  productBit_wire (left := BinaryLabelEncoding.finIdentity width)
+    (right := BinaryLabelEncoding.finIdentity width)
+    (BinaryLabelEncoding.finIdentityBit width)
+    (BinaryLabelEncoding.finIdentityBit width) (fun _ => rfl) (fun _ => rfl) position
+
+/-- Actual controlled X/CNOT/Toffoli list on precisely the original three words. -/
+def stageGates (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
+    List (GateSpec
+      (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity width)
+        (Accumulate.Gidney.encoding width))) :=
+  if small : width ≤ 1 then
+    (Accumulate.Gidney.gates width modulus (2 ^ index.val)).map
+      (controlSmall (inputBit width index)
+        (by change width + width ≤ 2; omega))
+  else
+    controlRightList (BinaryLabelEncoding.finIdentityBit width) (bodyBits width)
+      (inputBits_wire width) (bodyBits_wire width)
+      (by
+        change 5 ≤ width + (width + width)
+        omega)
+      (inputBit width index)
+      (Accumulate.Gidney.gates width modulus (2 ^ index.val))
+
+/-- Both control branches preserve the whole first input and exact inner MAC action. -/
+theorem variableGidney_stageGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (index : Fin width) (state : Registers width) :
+    stepList (stageGates width modulus index) state = stageOutput modulus index state := by
+  by_cases small : width ≤ 1
+  · simp only [stageGates, dif_pos small]
+    rw [controlSmallList_step, Accumulate.Gidney.gidneyAccumulateGates_step,
+      variableGidney_inputBit_get]
+    rfl
+  · simp only [stageGates, dif_neg small]
+    rw [controlRightList_step, Accumulate.Gidney.gidneyAccumulateGates_step,
+      variableGidney_inputBit_get]
+    rfl
+
+/-- Native circuit of the literal controlled list in the selected gate model. -/
 def stageProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  UnitaryCircuit.controlAtEncodedBit (inputBit width index)
-    (Accumulate.Gidney.program width modulus (2 ^ index.val))
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (stageGates width modulus index)
 
 /-- Exact action of both coherent branches on every complete encoded label. -/
 theorem variableGidney_stage_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
     UnitaryCircuit.Realizes (encoding width) (stageProgram width modulus index)
-      (stageOutput modulus index) where
-  apply_encoded_ket := by
-    rintro ⟨input, state⟩
-    have actual := UnitaryCircuit.controlAtEncodedBit_applyNormalized_of_eq
-      (inputBit width index) (Accumulate.Gidney.encoding width)
-      (Accumulate.Gidney.program width modulus (2 ^ index.val)) state
-      (Accumulate.Gidney.prefixOutput modulus (2 ^ index.val) width state)
-      ((Accumulate.Gidney.gidneyAccumulate_realizes width modulus
-        (2 ^ index.val)).apply_encoded_ket state) input
-    rw [variableGidney_inputBit_get] at actual
-    exact actual
+      (stageOutput modulus index) :=
+  realizesList_congrStep _ _ _ (variableGidney_stageGates_step width modulus index)
 
 /-- Every quantum input coordinate is preserved, including the selected control. -/
 theorem variableGidney_stage_inputs (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -87,15 +130,14 @@ theorem variableGidney_stage_inputs (width : Nat) (modulus : Fin (2 ^ width + 1)
   · unfold stageOutput
     split_ifs <;> rfl
 
-/-- All accessed physical positions lie in the original three words. -/
-theorem variableGidney_stage_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (index : Fin width) :
-    (stageProgram width modulus index).physical_idx ⊆ List.range (encoding width).width := by
-  apply UnitaryCircuit.controlAtEncodedBit_physical_idx_subset_range
-  rw [Accumulate.Gidney.gidneyAccumulate_physical]
-  change List.range (2 * width) ⊆ List.range (width + width)
-  simp only [Nat.two_mul]
-  exact List.Subset.refl _
+/-- The typed physical layout is exactly the three original words. -/
+theorem variableGidney_stage_interface (width : Nat) :
+    (encoding width).width = 3 * width ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (3 * width) := by
+  have size : (encoding width).width = 3 * width := by
+    change width + (width + width) = 3 * width
+    omega
+  exact ⟨size, (QubitLayout.canonical_systemIdx _).trans (congrArg List.range size)⟩
 
 end
 

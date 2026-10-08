@@ -12,8 +12,8 @@ import all QuantumAlg.Core.Execution.Quantum.Step
 /-!
 # Stored Z results select their cyclic correction
 
-This concrete composition uses the existing Z-write and classical-conditional
-instruction interpretations. The measured value is written into a typed finite
+This mathematical composition uses the existing Z-write and conditional
+state updates. The measured value is written into a typed finite
 classical register, then read from that register to choose its negative shift.
 The result retains the complete classical store and full quantum state.
 
@@ -45,18 +45,18 @@ def resetAfterZWrite (state : ExecutionState (Store ctx) layout.register)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension)) :
     ExecutionState (Store ctx) layout.register :=
   conditional (writeZ state wire output) (.storage output.toCStorageRef)
-    (fun outcome => program layout wire (-outcome))
+    (fun outcome => operator layout wire (-outcome))
 
 /-- The gate selected by the stored result is exactly the negative-outcome
-program applied to that measurement branch. -/
+operator applied to that measurement branch. -/
 theorem resetAfterZWrite_eq (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension)) :
     resetAfterZWrite state wire output =
       ((state.measureZ fun basis : layout.Basis => basis wire).applyUnitary fun result =>
-        (program layout wire (-result.2)).matrix).mapClassical fun result =>
+        (operator layout wire (-result.2))).mapClassical fun result =>
           result.1.write output (.finite result.2) :=
-  conditional_writeZ state wire output (fun outcome => program layout wire (-outcome))
+  conditional_writeZ state wire output (fun outcome => operator layout wire (-outcome))
 
 /-- Exact final-store matrix entries, summing all old stores and outcomes that
 actually write that final store. Every other quantum system remains in the block. -/

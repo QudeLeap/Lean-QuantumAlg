@@ -6,7 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.SourceLayout
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Registers
+import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Util.Nat.FixedWidth
 
@@ -76,8 +77,9 @@ def wordSwapGates (width : Nat) : List (EncodedBit.GateSpec (encoding width)) :=
     (fun index => cross_disjoint width index index)
 
 /-- The actual multiplication word swap, compiled from its literal native gate list. -/
-def wordSwapProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  EncodedBit.GateSpec.programList (wordSwapGates width)
+def wordSwapProgram (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty (wordSwapGates width)
 
 private theorem word_swap_step (width : Nat) (state : Registers width) :
     EncodedBit.Word.swapStep (leftWord width) (rightWord width)
@@ -101,14 +103,12 @@ private theorem word_swap_step (width : Nat) (state : Registers width) :
 /-- The actual CNOT sequence exchanges the complete words with exact phase. -/
 theorem gidneyWordSwap_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (wordSwapProgram width) Prod.swap :=
-  (EncodedBit.Word.swap_realizes (leftWord width) (rightWord width)
-    (fun index => cross_disjoint width index index)).congrStep (word_swap_step width)
+  EncodedBit.GateSpec.realizesList_congrStep _ _ _ (word_swap_step width)
 
-theorem gidneyWordSwap_physical (width : Nat) :
-    (wordSwapProgram width).physical_idx ⊆ List.range (2 * width) := by
-  have contained := EncodedBit.GateSpec.programList_physical_idx_subset_range (wordSwapGates width)
-  change (wordSwapProgram width).physical_idx ⊆ List.range (width + width) at contained
-  simpa only [← Nat.two_mul] using contained
+/-- Exact list action of the three-CNOT swaps on all joint word labels. -/
+theorem gidneyWordSwapGates_step (width : Nat) (state : Registers width) :
+    EncodedBit.GateSpec.stepList (wordSwapGates width) state = state.swap :=
+  word_swap_step width state
 
 theorem gidneyWordSwap_gate_count (width : Nat) :
     (wordSwapGates width).length = 3 * width :=
@@ -116,7 +116,7 @@ theorem gidneyWordSwap_gate_count (width : Nat) :
     (fun index => cross_disjoint width index index)
 
 private theorem word_swap_event (width : Nat) (gate : EncodedBit.GateSpec (encoding width))
-    (present : gate ∈ wordSwapGates width) : gate.event = .gate (.builtin "cnot") := by
+    (present : gate ∈ wordSwapGates width) : gate.event .empty = .gate .cnot := by
   simp only [wordSwapGates, EncodedBit.Word.swapGates, List.mem_flatMap] at present
   obtain ⟨index, _, present⟩ := present
   simp only [EncodedBit.swapGates, List.mem_cons, List.not_mem_nil, or_false] at present
@@ -125,10 +125,12 @@ private theorem word_swap_event (width : Nat) (gate : EncodedBit.GateSpec (encod
 /-- The full native ledger consists of exactly three CNOT occurrences per bit. -/
 theorem gidneyWordSwap_eventCost (width : Nat) :
     (wordSwapProgram width).eventCost =
-      ResourcePool.ofList (List.replicate (3 * width) (.gate (.builtin "cnot"))) := by
+      ResourcePool.ofList (model := .quantum AlgorithmGate.model .empty)
+        (List.replicate (3 * width) (.gate .cnot)) := by
   rw [wordSwapProgram, EncodedBit.GateSpec.programList_eventCost]
-  have events : (wordSwapGates width).map EncodedBit.GateSpec.event =
-      (wordSwapGates width).map (fun _ => Resource.Event.gate (.builtin "cnot")) := by
+  have events : (wordSwapGates width).map (EncodedBit.GateSpec.event .empty) =
+      (wordSwapGates width).map
+        (fun _ => Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) .cnot) := by
     apply List.map_congr_left
     exact word_swap_event width
   rw [events, List.map_const', gidneyWordSwap_gate_count]
@@ -137,10 +139,12 @@ theorem gidneyWordSwap_serial_resources (width : Nat) :
     (wordSwapProgram width).eventCost.card = 3 * width ∧
       (wordSwapProgram width).evaluatedEventDepth (fun _ => 1) = 3 * width := by
   constructor
-  · exact (EncodedBit.GateSpec.programList_eventCost_card (wordSwapGates width)).trans
+  · exact (EncodedBit.GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty
+      (wordSwapGates width)).trans
       (gidneyWordSwap_gate_count width)
   · exact (EncodedBit.GateSpec.programList_evaluatedEventDepth_unit
-      (wordSwapGates width)).trans (gidneyWordSwap_gate_count width)
+      (QubitLayout.canonical _) .empty (wordSwapGates width)).trans
+        (gidneyWordSwap_gate_count width)
 
 end
 

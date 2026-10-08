@@ -23,6 +23,8 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeKeyGeneration
 
 noncomputable section
 
+open ShortDLP.CompiledMAU
+
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The calibrated actual key average meets a rational target when key loss fits its half. -/
@@ -31,7 +33,8 @@ theorem success_ge_target_of_keyBound {bitWidth : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
     (budget : FailureBudget) (wellFormed : budget.WellFormed)
     {Reference : Register}
-    (inputs : RSA.RSAKeyPairBits bitWidth → Execution.Input base Reference)
+    (inputs : RSA.RSAKeyPairBits bitWidth →
+      Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (keyBound : ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) ≤
       ENNReal.ofReal (budget.value / 2)) :
     FailureBudget.successThreshold budget ≤
@@ -62,7 +65,8 @@ theorem eventually_success_ge_target (budget : FailureBudget) (wellFormed : budg
       ∀ nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth),
         RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth →
         ∀ (Reference : Register)
-          (inputs : RSA.RSAKeyPairBits bitWidth → Execution.Input base Reference),
+          (inputs : RSA.RSAKeyPairBits bitWidth →
+            Execution.OracleInput RuntimeRound.model.classicalOracles base Reference),
           FailureBudget.successThreshold budget ≤
             successMass base noQuantum bitWidth nonempty
               (NativeFiniteRetry.Calibration.retryCount budget) inputs := by

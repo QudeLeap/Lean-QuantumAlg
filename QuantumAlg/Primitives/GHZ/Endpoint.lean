@@ -9,7 +9,9 @@ module
 public import QuantumAlg.Core.Algorithm
 public import QuantumAlg.Primitives.GHZ.Construction
 import all QuantumAlg.Primitives.GHZ.Construction
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Components.Kets
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Unitary.Laws
@@ -65,8 +67,6 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 private def qubitLayout : QubitLayout 3 :=
   { physical_idx := Fin.val, physical_idx_injective := Fin.val_injective }
 
-private def layout : QuantumLayout 3 := qubitLayout.toQuantumLayout
-
 /-- One supplied owned three-qubit register on physical systems zero, one and two. -/
 @[reducible] public def inputContext : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ layout (by decide)
@@ -83,19 +83,28 @@ public def inputBasisEquiv : inputContext.register.Index ≃ (Qubits 3).Index :=
   (Execution.basisOfEqualWires layout inputContext.quantumLayout
     layout_wires_eq_context).symm.trans qubitLayout.binaryIndexEquiv
 
-private theorem context_physicalIdx : inputContext.physicalIdx = [0, 1, 2] := by
-  change ((layout.wires ++ []).map QuantumWire.identity) = [0, 1, 2]
-  rfl
+/-- The built-in algorithm gate set, with no oracle access. -/
+public abbrev model : ExecutionModel := .quantum AlgorithmGate.model .empty
 
-private def program : UnitaryCircuit inputContext.register :=
-  UnitaryCircuit.reindex inputBasisEquiv.symm circuit
+private def program : UnitaryCircuit AlgorithmGate.model .empty inputContext.quantumLayout :=
+  Execution.unitaryOfEqualWires layout inputContext.quantumLayout layout_wires_eq_context circuit
 
-private theorem placement : program.physical_idx = inputContext.physicalIdx := by
-  rw [context_physicalIdx]
-  rfl
+private theorem program_matrix :
+    program.matrix = UnitaryOperator.reindex inputBasisEquiv.symm circuit.binaryMatrix := by
+  rw [program, Execution.unitaryOfEqualWires_matrix, UnitaryCircuit.binaryMatrix,
+    UnitaryOperator.unitaryOperator_reindex_trans]
+  apply congrArg (fun equivalence : layout.register.Index ≃ inputContext.register.Index =>
+    UnitaryOperator.reindex equivalence circuit.matrix)
+  apply Equiv.ext
+  intro basis
+  change (Execution.basisOfEqualWires layout inputContext.quantumLayout
+    layout_wires_eq_context) basis =
+      (Execution.basisOfEqualWires layout inputContext.quantumLayout layout_wires_eq_context)
+        ((QuantumSignature.qubitsIndexEquiv 3).symm
+          ((QuantumSignature.qubitsIndexEquiv 3) basis))
+  rw [Equiv.symm_apply_apply]
 
-private def code : Circuit inputContext inputContext :=
-  .unitary program placement
+private def code : Circuit model inputContext inputContext := .unitary program
 
 /-- The supplied local state is exactly the pure zero input,
 with every reference extension allowed. -/
@@ -156,20 +165,25 @@ precise cascade and counts follow from the library's matrix and circuit proofs.
 Nielsen and Chuang provide textbook background; the 1989 Greenberger-Horne-
 Zeilinger four-particle argument supplies distinct historical attribution.
 -/
-public def problem : Problem .quantum inputContext inputContext .unit where
+public def problem : Problem model inputContext inputContext .unit where
   valid := valid
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [stateRequirement]
   resources :=
-    { events := ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        2 • ResourcePool.singleton (.gate (.builtin "cnot"))
+    { events := ResourcePool.singleton (model := model) (.gate .singleQubit) +
+        2 • ResourcePool.singleton (model := model) (.gate .cnot)
       resident := spaceBudget
       auxiliary := spaceBudget }
-  depth := .quantum (fun _ => 1) 3
+  depth :=
+    { duration := fun _ => 1
+      limit := 3
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute H and the two CNOT layers, retaining all three supplied quantum systems. -/
-public def algorithm : Algorithm .quantum inputContext inputContext .unit where
+public def algorithm : Algorithm model inputContext inputContext .unit where
   run := { code := code, output := Output.all inputContext .unit }
 
 private theorem context_resident : inputContext.residentSpace = spaceBudget := by
@@ -189,12 +203,12 @@ private theorem context_auxiliary : inputContext.auxiliarySpace = spaceBudget :=
   | quantumSystems dimension => exact qubitLayout.toQuantumLayout_dimensionCount dimension
 
 private theorem actual_events (path : code.Path) :
-    code.resourcePool path = ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      2 • ResourcePool.singleton (.gate (.builtin "cnot")) := by
+    code.resourcePool path = ResourcePool.singleton (model := model) (.gate .singleQubit) +
+      2 • ResourcePool.singleton (model := model) (.gate .cnot) := by
   change ResourcePool.ofList program.eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, program,
-    UnitaryCircuit.reindex_eventCost, circuit_eventCost]
-  simp only [Gate.atomicEvent, two_nsmul, add_assoc]
+    Execution.unitaryOfEqualWires_cost, circuit_eventCost]
+  simp only [two_nsmul, add_assoc]
 
 private theorem actual_resident (path : code.Path) :
     code.peakResidentSpace path ≤ spaceBudget := by
@@ -215,40 +229,44 @@ private theorem actual_depth (path : code.Path) : code.depth (fun _ => 1) path �
   exact le_of_eq circuit_evaluatedEventDepth_of_one
 
 private theorem final_quantumMarginal {Reference : Register}
-    (supplied : Execution.Input inputContext Reference) :
+    (supplied : Execution.OracleInput .empty inputContext Reference) :
     (algorithm.run.finalState Reference supplied.state).quantumMarginal =
       DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
         supplied.state.quantumMarginal := by
-  exact AlgorithmRun.finalState_unitary_quantumMarginal program placement
+  exact AlgorithmRun.finalState_unitary_quantumMarginal program
     (Output.all inputContext .unit) Reference supplied.state
 
 private theorem program_input :
     DensityOperator.applyUnitary program.matrix
         ((DensityOperator.ofPure input).reindex (S := inputContext.register) inputBasisEquiv.symm) =
       (DensityOperator.ofPure ghz).reindex (S := inputContext.register) inputBasisEquiv.symm := by
-  rw [program, UnitaryCircuit.reindex_matrix, ← DensityOperator.applyUnitary_reindex,
+  rw [program_matrix, ← DensityOperator.applyUnitary_reindex,
     ← DensityOperator.ofPure_apply]
-  change (DensityOperator.ofPure (circuit.applyNormalized input)).reindex
+  change (DensityOperator.ofPure (circuit.binaryMatrix.apply input)).reindex
     (S := inputContext.register) inputBasisEquiv.symm = _
   rw [ghzPreparation_eq]
 
 private theorem final_observed_state {Reference : Register}
-    (supplied : Execution.Input inputContext Reference) (admitted : valid supplied.localState) :
+    (supplied : Execution.OracleInput .empty inputContext Reference)
+    (admitted : valid supplied.caller.localState) :
     DensityOperator.observeSelection inputContext.quantumLayout Finset.univ Reference
       (algorithm.run.finalState Reference supplied.state).quantumMarginal = targetState := by
-  change supplied.localState.quantumMarginal =
+  change supplied.caller.localState.quantumMarginal =
     DensityOperator.ofPure (NormalizedVector.ket (inputBasisEquiv.symm (0 : Fin (2 ^ 3))))
     at admitted
   rw [← input_reindexed] at admitted
   rw [DensityOperator.observeSelection_all, final_quantumMarginal,
-    DensityOperator.localUnitary_marginalLeft, ← Execution.Input.localState_quantumMarginal]
+    DensityOperator.localUnitary_marginalLeft,
+    ← Execution.OracleInput.oracleInput_caller_quantumMarginal supplied,
+    ← Execution.Input.localState_quantumMarginal]
   rw [admitted, program_input, DensityOperator.reindex_trans]
   rfl
 
 private theorem actual_state {Reference : Register}
-    (supplied : Execution.Input inputContext Reference) (admitted : valid supplied.localState) :
-    stateRequirement.Holds supplied (algorithm.run.finalState Reference supplied.state) := by
+    (supplied : Execution.OracleInput .empty inputContext Reference)
+    (admitted : valid supplied.caller.localState) :
+    stateRequirement.Holds supplied.caller (algorithm.run.finalState Reference supplied.state) := by
   intro value
   cases value with
   | unit =>
@@ -263,34 +281,34 @@ private theorem actual_state {Reference : Register}
       simp only [one_smul]
 
 private theorem restores_borrowed {Reference : Register}
-    (supplied : Execution.Input inputContext Reference) :
+    (supplied : Execution.OracleInput .empty inputContext Reference) :
     algorithm.run.RestoresBorrowed supplied := by
-  exact Circuit.borrowedRestored_unitary_noBorrowed rfl rfl program placement
-    (supplied.state.mapClassical fun store => (store, store))
+  exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl program
+    (Output.all inputContext .unit) supplied
 
 /-- The actual complete execution prepares the independent GHZ state within its native bounds. -/
 public theorem main : ∃ candidate, Algorithm.Solves candidate problem := by
   refine ⟨algorithm, ?_⟩
   constructor
-  · intro Reference supplied _valid
+  · intro Reference supplied _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference supplied admitted requirement present
+  · intro Reference supplied admitted _initialized requirement present
     have same : requirement = stateRequirement := List.mem_singleton.mp present
     subst requirement
     exact actual_state supplied admitted
-  · intro Reference supplied _valid
+  · intro Reference supplied _valid _initialized
     exact restores_borrowed supplied
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact le_of_eq (actual_events path)
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact actual_resident path
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact actual_auxiliary path
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact actual_depth path
 
 end

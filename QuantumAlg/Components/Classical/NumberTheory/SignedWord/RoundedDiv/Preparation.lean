@@ -58,6 +58,8 @@ private theorem double_read (store : Store ctx) (input : CInputRef ctx (.unsigne
   rw [Store.read_applyOp_output]
   exact Nat.mod_eq_of_lt fits
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Reads outside the four actual prefix outputs survive preparation. -/
 theorem prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -65,8 +67,9 @@ theorem prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     (avoidsMagnitude : refs.magnitude.key ∉ other.storageKeys)
     (avoidsNumerator : refs.wideNumerator.key ∉ other.storageKeys)
     (avoidsDenominator : refs.wideDenominator.key ∉ other.storageKeys) :
-    ((prepareStep refs store).1).read other = store.read other := by
+    ((prepareStep (model := model) refs store).1).read other = store.read other := by
   unfold prepareStep
+  dsimp only [BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsDenominator,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsNumerator,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsNumerator]
@@ -76,13 +79,14 @@ theorem prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
 /-- Prepared words contain the exact doubled magnitude, original denominator and original sign. -/
 theorem prepare_values (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (widthPositive : 0 < width) :
-    (((prepareStep refs store).1).read (writeInput refs.wideNumerator)).toNat =
+    (((prepareStep (model := model) refs store).1).read (writeInput refs.wideNumerator)).toNat =
         2 * rawMagnitude (store.read refs.numerator) ∧
-      (((prepareStep refs store).1).read (writeInput refs.wideDenominator)).toNat =
+      (((prepareStep (model := model) refs store).1).read (writeInput refs.wideDenominator)).toNat =
         (store.read refs.denominator).toNat ∧
-      (((prepareStep refs store).1).read (writeInput refs.negative)).toBool =
+      (((prepareStep (model := model) refs store).1).read (writeInput refs.negative)).toBool =
         rawIsNegative (store.read refs.numerator) := by
-  let normalized := (normalizationStep refs.numerator refs.negative refs.magnitude store).1
+  let normalized := (normalizationStep (model := model) refs.numerator refs.negative
+    refs.magnitude store).1
   let resized := normalized.applyOp (resizeMagnitudeOp refs)
   let doubled := resized.applyOp (doubleNumeratorOp refs)
   have magnitude : (normalized.read (writeInput refs.magnitude)).toNat =

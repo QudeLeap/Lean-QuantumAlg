@@ -19,8 +19,10 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
+omit [BitWord.Selected model] in
 /-- Distinct original mutable names give actual structural separation of their cells. -/
 theorem mutable_avoids (refs : Refs ctx N) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
@@ -80,6 +82,7 @@ theorem setupInto_parameter_frame (input : Input N) (refs : Refs ctx N)
     (setupStep input refs store).1.read refs.parameter = store.read refs.parameter :=
   setupInto_callerFrame input refs store refs.parameter separation.parameterAvoidsMutable
 
+omit [BitWord.Selected model] in
 /-- The actual stored parameter's first projection always is the original base input. -/
 theorem parameterBaseInput_read (refs : Refs ctx N) (store : Store ctx) :
     store.read (parameterBaseInput refs) = (store.read refs.parameter).first := rfl

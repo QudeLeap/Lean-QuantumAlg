@@ -122,19 +122,22 @@ theorem reverse_step (width : Nat) (enough : 2 ≤ width.size) (state : Register
 
 /-- Compile the same literal native predicate without a separate gate declaration. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Exact whole-frame basis action also fixes every relative amplitude. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough)
       (fun state => xorControl (condition state) state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width enough) (gates_step width enough)
 
 /-- Every real zero-pattern gate appears in the actual predicate trace. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).eventTrace = (gates width enough).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width enough).eventTrace =
+      (gates width enough).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 /-- The actual new patterns include both negative-source mask passes. -/
 theorem regionGates_length_le (width : Nat) (withHigh : Bool) :
@@ -151,7 +154,7 @@ theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
 /-- Unit duration counts the actual emitted list on every quantum input. -/
 theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

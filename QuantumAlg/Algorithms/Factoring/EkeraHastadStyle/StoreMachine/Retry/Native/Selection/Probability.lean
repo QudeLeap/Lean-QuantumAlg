@@ -27,7 +27,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
 noncomputable section
 
-open Execution ClassicalRoutines.FirstAccepted.Direct
+open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -79,7 +79,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- The actual selected run has the original chronological first-success distribution. -/
 theorem run_selectedDistribution (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification count).outputDistribution input =
       Optional.Distribution.selectedDistribution
         ((sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue)
@@ -93,7 +94,8 @@ theorem run_selectedDistribution (specification : Input N) (count : Nat)
 
 /-- Actual selection is empty exactly with the original one-batch empty probability's power. -/
 theorem run_none (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification count).outputDistribution input CShape.Value.optionNone =
       sampledBatchOutputPMF specification none ^ (count + 1) := by
   rw [run_selectedDistribution, Optional.Distribution.selectedDistribution_none,
@@ -101,14 +103,16 @@ theorem run_none (specification : Input N) (count : Nat)
 
 /-- Natural observation preserves exactly the same actual empty-output event and probability. -/
 theorem run_decoded_none (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum specification count).outputDistribution input).map decodeFactor none =
       sampledBatchOutputPMF specification none ^ (count + 1) := by
   rw [decodedDistribution_none, run_none]
 
 /-- The actual populated-output event has the complementary exact finite success probability. -/
 theorem run_successProbability (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum specification count).outputDistribution input).toOuterMeasure
         {value | value ≠ CShape.Value.optionNone} =
       1 - sampledBatchOutputPMF specification none ^ (count + 1) := by

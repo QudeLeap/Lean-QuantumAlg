@@ -21,6 +21,8 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native
 
 open Execution ClassicalWorkspace
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Deepest-first shape order retains original gcd, left and right allocation order. -/
@@ -47,16 +49,22 @@ theorem xgcdNativePublicRawOutputs_distinct (cells : Cells ctx (publicRawShapes 
         exact ⟨distinct.2.1.1, distinct.1.2.1, distinct.1.1⟩
 
 /-- Execute the original raw engine and then the original public nominal packing. -/
-def publicBody (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
+def publicBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.product (.unsignedWord width)
+      (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width)) :
-    Circuit ctx ctx :=
-  .seq (rawEngine input outputs) (packRawOutputs outputs result)
+    Circuit model ctx ctx :=
+  .seq (rawEngine (model := model) input outputs) (packRawOutputs (model := model) outputs result)
 
 /-- Allocate the raw results, execute both original phases, and release the raw cells. -/
-def publicIntoResult
+def publicIntoResult {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit ctx ctx :=
+    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit model ctx ctx :=
   withCells ctx (publicRawShapes width) fun cells _ transport _ =>
-    publicBody (transport.liftInput input) (publicRawOutputs cells) (transport.liftWrite result)
+    publicBody (model := model) (transport.liftInput input) (publicRawOutputs cells)
+      (transport.liftWrite result)
+
+end
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native

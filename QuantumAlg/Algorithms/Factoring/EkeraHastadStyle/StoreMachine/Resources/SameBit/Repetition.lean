@@ -36,10 +36,9 @@ private theorem samplerBound_sameBit {b : Nat}
 private theorem measurementBits_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     measurementBits pair.modulus = b + 1 + 2 * tradeoffWidth b := by
-  unfold measurementBits registerParameters tradeoffWidth
+  unfold measurementBits tradeoffWidth
   rw [shortLogBits_sameBit pair hb, tradeoffBits_sameBit pair hb]
   unfold RSA.GeneratorOrder.m RSA.GeneratorOrder.ell
-  simp only [ShortDLP.CompiledMAU.registerParameters, ShortDLP.firstBits]
   omega
 
 private theorem memberBound_sameBit_le {b : Nat}

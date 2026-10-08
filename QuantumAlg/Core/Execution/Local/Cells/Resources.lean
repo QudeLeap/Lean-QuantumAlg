@@ -24,8 +24,8 @@ noncomputable section
 
 open Execution ContextUnion
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
-  (code : Circuit ctx ctx) (supported : code.IsLocal) (dimension : ℕ+) (count : Nat)
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+  (code : Circuit model ctx ctx) (supported : code.IsLocal) (dimension : ℕ+) (count : Nat)
 
 /-- The actual path executes exactly the original ordered native events. -/
 theorem underMeasurementCells_eventTrace (path : code.Path) :
@@ -46,7 +46,7 @@ theorem underMeasurementCells_resourcePool (path : code.Path) :
     (underMeasurementCells_eventTrace code supported dimension count path)
 
 /-- Every assignment of native durations has exactly the original evaluated depth. -/
-theorem underMeasurementCells_depth (duration : Resource.Event kind → Nat) (path : code.Path) :
+theorem underMeasurementCells_depth (duration : Resource.Event model → Nat) (path : code.Path) :
     (underMeasurementCells code supported dimension count).depth duration
       (underMeasurementCellsPathEquiv code supported dimension count path) =
         code.depth duration path := by
@@ -58,7 +58,7 @@ theorem underMeasurementCells_depth (duration : Resource.Event kind → Nat) (pa
 /-- Every visited context includes the same actual finite cells and original resources. -/
 theorem underMeasurementCells_visited
     (path : (underMeasurementCells code supported dimension count).Path)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈
       (underMeasurementCells code supported dimension count).visitedContexts path) :
     visited = MeasurementCells.context ctx dimension count :=

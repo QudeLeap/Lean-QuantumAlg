@@ -6,7 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.Trivial.Native
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.Trivial.Native
+import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate
+import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate.Induction
+import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate.Space
 import all QuantumAlg.Core.Execution.Trace.Composition
 
 /-!
@@ -24,143 +28,140 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The two original native operations retain their exact widths and chronological order. -/
-def zeroEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .equal width),
-    .classicalOperation (.nominalEncoding (.packOption width))]
+@[expose] public def zeroEvents (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation
+      (BitWord.selectedCoordinate (execution := model) (.wordBinary .equal width)),
+    .classicalOperation
+      (BitWord.selectedCoordinate (execution := model) (.nominalEncoding (.packOption width)))]
 
 /-- Actual allocation and release preserve the original two-event trace. -/
-theorem zeroInto_eventTrace (output : CWriteRef ctx (.option (.unsignedWord width)))
+public theorem zeroInto_eventTrace (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
-    (zeroInto output).eventTrace path = zeroEvents kind width := rfl
+    (zeroInto output).eventTrace path = zeroEvents model width := by
+  unfold zeroInto withCells
+  have exactTrace := withCellsFrom_property (Transport.id ctx) (zeroShapes width)
+    (fun cells _ transport _ =>
+      zeroBody (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+        (transport.liftWrite output))
+    (fun _ code => ∀ selected : code.Path,
+      code.eventTrace selected = zeroEvents model width)
+    (fun _ _ _ _ _ available => available)
+    (by
+      intro inner cells distinct transport separated selected
+      simp only [zeroBody, Circuit.eventTrace,
+        BitWord.bitWord_instruction_eventTrace, zeroEvents]
+      rfl)
+  exact exactTrace path
 
 /-- The exact native pool is derived from the same actual two-event trace. -/
-theorem zeroInto_resourcePool (output : CWriteRef ctx (.option (.unsignedWord width)))
+public theorem zeroInto_resourcePool (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
-    (zeroInto output).resourcePool path = ResourcePool.ofList (zeroEvents kind width) := rfl
+    (zeroInto output).resourcePool path = ResourcePool.ofList (zeroEvents model width) := by
+  rw [Circuit.resourcePool, zeroInto_eventTrace]
 
 /-- The actual dependency chain charges equality followed by the original option pack. -/
-theorem zeroInto_durationDepth (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (duration : Resource.Event kind → Nat) (path : (zeroInto output).Path) :
+public theorem zeroInto_durationDepth (output : CWriteRef ctx (.option (.unsignedWord width)))
+    (duration : Resource.Event model → Nat) (path : (zeroInto output).Path) :
     (zeroInto output).depth duration path =
-      duration (.classicalOperation (.wordBinary .equal width)) +
-        duration (.classicalOperation (.nominalEncoding (.packOption width))) := rfl
+      duration (.classicalOperation
+        (BitWord.selectedCoordinate (execution := model) (.wordBinary .equal width))) +
+        duration (.classicalOperation
+          (BitWord.selectedCoordinate (execution := model)
+            (.nominalEncoding (.packOption width)))) := by
+  unfold zeroInto withCells
+  have exactDepth := withCellsFrom_property (Transport.id ctx) (zeroShapes width)
+    (fun cells _ transport _ =>
+      zeroBody (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+        (transport.liftWrite output))
+    (fun _ code => ∀ selected : code.Path,
+      code.depth duration selected =
+        duration (.classicalOperation
+          (BitWord.selectedCoordinate (execution := model)
+            (.wordBinary .equal width))) +
+        duration (.classicalOperation
+          (BitWord.selectedCoordinate (execution := model)
+            (.nominalEncoding (.packOption width)))))
+    (fun _ _ _ _ _ available => available)
+    (by
+      intro inner cells distinct transport separated selected
+      cases selected with
+      | mk first second =>
+          change
+            (BitWord.instruction (execution := model)
+              (tagOp (.storage cells.tail.head.ref.toCStorageRef)
+                cells.head.ref)).depth duration first +
+              (BitWord.instruction (execution := model)
+                (packOp (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+                  (transport.liftWrite output))).depth duration second = _
+          rw [BitWord.bitWord_instruction_depth,
+            BitWord.bitWord_instruction_depth]
+          rfl)
+  exact exactDepth path
 
 /-- Exactly two actual native instructions execute, also at width zero. -/
-theorem zeroInto_eventCount (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (path : (zeroInto output).Path) : ((zeroInto output).eventTrace path).length = 2 := rfl
+public theorem zeroInto_eventCount (output : CWriteRef ctx (.option (.unsignedWord width)))
+    (path : (zeroInto output).Path) : ((zeroInto output).eventTrace path).length = 2 := by
+  rw [zeroInto_eventTrace]
+  rfl
 
-/-- The original candidate word and inner tag are simultaneously live scratch cells. -/
-def zeroScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
-  SpacePool.ofShape .bit + SpacePool.ofShape (.unsignedWord width)
+/-- Both temporary cells remain live only inside the reusable order-one scope. -/
+public def zeroActiveSpace (width : Nat) : SpacePool model.kind :=
+  ((zeroShapes width).map SpacePool.ofShape).sum
 
-private def candidateCtx (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
-  ctx.addWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
+private theorem zeroBody_resident_le
+    {inner : RuntimeCtx model.kind} (candidate : CInputRef inner (.unsignedWord width))
+    (tag : CWriteRef inner .bit) (output : CWriteRef inner (.option (.unsignedWord width)))
+    (path : (zeroBody candidate tag output).Path) :
+    (zeroBody candidate tag output).peakResidentSpace path ≤ inner.residentSpace := by
+  unfold zeroBody at path ⊢
+  rw [Circuit.peakResidentSpace_seq]
+  exact SpacePool.max_le
+    (le_of_eq (Circuit.peakResidentSpace_classical _ path.1))
+    (le_of_eq (Circuit.peakResidentSpace_classical _ path.2))
 
-private def tagCtx (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
-  (candidateCtx ctx width).addWorkspace (candidateCtx ctx width).canonicalFreshKey .bit
-    (candidateCtx ctx width).canonicalFreshKey_fresh
+private theorem zeroBody_auxiliary_le
+    {inner : RuntimeCtx model.kind} (candidate : CInputRef inner (.unsignedWord width))
+    (tag : CWriteRef inner .bit) (output : CWriteRef inner (.option (.unsignedWord width)))
+    (path : (zeroBody candidate tag output).Path) :
+    (zeroBody candidate tag output).peakAuxiliarySpace path ≤ inner.auxiliarySpace := by
+  unfold zeroBody at path ⊢
+  rw [Circuit.peakAuxiliarySpace_seq]
+  exact SpacePool.max_le
+    (le_of_eq (Circuit.peakAuxiliarySpace_classical _ path.1))
+    (le_of_eq (Circuit.peakAuxiliarySpace_classical _ path.2))
 
-private theorem zeroInto_visitedContexts (output : CWriteRef ctx (.option (.unsignedWord width)))
+/-- The order-one routine charges its two actual workspace cells and caller resident state. -/
+public theorem zeroInto_resident_le
+    (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
-    (zeroInto output).visitedContexts path =
-      [ctx, candidateCtx ctx width, tagCtx ctx width, tagCtx ctx width,
-        candidateCtx ctx width, ctx] := rfl
+    (zeroInto output).peakResidentSpace path ≤
+      zeroActiveSpace (model := model) width + ctx.residentSpace := by
+  unfold zeroInto at path ⊢
+  unfold zeroActiveSpace
+  exact withCellsFrom_resident_le (Transport.id ctx) (zeroShapes width) _ 0 (by
+    intro inner cells distinct transport separated selected
+    simpa only [zero_add] using zeroBody_resident_le
+      (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+        (transport.liftWrite output) selected) path
 
-/-- Resident peak includes the exact two lexical cells and every original caller entry. -/
-theorem zeroInto_resident (output : CWriteRef ctx (.option (.unsignedWord width)))
+/-- The same live scope gives the complete auxiliary-role bound. -/
+public theorem zeroInto_auxiliary_le
+    (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
-    (zeroInto output).peakResidentSpace path = zeroScratchSpace kind width + ctx.residentSpace := by
-  rw [Circuit.peakResidentSpace, zeroInto_visitedContexts]
-  apply SpacePool.ext
-  intro axis
-  cases axis <;> simp (disch := omega) [Circuit.peak, candidateCtx, tagCtx, zeroScratchSpace,
-    SpacePool.ofShape, SpacePool.max]
-  omega
-
-/-- Auxiliary peak uses the same actual candidate and tag lifetimes. -/
-theorem zeroInto_auxiliary (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (path : (zeroInto output).Path) :
-    (zeroInto output).peakAuxiliarySpace path =
-      zeroScratchSpace kind width + ctx.auxiliarySpace := by
-  rw [Circuit.peakAuxiliarySpace, zeroInto_visitedContexts]
-  apply SpacePool.ext
-  intro axis
-  cases axis <;> simp (disch := omega) [Circuit.peak, candidateCtx, tagCtx, zeroScratchSpace,
-    SpacePool.ofShape, SpacePool.max]
-  omega
-
-/-- The original optional output remains live beside the candidate word and inner tag. -/
-def zeroRetainedSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
-  SpacePool.ofShape (.option (.unsignedWord width)) + zeroScratchSpace kind width
-
-/-- Actual retention adds no native operation to the original two-instruction program. -/
-theorem zeroRetained_eventTrace (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    (zeroRetained ctx width key fresh).eventTrace path = zeroEvents kind width := rfl
-
-/-- The retained endpoint's exact pool comes from its actual equality and option pack. -/
-theorem zeroRetained_resourcePool (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    (zeroRetained ctx width key fresh).resourcePool path =
-      ResourcePool.ofList (zeroEvents kind width) := rfl
-
-/-- Actual retained execution preserves both original serial duration charges. -/
-theorem zeroRetained_durationDepth (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (duration : Resource.Event kind → Nat)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    (zeroRetained ctx width key fresh).depth duration path =
-      duration (.classicalOperation (.wordBinary .equal width)) +
-        duration (.classicalOperation (.nominalEncoding (.packOption width))) := by
-  change 0 + (zeroInto (CWriteRef.retainedHead ctx key
-    (.option (.unsignedWord width)) fresh)).depth duration path.2 = _
-  rw [zero_add, zeroInto_durationDepth]
-
-private theorem zeroRetained_visitedContexts (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    let retained := ctx.addRetained key (.option (.unsignedWord width)) fresh
-    (zeroRetained ctx width key fresh).visitedContexts path =
-      [ctx, retained, retained, candidateCtx retained width, tagCtx retained width,
-        tagCtx retained width, candidateCtx retained width, retained] := rfl
-
-/-- Exact resident peak includes the retained output and both original lexical cells. -/
-theorem zeroRetained_resident (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    (zeroRetained ctx width key fresh).peakResidentSpace path =
-      zeroRetainedSpace kind width + ctx.residentSpace := by
-  rw [Circuit.peakResidentSpace, zeroRetained_visitedContexts]
-  apply SpacePool.ext
-  intro axis
-  cases axis <;> simp (disch := omega) [Circuit.peak, candidateCtx, tagCtx,
-    zeroRetainedSpace, zeroScratchSpace,
-    SpacePool.ofShape, SpacePool.max]
-  omega
-
-/-- Exact auxiliary peak includes the same retained result and original lexical scopes. -/
-theorem zeroRetained_auxiliary (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (zeroRetained ctx width key fresh).Path) :
-    (zeroRetained ctx width key fresh).peakAuxiliarySpace path =
-      zeroRetainedSpace kind width + ctx.auxiliarySpace := by
-  rw [Circuit.peakAuxiliarySpace, zeroRetained_visitedContexts]
-  apply SpacePool.ext
-  intro axis
-  cases axis <;> simp (disch := omega) [Circuit.peak, candidateCtx, tagCtx,
-    zeroRetainedSpace, zeroScratchSpace,
-    SpacePool.ofShape, SpacePool.max]
-  omega
-
-/-- The actual retained result and two original work cells occupy exactly twice width plus two. -/
-theorem zeroRetainedSpace_classicalBits (kind : ProblemKind) (width : Nat) :
-    zeroRetainedSpace kind width .classicalBits = 2 * width + 2 := by
-  simp [zeroRetainedSpace, zeroScratchSpace, SpacePool.ofShape, CShape.bitWidth]
-  omega
+    (zeroInto output).peakAuxiliarySpace path ≤
+      zeroActiveSpace (model := model) width + ctx.auxiliarySpace := by
+  unfold zeroInto at path ⊢
+  unfold zeroActiveSpace
+  exact withCellsFrom_auxiliary_le (Transport.id ctx) (zeroShapes width) _ 0 (by
+    intro inner cells distinct transport separated selected
+    simpa only [zero_add] using zeroBody_auxiliary_le
+      (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+        (transport.liftWrite output) selected) path
 
 end
 

@@ -9,7 +9,7 @@ module
 public import QuantumAlg.Core.Base.Accounting.Context
 public import QuantumAlg.Core.Execution.Input
 public import QuantumAlg.Algorithms.OrderFinding.Oracle
-import all QuantumAlg.Algorithms.OrderFinding.General.Recovery.Mathematics
+public import QuantumAlg.Algorithms.OrderFinding.General.Recovery.Specification
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Execution.Input
@@ -31,13 +31,14 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The original borrowed base's physical storage identity. -/
-def baseKey : StorageKey := ⟨0⟩
+@[expose] public def baseKey : StorageKey := ⟨0⟩
 
-theorem baseFresh :
+/-- The original borrowed input key is fresh in the empty source context. -/
+public theorem baseFresh :
     baseKey ∉ (RuntimeCtx.empty : RuntimeCtx .quantum).keys := by decide
 
 /-- The original caller-owned canonical-residue cell remains in the runtime input. -/
-@[reducible] public def pre (width : Nat) : RuntimeCtx .quantum :=
+@[expose, reducible] public def pre (width : Nat) : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addBorrowedInput baseKey (.canonicalResidue width) baseFresh
 
 /-- Read the actual borrowed modular-base cell. -/
@@ -49,7 +50,11 @@ public def baseSourceRef (width : Nat) : CInputRef (pre width) (.canonicalResidu
 theorem pre_entries (width : Nat) :
     (pre width).entries = [.storage baseKey .borrowedInput (.canonicalResidue width)] := rfl
 
-theorem pre_quantumWires (width : Nat) : (pre width).quantumWires = [] := rfl
+private theorem pre_quantumWires_eq (width : Nat) : (pre width).quantumWires = [] := rfl
+
+/-- The caller supplies a classical residue and no pre-existing quantum wires. -/
+public theorem pre_quantumWires (width : Nat) : (pre width).quantumWires = [] :=
+  pre_quantumWires_eq width
 
 private def borrowedValues (width : Nat) (value : CShape.Value (.canonicalResidue width)) :
     ∀ key role shape,

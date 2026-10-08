@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.Simon.FixedSample.Native.Layout
 import all QuantumAlg.Core.Execution.Measurement.Sequence
 import all QuantumAlg.Core.Execution.Classical.Composition.Range
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Primitives.ZReset.Bank.Scope
 
 /-!
@@ -27,29 +28,33 @@ open Execution
 
 noncomputable section
 
+variable {oracles : OracleModel}
+
 /-- Every sample slot is created by the actual retain instruction. -/
 @[implicit_reducible]
 def allocateSlots (base : RuntimeCtx .quantum) (n : Nat) :
-    (count : Nat) → Circuit base (slots base n count)
-  | 0 => .id base
+    (count : Nat) → Circuit (nativeModel oracles) base (slots base n count)
+  | 0 => .id (model := nativeModel oracles) base
   | count + 1 =>
       .seq (allocateSlots base n count)
-        (.retain (slots base n count) (slots base n count).canonicalFreshKey
+        (.retain (model := nativeModel oracles)
+          (slots base n count) (slots base n count).canonicalFreshKey
           (.bits n) (slots base n count).canonicalFreshKey_fresh)
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (n count : Nat)
 
 /-- The single real quantum preparation, after the fixed classical slot allocations. -/
-def prepare : Circuit (slots base n count) (bankContext base noQuantum n count) :=
-  .prepare (slots base n count) (slots base n count).canonicalFreshKey (bankLayout n)
+def prepare :
+    Circuit (nativeModel oracles) (slots base n count) (bankContext base noQuantum n count) :=
+  .prepareZero (slots base n count) (slots base n count).canonicalFreshKey (bankLayout n)
     (slots base n count).canonicalFreshKey_fresh (allocationDisjoint base noQuantum n count)
-    (preparation n)
 
 /-- Allocate fixed sample slots, prepare one bank and retain its measurement cells exactly once. -/
-def allocate : Circuit base (context base noQuantum n count) :=
+def allocate : Circuit (nativeModel oracles) base (context base noQuantum n count) :=
   .seq (allocateSlots base n count)
     (.seq (prepare base noQuantum n count)
-      (MeasurementCells.allocate (bankContext base noQuantum n count) 2 n))
+      (MeasurementCells.allocate (model := nativeModel oracles)
+        (bankContext base noQuantum n count) 2 n))
 
 /-- Measure a source first-register position into its actual finite result cell. -/
 def readout (index : Fin n) : ZReadout (context base noQuantum n count) where
@@ -72,40 +77,45 @@ def packing (index : Fin count) : ClassicalOp (.fixedVector n (.finite 2)) (.bit
 
 /-- The original supplied unitary, real finite measurements and charged row packing. -/
 def sample (sampling : SamplingCircuit n) (index : Fin count) :
-    Circuit (context base noQuantum n count) (context base noQuantum n count) :=
+    Circuit (executionModel sampling.oracle)
+      (context base noQuantum n count) (context base noQuantum n count) :=
   .seq
-    (.unitary (member n (nativeSimon_context_wires base noQuantum n count) sampling)
-      (nativeSimon_member_physicalIdx n
-        (nativeSimon_context_wires base noQuantum n count) sampling))
+    (.unitary (member n (nativeSimon_context_wires base noQuantum n count) sampling))
     (.seq (Circuit.measurementSequence (readouts base noQuantum n count))
-      (.classical (packing base noQuantum n count index)))
+      (BitWord.instruction (packing base noQuantum n count index)))
 
 /-- Paid reset acts on every existing bank qubit and releases only its classical scratch. -/
-def reset : Circuit (context base noQuantum n count) (context base noQuantum n count) :=
-  ZReset.BankScope.code
-    (nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count))
+def reset :
+    Circuit (nativeModel oracles)
+      (context base noQuantum n count) (context base noQuantum n count) :=
+  ZReset.BankScope.code (oracles := oracles)
+    (nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count)) BitWord.model
 
 /-- A later round resets and then samples the same bank into its own fixed slot. -/
 def reusedSample (sampling : SamplingCircuit n) (index : Fin count) :
-    Circuit (context base noQuantum n count) (context base noQuantum n count) :=
+    Circuit (executionModel sampling.oracle)
+      (context base noQuantum n count) (context base noQuantum n count) :=
   .seq (reset base noQuantum n count) (sample base noQuantum n count sampling index)
 
 /-- Sample zero uses the actual initial preparation; each later index includes its paid reset. -/
 def sampleBatch (sampling : SamplingCircuit n) : (count : Nat) →
-    Circuit (context base noQuantum n count) (context base noQuantum n count)
-  | 0 => .id (context base noQuantum n 0)
+    Circuit (executionModel sampling.oracle)
+      (context base noQuantum n count) (context base noQuantum n count)
+  | 0 => .id (model := executionModel sampling.oracle) (context base noQuantum n 0)
   | count + 1 =>
       .seq (sample base noQuantum n (count + 1) sampling 0)
         (Circuit.forRange count fun index =>
           reusedSample base noQuantum n (count + 1) sampling index.succ)
 
 /-- The exact finite program allocates its quantum bank only during initialization. -/
-def code (sampling : SamplingCircuit n) : Circuit base (context base noQuantum n count) :=
+def code (sampling : SamplingCircuit n) :
+    Circuit (executionModel sampling.oracle) base (context base noQuantum n count) :=
   .seq (allocate base noQuantum n count) (sampleBatch base noQuantum n sampling count)
 
 /-- Observe the real stored sample vector while retaining the complete bank and all live entries. -/
 def run (sampling : SamplingCircuit n) :
-    AlgorithmRun base (context base noQuantum n count) (.fixedVector count (.bits n)) where
+    AlgorithmRun (executionModel sampling.oracle) base (context base noQuantum n count)
+      (.fixedVector count (.bits n)) where
   code := code base noQuantum n count sampling
   output := Output.all (context base noQuantum n count)
     (.read (samplesInput base noQuantum n count))

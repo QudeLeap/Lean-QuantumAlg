@@ -437,18 +437,20 @@ theorem subtractConstantX_realizes
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (subtractConstantXGates fieldTail counterWidth p hp constant))
       (subtractConstantXStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem addConstantX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (addConstantXGates fieldTail counterWidth p hp constant))
       (addConstantXStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-! ## Variable updates between mutable x and t0 -/
 
@@ -1168,51 +1170,57 @@ theorem subtractXFromT0_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (subtractXFromT0Gates fieldTail counterWidth p hp))
       (subtractXFromT0Step fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem subtractT0FromX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (subtractT0FromXGates fieldTail counterWidth p hp))
       (subtractT0FromXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem addT0ToX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (addT0ToXGates fieldTail counterWidth p hp))
       (addT0ToXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem subtractConstantY_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (subtractConstantYGates fieldTail counterWidth p hp constant))
       (subtractConstantYStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem addConstantY_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (addConstantYGates fieldTail counterWidth p hp constant))
       (addConstantYStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 theorem negateX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _) .empty
         (negateXGates fieldTail counterWidth p hp))
       (negateXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 end
 end ModularOperations

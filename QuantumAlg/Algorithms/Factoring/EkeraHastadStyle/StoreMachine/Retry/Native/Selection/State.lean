@@ -26,7 +26,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -60,29 +60,30 @@ private theorem mixed_transport {R : Register}
   exact holds
 
 private theorem chain_statePromise (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (value : (CShape.fixedVector (count + 1)
       (LatticeBatchRecoveryOutput.OutputShape N)).Value) :
-    (StatePromise.mixed (stateTarget base noQuantum N count input)
-      (stateTarget_normalized base noQuantum N count input)).Holds
+    (StatePromise.mixed (stateTarget base noQuantum N count input.caller)
+      (stateTarget_normalized base noQuantum N count input.caller)).Holds
         ((ExecutionState.mapClassical
           ((NativeRetryChain.run base noQuantum specification count).execute Reference input.state)
           (NativeRetryChain.run base noQuantum specification count).result).block value) := by
-  let entered : State base Reference (Store base) :=
-    input.state.mapClassical (fun store => (store, store))
-  have referenceSame : entered.referenceMarginal = input.state.referenceMarginal := by
-    exact congrArg (fun density : DensityOperator (Register.prod base.register Reference) =>
+  let entered : State base Reference (RuntimeRound.model.HiddenState × Store base) :=
+    input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
+  have callerReference : input.state.referenceMarginal = input.caller.state.referenceMarginal := by
+    unfold ExecutionState.referenceMarginal
+    rw [OracleInput.oracleInput_caller_quantumMarginal]
+  have referenceSame : entered.referenceMarginal = input.caller.state.referenceMarginal := by
+    exact (congrArg (fun density : DensityOperator (Register.prod base.register Reference) =>
       DensityOperator.marginalLeft (density.reindex
         (S := Register.prod Reference base.register)
         (Equiv.prodComm base.register.Index Reference.Index)))
-      (ExecutionState.mapClassical_quantumMarginal input.state (fun store => (store, store)))
+      (ExecutionState.mapClassical_quantumMarginal input.state
+        (fun entry => (entry.1, (entry.2, entry.1))))).trans callerReference
   let program := NativeRetryChain.run base noQuantum specification count
   have enter : program.execute Reference input.state =
-      (NativeRetryChain.code base noQuantum specification count).execute Reference entered := by
-    unfold AlgorithmRun.execute
-    apply congrArg (fun state : State base Reference (Store base) =>
-      (NativeRetryChain.code base noQuantum specification count).execute Reference state)
-    congr 1
+      (NativeRetryChain.code base noQuantum specification count).execute Reference entered := rfl
   have readout := congrArg
     (fun final : ExecutionState program.Record
         ((NativeRetryChain.context base noQuantum N count).register.prod Reference) =>
@@ -91,7 +92,7 @@ private theorem chain_statePromise (specification : Input N)
     entered ((input.state.mapClassical_mass _).trans input.normalized) value
   have targetSame :
       BasisReference.target (NativeRetryChain.restoredSeed base noQuantum N count)
-        entered.referenceMarginal = stateTarget base noQuantum N count input :=
+        entered.referenceMarginal = stateTarget base noQuantum N count input.caller :=
     congrArg (BasisReference.target (NativeRetryChain.restoredSeed base noQuantum N count))
       referenceSame
   exact mixed_transport _ _ _ _ _ _ targetSame readout.symm actual
@@ -99,7 +100,8 @@ private theorem chain_statePromise (specification : Input N)
 
 /-- The actual selected output state is the original complete vector state grouped by selection. -/
 theorem outputState_eq_selection (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum specification count).finalState Reference input.state).mapClassical
         (run base noQuantum specification count).output.eval =
       ExecutionState.mapClassical
@@ -118,7 +120,7 @@ theorem outputState_eq_selection (specification : Input N)
       selectionRecord base noQuantum specification count =
         firstValue ∘ (NativeRetryChain.run base noQuantum specification count).result := by
     funext record
-    exact run_output base noQuantum specification count record.1
+    exact run_output base noQuantum specification count record.1 record.2.1
   have recovered := ExecutionState.executionState_mapClassical_comp sampled
     (selectionRecord base noQuantum specification count)
     (run base noQuantum specification count).result
@@ -131,15 +133,17 @@ theorem outputState_eq_selection (specification : Input N)
 
 /-- Every actual factor block retains the same complete bank-reference target, including failure. -/
 theorem output_statePromise (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
-    (StatePromise.mixed (stateTarget base noQuantum N count input)
-      (stateTarget_normalized base noQuantum N count input)).Holds
+    (StatePromise.mixed (stateTarget base noQuantum N count input.caller)
+      (stateTarget_normalized base noQuantum N count input.caller)).Holds
       ((((run base noQuantum specification count).finalState Reference input.state).mapClassical
         (run base noQuantum specification count).output.eval).block value) := by
   rw [outputState_eq_selection]
   exact ExecutionState.mapClassical_mixed _ (firstValue (N := N))
-    (stateTarget base noQuantum N count input) (stateTarget_normalized base noQuantum N count input)
+    (stateTarget base noQuantum N count input.caller)
+    (stateTarget_normalized base noQuantum N count input.caller)
     (chain_statePromise base noQuantum N count specification input) value
 
 /-- Every live quantum wire and the full reference are promised at the actual selected cell. -/
@@ -158,12 +162,14 @@ def stateRequirement :
 
 /-- The independent complete state requirement holds for the same actual selected run. -/
 theorem stateRequirement_holds (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
-    (stateRequirement base noQuantum N count).Holds input
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
+    (stateRequirement base noQuantum N count).Holds input.caller
       ((run base noQuantum specification count).finalState Reference input.state) :=
   fun value => StatePromise.mixed_fullSelection
     (context (NativeRetryChain.context base noQuantum N count) N).quantumLayout Reference
-    (stateTarget base noQuantum N count input) (stateTarget_normalized base noQuantum N count input)
+    (stateTarget base noQuantum N count input.caller)
+    (stateTarget_normalized base noQuantum N count input.caller)
     _ (output_statePromise base noQuantum N count specification input value)
 
 end

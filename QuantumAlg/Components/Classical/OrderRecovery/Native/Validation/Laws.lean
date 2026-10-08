@@ -69,6 +69,8 @@ theorem nativeValidation_checks_result
       one oneFree]
   rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Actual candidate validation computes positivity and modular return of the represented input. -/
 theorem nativeValidation_result (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -86,22 +88,27 @@ theorem nativeValidation_result (spec : ModulusSpec modulusWidth)
     (represented : Modular.NativePower.InputRepresents spec base candidate store input)
     (zeroValue : (store.read zero).toNat = 0)
     (oneValue : (store.read one).toNat = 1) :
-    ((validateStep spec base candidate zero one power positive valid store).1).read
+    ((validateStep (model := model) spec base candidate zero one power positive valid store).1).read
       (cellRead valid) =
         .bit (decide (0 < input.exponent.val) &&
           decide (input.base.val ^ input.exponent.val % spec.modulus = 1)) := by
   change (validationChecksStore zero candidate (cellRead power) one positive valid
-    (Modular.NativePower.intoStep spec base candidate power store).1).read (cellRead valid) = _
+    (Modular.NativePower.intoStep (model := model) spec base candidate power store).1).read
+      (cellRead valid) = _
   have powerValue :
-      (((Modular.NativePower.intoStep spec base candidate power store).1).read
+      (((Modular.NativePower.intoStep (model := model) spec base candidate power store).1).read
         (cellRead power)).toNat = input.base.val ^ input.exponent.val % spec.modulus :=
-    Modular.NativePower.nativePower_into_toNat spec base candidate power store input represented
+    Modular.NativePower.nativePower_into_toNat (model := model) spec base candidate power
+      store input represented
   rw [nativeValidation_checks_result zero candidate (cellRead power) one positive valid different
     (fun present => positivePower (List.mem_singleton.mp present)) positiveOne,
-    Modular.NativePower.nativePower_into_read_other spec base candidate power store zero powerZero,
-    Modular.NativePower.nativePower_into_read_other spec base candidate power store candidate
+    Modular.NativePower.nativePower_into_read_other (model := model) spec base candidate power
+      store zero powerZero,
+    Modular.NativePower.nativePower_into_read_other (model := model) spec base candidate power
+      store candidate
       powerCandidate,
-    Modular.NativePower.nativePower_into_read_other spec base candidate power store one powerOne,
+    Modular.NativePower.nativePower_into_read_other (model := model) spec base candidate power
+      store one powerOne,
     powerValue,
     zeroValue, oneValue, represented.2]
   rfl
@@ -116,15 +123,18 @@ theorem nativeValidation_read_other (spec : ModulusSpec modulusWidth)
     (powerFree : power.key ∉ other.storageKeys)
     (positiveFree : positive.key ∉ other.storageKeys)
     (validFree : valid.key ∉ other.storageKeys) (store : Store ctx) :
-    ((validateStep spec base candidate zero one power positive valid store).1).read other =
+    ((validateStep (model := model) spec base candidate zero one power positive valid store).1).read
+      other =
       store.read other := by
-  unfold validateStep validationChecksStore
+  unfold validateStep validationChecksStep
+  simp only [BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (candidateValidOp positive valid) other validFree,
     Store.read_applyOp_of_not_mem_storageKeys _ (candidateReturnOp (cellRead power) one valid)
       other validFree,
     Store.read_applyOp_of_not_mem_storageKeys _ (candidatePositiveOp zero candidate positive)
       other positiveFree,
-    Modular.NativePower.nativePower_into_read_other spec base candidate power store other powerFree]
+    Modular.NativePower.nativePower_into_read_other (model := model) spec base candidate power
+      store other powerFree]
 
 end
 

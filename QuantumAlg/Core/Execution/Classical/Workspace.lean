@@ -156,87 +156,40 @@ private theorem mapClassical_canonicalDecision {C D : Type} [Fintype C] [Fintype
     (Subsingleton.elim decision (Classical.decEq D))
 
 /-- The existing workspace instruction performs its actual allocation, body and release. -/
-theorem execute_workspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem execute_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.workspace ctx key shape fresh body).execute Reference state =
       State.popWorkspace key shape fresh
         (body.execute Reference (state.pushWorkspace key shape fresh)) := rfl
 
-/-- A proved deterministic body induces the exact store update of its enclosing lexical scope. -/
-theorem execute_workspace_mapClassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
+/-- A proved deterministic body retains its service update across lexical storage release. -/
+theorem execute_workspace_mapClassical {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
-    (step : Store (ctx.addWorkspace key shape fresh) →
-      Store (ctx.addWorkspace key shape fresh) × body.Path)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (step : Store (ctx.addWorkspace key shape fresh) × model.HiddenState →
+      (Store (ctx.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State (ctx.addWorkspace key shape fresh) Reference History),
+      (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
       body.execute Reference state = state.mapClassical (fun entry =>
-        ((step entry.1).1, (entry.2, (step entry.1).2))))
+        let result := step (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.workspace ctx key shape fresh body).execute Reference state =
       state.mapClassical (fun entry =>
-        (Store.popWorkspace key shape fresh (step (entry.1.pushWorkspace key shape fresh)).1,
-          (entry.2, (step (entry.1.pushWorkspace key shape fresh)).2))) := by
-  let push : Store ctx × History → Store (ctx.addWorkspace key shape fresh) × History :=
-    fun entry => (entry.1.pushWorkspace key shape fresh, entry.2)
-  let advance : Store (ctx.addWorkspace key shape fresh) × History →
-      Store (ctx.addWorkspace key shape fresh) × (History × body.Path) :=
-    fun entry => ((step entry.1).1, (entry.2, (step entry.1).2))
-  let pop : Store (ctx.addWorkspace key shape fresh) × (History × body.Path) →
-      Store ctx × (History × body.Path) :=
-    fun entry => (Store.popWorkspace key shape fresh entry.1, entry.2)
-  let entered : State (ctx.addWorkspace key shape fresh) Reference History :=
-    state.pushWorkspace key shape fresh
-  let bodyResult : State (ctx.addWorkspace key shape fresh) Reference (History × body.Path) :=
-    body.execute Reference entered
-  have enteredEquation :=
-    (State.state_pushWorkspace_as_mapClassical key shape fresh Reference state).trans
-      (mapClassical_canonicalDecision _ state push)
-  have bodyMapped :
-      (bodyResult : ExecutionState
-        (Store (ctx.addWorkspace key shape fresh) × (History × body.Path))
-        (Register.prod ctx.register Reference)) =
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-        (Classical.decEq (Store (ctx.addWorkspace key shape fresh) × (History × body.Path)))
-        entered advance :=
-    (bodyEquation Reference entered).trans
-      (mapClassical_canonicalDecision _ entered advance)
-  have bodyEntered := congrArg
-    (fun value : ExecutionState (Store (ctx.addWorkspace key shape fresh) × History)
-        (Register.prod ctx.register Reference) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-        (Classical.decEq (Store (ctx.addWorkspace key shape fresh) × (History × body.Path)))
-        value advance) enteredEquation
-  have exitEquation :=
-    (State.state_popWorkspace_as_mapClassical key shape fresh Reference bodyResult).trans
-      (mapClassical_canonicalDecision _
-        (R := Register.prod ctx.register Reference) bodyResult pop)
-  have exitBody := congrArg
-    (fun value : ExecutionState
-        (Store (ctx.addWorkspace key shape fresh) × (History × body.Path))
-        (Register.prod ctx.register Reference) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-        (Classical.decEq (Store ctx × (History × body.Path))) value pop)
-    (bodyMapped.trans bodyEntered)
-  have composed := (ExecutionState.executionState_mapClassical_comp
-    (R := Register.prod ctx.register Reference) (state.mapClassical push) advance pop).trans
-    (ExecutionState.executionState_mapClassical_comp
-      (R := Register.prod ctx.register Reference) state push (pop ∘ advance))
-  have flattened :
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-        (Classical.decEq (Store ctx × (History × body.Path)))
-        (@ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-          (Classical.decEq (Store (ctx.addWorkspace key shape fresh) × (History × body.Path)))
-          (@ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-            (Classical.decEq (Store (ctx.addWorkspace key shape fresh) × History)) state push)
-          advance) pop = state.mapClassical (pop ∘ advance ∘ push) := by
-    simpa only [mapClassical_canonicalDecision, Function.comp_def] using composed
-  exact (execute_workspace key shape fresh body Reference state).trans
-    (exitEquation.trans (exitBody.trans flattened))
+        let result := step (entry.1.pushWorkspace key shape fresh, entry.2.1)
+        (Store.popWorkspace key shape fresh result.1.1,
+          (result.1.2, (entry.2.2, result.2)))) := by
+  rw [execute_workspace, bodyEquation]
+  dsimp only [State.popWorkspace, State.pushWorkspace]
+  erw [ExecutionState.executionState_mapClassical_comp_instances
+      (R := Register.prod ctx.register Reference) (result := inferInstance),
+    ExecutionState.executionState_mapClassical_comp_instances
+      (R := Register.prod ctx.register Reference) (result := inferInstance)]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

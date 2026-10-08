@@ -25,24 +25,27 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The actual two-write store and physical packaging path. -/
 def packStep (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (pack cells output).Path :=
-  ((store.applyOp (resizeOp cells)).applyOp (packOp cells output), ((), ()))
+    Store ctx × (pack (model := model) cells output).Path :=
+  let resized := BitWord.instructionStep (execution := model) (resizeOp cells) store
+  let packed := BitWord.instructionStep (execution := model) (packOp cells output) resized.1
+  (packed.1, (resized.2, packed.2))
 
 /-- The actual payload resize and nominal pack preserve every full quantum-reference block. -/
 theorem pack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pack cells output).execute Reference state =
-      state.mapClassical (fun entry => ((packStep cells output entry.1).1,
-        (entry.2, (packStep cells output entry.1).2))) := by
-  simp only [pack, Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def, packStep]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pack (model := model) cells output).execute Reference state =
+      state.mapClassical (fun entry => ((packStep (model := model) cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (packStep (model := model) cells output entry.1).2)))) := by
+  simp only [pack, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   congr 1
   exact Subsingleton.elim _ _
 
@@ -50,7 +53,7 @@ theorem pack_execute (cells : Cells ctx N)
 theorem pack_result (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : cells.payload.key ≠ cells.lower.key) :
-    (packStep cells output store).1.read (.storage output.toCStorageRef) =
+    (packStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =
       CShape.packOption
         (.product (store.read (.storage cells.lower.toCStorageRef))
           (CShape.wordResize (modulusBits N)
@@ -72,7 +75,7 @@ theorem pack_read_other (cells : Cells ctx N)
     {shape : CShape} (other : CInputRef ctx shape)
     (payloadFree : cells.payload.key ∉ other.storageKeys)
     (outputFree : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (packStep cells output store).1.read other = store.read other :=
+    (packStep (model := model) cells output store).1.read other = store.read other :=
   (Store.read_applyOp_of_not_mem_storageKeys (store.applyOp (resizeOp cells))
     (packOp cells output) other outputFree).trans
     (Store.read_applyOp_of_not_mem_storageKeys store (resizeOp cells) other payloadFree)

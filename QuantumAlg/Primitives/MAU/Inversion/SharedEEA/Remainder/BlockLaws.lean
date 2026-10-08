@@ -114,6 +114,119 @@ private theorem source_addback {width : Nat} (selected : Window width) (state : 
   rw [ArithmeticInstruction.sourceStep, enabled, physical]
   cases state.flags.sign <;> rfl
 
+private theorem subtract_window {width : Nat} (state : Registers width)
+    (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
+      state.shift.toNat ≤ width + 3) :
+    ArithmeticInstruction.sourceWindow .remainderSubtract state =
+      some (window state fits) := by
+  change (if bound : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
+      state.shift.toNat ≤ width + 3 then
+    some (remainderWindow width
+      (state.coefficientLength.toNat + state.quotientLength.toNat + 1) state.shift.toNat bound)
+    else none) = _
+  rw [dif_pos fits]
+  rfl
+
+private theorem marked_divisor {width : Nat} (state : Registers width)
+    (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
+      state.shift.toNat ≤ width + 3) (divisor : state.divisorLength ≠ 0) :
+    (ArithmeticSign.remainderStep
+      (ArithmeticWindowProgram.step (window state fits) .subtractSigned state)).divisorLength ≠
+        0 := by
+  have retained := ArithmeticWindowPreservation.remainder_retained
+    (window state fits) .subtractSigned state
+  have same : (ArithmeticSign.remainderStep
+      (ArithmeticWindowProgram.step (window state fits) .subtractSigned state)).divisorLength =
+        state.divisorLength :=
+    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.1.1)
+      retained
+  exact fun zero => divisor (same.symm.trans zero)
+
+private theorem marked_phase {width : Nat} (selected : Window width)
+    (state : Registers width) :
+    ((ArithmeticSign.remainderStep
+      (ArithmeticWindowProgram.step selected .subtractSigned state)).flags.first,
+      (ArithmeticSign.remainderStep
+        (ArithmeticWindowProgram.step selected .subtractSigned state)).flags.second) =
+      (state.flags.first, state.flags.second) :=
+  arithmetic_phase selected .subtractSigned state
+
+private theorem source_after_subtraction {width : Nat} (selected : Window width)
+    (state : Registers width) (first : state.flags.first = false)
+    (divisor : state.divisorLength ≠ 0)
+    (physical : ArithmeticInstruction.sourceWindow .remainderSubtract state =
+      some selected) :
+    ArithmeticBlocks.remainderSource state =
+      ArithmeticInstruction.sourceStep .remainderAddback
+        (ArithmeticSign.remainderStep
+          (ArithmeticWindowProgram.step selected .subtractSigned state)) :=
+  congrArg (fun current => ArithmeticInstruction.sourceStep .remainderAddback
+    (ArithmeticSign.remainderStep current))
+    (source_subtract selected state first divisor physical)
+
+private theorem addback_window {width : Nat} (state : Registers width)
+    (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
+      state.shift.toNat ≤ width + 3) :
+    let selected := window state fits
+    let subtracted := ArithmeticWindowProgram.step selected .subtractSigned state
+    ArithmeticInstruction.sourceWindow .remainderAddback
+      (ArithmeticSign.remainderStep subtracted) = some selected := by
+  intro selected subtracted
+  have retained := ArithmeticWindowPreservation.remainder_retained selected .subtractSigned state
+  have coefficientSame :=
+    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.1.1) retained
+  have quotientSame :=
+    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.1.2) retained
+  have shiftSame :=
+    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.1.2) retained
+  change subtracted.coefficientLength = state.coefficientLength at coefficientSame
+  change subtracted.quotientLength = state.quotientLength at quotientSame
+  change subtracted.shift = state.shift at shiftSame
+  change (if bound : subtracted.coefficientLength.toNat + subtracted.quotientLength.toNat + 1 +
+      subtracted.shift.toNat ≤ width + 3 then
+    some (remainderWindow width
+      (subtracted.coefficientLength.toNat + subtracted.quotientLength.toNat + 1)
+      subtracted.shift.toNat bound) else none) = _
+  rw [coefficientSame, quotientSame, shiftSame, dif_pos fits]
+  rfl
+
+private theorem source_eq_preSign {width : Nat} (state : Registers width)
+    (first : state.flags.first = false) (second : state.flags.second = true)
+    (divisor : state.divisorLength ≠ 0)
+    (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
+      width + 3) :
+    let selected := window state fits
+    let subtracted := ArithmeticWindowProgram.step selected .subtractSigned state
+    let marked := ArithmeticSign.remainderStep subtracted
+    ArithmeticBlocks.remainderSource state =
+      if marked.flags.sign then marked else
+        ArithmeticWindowProgram.step selected .addLow marked := by
+  intro selected subtracted marked
+  have subtractWindow : ArithmeticInstruction.sourceWindow .remainderSubtract state =
+      some selected := subtract_window state fits
+  have markedDivisor : marked.divisorLength ≠ 0 := marked_divisor state fits divisor
+  have phase := marked_phase selected state
+  have firstMarked : marked.flags.first = false :=
+    (congrArg (fun pair : Bool × Bool => pair.1) phase).trans first
+  have secondMarked : marked.flags.second = true :=
+    (congrArg (fun pair : Bool × Bool => pair.2) phase).trans second
+  have addbackWindow : ArithmeticInstruction.sourceWindow .remainderAddback marked =
+      some selected := addback_window state fits
+  calc
+    ArithmeticBlocks.remainderSource state =
+        ArithmeticInstruction.sourceStep .remainderAddback marked := by
+      exact source_after_subtraction selected state first divisor subtractWindow
+    _ = if marked.flags.sign then marked else
+        ArithmeticWindowProgram.step selected .addLow marked :=
+      source_addback selected marked firstMarked secondMarked markedDivisor addbackWindow
+
+private theorem conditional_flip {α : Type} (flag other : Bool)
+    (unchanged body : α) (complement : other = !flag) :
+    (if other then unchanged else body) =
+      (if flag then body else unchanged) := by
+  rw [complement]
+  cases flag <;> rfl
+
 /-- The actual phase-two block adds back precisely on the original signed subtraction's borrow. -/
 theorem source_eq {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
@@ -126,51 +239,17 @@ theorem source_eq {width : Nat} (state : Registers width)
     ArithmeticBlocks.remainderSource state =
       if subtracted.flags.sign then
         ArithmeticWindowProgram.step selected .addLow marked else marked := by
-  dsimp only
-  let selected := window state fits
-  let subtracted := ArithmeticWindowProgram.step selected .subtractSigned state
-  let marked := ArithmeticSign.remainderStep subtracted
-  have subtractWindow : ArithmeticInstruction.sourceWindow .remainderSubtract state =
-      some selected := by
-    change (if bound : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
-        state.shift.toNat ≤ width + 3 then
-      some (remainderWindow width
-        (state.coefficientLength.toNat + state.quotientLength.toNat + 1) state.shift.toNat bound)
-      else none) = _
-    rw [dif_pos fits]
-    rfl
-  have retained := ArithmeticWindowPreservation.remainder_retained selected .subtractSigned state
-  have coefficientSame :=
-    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.1.1) retained
-  have quotientSame :=
-    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.1.2) retained
-  have shiftSame :=
-    congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.1.2) retained
-  change subtracted.coefficientLength = state.coefficientLength at coefficientSame
-  change subtracted.quotientLength = state.quotientLength at quotientSame
-  change subtracted.shift = state.shift at shiftSame
-  have markedDivisor : marked.divisorLength ≠ 0 := by
-    have same : marked.divisorLength = state.divisorLength :=
-      congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.1.1) retained
-    exact fun zero => divisor (same.symm.trans zero)
-  have phase := arithmetic_phase selected .subtractSigned state
-  have firstMarked : marked.flags.first = false :=
-    (congrArg (fun pair : Bool × Bool => pair.1) phase).trans first
-  have secondMarked : marked.flags.second = true :=
-    (congrArg (fun pair : Bool × Bool => pair.2) phase).trans second
-  have addbackWindow : ArithmeticInstruction.sourceWindow .remainderAddback marked =
-      some selected := by
-    change (if bound : subtracted.coefficientLength.toNat + subtracted.quotientLength.toNat + 1 +
-        subtracted.shift.toNat ≤ width + 3 then
-      some (remainderWindow width
-        (subtracted.coefficientLength.toNat + subtracted.quotientLength.toNat + 1)
-        subtracted.shift.toNat bound) else none) = _
-    rw [coefficientSame, quotientSame, shiftSame, dif_pos fits]
-    rfl
-  rw [ArithmeticBlocks.remainderSource, source_subtract selected state first divisor subtractWindow,
-    source_addback selected marked firstMarked secondMarked markedDivisor addbackWindow,
-    marked_sign selected state first second]
-  cases subtracted.flags.sign <;> rfl
+  intro selected subtracted marked
+  calc
+    ArithmeticBlocks.remainderSource state =
+        if marked.flags.sign then marked else
+          ArithmeticWindowProgram.step selected .addLow marked :=
+      source_eq_preSign state first second divisor fits
+    _ = if subtracted.flags.sign then
+        ArithmeticWindowProgram.step selected .addLow marked else marked :=
+      conditional_flip subtracted.flags.sign marked.flags.sign marked
+        (ArithmeticWindowProgram.step selected .addLow marked)
+        (marked_sign selected state first second)
 
 /-- The actual upper remainder output is precisely conditional subtraction with unsigned borrow. -/
 theorem source_target {width : Nat} (state : Registers width)

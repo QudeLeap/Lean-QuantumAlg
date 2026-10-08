@@ -14,10 +14,9 @@ import all QuantumAlg.Core.Base.Depth.WeightedCost
 # Scalar observations of one reusable-bank round's native allowance
 
 The event count sums the existing native-coordinate allowance. Each reset
-wire contributes three allowance entries: one measurement and both possible
-correction labels. This is an envelope cardinality, not the count of an actual
-path, which selects only one correction. Every gate keeps its original control
-label. The sole classical-operation coordinate is the actual finite-bit pack;
+wire contributes two allowance entries: one measurement and one possible
+single-qubit correction. A zero outcome requires no correction gate. The
+sole classical-operation coordinate is the actual finite-bit pack;
 the stored-value correction dispatch does not add a classical operation.
 -/
 
@@ -28,23 +27,26 @@ noncomputable section
 /-- Scalar count of the independent complete native-coordinate allowance. -/
 def eventCountBound (m ell width N : Nat) : Nat :=
   polynomialPrimitiveBound m ell width N + resultBits m ell width + 1 +
-    3 * totalQubits (registerParameters m ell width) + reloadXCount m ell width N
+    2 * totalQubits (registerParameters m ell width) + reloadXCount m ell width N
 
 /-- Modulus-independent count ceiling, using the physical bank width for seed reload. -/
 def eventCountWidthBound (m ell width : Nat) : Nat :=
   polynomialPrimitiveWidthBound m ell width + resultBits m ell width + 1 +
-    4 * totalQubits (registerParameters m ell width)
+    3 * totalQubits (registerParameters m ell width)
 
 private theorem resetEnvelope_card (width : Nat) :
-    (ZReset.Bank.envelope width).card = 3 * width := by
-  have one : (ZReset.eventEnvelope 2).card = 3 := rfl
+    (ZReset.Bank.envelope (oracles := .empty) width BitWord.model).card = 2 * width := by
+  have one : (ZReset.eventEnvelope (gates := AlgorithmGate.model)
+      (oracles := .empty) (operations := BitWord.model) 2
+      (ResourcePool.singleton (.gate AlgorithmGate.Coordinate.singleQubit))).card = 2 := rfl
   rw [ZReset.Bank.envelope, Multiset.card_nsmul, one, Nat.mul_comm]
 
-/-- Exact cardinality of the complete coordinate allowance, including both reset alternatives. -/
+/-- Exact cardinality of the native allowance, with one possible correction per reset wire. -/
 theorem eventEnvelope_card (m ell width N : Nat) :
     (eventEnvelope m ell width N).card = eventCountBound m ell width N := by
-  simp only [eventEnvelope, Multiset.card_add, compiledCircuitEventEnvelope_card,
-    Multiset.card_nsmul, ResourcePool.singleton, Multiset.card_replicate, Nat.mul_one,
+  simp only [eventEnvelope, Multiset.card_add,
+    compiledCircuitEventEnvelopeInClassicalContext_card, Multiset.card_nsmul,
+    ResourcePool.singleton, Multiset.card_replicate, Nat.mul_one,
     resetEnvelope_card, eventCountBound]
   omega
 
@@ -56,46 +58,27 @@ theorem eventCountBound_le_widthBound (m ell width N : Nat) :
   unfold eventCountBound eventCountWidthBound
   omega
 
-private theorem control_classicalWeight (dimension : Nat) (pool : ResourcePool .quantum) :
-    ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (ResourcePool.controlForDimension dimension pool) =
-      ResourcePool.weightedCount Resource.Event.classicalOperationWeight pool := by
-  have observation :
-      (Resource.Event.classicalOperationWeight ∘
-        fun event : Resource.Event .quantum => event.controlForDimensions [dimension]) =
-      Resource.Event.classicalOperationWeight := by
-    funext event
-    cases event <;> rfl
-  simp only [ResourcePool.weightedCount, ResourcePool.controlForDimension,
-    ResourcePool.controlForDimensions, Multiset.map_map, observation]
-
-private theorem exponentiation_classicalWeight (bits width N : Nat) :
-    ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (exponentiationEventEnvelope bits width N) = 0 := by
-  unfold exponentiationEventEnvelope
-  split
-  · simp [MAU.Exponentiation.Gidney.nativeBudget, MAU.Exponentiation.Gidney.stageNativeBudget,
-      MAU.Multiplication.Gidney.nativeBudget, MAU.Multiplication.Gidney.wordSwapBudget,
-      MAU.Multiplication.Accumulate.Gidney.nativeBudget,
-      MAU.Multiplication.Accumulate.Gidney.nativeAlphabet, MAU.Addition.Gidney.offsetAlphabet,
-      EncodedBit.GateSpec.primitiveAlphabet, control_classicalWeight,
-      Resource.Event.classicalOperationWeight]
-  · exact ResourcePool.weightedCount_zero _
-
 private theorem compiled_classicalWeight (m ell width N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (compiledCircuitEventEnvelope m ell width N) = 0 := by
-  simp [compiledCircuitEventEnvelope, preparationEventEnvelope,
-    compiledGroupActionEventEnvelope, firstExponentiationEventEnvelope,
-    secondExponentiationEventEnvelope, exponentiation_classicalWeight,
-    readoutEventEnvelope, qftEventEnvelope, WalshHadamard.hadamardEvent,
-    Resource.Event.classicalOperationWeight]
+      (compiledCircuitEventEnvelopeInClassicalContext m ell width N BitWord.model .empty) = 0 := by
+  unfold compiledCircuitEventEnvelopeInClassicalContext
+  generalize compiledCircuitEventEnvelope m ell width N = pool
+  induction pool using Multiset.induction_on with
+  | empty => rfl
+  | cons event pool ih =>
+      simp only [ResourcePool.weightedCount, Multiset.map_cons, Multiset.sum_cons] at ih ⊢
+      cases event <;> try cases ‹Empty›
+      all_goals
+        change 0 + _ = 0
+        simpa only [Nat.zero_add] using ih
 
 private theorem reset_classicalWeight (width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (ZReset.Bank.envelope width) = 0 := by
+      (ZReset.Bank.envelope (oracles := .empty) width BitWord.model) = 0 := by
   have one : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (ZReset.eventEnvelope 2) = 0 := rfl
+      (ZReset.eventEnvelope (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := BitWord.model) 2
+        (ResourcePool.singleton (.gate AlgorithmGate.Coordinate.singleQubit))) = 0 := rfl
   rw [ZReset.Bank.envelope, ResourcePool.weightedCount_nsmul, one, Nat.mul_zero]
 
 /-- The actual packing instruction is the sole classical operation in the round allowance. -/
@@ -103,7 +86,7 @@ theorem eventEnvelope_classicalWeight (m ell width N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (eventEnvelope m ell width N) = 1 := by
   simp [eventEnvelope, compiled_classicalWeight, reset_classicalWeight,
-    Circuit.zEvent, Resource.Event.classicalOperationWeight]
+    Resource.Event.classicalOperationWeight]
 
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)

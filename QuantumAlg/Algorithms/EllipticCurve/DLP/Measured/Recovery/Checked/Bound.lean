@@ -27,6 +27,18 @@ noncomputable section
 open Execution ScalarMultiplication.MeasuredPlacement.Allocation
 open FiniteCyclicDLP Canonical.Probability
 
+private abbrev ExponentModel : ExecutionModel :=
+  .quantum AlgorithmGate.model .empty
+
+private theorem originalEmptyInput_outputDistribution
+    {pre post : RuntimeCtx .quantum} {shape : CShape}
+    (run : AlgorithmRun ExponentModel pre post shape) {Reference : Register}
+    (original : OracleInput ClassicalOracleModel.empty pre Reference) :
+    run.outputDistribution (OracleInput.withEmptyService original.caller) =
+      run.outputDistribution original := by
+  unfold AlgorithmRun.outputDistribution AlgorithmRun.executionDistribution
+  simp only [OracleInput.oracleInput_empty_caller_withEmptyService_state]
+
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
 /-- The actual checked-secret PMF retains the original floor and supplied-offset error. -/
@@ -44,15 +56,18 @@ theorem exponentCheckedRun_probability_bound
     ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
       (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
       (exponentCheckedRun E fieldTail odd problem points nontrivial).outputDistribution
-        (PublicInput.initialInput E (orderWidth problem) problem
-          (AlgorithmRun.pureInput stored
-            (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)))
+        (OracleInput.withEmptyService
+          (PublicInput.initialInput E (orderWidth problem) problem
+          (AlgorithmRun.pureInput (model := ExponentModel) (stored, ())
+            (originalMontgomeryInputVector problem fieldTail sameWidth fits seed
+              reference)).caller))
         (checkedSecretOutput problem input) +
         ENNReal.ofReal (4 * Real.sqrt (preparedExceptionalMass problem points seed)) := by
-  have checked := exponentCheckedRun_selected_probability_le E fieldTail odd problem points
-    nontrivial input (AlgorithmRun.pureInput stored
-      (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))
-  rw [PublicInput.exponentRun_outputDistribution] at checked
+  have checked := exponentCheckedRun_selected_probability_le (p := p) (E := E)
+    (Reference := Reference) fieldTail odd problem points
+    nontrivial input (AlgorithmRun.pureInput (model := ExponentModel) (stored, ())
+      (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)).caller
+  rw [PublicInput.exponentRun_outputDistribution, originalEmptyInput_outputDistribution] at checked
   exact (selectedExponentRun_probability_bound E fieldTail sameWidth fits odd
     problem points seed addends input reference stored).trans (add_le_add checked le_rfl)
 
@@ -73,9 +88,11 @@ theorem exists_fixedOffset_exponentCheckedRun_bound
           ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
             (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
             (exponentCheckedRun E fieldTail odd problem points nontrivial).outputDistribution
-              (PublicInput.initialInput E (orderWidth problem) problem
-                (AlgorithmRun.pureInput stored
-                  (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)))
+              (OracleInput.withEmptyService
+                (PublicInput.initialInput E (orderWidth problem) problem
+                (AlgorithmRun.pureInput (model := ExponentModel) (stored, ())
+                  (originalMontgomeryInputVector problem fieldTail sameWidth fits seed
+                    reference)).caller))
               (checkedSecretOutput problem input) +
               ENNReal.ofReal (4 * Real.sqrt
                 ((2 * (2 * orderWidth problem) : Nat) / ((problem.order - 1 : Nat) : ℝ))) := by
@@ -84,10 +101,11 @@ theorem exists_fixedOffset_exponentCheckedRun_bound
       problem nontrivial points addends
   refine ⟨seed, member, nonidentity, ?_⟩
   intro input Reference reference stored
-  have checked := exponentCheckedRun_selected_probability_le E fieldTail odd problem points
-    nontrivial input (AlgorithmRun.pureInput stored
-      (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))
-  rw [PublicInput.exponentRun_outputDistribution] at checked
+  have checked := exponentCheckedRun_selected_probability_le (p := p) (E := E)
+    (Reference := Reference) fieldTail odd problem points
+    nontrivial input (AlgorithmRun.pureInput (model := ExponentModel) (stored, ())
+      (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)).caller
+  rw [PublicInput.exponentRun_outputDistribution, originalEmptyInput_outputDistribution] at checked
   exact (bound input Reference reference stored).trans (add_le_add checked le_rfl)
 
 end

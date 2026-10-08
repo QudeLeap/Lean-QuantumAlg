@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Components.Classical.NumberTheory.GCD.InitializationSemantics
 import all QuantumAlg.Components.Classical.NumberTheory.GCD.LoopSemantics
+import all QuantumAlg.Core.Execution.Classical.Composition.Record
 
 /-!
 # Exact result of the initialized Euclidean instruction schedule
@@ -28,58 +29,69 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual initialized iteration followed by the final native word-copy store update. -/
 def scheduledStep (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
-    (store : Store ctx) : Store ctx × (scheduledBody input first second active result).Path :=
-  let initial := initializationStore input first second (cellRead result) active store
-  let iterated := iteratedRemainderStep first second (cellRead result) active
-    (Euclid.gcdFuel width) initial
-  (iterated.1.applyOp (.wordUnary .copy width ctx (cellRead second) result),
-    (((), ((), ((), ()))), (iterated.2, ())))
+    (store : Store ctx) : Store ctx × (scheduledBody (model := model) input first second active
+      result).Path :=
+  let initial := initializationStep (model := model) input first second (cellRead result) active
+    store
+  let iterated := iteratedRemainderStep (model := model) first second (cellRead result) active
+    (Euclid.gcdFuel width) initial.1
+  let copied := BitWord.instructionStep (execution := model)
+    (.wordUnary .copy width ctx (cellRead second) result) iterated.1
+  (copied.1, (initial.2, (iterated.2, copied.2)))
 
 /-- Initialization, iteration and final copy compose on every complete quantum-reference block. -/
 theorem gcdScheduled_execute (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (scheduledBody input first second active result).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scheduledBody (model := model) input first second active result).execute Reference state =
       state.mapClassical (fun entry =>
-        ((scheduledStep input first second active result entry.1).1,
-          (entry.2, (scheduledStep input first second active result entry.1).2))) := by
+        let result := scheduledStep (model := model) input first second active result entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   let zero := cellRead result
-  let body := guardedRemainder first second zero active
-  let loop := Circuit.iterate (Euclid.gcdFuel width) body
-  let loopStep := iteratedRemainderStep first second zero active (Euclid.gcdFuel width)
+  let init := initializationBody (model := model) input first second zero active
+  let loop := Circuit.iterate (Euclid.gcdFuel width)
+    (guardedRemainder (model := model) first second zero active)
   let copy : ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
     .wordUnary .copy width ctx (cellRead second) result
-  refine (Circuit.execute_seq_mapClassical
-    (initializationBody input first second zero active) (.seq loop (.classical copy))
-    (fun store => (initializationStore input first second zero active store,
-      ((), ((), ((), ())))))
-    (fun store => ((loopStep store).1.applyOp copy, ((loopStep store).2, ())))
-    (fun reference {_} _ initial => by
-      refine (gcdInitialization_execute input first second zero active reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_seq_mapClassical loop (.classical copy) loopStep
-        (fun store => (store.applyOp copy, ()))
-        (gcdLoop_execute first second zero active (Euclid.gcdFuel width))
-        (fun reference {_} _ initial => by
-          refine (Circuit.execute_classical_mapClassical copy reference initial).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _)
-        reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  let copyCircuit := BitWord.instruction (execution := model) copy
+  let initRecord := fun before : Store ctx × model.HiddenState =>
+    let next := initializationStep (model := model) input first second zero active before.1
+    ((next.1, before.2), next.2)
+  let loopRecord := fun before : Store ctx × model.HiddenState =>
+    let next := iteratedRemainderStep (model := model) first second zero active
+      (Euclid.gcdFuel width) before.1
+    ((next.1, before.2), next.2)
+  let copyRecord := fun before : Store ctx × model.HiddenState =>
+    let next := BitWord.instructionStep (execution := model) copy before.1
+    ((next.1, before.2), next.2)
+  refine (Circuit.execute_seq_mapClassical init (.seq loop copyCircuit) initRecord
+    (Circuit.sequenceRecord loop copyCircuit loopRecord copyRecord) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (gcdInitialization_execute (model := model)
+      input first second zero active reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · intro reference history _ initial
+    exact Circuit.execute_sequenceRecord loop copyCircuit loopRecord copyRecord
+      (by
+        intro reference history _ state
+        exact (gcdLoop_execute (model := model)
+          first second zero active (Euclid.gcdFuel width) reference state).trans
+            (ExecutionState.executionState_mapClassical_congr _ rfl))
+      (by
+        intro reference history _ state
+        exact (BitWord.bitWord_instruction_execute (execution := model) copy state).trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)) reference initial
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 
 /-- The final actual copy returns the exact total GCD word of the original encoded operands. -/
 theorem gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
@@ -91,7 +103,8 @@ theorem gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
     (firstResult : first.key ≠ result.key) (secondResult : second.key ≠ result.key)
     (activeResult : active.key ≠ result.key) (store : Store ctx)
     (zeroValue : (store.read (cellRead result)).toNat = 0) :
-    ((scheduledStep input first second active result store).1).read (cellRead result) =
+    ((scheduledStep (model := model) input first second active result store).1).read (cellRead
+      result) =
       encodeWord (ClassicalAlgorithms.NumberTheory.GCD.eval
         (decodeOperands (store.read input))) := by
   let zero := cellRead result
@@ -102,7 +115,8 @@ theorem gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
   have activeZero : active.key ∉ zero.storageKeys := by
     simpa only [zero, cellRead, CInputRef.storageKeys, List.mem_singleton] using activeResult
   let initial := initializationStore input first second zero active store
-  let iterated := iteratedRemainderStep first second zero active (Euclid.gcdFuel width) initial
+  let iterated := iteratedRemainderStep (model := model) first second zero active (Euclid.gcdFuel
+    width) initial
   have initialized := gcdInitialization_store_values input first second zero active
     firstSecond activeFirst activeSecond firstInput firstZero secondZero activeZero store zeroValue
   have initialState := gcdInitialization_initialState input first second zero active
@@ -113,16 +127,16 @@ theorem gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
   have previousValue := congrArg Euclid.State.second loopState
   have pureResult := ClassicalAlgorithms.NumberTheory.GCD.gcdFinalState_result_eq_eval
     (decodeOperands (store.read input))
-  have copied : ((scheduledStep input first second active result store).1).read
+  have copied : ((scheduledStep (model := model) input first second active result store).1).read
       (cellRead result) = iterated.1.read (cellRead second) :=
     Store.read_applyOp_output iterated.1
       (.wordUnary .copy width ctx (cellRead second) result)
-  have natural : (((scheduledStep input first second active result store).1).read
+  have natural : (((scheduledStep (model := model) input first second active result store).1).read
       (cellRead result)).toNat =
       (ClassicalAlgorithms.NumberTheory.GCD.eval
         (decodeOperands (store.read input))).val :=
     (congrArg CShape.Value.toNat copied).trans (previousValue.trans pureResult)
-  cases value : ((scheduledStep input first second active result store).1).read
+  cases value : ((scheduledStep (model := model) input first second active result store).1).read
       (cellRead result) with
   | unsignedWord word =>
       apply congrArg CShape.Value.unsignedWord

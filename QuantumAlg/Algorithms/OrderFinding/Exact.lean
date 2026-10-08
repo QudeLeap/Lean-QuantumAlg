@@ -6,13 +6,16 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.OrderFinding.Exact.Mathematics
-public import QuantumAlg.Algorithms.OrderFinding.Exact.Endpoint
-public import QuantumAlg.Algorithms.OrderFinding.Exact.PublicCounts
+public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Endpoint
+public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Projections
+public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Counts
+
+public import QuantumAlg.Algorithms.OrderFinding.Native.Macros
+public import QuantumAlg.Util.Order.Finding.Signed
 
 /-!
 # Exact dyadic order finding
 
-The original dyadic recovery mathematics and complete native sampling endpoint,
-with public exact resource counts from the actual decoded execution.
+The native source sampler and stored-bit decoder solve the exact dyadic input
+domain with proved Born support and independent resource and space budgets.
 -/

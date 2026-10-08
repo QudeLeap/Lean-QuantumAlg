@@ -30,7 +30,8 @@ open Execution
 def placedConvertedCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) :
-    Circuit (Allocation.after p.size count) (Allocation.after p.size count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (Allocation.after p.size count) (Allocation.after p.size count) :=
   ContextPermutation.localCircuit (convertedCascade E points order coefficient)
     (convertedCascade_isLocal E points order coefficient)
     (Allocation.after p.size count) (Allocation.body_entries p.size count)
@@ -46,7 +47,8 @@ theorem placedConvertedCascade_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass
 def convertedCircuit {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) :
-    Circuit (Allocation.before p.size count) (Allocation.after p.size count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (Allocation.before p.size count) (Allocation.after p.size count) :=
   (Allocation.initializeWork p count).seq (placedConvertedCascade E points order coefficient)
 
 end

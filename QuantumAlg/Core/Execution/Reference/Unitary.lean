@@ -102,16 +102,19 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The actual circuit interpreter leaves every external reference matrix entry unchanged. -/
-theorem unitary_reference_entry {ctx : RuntimeCtx .quantum} {Reference : Register}
-    {H : Type} [Fintype H] (program : UnitaryCircuit ctx.register)
-    (placed : program.physical_idx = ctx.physicalIdx) (state : Execution.State ctx Reference H)
+theorem unitary_reference_entry {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} {Reference : Register}
+    {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (state : Execution.State ctx Reference (classicalOracles.HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ i : ctx.register.Index,
-      ((Circuit.unitary program placed).execute Reference state).quantumMarginal.matrix
+      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+        program).execute Reference state).quantumMarginal.matrix
         (i, refLeft) (i, refRight)) =
       ∑ i : ctx.register.Index, state.quantumMarginal.matrix (i, refLeft) (i, refRight) := by
   rw [execute_unitary]
-  simp only [Execution.State.unitary, ExecutionState.mapClassical_quantumMarginal]
+  simp only [ExecutionState.mapClassical_quantumMarginal]
   exact ExecutionState.applyLocalUnitary_reference_entry state (fun _ => program.matrix)
     refLeft refRight
 

@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.ZReset.Circuit
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Selected.Unitary
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 
 /-!
 # Classical block preservation under actual reset
@@ -92,49 +93,55 @@ private theorem filter_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
       State.mapHistory (state.filterClassical (fun entry => predicate entry.1)) update := by
   simp only [State.mapHistory, filter_map]
 
-private theorem filter_unitary {ctx : RuntimeCtx .quantum} {Reference : Register}
-    {History : Type} [Fintype History] (state : State ctx Reference History)
-    (program : UnitaryCircuit ctx.register) (placed : program.physical_idx = ctx.physicalIdx)
+private theorem filter_unitary {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum} {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
+    (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (predicate : Store ctx → Prop) :
-    ((Circuit.unitary program placed).execute Reference state).filterClassical
+    ((Circuit.unitary program).execute Reference state).filterClassical
         (fun entry => predicate entry.1) =
-      (Circuit.unitary program placed).execute Reference
+      (Circuit.unitary program).execute Reference
         (state.filterClassical (fun entry => predicate entry.1)) := by
-  simp only [Circuit.execute_unitary, State.unitary, filter_map, filter_applyUnitary]
+  simp only [Circuit.execute_unitary, filter_map, filter_applyUnitary]
+  exact ExecutionState.executionState_mapClassical_congr_decision
+    _ _ _ (fun _ => rfl) _ _
 
-private theorem filter_seq {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (first second : Circuit ctx ctx) (predicate : Store ctx → Prop)
+private theorem filter_seq {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (first second : Circuit model ctx ctx) (predicate : Store ctx → Prop)
     (firstFrame : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (first.execute Reference state).filterClassical (fun entry => predicate entry.1) =
         first.execute Reference (state.filterClassical (fun entry => predicate entry.1)))
     (secondFrame : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (second.execute Reference state).filterClassical (fun entry => predicate entry.1) =
         second.execute Reference (state.filterClassical (fun entry => predicate entry.1)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     ((Circuit.seq first second).execute Reference state).filterClassical
         (fun entry => predicate entry.1) =
       (Circuit.seq first second).execute Reference
         (state.filterClassical (fun entry => predicate entry.1)) := by
   rw [Circuit.execute_seq]
   refine (filter_mapHistory (ctx := ctx) (Reference := Reference)
-    (History := (History × first.Path) × second.Path)
-    (Later := History × (first.Path × second.Path))
+    (History := model.HiddenState × ((History × first.Path) × second.Path))
+    (Later := model.HiddenState × (History × (first.Path × second.Path)))
     (second.execute Reference (first.execute Reference state))
-    (fun history => (history.1.1, (history.1.2, history.2))) predicate).trans ?_
+    (fun history =>
+      (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) predicate).trans ?_
   rw [secondFrame, firstFrame, Circuit.execute_seq]
 
-private theorem filter_branch {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
-    (input : CInputRef ctx shape) (body : shape.Value → Circuit ctx ctx)
+private theorem filter_branch {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    {shape : CShape}
+    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx ctx)
     (predicate : Store ctx → Prop)
     (bodyFrame : ∀ value (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       ((body value).execute Reference state).filterClassical (fun entry => predicate entry.1) =
         (body value).execute Reference (state.filterClassical (fun entry => predicate entry.1)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     ((Circuit.branch input body).execute Reference state).filterClassical
         (fun entry => predicate entry.1) =
       (Circuit.branch input body).execute Reference
@@ -149,58 +156,65 @@ private theorem filter_branch {kind : ProblemKind} {ctx : RuntimeCtx kind} {shap
         ((state.filterClassical (fun entry => predicate entry.1)).selectClassical
           (fun entry => entry.1.read input) value)).mapHistory
             (fun history =>
-              (history.1, (⟨value, history.2⟩ : (Circuit.branch input body).Path)))).block result =
+              (history.1, (history.2.1,
+                (⟨value, history.2.2⟩ : (Circuit.branch input body).Path))))).block result =
       if predicate result.1 then
         ((((body value).execute Reference
           (state.selectClassical (fun entry => entry.1.read input) value)).mapHistory
             (fun history =>
-              (history.1, (⟨value, history.2⟩ : (Circuit.branch input body).Path)))).block result)
+              (history.1, (history.2.1,
+                (⟨value, history.2.2⟩ : (Circuit.branch input body).Path))))).block result)
       else DensityOperator.zero (Register.prod ctx.register Reference) := by
     rw [filter_select, ← bodyFrame, ← filter_mapHistory, ExecutionState.filterClassical_block]
   simp_rw [part]
   by_cases selected : predicate result.1 <;> simp [selected]
 
 /-- Selecting an untouched structural read commutes with the actual write-bearing measurement. -/
-private theorem filter_measurement_read {ctx : RuntimeCtx .quantum}
+private theorem filter_measurement_read {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     {shape : CShape} (observed : CInputRef ctx shape)
     (separate : output.key ∉ observed.storageKeys) (value : shape.Value)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (State.measureZ state wire output).filterClassical
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
+    ((Circuit.measureZ (gates := gates) (oracles := oracles) wire output).execute
+      Reference state).filterClassical
         (fun entry => entry.1.read observed = value) =
-      State.measureZ (state.filterClassical (fun entry => entry.1.read observed = value))
-        wire output := by
-  simp only [State.measureZ, filter_map]
+      (Circuit.measureZ (gates := gates) (oracles := oracles) wire output).execute
+        Reference (state.filterClassical (fun entry => entry.1.read observed = value)) := by
+  simp only [Circuit.execute_measureZ, filter_map]
   simp only [Store.read_write_of_not_mem_storageKeys _ output _ observed separate]
   congr 1
-  exact filter_measureZ (C := Store ctx × History)
+  exact filter_measureZ (C := Store ctx ×
+      ((ExecutionModel.quantum gates oracles).HiddenState × History))
     (Outcome := Fin (ctx.quantumLayout.wire wire).dimension)
     (R := Register.prod ctx.register Reference) state
     (fun basis => basis.1 wire) (fun entry => entry.1.read observed = value)
 
 /-- Actual reset preserves every complete block selected by a structural read it does not write. -/
-theorem zReset_execute_filter_read {ctx : RuntimeCtx .quantum}
+theorem zReset_execute_filter_read {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
+    (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {shape : CShape} (observed : CInputRef ctx shape)
     (separate : output.key ∉ observed.storageKeys) (value : shape.Value)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    ((circuit wire output).execute Reference state).filterClassical
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
+    ((circuit wire output realizations).execute Reference state).filterClassical
         (fun entry => entry.1.read observed = value) =
-      (circuit wire output).execute Reference
+      (circuit wire output realizations).execute Reference
         (state.filterClassical (fun entry => entry.1.read observed = value)) := by
-  let body : (CShape.finite (ctx.quantumLayout.wire wire).dimension).Value → Circuit ctx ctx :=
-    fun result => .unitary (QuditShift.program ctx.quantumLayout wire (-result.toFin))
-      ((QuditShift.quditShift_program_physical_idx ctx.quantumLayout wire (-result.toFin)).trans
-        (RuntimeCtx.runtimeCtx_quantumLayout_identities ctx))
+  let body : (CShape.finite (ctx.quantumLayout.wire wire).dimension).Value →
+      Circuit (.quantum gates oracles) ctx ctx :=
+    fun result => .unitary (realizations (-result.toFin)).circuit
   have selectedFrame := filter_branch (.storage output.toCStorageRef) body
     (fun store => store.read observed = value)
     (fun _selected _reference {_history} _historyFinite part =>
-      filter_unitary part _ _ (fun store => store.read observed = value))
-  exact filter_seq (.measureZ wire output) (.branch (.storage output.toCStorageRef) body)
+      filter_unitary part _ (fun store => store.read observed = value))
+  exact filter_seq (Circuit.measureZ (gates := gates) (oracles := oracles) wire output)
+    (.branch (.storage output.toCStorageRef) body)
     (fun store => store.read observed = value)
     (fun reference {_history} _historyFinite initial =>
       filter_measurement_read wire output observed separate value reference initial)

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BasisMap.Contract
 import all QuantumAlg.Primitives.EllipticCurve.CleanComposition
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Basic
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled

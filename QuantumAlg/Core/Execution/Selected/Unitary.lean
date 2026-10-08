@@ -32,16 +32,20 @@ external reference [dW19, qcnotes.tex:5405].
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 open Execution
 
 noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem branch_quantumMarginal_matrix {kind : ProblemKind}
-    {pre post : RuntimeCtx kind} {shape : CShape} (input : CInputRef pre shape)
-    (body : shape.Value → Circuit pre post) {Reference : Register}
-    {H : Type} [Fintype H] (state : State pre Reference H) :
+private theorem branch_quantumMarginal_matrix {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} {shape : CShape} (input : CInputRef pre shape)
+    (body : shape.Value → Circuit model pre post) {Reference : Register}
+    {H : Type} [Fintype H]
+    (state : State pre Reference (model.HiddenState × H)) :
     ((Circuit.branch input body).execute Reference state).quantumMarginal.matrix =
       ∑ value : shape.Value,
         ((body value).execute Reference
@@ -56,21 +60,25 @@ private theorem branch_quantumMarginal_matrix {kind : ProblemKind}
 
 /-- Internal state form of the stored-value selection law, used by concrete circuit proofs. -/
 theorem selectedUnitary_quantumMarginal {ctx : RuntimeCtx .quantum} {shape : CShape}
-    (input : CInputRef ctx shape) (program : shape.Value → UnitaryCircuit ctx.register)
-    (placed : ∀ value, (program value).physical_idx = ctx.physicalIdx)
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    ((Circuit.branch input (fun value => Circuit.unitary (program value) (placed value))).execute
+    (input : CInputRef ctx shape) (program : shape.Value → UnitaryCircuit gates oracles
+      ctx.quantumLayout)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (classicalOracles.HiddenState × H)) :
+    ((Circuit.branch input (fun value => Circuit.unitary
+      (operations := operations) (classicalOracles := classicalOracles)
+      (program value))).execute
       Reference state).quantumMarginal =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
         (program (entry.1.read input)).matrix (1 : UnitaryOperator Reference)).quantumMarginal := by
   apply DensityOperator.ext
   rw [branch_quantumMarginal_matrix]
-  simp only [Circuit.execute_unitary, State.unitary, ExecutionState.mapClassical_quantumMarginal]
-  change (∑ choice : shape.Value, ∑ entry : Store ctx × H,
+  simp only [Circuit.execute_unitary, ExecutionState.mapClassical_quantumMarginal]
+  change (∑ choice : shape.Value,
+    ∑ entry : Store ctx × (classicalOracles.HiddenState × H),
     (DensityOperator.applyUnitary
       (UnitaryOperator.prodTensor (program choice).matrix (1 : UnitaryOperator Reference))
       ((state.selectClassical (fun value => value.1.read input) choice).block entry)).matrix) =
-    ∑ entry : Store ctx × H,
+    ∑ entry : Store ctx × (classicalOracles.HiddenState × H),
       (DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor (program (entry.1.read input)).matrix
           (1 : UnitaryOperator Reference)) (state.block entry)).matrix
@@ -97,16 +105,18 @@ theorem selectedUnitary_quantumMarginal {ctx : RuntimeCtx .quantum} {shape : CSh
 all correlations with the external reference. -/
 public theorem circuit_selectedUnitary_quantumMarginal_matrix {ctx : RuntimeCtx .quantum}
     {shape : CShape} (input : CInputRef ctx shape)
-    (program : shape.Value → UnitaryCircuit ctx.register)
-    (placed : ∀ value, (program value).physical_idx = ctx.physicalIdx)
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    ((Circuit.branch input (fun value => Circuit.unitary (program value) (placed value))).execute
+    (program : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (classicalOracles.HiddenState × H)) :
+    ((Circuit.branch input (fun value => Circuit.unitary
+      (operations := operations) (classicalOracles := classicalOracles)
+      (program value))).execute
       Reference state).quantumMarginal.matrix =
-      ∑ entry : Store ctx × H,
+      ∑ entry : Store ctx × (classicalOracles.HiddenState × H),
         (DensityOperator.applyUnitary
           (UnitaryOperator.prodTensor (program (entry.1.read input)).matrix
             (1 : UnitaryOperator Reference)) (state.block entry)).matrix :=
-  congrArg DensityOperator.matrix (selectedUnitary_quantumMarginal input program placed state)
+  congrArg DensityOperator.matrix (selectedUnitary_quantumMarginal input program state)
 
 end
 

@@ -56,8 +56,8 @@ def liftSamples {ctx : RuntimeCtx kind} {shape : CShape} (width : Nat)
 
 /-- Each sample cell is allocated by the actual retention instruction. -/
 @[implicit_reducible]
-def allocateSamples (ctx : RuntimeCtx kind) (width : Nat) :
-    (count : Nat) → Circuit ctx (samples ctx width count)
+def allocateSamples {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+    (width : Nat) : (count : Nat) → Circuit model ctx (samples ctx width count)
   | 0 => .id ctx
   | count + 1 =>
       .seq (allocateSamples ctx width count)
@@ -96,8 +96,9 @@ def liftWrite {ctx : RuntimeCtx kind} {shape : CShape} (N : Nat)
     (samples ctx (measurementBits N) 16).canonicalFreshKey_fresh
 
 /-- All seventeen batch cells are initialized by their actual retention instructions. -/
-def allocate (ctx : RuntimeCtx kind) (N : Nat) : Circuit ctx (context ctx N) :=
-  .seq (allocateSamples ctx (measurementBits N) 16)
+def allocate {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat) :
+    Circuit model ctx (context ctx N) :=
+  .seq (allocateSamples (model := model) ctx (measurementBits N) 16)
     (.retain (samples ctx (measurementBits N) 16)
       (samples ctx (measurementBits N) 16).canonicalFreshKey
       (.option (.unsignedWord (modulusBits N)))

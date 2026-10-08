@@ -7,7 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord.Execution
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
+import all QuantumAlg.Core.Algorithm.Borrowed
+import all QuantumAlg.Core.Execution.Circuit.Restoration
 import all QuantumAlg.Core.Algorithm.RelationalLaws
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
@@ -35,6 +39,10 @@ semantics support the reversible-arithmetic setting of [VBE95,
 -/
 
 namespace QuantumAlg.ClassicalEndpoints.Arithmetic.MulFull
+
+noncomputable section
+
+local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Two unsigned words with independently declared widths. -/
 public abbrev inputShape (leftWidth rightWidth : Nat) : CShape :=
@@ -81,11 +89,14 @@ private def mulFullOp (leftWidth rightWidth : Nat) :
       (resultFresh leftWidth rightWidth))
     (resultWrite leftWidth rightWidth)
 
-private def code (leftWidth rightWidth : Nat) : Circuit (inputContext leftWidth rightWidth)
-  (outputContext leftWidth rightWidth) :=
-  .seq (.retain (inputContext leftWidth rightWidth) ⟨1⟩ (outputShape leftWidth rightWidth)
-    (resultFresh leftWidth rightWidth))
-    (.classical (mulFullOp leftWidth rightWidth))
+private def code (leftWidth rightWidth : Nat) :
+    Circuit (.classical BitWord.model .empty)
+      (inputContext leftWidth rightWidth) (outputContext leftWidth rightWidth) :=
+  .seq (.retain (model := .classical BitWord.model .empty)
+    (inputContext leftWidth rightWidth) ⟨1⟩ (outputShape leftWidth rightWidth) (resultFresh
+      leftWidth rightWidth))
+    (BitWord.instruction (execution := .classical BitWord.model .empty)
+      (mulFullOp leftWidth rightWidth))
 
 /-- The full result equals the product of the actual initial operands. -/
 @[expose] public def accepts (leftWidth rightWidth : Nat)
@@ -109,21 +120,29 @@ input retains all joint correlations with any external reference.
 [VBE95, 9511018.tex:327-369]; the native budget is independent of its gate costs.
 -/
 public def problem (leftWidth rightWidth : Nat) :
-    Problem .classical (inputContext leftWidth rightWidth) (outputContext leftWidth rightWidth)
+    Problem (.classical BitWord.model .empty) (inputContext leftWidth rightWidth) (outputContext
+      leftWidth rightWidth)
       (outputShape leftWidth rightWidth) where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := accepts leftWidth rightWidth
   successLB := ⟨1, le_rfl⟩
   states := []
   resources :=
-    { events := ResourcePool.singleton (.classicalOperation (.mulFull leftWidth rightWidth))
+    { events := ResourcePool.singleton (model := .classical BitWord.model .empty)
+        (.classicalOperation (.mulFull leftWidth rightWidth))
       resident := fun .classicalBits => 2 * (leftWidth + rightWidth)
       auxiliary := fun .classicalBits => leftWidth + rightWidth }
-  depth := .classical
+  depth :=
+    { duration := fun _ => 1
+      limit := 1
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Allocate the full product, multiply the actual factors, and list every live key. -/
 public def algorithm (leftWidth rightWidth : Nat) :
-    Algorithm .classical (inputContext leftWidth rightWidth) (outputContext leftWidth rightWidth)
+    Algorithm (.classical BitWord.model .empty) (inputContext leftWidth rightWidth) (outputContext
+      leftWidth rightWidth)
       (outputShape leftWidth rightWidth) where
   run :=
     { code := code leftWidth rightWidth
@@ -176,8 +195,10 @@ private theorem finalStore_accepts (leftWidth rightWidth : Nat) (store : Executi
 private theorem actual_events (leftWidth rightWidth : Nat) (path : (code leftWidth
   rightWidth).Path) :
     (code leftWidth rightWidth).resourcePool path =
-      ResourcePool.singleton (.classicalOperation (.mulFull leftWidth rightWidth)) := by
-  change ResourcePool.ofList [.classicalOperation (.mulFull leftWidth rightWidth)] = _
+      ResourcePool.singleton (model := .classical BitWord.model .empty) (.classicalOperation
+        (.mulFull leftWidth rightWidth)) := by
+  change ResourcePool.ofList (model := .classical BitWord.model .empty) [.classicalOperation
+    (.mulFull leftWidth rightWidth)] = _
   simp
 
 private theorem actual_resident (leftWidth rightWidth : Nat)
@@ -204,40 +225,41 @@ private theorem actual_auxiliary (leftWidth rightWidth : Nat)
   simpa only [Nat.max_zero, Nat.max_self, Nat.zero_max] using
     Nat.le_refl (leftWidth + rightWidth)
 
-noncomputable section
-
-local instance {α : Type} : DecidableEq α := Classical.decEq α
-
-private def finalRecord (leftWidth rightWidth : Nat) (store : Execution.Store (inputContext
-  leftWidth rightWidth)) :
+private def finalRecord (leftWidth rightWidth : Nat)
+    (entry : Execution.Store (inputContext leftWidth rightWidth) ×
+      ClassicalOracleModel.empty.HiddenState) :
     (algorithm leftWidth rightWidth).run.Record :=
-  (finalStore leftWidth rightWidth store, (store, ((), ())))
+  let retained := entry.1.pushRetained ⟨1⟩ (outputShape leftWidth rightWidth) (resultFresh
+    leftWidth rightWidth)
+  let result := BitWord.instructionStep
+    (execution := .classical BitWord.model .empty) (mulFullOp leftWidth rightWidth) retained
+  (result.1, (entry.2, (entry.1, ((), result.2))))
 
 private theorem execution_eq_map (leftWidth rightWidth : Nat) (Reference : Register)
-    (state : ExecutionState (Execution.Store (inputContext leftWidth rightWidth))
+    (state : ExecutionState
+      (Execution.Store (inputContext leftWidth rightWidth) × ClassicalOracleModel.empty.HiddenState)
       (Register.prod (inputContext leftWidth rightWidth).register Reference)) :
     (algorithm leftWidth rightWidth).run.execute Reference state = state.mapClassical (finalRecord
       leftWidth rightWidth) := by
   simp only [algorithm, AlgorithmRun.execute, code, Circuit.execute_seq,
-    Circuit.execute_retain, Circuit.execute_classical, Execution.State.classicalStep,
+    Circuit.execute_retain, BitWord.bitWord_instruction_execute,
     Execution.State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem relational_distribution (leftWidth rightWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext leftWidth rightWidth) Reference) :
+    (input : Execution.OracleInput .empty (inputContext leftWidth rightWidth) Reference) :
     (algorithm leftWidth rightWidth).relationalDistribution input =
       (input.state.toPMF input.normalized).map
-        (fun store => (store, (finalStore leftWidth rightWidth store).read (resultRead leftWidth
-          rightWidth))) := by
+        (fun entry => (entry.1, (finalStore leftWidth rightWidth entry.1).read (resultRead
+          leftWidth rightWidth))) := by
   apply AlgorithmRun.relationalDistribution_eq_map_of_block_mass
     (algorithm leftWidth rightWidth).run input (finalRecord leftWidth rightWidth)
   intro record
   rw [execution_eq_map]
 
 private theorem success_probability (leftWidth rightWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext leftWidth rightWidth) Reference) :
+    (input : Execution.OracleInput .empty (inputContext leftWidth rightWidth) Reference) :
     (1 : ENNReal) ≤ ((algorithm leftWidth rightWidth).relationalDistribution input).toOuterMeasure
       {pair | accepts leftWidth rightWidth pair.1 pair.2} := by
   rw [relational_distribution]
@@ -246,40 +268,37 @@ private theorem success_probability (leftWidth rightWidth : Nat) {Reference : Re
   apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
   intro pair supported
   obtain ⟨store, _inputSupported, rfl⟩ := (PMF.mem_support_map_iff _ _ _).mp supported
-  exact finalStore_accepts leftWidth rightWidth store
+  exact finalStore_accepts leftWidth rightWidth store.1
 
 private theorem restores_borrowed (leftWidth rightWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext leftWidth rightWidth) Reference) :
+    (input : Execution.OracleInput .empty (inputContext leftWidth rightWidth) Reference) :
     (algorithm leftWidth rightWidth).run.RestoresBorrowed input := by
-  change (code leftWidth rightWidth).BorrowedRestored Reference
-    (input.state.mapClassical fun store => (store, store))
-    ((code leftWidth rightWidth).execute Reference (input.state.mapClassical fun store => (store,
-      store)))
-  unfold code
-  refine Circuit.borrowedRestored_seq _ _ _ ?_ ?_
-  · exact Circuit.borrowedRestored_retain ⟨1⟩ (outputShape leftWidth rightWidth) (resultFresh
-    leftWidth rightWidth) _
-  · exact Circuit.borrowedRestored_classical (mulFullOp leftWidth rightWidth) _
+  apply AlgorithmRun.restoresBorrowed_of_circuit
+  intro reference history _ state
+  exact Circuit.borrowedRestored_of_noBorrowedQuantum
+    (code leftWidth rightWidth) (by rfl) reference state
 
-/-- The native multiplication run solves the independent arithmetic and storage contract. -/
+/-- The concrete native multiplication run solves the independent arithmetic
+and storage contract. -/
 public theorem main (leftWidth rightWidth : Nat) : ∃ candidate, Algorithm.Solves candidate
   (problem leftWidth rightWidth) := by
   refine ⟨algorithm leftWidth rightWidth, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     exact success_probability leftWidth rightWidth input
-  · intro _Reference _input _valid _requirement impossible
+  · intro _Reference _input _valid _initialization _requirement impossible
     cases impossible
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     exact restores_borrowed leftWidth rightWidth input
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact le_of_eq (actual_events leftWidth rightWidth path)
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_resident leftWidth rightWidth path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_auxiliary leftWidth rightWidth path
-  · intro _Reference _input _valid _path _supported
-    trivial
+  · intro _Reference _input _valid _initialization _path _supported
+    change 0 + 1 ≤ 1
+    omega
 
 end
 

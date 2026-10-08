@@ -115,10 +115,12 @@ theorem program_apply_frame (width : Nat) (enough : 2 ≤ width.size)
     (second : initial.flags.second = false) (finished : initial.divisorLength = 0)
     (within : count + 1 < 2 ^ (2 + width.size)) :
     (NativeMicrostep.program width enough).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding width).width)
-          ((encoding width).encode (frame initial count))) =
-      NormalizedVector.ket (R := Qubits (encoding width).width)
-        ((encoding width).encode (frame initial (count + 1))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+            ((encoding width).encode (frame initial count)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (frame initial (count + 1)))) := by
   rw [(NativeMicrostep.program_realizes width enough).apply_encoded_ket,
     step_frame initial count clean first second finished within]
 

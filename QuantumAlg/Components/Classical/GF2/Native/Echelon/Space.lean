@@ -23,15 +23,19 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem clearBody_resident
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).peakResidentSpace path ≤ ctx.residentSpace :=
   Circuit.forRange_resident_le width _ _ le_rfl
-    (fun column current => (Circuit.peakResidentSpace_classical
-      (pivotRowWriteOp rows zero column) current).le) path
+    (fun column current => by
+      unfold BitWord.instruction
+      exact (Circuit.peakResidentSpace_classical
+        (BitWord.selectedApplication (execution := model)
+          (pivotRowWriteOp rows zero column)) current).le) path
 
 /-- Original pivot-row initialization adds one real row word to all existing resident storage. -/
 theorem gf2ClearPivotRows_resident_le
@@ -51,19 +55,21 @@ theorem gf2ReduceMatrix_resident_le
     (columns : CWriteRef ctx (.unsignedWord width))
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).peakResidentSpace path ≤
-      pivotMaskSpace kind rowCount width +
+      pivotMaskSpace (model := model) rowCount width +
         (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.residentSpace)) := by
-  have entry : ctx.residentSpace ≤ pivotMaskSpace kind rowCount width +
+  have entry : ctx.residentSpace ≤ pivotMaskSpace (model := model) rowCount width +
       (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.residentSpace)) := by
     intro axis
     change ctx.residentSpace axis ≤
-      pivotMaskSpace kind rowCount width axis +
+      pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.residentSpace axis))
     omega
-  refine (Circuit.peakResidentSpace_seq (.classical (Word.PowerOfTwo.clearOp used))
-    (.seq (.classical (Word.PowerOfTwo.clearOp columns))
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (.seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
       (.seq (clearPivotRows rows)
         (Circuit.forRange width (reduceColumn matrix used rows columns)))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq,
     Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq]
   refine SpacePool.max_le entry (SpacePool.max_le entry (SpacePool.max_le ?_
@@ -86,7 +92,7 @@ theorem gf2LoadAndReduce_resident_le
     (columns : CWriteRef ctx (.unsignedWord width))
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).peakResidentSpace path ≤
-      pivotMaskSpace kind rowCount width +
+      pivotMaskSpace (model := model) rowCount width +
         (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.residentSpace)) := by
   refine (Circuit.peakResidentSpace_seq (loadMatrix input matrix)
     (reduceMatrix matrix used rows columns) path).le.trans ?_
@@ -104,8 +110,11 @@ private theorem clearBody_auxiliary
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=
   Circuit.forRange_auxiliary_le width _ _ le_rfl
-    (fun column current => (Circuit.peakAuxiliarySpace_classical
-      (pivotRowWriteOp rows zero column) current).le) path
+    (fun column current => by
+      unfold BitWord.instruction
+      exact (Circuit.peakAuxiliarySpace_classical
+        (BitWord.selectedApplication (execution := model)
+          (pivotRowWriteOp rows zero column)) current).le) path
 
 /-- Original pivot-row initialization adds one real row word to all existing auxiliary storage. -/
 theorem gf2ClearPivotRows_auxiliary_le
@@ -125,19 +134,21 @@ theorem gf2ReduceMatrix_auxiliary_le
     (columns : CWriteRef ctx (.unsignedWord width))
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).peakAuxiliarySpace path ≤
-      pivotMaskSpace kind rowCount width +
+      pivotMaskSpace (model := model) rowCount width +
         (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.auxiliarySpace)) := by
-  have entry : ctx.auxiliarySpace ≤ pivotMaskSpace kind rowCount width +
+  have entry : ctx.auxiliarySpace ≤ pivotMaskSpace (model := model) rowCount width +
       (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.auxiliarySpace)) := by
     intro axis
     change ctx.auxiliarySpace axis ≤
-      pivotMaskSpace kind rowCount width axis +
+      pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.auxiliarySpace axis))
     omega
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (Word.PowerOfTwo.clearOp used))
-    (.seq (.classical (Word.PowerOfTwo.clearOp columns))
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (.seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
       (.seq (clearPivotRows rows)
         (Circuit.forRange width (reduceColumn matrix used rows columns)))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq,
     Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq]
   refine SpacePool.max_le entry (SpacePool.max_le entry (SpacePool.max_le ?_
@@ -160,7 +171,7 @@ theorem gf2LoadAndReduce_auxiliary_le
     (columns : CWriteRef ctx (.unsignedWord width))
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).peakAuxiliarySpace path ≤
-      pivotMaskSpace kind rowCount width +
+      pivotMaskSpace (model := model) rowCount width +
         (SpacePool.ofShape .bit + (SpacePool.ofShape .bit + ctx.auxiliarySpace)) := by
   refine (Circuit.peakAuxiliarySpace_seq (loadMatrix input matrix)
     (reduceMatrix matrix used rows columns) path).le.trans ?_

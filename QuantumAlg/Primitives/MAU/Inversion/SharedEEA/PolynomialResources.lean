@@ -174,7 +174,8 @@ private theorem offset_le (width : Nat) :
 /-- Actual fixed loading, comparison, folding, and initial length writing have degree-three cost. -/
 def initialization (width : Nat) : Nat :=
   offset (1 + (width + 3)) + offset (width + 3) + 1 + 1 +
-    (offset (width + 3) + (width + 3)) + width * (width * (12 * width + 2))
+    (4 * (offset (width + 3) + (width + 3)) + 2) +
+      width * (width * (12 * width + 2))
 
 private theorem initialization_le (width : Nat) :
     InitializationResources.bound width ≤ initialization width := by
@@ -198,7 +199,8 @@ private theorem decoder_le (width : Nat) :
 /-- A closed degree-six polynomial bounds initialization, the fixed schedule, and decoding. -/
 def corrected (width : Nat) : Nat :=
   initialization width + 8 * width * microstep width +
-    3 * (width + 2) * (8 * (width + 1)) + offset (width + 3) + (width + 3) + 2
+    3 * (width + 2) * (8 * (width + 1)) +
+      4 * (offset (width + 3) + (width + 3)) + 2 + 2
 
 /-- The complete corrected forward envelope has this fixed-degree polynomial upper bound. -/
 theorem corrected_le (width : Nat) : ForwardResources.correctedBound width ≤ corrected width := by

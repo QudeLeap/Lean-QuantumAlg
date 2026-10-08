@@ -52,26 +52,28 @@ open Execution
 
 /-- Coherent good-input agreement gives the same error constant for actual measured circuits. -/
 theorem effectWeight_execute_le_add_four_mul_omitted_norm
-    {kind : ProblemKind} {pre actualPost idealPost : RuntimeCtx kind}
-    (actual : Circuit pre actualPost) (ideal : Circuit pre idealPost) (Reference : Register)
-    (store : Store pre) (input : NormalizedVector (Register.prod pre.register Reference))
+    {model : ExecutionModel} {pre actualPost idealPost : RuntimeCtx model.kind}
+    (actual : Circuit model pre actualPost) (ideal : Circuit model pre idealPost)
+    (Reference : Register)
+    (store : Store pre) (hidden : model.HiddenState)
+    (input : NormalizedVector (Register.prod pre.register Reference))
     (good : HilbertVector (Register.prod pre.register Reference)) (bounded : ‖good‖ ≤ 1)
-    (actualEffects : EffectFamily actualPost Reference (Unit × actual.Path))
-    (idealEffects : EffectFamily idealPost Reference (Unit × ideal.Path))
+    (actualEffects : EffectFamily actualPost Reference (model.HiddenState × (Unit × actual.Path)))
+    (idealEffects : EffectFamily idealPost Reference (model.HiddenState × (Unit × ideal.Path)))
     (agrees :
-      (actual.execute Reference (ExecutionState.ofValue (store, ())
+      (actual.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight actualEffects =
-      (ideal.execute Reference (ExecutionState.ofValue (store, ())
+      (ideal.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight idealEffects) :
-    (ideal.execute Reference (ExecutionState.ofValue (store, ())
+    (ideal.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
       (DensityOperator.ofPure input))).effectWeight idealEffects ≤
-      (actual.execute Reference (ExecutionState.ofValue (store, ())
+      (actual.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofPure input))).effectWeight actualEffects +
           4 * ‖(input : HilbertVector (Register.prod pre.register Reference)) - good‖ := by
   simp only [effectWeight_execute, ExecutionState.effectWeight_ofValue_decision] at agrees ⊢
   exact Effect.weight_le_add_four_mul_omitted_norm
-    (effectPullback actual Reference actualEffects (store, ()))
-    (effectPullback ideal Reference idealEffects (store, ())) input good bounded agrees
+    (effectPullback actual Reference actualEffects (store, (hidden, ())))
+    (effectPullback ideal Reference idealEffects (store, (hidden, ()))) input good bounded agrees
 
 end Circuit
 

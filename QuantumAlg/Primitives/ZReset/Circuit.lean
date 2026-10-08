@@ -7,34 +7,36 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Execution.Circuit
-public import QuantumAlg.Components.QuditShift
+public import QuantumAlg.Components.QuditShift.Reset.Circuit
 
 /-!
 # Reset a selected finite-dimensional system by measurement and a stored result
 
-This circuit measures one physical system in the computational basis, writes
-its outcome to the supplied classical register, reads that register, and
-applies the negative cyclic shift selected by the actual stored value.
+The circuit measures one physical system in the computational basis, writes
+its outcome to the supplied classical register, and reads that register to
+select a supplied exact negative-shift realization in the chosen native model.
+The construction reuses the canonical component reset and its complete native
+trace; the mathematical finite-dimensional shift grants no instruction.
 
 The state update combines the projective measurement rule
 [dW19, qcnotes.tex:5409] with unitary conjugation [dW19, qcnotes.tex:5405].
 The local projector acts as the identity on all other systems and any external
-reference [dW19, qcnotes.tex:5420]. The same circuit records the measurement,
-classical selection, and declared shift in its resource interpretation.
+reference [dW19, qcnotes.tex:5420].
 -/
 
 namespace QuantumAlg.ZReset
 
 noncomputable section
 
-/-- One syntax tree measures, writes and reads its result, then applies its negative shift. -/
-public def circuit {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
-    (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) : Circuit ctx ctx :=
-  .seq (.measureZ wire output)
-    (.branch (.storage output.toCStorageRef) (fun result =>
-      .unitary (QuditShift.program ctx.quantumLayout wire (-result.toFin))
-        ((QuditShift.quditShift_program_physical_idx ctx.quantumLayout wire (-result.toFin)).trans
-          (RuntimeCtx.runtimeCtx_quantumLayout_identities ctx))))
+/-- Measure and read the stored result, then execute its supplied exact correction. -/
+@[expose, implicit_reducible]
+public def circuit {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+    (wire : Fin ctx.systemCount)
+    (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
+    (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
+    (operations : ClassicalOpModel := .empty) :
+    Circuit (.quantum gates oracles operations) ctx ctx :=
+  QuditShift.resetCircuit wire output realizations operations
 
 end
 

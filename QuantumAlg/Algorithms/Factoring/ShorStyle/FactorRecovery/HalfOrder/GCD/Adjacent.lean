@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual adjacent half-power words for the two factor GCDs
@@ -53,33 +54,44 @@ def clearOp (output : CWriteRef ctx (.unsignedWord (width + 1))) :
 def highBit (output : CWriteRef ctx (.unsignedWord (width + 1))) : CInputRef ctx .bit :=
   .wordBitGet (read output) 0
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Only the real underflow arm emits the clearing instruction. -/
 def trimArm (output : CWriteRef ctx (.unsignedWord (width + 1))) :
-    CShape.Value .bit → Circuit ctx ctx
+    CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
-  | .bit true => .classical (clearOp output)
+  | .bit true => BitWord.instruction (execution := model) (clearOp output)
 
 /-- Read the stored underflow bit and execute exactly its selected arm. -/
-def trim (output : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit ctx ctx :=
-  .branch (highBit output) (trimArm output)
+def trim (output : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit model ctx ctx :=
+  .branch (highBit output) (trimArm (model := model) output)
 
 /-- The successor is one operation; the predecessor additionally trims actual underflow. -/
 def tail (successor : Bool) (output : CWriteRef ctx (.unsignedWord (width + 1))) :
-    Circuit ctx ctx :=
-  if successor then .classical (adjacentOp true output)
-  else .seq (.classical (adjacentOp false output)) (trim output)
+    Circuit model ctx ctx :=
+  if successor then BitWord.instruction (execution := model) (adjacentOp true output)
+  else .seq (BitWord.instruction (execution := model) (adjacentOp false output))
+    (trim (model := model) output)
 
 /-- The actual widening and selected adjacent-word arithmetic share the same written cell. -/
 def code (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit ctx ctx :=
-  .seq (.classical (resizeOp input output)) (tail successor output)
+    (output : CWriteRef ctx (.unsignedWord (width + 1))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeOp input output))
+    (tail (model := model) successor output)
 
 /-- Every actual adjacent-word path contains the widening instruction first. -/
 theorem code_eventTrace (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
-    (path : (code successor input output).Path) :
-    (code successor input output).eventTrace path =
-      Resource.Event.classicalOperation (.wordResize width (width + 1)) ::
-        (tail successor output).eventTrace path.2 := rfl
+    (path : (code (model := model) successor input output).Path) :
+    (code (model := model) successor input output).eventTrace path =
+      Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize width (width + 1))) ::
+        (tail (model := model) successor output).eventTrace path.2 := by
+  simp only [code, Circuit.eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeAdjacentWord

@@ -31,6 +31,8 @@ namespace QuantumAlg
 namespace ClassicalEndpoints
 namespace Standard
 
+variable {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
 /-- Stable storage key for the endpoint's borrowed semantic input. -/
 def inputKey : StorageKey := ⟨0⟩
 
@@ -87,39 +89,45 @@ def resultRef (inputShape outputShape : CShape) :
 
 /-- Seal the actual circuit with a complete manifest and its existing result readout. -/
 def run {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape)) :
-    AlgorithmRun (pre inputShape) (post inputShape outputShape) outputShape where
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape)) :
+    AlgorithmRun (.classical operations services)
+      (pre inputShape) (post inputShape outputShape) outputShape where
   code := code
   output := Output.all (post inputShape outputShape)
     (.read (resultRef inputShape outputShape))
 
 /-- Both live cells occur in the final manifest, in the context's actual order. -/
 theorem run_output_listing {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape)) :
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape)) :
     (run code).output.listing = [resultKey, inputKey] :=
   rfl
 
 /-- The endpoint returns the value in its actual final retained cell. -/
 theorem run_result {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape))
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape))
     (record : (run code).Record) :
     (run code).result record = record.1.read (resultRef inputShape outputShape) :=
   rfl
 
 /-- Sealing a circuit preserves its single interpreter and its full input/reference state. -/
 theorem run_execute {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape))
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape))
     (Reference : Register)
-    (state : ExecutionState (Execution.Store (pre inputShape))
+    (state : ExecutionState (Execution.Store (pre inputShape) × services.HiddenState)
       (Register.prod (pre inputShape).register Reference)) :
     (run code).execute Reference state =
-      code.execute Reference (state.mapClassical (fun store => (store, store))) :=
+      code.execute Reference (state.mapClassical (fun value => (value.1, (value.2, value.1)))) :=
   rfl
 
 /-- Output probabilities are the actual final-store readout of this execution. -/
 theorem run_outputDistribution {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape))
-    {Reference : Register} (input : Execution.Input (pre inputShape) Reference) :
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape))
+    {Reference : Register} (input : Execution.OracleInput services (pre inputShape) Reference) :
     (run code).outputDistribution input =
       ((run code).executionDistribution input).map
         (fun record => record.1.read (resultRef inputShape outputShape)) :=
@@ -127,11 +135,12 @@ theorem run_outputDistribution {inputShape outputShape : CShape}
 
 /-- The endpoint reports exactly the events on its actual circuit path. -/
 theorem run_eventTraceDistribution {inputShape outputShape : CShape}
-    (code : Circuit (pre inputShape) (post inputShape outputShape))
-    {Reference : Register} (input : Execution.Input (pre inputShape) Reference) :
+    (code : Circuit (.classical operations services)
+      (pre inputShape) (post inputShape outputShape))
+    {Reference : Register} (input : Execution.OracleInput services (pre inputShape) Reference) :
     (run code).eventTraceDistribution input =
       ((run code).executionDistribution input).map
-        (fun record => code.eventTrace record.2.2) :=
+        (fun record => code.eventTrace record.2.2.2) :=
   rfl
 
 /-- The certain success lower bound used by deterministic catalog endpoints. -/

@@ -81,15 +81,18 @@ theorem reverse_step (width : Nat) (includeSign : Bool) (expected : Pattern widt
 
 /-- Compile the actual equality gates used in the complete register-state equation. -/
 def program (width : Nat) (includeSign : Bool) (expected : Pattern width includeSign) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width includeSign expected)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty
+    (gates width includeSign expected)
 
 /-- Exact normalized basis amplitudes of the same actual equality program. -/
 theorem program_realizes (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) :
     UnitaryCircuit.Realizes (encoding width) (program width includeSign expected)
       (fun state => xorControl (condition expected state) state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width includeSign expected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width includeSign expected) (gates_step width includeSign expected)
 
 /-- The implementation has a proved linear elementary gate bound for each fixed pattern. -/
 theorem gates_length_le (width : Nat) (includeSign : Bool)
@@ -102,7 +105,7 @@ theorem program_unitDepth (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) :
     (program width includeSign expected).evaluatedEventDepth (fun _ => 1) =
       (gates width includeSign expected).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

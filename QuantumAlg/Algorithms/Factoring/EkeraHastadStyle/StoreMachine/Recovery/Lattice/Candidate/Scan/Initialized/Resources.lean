@@ -18,12 +18,14 @@ open Execution
 
 noncomputable section
 
-variable {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {N m ell : Nat} {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Independent original initialization instruction plus the complete canonical slot allowance. -/
-def initializedScanEventEnvelope (kind : ProblemKind) (N m ell : Nat) : ResourcePool kind :=
-  LatticeCandidateSelectorInit.clearAcceptedEventEnvelope +
-    LatticeCandidateScan.scanEventEnvelope kind
+def initializedScanEventEnvelope (execution : ExecutionModel)
+    [BitWord.Selected execution] (N m ell : Nat) : ResourcePool execution :=
+  LatticeCandidateSelectorInit.clearAcceptedEventEnvelope execution +
+    LatticeCandidateScan.scanEventEnvelope execution
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)
 
 /-- Independent one-instruction initialization and complete sequential scan duration. -/
@@ -37,7 +39,7 @@ theorem initializedScanInto_pool_le (input : Input N)
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
     (initializedScanInto input refs).resourcePool path ≤
-      initializedScanEventEnvelope kind N m ell := by
+      initializedScanEventEnvelope model N m ell := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (LatticeCandidateSelectorInit.clearAcceptedInto_resourcePool
@@ -60,7 +62,8 @@ theorem initializedScanInto_depth_le (input : Input N)
 theorem initializedScanInto_borrowedRestored (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (initializedScanInto input refs).BorrowedRestored Reference state
       ((initializedScanInto input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -76,7 +79,7 @@ theorem initializedScanInto_resident_le (input : Input N)
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
     (initializedScanInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
     (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
@@ -95,7 +98,7 @@ theorem initializedScanInto_auxiliary_le (input : Input N)
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
     (initializedScanInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)

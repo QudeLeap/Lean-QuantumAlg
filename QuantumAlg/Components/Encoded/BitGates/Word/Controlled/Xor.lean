@@ -6,13 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
+import all QuantumAlg.Components.Encoded.Circuit
 
 /-!
 # Controlled encoded-word xor
@@ -31,6 +28,7 @@ namespace EncodedBit
 namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Toffoli gates that xor each source word bit into the corresponding target
 word bit when the shared control bit is set. -/
@@ -90,21 +88,10 @@ def controlledXorIntoProgram (control : EncodedBit encoding)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
     (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledXorIntoGates control source target
       hcontrolSource hcontrolTarget hsourceTarget)
-
-/-- A controlled word-xor program uses only wires of its shared encoding. -/
-theorem controlledXorIntoProgram_physical_idx_subset_range
-    (control : EncodedBit encoding) (source target : Word encoding width)
-    (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
-    (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
-    (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
-    (controlledXorIntoProgram control source target
-      hcontrolSource hcontrolTarget hsourceTarget).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
 
 /-- Semantic action of controlled bitwise xor from one encoded word into
 another. -/
@@ -527,11 +514,11 @@ theorem controlledXorInto_realizes (control : EncodedBit encoding)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
     (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorIntoProgram control source target
+      (controlledXorIntoProgram physical oracles control source target
         hcontrolSource hcontrolTarget hsourceTarget)
       (controlledXorIntoStep control source target
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledXorIntoGates control source target
       hcontrolSource hcontrolTarget hsourceTarget)
 
@@ -542,11 +529,11 @@ theorem controlledXorIntoWitness (control : EncodedBit encoding)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
     (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorIntoProgram control source target
+      (controlledXorIntoProgram physical oracles control source target
         hcontrolSource hcontrolTarget hsourceTarget)
       (controlledXorIntoStep control source target
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  controlledXorInto_realizes control source target
+  controlledXorInto_realizes physical oracles control source target
     hcontrolSource hcontrolTarget hsourceTarget
 
 end Word

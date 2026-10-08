@@ -175,10 +175,11 @@ theorem convertedCircuit_goodDensity (problem : KnownOrderProblem (GroupPoint E)
     (odd : Odd p) (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} (reference : NormalizedVector Reference)
     {History : Type} [Fintype History]
-    (stored : Store (before p.size (2 * orderWidth problem))) (history : History) :
+    (stored : Store (before p.size (2 * orderWidth problem)))
+    (hidden : ClassicalOracleModel.empty.HiddenState) (history : History) :
     ((convertedCircuit E points (List.finRange (2 * orderWidth problem))
       (Semantics.radixUnit p fieldTail.succ odd)).execute Reference
-      (ExecutionState.ofValue (stored, history) (DensityOperator.ofSubnormalizedVector
+      (ExecutionState.ofValue (stored, (hidden, history)) (DensityOperator.ofSubnormalizedVector
         (preparedGoodVector problem fieldTail sameWidth fits points seed reference)
         (preparedGoodVector_norm_le_one problem fieldTail sameWidth fits
           points seed reference)))).quantumMarginal =
@@ -189,7 +190,7 @@ theorem convertedCircuit_goodDensity (problem : KnownOrderProblem (GroupPoint E)
   have supported : ∀ input :
       (Register.prod (before p.size (2 * orderWidth problem)).register Reference).Index,
       ¬pairedMontgomeryAllowed E fieldTail sameWidth fits points seed input.1 →
-        (ExecutionState.ofValue (stored, history) (DensityOperator.ofSubnormalizedVector
+        (ExecutionState.ofValue (stored, (hidden, history)) (DensityOperator.ofSubnormalizedVector
           (preparedGoodVector problem fieldTail sameWidth fits points seed reference)
           (preparedGoodVector_norm_le_one problem fieldTail sameWidth fits
             points seed reference))).quantumMarginal.matrix input input = 0 := by

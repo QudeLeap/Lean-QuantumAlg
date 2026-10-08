@@ -23,10 +23,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Execute the complete check and then the canonical selector on its actual stored result. -/
-def into (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
+def into (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
   .seq (QuadraticCandidateCheck.into refs.check)
     (FirstAccepted.circuit (selectionInputs refs) refs.selection)
 
@@ -38,14 +39,15 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
 
 /-- One checked selection executes its complete record on every history and external reference. -/
 theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, QuadraticCandidateCheck.into_execute,
     FirstAccepted.firstAccepted_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

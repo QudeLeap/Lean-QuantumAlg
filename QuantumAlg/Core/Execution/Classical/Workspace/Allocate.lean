@@ -6,6 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells.Freshness
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells.Separation
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells.Transport
+public import QuantumAlg.Core.Base.Model
+public import QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells.Freshness
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells.Separation
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells.Transport
@@ -24,15 +29,15 @@ namespace QuantumAlg.Execution.ClassicalWorkspace
 
 The list head is allocated deepest, so the final `Cells` order is
 definitionally the order of `shapes`. -/
-def withCellsFrom {kind : ProblemKind}
-    {outer ctx : RuntimeCtx kind} (transport : Transport outer ctx) :
+public def withCellsFrom {model : ExecutionModel}
+    {outer ctx : RuntimeCtx model.kind} (transport : Transport outer ctx) :
     (shapes : List CShape) →
-      (body : ∀ {inner : RuntimeCtx kind}
+      (body : ∀ {inner : RuntimeCtx model.kind}
         (cells : Cells inner shapes), cells.Distinct →
         (innerTransport : Transport outer inner) →
         cells.TransportSeparated innerTransport →
-          Circuit inner inner) →
-        Circuit ctx ctx
+          Circuit model inner inner) →
+        Circuit model ctx ctx
   | [], body =>
       body Cells.nil (by trivial) transport
         (Cells.workspaceCells_transportSeparated_nil transport)
@@ -69,13 +74,13 @@ def withCellsFrom {kind : ProblemKind}
             (innerTransport.underWorkspace key shape fresh) allSeparated
 
 /-- Allocate a heterogeneous list directly beneath one caller context. -/
-def withCells {kind : ProblemKind} (ctx : RuntimeCtx kind)
+public def withCells {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
     (shapes : List CShape)
-    (body : ∀ {inner : RuntimeCtx kind}
+    (body : ∀ {inner : RuntimeCtx model.kind}
       (cells : Cells inner shapes), cells.Distinct →
       (transport : Transport ctx inner) →
       cells.TransportSeparated transport →
-        Circuit inner inner) : Circuit ctx ctx :=
+        Circuit model inner inner) : Circuit model ctx ctx :=
   withCellsFrom (Transport.id ctx) shapes body
 
 

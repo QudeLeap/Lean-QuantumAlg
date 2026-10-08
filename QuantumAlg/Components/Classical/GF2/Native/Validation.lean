@@ -22,6 +22,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
 
 /-- The original ordered sample bit and candidate bit feed the actual product cell. -/
@@ -38,20 +40,27 @@ def validationParityOp (parity product : CWriteRef ctx .bit) :
   .bit .xor ctx (.product (.storage parity.toCStorageRef)
     (.storage product.toCStorageRef)) parity
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Each original column executes AND before XOR. -/
 def validationColumn (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
-  .seq (.classical (validationProductOp input candidate product row column))
-    (.classical (validationParityOp parity product))
+    (row : Fin rowCount) (column : Fin width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column))
+    (BitWord.instruction (execution := model) (validationParityOp parity product))
 
 /-- Real parity clear and the complete column traversal precede the stored parity branch. -/
 def validationRowBody (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
-    (success parity product : CWriteRef ctx .bit) (row : Fin rowCount) : Circuit ctx ctx :=
-  .seq (.classical (pivotClearOp parity))
-    (.seq (Circuit.forRange width (validationColumn input candidate parity product row))
-      (.branch (.storage parity.toCStorageRef) (decisionChoice true success)))
+    (success parity product : CWriteRef ctx .bit) (row : Fin rowCount) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (pivotClearOp parity))
+    (.seq (Circuit.forRange width
+      (validationColumn (model := model) input candidate parity product row))
+      (.branch (.storage parity.toCStorageRef) (decisionChoice (model := model) true success)))
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The original sample input passes through the actual parity and product cells. -/
 def validationInput (input : CInputRef ctx (.fixedVector rowCount (.bits width))) :
@@ -64,45 +73,53 @@ def validationParity (ctx : RuntimeCtx kind) : CWriteRef (pivotSearchContext ctx
   (pivotLatch ctx).underWorkspace (pivotSinkContext ctx).canonicalFreshKey .bit
     (pivotSinkContext ctx).canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The original row runs on the actual lifted caller cells and two real fresh bits. -/
 def placedValidationRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) : Circuit (pivotSearchContext ctx) (pivotSearchContext ctx) :=
-  validationRowBody (validationInput input) (pivotSearchWrite candidate)
+    (row : Fin rowCount) : Circuit model (pivotSearchContext ctx) (pivotSearchContext ctx) :=
+  validationRowBody (model := model) (validationInput input) (pivotSearchWrite candidate)
     (pivotSearchWrite success) (validationParity ctx) (pivotLatch (pivotSinkContext ctx)) row
 
 /-- The product bit is actually initialized and released inside the parity scope. -/
 def scopedValidationRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) : Circuit (pivotSinkContext ctx) (pivotSinkContext ctx) :=
+    (row : Fin rowCount) : Circuit model (pivotSinkContext ctx) (pivotSinkContext ctx) :=
   .workspace (pivotSinkContext ctx) (pivotSinkContext ctx).canonicalFreshKey .bit
-    (pivotSinkContext ctx).canonicalFreshKey_fresh (placedValidationRow input candidate success row)
+    (pivotSinkContext ctx).canonicalFreshKey_fresh
+      (placedValidationRow (model := model) input candidate success row)
 
 /-- Both original row-validation cells have their actual ordered lexical lifetimes. -/
 def validateRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) : Circuit ctx ctx :=
+    (row : Fin rowCount) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh
-    (scopedValidationRow input candidate success row)
+    (scopedValidationRow (model := model) input candidate success row)
 
 /-- The current actual success bit selects a row check or the original identity arm. -/
 def validationRowChoice (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) : CShape.Value .bit → Circuit ctx ctx
+    (row : Fin rowCount) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
-  | .bit true => validateRow input candidate success row
+  | .bit true => validateRow (model := model) input candidate success row
 
 /-- Each original row first reads the actual current success cell. -/
 def validationSample (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) : Circuit ctx ctx :=
-  .branch (.storage success.toCStorageRef) (validationRowChoice input candidate success row)
+    (row : Fin rowCount) : Circuit model ctx ctx :=
+  .branch (.storage success.toCStorageRef)
+    (validationRowChoice (model := model) input candidate success row)
 
 /-- The original row traversal always retains its final real success self-AND. -/
 def validateSamples (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit) :
-    Circuit ctx ctx :=
-  .seq (Circuit.forRange rowCount (validationSample input candidate success))
-    (.classical (pivotSelectedOp success))
+    Circuit model ctx ctx :=
+  .seq (Circuit.forRange rowCount
+      (validationSample (model := model) input candidate success))
+    (BitWord.instruction (execution := model) (pivotSelectedOp success))
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

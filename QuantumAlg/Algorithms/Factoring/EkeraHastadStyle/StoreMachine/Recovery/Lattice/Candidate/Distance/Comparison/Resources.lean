@@ -20,35 +20,52 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent original copy and three-shift instruction formula. -/
-def copyScaleTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordUnary .copy width)] ++
-    List.replicate 3 (.classicalOperation (.wordUnary .shiftLeft width))
+def copyScaleTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordUnary .copy width))] ++
+    List.replicate 3 (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .shiftLeft width)))
 
 /-- Every actual copy-scale path emits the original four-instruction formula. -/
 theorem copyScaleInto_events (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (copyScaleInto input output).Path) :
     (copyScaleInto input output).eventTrace path = copyScaleTrace width := by
-  change [_] ++ (ClassicalRoutines.Word.PowerOfTwo.shiftInto 3 output).eventTrace path.2 = _
-  rw [ClassicalRoutines.Word.PowerOfTwo.shiftInto_events]
+  change (BitWord.instruction (execution := model) (copyOp input output)).eventTrace
+      path.1 ++
+    (ClassicalRoutines.Word.PowerOfTwo.shiftInto 3 output).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace,
+    ClassicalRoutines.Word.PowerOfTwo.shiftInto_events]
   rfl
 
 /-- Independent original distance scale, square, range scale, addition and comparison schedule. -/
-def scaleTrace (width : Nat) : List (Resource.Event kind) :=
+def scaleTrace (width : Nat) : List (Resource.Event model) :=
   copyScaleTrace width ++
-    ([.classicalOperation (.wordBinary .mulLow width)] ++
-      (copyScaleTrace width ++ [.classicalOperation (.wordBinary .add width),
-        .classicalOperation (.wordBinary .lessThan width)]))
+    ([.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width))] ++
+      (copyScaleTrace width ++ [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .lessThan width))]))
 
 /-- Every actual near-target path emits exactly the original eleven native instructions. -/
 theorem scaleInto_events (refs : Refs ctx width) (path : (scaleInto refs).Path) :
     (scaleInto refs).eventTrace path = scaleTrace width := by
   change (copyScaleInto refs.distance refs.scaledDistance).eventTrace path.1 ++
-    ([_] ++ ((copyScaleInto (writeInput refs.rangeSquare) refs.scaledRange).eventTrace path.2.2.1 ++
-      [_, _])) = _
-  rw [copyScaleInto_events, copyScaleInto_events]
+    ((BitWord.instruction (execution := model) (squareOp refs)).eventTrace path.2.1 ++
+      ((copyScaleInto (writeInput refs.rangeSquare) refs.scaledRange).eventTrace
+          path.2.2.1 ++
+        ((BitWord.instruction (execution := model) (addRangeOp refs)).eventTrace
+            path.2.2.2.1 ++
+          (BitWord.instruction (execution := model) (compareOp refs)).eventTrace
+            path.2.2.2.2))) = _
+  rw [copyScaleInto_events, copyScaleInto_events,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
   rfl
 
 /-- Actual native multiplicities equal the independently specified original instruction formula. -/
@@ -75,7 +92,7 @@ theorem scaleInto_depth (refs : Refs ctx width) (path : (scaleInto refs).Path) :
 /-- Actual copying and shifts preserve all borrowed-reference correlations jointly. -/
 theorem copyScaleInto_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (copyScaleInto input output).BorrowedRestored Reference state
       ((copyScaleInto input output).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
@@ -83,7 +100,7 @@ theorem copyScaleInto_borrowedRestored (input : CInputRef ctx (.unsignedWord wid
 
 /-- Actual addition and comparison jointly restore every borrowed-reference state. -/
 theorem finishInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (finishInto refs).BorrowedRestored Reference state
       ((finishInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
@@ -91,7 +108,7 @@ theorem finishInto_borrowedRestored (refs : Refs ctx width) (Reference : Registe
 
 /-- Actual range composition preserves the complete original borrowed-reference joint state. -/
 theorem rangeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (rangeInto refs).BorrowedRestored Reference state
       ((rangeInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -100,7 +117,7 @@ theorem rangeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register
 
 /-- Actual squaring and range arithmetic restore the original borrowed-reference joint state. -/
 theorem squareRangeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (squareRangeInto refs).BorrowedRestored Reference state
       ((squareRangeInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -109,7 +126,7 @@ theorem squareRangeInto_borrowedRestored (refs : Refs ctx width) (Reference : Re
 
 /-- Actual scale composition preserves the complete original borrowed-reference joint state. -/
 theorem scaleInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (scaleInto refs).BorrowedRestored Reference state
       ((scaleInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -119,7 +136,7 @@ theorem scaleInto_borrowedRestored (refs : Refs ctx width) (Reference : Register
 /-- The actual copy and repeated shifts visit only the original supplied context. -/
 theorem copyScaleInto_visited (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (copyScaleInto input output).Path)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (copyScaleInto input output).visitedContexts path) : visited = ctx := by
   change visited ∈ [ctx] ++
     (ClassicalRoutines.Word.PowerOfTwo.shiftInto 3 output).visitedContexts path.2 at present
@@ -129,7 +146,7 @@ theorem copyScaleInto_visited (input : CInputRef ctx (.unsignedWord width))
 
 /-- Every instruction and loop boundary retains the original quantum and classical cells. -/
 theorem scaleInto_visited (refs : Refs ctx width) (path : (scaleInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (scaleInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (scaleInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (copyScaleInto refs.distance refs.scaledDistance).visitedContexts path.1 ++
     ([ctx] ++ ((copyScaleInto (writeInput refs.rangeSquare) refs.scaledRange).visitedContexts

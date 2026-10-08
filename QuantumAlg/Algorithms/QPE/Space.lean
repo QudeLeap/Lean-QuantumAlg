@@ -135,8 +135,13 @@ private theorem visited_spaces {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
   change frame ∈
     ([pre t n, preparedContext t n] ++
       ([preparedContext t n] ++ ([preparedContext t n, resultContext t n] ++
-        (MeasurementCells.allocate (resultContext t n) 2 t).visitedContexts path.1.2.2.2))) ++
-      ((Circuit.measurementSequence (readouts t n)).visitedContexts path.2.1 ++ [post t n])
+        (show List (RuntimeCtx .quantum) from
+          (MeasurementCells.allocate (model := model P)
+            (resultContext t n) 2 t).visitedContexts path.1.2.2.2)))) ++
+      ((show List (RuntimeCtx .quantum) from
+        (Circuit.measurementSequence (gates := AlgorithmGate.model)
+          (oracles := UnitarySource.model P.unitary true) (operations := BitWord.model)
+          (classicalOracles := .empty) (readouts t n)).visitedContexts path.2.1) ++ [post t n])
       at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
     or_false] at present
@@ -152,7 +157,7 @@ private theorem visited_spaces {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     exact prepared_spaces t n
   · subst frame
     exact allocated_spaces t n 0 (Nat.zero_le t)
-  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts
+  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts (model := model P)
       (resultContext t n) 2 t path.1.2.2.2 frame allocated
     exact allocated_spaces t n used bounded
   · rw [Circuit.measurementSequence_visitedContexts] at measured

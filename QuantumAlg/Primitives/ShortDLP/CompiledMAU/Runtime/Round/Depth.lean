@@ -14,8 +14,8 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit.Depth
 
 The independent unit-duration bound includes the chosen compiled member,
 each original Z measurement, the actual packing instruction, every reset
-measurement and correction, and the fixed literal X reload. No preparation
-is repeated, and classical dispatch does not remove a native gate control.
+measurement and correction, and the fixed literal X reload. The original
+bank remains resident, and classical selection preserves every native instruction.
 -/
 
 namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
@@ -35,26 +35,47 @@ private theorem selected_depth_le {shape : CShape} (parameter : CInputRef ctx sh
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (path : (selected m ell width sameWires parameter N generator target).Path) :
     (selected m ell width sameWires parameter N generator target).depth (fun _ => 1) path ≤
-      compiledCircuitEventUnitDepth m ell width N :=
-  compiledCircuit_eventUnitDepth_le m ell width N (generator path.1) (target path.1)
+      compiledCircuitEventUnitDepth m ell width N := by
+  rcases path with ⟨value, _⟩
+  change DepthExpr.depthEval (fun _ => 1)
+    ((compiledCircuit m ell width N (generator value) (target value)).eventDepth
+      BitWord.model .empty) ≤ _
+  exact compiledCircuit_eventUnitDepth_classical_context_le m ell width N
+    (generator value) (target value) BitWord.model .empty
 
 private theorem measured_depth
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
-    (path : (Circuit.measurementSequence (readouts m ell width sameWires cells)).Path) :
-    (Circuit.measurementSequence (readouts m ell width sameWires cells)).depth (fun _ => 1) path =
+    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells)).Path) :
+    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells)).depth (fun _ => 1) path =
       resultBits m ell width :=
   (Circuit.measurementSequence_unitDepth (readouts m ell width sameWires cells) path).trans
     (shortDLP_runtimeReadouts_length m ell width sameWires cells)
 
-private theorem resetReload_depth (N : Nat)
+private theorem resetReload_depth_le (N : Nat)
     (path : (resetReload m ell width sameWires N).Path) :
-    (resetReload m ell width sameWires N).depth (fun _ => 1) path =
-      2 * totalQubits (registerParameters m ell width) + reloadXCount m ell width N :=
-  congrArg₂ Nat.add
-    ((ZReset.BankScope.zResetBankScope_unitDepth
-      (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) path.1).trans
-      (congrArg (2 * ·) (systemCount_eq m ell width sameWires)))
-    (shortDLP_reload_unitDepth m ell width N)
+    (resetReload m ell width sameWires N).depth (fun _ => 1) path ≤
+      2 * totalQubits (registerParameters m ell width) + reloadXCount m ell width N := by
+  change (ZReset.BankScope.code
+      (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires)
+      BitWord.model).depth (fun _ => 1) path.1 +
+    DepthExpr.depthEval (fun _ => 1)
+      ((RuntimePlacement.reloadProgram m ell width sameWires N).eventDepth
+        BitWord.model .empty) ≤ _
+  apply Nat.add_le_add
+  · exact (ZReset.BankScope.zResetBankScope_unitDepth_le
+      (operations := BitWord.model)
+      (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires)
+      path.1).trans_eq
+        (congrArg (2 * ·) (shortDLP_runtimeRound_systemCount m ell width sameWires))
+  · change DepthExpr.depthEval (fun _ => 1)
+      ((CompiledMAU.reloadProgram m ell width N).eventDepth BitWord.model .empty) ≤ _
+    exact (UnitaryCircuit.unitaryCircuit_unit_depth_classical_context
+      (CompiledMAU.reloadProgram m ell width N) BitWord.model .empty).le.trans
+      (shortDLP_reload_unitDepth m ell width N).le
 
 /-- Every actual path respects the complete depth bound including reset and seed reload. -/
 theorem shortDLP_runtimeRound_unitDepth_le {shape : CShape} (parameter : CInputRef ctx shape)
@@ -68,7 +89,7 @@ theorem shortDLP_runtimeRound_unitDepth_le {shape : CShape} (parameter : CInputR
     (selected_depth_le m ell width sameWires parameter N generator target path.1)
     (Nat.add_le_add (measured_depth m ell width sameWires cells path.2.1).le
       (Nat.add_le_add (Nat.le_refl 1)
-        (resetReload_depth m ell width sameWires N path.2.2.2).le))
+        (resetReload_depth_le m ell width sameWires N path.2.2.2)))
 
 end
 

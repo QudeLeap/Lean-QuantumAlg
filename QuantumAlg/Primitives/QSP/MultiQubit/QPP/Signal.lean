@@ -8,10 +8,12 @@ module
 
 import QuantumAlg.Init
 public import QuantumAlg.Core.Base
-import all QuantumAlg.Components.Oracle.Common
+public import QuantumAlg.Components.Oracle.QPP
+import all QuantumAlg.Components.Oracle.QPP
+public import QuantumAlg.Primitives.QSP.MultiQubit.QPP.Native
+import all QuantumAlg.Primitives.QSP.MultiQubit.QPP.Native
 import all QuantumAlg.Primitives.QSP.MultiQubit.QPP.Pair
 import all QuantumAlg.Primitives.QSP.SingleQubit.Fourier
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 
 /-!
 # QPP alternating circuits
@@ -39,184 +41,30 @@ private theorem qpp_phaseGateOnZeroOp_applyVec_eq_smul_rotZStdOp
     (phaseGateOnZeroOp (-θ)).applyVec ψ =
       Complex.exp (-(θ / 2 : ℝ) * Complex.I) •
         (rotZStdOp θ).applyVec ψ := by
-  change (phaseGateOnZero (-θ)).applyVec ψ =
-    Complex.exp (-(θ / 2 : ℝ) * Complex.I) •
-      (rotZStd θ).applyVec ψ
-  exact phaseGateOnZero_applyVec_eq_smul_rotZStd θ ψ
+  change HilbertOperator.applyVec
+    (phaseGateOnZeroOp (-θ) : HilbertOperator (Qubits 1)) ψ =
+      Complex.exp (-(θ / 2 : ℝ) * Complex.I) •
+        HilbertOperator.applyVec (rotZStdOp θ : HilbertOperator (Qubits 1)) ψ
+  rw [phaseGateOnZeroOp_signal, HilbertOperator.smul_applyVec]
 
 private theorem qpp_phaseGateOp_applyVec_eq_smul_rotZStdOp
     (θ : ℝ) (ψ : HilbertVector (Qubits 1)) :
     (phaseGateOp θ).applyVec ψ =
       Complex.exp ((θ / 2 : ℝ) * Complex.I) •
         (rotZStdOp θ).applyVec ψ := by
-  change (phaseGate θ).applyVec ψ =
-    Complex.exp ((θ / 2 : ℝ) * Complex.I) •
-      (rotZStd θ).applyVec ψ
-  exact phaseGate_applyVec_eq_smul_rotZStd θ ψ
+  change HilbertOperator.applyVec
+    (phaseGateOp θ : HilbertOperator (Qubits 1)) ψ =
+      Complex.exp ((θ / 2 : ℝ) * Complex.I) •
+        HilbertOperator.applyVec (rotZStdOp θ : HilbertOperator (Qubits 1)) ψ
+  rw [phaseGateOp_signal, HilbertOperator.smul_applyVec]
 
-/-- Re-annotate the semantic unitary as one canonical local oracle call.  The
-matrix is unchanged; only placement and resource metadata are normalized. -/
-def qppOracleGate (U : UnitaryOperator (Qubits n)) : UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (qppOracleLeaf U) (by
-    simpa only [qppOracleLeaf, qppOracleLeafAt,
-      UnitaryLeaf.subroutine_systemIdx] using
-      (List.nodup_range : (List.range n).Nodup))
-
-@[simp]
-theorem qppOracleGate_matrix (U : UnitaryOperator (Qubits n)) :
-    (qppOracleGate U).matrix = U :=
-  rfl
-
-@[simp]
-theorem qppOracleGate_dagger_matrix (U : UnitaryOperator (Qubits n)) :
-    (qppOracleGate U).dagger.matrix = U.dagger := by
-  apply Subtype.ext
-  simp [UnitaryOperator.coe_dagger]
-
-@[simp] theorem qppOracleGate_applyVec (U : UnitaryOperator (Qubits n))
-    (ψ : HilbertVector (Qubits n)) :
-    (qppOracleGate U).matrix.applyVec ψ = U.applyVec ψ := rfl
-
-/-- The one-control QPP query coordinate used by both controlled conventions. -/
-def qppControlledOracleEvent (n : ℕ) : Resource.Event .quantum :=
-  (qppOracleEvent n).controlForDimension 2
-
-/-- Count the one-controlled query coordinate used by a QPP word. -/
-def qppControlledOracleQueryCount (n : ℕ)
-    (resources : ResourcePool .quantum) : ℕ :=
-  ResourcePool.count (qppControlledOracleEvent n) resources
-
-
-
-/-- Literal Y-rotation event advertised by the shared gate component. -/
-def qppRotationYEvent : Resource.Event .quantum :=
-  .gate (.declared "QuantumAlg.Components.Gate" "rotation-y")
-
-/-- Literal Z-rotation event advertised by the shared gate component. -/
-def qppRotationZEvent : Resource.Event .quantum :=
-  .gate (.declared "QuantumAlg.Components.Gate" "rotation-z")
-
-theorem qppOracleEvent_eq (n : ℕ) :
-    qppOracleEvent n = .quantumSubroutine (qppOracleLabel n).quantum :=
-  rfl
-
-theorem qppControlledOracleEvent_eq (n : ℕ) :
-    qppControlledOracleEvent n =
-      .quantumSubroutine
-        { base := qppOracleLabel n, controlDimensions := [2] } :=
-  rfl
-
-theorem qppRotationYEvent_eq :
-    qppRotationYEvent =
-      .gate (.declared "QuantumAlg.Components.Gate" "rotation-y") :=
-  rfl
-
-theorem qppRotationZEvent_eq :
-    qppRotationZEvent =
-      .gate (.declared "QuantumAlg.Components.Gate" "rotation-z") :=
-  rfl
-
-@[simp] theorem qppOracleEvent_ne_controlled (n : ℕ) :
-    qppOracleEvent n ≠ qppControlledOracleEvent n := by
-  intro equality
-  have controlDimensionsEqual := congrArg
-    (fun event : Resource.Event .quantum =>
-      match event with
-      | .quantumSubroutine label => label.controlDimensions
-      | _ => []) equality
-  simp [qppOracleEvent, qppControlledOracleEvent,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimensions] at controlDimensionsEqual
-
-@[simp] theorem qppOracleEvent_ne_rotationY (n : ℕ) :
-    qppOracleEvent n ≠ qppRotationYEvent := by
-  simp [qppOracleEvent, qppRotationYEvent]
-
-@[simp] theorem qppOracleEvent_ne_rotationZ (n : ℕ) :
-    qppOracleEvent n ≠ qppRotationZEvent := by
-  simp [qppOracleEvent, qppRotationZEvent]
-
-@[simp] theorem qppControlledOracleEvent_ne_rotationY (n : ℕ) :
-    qppControlledOracleEvent n ≠ qppRotationYEvent := by
-  simp [qppControlledOracleEvent, qppOracleEvent, qppRotationYEvent]
-
-@[simp] theorem qppControlledOracleEvent_ne_rotationZ (n : ℕ) :
-    qppControlledOracleEvent n ≠ qppRotationZEvent := by
-  simp [qppControlledOracleEvent, qppOracleEvent, qppRotationZEvent]
-
-@[simp] theorem qppRotationYEvent_ne_rotationZ :
-    qppRotationYEvent ≠ qppRotationZEvent := by
-  intro equality
-  have namesEqual := congrArg
-    (fun event : Resource.Event .quantum =>
-      match event with
-      | .gate label => label.name
-      | _ => "") equality
-  simp [qppRotationYEvent, qppRotationZEvent,
-    Resource.GateLabel.declared] at namesEqual
-
-@[simp] theorem qppOracleLeaf_event {n : ℕ}
-    (U : UnitaryOperator (Qubits n)) :
-    (qppOracleLeaf U).event = qppOracleEvent n :=
-  rfl
-
-theorem rotYLeaf_event_eq_qppRotationYEvent (θ : ℝ) :
-    (rotYLeaf θ).event = qppRotationYEvent :=
-  rfl
-
-theorem rotZStdLeaf_event_eq_qppRotationZEvent (φ : ℝ) :
-    (rotZStdLeaf φ).event = qppRotationZEvent :=
-  rfl
-
-attribute [local simp] ResourcePool.count_singleton_of_ne
-
-/-- Count the source-advertised one-qubit `Y`/`Z` processing rotations. -/
-def qppRotationCount (resources : ResourcePool .quantum) : ℕ :=
-  ResourcePool.count qppRotationYEvent resources +
-    ResourcePool.count qppRotationZEvent resources
-
-@[simp] theorem qppControlledOracleQueryCount_add (n : ℕ)
-    (left right : ResourcePool .quantum) :
-    qppControlledOracleQueryCount n (left + right) =
-      qppControlledOracleQueryCount n left +
-        qppControlledOracleQueryCount n right := by
-  simp [qppControlledOracleQueryCount]
-
-
-
-@[simp] theorem qppRotationCount_add
-    (left right : ResourcePool .quantum) :
-    qppRotationCount (left + right) =
-      qppRotationCount left + qppRotationCount right := by
-  simp [qppRotationCount]
-  omega
-
-/-- Exact source-level QPP resource statement for a schedule of `steps`
-controlled oracle uses. -/
-public def QPP.HasExactResourceCounts (n steps : ℕ)
-    (resources : ResourcePool .quantum) : Prop :=
-  qppControlledOracleQueryCount n resources = steps ∧
-    qppRotationCount resources = 2 * steps + 3
+/-- Exact native resources for a QPP word with `steps` controlled queries. -/
+public def QPP.HasExactResourceCounts (U : UnitaryOperator (Qubits n)) (steps : ℕ)
+    (resources : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model U))) : Prop :=
+  QPP.Native.queryCount U resources = steps ∧
+    QPP.Native.rotationCount U resources = 2 * steps + 3
 
 /-! ### Circuit construction helpers -/
-
-/-- Fold typed circuit atoms in the execution order whose matrix semantics
-realizes an algebraic left-to-right product. -/
-private theorem circuitAlgebraicFold_matrix {R : Register} {α : Type}
-    (schedule : List α) (start : UnitaryCircuit R) (step : α → UnitaryCircuit R) :
-    (schedule.foldl (fun accumulated item => UnitaryCircuit.seq (step item) accumulated)
-        start).matrix =
-      schedule.foldl
-        (fun accumulated item => accumulated * (step item).matrix)
-        start.matrix := by
-  induction schedule generalizing start with
-  | nil => rfl
-  | cons item tail ih =>
-      simp only [List.foldl_cons]
-      rw [ih]
-      rfl
-
-
 
 /-- Coercing a fold of certified operators exposes the corresponding raw
 matrix fold without introducing a parallel proof payload. -/
@@ -234,170 +82,56 @@ private theorem unitaryFold_coe {R : Register} {α : Type}
       simp only [List.foldl_cons]
       simpa using ih (start * step item)
 
-/-- Lift one one-qubit processing gate to the leading QPP ancilla while using
-canonical local placement for the whole register. -/
-def qppLiftProcessingGate (n : ℕ) (G : UnitaryCircuit (Qubits 1))
-    (hG : G.physical_idx = [0]) : UnitaryCircuit (Qubits (1 + n)) :=
-  let rest := UnitaryCircuit.identity (Qubits n) (List.range' 1 n) List.nodup_range'
-  UnitaryCircuit.tensorQubits G rest
-    { left_nodup := G.physical_idx_nodup
-      right_nodup := rest.physical_idx_nodup
-      disjoint := by
-        rw [hG]
-        change [0].Disjoint (List.range' 1 n)
-        simp }
-
-/-- The two trainable one-qubit rotations in one QPP step. -/
-def qppProcessingPairGate (p : ℝ × ℝ) : UnitaryCircuit (Qubits 1) :=
-  UnitaryCircuit.seq (rotZStd p.2) (rotY p.1)
-
-@[simp]
-theorem qppProcessingPairGate_physical_idx (p : ℝ × ℝ) :
-    (qppProcessingPairGate p).physical_idx = [0] :=
-  rfl
-
-@[simp]
-theorem qppProcessingPairGate_matrix (p : ℝ × ℝ) :
-    ((qppProcessingPairGate p).matrix : HilbertOperator (Qubits 1)) =
-      (rotYOp p.1 : HilbertOperator (Qubits 1)) *
-        (rotZStdOp p.2 : HilbertOperator (Qubits 1)) :=
-  rfl
-
-@[simp]
-theorem qppLiftProcessingGate_matrix (n : ℕ) (G : UnitaryCircuit (Qubits 1))
-    (hG : G.physical_idx = [0]) :
-    ((qppLiftProcessingGate n G hG).matrix :
-      HilbertOperator (Qubits (1 + n))) =
-      HilbertOperator.tensor (G.matrix : HilbertOperator (Qubits 1))
-        (1 : HilbertOperator (Qubits n)) := by
-  simp [qppLiftProcessingGate]
-
-/-- A direct controlled QPP oracle in canonical local placement. -/
-def qppControlledOracleGate (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  let body := UnitaryCircuit.shiftPhysicalIdx 1 (qppOracleGate U)
-  UnitaryCircuit.controlQubitsAt [0] body
-    { left_nodup := by simp
-      right_nodup := body.physical_idx_nodup
-      disjoint := by simp [body, UnitaryCircuit.shiftPhysicalIdx] }
-    (1 : Fin 2)
-
-@[simp]
-theorem qppControlledOracleGate_matrix (U : UnitaryOperator (Qubits n)) :
-    (qppControlledOracleGate U).matrix = UnitaryOperator.controlledQubits U := by
-  simp [qppControlledOracleGate, UnitaryOperator.controlledQubits]
-
-/-- The alternating controlled-`U†`/controlled-`U` oracle atom. -/
+/-- Choose exactly the granted source query required by this step's parity. -/
 def qppAlternatingOracleGate (U : UnitaryOperator (Qubits n)) (j : ℕ) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  let oracle := if j % 2 = 0 then (qppOracleGate U).dagger else qppOracleGate U
-  let body := UnitaryCircuit.shiftPhysicalIdx 1 oracle
-  let activation : Fin 2 := if j % 2 = 0 then 0 else 1
-  UnitaryCircuit.controlQubitsAt [0] body
-    { left_nodup := by simp
-      right_nodup := body.physical_idx_nodup
-      disjoint := by simp [body, oracle, UnitaryCircuit.shiftPhysicalIdx] }
-    activation
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
+  QPP.Native.oracle U j
 
 theorem qppAlternatingOracleGate_matrix_of_even
     (U : UnitaryOperator (Qubits n)) {j : ℕ} (hj : j % 2 = 0) :
-    (qppAlternatingOracleGate U j).matrix =
-      UnitaryOperator.controlledQubitsOnZero U.dagger := by
-  simp [qppAlternatingOracleGate, hj,
-    UnitaryOperator.controlledQubitsOnZero]
+    (qppAlternatingOracleGate U j).binaryMatrix =
+      UnitaryOperator.controlledQubitsOnZero U⁻¹ :=
+  QPP.Native.oracle_binaryMatrix_even U hj
 
 theorem qppAlternatingOracleGate_matrix_of_odd
     (U : UnitaryOperator (Qubits n)) {j : ℕ} (hj : j % 2 ≠ 0) :
-    (qppAlternatingOracleGate U j).matrix =
-      UnitaryOperator.controlledQubits U := by
-  simp [qppAlternatingOracleGate, hj, UnitaryOperator.controlledQubits]
+    (qppAlternatingOracleGate U j).binaryMatrix =
+      UnitaryOperator.controlledQubits U :=
+  QPP.Native.oracle_binaryMatrix_odd U hj
 
+/-- Three actual front rotations on the existing signal ancilla. -/
+def qppAlternatingInitialGate (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ) :
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
+  QPP.Native.initial U φ θ₀ φ₀
 
-
-/-- Direct and daggered signal circuits each carry the literal uncontrolled
-query coordinate once. -/
-theorem qppOracleEvent_counts (U : UnitaryOperator (Qubits n)) :
-    ResourcePool.count (qppOracleEvent n) (qppOracleGate U).eventCost = 1 ∧
-      ResourcePool.count (qppOracleEvent n)
-        (qppOracleGate U).dagger.eventCost = 1 := by
-  simp [qppOracleGate, qppOracleLeaf, qppOracleLeafAt, qppOracleEvent,
-    ResourcePool.count, ResourcePool.singleton]
-
-/-- Both QPP control conventions carry the literal one-control query
-coordinate once. -/
-theorem qppControlledOracleEvent_counts (U : UnitaryOperator (Qubits n)) :
-    qppControlledOracleQueryCount n
-        (qppControlledOracleGate U).eventCost = 1 ∧
-      qppControlledOracleQueryCount n
-        (qppAlternatingOracleGate U 0).eventCost = 1 := by
-  simp [qppControlledOracleQueryCount, qppControlledOracleGate,
-    qppAlternatingOracleGate, qppOracleGate, qppOracleLeaf,
-    qppOracleLeafAt, qppControlledOracleEvent, qppOracleEvent,
-    ResourcePool.count, ResourcePool.singleton,
-    ResourcePool.controlForDimension, ResourcePool.controlForDimensions,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimensions]
-
-/-- Three front rotations of a QPP word, lifted to the ancilla. -/
-def qppAlternatingInitialGate (n : ℕ) (φ θ₀ φ₀ : ℝ) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  qppLiftProcessingGate n (qspYZZYZInitialCircuit φ θ₀ φ₀)
-    (qspYZZYZInitialCircuit_physical_idx φ θ₀ φ₀)
-
-/-- Initial typed circuit for either QPP convention. -/
-def qppAlternatingInitialCircuit (n : ℕ) (φ θ₀ φ₀ : ℝ) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  qppAlternatingInitialGate n φ θ₀ φ₀
-
-/-- One direct-controlled YZZYZ QPP step. -/
-def qppYZZYZStepCircuit (U : UnitaryOperator (Qubits n)) (p : ℝ × ℝ) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.seq
-    (qppLiftProcessingGate n (qppProcessingPairGate p)
-      (qppProcessingPairGate_physical_idx p))
-    (qppControlledOracleGate U)
-
-@[simp]
-theorem qppYZZYZStepCircuit_matrix (U : UnitaryOperator (Qubits n))
-    (p : ℝ × ℝ) :
-    (qppYZZYZStepCircuit U p).matrix =
-      UnitaryOperator.controlledQubits U *
-        (rotYOp p.1 * rotZStdOp p.2).tensor
-          (1 : UnitaryOperator (Qubits n)) := by
-  apply Subtype.ext
-  simp [qppYZZYZStepCircuit]
-
-/-- One typed source-aligned alternating QPP step. -/
-def qppAlternatingStepCircuit (U : UnitaryOperator (Qubits n)) (j : ℕ)
-    (p : ℝ × ℝ) : UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.seq
-    (qppLiftProcessingGate n (qppProcessingPairGate p)
-      (qppProcessingPairGate_physical_idx p))
-    (qppAlternatingOracleGate U j)
-
-/-- The metadata-free unitary derived from the same typed step circuit. -/
+/-- Metadata-free binary matrix of the same actual step circuit. -/
 def qppAlternatingStepGate (U : UnitaryOperator (Qubits n)) (j : ℕ)
     (p : ℝ × ℝ) : UnitaryOperator (Qubits (1 + n)) :=
-  (qppAlternatingStepCircuit U j p).matrix
+  (QPP.Native.step U j p).binaryMatrix
 
-/-- Operator semantics of the lifted initial processing gate. -/
 @[simp] theorem qppAlternatingInitialGate_operator
-    (n : ℕ) (φ θ₀ φ₀ : ℝ) :
-    ((qppAlternatingInitialGate n φ θ₀ φ₀).matrix :
+    (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ) :
+    ((qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix :
       HilbertOperator (Qubits (1 + n))) =
       HilbertOperator.tensor
-        ((qspYZZYZInitialCircuit φ θ₀ φ₀).matrix : HilbertOperator (Qubits 1))
+        ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix : HilbertOperator (Qubits 1))
         (1 : HilbertOperator (Qubits n)) := by
-  simp [qppAlternatingInitialGate]
+  rw [qppAlternatingInitialGate, QPP.Native.initial_binaryMatrix,
+    qspYZZYZInitialCircuit_matrix]
+  rfl
 
-/-- Operator semantics of one typed alternating QPP step. -/
 @[simp] theorem qppAlternatingStepGate_operator
     (U : UnitaryOperator (Qubits n)) (j : ℕ) (p : ℝ × ℝ) :
     (qppAlternatingStepGate U j p : HilbertOperator (Qubits (1 + n))) =
-      ((qppAlternatingOracleGate U j).matrix : HilbertOperator (Qubits (1 + n))) *
-        ((qppLiftProcessingGate n (qppProcessingPairGate p)
-          (qppProcessingPairGate_physical_idx p)).matrix :
-          HilbertOperator (Qubits (1 + n))) := rfl
+      ((qppAlternatingOracleGate U j).binaryMatrix :
+        HilbertOperator (Qubits (1 + n))) *
+        ((QPP.Native.processingPair U p).binaryMatrix :
+          HilbertOperator (Qubits (1 + n))) := by
+  rw [qppAlternatingStepGate, QPP.Native.step_binaryMatrix,
+    QPP.Native.processingPair_binaryMatrix]
+  rfl
 
 /-! ### Direct YZZYZ QPP and eigenspace decomposition -/
 
@@ -429,34 +163,17 @@ theorem qppYZZYZ_concat (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ)
 
 /-- Typed circuit whose matrix is the YZZYZ QPP word. -/
 def qppYZZYZCircuit (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ)
-    (ps : List (ℝ × ℝ)) : UnitaryCircuit (Qubits (1 + n)) :=
-  ps.foldl
-    (fun accumulated p => UnitaryCircuit.seq (qppYZZYZStepCircuit U p) accumulated)
-    (qppAlternatingInitialCircuit n φ θ₀ φ₀)
+    (ps : List (ℝ × ℝ)) :
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
+  QPP.Native.directCircuit U φ θ₀ φ₀ ps
 
 @[simp] theorem qppYZZYZCircuit_matrix (U : UnitaryOperator (Qubits n))
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
-    (qppYZZYZCircuit U φ θ₀ φ₀ ps).matrix = qppYZZYZ U φ θ₀ φ₀ ps := by
-  induction ps using List.reverseRecOn with
-  | nil =>
-      apply Subtype.ext
-      simp [qppYZZYZCircuit, qppYZZYZ, qppAlternatingInitialCircuit,
-        qppAlternatingInitialGate]
-  | append_singleton ps p ih =>
-      rw [show qppYZZYZCircuit U φ θ₀ φ₀ (ps ++ [p]) =
-          UnitaryCircuit.seq (qppYZZYZStepCircuit U p)
-            (qppYZZYZCircuit U φ θ₀ φ₀ ps) by
-        simp [qppYZZYZCircuit, List.foldl_append]]
-      apply Subtype.ext
-      change
-        ((qppYZZYZCircuit U φ θ₀ φ₀ ps).matrix :
-            HilbertOperator (Qubits (1 + n))) *
-          ((qppYZZYZStepCircuit U p).matrix :
-            HilbertOperator (Qubits (1 + n))) =
-        (qppYZZYZ U φ θ₀ φ₀ (ps ++ [p]) :
-          HilbertOperator (Qubits (1 + n)))
-      rw [ih, qppYZZYZStepCircuit_matrix, qppYZZYZ_concat]
-      rfl
+    (qppYZZYZCircuit U φ θ₀ φ₀ ps).binaryMatrix =
+      qppYZZYZ U φ θ₀ φ₀ ps := by
+  simp only [qppYZZYZCircuit, QPP.Native.directCircuit_binaryMatrix,
+    QPP.Native.directStep_binaryMatrix, QPP.Native.initial_binaryMatrix, qppYZZYZ]
 
 /-- Eigenspace decomposition of direct-controlled YZZYZ QPP. -/
 theorem QPP.eigenstate_decomposition (U : UnitaryOperator (Qubits n))
@@ -558,79 +275,13 @@ theorem QPP.realizes_target (U : UnitaryOperator (Qubits n))
 
 /-! ### Exact resources of the typed words -/
 
-private theorem qppCircuitFold_resourceCounts {R : Register} {α : Type}
-    (n : ℕ) (schedule : List α) (start : UnitaryCircuit R)
-    (step : α → UnitaryCircuit R) (queries rotations : ℕ)
-    (hstartQueries : qppControlledOracleQueryCount n start.eventCost = queries)
-    (hstartRotations : qppRotationCount start.eventCost = rotations)
-    (hstepQueries : ∀ item,
-      qppControlledOracleQueryCount n (step item).eventCost = 1)
-    (hstepRotations : ∀ item, qppRotationCount (step item).eventCost = 2) :
-    qppControlledOracleQueryCount n
-        (schedule.foldl
-          (fun accumulated item => UnitaryCircuit.seq (step item) accumulated) start).eventCost =
-        queries + schedule.length ∧
-      qppRotationCount
-        (schedule.foldl
-          (fun accumulated item => UnitaryCircuit.seq (step item) accumulated) start).eventCost =
-        rotations + 2 * schedule.length := by
-  induction schedule generalizing start queries rotations with
-  | nil => simpa using And.intro hstartQueries hstartRotations
-  | cons item tail ih =>
-      simp only [List.foldl_cons, List.length_cons]
-      have hq : qppControlledOracleQueryCount n
-          (UnitaryCircuit.seq (step item) start).eventCost = queries + 1 := by
-        simp [hstepQueries item, hstartQueries, Nat.add_comm]
-      have hr : qppRotationCount
-          (UnitaryCircuit.seq (step item) start).eventCost = rotations + 2 := by
-        simp [hstepRotations item, hstartRotations, Nat.add_comm]
-      have hrest := ih (UnitaryCircuit.seq (step item) start) (queries + 1)
-        (rotations + 2) hq hr
-      constructor <;> omega
-
-private theorem qppInitialCircuit_counts (n : ℕ) (φ θ₀ φ₀ : ℝ) :
-    qppControlledOracleQueryCount n
-        (qppAlternatingInitialCircuit n φ θ₀ φ₀).eventCost = 0 ∧
-      qppRotationCount (qppAlternatingInitialCircuit n φ θ₀ φ₀).eventCost = 3 := by
-  simp [qppAlternatingInitialCircuit, qppAlternatingInitialGate,
-    qppLiftProcessingGate, qspYZZYZInitialCircuit,
-    qppControlledOracleQueryCount,
-    qppRotationCount, qppControlledOracleEvent, qppOracleEvent,
-    qppRotationYEvent, qppRotationZEvent,
-    ResourcePool.count, ResourcePool.singleton, Resource.GateLabel.declared]
-
-private theorem qppYZZYZStepCircuit_counts (U : UnitaryOperator (Qubits n))
-    (p : ℝ × ℝ) :
-    qppControlledOracleQueryCount n
-        (qppYZZYZStepCircuit U p).eventCost = 1 ∧
-      qppRotationCount (qppYZZYZStepCircuit U p).eventCost = 2 := by
-  simp [qppYZZYZStepCircuit, qppControlledOracleGate, qppOracleGate,
-    qppLiftProcessingGate, qppProcessingPairGate,
-    qppControlledOracleQueryCount,
-    qppRotationCount, qppControlledOracleEvent, qppOracleEvent,
-    qppRotationYEvent, qppRotationZEvent,
-    qppOracleLeaf, qppOracleLeafAt,
-    ResourcePool.count, ResourcePool.singleton, Resource.GateLabel.declared,
-    ResourcePool.controlForDimension, ResourcePool.controlForDimensions,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimensions]
-
-/-- Exact query and rotation multiplicities derived from the direct YZZYZ
-circuit itself. -/
+/-- The direct word's exact counts come from its actual native circuit ledger. -/
 theorem qppYZZYZCircuit_resources_exact (U : UnitaryOperator (Qubits n))
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
-    QPP.HasExactResourceCounts n ps.length
+    QPP.HasExactResourceCounts U ps.length
       (qppYZZYZCircuit U φ θ₀ φ₀ ps).eventCost := by
-  rcases qppInitialCircuit_counts n φ θ₀ φ₀ with ⟨hq, hr⟩
-  have h := qppCircuitFold_resourceCounts n ps
-    (qppAlternatingInitialCircuit n φ θ₀ φ₀)
-    (qppYZZYZStepCircuit U) 0 3 hq hr
-    (fun p => (qppYZZYZStepCircuit_counts U p).1)
-    (fun p => (qppYZZYZStepCircuit_counts U p).2)
-  refine ⟨?_, ?_⟩
-  · simpa [qppYZZYZCircuit] using h.1
-  · simpa [qppYZZYZCircuit] using (show 3 + 2 * ps.length =
-      2 * ps.length + 3 by omega ▸ h.2)
+  simpa only [QPP.HasExactResourceCounts, qppYZZYZCircuit] using
+    QPP.Native.directCircuit_counts U φ θ₀ φ₀ ps
 
 /-- The direct YZZYZ correctness theorem paired with resources from the same
 typed circuit. -/
@@ -649,7 +300,7 @@ theorem qpp_realizes_target_with_resources (U : UnitaryOperator (Qubits n))
               HilbertOperator.applyVec (qspMatYZ L A B θ)
                 (ψ : HilbertVector (Qubits 1)))
             (u : HilbertVector (Qubits n))) ∧
-      QPP.HasExactResourceCounts n L
+      QPP.HasExactResourceCounts U L
         (qppYZZYZCircuit U φ θ₀ φ₀ ps).eventCost := by
   obtain ⟨φ, θ₀, φ₀, ps, hlen, hcorrect⟩ :=
     QPP.realizes_target U u θ hu L A B h
@@ -660,54 +311,25 @@ theorem qpp_realizes_target_with_resources (U : UnitaryOperator (Qubits n))
 
 /-- Typed circuit for the alternating controlled-`U†` / controlled-`U` word. -/
 def qppAlternatingControlledCircuit (U : UnitaryOperator (Qubits n))
-    (φ θ₀ φ₀ : ℝ)
-    (ps : List (ℝ × ℝ)) : UnitaryCircuit (Qubits (1 + n)) :=
-  ps.zipIdx.foldl
-    (fun accumulated jp =>
-      UnitaryCircuit.seq (qppAlternatingStepCircuit U jp.2 jp.1) accumulated)
-    (qppAlternatingInitialCircuit n φ θ₀ φ₀)
+    (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
+  QPP.Native.circuit U φ θ₀ φ₀ ps
 
-/-- The empty alternating schedule evaluates the typed initial circuit. -/
+/-- The empty alternating schedule evaluates the three-gate initial circuit. -/
 @[simp] theorem qppAlternatingControlledCircuit_nil_matrix
     (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ) :
-    (qppAlternatingControlledCircuit U φ θ₀ φ₀ []).matrix =
-      (qppAlternatingInitialGate n φ θ₀ φ₀).matrix := rfl
+    (qppAlternatingControlledCircuit U φ θ₀ φ₀ []).binaryMatrix =
+      (qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix := rfl
 
-private theorem qppAlternatingStepCircuit_counts (U : UnitaryOperator (Qubits n))
-    (j : ℕ) (p : ℝ × ℝ) :
-    qppControlledOracleQueryCount n
-        (qppAlternatingStepCircuit U j p).eventCost = 1 ∧
-      qppRotationCount (qppAlternatingStepCircuit U j p).eventCost = 2 := by
-  by_cases hj : j % 2 = 0 <;>
-    simp [qppAlternatingStepCircuit, qppAlternatingOracleGate, hj,
-      qppOracleGate, qppLiftProcessingGate, qppProcessingPairGate,
-      qppControlledOracleQueryCount, qppControlledOracleEvent, qppOracleEvent,
-      qppRotationCount, qppRotationYEvent, qppRotationZEvent,
-      qppOracleLeaf, qppOracleLeafAt,
-      ResourcePool.count, ResourcePool.singleton, Resource.GateLabel.declared,
-      ResourcePool.controlForDimension, ResourcePool.controlForDimensions,
-      Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-      Resource.QuantumSubroutineLabel.controlForDimensions]
-
-/-- Exact pooled query and rotation multiplicities from the alternating circuit
-itself. -/
+/-- Exact controlled queries and one-qubit gates of the alternating circuit. -/
 theorem qppAlternatingControlledCircuit_resources_exact
     (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ)
     (ps : List (ℝ × ℝ)) :
-    QPP.HasExactResourceCounts n ps.length
+    QPP.HasExactResourceCounts U ps.length
       (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).eventCost := by
-  rcases qppInitialCircuit_counts n φ θ₀ φ₀ with ⟨hq, hr⟩
-  have h := qppCircuitFold_resourceCounts n ps.zipIdx
-    (qppAlternatingInitialCircuit n φ θ₀ φ₀)
-    (fun jp => qppAlternatingStepCircuit U jp.2 jp.1) 0 3 hq hr
-    (fun jp => (qppAlternatingStepCircuit_counts U jp.2 jp.1).1)
-    (fun jp => (qppAlternatingStepCircuit_counts U jp.2 jp.1).2)
-  have hr := h.2
-  rw [List.length_zipIdx] at hr
-  refine ⟨?_, ?_⟩
-  · simpa [qppAlternatingControlledCircuit, List.length_zipIdx] using h.1
-  · simpa [qppAlternatingControlledCircuit, List.length_zipIdx] using
-      (show 3 + 2 * ps.length = 2 * ps.length + 3 by omega ▸ hr)
+  simpa only [QPP.HasExactResourceCounts, qppAlternatingControlledCircuit] using
+    QPP.Native.circuit_counts U φ θ₀ φ₀ ps
 
 /-! ### Alternating eigenspace semantics -/
 
@@ -729,69 +351,31 @@ theorem QPP.qppAlternatingStep_eigenstate_reductionVec
             ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
               (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ))
         (u : HilbertVector (Qubits n)) := by
-  change UnitaryCircuit.applyVec (qppAlternatingStepCircuit U j p)
+  change HilbertOperator.applyVec
+      (qppAlternatingStepGate U j p : HilbertOperator (Qubits (1 + n)))
       (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) = _
-  rw [qppAlternatingStepCircuit, UnitaryCircuit.applyVec_seq]
-  change (qppAlternatingOracleGate U j).matrix.applyVec
-      ((qppLiftProcessingGate n (qppProcessingPairGate p)
-        (qppProcessingPairGate_physical_idx p)).matrix.applyVec
-        (HilbertVector.tensor ψ (u : HilbertVector (Qubits n)))) = _
-  have hprocessing :
-      (qppLiftProcessingGate n (qppProcessingPairGate p)
-        (qppProcessingPairGate_physical_idx p)).matrix.applyVec
-          (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) =
-        HilbertVector.tensor
-          (HilbertOperator.applyVec
-            ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
-          (u : HilbertVector (Qubits n)) := by
-    change HilbertOperator.applyVec
-        ((qppLiftProcessingGate n (qppProcessingPairGate p)
-          (qppProcessingPairGate_physical_idx p)).matrix :
-          HilbertOperator (Qubits (1 + n)))
-        (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) = _
-    rw [qppLiftProcessingGate_matrix, qppProcessingPairGate_matrix,
-      HilbertOperator.tensor_applyVec_tensor, HilbertOperator.one_applyVec]
-  rw [hprocessing]
+  rw [qppAlternatingStepGate_operator, HilbertOperator.mul_applyVec,
+    QPP.Native.processingPair_binaryMatrix, UnitaryOperator.coe_tensor,
+    HilbertOperator.tensor_applyVec_tensor]
+  have hunit : HilbertOperator.applyVec
+      ((1 : UnitaryOperator (Qubits n)) : HilbertOperator (Qubits n))
+      (u : HilbertVector (Qubits n)) = (u : HilbertVector (Qubits n)) := by
+    change (1 : UnitaryOperator (Qubits n)).applyVec
+      (u : HilbertVector (Qubits n)) = _
+    exact UnitaryOperator.one_applyVec _
+  rw [hunit]
   by_cases hj : j % 2 = 0
-  · rw [if_pos hj]
-    change (qppAlternatingOracleGate U j).matrix.applyVec
-        (HilbertVector.tensor
-          (HilbertOperator.applyVec
-            ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
-          (u : HilbertVector (Qubits n))) =
-      HilbertVector.tensor
-        ((phaseGateOnZeroOp (-θ)).applyVec
-          (HilbertOperator.applyVec
-            ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ))
-        (u : HilbertVector (Qubits n))
-    rw [qppAlternatingOracleGate_matrix_of_even U hj]
-    exact
-      QPP.controlledOnZero_conjTranspose_apply_eigenstate_phaseVec
-        U u θ hu
-        (HilbertOperator.applyVec
-          ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-            (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
-  · rw [if_neg hj]
-    change (qppAlternatingOracleGate U j).matrix.applyVec
-        (HilbertVector.tensor
-          (HilbertOperator.applyVec
-            ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
-          (u : HilbertVector (Qubits n))) =
-      HilbertVector.tensor
-        ((phaseGateOp θ).applyVec
-          (HilbertOperator.applyVec
-            ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ))
-        (u : HilbertVector (Qubits n))
-    rw [qppAlternatingOracleGate_matrix_of_odd U hj]
+  · rw [if_pos hj, qppAlternatingOracleGate_matrix_of_even U hj]
+    exact QPP.controlledOnZero_conjTranspose_apply_eigenstate_phaseVec
+      U u θ hu
+      (HilbertOperator.applyVec
+        ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
+          (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
+  · rw [if_neg hj, qppAlternatingOracleGate_matrix_of_odd U hj]
     exact controlled_apply_eigenstate_phaseVec U u θ hu
-        (HilbertOperator.applyVec
-          ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-            (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
+      (HilbertOperator.applyVec
+        ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
+          (rotZStdOp p.2 : HilbertOperator (Qubits 1))) ψ)
 
 /-- The one-qubit signal step induced on an eigenspace. -/
 def qppAlternatingSignalStep (θ : ℝ) (j : ℕ) (p : ℝ × ℝ) :
@@ -1033,12 +617,12 @@ theorem QPP.qppAlternatingSignalGate_applyVec_eq_yzzyz_of_even_length
 private theorem qppAlternatingControlledCircuit_algebraic_matrix
     (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ)
     (ps : List (ℝ × ℝ)) :
-    (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix =
+    (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix =
       ps.zipIdx.foldl
         (fun W jp => W *
           qppAlternatingStepGate U jp.2 jp.1)
-        (qppAlternatingInitialGate n φ θ₀ φ₀).matrix := by
-  rw [qppAlternatingControlledCircuit, circuitAlgebraicFold_matrix]
+        (qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix := by
+  rw [qppAlternatingControlledCircuit, QPP.Native.circuit_binaryMatrix]
   rfl
 
 /-- Source-aligned eigenspace decomposition of the alternating circuit. -/
@@ -1049,7 +633,7 @@ theorem QPP.qppAlternating_eigenstate_decompositionVec
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ))
     (ψ : HilbertVector (Qubits 1)) :
     HilbertOperator.applyVec
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n)))
         (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) =
       HilbertVector.tensor
@@ -1061,7 +645,7 @@ theorem QPP.qppAlternating_eigenstate_decompositionVec
       ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
         (rotZStdOp φ₀ : HilbertOperator (Qubits 1)))
   let initialGate : HilbertOperator (Qubits (1 + n)) :=
-    qppAlternatingInitialGate n φ θ₀ φ₀
+    (qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix
   have hfold : ∀ (schedule : List ((ℝ × ℝ) × ℕ))
       (W : HilbertOperator (Qubits (1 + n)))
       (S : HilbertOperator (Qubits 1)),
@@ -1157,7 +741,7 @@ theorem QPP.qppAlternating_eigenstate_decompositionVec
       HilbertOperator.tensor_applyVec_tensor,
       HilbertOperator.one_applyVec]
   change HilbertOperator.applyVec
-      ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+      ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
         HilbertOperator (Qubits (1 + n)))
       (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) =
     HilbertVector.tensor
@@ -1172,7 +756,7 @@ theorem QPP.qppAlternating_eigenstate_decompositionVec
       (fun W jp => W *
         (qppAlternatingStepGate U jp.2 jp.1 :
           HilbertOperator (Qubits (1 + n))))
-      ((qppAlternatingInitialGate n φ θ₀ φ₀).matrix :
+      ((qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix :
         HilbertOperator (Qubits (1 + n)))
   let signalFold : HilbertOperator (Qubits 1) :=
     ps.zipIdx.foldl
@@ -1199,7 +783,7 @@ theorem QPP.qppAlternating_eigenstate_decomposition_evenVec
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) {L : ℕ}
     (hps : ps.length = 2 * L) (ψ : HilbertVector (Qubits 1)) :
     HilbertOperator.applyVec
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n)))
         (HilbertVector.tensor ψ (u : HilbertVector (Qubits n))) =
       HilbertVector.tensor
@@ -1217,7 +801,7 @@ theorem QPP.alternating_realizes_target_on_eigenstate
     ∃ φ θ₀ φ₀ : ℝ, ∃ ps : List (ℝ × ℝ), ps.length = 2 * L ∧
       ∀ ψ : NormalizedVector (Qubits 1),
         HilbertOperator.applyVec
-            ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+            ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
               HilbertOperator (Qubits (1 + n)))
             (HilbertVector.tensor (ψ : HilbertVector (Qubits 1))
               (u : HilbertVector (Qubits n))) =
@@ -1237,35 +821,6 @@ theorem QPP.alternating_realizes_target_on_eigenstate
       (fun M : HilbertOperator (Qubits 1) =>
         HilbertOperator.applyVec M (ψ : HilbertVector (Qubits 1))) (hmat θ))
 
-namespace QPP.Signal
-
-/-- Namespace-local view of the resource-carrying alternating QPP circuit. -/
-abbrev qppAlternatingControlledCircuit (U : UnitaryOperator (Qubits n))
-    (φ θ₀ φ₀ : ℝ)
-    (ps : List (ℝ × ℝ)) : UnitaryCircuit (Qubits (1 + n)) :=
-  QuantumAlg.QSP.MultiQubit.qppAlternatingControlledCircuit U φ θ₀ φ₀ ps
-
-theorem alternating_realizes_target_on_eigenstate
-    (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
-    (hu : U.applyVec (u : HilbertVector (Qubits n)) =
-      Complex.exp ((θ : ℂ) * Complex.I) • (u : HilbertVector (Qubits n)))
-    (L : ℕ) (A B : Polynomial ℂ) (h : IsYZPair (2 * L) A B) :
-    ∃ φ θ₀ φ₀ : ℝ, ∃ ps : List (ℝ × ℝ), ps.length = 2 * L ∧
-      ∀ ψ : NormalizedVector (Qubits 1),
-        HilbertOperator.applyVec
-            ((QuantumAlg.QSP.MultiQubit.qppAlternatingControlledCircuit
-              U φ θ₀ φ₀ ps).matrix :
-              HilbertOperator (Qubits (1 + n)))
-            (HilbertVector.tensor (ψ : HilbertVector (Qubits 1))
-              (u : HilbertVector (Qubits n))) =
-          HilbertVector.tensor
-            (HilbertOperator.applyVec (qspMatYZ (2 * L) A B θ)
-              (ψ : HilbertVector (Qubits 1)))
-            (u : HilbertVector (Qubits n)) :=
-  QuantumAlg.QSP.MultiQubit.QPP.alternating_realizes_target_on_eigenstate
-    U u θ hu L A B h
-
-end QPP.Signal
 
 end
 

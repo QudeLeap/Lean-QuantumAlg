@@ -125,8 +125,14 @@ private theorem visited_spaces {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
     ([pre, preparedContext (totalQubits n k)] ++
       ([preparedContext (totalQubits n k)] ++
         ([preparedContext (totalQubits n k), resultContext n k] ++
-        (MeasurementCells.allocate (resultContext n k) 2 n).visitedContexts path.1.2.2.2))) ++
-      ((Circuit.measurementSequence (readouts n k)).visitedContexts path.2.1 ++
+        (show List (RuntimeCtx .quantum) from
+          (MeasurementCells.allocate (model := model marked)
+            (resultContext n k) 2 n).visitedContexts
+            path.1.2.2.2)))) ++
+      ((show List (RuntimeCtx .quantum) from
+        (Circuit.measurementSequence (gates := AlgorithmGate.model)
+          (oracles := Elementary.oracles marked) (operations := BitWord.model)
+          (classicalOracles := .empty) (readouts n k)).visitedContexts path.2.1) ++
         [post n k]) at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
     or_false] at present
@@ -142,7 +148,7 @@ private theorem visited_spaces {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
     exact prepared_spaces n k
   · subst frame
     exact allocated_spaces n k 0 (Nat.zero_le n)
-  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts
+  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts (model := model marked)
       (resultContext n k) 2 n path.1.2.2.2 frame allocated
     exact allocated_spaces n k used bounded
   · rw [Circuit.measurementSequence_visitedContexts] at measured

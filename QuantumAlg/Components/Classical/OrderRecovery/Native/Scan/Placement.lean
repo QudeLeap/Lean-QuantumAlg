@@ -66,12 +66,14 @@ def scanDivisionCell (ctx : RuntimeCtx kind) (width : Nat) :
   CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (cursorDivisionShape width)
     ctx.canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The full actual visit operates under its own quotient/remainder allocation. -/
 def placedVisit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) :
-    Circuit (scanDivisionCtx ctx candidateWidth) (scanDivisionCtx ctx candidateWidth) :=
-  visitWithDivision spec
+    Circuit model (scanDivisionCtx ctx candidateWidth) (scanDivisionCtx ctx candidateWidth) :=
+  visitWithDivision (model := model) spec
     (base.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
       ctx.canonicalFreshKey_fresh)
     (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
@@ -81,16 +83,16 @@ def placedVisit (spec : ModulusSpec modulusWidth)
 /-- A single active visit allocates and releases exactly its own real division pair. -/
 def activeVisit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth candidateWidth) : Circuit ctx ctx :=
+    (cells : ScanCells ctx modulusWidth candidateWidth) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
-    ctx.canonicalFreshKey_fresh (placedVisit spec base cells)
+    ctx.canonicalFreshKey_fresh (placedVisit (model := model) spec base cells)
 
 /-- Concrete outer storage and the actual visit path after its matching lexical release. -/
 def activeVisitStep (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (store : Store ctx) :
-    Store ctx × (activeVisit spec base cells).Path :=
-  let visited := visitWithDivisionStep spec
+    Store ctx × (activeVisit (model := model) spec base cells).Path :=
+  let visited := visitWithDivisionStep (model := model) spec
     (base.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
       ctx.canonicalFreshKey_fresh)
     (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
@@ -105,25 +107,29 @@ def activeVisitStep (spec : ModulusSpec modulusWidth)
 theorem nativeScan_activeVisit_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (activeVisit spec base cells).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (activeVisit (model := model) spec base cells).execute Reference state =
       state.mapClassical (fun entry =>
-        ((activeVisitStep spec base cells entry.1).1,
-          (entry.2, (activeVisitStep spec base cells entry.1).2))) := by
+        ((activeVisitStep (model := model) spec base cells entry.1).1,
+          (entry.2.1, (entry.2.2,
+            (activeVisitStep (model := model) spec base cells entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
     (cursorDivisionShape candidateWidth) ctx.canonicalFreshKey_fresh
-    (placedVisit spec base cells)
-    (visitWithDivisionStep spec
-      (base.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
-        ctx.canonicalFreshKey_fresh)
-      (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
-        ctx.canonicalFreshKey_fresh)
-      (scanDivisionCell ctx candidateWidth))
+    (placedVisit (model := model) spec base cells)
+    (fun entry =>
+      let next := visitWithDivisionStep (model := model) spec
+        (base.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
+          ctx.canonicalFreshKey_fresh)
+        (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
+          ctx.canonicalFreshKey_fresh)
+        (scanDivisionCell ctx candidateWidth) entry.1
+      ((next.1, entry.2), next.2))
     (nativeScan_visitWithDivision_execute spec _ _ _) Reference state).trans ?_
   congr 1
 
 /-- The actual quotient/remainder scope adds no quantum system or physical identity. -/
-theorem nativeScan_division_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+theorem nativeScan_division_quantumWires {kind : ProblemKind}
+    (ctx : RuntimeCtx kind) (width : Nat) :
     (scanDivisionCtx ctx width).quantumWires = ctx.quantumWires := rfl
 
 end

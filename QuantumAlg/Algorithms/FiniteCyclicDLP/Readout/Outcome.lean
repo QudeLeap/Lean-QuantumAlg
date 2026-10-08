@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
+public import QuantumAlg.Core.Measure
+public import QuantumAlg.Core.Measure.Distribution
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
 import all QuantumAlg.Core.Measure.Distribution
 
@@ -26,17 +29,17 @@ variable {G : Type u} [Group G]
 
 /-- Raw terminal outcome type, deliberately left before any classical
 interpretation or recovery. -/
-abbrev Outcome (P : KnownOrderProblem G) : Type :=
+public abbrev Outcome (P : KnownOrderProblem G) : Type :=
   TerminalZMeasure.Outcome (orderWidth P + orderWidth P)
 
 /-- Big-endian raw terminal outcome for one paired Fourier-register value. -/
-def measurementOutcome (P : KnownOrderProblem G)
+public def measurementOutcome (P : KnownOrderProblem G)
     (value : Fin (2 ^ (orderWidth P + orderWidth P))) : Outcome P :=
   fun outputIndex =>
     value.val.testBit
       (orderWidth P + orderWidth P - 1 - outputIndex.val)
 
-@[simp] theorem fullRegisterIndex_measurementOutcome
+@[simp] public theorem fullRegisterIndex_measurementOutcome
     (P : KnownOrderProblem G)
     (value : Fin (2 ^ (orderWidth P + orderWidth P))) :
     TerminalZMeasure.fullRegisterIndex (measurementOutcome P value) = value := by
@@ -57,7 +60,7 @@ def measurementOutcome (P : KnownOrderProblem G)
       _ = bit.val := congrArg Fin.val (Fin.rev_rev bit)
   rw [hbits, Nat.ofBits_testBit, Nat.mod_eq_of_lt value.isLt]
 
-theorem measurementOutcome_injective (P : KnownOrderProblem G) :
+public theorem measurementOutcome_injective (P : KnownOrderProblem G) :
     Function.Injective (measurementOutcome P) := by
   intro left right equality
   have := congrArg TerminalZMeasure.fullRegisterIndex equality

@@ -39,20 +39,25 @@ private theorem op_read_cell {input output observed : CShape}
       store.read (.storage other.toCStorageRef) :=
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Both actually materialized words are precisely the original source candidate pair. -/
 theorem nativeQuadratic_candidates_read (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (separated : Separated modulus refs) (store : Store ctx) :
-    (((candidatesStep input modulus refs store).1.read (.storage refs.first.toCStorageRef)).toNat,
-      ((candidatesStep input modulus refs store).1.read
+    (((candidatesStep (model := model) input modulus refs store).1.read (.storage
+      refs.first.toCStorageRef)).toNat,
+      ((candidatesStep (model := model) input modulus refs store).1.read
         (.storage refs.second.toCStorageRef)).toNat) =
         RSA.quadraticFactorCandidates (store.read modulus).toNat (store.read input).toNat := by
   let widened := store.applyOp (widenOp input refs)
   let centered := widened.applyOp (centerOp refs)
   let squared := centered.applyOp (squareOp refs)
-  let reduced := NativeSub.intoStep (.storage refs.root.toCStorageRef) modulus refs.root squared
-  let rooted := NativeSqrt.intoStep (.storage refs.root.toCStorageRef) refs.root reduced.1
-  let lower := NativeSub.intoStep (.storage refs.center.toCStorageRef)
+  let reduced := NativeSub.intoStep (model := model) (.storage refs.root.toCStorageRef) modulus
+    refs.root squared
+  let rooted := NativeSqrt.intoStep (model := model) (.storage refs.root.toCStorageRef) refs.root
+    reduced.1
+  let lower := NativeSub.intoStep (model := model) (.storage refs.center.toCStorageRef)
     (.storage refs.root.toCStorageRef) refs.first rooted.1
   have widenedValue := nativeQuadratic_widen_read input refs store
   have centerFits : (widened.read (.storage refs.center.toCStorageRef)).toNat + 1 <
@@ -82,7 +87,7 @@ theorem nativeQuadratic_candidates_read (input : CInputRef ctx (.unsignedWord wi
       (separated.modulusFree refs.root.key (by simp [writeKeys]))).trans modulusCentered
   have discriminantValue : (reduced.1.read (.storage refs.root.toCStorageRef)).toNat =
       RSA.quadraticDiscriminant (store.read modulus).toNat (store.read input).toNat :=
-    (NativeSub.nativeSub_into_read_output
+    (NativeSub.nativeSub_into_read_output (model := model)
       (.storage refs.root.toCStorageRef) modulus refs.root squared).trans
       (congrArg₂ (fun first second : Nat => first - second)
         squareValue (congrArg CShape.Value.toNat modulusSquared))
@@ -94,39 +99,41 @@ theorem nativeQuadratic_candidates_read (input : CInputRef ctx (.unsignedWord wi
   have centerReduced : (reduced.1.read (.storage refs.center.toCStorageRef)).toNat =
       RSA.quadraticCenter (store.read input).toNat :=
     (congrArg CShape.Value.toNat
-      (NativeSub.nativeSub_into_read_unchanged (.storage refs.root.toCStorageRef) modulus refs.root
+      (NativeSub.nativeSub_into_read_unchanged (model := model) (.storage refs.root.toCStorageRef)
+        modulus refs.root
         (.storage refs.center.toCStorageRef)
         (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separated.centerRoot.symm)
         squared)).trans centerSquared
   have rootValue : (rooted.1.read (.storage refs.root.toCStorageRef)).toNat =
       Nat.sqrt (RSA.quadraticDiscriminant (store.read modulus).toNat (store.read input).toNat) :=
-    (NativeSqrt.nativeSqrt_into_read_output
+    (NativeSqrt.nativeSqrt_into_read_output (model := model)
       (.storage refs.root.toCStorageRef) refs.root reduced.1).trans
       (congrArg Nat.sqrt discriminantValue)
   have centerRooted : (rooted.1.read (.storage refs.center.toCStorageRef)).toNat =
       RSA.quadraticCenter (store.read input).toNat :=
     (congrArg CShape.Value.toNat
-      (NativeSqrt.nativeSqrt_into_read_unchanged (.storage refs.root.toCStorageRef) refs.root
+      (NativeSqrt.nativeSqrt_into_read_unchanged (model := model) (.storage
+        refs.root.toCStorageRef) refs.root
         (.storage refs.center.toCStorageRef)
         (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separated.centerRoot.symm)
         reduced.1)).trans centerReduced
   have firstValue : (lower.1.read (.storage refs.first.toCStorageRef)).toNat =
       RSA.quadraticCenter (store.read input).toNat -
         Nat.sqrt (RSA.quadraticDiscriminant (store.read modulus).toNat (store.read input).toNat) :=
-    (NativeSub.nativeSub_into_read_output (.storage refs.center.toCStorageRef)
+    (NativeSub.nativeSub_into_read_output (model := model) (.storage refs.center.toCStorageRef)
       (.storage refs.root.toCStorageRef) refs.first rooted.1).trans
       (congrArg₂ (fun first second : Nat => first - second) centerRooted rootValue)
   have centerLowered : (lower.1.read (.storage refs.center.toCStorageRef)).toNat =
       RSA.quadraticCenter (store.read input).toNat :=
     (congrArg CShape.Value.toNat
-      (NativeSub.nativeSub_into_read_unchanged (.storage refs.center.toCStorageRef)
+      (NativeSub.nativeSub_into_read_unchanged (model := model) (.storage refs.center.toCStorageRef)
         (.storage refs.root.toCStorageRef) refs.first (.storage refs.center.toCStorageRef)
         (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separated.centerFirst.symm)
         rooted.1)).trans centerRooted
   have rootLowered : (lower.1.read (.storage refs.root.toCStorageRef)).toNat =
       Nat.sqrt (RSA.quadraticDiscriminant (store.read modulus).toNat (store.read input).toNat) :=
     (congrArg CShape.Value.toNat
-      (NativeSub.nativeSub_into_read_unchanged (.storage refs.center.toCStorageRef)
+      (NativeSub.nativeSub_into_read_unchanged (model := model) (.storage refs.center.toCStorageRef)
         (.storage refs.root.toCStorageRef) refs.first (.storage refs.root.toCStorageRef)
         (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separated.rootFirst.symm)
         rooted.1)).trans rootValue

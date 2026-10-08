@@ -158,7 +158,7 @@ theorem applyUnitary_mul (U V : UnitaryOperator R) (ρ : DensityOperator R) :
 
 /-- The mixed-state interpreter extends the original exact pure-state action
 [dW19, qcnotes.tex:5400]. -/
-theorem ofPure_apply (U : UnitaryOperator R) (ψ : NormalizedVector R) :
+public theorem ofPure_apply (U : UnitaryOperator R) (ψ : NormalizedVector R) :
     ofPure (U.apply ψ) = applyUnitary U (ofPure ψ) := by
   apply ext
   ext i j

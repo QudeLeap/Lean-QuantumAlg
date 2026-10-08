@@ -26,17 +26,18 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The actual two reduction stages fit their independently specified event coordinates. -/
 theorem reduce_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (reduce source cells output).Path) :
-    (reduce source cells output).resourcePool path ≤ reduceEnvelope kind N := by
+    (path : (reduce (model := model) source cells output).Path) :
+    (reduce (model := model) source cells output).resourcePool path ≤ reduceEnvelope model N := by
   change ResourcePool.ofList
-    ((NativeHalfPower.code source (.storage cells.base.toCStorageRef)
+    ((NativeHalfPower.code (model := model) source (.storage cells.base.toCStorageRef)
       (orderRead cells) cells.halfPower).eventTrace path.1 ++
-      (NativeHalfFactorScope.code (halfRead cells) output).eventTrace path.2) ≤ _
+      (NativeHalfFactorScope.code (model := model) (halfRead cells) output).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add
     (NativeHalfPower.code_pool_le source (.storage cells.base.toCStorageRef)
@@ -44,34 +45,54 @@ theorem reduce_pool_le (source : Input N) (cells : Cells ctx N)
     (NativeHalfFactorScope.code_pool_le (halfRead cells) output path.2)
 
 /-- All five runtime guard operations are genuine native event occurrences. -/
-theorem guardOrder_pool (cells : Cells ctx N) (path : (guardOrder cells).Path) :
-    (guardOrder cells).resourcePool path = ResourcePool.ofList (guardEvents kind N) := rfl
+theorem guardOrder_pool (cells : Cells ctx N) (path : (guardOrder (model := model) cells).Path) :
+    (guardOrder (model := model) cells).resourcePool path = ResourcePool.ofList (guardEvents model
+        N) := by
+  unfold Circuit.resourcePool
+  change ResourcePool.ofList
+    ((BitWord.instruction (execution := model) (clearZeroOp cells)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model) (evenOrderOp cells)).eventTrace path.2.1 ++
+        ((BitWord.instruction (execution := model) (positiveOrderOp cells)).eventTrace path.2.2.1 ++
+          ((BitWord.instruction (execution := model) (positiveEvenOp cells)).eventTrace
+              path.2.2.2.1 ++
+            (BitWord.instruction (execution := model) (acceptedOrderOp cells)).eventTrace
+                path.2.2.2.2)))) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 private theorem checkedBranch_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output))).Path) :
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output))).Path) :
     (Circuit.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output))).resourcePool path ≤
-      ResourcePool.max (packBudget kind N) (reduceEnvelope kind N) := by
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output))).resourcePool
+            path ≤
+      ResourcePool.max (packBudget model N) (reduceEnvelope model N) := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
       cases value
-      · exact ResourcePool.le_max_left _ _
+      · change (BitWord.instruction (execution := model) (packOutputOp cells output)).Path at path
+        change ResourcePool.ofList
+          ((BitWord.instruction (execution := model) (packOutputOp cells output)).eventTrace path)
+              ≤ _
+        rw [BitWord.bitWord_instruction_eventTrace]
+        exact ResourcePool.le_max_left _ _
       · exact (reduce_pool_le source cells output path).trans (ResourcePool.le_max_right _ _)
 
 /-- Actual order rejection still consumes its output pack after the complete runtime guard. -/
 theorem checkedOrder_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (checkedOrder source cells output).Path) :
-    (checkedOrder source cells output).resourcePool path ≤ checkedEnvelope kind N := by
-  change ResourcePool.ofList ((guardOrder cells).eventTrace path.1 ++
+    (path : (checkedOrder (model := model) source cells output).Path) :
+    (checkedOrder (model := model) source cells output).resourcePool path ≤ checkedEnvelope model
+        N := by
+  change ResourcePool.ofList ((guardOrder (model := model) cells).eventTrace path.1 ++
     (Circuit.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output))).eventTrace path.2) ≤ _
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output))).eventTrace
+            path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (guardOrder_pool cells path.1).le
     (checkedBranch_pool_le source cells output path.2)
@@ -80,30 +101,40 @@ theorem checkedOrder_pool_le (source : Input N) (cells : Cells ctx N)
 theorem dispatch_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (dispatch source parameter cells output).Path) :
-    (dispatch source parameter cells output).resourcePool path ≤ dispatchEnvelope kind N := by
+    (path : (dispatch (model := model) source parameter cells output).Path) :
+    (dispatch (model := model) source parameter cells output).resourcePool path ≤ dispatchEnvelope
+        model N := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
       cases value
       · exact (checkedOrder_pool_le source cells output path).trans
           (ResourcePool.le_max_right _ _)
-      · exact ResourcePool.le_max_left _ _
+      · change (BitWord.instruction (execution := model)
+          (packEarlyOp parameter output)).Path at path
+        change ResourcePool.ofList
+          ((BitWord.instruction (execution := model) (packEarlyOp parameter output)).eventTrace
+              path) ≤ _
+        rw [BitWord.bitWord_instruction_eventTrace]
+        exact ResourcePool.le_max_left _ _
 
 /-- The stored base and measured word enter the complete real native order-recovery program. -/
 theorem recovered_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (recovered source parameter phase cells output).Path) :
-    (recovered source parameter phase cells output).resourcePool path ≤
-      recoveredEnvelope kind N := by
-  change ResourcePool.ofList ([(packBaseOp parameter cells).event] ++
-    ((OrderRecovery.Native.into (recoverySpec source) (.storage cells.base.toCStorageRef)
+    (path : (recovered (model := model) source parameter phase cells output).Path) :
+    (recovered (model := model) source parameter phase cells output).resourcePool path ≤
+      recoveredEnvelope model N := by
+  change ResourcePool.ofList ((BitWord.instruction (execution := model) (packBaseOp parameter
+      cells)).eventTrace path.1 ++
+    ((OrderRecovery.Native.into (model := model) (recoverySpec source) (.storage
+        cells.base.toCStorageRef)
       phase cells.order).eventTrace path.2.1 ++
-      ([(unpackOrderOp cells).event] ++
-        (dispatch source parameter cells output).eventTrace path.2.2.2))) ≤ _
-  rw [ResourcePool.ofList_append, ResourcePool.ofList_append, ResourcePool.ofList_append]
+      ((BitWord.instruction (execution := model) (unpackOrderOp cells)).eventTrace path.2.2.1 ++
+        (dispatch (model := model) source parameter cells output).eventTrace path.2.2.2))) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    ResourcePool.ofList_append, ResourcePool.ofList_append, ResourcePool.ofList_append]
   exact add_le_add le_rfl
     (add_le_add (OrderRecovery.Native.nativeRecovery_into_pool_le
       (recoverySpec source) (.storage cells.base.toCStorageRef) phase cells.order path.2.1)
@@ -112,13 +143,17 @@ theorem recovered_pool_le (source : Input N)
 /-- The known even exception counts actual flag writes, the literal load and the option pack. -/
 theorem evenModulus_pool_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (evenModulus cells output).Path) :
-    (evenModulus cells output).resourcePool path ≤ evenEnvelope kind N := by
-  change ResourcePool.ofList ([(clearActiveOp cells).event] ++
-    ([(setActiveOp cells).event] ++
-      ((ConstantWord.circuit cells.halfPower 2).eventTrace path.2.2.1 ++
-        [(packOutputOp cells output).event]))) ≤ _
-  rw [ResourcePool.ofList_append, ResourcePool.ofList_append, ResourcePool.ofList_append]
+    (path : (evenModulus (model := model) cells output).Path) :
+    (evenModulus (model := model) cells output).resourcePool path ≤ evenEnvelope model N := by
+  change ResourcePool.ofList ((BitWord.instruction (execution := model) (clearActiveOp
+      cells)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (setActiveOp cells)).eventTrace path.2.1 ++
+      ((ConstantWord.circuit (model := model) cells.halfPower 2).eventTrace path.2.2.1 ++
+        (BitWord.instruction (execution := model) (packOutputOp cells output)).eventTrace
+            path.2.2.2))) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace, ResourcePool.ofList_append,
+    ResourcePool.ofList_append, ResourcePool.ofList_append]
   exact add_le_add le_rfl (add_le_add le_rfl
     (add_le_add (ConstantWord.constantWord_pool_le cells.halfPower 2 path.2.2.1) le_rfl))
 
@@ -127,17 +162,20 @@ theorem code_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase cells output).Path) :
-    (code source parameter phase cells output).resourcePool path ≤ eventEnvelope kind N := by
-  have allPaths : ∀ selected : (code source parameter phase cells output).Path,
-      (code source parameter phase cells output).resourcePool selected ≤ eventEnvelope kind N := by
+    (path : (code (model := model) source parameter phase cells output).Path) :
+    (code (model := model) source parameter phase cells output).resourcePool path ≤ eventEnvelope
+        model N := by
+  have allPaths : ∀ selected : (code (model := model) source parameter phase cells output).Path,
+      (code (model := model) source parameter phase cells output).resourcePool selected ≤
+          eventEnvelope model N := by
     by_cases exceptional : 2 < N ∧ Even N
-    · have same : code source parameter phase cells output = evenModulus cells output :=
+    · have same : code (model := model) source parameter phase cells output = evenModulus (model
+        := model) cells output :=
         if_pos exceptional
       rw [same]
       simpa only [eventEnvelope, if_pos exceptional] using evenModulus_pool_le cells output
-    · have same : code source parameter phase cells output =
-          recovered source parameter phase cells output := if_neg exceptional
+    · have same : code (model := model) source parameter phase cells output =
+          recovered (model := model) source parameter phase cells output := if_neg exceptional
       rw [same]
       simpa only [eventEnvelope, if_neg exceptional] using
         recovered_pool_le source parameter phase cells output

@@ -45,23 +45,54 @@ private theorem clear_read (output : CWriteRef ctx .bit) (store : Store ctx) :
   cases store.read (.storage output.toCStorageRef) with
   | bit value => exact Bool.xor_self value
 
-/-- Clear the original second-phase latch, then the original terminal latch. -/
-def resetFirstInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (clearOp refs.machine.secondPhase)) (.classical (clearOp refs.machine.done))
-
 /-- The actual chronological result of the two original XOR writes. -/
 def resetFirstStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   (store.applyOp (clearOp refs.machine.secondPhase)).applyOp (clearOp refs.machine.done)
 
+section SelectedReset
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- Clear the original second-phase latch, then the original terminal latch. -/
+def resetFirstInto (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearOp refs.machine.secondPhase))
+    (BitWord.instruction (execution := model) (clearOp refs.machine.done))
+
+/-- The actual selected outputs of both latch clears, in chronological order. -/
+def resetFirstStep (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (resetFirstInto (model := model) refs).Path :=
+  let first := BitWord.instructionStep (execution := model)
+    (clearOp refs.machine.secondPhase) store
+  let second := BitWord.instructionStep (execution := model)
+    (clearOp refs.machine.done) first.1
+  (second.1, (first.2, second.2))
+
 /-- The original two actual latch writes preserve all full-state histories and correlations. -/
 theorem resetFirstInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (resetFirstInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (resetFirstStore refs entry.1, (entry.2, ((), ())))) := by
-  simp only [resetFirstInto, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (resetFirstInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := resetFirstStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (clearOp refs.machine.secondPhase))
+    (BitWord.instruction (execution := model) (clearOp refs.machine.done))
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model)
+        (clearOp refs.machine.secondPhase) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model)
+        (clearOp refs.machine.done) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+end SelectedReset
 
 /-- Every actual read outside the two original latch writes is retained exactly. -/
 theorem resetFirstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
@@ -118,38 +149,52 @@ theorem resetFirstInto_gram (refs : Refs ctx width) (separation : Separation ref
     (latch_avoids_metric refs refs.machine.done separation.doneMetric _)]
   exact rep entry
 
-/-- Original initialization order: refresh the actual Gram snapshot, then reset both latches. -/
-def refreshResetInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (LatticeMetricMachine.refreshInto refs.machine.basis refs.metric) (resetFirstInto refs)
-
-/-- Actual initialization store and its complete thirty-two-instruction path. -/
-def refreshResetStep (refs : Refs ctx width) (store : Store ctx) :
-    Store ctx × (refreshResetInto refs).Path :=
-  (resetFirstStore refs (LatticeMetricMachine.refreshStore refs.machine.basis refs.metric store),
-    (LatticeMetricMachine.refreshPath refs.machine.basis refs.metric, ((), ())))
-
 /-- The exact original initial mathematical LLL state of a represented basis. -/
 def initialState (basis : NumberTheory.IntegerBasis3) : NumberTheory.LLLState3 :=
   { basis := basis, phase := .first, steps := [] }
 
+section SelectedRefresh
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- Original initialization order: refresh the actual Gram snapshot, then reset both latches. -/
+def refreshResetInto (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (LatticeMetricMachine.refreshInto (model := model) refs.machine.basis refs.metric)
+    (resetFirstInto (model := model) refs)
+
+/-- Actual initialization store and its complete thirty-two-instruction path. -/
+def refreshResetStep (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (refreshResetInto (model := model) refs).Path :=
+  let refreshed := LatticeMetricMachine.refreshStep (model := model)
+    refs.machine.basis refs.metric store
+  let reset := resetFirstStep (model := model) refs refreshed.1
+  (reset.1, (refreshed.2, reset.2))
+
 /-- Actual Gram refresh and reset compose on their chronological full execution states. -/
 theorem refreshResetInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (refreshResetInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((refreshResetStep refs entry.1).1, (entry.2, (refreshResetStep refs entry.1).2))) := by
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshResetInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := refreshResetStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (LatticeMetricMachine.refreshInto refs.machine.basis refs.metric) (resetFirstInto refs)
-    (fun store => (LatticeMetricMachine.refreshStore refs.machine.basis refs.metric store,
-      LatticeMetricMachine.refreshPath refs.machine.basis refs.metric))
-    (fun store => (resetFirstStore refs store, ((), ())))
-    (LatticeMetricMachine.refreshInto_execute refs.machine.basis refs.metric)
-    (by
-      intro Reference History _ state
-      refine (resetFirstInto_execute refs Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (LatticeMetricMachine.refreshInto (model := model) refs.machine.basis refs.metric)
+    (resetFirstInto (model := model) refs)
+    (fun before =>
+      let actual := LatticeMetricMachine.refreshStep (model := model)
+        refs.machine.basis refs.metric before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := resetFirstStep (model := model) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeMetricMachine.refreshInto_execute refs.machine.basis refs.metric
+        reference current)
+    (fun reference _history _ current => resetFirstInto_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual initialization establishes the full invariant without prior Gram or bit values. -/
 theorem refreshResetInto_correct (refs : Refs ctx width) (separation : Separation refs)
@@ -157,7 +202,8 @@ theorem refreshResetInto_correct (refs : Refs ctx width) (separation : Separatio
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (fullRank : basis.FullRank)
     (capacity : Nat.size (256 * (NumberTheory.lllStateEnvelope3 basis + 1) ^ 8) + 1 ≤ width) :
-    StoreInvariant refs basis (refreshResetStep refs store).1 (initialState basis) := by
+    StoreInvariant refs basis (refreshResetStep (model := model) refs store).1
+      (initialState basis) := by
   have refreshed := LatticeMetricMachine.refreshInto_correct refs.machine.basis refs.metric
     separation.metric store basis rep
   have bounded := NumberTheory.LLLState3.boundedFrom_initial basis fullRank
@@ -168,12 +214,14 @@ theorem refreshResetInto_correct (refs : Refs ctx width) (separation : Separatio
 /-- Actual initialization retains the complete original fixed-fuel caller frame. -/
 theorem refreshResetInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (refreshResetStep refs store).1.read other = store.read other := by
+    (refreshResetStep (model := model) refs store).1.read other = store.read other := by
   change (resetFirstStore refs
     (LatticeMetricMachine.refreshStore refs.machine.basis refs.metric store)).read other = _
   rw [resetFirstInto_callerFrame refs _ other separate.secondPhase separate.done]
   exact LatticeMetricMachine.refreshInto_callerFrame _ _ _ other
     (caller_avoids_metric refs other separate)
+
+end SelectedRefresh
 
 end
 

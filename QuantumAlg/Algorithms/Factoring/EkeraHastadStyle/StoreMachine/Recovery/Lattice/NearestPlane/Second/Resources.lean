@@ -25,50 +25,52 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent formula for the cross product and five dot refreshes. -/
-def prefixTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width)] ++
-    (List.replicate 5 [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width)]).flatten
+def prefixTrace (width : Nat) : List (Resource.Event model) :=
+  ([.wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width] ++
+    (List.replicate 5 [.wordBinary .mulLow width, .wordBinary .mulLow width,
+      .wordBinary .add width, .wordBinary .mulLow width, .wordBinary .add width]).flatten :
+      List Resource.ClassicalOpLabel).map
+    (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Independent two-product difference instruction formula. -/
-def numeratorTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width)]
+def numeratorTrace (width : Nat) : List (Resource.Event model) :=
+  ([.wordBinary .mulLow width, .wordBinary .mulLow width,
+    .wordBinary .sub width] : List Resource.ClassicalOpLabel).map
+    (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Independent full-phase formula parameterized by the recorded division flags. -/
 def phaseTrace (width : Nat) (magnitudeNegative correctionNegative restoreNegative : Bool) :
-    List (Resource.Event kind) :=
+    List (Resource.Event model) :=
   prefixTrace width ++ (numeratorTrace width ++
     (RoundedDiv.bodyTrace width magnitudeNegative correctionNegative restoreNegative ++
-      [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width)]))
+      ([.wordBinary .mulLow width, .wordBinary .sub width,
+        .wordBinary .mulLow width, .wordBinary .sub width,
+        .wordBinary .mulLow width, .wordBinary .sub width] :
+        List Resource.ClassicalOpLabel).map
+        (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))))
 
 /-- Every real metric-prefix path follows the independent thirty-four-instruction formula. -/
 theorem secondPrefixInto_events (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
-    (secondPrefixInto refs).eventTrace path = prefixTrace width := rfl
+    (secondPrefixInto refs).eventTrace path = prefixTrace width := by
+  unfold secondPrefixInto secondMetricPrefixInto metricInto at path ⊢
+  change (_ ++ (_ ++ _)) ++ (_ ++ (_ ++ _)) = _
+  rw [LatticeCross.pointCrossInto_events, LatticeDotRefresh.refreshInto_events,
+    LatticeDotRefresh.refreshInto_events, LatticeDotRefresh.refreshInto_events,
+    LatticeDotRefresh.refreshInto_events, LatticeDotRefresh.refreshInto_events]
+  rfl
 
 /-- Every real numerator path follows the independent three-instruction formula. -/
 theorem numeratorInto_events (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
-    (numeratorInto refs).eventTrace path = numeratorTrace width := rfl
+    (numeratorInto refs).eventTrace path = numeratorTrace width := by
+  unfold numeratorInto LatticeCross.coordinateCross at path ⊢
+  rw [ProductDifference.computeInto_events]
+  rfl
 
 /-- Actual native events follow the independent formula and the actual recorded division flags. -/
 theorem secondInto_events (refs : Refs ctx width) (path : (secondInto refs).Path) :
@@ -96,8 +98,8 @@ theorem secondInto_eventCount_le (refs : Refs ctx width) (path : (secondInto ref
     ((secondInto refs).eventTrace path).length ≤ 56 := by
   rcases path with ⟨metricPath, numeratorPath, divisionPath, reductionPath⟩
   have divisionBound := RoundedDiv.body_eventCount_le refs.division divisionPath
-  have prefixLength : (prefixTrace (kind := kind) width).length = 34 := rfl
-  have numeratorLength : (numeratorTrace (kind := kind) width).length = 3 := rfl
+  have prefixLength : (prefixTrace (model := model) width).length = 34 := rfl
+  have numeratorLength : (numeratorTrace (model := model) width).length = 3 := rfl
   change List.length (_ ++ (_ ++ (_ ++ _))) ≤ 56
   rw [secondPrefixInto_events, numeratorInto_events, LatticeArithmetic.pointReduce_events]
   simp only [List.length_append, prefixLength, numeratorLength, List.length_cons, List.length_nil]
@@ -120,7 +122,7 @@ theorem secondInto_depth_le (refs : Refs ctx width) (path : (secondInto refs).Pa
 
 /-- All four actual stages jointly preserve the complete borrowed interface. -/
 theorem secondInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondInto refs).BorrowedRestored Reference state
       ((secondInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
@@ -141,7 +143,7 @@ theorem numeratorInto_visited (refs : Refs ctx width) (path : (numeratorInto ref
 
 /-- The complete actual second phase visits only the original supplied context. -/
 theorem secondInto_visited (refs : Refs ctx width) (path : (secondInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (secondInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (secondInto refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨metricPath, numeratorPath, divisionPath, reductionPath⟩
   change visited ∈ (_ ++ (_ ++ (_ ++ _))) at present

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Semantics
+import all QuantumAlg.Primitives.ShortDLP.BornProbability.Distribution
 
 /-!
 # Actual short-DLP member using the new shared multiplication core
@@ -24,35 +25,38 @@ noncomputable section
 /-- Complete short-DLP circuit with the sealed oracle leaf replaced by the two
 actual selected-unit modular-exponentiation programs on their shared workspace. -/
 def compiledCircuit (m ell width N : Nat) (g x : (ZMod N)ˣ) :
-    UnitaryCircuit
-      (Qubits (totalQubits (registerParameters m ell width))) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (totalQubits (registerParameters m ell width))).toQuantum :=
   UnitaryCircuit.seq (preparationCircuit (registerParameters m ell width))
     (UnitaryCircuit.seq (compiledGroupActionProgram m ell width N g x)
       (readoutCircuit (registerParameters m ell width)))
 
-/-- Preparation and readout cover the canonical register, while the actual
-selected-unit group action stays inside it; hence the complete member advertises exactly
-the canonical flat physical layout. -/
-@[simp] theorem compiledCircuit_physical_idx
-    (m ell width N : Nat) (g x : (ZMod N)ˣ) :
-    (compiledCircuit m ell width N g x).physical_idx =
-      List.range (totalQubits (registerParameters m ell width)) := by
-  change
-    UnitaryCircuit.unionPhysicalIdx
-        (preparationCircuit (registerParameters m ell width)).physical_idx
-        (UnitaryCircuit.unionPhysicalIdx
-          (compiledGroupActionProgram m ell width N g x).physical_idx
-          (readoutCircuit (registerParameters m ell width)).physical_idx) =
-      List.range (totalQubits (registerParameters m ell width))
-  rw [preparationCircuit_physical_idx, readoutCircuit_physical_idx]
-  have hgroup :
-      (compiledGroupActionProgram m ell width N g x).physical_idx ⊆
-        List.range (totalQubits (registerParameters m ell width)) := by
-    simpa only [totalQubits, registerParameters] using
-      compiledGroupActionProgram_physical_idx_subset
-        m ell width N g x
-  rw [UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset _ _ hgroup]
-  exact UnitaryCircuit.unionPhysicalIdx_self _
+/-- The declared and compiled stages use the same actual inverse-Fourier operator. -/
+theorem readoutCircuit_binaryMatrix_eq_declared
+    {N : Nat} {params : RegisterParameters}
+    (encoding : UnitEncoding N params.workspaceBits) :
+    (readoutCircuit params).binaryMatrix =
+      (DeclaredStage.readout (params := params) encoding).binaryMatrix := by
+  rw [readoutCircuit, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
+    DeclaredStage.readoutPair_sourceMatrix, DeclaredStage.readout_binaryMatrix]
+
+-- Keep composition abstract so kernel conversion never unfolds the large arithmetic word.
+private theorem three_stage_action {gates : GateModel} {oracles declaredOracles : OracleModel}
+    {bits : Nat}
+    (preparation group readout : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits bits).canonicalPlacement.layout)
+    (declaredReadout declared : UnitaryCircuit gates declaredOracles
+      (QuantumSignature.qubits bits).canonicalPlacement.layout)
+    (input declaredInput graph : HilbertVector (Qubits bits))
+    (groupAction : group.applyBinaryVec (preparation.applyBinaryVec input) = graph)
+    (readoutMatrix : readout.binaryMatrix = declaredReadout.binaryMatrix)
+    (declaredAction : declared.applyBinaryVec declaredInput =
+      declaredReadout.applyBinaryVec graph) :
+    (preparation.seq (group.seq readout)).applyBinaryVec input =
+      declared.applyBinaryVec declaredInput := by
+  rw [UnitaryCircuit.applyBinaryVec_seq, UnitaryCircuit.applyBinaryVec_seq, groupAction]
+  exact (congrArg (fun operator : UnitaryOperator (Qubits bits) => operator.applyVec graph)
+    readoutMatrix).trans declaredAction.symm
 
 /-- On the respective physical clean initial states, the actual compiled
 circuit and the idealized permutation circuit produce the same final vector.
@@ -60,7 +64,7 @@ This equality transfers the complete Born analysis to the base-gate circuit. -/
 theorem compiledCircuit_apply_input_eq_ideal
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
-    (compiledCircuit m ell width N g x).applyVec
+    (compiledCircuit m ell width N g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -69,19 +73,32 @@ theorem compiledCircuit_apply_input_eq_ideal
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) =
-      (circuit (unitEncoding width N hNgtOne hN) g x).applyVec
+      (DeclaredStage.circuit (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
-          0 :
+          (prodEquiv
+            ((0 : Fin (2 ^ (firstBits (registerParameters m ell width) + ell))),
+              (0 : Fin (2 ^ workspaceBits width)))) :
           HilbertVector
             (Qubits
-              (totalQubits (registerParameters m ell width)))) := by
-  simp only [compiledCircuit, circuit, UnitaryCircuit.applyVec_seq]
-  rw [BornProbability.oracle_apply_preparation]
-  congr 1
-  exact compiledGroupActionProgram_apply_preparation
-    m ell width N g x hNgtOne hN
+              (totalQubits (registerParameters m ell width)))) :=
+  three_stage_action
+    (preparationCircuit (registerParameters m ell width))
+    (compiledGroupActionProgram m ell width N g x)
+    (readoutCircuit (registerParameters m ell width))
+    (DeclaredStage.readout (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN))
+    (DeclaredStage.circuit (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN) g x)
+    _ _ (BornProbability.postOracleVec (params := registerParameters m ell width)
+      (unitEncoding width N hNgtOne hN) g x)
+    (compiledGroupActionProgram_apply_preparation m ell width N g x hNgtOne hN)
+    (readoutCircuit_binaryMatrix_eq_declared (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN))
+    (BornProbability.declared_circuit_apply_zeroVec (params := registerParameters m ell width)
+      (unitEncoding width N hNgtOne hN) g x)
 
 /-- Every terminal basis amplitude of the actual base-gate circuit is exactly
 the amplitude already analyzed by the short-DLP Born development. -/
@@ -91,7 +108,7 @@ theorem compiledCircuit_amplitude
     (j : Fin (2 ^ firstBits (registerParameters m ell width)))
     (k : Fin (2 ^ ell))
     (y : Fin (2 ^ workspaceBits width)) :
-    (compiledCircuit m ell width N g x).applyVec
+    (compiledCircuit m ell width N g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -105,14 +122,17 @@ theorem compiledCircuit_amplitude
         (unitEncoding width N hNgtOne hN) g x j k y := by
   rw [compiledCircuit_apply_input_eq_ideal
     m ell width N g x hNgtOne hN]
-  have hamplitude := BornProbability.shortDLPCircuit_amplitude
+  have hamplitude := BornProbability.declaredCircuit_amplitude
     (unitEncoding width N hNgtOne hN) g x j k y
   change
-    (circuit (unitEncoding width N hNgtOne hN) g x).applyVec
+    (DeclaredStage.circuit (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
-          0 :
+          (prodEquiv
+            ((0 : Fin (2 ^ (firstBits (registerParameters m ell width) + ell))),
+              (0 : Fin (2 ^ workspaceBits width)))) :
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width))))
@@ -137,7 +157,7 @@ def inputState (m ell width N : Nat) :
 def evolvedState (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     QubitLayout.State (layout (registerParameters m ell width)) where
   state := PureState.ofNormalized
-    ((compiledCircuit m ell width N g x).applyNormalized
+    ((compiledCircuit m ell width N g x).binaryMatrix.apply
       (NormalizedVector.ket
         (R := Qubits
           (totalQubits (registerParameters m ell width)))
@@ -152,7 +172,7 @@ theorem evolvedState_normalized_eq_ideal
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
     (evolvedState m ell width N g x).normalized =
-      (BornProbability.evolvedState
+      (BornProbability.evolvedState (params := registerParameters m ell width)
         (unitEncoding width N hNgtOne hN) g x).normalized := by
   apply NormalizedVector.ext
   intro output
@@ -160,7 +180,7 @@ theorem evolvedState_normalized_eq_ideal
     (compiledCircuit_apply_input_eq_ideal
       m ell width N g x hNgtOne hN)
   change
-    (compiledCircuit m ell width N g x).applyVec
+    (compiledCircuit m ell width N g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -169,11 +189,14 @@ theorem evolvedState_normalized_eq_ideal
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) output =
-      (circuit (unitEncoding width N hNgtOne hN) g x).applyVec
+      (DeclaredStage.circuit (params := registerParameters m ell width)
+        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
-          0 :
+          (prodEquiv
+            ((0 : Fin (2 ^ (firstBits (registerParameters m ell width) + ell))),
+              (0 : Fin (2 ^ workspaceBits width)))) :
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) output

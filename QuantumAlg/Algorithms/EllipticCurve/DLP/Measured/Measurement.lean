@@ -86,19 +86,22 @@ theorem exponentMeasurementCells_distinct (modulus exponentWidth : Nat) :
 
 /-- Every result cell is created by the existing actual retained-storage instruction. -/
 def exponentMeasurementAllocate (modulus exponentWidth : Nat) :
-    Circuit (after modulus.size (2 * exponentWidth))
+    Circuit (.quantum AlgorithmGate.model .empty) (after modulus.size (2 * exponentWidth))
       (exponentMeasurementContext modulus exponentWidth) :=
-  MeasurementCells.allocate (after modulus.size (2 * exponentWidth)) 2 (2 * exponentWidth)
+  MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    (after modulus.size (2 * exponentWidth)) 2 (2 * exponentWidth)
 
 /-- Actual terminal classical allocation preserves the full quantum-reference density. -/
 theorem exponentMeasurementAllocate_density (modulus exponentWidth : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (after modulus.size (2 * exponentWidth)) Reference History) :
+    (state : State (after modulus.size (2 * exponentWidth)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     ((exponentMeasurementAllocate modulus exponentWidth).execute
       Reference state).quantumMarginal =
       state.quantumMarginal.reindex
         (MeasurementCells.jointBasisEquiv _ 2 (2 * exponentWidth) Reference) :=
-  MeasurementCells.allocate_quantumMarginal _ 2 (2 * exponentWidth) state
+  MeasurementCells.allocate_quantumMarginal
+    (model := .quantum AlgorithmGate.model .empty) _ 2 (2 * exponentWidth) state
 
 /-- Terminal cell allocation preserves every physical quantum identity in its existing order. -/
 theorem exponentMeasurementContext_physical (modulus exponentWidth : Nat) :
@@ -122,7 +125,7 @@ theorem exponentMeasurementContext_auxiliary (modulus exponentWidth : Nat) :
 
 /-- Every exponent wire is measured by the existing sequential Z interpreter. -/
 def exponentMeasurements (modulus exponentWidth : Nat) :
-    Circuit (exponentMeasurementContext modulus exponentWidth)
+    Circuit (.quantum AlgorithmGate.model .empty) (exponentMeasurementContext modulus exponentWidth)
       (exponentMeasurementContext modulus exponentWidth) :=
   .measurementSequence (QubitReadouts.readouts
     (exponentMeasurementWires modulus exponentWidth)
@@ -131,7 +134,7 @@ def exponentMeasurements (modulus exponentWidth : Nat) :
 
 /-- Actual terminal execution allocates its own result cells before writing every measurement. -/
 def exponentMeasurementCircuit (modulus exponentWidth : Nat) :
-    Circuit (after modulus.size (2 * exponentWidth))
+    Circuit (.quantum AlgorithmGate.model .empty) (after modulus.size (2 * exponentWidth))
       (exponentMeasurementContext modulus exponentWidth) :=
   .seq (exponentMeasurementAllocate modulus exponentWidth)
     (exponentMeasurements modulus exponentWidth)
@@ -141,10 +144,12 @@ theorem exponentMeasurementCircuit_cost (modulus exponentWidth : Nat)
     (path : (exponentMeasurementCircuit modulus exponentWidth).Path) :
     (exponentMeasurementCircuit modulus exponentWidth).resourcePool path =
       (2 * exponentWidth) • ResourcePool.singleton (Circuit.zEvent 2) := by
-  change (MeasurementCells.allocate (after modulus.size (2 * exponentWidth)) 2
+  change (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    (after modulus.size (2 * exponentWidth)) 2
     (2 * exponentWidth)).Path × (exponentMeasurements modulus exponentWidth).Path at path
   change ResourcePool.ofList
-    ((MeasurementCells.allocate _ 2 (2 * exponentWidth)).eventTrace path.1 ++
+    ((MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+      _ 2 (2 * exponentWidth)).eventTrace path.1 ++
       (exponentMeasurements modulus exponentWidth).eventTrace path.2) = _
   rw [MeasurementCells.allocate_eventTrace, List.nil_append]
   exact QubitReadouts.measurement_resources _ _ _ path.2
@@ -154,9 +159,11 @@ theorem exponentMeasurementCircuit_unitDepth (modulus exponentWidth : Nat)
     (path : (exponentMeasurementCircuit modulus exponentWidth).Path) :
     (exponentMeasurementCircuit modulus exponentWidth).depth (fun _ => 1) path =
       2 * exponentWidth := by
-  change (MeasurementCells.allocate (after modulus.size (2 * exponentWidth)) 2
+  change (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    (after modulus.size (2 * exponentWidth)) 2
     (2 * exponentWidth)).Path × (exponentMeasurements modulus exponentWidth).Path at path
-  change (MeasurementCells.allocate _ 2 (2 * exponentWidth)).depth (fun _ => 1) path.1 +
+  change (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    _ 2 (2 * exponentWidth)).depth (fun _ => 1) path.1 +
     (exponentMeasurements modulus exponentWidth).depth (fun _ => 1) path.2 = _
   rw [MeasurementCells.allocate_depth, zero_add]
   exact (Circuit.measurementSequence_unitDepth _ path.2).trans List.length_ofFn
@@ -164,7 +171,8 @@ theorem exponentMeasurementCircuit_unitDepth (modulus exponentWidth : Nat)
 /-- Actual terminal events read only freshly written cells and retain the whole input marginal. -/
 theorem exponentMeasurementCircuit_eventWeight (modulus exponentWidth : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (after modulus.size (2 * exponentWidth)) Reference History)
+    (state : State (after modulus.size (2 * exponentWidth)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (event : (Fin (2 * exponentWidth) → Bool) → Bool) :
     ((exponentMeasurementCircuit modulus exponentWidth).execute Reference state).effectWeight
         (fun record => if event (QubitReadouts.mask (record.1.read
@@ -179,6 +187,8 @@ theorem exponentMeasurementCircuit_eventWeight (modulus exponentWidth : Nat)
             (MeasurementCells.jointBasisEquiv _ 2 (2 * exponentWidth) Reference)) := by
   rw [exponentMeasurementCircuit, Circuit.execute_seq, State.effectWeight_mapHistory]
   have observed := QubitReadouts.measurement_eventEffectWeight
+    (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := .empty) (services := .empty)
     (exponentMeasurementWires modulus exponentWidth)
     (exponentMeasurementWires_qubits modulus exponentWidth)
     (exponentMeasurementCells modulus exponentWidth)

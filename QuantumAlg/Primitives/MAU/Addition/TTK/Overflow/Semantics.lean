@@ -10,7 +10,8 @@ public import QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Overflow
 import all QuantumAlg.Primitives.MAU.Addition.TTK.Resources
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 public import QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Core.Base.Tensor.Certified
 import Mathlib.Algebra.Group.Equiv.Basic
@@ -105,61 +106,30 @@ public theorem overflowOperator_tensorKet (n : Nat) (left right : Fin (2 ^ n))
   exact action
 
 /-- The actual TTK overflow program equals the independent arithmetic operator. -/
-theorem ttkOverflow_matrix (n : Nat) : (overflowProgram n).matrix = overflowOperator n := by
+theorem ttkOverflow_matrix (n : Nat) :
+    (overflowProgram n).binaryMatrix = overflowOperator n := by
   apply Subtype.ext
   ext output input
   obtain ⟨state, rfl⟩ := (overflowBasis n).surjective input
   rw [overflowBasis_encode]
+  have circuitAction :=
+    UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (overflowProgram n) ((overflowEncoding n).encode state)
+        ((overflowEncoding n).encode (overflowOutput state))
+          ((ttkOverflow_realizes_addition n).apply_encoded_ket state)
   have circuit := congrArg (fun state : NormalizedVector (Qubits (n + n + 1)) => state output)
-    ((ttkOverflow_realizes_addition n).apply_encoded_ket state)
+    circuitAction
   have semantic := congrArg (fun state : NormalizedVector (Qubits (n + n + 1)) => state output)
     (overflowOperator_ket n state)
   have circuitColumn :=
     (HilbertOperator.applyVec_ket
-      ((overflowProgram n).matrix : HilbertOperator (Qubits (overflowEncoding n).width))
+      ((overflowProgram n).binaryMatrix : HilbertOperator (Qubits (overflowEncoding n).width))
       ((overflowEncoding n).encode state) output).symm.trans circuit
   have semanticColumn :=
     (HilbertOperator.applyVec_ket
       (overflowOperator n : HilbertOperator (Qubits (n + n + 1)))
       ((overflowEncoding n).encode state) output).symm.trans semantic
   exact circuitColumn.trans semanticColumn.symm
-
-/-- The literal gates retain every supplied operand and the explicit carry-output bit. -/
-def completeOverflowProgram (n : Nat) : UnitaryCircuit (Qubits (overflowEncoding n).width) :=
-  .seq (overflowProgram n)
-    (.identity (Qubits (overflowEncoding n).width) (List.range (n + n + 1)) List.nodup_range)
-
-/-- Retaining the full supplied frame adds no mathematical action. -/
-theorem ttkCompleteOverflow_matrix (n : Nat) :
-    (completeOverflowProgram n).matrix = overflowOperator n := by
-  have unchanged : (completeOverflowProgram n).matrix = (overflowProgram n).matrix := by
-    apply Subtype.ext
-    change (1 : HilbertOperator (Qubits (overflowEncoding n).width)) *
-      ((overflowProgram n).matrix : HilbertOperator (Qubits (overflowEncoding n).width)) = _
-    exact one_mul _
-  exact unchanged.trans (ttkOverflow_matrix n)
-
-/-- Exactly two operand words and one explicit output bit remain live at all widths. -/
-theorem ttkCompleteOverflow_physical (n : Nat) :
-    (completeOverflowProgram n).physical_idx = List.range (n + n + 1) := by
-  change (overflowProgram n).physical_idx ∪ List.range (n + n + 1) = List.range (n + n + 1)
-  apply List.Subset.union_eq_right
-  simpa only [two_mul] using (ttkOverflow_interface n).2
-
-/-- Retaining the supplied frame emits no additional event. -/
-theorem ttkCompleteOverflow_eventCost (n : Nat) :
-    (completeOverflowProgram n).eventCost = (overflowProgram n).eventCost := by
-  simp only [completeOverflowProgram, UnitaryCircuit.seq_eventCost,
-    UnitaryCircuit.identity_eventCost, add_zero]
-
-/-- Actual serial unit-duration depth, including the two distinct boundary cases. -/
-theorem ttkCompleteOverflow_depth (n : Nat) :
-    (completeOverflowProgram n).evaluatedEventDepth (fun _ => 1) =
-      n + 4 * (n - 1) + 2 * (n - 2) +
-        (if 2 ≤ n then 1 else 0) + (if n = 0 then 0 else 1) := by
-  rw [completeOverflowProgram, UnitaryCircuit.evaluatedEventDepth_seq]
-  change (overflowProgram n).evaluatedEventDepth (fun _ => 1) + 0 = _
-  rw [add_zero, ttkOverflow_serial_depth]
 
 end
 

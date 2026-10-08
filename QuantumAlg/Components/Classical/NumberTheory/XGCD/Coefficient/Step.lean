@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Native extended-Euclidean coefficient rotation
@@ -55,12 +56,13 @@ def coefficientCopyOp (source target : CWriteRef ctx (.unsignedWord width)) :
   .wordUnary .copy width ctx (coefficientRead source) target
 
 /-- Four literal instructions implement one coefficient recurrence and rotation. -/
-def coefficientUpdateBody (quotient : CInputRef ctx (.unsignedWord width))
-    (first second product updated : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (coefficientProductOp quotient first product))
-    (.seq (.classical (coefficientSubtractOp second product updated))
-      (.seq (.classical (coefficientCopyOp first second))
-        (.classical (coefficientCopyOp updated first))))
+def coefficientUpdateBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
+    (first second product updated : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (coefficientProductOp quotient first product))
+    (.seq (BitWord.instruction (execution := model) (coefficientSubtractOp second product updated))
+      (.seq (BitWord.instruction (execution := model) (coefficientCopyOp first second))
+        (BitWord.instruction (execution := model) (coefficientCopyOp updated first))))
 
 /-- The actual store produced by precisely those four instruction evaluations. -/
 def coefficientUpdateStore (quotient : CInputRef ctx (.unsignedWord width))
@@ -70,46 +72,83 @@ def coefficientUpdateStore (quotient : CInputRef ctx (.unsignedWord width))
     (coefficientSubtractOp second product updated)).applyOp
       (coefficientCopyOp first second)).applyOp (coefficientCopyOp updated first)
 
+/-- The four native result values form the actual chronological update path. -/
+def coefficientUpdateStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
+    (first second product updated : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (coefficientUpdateBody (model := model) quotient first second product
+      updated).Path :=
+  let multiplied := BitWord.instructionStep (execution := model)
+    (coefficientProductOp quotient first product) store
+  let subtracted := BitWord.instructionStep (execution := model)
+    (coefficientSubtractOp second product updated) multiplied.1
+  let rotated := BitWord.instructionStep (execution := model) (coefficientCopyOp first second)
+    subtracted.1
+  let copied := BitWord.instructionStep (execution := model) (coefficientCopyOp updated first)
+    rotated.1
+  (copied.1, (multiplied.2, (subtracted.2, (rotated.2, copied.2))))
+
 /-- The complete execution preserves each quantum-reference block and records its real path. -/
-theorem xgcdCoefficientUpdate_execute (quotient : CInputRef ctx (.unsignedWord width))
+theorem xgcdCoefficientUpdate_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (coefficientUpdateBody quotient first second product updated).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (coefficientUpdateBody (model := model) quotient first second product updated).execute
+      Reference state =
       state.mapClassical (fun entry =>
-        (coefficientUpdateStore quotient first second product updated entry.1,
-          (entry.2, ((), ((), ((), ())))))) := by
-  simp only [coefficientUpdateBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let result := coefficientUpdateStep (model := model) quotient first second product updated
+          entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [coefficientUpdateBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Independent operation list for one extended-Euclidean coefficient update. -/
-def coefficientUpdateEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .copy width)]
+def coefficientUpdateEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+  List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .mulLow
+    width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width))]
 
 /-- The actual path emits one low product, one subtraction, and two copies. -/
-theorem xgcdCoefficientUpdate_eventTrace (quotient : CInputRef ctx (.unsignedWord width))
+theorem xgcdCoefficientUpdate_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
-    (path : (coefficientUpdateBody quotient first second product updated).Path) :
-    (coefficientUpdateBody quotient first second product updated).eventTrace path =
-      coefficientUpdateEvents kind width := rfl
+    (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path) :
+    (coefficientUpdateBody (model := model) quotient first second product updated).eventTrace path =
+      coefficientUpdateEvents model width := by
+  change (BitWord.instruction (execution := model)
+    (coefficientProductOp quotient first product)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model)
+      (coefficientSubtractOp second product updated)).eventTrace path.2.1 ++
+      ((BitWord.instruction (execution := model) (coefficientCopyOp first second)).eventTrace
+        path.2.2.1 ++ (BitWord.instruction (execution := model)
+          (coefficientCopyOp updated first)).eventTrace path.2.2.2)) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- The native resource pool is derived from these same four instructions. -/
-theorem xgcdCoefficientUpdate_resourcePool (quotient : CInputRef ctx (.unsignedWord width))
+theorem xgcdCoefficientUpdate_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
-    (path : (coefficientUpdateBody quotient first second product updated).Path) :
-    (coefficientUpdateBody quotient first second product updated).resourcePool path =
-      ResourcePool.ofList (coefficientUpdateEvents kind width) := rfl
+    (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path) :
+    (coefficientUpdateBody (model := model) quotient first second product updated).resourcePool
+      path =
+      ResourcePool.ofList (coefficientUpdateEvents model width) :=
+  congrArg ResourcePool.ofList
+    (xgcdCoefficientUpdate_eventTrace quotient first second product updated path)
 
 /-- All four dependent operations contribute unit-duration serial depth. -/
-theorem xgcdCoefficientUpdate_unitDepth (quotient : CInputRef ctx (.unsignedWord width))
+theorem xgcdCoefficientUpdate_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
-    (path : (coefficientUpdateBody quotient first second product updated).Path) :
-    (coefficientUpdateBody quotient first second product updated).depth (fun _ => 1) path = 4 := rfl
+    (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path) :
+    (coefficientUpdateBody (model := model) quotient first second product updated).depth (fun _
+      => 1) path = 4 := rfl
 
 end
 

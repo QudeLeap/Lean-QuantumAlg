@@ -10,9 +10,9 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Quadratic.C
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Quadratic.Check.Constants
 
 /-!
-# Actual candidates followed by initialization of the reused center word
+# Actual candidates (model := model) followed by initialization of the reused center word
 
-Both source candidates are fully materialized before the actual old center
+Both source candidates (model := model) are fully materialized before the actual old center
 word is cleared and incremented. The resulting one cell is therefore loaded
 by real native instructions, and both candidate words retain their exact
 source values. Even a zero-width logarithm has the actual positive candidate
@@ -23,15 +23,17 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual candidate generation precedes the two native instructions loading the one word. -/
 def code (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
-    (refs : Quadratic.Refs ctx width) : Circuit ctx ctx :=
-  .seq (candidates input modulus refs) (CheckConstants.code refs.center)
-
-noncomputable section
+    (refs : Quadratic.Refs ctx width) : Circuit model ctx ctx :=
+  .seq (candidates (model := model) input modulus refs) (CheckConstants.code (model := model)
+    refs.center)
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -39,48 +41,35 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 def step (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Quadratic.Refs ctx width) (store : Store ctx) :
-    Store ctx × (code input modulus refs).Path :=
-  let materialized := candidatesStep input modulus refs store
-  (CheckConstants.storeStep refs.center materialized.1, (materialized.2, ((), ())))
+    Store ctx × (code (model := model) input modulus refs).Path :=
+  let materialized := candidatesStep (model := model) input modulus refs store
+  let initialized := CheckConstants.step (model := model) refs.center materialized.1
+  (initialized.1, (materialized.2, initialized.2))
 
 /-- The composed actual program preserves every complete incoming quantum-reference block. -/
 theorem nativeQuadratic_initialized_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Quadratic.Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (code input modulus refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input modulus refs entry.1).1, (entry.2, (step input modulus refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (candidates input modulus refs)
-    (CheckConstants.code refs.center) (candidatesStep input modulus refs)
-    (fun store => (CheckConstants.storeStep refs.center store, ((), ())))
-    (fun reference {_} _ initial => by
-      refine (nativeQuadratic_candidates_execute input modulus refs reference initial).trans ?_
-      congr 1)
-    (fun reference {_} _ initial => by
-      refine (CheckConstants.nativeQuadratic_check_one_execute
-        refs.center reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    Reference state).trans ?_
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (code input modulus refs).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => ((step input modulus refs entry.1).1,
-          (entry.2, (step input modulus refs entry.1).2))))
-    (Subsingleton.elim _ _)
-
-end
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) input modulus refs).execute Reference state = state.mapClassical (fun
+      entry =>
+      ((step (model := model) input modulus refs entry.1).1, (entry.2.1, (entry.2.2, (step (model
+        := model) input modulus refs entry.1).2)))) := by
+  simp only [code, Circuit.execute_seq, nativeQuadratic_candidates_execute,
+    CheckConstants.nativeQuadratic_check_one_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Initialization preserves both original source candidates and actually loads one. -/
 theorem nativeQuadratic_initialized_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Quadratic.Refs ctx width) (separated : Separated modulus refs) (store : Store ctx) :
-    let final := (step input modulus refs store).1
+    let final := (step (model := model) input modulus refs store).1
     ((final.read (.storage refs.first.toCStorageRef)).toNat,
         (final.read (.storage refs.second.toCStorageRef)).toNat) =
         RSA.quadraticFactorCandidates (store.read modulus).toNat (store.read input).toNat ∧
       (final.read (.storage refs.center.toCStorageRef)).toNat = 1 := by
-  let materialized := (candidatesStep input modulus refs store).1
+  let materialized := (candidatesStep (model := model) input modulus refs store).1
   have firstPreserved := congrArg CShape.Value.toNat
     (CheckConstants.nativeQuadratic_check_one_read_other refs.center
       (.storage refs.first.toCStorageRef)
@@ -95,5 +84,7 @@ theorem nativeQuadratic_initialized_values (input : CInputRef ctx (.unsignedWord
     (nativeQuadratic_candidates_read input modulus refs separated store), ?_⟩
   exact (CheckConstants.nativeQuadratic_check_one_read refs.center materialized).trans
     (Nat.mod_eq_of_lt oneFits)
+
+end
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic.Initialized

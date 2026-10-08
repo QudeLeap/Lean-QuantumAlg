@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Primitives.MAU.Multiplication.WordAction
 import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Multiplication.WordAction
 import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Program
 
@@ -23,21 +24,30 @@ namespace QuantumAlg.MAU.Multiplication.Gidney
 
 noncomputable section
 
+open Nat.FixedWidth
+
 theorem gidneyUnitMultiplication_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    (program width modulus coefficient).matrix =
+    UnitaryCircuit.binaryMatrix (width := (Accumulate.Gidney.encoding width).width)
+      (program width modulus coefficient) =
       wordUnitMultiplicationOperator width modulus coefficient := by
   apply Subtype.ext
   ext output input
   obtain ⟨state, rfl⟩ := (prodEquiv (m := width) (n := width)).surjective input
+  have circuitAction :=
+    UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (program width modulus coefficient) ((Accumulate.Gidney.encoding width).encode state)
+        ((Accumulate.Gidney.encoding width).encode
+          (unitMultiplicationPairEquiv modulus coefficient state))
+          ((gidneyUnitMultiplication_realizes width modulus coefficient).apply_encoded_ket state)
   have circuit := congrArg (fun result : NormalizedVector (Qubits (width + width)) => result output)
-    ((gidneyUnitMultiplication_realizes width modulus coefficient).apply_encoded_ket state)
+    circuitAction
   have semantic := congrArg
     (fun result : NormalizedVector (Qubits (width + width)) => result output)
     (wordUnitMultiplicationOperator_ket width modulus coefficient state)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((program width modulus coefficient).matrix :
+      ((program width modulus coefficient).binaryMatrix :
         HilbertOperator (Qubits (Accumulate.Gidney.encoding width).width))
       ((Accumulate.Gidney.encoding width).encode state) output).symm.trans circuit
   have semanticColumn :=

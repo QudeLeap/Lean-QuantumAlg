@@ -190,10 +190,12 @@ theorem inputs_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .reductionInputsProduct (by decide))
 
 /-- The actual six-cell division footprint is the original transition footprint. -/
-theorem division_frame (refs : Refs ctx width) (store : Store ctx)
+theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs divisionCells other) :
-    (RoundedDiv.bodyStep refs.division32 store).1.read other = store.read other := by
+    (RoundedDiv.bodyStep (model := model) refs.division32 store).1.read other =
+      store.read other := by
   apply RoundedDiv.body_callerFrame refs.division32 store other
   intro key member
   change key ∈ divisionCells.map (cellKey refs) at member
@@ -213,10 +215,11 @@ theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .b32 (by decide)) (avoids .b33 (by decide))
 
 /-- Actual prefix execution preserves every read outside the union of its written cells. -/
-theorem secondPairPrefixInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem secondPairPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :
-    (secondPairPrefixStep refs store).1.read other = store.read other := by
+    (secondPairPrefixStep (model := model) refs store).1.read other = store.read other := by
   have refresh21 : FrameAvoids refs refresh21Cells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
   have refresh32 : FrameAvoids refs refresh32Cells other := fun cell member =>
@@ -229,7 +232,8 @@ theorem secondPairPrefixInto_callerFrame (refs : Refs ctx width) (store : Store 
     avoids cell (by simp [mutableCells, member])
   change (LatticeArithmetic.pointStore (writeInput refs.division32.output)
     refs.basis.second refs.basis.third refs.reduceProduct
-    (RoundedDiv.bodyStep refs.division32 (refreshInputsStep refs store).1).1).read other = _
+    (RoundedDiv.bodyStep (model := model) refs.division32
+      (refreshInputsStep (model := model) refs store).1).1).read other = _
   rw [reduction_frame refs _ other reduction, division_frame refs _ other division]
   change (LatticeSecondReductionInputs.secondReductionInputsStore (reductionInputs refs)
     refs.reductionInputs (LatticeDotRefresh.refreshStore refs.basis.third refs.basis.second

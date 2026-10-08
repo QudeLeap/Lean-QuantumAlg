@@ -31,13 +31,14 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual first modulus loading follows both original widened operand writes. -/
 def subtractionLoadedStore (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (store : Store ctx) : Store ctx :=
-  (ConstantWord.foldStep scratch.modulus
+  (ConstantWord.foldStep (model := model) scratch.modulus
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))
     ((store.applyOp (subtractionLeftOp left scratch)).applyOp
       (subtractionRightOp right scratch))).1
@@ -46,16 +47,17 @@ def subtractionLoadedStore (spec : ModulusSpec width)
 def subtractionStore (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (store : Store ctx) : Store ctx :=
-  ((subtractionLoadedStore spec left right scratch store).applyOp
+  ((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
     (subtractionAugmentOp scratch)).applyOp (subtractionDifferenceOp scratch)
 
 /-- The actual finite sequence returns precisely the original chronological store. -/
 theorem subtractionStageRecord_store (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (store : Store ctx) :
-    (Circuit.forRangeRecord 5 (subtractionStage spec left right scratch)
+    (Circuit.forRangeStoreRecord 5
+      (subtractionStage (model := model) spec left right scratch)
       (subtractionStageRecord spec left right scratch) store).1 =
-      subtractionStore spec left right scratch store := rfl
+      subtractionStore (model := model) spec left right scratch store := rfl
 
 /-- Actual written identities of the five original arithmetic cells. -/
 def SubScratch.keys (scratch : SubScratch ctx width) : List StorageKey :=
@@ -69,6 +71,7 @@ structure SubScratch.Separation (left right : CInputRef ctx (.unsignedWord width
   left : ∀ key ∈ scratch.keys, key ∉ left.storageKeys
   right : ∀ key ∈ scratch.keys, key ∉ right.storageKeys
 
+omit [BitWord.Selected model] in
 private theorem subtraction_scratch_inequalities
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (separate : scratch.Separation left right) :
@@ -86,6 +89,7 @@ private theorem subtraction_scratch_inequalities
   exact ⟨distinct.1.1, Ne.symm distinct.1.2.1,
     Ne.symm distinct.2.1.1, Ne.symm distinct.2.1.2.1⟩
 
+omit [BitWord.Selected model] in
 private theorem subtraction_word_eq (first second : CShape.Word width)
     (same : first.toNat = second.toNat) : first = second := by
   cases first with
@@ -93,6 +97,7 @@ private theorem subtraction_word_eq (first second : CShape.Word width)
     cases second with
     | unsignedWord second => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
+omit [BitWord.Selected model] in
 private theorem read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
@@ -101,11 +106,14 @@ private theorem read_product (store : Store ctx) {first second : CShape}
 theorem subtractionLoadedStore_values (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (separate : scratch.Separation left right) (store : Store ctx) :
-    (subtractionLoadedStore spec left right scratch store).read (reductionRead scratch.left) =
+    (subtractionLoadedStore (model := model) spec left right scratch store).read
+      (reductionRead scratch.left) =
       CShape.wordResize (width + 1) (store.read left) ∧
-    (subtractionLoadedStore spec left right scratch store).read (reductionRead scratch.right) =
+    (subtractionLoadedStore (model := model) spec left right scratch store).read
+      (reductionRead scratch.right) =
       CShape.wordResize (width + 1) (store.read right) ∧
-    (subtractionLoadedStore spec left right scratch store).read (reductionRead scratch.modulus) =
+    (subtractionLoadedStore (model := model) spec left right scratch store).read
+      (reductionRead scratch.modulus) =
       subtractionModulusWord spec := by
   obtain ⟨leftRight, modulusLeft, modulusRight, _⟩ :=
     subtraction_scratch_inequalities left right scratch separate
@@ -131,15 +139,16 @@ theorem subtractionLoadedStore_values (spec : ModulusSpec width)
     change scratch.right.key ∉ (reductionRead scratch.left).storageKeys
     simpa [reductionRead, CInputRef.storageKeys] using Ne.symm leftRight
   constructor
-  · refine (ConstantWord.constantWord_fold_read_other scratch.modulus _
+  · refine (ConstantWord.constantWord_fold_read_other (model := model) scratch.modulus _
       (reductionRead scratch.left) ?_ _).trans leftRetained
     simpa [reductionRead, CInputRef.storageKeys] using modulusLeft
   constructor
-  · refine (ConstantWord.constantWord_fold_read_other scratch.modulus _
+  · refine (ConstantWord.constantWord_fold_read_other (model := model) scratch.modulus _
       (reductionRead scratch.right) ?_ _).trans rightWritten
     simpa [reductionRead, CInputRef.storageKeys] using modulusRight
   · apply subtraction_word_eq
-    refine (ConstantWord.constantWord_read scratch.modulus spec.modulus _).trans ?_
+    refine (ConstantWord.constantWord_read (model := model)
+      scratch.modulus spec.modulus _).trans ?_
     exact (Nat.mod_eq_of_lt (modulusSpec_modulus_lt_extended spec)).trans
       (subtractionModulusWord_toNat spec).symm
 
@@ -147,44 +156,47 @@ theorem subtractionLoadedStore_values (spec : ModulusSpec width)
 theorem subtractionStore_difference (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (separate : scratch.Separation left right) (store : Store ctx) :
-    (subtractionStore spec left right scratch store).read
+    (subtractionStore (model := model) spec left right scratch store).read
       (.first (reductionRead scratch.difference)) =
         subtractionDifferenceWord spec (store.read left) (store.read right) := by
   obtain ⟨leftValue, rightValue, modulusValue⟩ :=
     subtractionLoadedStore_values spec left right scratch separate store
-  have augmented : ((subtractionLoadedStore spec left right scratch store).applyOp
+  have augmented : ((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
       (subtractionAugmentOp scratch)).read (reductionRead scratch.augmented) =
       CShape.addCarry (width + 1) (.product (CShape.wordResize (width + 1) (store.read left))
         (subtractionModulusWord spec)) := by
-    change ((subtractionLoadedStore spec left right scratch store).applyOp
+    change ((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
       (subtractionAugmentOp scratch)).read
         (.storage (subtractionAugmentOp scratch).outputRef.toCStorageRef) = _
     rw [Store.read_applyOp_output]
-    change CShape.addCarry (width + 1) ((subtractionLoadedStore spec left right scratch store).read
-      (.product (reductionRead scratch.left) (reductionRead scratch.modulus))) = _
+    change CShape.addCarry (width + 1)
+      ((subtractionLoadedStore (model := model) spec left right scratch store).read
+        (.product (reductionRead scratch.left) (reductionRead scratch.modulus))) = _
     rw [read_product, leftValue, modulusValue]
-  have retainedRight : ((subtractionLoadedStore spec left right scratch store).applyOp
-      (subtractionAugmentOp scratch)).read (reductionRead scratch.right) =
+  have retainedRight :
+      ((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
+        (subtractionAugmentOp scratch)).read (reductionRead scratch.right) =
       CShape.wordResize (width + 1) (store.read right) := by
     refine (Store.read_applyOp_of_not_mem_storageKeys _ (subtractionAugmentOp scratch)
       (reductionRead scratch.right) ?_).trans rightValue
     change scratch.augmented.key ∉ (reductionRead scratch.right).storageKeys
     simpa [reductionRead, CInputRef.storageKeys] using
       (subtraction_scratch_inequalities left right scratch separate).2.2.2
-  have difference : (subtractionStore spec left right scratch store).read
+  have difference : (subtractionStore (model := model) spec left right scratch store).read
       (reductionRead scratch.difference) = CShape.subBorrow (width + 1)
         (.product (subtractionAugmentedWord spec (store.read left))
           (CShape.wordResize (width + 1) (store.read right))) := by
-    change (((subtractionLoadedStore spec left right scratch store).applyOp
+    change (((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
       (subtractionAugmentOp scratch)).applyOp (subtractionDifferenceOp scratch)).read
         (.storage (subtractionDifferenceOp scratch).outputRef.toCStorageRef) = _
     rw [Store.read_applyOp_output]
     change CShape.subBorrow (width + 1) ((Store.applyOp
-      (subtractionLoadedStore spec left right scratch store) (subtractionAugmentOp scratch)).read
+      (subtractionLoadedStore (model := model) spec left right scratch store)
+        (subtractionAugmentOp scratch)).read
         (.product (.first (reductionRead scratch.augmented)) (reductionRead scratch.right))) = _
     rw [read_product, retainedRight]
     change CShape.subBorrow (width + 1) (.product
-      (((subtractionLoadedStore spec left right scratch store).applyOp
+      (((subtractionLoadedStore (model := model) spec left right scratch store).applyOp
         (subtractionAugmentOp scratch)).read (reductionRead scratch.augmented)).first _) = _
     rw [augmented]
     rfl
@@ -194,7 +206,8 @@ private theorem subtractionStore_preserves (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (store : Store ctx) {shape : CShape} (input : CInputRef ctx shape)
     (separate : ∀ key ∈ scratch.keys, key ∉ input.storageKeys) :
-    (subtractionStore spec left right scratch store).read input = store.read input := by
+    (subtractionStore (model := model) spec left right scratch store).read input =
+      store.read input := by
   have leftFree := separate scratch.left.key (by simp [SubScratch.keys])
   have rightFree := separate scratch.right.key (by simp [SubScratch.keys])
   have modulusFree := separate scratch.modulus.key (by simp [SubScratch.keys])
@@ -205,7 +218,8 @@ private theorem subtractionStore_preserves (spec : ModulusSpec width)
     differenceFree, Store.read_applyOp_of_not_mem_storageKeys _ (subtractionAugmentOp scratch)
       input augmentedFree]
   unfold subtractionLoadedStore
-  rw [ConstantWord.constantWord_fold_read_other scratch.modulus _ input modulusFree,
+  rw [ConstantWord.constantWord_fold_read_other (model := model)
+      scratch.modulus _ input modulusFree,
     Store.read_applyOp_of_not_mem_storageKeys _ (subtractionRightOp right scratch) input rightFree,
     Store.read_applyOp_of_not_mem_storageKeys _ (subtractionLeftOp left scratch) input leftFree]
 
@@ -218,7 +232,8 @@ theorem subtractionBody_word (spec : ModulusSpec width)
       subtractionWord spec (store.read left) (store.read right) := by
   apply subtraction_word_eq
   change ((reduceIntoWordStep spec (.first (reductionRead scratch.difference)) output
-    (subtractionStore spec left right scratch store)).1.read (reductionRead output)).toNat = _
+    (subtractionStore (model := model) spec left right scratch store)).1.read
+      (reductionRead output)).toNat = _
   rw [reduceIntoWord_toNat, subtractionStore_difference spec left right scratch separate store]
   have modulusValue := subtractionModulusWord_toNat spec
   have result := reductionValue_toNat
@@ -234,16 +249,17 @@ theorem subtractionBody_store (spec : ModulusSpec width)
     (separate : scratch.Separation left right) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (subtractionBodyStep spec left right scratch output store).1 =
-      (subtractionStore spec left right scratch store).write output
+      (subtractionStore (model := model) spec left right scratch store).write output
         (subtractionWord spec (store.read left) (store.read right)) := by
   apply Store.store_eq_write_of_read_frame
   · exact subtractionBody_word spec left right scratch separate output store
   · intro otherShape other free
     change (reduceIntoWordStep spec _ output
-      (subtractionStore spec left right scratch store)).1.read (.storage other) = _
+      (subtractionStore (model := model) spec left right scratch store)).1.read (.storage other) = _
     apply reduceIntoWord_read_other
     simpa [CInputRef.storageKeys] using free
 
+omit [BitWord.Selected model] in
 private theorem subtractionScratch_keys (cells : Cells ctx (subtractionShapes width)) :
     (subtractionScratch cells).keys = cells.keys.reverse := by
   cases cells with
@@ -259,7 +275,8 @@ private theorem subtractionScratch_keys (cells : Cells ctx (subtractionShapes wi
             cases rest
             rfl
 
-private theorem subtractionScratch_separation {outer : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem subtractionScratch_separation {outer : RuntimeCtx model.kind}
     (left right : CInputRef outer (.unsignedWord width))
     (cells : Cells ctx (subtractionShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -281,14 +298,16 @@ private theorem subtractionScratch_separation {outer : RuntimeCtx kind}
 theorem subIntoWord_actualRecord (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    ∃ step : Store ctx → Store ctx × (subIntoWord spec left right output).Path,
+    ∃ step : Store ctx → Store ctx ×
+      (subIntoWord (model := model) spec left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (subIntoWord spec left right output).execute Reference state = state.mapClassical
-          (fun entry => ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
+        (state : State ctx Reference (model.HiddenState × History)),
+        (subIntoWord (model := model) spec left right output).execute Reference state =
+          state.mapClassical (fun entry => ((step entry.1).1,
+            (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, (step before).1 = before.write output
         (subtractionWord spec (before.read left) (before.read right)) := by
-  apply withCells_actualRecord_post ctx (subtractionShapes width)
+  apply withCells_actualStoreRecord_post ctx (subtractionShapes width)
     (fun cells _ transport _ => subtractionBody spec (transport.liftInput left)
       (transport.liftInput right) (subtractionScratch cells) (transport.liftWrite output))
     (fun source target => target = source.write output
@@ -307,8 +326,9 @@ theorem subIntoWord_actualRecord (spec : ModulusSpec width)
   have valueSame : subtractionWord spec (before.read (transport.liftInput left))
       (before.read (transport.liftInput right)) = value := by
     rw [reads left, reads right]
-  have scratchReads : transport.ReadsAs source (subtractionStore spec (transport.liftInput left)
-      (transport.liftInput right) (subtractionScratch cells) before) := by
+  have scratchReads : transport.ReadsAs source
+      (subtractionStore (model := model) spec (transport.liftInput left)
+        (transport.liftInput right) (subtractionScratch cells) before) := by
     intro shape input
     refine (subtractionStore_preserves _ _ _ _ _ (transport.liftInput input) ?_).trans (reads input)
     intro key member
@@ -324,17 +344,19 @@ theorem subIntoWord_actualRecord (spec : ModulusSpec width)
 def subIntoWordStep (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (subIntoWord spec left right output).Path :=
+    Store ctx → Store ctx × (subIntoWord (model := model) spec left right output).Path :=
   Classical.choose (subIntoWord_actualRecord spec left right output)
 
 /-- Both original modulus loads preserve complete reference correlations and execution history. -/
 theorem subIntoWord_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (subIntoWord spec left right output).execute Reference state = state.mapClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (subIntoWord (model := model) spec left right output).execute Reference state =
+      state.mapClassical
       (fun entry => ((subIntoWordStep spec left right output entry.1).1,
-        (entry.2, (subIntoWordStep spec left right output entry.1).2))) :=
+        (entry.2.1, (entry.2.2, (subIntoWordStep spec left right output entry.1).2)))) :=
   (Classical.choose_spec (subIntoWord_actualRecord spec left right output)).1 Reference state
 
 /-- The actual finite native value overwrites exactly the chosen caller result cell. -/

@@ -7,20 +7,20 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Algorithms.OrderFinding.AccessCircuit
+public import QuantumAlg.Algorithms.OrderFinding.Native
 public import QuantumAlg.Algorithms.OrderFinding.Eigenstructure
 public import QuantumAlg.Algorithms.OrderFinding.Exact
 import QuantumAlg.Algorithms.OrderFinding.GcdBridge
 public import QuantumAlg.Algorithms.OrderFinding.General
-import QuantumAlg.Algorithms.OrderFinding.ModularOrbit
 import QuantumAlg.Algorithms.OrderFinding.Probability
 
 /-!
 # Order finding
 
-Canonical aggregate for exact and general quantum order finding, including the
-modular-orbit analysis, typed access circuit, source-joint probability bridge,
-resource projections, and classical gcd reduction boundary.
+Canonical aggregate for exact and general native quantum order finding,
+including the source-joint probability bridge, resource projections, and
+classical gcd reduction boundary. Legacy circuit and orbit helpers retain
+their own module paths while their production consumers migrate.
 -/
 
 section

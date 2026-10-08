@@ -25,18 +25,25 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent native formula for both original source resizes and third-coordinate loading. -/
-def firstRowTrace (N width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordResize (BatchMachine.JWidth N) width)] ++
-    ([.classicalOperation (.wordResize (BatchMachine.JWidth N) width)] ++
-      Word.PowerOfTwo.powerTrace width 0)
+def firstRowTrace (N width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (BatchMachine.JWidth N) width))] ++
+    ([.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize (BatchMachine.JWidth N) width))] ++
+      Word.PowerOfTwo.powerTrace (model := model) width 0)
 
 /-- Every actual first-row path emits exactly the independent four-instruction formula. -/
 theorem loadFirstBasisRowInto_events (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
-    (loadFirstBasisRowInto pair output).eventTrace path = firstRowTrace N width :=
-  congrArg₂ List.append rfl (congrArg₂ List.append rfl
-    (Word.PowerOfTwo.into_events 0 output.b13 path.2.2))
+    (loadFirstBasisRowInto pair output).eventTrace path = firstRowTrace N width := by
+  change _ ++ (_ ++ _) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    Word.PowerOfTwo.into_events]
+  rfl
 
 /-- Actual original row-loading multiplicities equal the full independent native formula. -/
 theorem loadFirstBasisRowInto_resourcePool (pair : BatchMachine.PairRefs ctx N)
@@ -63,20 +70,19 @@ theorem loadFirstBasisRowInto_depth (pair : BatchMachine.PairRefs ctx N)
 /-- Actual first-row loading jointly restores every borrowed entry and external correlation. -/
 theorem loadFirstBasisRowInto_borrowedRestored (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadFirstBasisRowInto pair output).BorrowedRestored Reference state
       ((loadFirstBasisRowInto pair output).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq (.classical (firstOp pair output))
-    (firstRowTailInto pair output)
-  · exact Circuit.borrowedRestored_classical _ state
-  · exact Circuit.borrowedRestored_seq (.classical (secondOp pair output))
-      (Word.PowerOfTwo.into 0 output.b13) _ (Circuit.borrowedRestored_classical _ _)
-      (Word.PowerOfTwo.into_borrowedRestored 0 output.b13 Reference _)
+  exact Circuit.borrowedRestored_seq _ _ state
+    (Circuit.borrowedRestored_classical _ state)
+    (Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
+      (Word.PowerOfTwo.into_borrowedRestored 0 output.b13 Reference _))
 
 /-- Every actual native row-loading instruction keeps the complete original context live. -/
 theorem loadFirstBasisRowInto_visited (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadFirstBasisRowInto pair output).visitedContexts path) :
     visited = ctx := by
   change visited ∈ [ctx] ++ ([ctx] ++

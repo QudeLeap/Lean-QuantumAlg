@@ -187,20 +187,25 @@ private theorem pop_output_read {shape : CShape} (output : CWriteRef ctx shape)
   (Layout.samplerLayout_pop_read (FirstAccepted.cellRead output) width store).trans
     (congrArg (fun reference => store.read reference) (underRead_cellRead output width))
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual initialized inner instruction sequence writes the source value. -/
 theorem samplerInner_from_scope_read (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
-    (innerStep N sample output (Layout.pushStore (modulusBits N) store)).1.read
+    (innerStep (model := model) N sample output (Layout.pushStore (modulusBits N) store)).1.read
       (FirstAccepted.cellRead (Layout.underWrite output (modulusBits N))) =
         parameterValue input value :=
-  Decision.samplerDecision_source input value (Layout.underWrite output (modulusBits N))
-    (Scan.step N sample (Layout.pushStore (modulusBits N) store)).1
-    (Scan.samplerScan_from_scope input sample store value sampled)
-    (Scan.samplerScan_modulus input sample (Layout.pushStore (modulusBits N) store))
-    (Scan.samplerScan_from_scope_zero sample store)
+  Decision.samplerDecision_source (model := model)
+    input value (Layout.underWrite output (modulusBits N))
+    (Scan.step (model := model) N sample (Layout.pushStore (modulusBits N) store)).1
+    (Scan.samplerScan_from_scope (model := model) input sample store value sampled)
+    (Scan.samplerScan_modulus (model := model)
+      input sample (Layout.pushStore (modulusBits N) store))
+    (Scan.samplerScan_from_scope_zero (model := model) sample store)
 
 /-- Releasing the eleven real scopes preserves the complete parameter written for the caller. -/
 theorem samplerProgram_read (input : Input N)
@@ -208,12 +213,12 @@ theorem samplerProgram_read (input : Input N)
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
-    (step N sample output store).1.read (FirstAccepted.cellRead output) =
+    (step (model := model) N sample output store).1.read (FirstAccepted.cellRead output) =
       parameterValue input value := by
   refine (congrArg (fun current : Store ctx => current.read (FirstAccepted.cellRead output))
-    (samplerProgram_store_projection N sample output store)).trans ?_
+    (samplerProgram_store_projection (model := model) N sample output store)).trans ?_
   exact (pop_output_read output (modulusBits N)
-    (innerStep N sample output (Layout.pushStore (modulusBits N) store)).1).trans
-      (samplerInner_from_scope_read input sample output store value sampled)
+    (innerStep (model := model) N sample output (Layout.pushStore (modulusBits N) store)).1).trans
+      (samplerInner_from_scope_read (model := model) input sample output store value sampled)
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

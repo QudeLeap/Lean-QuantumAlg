@@ -60,7 +60,8 @@ def unpackedRef (ctx : RuntimeCtx kind) (width : Nat) :
     (.product .bit (.unsignedWord width)) (selectedContext ctx width).canonicalFreshKey_fresh
 
 /-- Three actual retention instructions initialize the persistent selection cells. -/
-def allocate (ctx : RuntimeCtx kind) (width : Nat) : Circuit ctx (context ctx width) :=
+def allocate {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat) :
+    Circuit model ctx (context ctx width) :=
   .seq (.retain ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh)
     (.seq (.retain (acceptedContext ctx) (acceptedContext ctx).canonicalFreshKey
       (.unsignedWord width) (acceptedContext ctx).canonicalFreshKey_fresh)

@@ -25,13 +25,18 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 /-- Every complete-store weight follows the actual allocation's initialized store extension. -/
 theorem allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
     (dimension : ℕ+) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (classicalOracles.HiddenState × History)) :
     ∀ (weight : Store (context ctx dimension count) → ℂ) (leftRef rightRef : Reference.Index),
-      ExecutionState.referenceFiberSum ((allocate ctx dimension count).execute Reference state)
+      ExecutionState.referenceFiberSum
+          ((allocate (model := .quantum gates oracles operations classicalOracles)
+            ctx dimension count).execute Reference state)
           (fun entry _ => weight entry.1) leftRef rightRef =
         ExecutionState.referenceFiberSum state
           (fun entry _ => weight (pushStore dimension count entry.1)) leftRef rightRef := by
@@ -39,21 +44,28 @@ theorem allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
   | zero =>
       intro weight leftRef rightRef
       have executed := congrArg
-        (fun output : State ctx Reference (History × Unit) =>
+        (fun output : State ctx Reference
+            (classicalOracles.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum output (fun entry _ => weight entry.1)
             leftRef rightRef)
-        (Circuit.execute_id_mapClassical Reference state)
+        (Circuit.execute_id_mapClassical
+          (model := .quantum gates oracles operations classicalOracles) Reference state)
       exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
-        (fun entry => (entry.1, (entry.2, ()))) (fun entry _ => weight entry.1) leftRef rightRef)
+        (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
+        (fun entry _ => weight entry.1) leftRef rightRef)
   | succ count induction =>
       intro weight leftRef rightRef
       let middle := context ctx dimension count
-      let previous := allocate ctx dimension count
-      let retained := Circuit.retain middle middle.canonicalFreshKey (.finite dimension)
-        middle.canonicalFreshKey_fresh
+      let previous := allocate
+        (model := .quantum gates oracles operations classicalOracles) ctx dimension count
+      let retained := Circuit.retain
+        (model := .quantum gates oracles operations classicalOracles)
+        middle middle.canonicalFreshKey (.finite dimension) middle.canonicalFreshKey_fresh
       have sequence := Circuit.referenceFiberSum_execute_seq previous retained state weight
         leftRef rightRef
-      have last := Circuit.referenceFiberSum_execute_retain middle.canonicalFreshKey
+      have last := Circuit.referenceFiberSum_execute_retain
+        (gates := gates) (oracles := oracles) (operations := operations)
+        (classicalOracles := classicalOracles) middle.canonicalFreshKey
         (.finite dimension) middle.canonicalFreshKey_fresh
         (previous.execute Reference state) weight leftRef rightRef
       exact sequence.trans (last.trans

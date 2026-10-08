@@ -22,23 +22,25 @@ Inactive branches allocate no division pair; the bound also covers width zero.
 
 namespace QuantumAlg.ClassicalRoutines.NumberTheory.GCD
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual temporary pair context, entered only by a selected remainder operation. -/
-def divisionCtx (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
+def divisionCtx {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
   ctx.addWorkspace ctx.canonicalFreshKey (operandShape width) ctx.canonicalFreshKey_fresh
 
 /-- Independent extra classical capacity of the retained result and all simultaneously live work. -/
 def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (5 * width + 1))
 
+omit [BitWord.Selected model] in
 private theorem workspace_visited {key : StorageKey} {shape : CShape}
     {fresh : key ∉ ctx.keys}
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (path : (Circuit.workspace ctx key shape fresh body).Path)
-    (property : RuntimeCtx kind → Prop) (parent : property ctx)
+    (property : RuntimeCtx model.kind → Prop) (parent : property ctx)
     (inner : ∀ visited ∈ body.visitedContexts path, property visited)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (Circuit.workspace ctx key shape fresh body).visitedContexts path) :
     property visited := by
   change visited ∈ ctx :: body.visitedContexts path ++ [ctx] at present
@@ -50,8 +52,10 @@ private theorem workspace_visited {key : StorageKey} {shape : CShape}
 
 private theorem guarded_visited (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
-    (path : (guardedRemainder first second zero active).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (guardedRemainder first second zero active).visitedContexts path) :
+    (path : (guardedRemainder (model := model) first second zero active).Path) (visited :
+      RuntimeCtx model.kind)
+    (present : visited ∈ (guardedRemainder (model := model) first second zero
+      active).visitedContexts path) :
     visited = ctx ∨ visited = divisionCtx ctx width := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -68,13 +72,16 @@ private theorem guarded_visited (first second : CWriteRef ctx (.unsignedWord wid
 
 private theorem loop_visited (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
-    (count : Nat) (path : (Circuit.iterate count (guardedRemainder first second zero active)).Path)
-    (visited : RuntimeCtx kind)
+    (count : Nat) (path : (Circuit.iterate count (guardedRemainder (model := model) first second
+      zero active)).Path)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈
-      (Circuit.iterate count (guardedRemainder first second zero active)).visitedContexts path) :
+      (Circuit.iterate count (guardedRemainder (model := model) first second zero
+        active)).visitedContexts path) :
     visited = ctx ∨ visited = divisionCtx ctx width := by
   change visited ∈ ctx :: (List.ofFn (fun index : Fin count =>
-    (guardedRemainder first second zero active).visitedContexts (path index))).flatten at present
+    (guardedRemainder (model := model) first second zero active).visitedContexts (path
+      index))).flatten at present
   rcases List.mem_cons.mp present with same | inner
   · exact Or.inl same
   · rcases List.mem_flatten.mp inner with ⟨contexts, listed, member⟩
@@ -84,12 +91,15 @@ private theorem loop_visited (first second : CWriteRef ctx (.unsignedWord width)
 private theorem scheduled_visited (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
-    (path : (scheduledBody input first second active result).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (scheduledBody input first second active result).visitedContexts path) :
+    (path : (scheduledBody (model := model) input first second active result).Path) (visited :
+      RuntimeCtx model.kind)
+    (present : visited ∈ (scheduledBody (model := model) input first second active
+      result).visitedContexts path) :
     visited = ctx ∨ visited = divisionCtx ctx width := by
   change visited ∈ [ctx, ctx, ctx, ctx] ++
     ((Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedRemainder first second (cellRead result) active)).visitedContexts path.2.1 ++ [ctx])
+      (guardedRemainder (model := model) first second (cellRead result) active)).visitedContexts
+        path.2.1 ++ [ctx])
     at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false, or_self] at present
   rcases present with original | inner | original
@@ -99,11 +109,13 @@ private theorem scheduled_visited (input : CInputRef ctx (operandShape width))
 
 private theorem lexical_visited (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width))
-    (path : (lexicalBody input result).Path) (property : RuntimeCtx kind → Prop)
+    (path : (lexicalBody (model := model) input result).Path) (property : RuntimeCtx model.kind →
+      Prop)
     (base : property ctx) (current : property (currentCtx ctx width))
     (previous : property (previousCtx ctx width)) (loop : property (loopCtx ctx width))
-    (division : property (divisionCtx (loopCtx ctx width) width)) (visited : RuntimeCtx kind)
-    (present : visited ∈ (lexicalBody input result).visitedContexts path) : property visited := by
+    (division : property (divisionCtx (loopCtx ctx width) width)) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (lexicalBody (model := model) input result).visitedContexts path) :
+      property visited := by
   exact workspace_visited (ctx := ctx) _ path property base
     (fun atCurrent inCurrent =>
       workspace_visited (ctx := currentCtx ctx width) _ path property current
@@ -122,15 +134,16 @@ private theorem lexical_visited (input : CInputRef ctx (operandShape width))
 /-- Every real context belongs to the six actual allocation stages of this circuit. -/
 theorem gcdRetained_visited (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (retainedCircuit input key fresh).visitedContexts path) :
+    (path : (retainedCircuit (model := model) input key fresh).Path) (visited : RuntimeCtx
+      model.kind)
+    (present : visited ∈ (retainedCircuit (model := model) input key fresh).visitedContexts path) :
     visited ∈ [ctx, retainedCtx ctx width key fresh,
       currentCtx (retainedCtx ctx width key fresh) width,
       previousCtx (retainedCtx ctx width key fresh) width,
       loopCtx (retainedCtx ctx width key fresh) width,
       divisionCtx (loopCtx (retainedCtx ctx width key fresh) width) width] := by
   change visited ∈ [ctx, retainedCtx ctx width key fresh] ++
-    (lexicalBody (input.underRetained key (.unsignedWord width) fresh)
+    (lexicalBody (model := model) (input.underRetained key (.unsignedWord width) fresh)
       (CWriteRef.retainedHead ctx key (.unsignedWord width) fresh)).visitedContexts path.2
     at present
   rcases List.mem_append.mp present with allocation | execution
@@ -146,9 +159,9 @@ theorem gcdRetained_visited (input : CInputRef ctx (operandShape width))
 /-- Resident capacity counts the result, two state words, condition and temporary division pair. -/
 theorem gcdRetained_resident_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).peakResidentSpace path ≤
-      ctx.residentSpace + additionalSpace kind width := by
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).peakResidentSpace path ≤
+      ctx.residentSpace + additionalSpace model.kind width := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   have member := gcdRetained_visited input key fresh path visited present
@@ -156,16 +169,16 @@ theorem gcdRetained_resident_le (input : CInputRef ctx (operandShape width))
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [additionalSpace, retainedCtx, currentCtx, previousCtx, loopCtx, divisionCtx,
         operandShape, SpacePool.ofShape] <;> omega
 
 /-- The same actual allocations all count as auxiliary storage, including the retained result. -/
 theorem gcdRetained_auxiliary_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + additionalSpace kind width := by
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + additionalSpace model.kind width := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   have member := gcdRetained_visited input key fresh path visited present
@@ -173,7 +186,7 @@ theorem gcdRetained_auxiliary_le (input : CInputRef ctx (operandShape width))
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [additionalSpace, retainedCtx, currentCtx, previousCtx, loopCtx, divisionCtx,
         operandShape, SpacePool.ofShape] <;> omega
 
@@ -183,33 +196,35 @@ def lexicalAdditionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :
 
 /-- The lexical GCD counts all live work while its caller already owns the result cell. -/
 theorem gcdLexical_resident_le (input : CInputRef ctx (operandShape width))
-    (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody input result).Path) :
-    (lexicalBody input result).peakResidentSpace path ≤
-      ctx.residentSpace + lexicalAdditionalSpace kind width := by
+    (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody (model := model) input
+      result).Path) :
+    (lexicalBody (model := model) input result).peakResidentSpace path ≤
+      ctx.residentSpace + lexicalAdditionalSpace model.kind width := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   refine lexical_visited input result path
     (fun candidate => candidate.residentSpace ≤ ctx.residentSpace +
-      lexicalAdditionalSpace kind width) ?_ ?_ ?_ ?_ ?_ visited present
+      lexicalAdditionalSpace model.kind width) ?_ ?_ ?_ ?_ ?_ visited present
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [lexicalAdditionalSpace, currentCtx, previousCtx, loopCtx, divisionCtx,
         operandShape, SpacePool.ofShape] <;> omega
 
 /-- All actual lexical GCD work contributes to the same additional auxiliary allowance. -/
 theorem gcdLexical_auxiliary_le (input : CInputRef ctx (operandShape width))
-    (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody input result).Path) :
-    (lexicalBody input result).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + lexicalAdditionalSpace kind width := by
+    (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody (model := model) input
+      result).Path) :
+    (lexicalBody (model := model) input result).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + lexicalAdditionalSpace model.kind width := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   refine lexical_visited input result path
     (fun candidate => candidate.auxiliarySpace ≤ ctx.auxiliarySpace +
-      lexicalAdditionalSpace kind width) ?_ ?_ ?_ ?_ ?_ visited present
+      lexicalAdditionalSpace model.kind width) ?_ ?_ ?_ ?_ ?_ visited present
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [lexicalAdditionalSpace, currentCtx, previousCtx, loopCtx, divisionCtx,
         operandShape, SpacePool.ofShape] <;> omega
 

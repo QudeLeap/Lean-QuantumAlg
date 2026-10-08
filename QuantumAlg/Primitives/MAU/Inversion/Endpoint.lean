@@ -7,11 +7,14 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.GateModel.Algorithm
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Primitives.MAU.Inversion.Basic
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Accumulate.Agreement
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Accumulate.Specification
@@ -101,10 +104,10 @@ all data, auxiliaries and reference coherences remain in the full state
 requirement. Modulus one performs full-frame identity after preparation.
 Every live storage key is listed exactly once in the complete Output.
 
-**Resource budget.** One fixed preparation event occurs. The independent
+**Resource budget.** Actual zero allocation and every fixed-seed X are charged. The independent
 native envelope is two complete corrected EEA envelopes plus the
 coefficient-one Gidney accumulation envelope. The strict unit-event depth
-is at most 1+2*C(n)+n*B(n), where C is correctedBound and B is
+is at most 1+auxiliaryWidth(n)+2*C(n)+n*B(n), where C is correctedBound and B is
 Gidney.stageEventBound. Resident and owned auxiliary space each contain
 3*n+4*size(n)+12 qubits and zero classical bits, including the original
 flag. These conservative bounds concern this actual implementation.
@@ -121,8 +124,10 @@ moduli and unit residues are project results. Mixed-state interpretation
 uses [dW19, qcnotes.tex:5381,5394,5405].
 -/
 public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
-    Problem .quantum (inputContext modulus.size) (outputContext modulus.size) .unit where
+    Problem (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size) .unit where
   valid := AccumulateTarget.valid modulus
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [AccumulateTarget.requirement modulus modulusPositive]
@@ -130,11 +135,16 @@ public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
     { events := AccumulateResources.events modulus
       resident := AccumulateResources.space modulus.size
       auxiliary := AccumulateResources.space modulus.size }
-  depth := .quantum (fun _ => 1) (AccumulateResources.depthBound modulus.size)
+  depth :=
+    { duration := fun _ => 1
+      limit := AccumulateResources.depthBound modulus.size
+      classicalQuery_unit := fun coordinate => nomatch coordinate
+      quantumQuery_unit := fun coordinate => nomatch coordinate }
 
 /-- Execute the one actual prepared modular-add inverse and manifest every surviving system. -/
 public def algorithm (modulus : Nat) :
-    Algorithm .quantum (inputContext modulus.size) (outputContext modulus.size) .unit where
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size) .unit where
   run :=
     { code := AccumulateRuntime.code modulus
       output := Output.all (outputContext modulus.size) .unit }
@@ -144,28 +154,37 @@ public theorem main (modulus : Nat) (modulusPositive : 0 < modulus) :
     ∃ candidate, Algorithm.Solves candidate (problem modulus modulusPositive) := by
   refine ⟨algorithm modulus, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid requirement present
+  · intro Reference input valid _initial requirement present
     have same : requirement = AccumulateTarget.requirement modulus modulusPositive :=
       List.mem_singleton.mp present
     subst requirement
     exact AccumulateState.accumulateState_requirement_holds modulus modulusPositive
       (Output.all (outputContext modulus.size) .unit) input valid
-  · intro Reference input _valid
-    exact AccumulateState.accumulateState_borrowedRestored modulus
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initial
+    change Execution.observeBorrowedAfter (AccumulateRuntime.code modulus) Reference
+      ((AccumulateRuntime.code modulus).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
+      Execution.observeBorrowed Reference input.state
+    refine (AccumulateState.accumulateState_borrowedRestored modulus
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
+    refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
+      (fun _ => rfl) _ _
+  · intro _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_events modulus path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_resident modulus path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_auxiliary modulus path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_depth modulus path
 
 end

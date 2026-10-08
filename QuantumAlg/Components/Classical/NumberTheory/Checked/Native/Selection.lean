@@ -30,38 +30,46 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original stored status selects signed reduction or a true no-operation branch. -/
-def checkedCoefficientChoice (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def checkedCoefficientChoice {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (inverse : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) : Circuit ctx ctx :=
-  if value.toBool then SignedReduction.Native.withSignedReduction raw modulus inverse else .id ctx
+    (inverse : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) : Circuit model
+      ctx ctx :=
+  if value.toBool then SignedReduction.Native.withSignedReduction (model := model) raw modulus
+    inverse else .id ctx
 
 /-- Gcd-equals-one is actually computed before the original status-controlled signed reduction. -/
-def checkedCoefficientSelection (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+def checkedCoefficientSelection {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width)) :
-    Circuit ctx ctx :=
-  .seq (withUnitDecision gcd success)
-    (.branch (decisionRead success) (checkedCoefficientChoice raw modulus inverse))
+    Circuit model ctx ctx :=
+  .seq (withUnitDecision (model := model) gcd success)
+    (.branch (decisionRead success) (checkedCoefficientChoice (model := model) raw modulus inverse))
 
 /-- Each real branch has a complete execution record with exact success and failure behavior. -/
-theorem checkedCoefficientChoice_actualRecord
+theorem checkedCoefficientChoice_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (inverse : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width)
     (value : CShape.Value .bit) :
-    ∃ record : Store ctx → Store ctx × (checkedCoefficientChoice raw modulus inverse value).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (checkedCoefficientChoice (model := model) raw modulus inverse value).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (checkedCoefficientChoice raw modulus inverse value).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (checkedCoefficientChoice (model := model) raw modulus inverse value).execute Reference
+          state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape), inverse.key ∉ other.storageKeys →
-          (record before).1.read other = before.read other) ∧
-        (value.toBool = true → (before.read modulus).toNat = spec.modulus →
-          ((record before).1.read (decisionRead inverse)).toNat =
-            (reduceRawCoefficient spec (before.read raw)).val) ∧
+          (record before).1.1.read other = before.1.read other) ∧
+        (value.toBool = true → (before.1.read modulus).toNat = spec.modulus →
+          ((record before).1.1.read (decisionRead inverse)).toNat =
+            (reduceRawCoefficient spec (before.1.read raw)).val) ∧
         (value.toBool = false → (record before).1 = before) := by
   cases value with
   | bit value =>
@@ -69,12 +77,12 @@ theorem checkedCoefficientChoice_actualRecord
       · refine ⟨fun before => (before, ()), ?_, ?_⟩
         · intro reference history historyFinite state
           refine (Circuit.execute_id_mapClassical reference state).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _
+          exact ExecutionState.executionState_mapClassical_congr _ rfl
         · intro before
           exact ⟨fun _ _ => rfl, by simp [CShape.Value.toBool], fun _ => rfl⟩
       · obtain ⟨record, equation, correct⟩ :=
-          SignedReduction.Native.withSignedReduction_actualRecord raw modulus inverse spec
+          SignedReduction.Native.withSignedReduction_actualRecord (model := model) raw modulus
+            inverse spec
         refine ⟨record, equation, ?_⟩
         intro before
         exact ⟨(correct before).1, fun _ => (correct before).2, by simp [CShape.Value.toBool]⟩
@@ -88,78 +96,95 @@ theorem checkedCoefficient_status_inverse_distinct (success : CWriteRef ctx .bit
   cases shapes
 
 /-- The actual decision and selected coefficient preserve full state and both original outcomes. -/
-theorem checkedCoefficientSelection_actualRecord
+theorem checkedCoefficientSelection_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (spec : ModulusSpec width) (rawFree : success.key ∉ raw.storageKeys)
     (modulusFree : success.key ∉ modulus.storageKeys) :
-    ∃ record : Store ctx → Store ctx ×
-        (checkedCoefficientSelection gcd raw modulus success inverse).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+        (checkedCoefficientSelection (model := model) gcd raw modulus success inverse).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (checkedCoefficientSelection gcd raw modulus success inverse).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (checkedCoefficientSelection (model := model) gcd raw modulus success inverse).execute
+          Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape),
           success.key ∉ other.storageKeys → inverse.key ∉ other.storageKeys →
-            (record before).1.read other = before.read other) ∧
-        (record before).1.read (decisionRead success) =
-          .bit (decide ((before.read gcd).toNat = 1)) ∧
-        ((before.read gcd).toNat = 1 → (before.read modulus).toNat = spec.modulus →
-          ((record before).1.read (decisionRead inverse)).toNat =
-            (reduceRawCoefficient spec (before.read raw)).val) ∧
-        ((before.read gcd).toNat ≠ 1 →
-          (record before).1.read (decisionRead inverse) = before.read (decisionRead inverse)) := by
+            (record before).1.1.read other = before.1.read other) ∧
+        (record before).1.1.read (decisionRead success) =
+          .bit (decide ((before.1.read gcd).toNat = 1)) ∧
+        ((before.1.read gcd).toNat = 1 → (before.1.read modulus).toNat = spec.modulus →
+          ((record before).1.1.read (decisionRead inverse)).toNat =
+            (reduceRawCoefficient spec (before.1.read raw)).val) ∧
+        ((before.1.read gcd).toNat ≠ 1 →
+          (record before).1.1.read (decisionRead inverse) = before.1.read (decisionRead inverse))
+            := by
   choose choiceRecord choiceEquation choiceCorrect using
     (fun value => checkedCoefficientChoice_actualRecord raw modulus inverse spec value)
-  let branch := Circuit.branch (decisionRead success) (checkedCoefficientChoice raw modulus inverse)
-  let branchRecord : Store ctx → Store ctx × branch.Path := fun before =>
-    let value := before.read (decisionRead success)
+  let branch := Circuit.branch (decisionRead success) (checkedCoefficientChoice (model := model)
+    raw modulus inverse)
+  let branchRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × branch.Path := fun before =>
+    let value := before.1.read (decisionRead success)
     let chosen := choiceRecord value before
     (chosen.1, ⟨value, chosen.2⟩)
-  refine ⟨Circuit.sequenceRecord (withUnitDecision gcd success) branch
-    (withUnitDecisionStep gcd success) branchRecord, ?_, ?_⟩
+  refine ⟨Circuit.sequenceRecord (withUnitDecision (model := model) gcd success) branch
+    (fun before =>
+      let result := withUnitDecisionStep (model := model) gcd success before.1
+      ((result.1, before.2), result.2)) branchRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord _ _ _ _ (withUnitDecision_execute gcd success) (by
-      intro reference history historyFinite state
-      exact Circuit.execute_branch_mapClassical (decisionRead success)
-        (checkedCoefficientChoice raw modulus inverse) choiceRecord choiceEquation reference state)
-      reference state
+    refine (Circuit.execute_sequenceRecord (withUnitDecision (model := model) gcd success) branch
+      (fun before =>
+        let result := withUnitDecisionStep (model := model) gcd success before.1
+        ((result.1, before.2), result.2)) branchRecord ?_ ?_ reference state).trans ?_
+    · intro reference history _ initial
+      exact (withUnitDecision_execute (model := model) gcd success reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+    · intro reference history _ initial
+      exact (Circuit.execute_branch_mapClassical (decisionRead success)
+        (checkedCoefficientChoice (model := model) raw modulus inverse) choiceRecord choiceEquation
+          reference initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+    · exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro before
-    let decided := (withUnitDecisionStep gcd success before).1
+    let decided := (withUnitDecisionStep (model := model) gcd success before.1).1
     let value := decided.read (decisionRead success)
-    let final := (choiceRecord value decided).1
-    have valueEq : value = .bit (decide ((before.read gcd).toNat = 1)) :=
-      withUnitDecision_value gcd success before
+    let final := (choiceRecord value (decided, before.2)).1.1
+    have valueEq : value = .bit (decide ((before.1.read gcd).toNat = 1)) :=
+      withUnitDecision_value gcd success before.1
     have inverseStatus := checkedCoefficient_status_inverse_distinct success inverse
     have statusFree : inverse.key ∉ (decisionRead success).storageKeys := by
       simpa only [decisionRead, CInputRef.storageKeys, List.mem_singleton] using inverseStatus
     have inverseFree : success.key ∉ (decisionRead inverse).storageKeys := by
       simpa only [decisionRead, CInputRef.storageKeys, List.mem_singleton] using inverseStatus.symm
-    have oldRaw : decided.read raw = before.read raw :=
-      withUnitDecision_read_other gcd success raw rawFree before
-    have oldModulus : decided.read modulus = before.read modulus :=
-      withUnitDecision_read_other gcd success modulus modulusFree before
+    have oldRaw : decided.read raw = before.1.read raw :=
+      withUnitDecision_read_other gcd success raw rawFree before.1
+    have oldModulus : decided.read modulus = before.1.read modulus :=
+      withUnitDecision_read_other gcd success modulus modulusFree before.1
     change (∀ {shape : CShape} (other : CInputRef ctx shape),
       success.key ∉ other.storageKeys → inverse.key ∉ other.storageKeys →
-        final.read other = before.read other) ∧ _
+        final.read other = before.1.read other) ∧ _
     refine ⟨?_, ?_, ?_, ?_⟩
     · intro shape other successFree inverseFree
-      exact ((choiceCorrect value decided).1 other inverseFree).trans
-        (withUnitDecision_read_other gcd success other successFree before)
-    · exact ((choiceCorrect value decided).1 (decisionRead success) statusFree).trans valueEq
+      exact ((choiceCorrect value (decided, before.2)).1 other inverseFree).trans
+        (withUnitDecision_read_other gcd success other successFree before.1)
+    · exact ((choiceCorrect value (decided, before.2)).1 (decisionRead success) statusFree).trans
+        valueEq
     · intro one loaded
       have trueValue : value.toBool = true := by simp [valueEq, one, CShape.Value.toBool]
-      have actual := (choiceCorrect value decided).2.1 trueValue (by rw [oldModulus, loaded])
+      have actual := (choiceCorrect value (decided, before.2)).2.1 trueValue (by rw [oldModulus,
+        loaded])
       exact actual.trans (congrArg (fun input => (reduceRawCoefficient spec input).val) oldRaw)
     · intro notOne
       have falseValue : value.toBool = false := by simp [valueEq, notOne, CShape.Value.toBool]
-      have unchanged := (choiceCorrect value decided).2.2 falseValue
-      exact (congrArg (fun store => store.read (decisionRead inverse)) unchanged).trans
-        (withUnitDecision_read_other gcd success (decisionRead inverse) inverseFree before)
+      have unchanged := (choiceCorrect value (decided, before.2)).2.2 falseValue
+      exact (congrArg (fun entry => entry.1.read (decisionRead inverse)) unchanged).trans
+        (withUnitDecision_read_other gcd success (decisionRead inverse) inverseFree before.1)
 
 end
 

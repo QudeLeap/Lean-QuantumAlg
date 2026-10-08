@@ -16,7 +16,6 @@ import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
-import all QuantumAlg.Primitives.MAU.CleanInterface
 
 /-!
 # Reversible modular addition
@@ -179,86 +178,6 @@ theorem addOp_apply_ket (N : ℕ) [NeZero N] (x : Data N) :
       NormalizedVector.ket (R := register N) x.addIntoRight := by
   rw [addOp, UnitaryOperator.ofPerm_apply_ket]
   rfl
-
-/-! ### Same-circuit realization -/
-
-/-- A concrete typed-circuit realization of modular addition. The semantic
-operator, correctness theorem, cost, and depth all refer to the one stored
-circuit. -/
-structure CircuitRealization (N : ℕ) [NeZero N] where
-  /-- The executable typed circuit. -/
-  circuit : UnitaryCircuit (register N)
-  /-- The circuit implements the modular-addition operator. -/
-  matrix_eq : circuit.matrix = addOp N
-
-namespace CircuitRealization
-
-variable {N : ℕ} [NeZero N]
-
-/-- Ordered strict events derived from the realization circuit. -/
-def eventTrace (realization : CircuitRealization N) :
-    List (Resource.Event .quantum) :=
-  realization.circuit.eventTrace
-
-/-- Strict event pool derived from the realization circuit. -/
-def eventCost (realization : CircuitRealization N) : ResourcePool .quantum :=
-  realization.circuit.eventCost
-
-/-- Strict symbolic event critical path of the realization circuit. -/
-def eventDepth (realization : CircuitRealization N) :
-    DepthExpr (Resource.Event .quantum) :=
-  realization.circuit.eventDepth
-
-/-- Literal depth of one strict event coordinate in the realization circuit. -/
-def eventQueryDepth (realization : CircuitRealization N)
-    (focus : Resource.Event .quantum) : Nat :=
-  realization.circuit.eventQueryDepth focus
-
-/-- Exact multiplicity of one gate coordinate in the realization circuit. -/
-def eventGateCount (realization : CircuitRealization N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) realization.circuit.eventCost
-
-/-- Linearizing the realization's event depth recovers its exact event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
-    (realization : CircuitRealization N) :
-    realization.circuit.resourcesFromEventDepth = realization.circuit.eventCost :=
-  UnitaryCircuit.resourcesFromEventDepth_eq_eventCost realization.circuit
-
-
-
-
-
-/-- Intrinsically normalized basis action of the realized modular adder. -/
-theorem applyNormalized_ket (realization : CircuitRealization N) (x : Data N) :
-    realization.circuit.applyNormalized
-        (NormalizedVector.ket (R := register N) x) =
-      NormalizedVector.ket (R := register N) x.addIntoRight := by
-  change realization.circuit.matrix.apply
-      (NormalizedVector.ket (R := register N) x) = _
-  rw [realization.matrix_eq]
-  exact addOp_apply_ket N x
-
-/-- Clean public-form basis action `|a,b,0⟩ ↦ |a,a+b,0⟩`. -/
-theorem applyNormalized_clean_ket (realization : CircuitRealization N)
-    (a b : ZMod N) :
-    realization.circuit.applyNormalized
-        (NormalizedVector.ket (R := register N)
-          ({ left := a, right := b, flag := false } : Data N)) =
-      NormalizedVector.ket (R := register N)
-        ({ left := a, right := a + b, flag := false } : Data N) := by
-  simpa [Data.addIntoRight, add_comm] using
-    realization.applyNormalized_ket
-      ({ left := a, right := b, flag := false } : Data N)
-
-end CircuitRealization
-
-/-- Same-circuit realization type for modular addition with an external clean
-work register. Concrete base-gate schedules construct this interface. -/
-abbrev WithWorkCircuitRealization (N : ℕ) [NeZero N]
-    (Work : Type) [Fintype Work] [DecidableEq Work] :=
-  WorkRegister.CleanReversibleMap.CircuitRealization
-    (Data.withWorkCleanMap N Work)
 
 /-! ### Compare/subtract/add-back route -/
 

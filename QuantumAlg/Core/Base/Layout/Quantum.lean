@@ -35,6 +35,14 @@ public structure QuantumWire where
   dimension : ℕ+
 deriving DecidableEq
 
+/-- Two physical wire records are equal when both recorded fields agree. -/
+@[ext] public theorem QuantumWire.ext {left right : QuantumWire}
+    (identity : left.identity = right.identity)
+    (dimension : left.dimension = right.dimension) : left = right := by
+  cases left
+  cases right
+  simp_all
+
 /-- Ordered finite quantum systems with an injective physical placement. -/
 public structure QuantumLayout (systemCount : Nat) where
   /-- The actual physical system at each logical position. -/
@@ -43,6 +51,19 @@ public structure QuantumLayout (systemCount : Nat) where
   identityInjective : Function.Injective (fun index => (wire index).identity)
 
 namespace QuantumLayout
+
+/-- Two layouts with the same ordered physical wires are equal; the
+injectivity certificates are propositions and carry no additional data. -/
+public theorem eq_of_wire_eq {systemCount : Nat}
+    {left right : QuantumLayout systemCount}
+    (same : left.wire = right.wire) : left = right := by
+  cases left with
+  | mk leftWire leftInjective =>
+      cases right with
+      | mk rightWire rightInjective =>
+          change leftWire = rightWire at same
+          subst rightWire
+          rfl
 
 /-- Ordered physical wire records. -/
 @[expose]

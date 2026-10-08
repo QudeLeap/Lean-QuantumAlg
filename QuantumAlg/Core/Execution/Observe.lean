@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Layout.Quantum.Selection
+public import QuantumAlg.Core.Base.Register
+public import QuantumAlg.Core.Base.State.Density
 import all QuantumAlg.Core.Base.Layout.Quantum.Selection
 import all QuantumAlg.Core.Execution.Reindex
 import Mathlib.Logic.Equiv.Prod
@@ -79,7 +82,7 @@ theorem observeSelectionWithReference_mass (layout : QuantumLayout systemCount)
   rw [observeSelectionWithReference, marginalLeft_mass, reindex_mass]
 
 /-- Observe the selected actual systems while summing their complement and the reference. -/
-def observeSelection (layout : QuantumLayout systemCount)
+public def observeSelection (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference)) :
     DensityOperator (layout.selectedRegister selection) :=

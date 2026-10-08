@@ -90,12 +90,17 @@ def doublingStageStore (spec : CurveSpec width)
       (store.read (classifierRead scratch.numerator))
       (store.read (classifierRead scratch.denominator)))]
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The certified actual path of each original stage returns that precise complete Store. -/
 theorem doublingStageRecord_store (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (index : Fin 7) (store : Store ctx) :
-    (doublingStageRecord spec pointX pointY scratch output index store).1 =
+    (index : Fin 7) (store : Store ctx) (hidden : model.HiddenState) :
+    (doublingStageRecord spec pointX pointY scratch output index (store, hidden)).1.1 =
       doublingStageStore spec pointX pointY scratch output index store := by
   refine Fin.cases ?_ (fun index => ?_) index
   · exact Field.Native.mulIntoWordStep_store _ _ _ _ _
@@ -110,8 +115,10 @@ theorem doublingStageRecord_store (spec : CurveSpec width)
   refine Fin.cases ?_ (fun index => ?_) index
   · exact Field.Native.addIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact affineIntoStep_store _ _ _ _ _ _ _ _
+  · exact affineIntoStep_store (model := model) _ _ _ _ _ _ _ _ _
   exact Fin.elim0 index
+
+end
 
 /-- Actual chronological fold of the seven certified destination writes. -/
 def doublingBodyStore (spec : CurveSpec width)
@@ -121,15 +128,35 @@ def doublingBodyStore (spec : CurveSpec width)
   (List.ofFn (doublingStageStore spec pointX pointY scratch output)).foldl
     (fun current update => update current) store
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual complete execution returns the same seven-stage chronological Store. -/
 theorem doublingBodyStep_store (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (store : Store ctx) :
-    (doublingBodyStep spec pointX pointY scratch output store).1 =
+    (store : Store ctx) (hidden : model.HiddenState) :
+    (doublingBodyStep spec pointX pointY scratch output (store, hidden)).1.1 =
       doublingBodyStore spec pointX pointY scratch output store := by
+  have fold_store (indices : List (Fin 7))
+      (entry : Store ctx × model.HiddenState) :
+      ((indices.map (fun index => fun current =>
+        (doublingStageRecord spec pointX pointY scratch output index current).1)).foldl
+          (fun current update => update current) entry).1 =
+        (indices.map (doublingStageStore spec pointX pointY scratch output)).foldl
+          (fun current update => update current) entry.1 := by
+    induction indices generalizing entry with
+    | nil => rfl
+    | cons index rest ih =>
+        simp only [List.map_cons, List.foldl_cons]
+        rw [ih, doublingStageRecord_store]
   rw [doublingBodyStep, Circuit.forRangeRecord_store]
-  simp only [doublingStageRecord_store, doublingBodyStore]
+  simpa only [doublingBodyStore, List.map_ofFn, Function.comp_def] using
+    fold_store (List.ofFn (fun index : Fin 7 => index)) (store, hidden)
+
+end
 
 /-- Exact actual six-prefix-cell contents immediately before entering the original affine tail. -/
 def doublingArithmeticStore (scratch : DoublingScratch ctx width) (values : DoublingValues width)

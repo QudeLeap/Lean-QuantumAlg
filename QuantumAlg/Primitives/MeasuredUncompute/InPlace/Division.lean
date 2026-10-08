@@ -36,49 +36,34 @@ noncomputable section
 
 open Execution MAU.Inversion.SharedEEA
 
-private theorem full_within (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
-    (full : body.physical_idx = List.range (OutputCopy.encoding width).width) :
-    body.physical_idx ⊆ List.range (OutputCopy.encoding width).width := by
-  rw [full]
-  exact List.Subset.refl _
-
 /-- Execute the complete existing forward EEA on X/A, retaining Y and all real result cells. -/
 def forward (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size (NativeEEAFrame.forward modulus prime)
-    (full_within modulus.size _ (NativeEEAFrame.forward_physical modulus prime))
-
-private theorem product_within (modulus : Nat) :
-    (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)).physical_idx ⊆
-      List.range (OutputCopy.encoding modulus.size).width :=
-  ReusedProduct.original_within modulus.size (InPlaceArithmetic.modulusWord modulus)
 
 /-- The actual product uses X/Y/A in the same original frame, without another output bank. -/
 def product (modulus : Nat) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size
     (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus))
-    (product_within modulus)
 
 /-- Execute the identical EEA adjoint on its actually reused Y workspace. -/
 def backward (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size (NativeEEAFrame.backward modulus prime)
-    (full_within modulus.size _ (NativeEEAFrame.backward_physical modulus prime))
 
 /-- The final native three-CNOT-per-bit swap acts on the original A and Y physical ports. -/
 def swap (width : Nat) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
   NumeratorRuntime.code width (FrameSwap.program width)
-    (full_within width _ (FrameSwap.frameSwap_physical width))
 
 /-- All six actual execution blocks retain their exact source order and the same full context. -/
 def body (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   .seq (forward modulus prime)
     (.seq (product modulus)
@@ -89,7 +74,8 @@ def body (modulus : Nat) (prime : Nat.Prime modulus) :
 
 /-- Actual fixed allocation, actual finite cells, then the single measured arithmetic circuit. -/
 def code (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (InversePreparation.before modulus.size) (NumeratorMeasurement.context modulus.size) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (InversePreparation.before modulus.size) (NumeratorMeasurement.context modulus.size) :=
   .seq (InPlacePreparation.circuit modulus)
     (.seq (NumeratorMeasurement.allocate modulus.size) (body modulus prime))
 

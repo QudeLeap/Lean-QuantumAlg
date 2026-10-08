@@ -23,8 +23,10 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
+omit [BitWord.Selected model] in
 /-- Actual copying preserves a represented point whose reads avoid the saved destinations. -/
 theorem point_after_copy (refs : Refs ctx N) (store : Store ctx)
     (point : LatticeState.PointRefs ctx (LatticeWideLllMachine.Width N))
@@ -99,7 +101,7 @@ theorem point_after_nearest (refs : Refs ctx N) (store : Store ctx)
 /-- The original reduced source basis survives copying and every actual nearest-plane stage. -/
 theorem savedTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
-    LatticeMetricMachine.BasisRawRepresents (savedTargetStep refs store).1 (nearestRefs refs).basis
+    LatticeMetricMachine.BasisRawRepresents (savedTargetStore refs store) (nearestRefs refs).basis
       (LatticeNearestPlaneShortLog.basis (shortLogBits N) (tradeoffBits N)
         (sourceSamples refs store)) := by
   have copied := nearest_initial_after_copy refs separation store initial
@@ -124,7 +126,7 @@ theorem savedTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
 /-- The copied target remains the original source target after all nearest-plane reductions. -/
 theorem savedTargetInto_savedTarget (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
-    LatticeArithmetic.PointRawRepresents (savedTargetStep refs store).1 refs.savedTarget
+    LatticeArithmetic.PointRawRepresents (savedTargetStore refs store) refs.savedTarget
       (LatticeNearestPlaneShortLog.target (shortLogBits N) (tradeoffBits N)
         (sourceSamples refs store)) := by
   have wide := LatticeWideLllTargetPreservation.pairToLllInto_correct_target refs.pairNearest.wide

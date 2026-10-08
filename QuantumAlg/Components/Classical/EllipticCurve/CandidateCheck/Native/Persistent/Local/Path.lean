@@ -21,19 +21,19 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-private def besidePath {base outer : RuntimeCtx kind} {code : Circuit base base}
-    (localCode : { code : Circuit outer outer // code.IsLocal }) (shape : CShape)
+private def besidePath {base outer : RuntimeCtx model.kind} {code : Circuit model base base}
+    (localCode : { code : Circuit model outer outer // code.IsLocal }) (shape : CShape)
     (path : code.Path ≃ localCode.val.Path) : code.Path ≃ (besideCell localCode shape).val.Path :=
   path.trans (Circuit.underRetainedPathEquiv localCode.val localCode.property
     outer.canonicalFreshKey shape outer.canonicalFreshKey_fresh)
 
 /-- The original actual path acquires no choice from the seven existing cells. -/
-def underPersistentPathEquiv (code : Circuit ctx ctx) (supported : code.IsLocal)
+def underPersistentPathEquiv (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (width scalarWidth : Nat) :
     code.Path ≃ (underPersistent code supported width scalarWidth).Path :=
-  let original := (⟨code, supported⟩ : { code : Circuit ctx ctx // code.IsLocal })
+  let original := (⟨code, supported⟩ : { code : Circuit model ctx ctx // code.IsLocal })
   let accepted := besideCell original .bit
   let selected := besideCell accepted (.unsignedWord scalarWidth)
   let inverse := besideCell selected .bit

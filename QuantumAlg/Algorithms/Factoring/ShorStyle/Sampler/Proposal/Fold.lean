@@ -42,6 +42,9 @@ structure ScanSeparated (sample : CInputRef ctx (.bits (count * width)))
   zeroFree : ∀ key ∈ slotKeys shared scratch, key ∉ shared.zero.storageKeys
   modulusFree : ∀ key ∈ slotKeys shared scratch, key ∉ shared.modulus.storageKeys
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- One actual slot appends precisely the source's classified residue to the selection option. -/
 theorem proposalSlot_selection
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
@@ -51,11 +54,12 @@ theorem proposalSlot_selection
     (sampled : store.read sample = .bits (PackedSample.storedBits value))
     (zero : (store.read shared.zero).toNat = 0)
     (modulusValue : (store.read shared.modulus).toNat = modulus) :
-    selection shared (slotStep sample proposal shared scratch store).1 =
+    selection shared (slotStep (model := model) sample proposal shared scratch store).1 =
       (selection shared store).or
         (RSA.classifyResidueProposals modulus
           (RSA.decodeFixedWidthWords width count value) proposal) := by
-  have actual := proposalSlot_latches sample proposal shared scratch separated store value sampled
+  have actual := proposalSlot_latches (model := model)
+    sample proposal shared scratch separated store value sampled
   dsimp only at actual
   unfold selection
   rw [actual.1, actual.2, zero, modulusValue]
@@ -96,26 +100,30 @@ theorem proposalFold_selection
     (sampled : store.read sample = .bits (PackedSample.storedBits value))
     (zero : (store.read shared.zero).toNat = 0)
     (modulusValue : (store.read shared.modulus).toNat = modulus) :
-    selection shared (foldSteps sample shared scratch proposals store).1 =
+    selection shared (foldSteps (model := model) sample shared scratch proposals store).1 =
       proposals.foldl (fun selected proposal => selected.or
         (RSA.classifyResidueProposals modulus
           (RSA.decodeFixedWidthWords width count value) proposal)) (selection shared store) := by
   induction proposals generalizing store with
   | nil => rfl
   | cons proposal remaining ih =>
-      let next := (slotStep sample proposal shared scratch store).1
+      let next := (slotStep (model := model) sample proposal shared scratch store).1
       have nextSample : next.read sample = .bits (PackedSample.storedBits value) :=
-        (proposalSlot_read_other sample proposal shared scratch sample
+        (proposalSlot_read_other (model := model) sample proposal shared scratch sample
           separated.sampleFree store).trans sampled
       have nextZero : (next.read shared.zero).toNat = 0 :=
-        (congrArg CShape.Value.toNat (proposalSlot_read_other sample proposal shared scratch
+        (congrArg CShape.Value.toNat (proposalSlot_read_other (model := model)
+          sample proposal shared scratch
           shared.zero separated.zeroFree store)).trans zero
       have nextModulus : (next.read shared.modulus).toNat = modulus :=
-        (congrArg CShape.Value.toNat (proposalSlot_read_other sample proposal shared scratch
+        (congrArg CShape.Value.toNat (proposalSlot_read_other (model := model)
+          sample proposal shared scratch
           shared.modulus separated.modulusFree store)).trans modulusValue
-      change selection shared (foldSteps sample shared scratch remaining next).1 = _
+      change selection shared (foldSteps (model := model)
+        sample shared scratch remaining next).1 = _
       rw [ih next nextSample nextZero nextModulus, List.foldl_cons]
-      rw [proposalSlot_selection sample proposal shared scratch separated.slot store value
+      rw [proposalSlot_selection (model := model)
+        sample proposal shared scratch separated.slot store value
         modulus sampled zero modulusValue]
 
 /-- With the actual initially empty latch, ascending slots return the source's first residue. -/
@@ -128,11 +136,11 @@ theorem proposalScan_firstValidResidue
     (zero : (store.read shared.zero).toNat = 0)
     (modulusValue : (store.read shared.modulus).toNat = modulus)
     (unaccepted : (store.read (FirstAccepted.cellRead shared.selector.accepted)).toBool = false) :
-    selection shared (foldSteps sample shared scratch
+    selection shared (foldSteps (model := model) sample shared scratch
       (List.ofFn (fun proposal : Fin count => proposal)) store).1 =
         RSA.firstValidResidue (RSA.classifyResidueProposals modulus
           (RSA.decodeFixedWidthWords width count value)) := by
-  rw [proposalFold_selection sample shared scratch separated _ store value
+  rw [proposalFold_selection (model := model) sample shared scratch separated _ store value
     modulus sampled zero modulusValue]
   have empty : selection shared store = none := by simp [selection, unaccepted]
   rw [empty]

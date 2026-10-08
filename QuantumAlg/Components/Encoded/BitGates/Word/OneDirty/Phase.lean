@@ -12,7 +12,8 @@ import all QuantumAlg.Components.Encoded.BitGates.Hadamard.Conjugation
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
 import all QuantumAlg.Components.Encoded.Circuit
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Core.Base.UnitaryCircuit.Vector
+import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Components.Kets
 
 /-!
@@ -33,10 +34,12 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Conjugate the actual restored-dirty multi-control X by two target Hadamards. -/
-def phaseProgram : UnitaryCircuit (Qubits encoding.width) :=
-  layout.output.conjugateHadamard (GateSpec.programList layout.gates)
+def phaseProgram : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  layout.output.conjugateHadamard physical oracles
+    (GateSpec.programList physical oracles layout.gates)
 
 private theorem allControls_output_flip (state : Data) :
     (∀ index, (layout.source.bit index).get (layout.output.flip state) = true) ↔
@@ -47,50 +50,61 @@ private theorem allControls_output_flip (state : Data) :
     (layout.source_output_ne index).symm]
 
 private theorem gates_applyVec (state : Data) :
-    (GateSpec.programList layout.gates).applyVec
-        (ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (GateSpec.programList physical oracles layout.gates).applyVec
+        (ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       if ∀ index, (layout.source.bit index).get state = true then
-        (ket (R := Qubits encoding.width) (encoding.encode (layout.output.flip state))).vec
-      else (ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
-  have actual := congrArg
-    (fun vector : NormalizedVector (Qubits encoding.width) =>
-      (vector : HilbertVector (Qubits encoding.width)))
-    (layout.gates_realizes.apply_encoded_ket state)
-  rw [UnitaryCircuit.applyNormalized_coe] at actual
+        (ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode (layout.output.flip state)))).vec
+      else (ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
+  have actual := congrArg NormalizedVector.vec
+    ((layout.gates_realizes physical oracles).apply_encoded_ket state)
+  change (GateSpec.programList physical oracles layout.gates).applyVec
+      (ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (encoding.encode state))).vec =
+    (ket (R := physical.toQuantum.register)
+      (physical.basisEquiv.symm (encoding.encode
+        (if ∀ index, (layout.source.bit index).get state = true
+          then layout.output.flip state else state)))).vec at actual
   by_cases active : ∀ index, (layout.source.bit index).get state = true
   · simpa only [if_pos active] using actual
   · simpa only [if_neg active] using actual
 
 /-- Exact diagonal action on every encoded input, without a cleanliness premise. -/
 theorem phaseProgram_applyVec_encoded_ket (state : Data) :
-    layout.phaseProgram.applyVec
-        (ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (layout.phaseProgram physical oracles).applyVec
+        (ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       if (∀ index, (layout.source.bit index).get state = true) ∧
           layout.output.get state = true then
-        -(ket (R := Qubits encoding.width) (encoding.encode state)).vec
-      else (ket (R := Qubits encoding.width) (encoding.encode state)).vec :=
-  layout.output.conjugateHadamard_applyVec_encoded_ket (GateSpec.programList layout.gates)
+        -(ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+      else (ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec :=
+  layout.output.conjugateHadamard_applyVec_encoded_ket physical oracles
+    (GateSpec.programList physical oracles layout.gates)
     (fun state => ∀ index, (layout.source.bit index).get state = true)
-    layout.allControls_output_flip layout.gates_applyVec state
+    layout.allControls_output_flip (layout.gates_applyVec physical oracles) state
 
 /-- The actual trace contains the two Hadamards and the exact elementary MCX list. -/
 theorem phaseProgram_eventTrace :
-    layout.phaseProgram.eventTrace =
-      [Gate.atomicEvent (.builtin "hadamard")] ++ layout.gates.map GateSpec.event ++
-        [Gate.atomicEvent (.builtin "hadamard")] := by
+    (layout.phaseProgram physical oracles).eventTrace =
+      [.gate .singleQubit] ++ layout.gates.map (GateSpec.event oracles) ++
+        [.gate .singleQubit] := by
   simp only [phaseProgram, conjugateHadamard_eventTrace,
     GateSpec.programList_eventTrace]
 
 /-- The phase bridge adds precisely two gates to the actual MCX list. -/
 theorem phaseProgram_eventTrace_length :
-    layout.phaseProgram.eventTrace.length = layout.gates.length + 2 := by
+    (layout.phaseProgram physical oracles).eventTrace.length = layout.gates.length + 2 := by
   rw [phaseProgram_eventTrace]
   simp only [List.length_append, List.length_singleton, List.length_map]
   omega
 
 /-- The same literal phase circuit has linear event length. -/
 theorem phaseProgram_eventTrace_length_le :
-    layout.phaseProgram.eventTrace.length ≤ 8 * controls + 3 := by
+    (layout.phaseProgram physical oracles).eventTrace.length ≤ 8 * controls + 3 := by
   rw [phaseProgram_eventTrace_length]
   have actual := layout.gates_length_le
   omega

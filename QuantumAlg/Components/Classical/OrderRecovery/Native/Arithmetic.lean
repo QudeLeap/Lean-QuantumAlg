@@ -56,7 +56,8 @@ theorem nativeContinuant_value_exact {width : Nat}
   exact Nat.mod_eq_of_lt fits
 
 /-- The stored quotient and predecessors materialize the same source cursor candidate. -/
-theorem nativeCandidatePrefix_cursor {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+theorem nativeCandidatePrefix_cursor {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
@@ -68,7 +69,8 @@ theorem nativeCandidatePrefix_cursor {kind : ProblemKind} {ctx : RuntimeCtx kind
     (previousEq : (store.read previous).toNat = cursor.previous.denominator)
     (olderEq : (store.read older).toNat = cursor.older.denominator)
     (candidateFits : cursor.candidate.denominator < 2 ^ width) :
-    (((candidatePrefixStep numerator denominator previous older division candidate store).1).read
+    (((candidatePrefixStep (model := model) numerator denominator previous older
+      division candidate store).1).read
       (cellRead candidate)).toNat = cursor.candidate.denominator := by
   rw [nativeCandidatePrefix_result _ _ _ _ _ _ previousFree olderFree,
     nativeContinuant_value_toNat, nativeCursorDivision_first_exact,

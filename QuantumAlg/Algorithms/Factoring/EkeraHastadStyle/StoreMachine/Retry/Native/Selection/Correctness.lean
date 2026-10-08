@@ -10,6 +10,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.N
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Seed
 import all QuantumAlg.Components.Classical.FirstAccepted.Direct.Optional.Resources
 import all QuantumAlg.Core.Execution.Borrowed.Preservation
+import all QuantumAlg.Core.Execution.Retained.Distribution
 
 /-!
 # First-success values and complete actual execution maps
@@ -23,7 +24,7 @@ sampling law or additional probabilistic assumption.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 open ClassicalRoutines.FirstAccepted.Direct
 
 noncomputable section
@@ -41,15 +42,15 @@ def firstValue
 /-- The complete actual tail differs from retained allocation by exactly the selected write. -/
 theorem tail_store
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
-    (before : Store source) :
-    (step inputs before).1 =
+    (before : Store source) (hidden : RuntimeRound.model.HiddenState) :
+    (step inputs (before, hidden)).1.1 =
       (before.pushRetained (resultKey source) (LatticeBatchRecoveryOutput.OutputShape N)
         source.canonicalFreshKey_fresh).write (resultRef source N)
           (firstValue (before.read (.fixedVector inputs))) := by
-  have actual := Optional.Allocation.into_store
+  have actual := Optional.Allocation.into_store (model := RuntimeRound.model)
     (fun index => liftInput source N (inputs index)) (resultRef source N)
     (before.pushRetained (resultKey source) (LatticeBatchRecoveryOutput.OutputShape N)
-      source.canonicalFreshKey_fresh)
+        source.canonicalFreshKey_fresh, hidden)
   have reads : (fun index =>
       (before.pushRetained (resultKey source) (LatticeBatchRecoveryOutput.OutputShape N)
         source.canonicalFreshKey_fresh).read (liftInput source N (inputs index))) =
@@ -62,8 +63,8 @@ theorem tail_store
 /-- The selected physical output is exactly the first success in the original source order. -/
 theorem tail_output
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
-    (before : Store source) :
-    (step inputs before).1.read (.storage (resultRef source N).toCStorageRef) =
+    (before : Store source) (hidden : RuntimeRound.model.HiddenState) :
+    (step inputs (before, hidden)).1.1.read (.storage (resultRef source N).toCStorageRef) =
       firstValue (before.read (.fixedVector inputs)) := by
   rw [tail_store]
   exact Store.read_write_same _ _ _
@@ -71,8 +72,9 @@ theorem tail_output
 /-- Every original structural source read survives allocation and the complete selection. -/
 theorem tail_callerFrame
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
-    (before : Store source) {shape : CShape} (other : CInputRef source shape) :
-    (step inputs before).1.read (liftInput source N other) = before.read other := by
+    (before : Store source) (hidden : RuntimeRound.model.HiddenState)
+    {shape : CShape} (other : CInputRef source shape) :
+    (step inputs (before, hidden)).1.1.read (liftInput source N other) = before.read other := by
   rw [tail_store]
   exact (Store.read_write_of_not_mem_storageKeys _ _ _ _
     (result_avoids_input source N other)).trans
@@ -88,22 +90,23 @@ theorem tail_quantumMarginal
 theorem tail_borrowedRestored
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State source Reference History) :
+    (state : State source Reference (RuntimeRound.model.HiddenState × History)) :
     (tail inputs).BorrowedRestored Reference state ((tail inputs).execute Reference state) := by
   unfold tail
   apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_retain _ _ _ state
-  · exact Optional.Allocation.into_borrowedRestored _ _ Reference _
+  · exact Circuit.borrowedRestored_retain (model := RuntimeRound.model) _ _ _ state
+  · exact Optional.Allocation.into_borrowedRestored (model := RuntimeRound.model) _ _ Reference _
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The actual selected output is the structural first-success projection of the chain output. -/
 theorem run_output (input : Input N) (count : Nat)
-    (before : Store (NativeRetryChain.context base noQuantum N count)) :
+    (before : Store (NativeRetryChain.context base noQuantum N count))
+    (hidden : RuntimeRound.model.HiddenState) :
     (run base noQuantum input count).output.eval
-        (step (NativeRetryChain.resultRefs base noQuantum N count) before).1 =
+        (step (NativeRetryChain.resultRefs base noQuantum N count) (before, hidden)).1.1 =
       firstValue ((NativeRetryChain.run base noQuantum input count).output.eval before) :=
-  tail_output _ before
+  tail_output _ before hidden
 
 /-- Selection preserves the actual chain's complete outgoing quantum-reference marginal. -/
 theorem code_quantumMarginal (input : Input N) (count : Nat) :
@@ -113,7 +116,8 @@ theorem code_quantumMarginal (input : Input N) (count : Nat) :
 
 /-- The same actual chain and its selection tail restore the borrowed interface jointly. -/
 theorem code_borrowedRestored (input : Input N) (count : Nat) (Reference : Register)
-    {History : Type} [Fintype History] (state : State base Reference History) :
+    {History : Type} [Fintype History]
+    (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base noQuantum input count).BorrowedRestored Reference state
       ((code base noQuantum input count).execute Reference state) := by
   unfold code
@@ -123,31 +127,20 @@ theorem code_borrowedRestored (input : Input N) (count : Nat) (Reference : Regis
 
 /-- Actual complete record probabilities are the deterministic real selection-record map. -/
 theorem executionDistribution (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification count).executionDistribution input =
       ((NativeRetryChain.run base noQuantum specification count).executionDistribution input).map
-        (selectionRecord base noQuantum specification count) := by
-  have actual : (run base noQuantum specification count).executionDistribution input =
-      (((NativeRetryChain.run base noQuantum specification count).execute
-        Reference input.state).mapClassical (D := (run base noQuantum specification count).Record)
-          (selectionRecord base noQuantum specification count)).toPMF
-            (ExecutionState.mapClassical_normalized _
-              ((NativeRetryChain.run base noQuantum specification count).execute_normalized input)
-              (selectionRecord base noQuantum specification count)) := by
-    apply PMF.ext
-    intro record
-    exact congrArg
-      (fun state : ExecutionState (run base noQuantum specification count).Record
-          (Register.prod (context (NativeRetryChain.context base noQuantum N count) N).register
-            Reference) => ENNReal.ofReal (state.block record).mass)
-      (run_execute base noQuantum specification count Reference input.state)
-  exact actual.trans (ExecutionState.toPMF_mapClassical _
-    ((NativeRetryChain.run base noQuantum specification count).execute_normalized input)
-    (selectionRecord base noQuantum specification count))
+        (selectionRecord base noQuantum specification count) :=
+  AlgorithmRun.RetainedRecord.executionDistribution_eq_map
+    (NativeRetryChain.run base noQuantum specification count)
+    (run base noQuantum specification count) (selectionRecord base noQuantum specification count)
+    (run_execute base noQuantum specification count) input
 
 /-- The selected output law is the first-success map of the same actual chain output law. -/
 theorem outputDistribution (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification count).outputDistribution input =
       ((NativeRetryChain.run base noQuantum specification count).outputDistribution input).map
         (firstValue (N := N)) := by
@@ -155,7 +148,7 @@ theorem outputDistribution (specification : Input N) (count : Nat)
       selectionRecord base noQuantum specification count =
       firstValue ∘ (NativeRetryChain.run base noQuantum specification count).result := by
     funext record
-    exact run_output base noQuantum specification count record.1
+    exact run_output base noQuantum specification count record.1 record.2.1
   unfold AlgorithmRun.outputDistribution
   rw [executionDistribution, PMF.map_comp, projected]
   exact (PMF.map_comp (NativeRetryChain.run base noQuantum specification count).result

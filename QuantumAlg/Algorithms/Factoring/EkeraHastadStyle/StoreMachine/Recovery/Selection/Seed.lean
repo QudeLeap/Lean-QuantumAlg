@@ -56,16 +56,19 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
   wideCandidate : CWriteRef ctx (.unsignedWord (Width N))
   selection : FirstAccepted.Refs ctx (Width N)
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The selector reads the original tag and the actual widened payload. -/
-def selectionInputs (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) :
+def selectionInputs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) :
     FirstAccepted.Inputs ctx (Width N) where
   eligible := RecoveryMachine.earlyFactorTag parameter
   candidate := FirstAccepted.cellRead refs.wideCandidate
 
 /-- The original independent frame and selector separation conditions. -/
-structure Separation (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) : Prop where
+structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) : Prop where
   tagAvoidsWide : refs.wideCandidate.key ∉ (RecoveryMachine.earlyFactorTag parameter).storageKeys
   payloadAvoidsWide :
     refs.wideCandidate.key ∉ (RecoveryMachine.earlyFactorPayload parameter).storageKeys
@@ -76,7 +79,8 @@ structure Separation (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs
   selection : FirstAccepted.Separated (selectionInputs parameter refs) refs.selection
 
 /-- Every possible destination is excluded from the preserved caller read. -/
-structure CallerFrameAvoids (refs : Refs ctx N) {shape : CShape}
+structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (refs : Refs ctx N) {shape : CShape}
     (other : CInputRef ctx shape) : Prop where
   wideCandidate : refs.wideCandidate.key ∉ other.storageKeys
   accepted : refs.selection.accepted.key ∉ other.storageKeys
@@ -85,33 +89,35 @@ structure CallerFrameAvoids (refs : Refs ctx N) {shape : CShape}
   take : refs.selection.take.key ∉ other.storageKeys
 
 /-- The single actual word resize from public modulus width to recovery width. -/
-def resizeOp (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) :=
+def resizeOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) :=
   ClassicalOp.wordResize (modulusBits N) (Width N) ctx
     (RecoveryMachine.earlyFactorPayload parameter) refs.wideCandidate
 
 /-- Resize the payload, then run the existing first-accepted circuit on the actual store. -/
-def into (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) : Circuit ctx ctx :=
-  .seq (.classical (resizeOp parameter refs))
+def into (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeOp parameter refs))
     (FirstAccepted.circuit (selectionInputs parameter refs) refs.selection)
 
 /-- Complete actual store and chronological path of both stages. -/
 def step (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (into parameter refs).Path :=
-  let selected := FirstAccepted.step (selectionInputs parameter refs) refs.selection
-    (store.applyOp (resizeOp parameter refs))
-  (selected.1, ((), selected.2))
+  let resized := BitWord.instructionStep (execution := model) (resizeOp parameter refs) store
+  let selected := FirstAccepted.step (selectionInputs parameter refs) refs.selection resized.1
+  (selected.1, (resized.2, selected.2))
 
 /-- Full actual execution preserves the incoming history and external-reference record. -/
 theorem into_execute (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into parameter refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step parameter refs entry.1).1, (entry.2, (step parameter refs entry.1).2))) := by
-  simp only [into, step, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    FirstAccepted.firstAccepted_execute, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := step parameter refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord _ _ _ _
+    (fun _reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (FirstAccepted.firstAccepted_execute (selectionInputs parameter refs) refs.selection)
+    Reference state
 
 /-- Every structurally disjoint caller read survives both actual writes and selector branches. -/
 theorem into_callerFrame (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
@@ -124,7 +130,8 @@ theorem into_callerFrame (parameter : CInputRef ctx (ParameterShape N)) (refs : 
       avoids.wideCandidate)
 
 /-- The optional early factor and every disjoint caller value belong to the same actual result. -/
-structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
+structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
     (before after : Store ctx) : Prop where
   selected : QuadraticCandidateSelect.selectedOption refs.selection after =
     FirstAccepted.retainFirst (QuadraticCandidateSelect.selectedOption refs.selection before)
@@ -180,17 +187,19 @@ theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N)
   exact ⟨update, into_callerFrame parameter refs store⟩
 
 /-- Independent native envelope for the one resize and the four possible selector operations. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.wordResize (modulusBits N) (Width N))) +
-    FirstAccepted.nativeEnvelope kind (Width N)
+def eventEnvelope (N : Nat) : ResourcePool model :=
+  ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordResize (modulusBits N) (Width N)))) +
+    FirstAccepted.nativeEnvelope model (Width N)
 
 /-- Every actual path satisfies the independent sum of the resize and selector budgets. -/
 theorem into_pool_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) :
     (into parameter refs).resourcePool path ≤ eventEnvelope N := by
-  change ResourcePool.ofList ([(resizeOp parameter refs).event] ++
+  change ResourcePool.ofList
+    ((BitWord.instruction (execution := model) (resizeOp parameter refs)).eventTrace path.1 ++
     (FirstAccepted.circuit (selectionInputs parameter refs) refs.selection).eventTrace path.2) ≤ _
-  rw [ResourcePool.ofList_append]
+  rw [ResourcePool.ofList_append, BitWord.bitWord_instruction_eventTrace]
   exact add_le_add (le_refl _) (FirstAccepted.firstAccepted_pool_le _ _ path.2)
 
 /-- At most five unit-duration native dependencies occur on every actual path. -/
@@ -204,7 +213,7 @@ theorem into_depth_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Ref
 
 /-- Every actual visited scope is the complete incoming context. -/
 theorem into_visited (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
-    (path : (into parameter refs).Path) (visited : RuntimeCtx kind)
+    (path : (into parameter refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (into parameter refs).visitedContexts path) : visited = ctx := by
   change visited ∈ [ctx] ++
     (FirstAccepted.circuit (selectionInputs parameter refs) refs.selection).visitedContexts path.2
@@ -232,11 +241,12 @@ theorem into_auxiliary_le (parameter : CInputRef ctx (ParameterShape N)) (refs :
 /-- Widening and selection restore the full borrowed interface jointly with any reference. -/
 theorem into_borrowedRestored (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into parameter refs).BorrowedRestored Reference state
       ((into parameter refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical (resizeOp parameter refs) state)
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (resizeOp parameter refs)) state)
     (FirstAccepted.firstAccepted_borrowedRestored _ _ _ _)
 
 end

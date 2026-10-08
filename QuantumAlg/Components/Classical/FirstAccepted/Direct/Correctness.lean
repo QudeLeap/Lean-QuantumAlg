@@ -18,12 +18,13 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem eligibleArmStep_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (store : Store ctx) :
-    (eligibleArmStep eligible candidate refs value store).1 =
+    (eligibleArmStep (model := model) eligible candidate refs value store).1 =
       if value.toBool then
         (store.applyOp (selectedOp candidate refs)).applyOp (acceptedOp eligible refs)
       else store := by
@@ -33,7 +34,7 @@ private theorem eligibleArmStep_store (eligible : CInputRef ctx .bit)
 private theorem pendingArmStep_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (store : Store ctx) :
-    (pendingArmStep eligible candidate refs value store).1 =
+    (pendingArmStep (model := model) eligible candidate refs value store).1 =
       if value.toBool then store
       else if (store.read eligible).toBool then
         (store.applyOp (selectedOp candidate refs)).applyOp (acceptedOp eligible refs)
@@ -48,7 +49,7 @@ private theorem pendingArmStep_store (eligible : CInputRef ctx .bit)
 predicates. -/
 theorem step_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
-    (step eligible candidate refs store).1 =
+    (step (model := model) eligible candidate refs store).1 =
       if (store.read (writeInput refs.accepted)).toBool then store
       else if (store.read eligible).toBool then
         (store.applyOp (selectedOp candidate refs)).applyOp (acceptedOp eligible refs)
@@ -58,7 +59,7 @@ theorem step_store (eligible : CInputRef ctx .bit)
 /-- All actual caller reads outside the two persistent results survive first-success selection. -/
 theorem into_callerFrame (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
-    CallerFrame refs store (step eligible candidate refs store).1 := by
+    CallerFrame refs store (step (model := model) eligible candidate refs store).1 := by
   intro shape other acceptedFree selectedFree
   rw [step_store]
   split
@@ -72,7 +73,7 @@ theorem into_callerFrame (eligible : CInputRef ctx .bit)
 
 /-- Original first-success latches and full caller reads, expressed using actual stored input
 values. -/
-structure Outcome (eligible : CInputRef ctx .bit)
+structure Outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (before after : Store ctx) : Prop where
   accepted : (after.read (writeInput refs.accepted)).toBool =
@@ -87,7 +88,8 @@ input. -/
 theorem into_correct (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (separation : Separation eligible candidate refs) (store : Store ctx) :
-    Outcome eligible candidate refs store (step eligible candidate refs store).1 := by
+    Outcome eligible candidate refs store (step (model := model) eligible candidate refs store).1
+      := by
   have selectedFree : refs.accepted.key ∉ (writeInput refs.selected).storageKeys := by
     simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton] using
       separation.acceptedNeSelected
@@ -120,8 +122,9 @@ theorem into_correct (eligible : CInputRef ctx .bit)
 theorem into_source_frame (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (separation : Separation eligible candidate refs) (store : Store ctx) :
-    (step eligible candidate refs store).1.read eligible = store.read eligible ∧
-      (step eligible candidate refs store).1.read candidate = store.read candidate :=
+    (step (model := model) eligible candidate refs store).1.read eligible = store.read eligible ∧
+      (step (model := model) eligible candidate refs store).1.read candidate = store.read candidate
+        :=
   ⟨into_callerFrame eligible candidate refs store eligible separation.eligibleAvoidsAccepted
       separation.eligibleAvoidsSelected,
     into_callerFrame eligible candidate refs store candidate separation.candidateAvoidsAccepted

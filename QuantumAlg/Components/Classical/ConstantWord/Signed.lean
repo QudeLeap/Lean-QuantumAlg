@@ -26,6 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+section Descriptor
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Compilation-time increment or decrement selected by the integer's sign. -/
@@ -40,66 +42,10 @@ def stepOp (value : Int) (output : CWriteRef ctx (.unsignedWord width)) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary (opcode value) width ctx (.storage output.toCStorageRef) output
 
-/-- Execute the requested number of native instructions with the compilation-time sign. -/
-def loopInto (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit ctx ctx := .iterate count (.classical (stepOp value output))
-
 /-- The actual chronological native store updates of the signed loop. -/
 def loopStore (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) : Store ctx :=
   (fun current => current.applyOp (stepOp value output))^[count] store
-
-/-- Actual signed-loop store and the complete fixed-length native path. -/
-def loopStep (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
-    (store : Store ctx) : Store ctx × (loopInto value count output).Path :=
-  (loopStore value count output store, fun _ => ())
-
-/-- Explicit native self-XOR initializes the destination before the original signed loop. -/
-def into (value : Int) (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (Word.PowerOfTwo.clearOp output)) (loopInto value value.natAbs output)
-
-/-- Actual initialized store and both chronological paths of signed constant loading. -/
-def step (value : Int) (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (into value output).Path :=
-  let loop := loopStep value value.natAbs output (store.applyOp (Word.PowerOfTwo.clearOp output))
-  (loop.1, ((), loop.2))
-
-set_option maxHeartbeats 800000 in
--- Normalize the dependent fixed-length paths of the generic actual iteration theorem.
-/-- The actual signed loop retains all incoming histories and reference correlations. -/
-theorem loopInto_execute (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
-    (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (loopInto value count output).execute Reference state = state.mapClassical (fun entry =>
-      ((loopStep value count output entry.1).1,
-        (entry.2, (loopStep value count output entry.1).2))) := by
-  refine (Circuit.execute_iterate_mapClassical (.classical (stepOp value output))
-    (fun store => (store.applyOp (stepOp value output), ())) (by
-      intro Reference History _ state
-      refine (Circuit.execute_classical_mapClassical (stepOp value output) Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) count Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
-
-/-- Complete actual constant loading preserves every original state block. -/
-theorem into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width))
-    (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (into value output).execute Reference state = state.mapClassical (fun entry =>
-      ((step value output entry.1).1, (entry.2, (step value output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (Word.PowerOfTwo.clearOp output))
-    (loopInto value value.natAbs output)
-    (fun store => (store.applyOp (Word.PowerOfTwo.clearOp output), ()))
-    (loopStep value value.natAbs output) (by
-      intro Reference History _ state
-      refine (Circuit.execute_classical_mapClassical (Word.PowerOfTwo.clearOp output)
-        Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) (loopInto_execute value value.natAbs output)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
 
 /-- Each actual increment or decrement has the exact original modular signed effect. -/
 theorem stepOp_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
@@ -148,23 +94,6 @@ theorem signed_count (value : Int) : (value.natAbs : Int) * unitChange value = v
   · simp [unitChange, nonnegative, abs_of_nonneg nonnegative]
   · simp [unitChange, nonnegative, abs_of_neg (lt_of_not_ge nonnegative)]
 
-/-- Actual self-initialization and the original signed loop load the requested raw integer. -/
-theorem into_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
-    (store : Store ctx) :
-    RawSignedRepresents
-      ((step value output store).1.read (.storage output.toCStorageRef)) value := by
-  have zero : RawSignedRepresents ((store.applyOp (Word.PowerOfTwo.clearOp output)).read
-      (.storage output.toCStorageRef)) 0 := by
-    change Int.ModEq _
-      ((((store.applyOp (Word.PowerOfTwo.clearOp output)).read
-        (.storage output.toCStorageRef)).toNat : Nat) : Int) 0
-    rw [Word.PowerOfTwo.clear_read]
-    rfl
-  change RawSignedRepresents ((loopStore value value.natAbs output
-    (store.applyOp (Word.PowerOfTwo.clearOp output))).read (.storage output.toCStorageRef)) value
-  simpa only [zero_add, signed_count] using loopInto_correct value value.natAbs output
-    (store.applyOp (Word.PowerOfTwo.clearOp output)) 0 zero
-
 /-- Every actual loop iteration preserves all structural reads outside its destination. -/
 theorem loopInto_callerFrame (value : Int) (count : Nat)
     (output : CWriteRef ctx (.unsignedWord width))
@@ -179,11 +108,93 @@ theorem loopInto_callerFrame (value : Int) (count : Nat)
     rw [Function.iterate_succ_apply]
     exact (ih _).trans (Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids)
 
+end Descriptor
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
+
+/-- Execute the prescribed native instructions with the compilation-time sign. -/
+def loopInto (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
+  BitWord.repeatInstruction (execution := model) (stepOp value output) count
+
+/-- Actual signed-loop store and every chronological native result. -/
+def loopStep (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) : Store ctx × (loopInto (model := model) value count output).Path :=
+  BitWord.repeatStep (execution := model) (stepOp value output) count store
+
+/-- Explicit native self-XOR initializes the destination before the original signed loop. -/
+def into (value : Int) (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp output))
+    (loopInto (model := model) value value.natAbs output)
+
+/-- Actual initialized store and both chronological paths of signed constant loading. -/
+def step (value : Int) (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (into (model := model) value output).Path :=
+  let first := BitWord.instructionStep (execution := model) (Word.PowerOfTwo.clearOp output) store
+  let loop := loopStep (model := model) value value.natAbs output first.1
+  (loop.1, (first.2, loop.2))
+
+/-- The actual signed loop retains the shared service and all original reference correlations. -/
+theorem loopInto_execute (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (loopInto (model := model) value count output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := loopStep (model := model) value count output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
+  BitWord.bitWord_repeatInstruction_execute (execution := model) (stepOp value output) count state
+
+/-- Complete actual signed loading preserves every original service and quantum-reference block. -/
+theorem into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) value output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := step (model := model) value output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp output))
+    (loopInto (model := model) value value.natAbs output)
+    (fun before =>
+      let result := BitWord.instructionStep (execution := model)
+        (Word.PowerOfTwo.clearOp output) before.1
+      ((result.1, before.2), result.2))
+    (fun before =>
+      let result := loopStep (model := model) value value.natAbs output before.1
+      ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ input
+    exact (BitWord.bitWord_instruction_execute (execution := model)
+      (Word.PowerOfTwo.clearOp output) input).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · intro reference history _ input
+    exact (loopInto_execute (model := model) value value.natAbs output reference input).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+/-- Actual self-initialization and the original signed loop load the requested raw integer. -/
+theorem into_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) :
+    RawSignedRepresents
+      ((step (model := model) value output store).1.read
+        (.storage output.toCStorageRef)) value := by
+  have zero : RawSignedRepresents ((store.applyOp (Word.PowerOfTwo.clearOp output)).read
+      (.storage output.toCStorageRef)) 0 := by
+    change Int.ModEq _
+      ((((store.applyOp (Word.PowerOfTwo.clearOp output)).read
+        (.storage output.toCStorageRef)).toNat : Nat) : Int) 0
+    rw [Word.PowerOfTwo.clear_read]
+    rfl
+  change RawSignedRepresents ((loopStore value value.natAbs output
+    (store.applyOp (Word.PowerOfTwo.clearOp output))).read (.storage output.toCStorageRef)) value
+  simpa only [zero_add, signed_count] using loopInto_correct value value.natAbs output
+    (store.applyOp (Word.PowerOfTwo.clearOp output)) 0 zero
+
 /-- The actual initialized loader changes only its original supplied destination. -/
 theorem into_callerFrame (value : Int) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : output.key ∉ other.storageKeys) :
-    (step value output store).1.read other = store.read other := by
+    (step (model := model) value output store).1.read other = store.read other := by
   change (loopStore value value.natAbs output
     (store.applyOp (Word.PowerOfTwo.clearOp output))).read other = _
   rw [loopInto_callerFrame _ _ _ _ other avoids,

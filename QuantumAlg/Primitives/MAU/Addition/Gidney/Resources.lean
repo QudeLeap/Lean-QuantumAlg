@@ -15,8 +15,8 @@ import all QuantumAlg.Core.Base.Depth.EventCount
 
 Event cardinalities follow the actual controlled bi-flip, four-block pivot,
 and three-pivot offset programs [G17, paper.tex:276-293,319-334]. Coherent
-control retains every native event coordinate and serializes the shared
-control wire. The numerical envelopes below are independent of circuit
+control expands into native instructions, including the gates restoring any
+borrowed wire. The numerical envelopes below are independent of circuit
 execution and use the proved HRS bound. They include all widths and pivots.
 -/
 
@@ -26,8 +26,9 @@ noncomputable section
 
 open Nat.FixedWidth
 
-/-- One HRS negative offset followed by one X on each target bit. -/
-def biFlipEventBound (width : Nat) : Nat := constantOffsetEventBound width + width
+/-- At most four native gates per arithmetic source gate, with the fixed small bases included. -/
+def biFlipEventBound (width : Nat) : Nat :=
+  4 * (constantOffsetEventBound width + width) + 2
 
 /-- Two actual controlled bi-flips and two actual comparisons. -/
 def pivotEventBound (width : Nat) : Nat :=
@@ -41,37 +42,22 @@ theorem gidneyComplement_event_count (width : Nat) :
   rw [gidneyComplement_eventCost]
   simp [ResourcePool.ofList]
 
-/-- Adding a coherent control changes native coordinates, not the number of occurrences. -/
+/-- The native count includes every gate introduced by coherent-control expansion. -/
 theorem gidneyBiFlip_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
-    (biFlipProgram width pivot).eventCost.card =
-      (HRS.oneDirtyProgram width (negatedPivot width pivot.val)).eventCost.card + width := by
-  rw [gidneyBiFlip_eventCost]
-  simp only [ResourcePool.controlForDimension, ResourcePool.controlForDimensions,
-    Multiset.card_map, Multiset.card_add, gidneyComplement_event_count]
+    (biFlipProgram width pivot).eventCost.card = (biFlipGates width pivot).length :=
+  EncodedBit.GateSpec.programList_eventCost_card _ _ _
 
-/-- The shared coherent control forces the native body occurrences to execute serially. -/
+/-- The literal list executes serially, so unit-duration depth equals its actual gate count. -/
 theorem gidneyBiFlip_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).evaluatedEventDepth (fun _ => 1) =
       (biFlipProgram width pivot).eventCost.card := by
-  rw [gidneyBiFlip_event_count]
-  calc
-    _ = DepthExpr.costEval (fun _ => (1 : Nat))
-        (UnitaryCircuit.shiftPhysicalIdx 1 (biFlipBodyProgram width pivot)).eventDepth :=
-      UnitaryCircuit.evaluatedEventDepth_controlQubitsAt (n := width + 1)
-        (fun _ => 1) [0] (UnitaryCircuit.shiftPhysicalIdx 1 (biFlipBodyProgram width pivot))
-        (UnitaryCircuit.leadingControlLayout (biFlipBodyProgram width pivot)) (1 : Fin 2)
-    _ = (biFlipBodyProgram width pivot).resourcesFromEventDepth.card := by
-      rw [UnitaryCircuit.shiftPhysicalIdx_eventDepth]
-      exact DepthExpr.unitCost_eq_eventPool_card _
-    _ = _ := by
-      rw [UnitaryCircuit.resourcesFromEventDepth_eq_eventCost, gidneyBiFlipBody_eventCost,
-        Multiset.card_add, gidneyComplement_event_count]
+  rw [biFlipProgram, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit,
+    EncodedBit.GateSpec.programList_eventCost_card]
 
 theorem gidneyBiFlip_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).eventCost.card ≤ biFlipEventBound width := by
   rw [gidneyBiFlip_event_count]
-  exact Nat.add_le_add_right
-    (HRS.hrsOneDirty_event_count_bound width (negatedPivot width pivot.val)) width
+  exact gidneyBiFlipGates_length_bound width pivot
 
 /-- Exact cardinality of the four actual blocks; the comparison keeps its zero-pivot branch. -/
 theorem gidneyPivot_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
@@ -85,10 +71,8 @@ theorem gidneyPivot_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
 theorem gidneyPivot_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width pivot).evaluatedEventDepth (fun _ => 1) =
       (pivotProgram width pivot).eventCost.card := by
-  rw [gidneyPivot_event_count]
-  simp only [pivotProgram, UnitaryCircuit.evaluatedEventDepth_seq,
-    gidneyBiFlip_depth_eq_events, gidneyComparison_depth_eq_events]
-  omega
+  rw [pivotProgram, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit,
+    EncodedBit.GateSpec.programList_eventCost_card]
 
 theorem gidneyPivot_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width pivot).eventCost.card ≤ pivotEventBound width := by
@@ -112,9 +96,8 @@ theorem gidneyModularOffset_depth_eq_events (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).evaluatedEventDepth (fun _ => 1) =
       (modularOffsetProgram width modulus constant).eventCost.card := by
-  rw [gidneyModularOffset_event_count]
-  simp only [modularOffsetProgram, UnitaryCircuit.evaluatedEventDepth_seq,
-    gidneyPivot_depth_eq_events]
+  rw [modularOffsetProgram, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit,
+    EncodedBit.GateSpec.programList_eventCost_card]
 
 /-- An independent logarithmic envelope holds for every fitted modulus and constant. -/
 theorem gidneyModularOffset_event_count_bound (width : Nat)
@@ -139,20 +122,20 @@ theorem gidneyModularOffset_depth_bound (width : Nat)
 theorem gidneyModularOffsetEventBound_expanded (width : Nat) :
     modularOffsetEventBound width =
       6 * ((1 + width) * (39 * Nat.clog 2 (1 + width) + 1)) +
-        12 * (width * (39 * Nat.clog 2 width + 1)) + 6 * width + 6 := by
+        30 * (width * (39 * Nat.clog 2 width + 1)) + 24 * width + 18 := by
   unfold modularOffsetEventBound pivotEventBound biFlipEventBound
     comparisonEventBound constantOffsetEventBound
   ring
 
-/-- The actual carrier and physical footprint contain the word and exactly two borrowed bits. -/
+/-- The actual typed carrier contains the word and exactly two borrowed bits. -/
 theorem gidneyModularOffset_qubit_count (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (encoding width).width = width + 2 ∧
-      (modularOffsetProgram width modulus constant).physical_idx.length = width + 2 := by
+      (QubitLayout.canonical (encoding width).width).systemIdx.length = width + 2 := by
   constructor
   · change 1 + (width + 1) = width + 2
     omega
-  · rw [gidneyModularOffset_physical, List.length_range]
+  · rw [(gidneyModularOffset_interface width modulus constant).2, List.length_range]
 
 end
 

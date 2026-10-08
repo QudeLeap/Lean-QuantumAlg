@@ -23,7 +23,8 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Scan
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual initialized layout and literal loader establish the original scan specification. -/
 theorem samplerScan_from_scope (input : Input N)
@@ -31,18 +32,18 @@ theorem samplerScan_from_scope (input : Input N)
     (value : Fin (2 ^ residueSamplingBits N))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
     Proposal.selection (Layout.shared ctx (modulusBits N))
-        (step N sample (Layout.pushStore (modulusBits N) store)).1 =
+        (step (model := model) N sample (Layout.pushStore (modulusBits N) store)).1 =
       RSA.firstValidResidue (RSA.classifyResidueProposals N
         (RSA.decodeFixedWidthWords (modulusBits N) residueProposalCount value)) := by
   let entered := Layout.pushStore (modulusBits N) store
-  let loaded := (loaderStep N entered).1
+  let loaded := (loaderStep (model := model) N entered).1
   let target := Layout.modulusCell ctx (modulusBits N)
   let bits := List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)
   have sampleFree : target.key ∉ (Layout.underRead sample (modulusBits N)).storageKeys :=
     Layout.samplerLayout_original_free (width := modulusBits N) sample 10
   have loadedSample : loaded.read (Layout.underRead sample (modulusBits N)) =
       .bits (PackedSample.storedBits value) :=
-    (ConstantWord.constantWord_fold_read_other target bits
+    (ConstantWord.constantWord_fold_read_other (model := model) target bits
       (Layout.underRead sample (modulusBits N)) sampleFree entered).trans
         ((Layout.samplerLayout_push_read sample (modulusBits N) store).trans sampled)
   have zeroFree : target.key ∉
@@ -51,7 +52,8 @@ theorem samplerScan_from_scope (input : Input N)
       (Layout.samplerLayout_cellKey_ne ctx (modulusBits N) 10 9 (by decide))
   have zeroRead : loaded.read (FirstAccepted.cellRead (Layout.gcdResultCell ctx (modulusBits N))) =
       CShape.wordOfNat (modulusBits N + 1) 0 :=
-    (ConstantWord.constantWord_fold_read_other target bits _ zeroFree entered).trans
+    (ConstantWord.constantWord_fold_read_other (model := model)
+      target bits _ zeroFree entered).trans
       (Layout.samplerLayout_push_zero (modulusBits N) store)
   have loadedZero : (loaded.read ((Layout.shared ctx (modulusBits N)).zero)).toNat = 0 := by
     change (loaded.read
@@ -64,7 +66,8 @@ theorem samplerScan_from_scope (input : Input N)
       (Layout.samplerLayout_cellKey_ne ctx (modulusBits N) 10 3 (by decide))
   have acceptedRead : loaded.read
       (FirstAccepted.cellRead (Layout.acceptedCell ctx (modulusBits N))) = .bit false :=
-    (ConstantWord.constantWord_fold_read_other target bits _ acceptedFree entered).trans
+    (ConstantWord.constantWord_fold_read_other (model := model)
+      target bits _ acceptedFree entered).trans
       (Layout.samplerLayout_push_unaccepted (modulusBits N) store)
   have loadedUnaccepted : (loaded.read
       (FirstAccepted.cellRead ((Layout.shared ctx (modulusBits N)).selector.accepted))).toBool =
@@ -75,8 +78,9 @@ theorem samplerScan_from_scope (input : Input N)
     rw [pow_succ]
     omega
   have loadedModulus : (loaded.read ((Layout.shared ctx (modulusBits N)).modulus)).toNat = N :=
-    (ConstantWord.constantWord_read target N entered).trans (Nat.mod_eq_of_lt fits)
-  exact Proposal.proposalScan_firstValidResidue (Layout.underRead sample (modulusBits N))
+    (ConstantWord.constantWord_read (model := model) target N entered).trans (Nat.mod_eq_of_lt fits)
+  exact Proposal.proposalScan_firstValidResidue (model := model)
+    (Layout.underRead sample (modulusBits N))
     (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))
     (Layout.samplerLayout_scan_separated (width := modulusBits N)
       (count := residueProposalCount) sample) loaded value N

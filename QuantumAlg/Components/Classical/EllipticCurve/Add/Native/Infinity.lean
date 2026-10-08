@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original false source, computed tag and shared zero-coordinate word. -/
 def infinityShapes (width : Nat) : List CShape := [.bit, .bit, .unsignedWord width]
@@ -43,8 +44,9 @@ def infinityRaw (tag : CWriteRef ctx .bit) (zero : CInputRef ctx (.unsignedWord 
 /-- The actual original two-instruction infinity initialization body. -/
 def infinityBody (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
     (zero : CInputRef ctx (.unsignedWord width)) (output : CWriteRef ctx (PointShape width)) :
-    Circuit ctx ctx :=
-  .seq (.classical (infinityTagOp falseBit tag)) (repackRawInto (infinityRaw tag zero) output)
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (infinityTagOp falseBit tag))
+    (repackRawInto (model := model) (infinityRaw tag zero) output)
 
 /-- The real store after the original tag update and nominal-point packing. -/
 def infinityBodyStore (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
@@ -52,32 +54,45 @@ def infinityBodyStore (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
     (store : Store ctx) : Store ctx :=
   repackStore (infinityRaw tag zero) output (store.applyOp (infinityTagOp falseBit tag))
 
+/-- The real chronological path and store update of both selected native instructions. -/
+def infinityBodyStep (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
+    (zero : CInputRef ctx (.unsignedWord width)) (output : CWriteRef ctx (PointShape width)) :
+    Store ctx → Store ctx × (infinityBody (model := model) falseBit tag zero output).Path :=
+  Circuit.sequenceStoreRecord
+    (BitWord.instruction (execution := model) (infinityTagOp falseBit tag))
+    (repackRawInto (model := model) (infinityRaw tag zero) output)
+    (BitWord.instructionStep (execution := model) (infinityTagOp falseBit tag))
+    (fun store => (repackStore (infinityRaw tag zero) output store,
+      (BitWord.instructionStep (execution := model)
+        (repackOp (infinityRaw tag zero) output) store).2))
+
 /-- Both actual native instructions preserve all complete quantum-reference matrix blocks. -/
 theorem infinityBody_execute (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
     (zero : CInputRef ctx (.unsignedWord width)) (output : CWriteRef ctx (PointShape width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (infinityBody falseBit tag zero output).execute Reference state = state.mapClassical
-      (fun entry => (infinityBodyStore falseBit tag zero output entry.1, (entry.2, ((), ())))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (infinityTagOp falseBit tag))
-    (repackRawInto (infinityRaw tag zero) output)
-    (fun store => (store.applyOp (infinityTagOp falseBit tag), ()))
-    (fun store => (repackStore (infinityRaw tag zero) output store, ()))
-    (fun reference {_} _ initial =>
-      (Circuit.execute_classical_mapClassical (infinityTagOp falseBit tag)
-        reference initial).trans (by
-          congr 1
-          exact Subsingleton.elim _ _))
-    (fun reference {_} _ initial => (repackRawInto_execute _ _ reference initial).trans (by
-      congr 1
-      exact Subsingleton.elim _ _)) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      (fun entry =>
+        let result := infinityBodyStep (model := model) falseBit tag zero output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  exact Circuit.execute_sequenceStoreRecord
+    (BitWord.instruction (execution := model) (infinityTagOp falseBit tag))
+    (repackRawInto (model := model) (infinityRaw tag zero) output)
+    (BitWord.instructionStep (execution := model) (infinityTagOp falseBit tag))
+    (fun store => (repackStore (infinityRaw tag zero) output store,
+      (BitWord.instructionStep (execution := model)
+        (repackOp (infinityRaw tag zero) output) store).2))
+    (fun _ {_} _ initial => BitWord.bitWord_instruction_execute (execution := model)
+      (infinityTagOp falseBit tag) initial)
+    (fun reference {_} _ initial => repackRawInto_execute (model := model)
+      (infinityRaw tag zero) output reference initial) Reference state
 
+omit [BitWord.Selected model] in
 private theorem read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
 
+omit [BitWord.Selected model] in
 /-- The actual initialized inputs produce the unique tagged zero-coordinate nominal value. -/
 theorem infinityBodyStore_eq (falseBit : CInputRef ctx .bit) (tag : CWriteRef ctx .bit)
     (zero : CInputRef ctx (.unsignedWord width)) (output : CWriteRef ctx (PointShape width))
@@ -101,11 +116,12 @@ theorem infinityBodyStore_eq (falseBit : CInputRef ctx .bit) (tag : CWriteRef ct
   rfl
 
 /-- Allocate the original internal sources and write infinity into the supplied destination. -/
-def infinityInto (output : CWriteRef ctx (PointShape width)) : Circuit ctx ctx :=
+def infinityInto (output : CWriteRef ctx (PointShape width)) : Circuit model ctx ctx :=
   withCells ctx (infinityShapes width) fun cells _ transport _ =>
     infinityBody (classifierRead cells.head.ref) cells.tail.head.ref
       (classifierRead cells.tail.tail.head.ref) (transport.liftWrite output)
 
+omit [BitWord.Selected model] in
 private theorem infinityCells_initialized (cells : Cells ctx (infinityShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) :
     store.read (classifierRead cells.head.ref) = .bit false ∧
@@ -119,6 +135,7 @@ private theorem infinityCells_initialized (cells : Cells ctx (infinityShapes wid
         cases rest
         exact ⟨initialized.1, initialized.2.2.1⟩
 
+omit [BitWord.Selected model] in
 private theorem infinityCells_tag_zero_separate (cells : Cells ctx (infinityShapes width))
     (distinct : cells.Distinct) :
     cells.tail.head.ref.key ∉ (classifierRead cells.tail.tail.head.ref).storageKeys := by
@@ -133,7 +150,8 @@ private theorem infinityCells_tag_zero_separate (cells : Cells ctx (infinityShap
         change tag.ref.key ∉ (classifierRead zero.ref).storageKeys
         simpa [classifierRead, CInputRef.storageKeys] using different
 
-private theorem infinityCells_tag_avoids {outer : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem infinityCells_tag_avoids {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (infinityShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (input : CInputRef outer shape) :
@@ -151,22 +169,20 @@ private theorem infinityCells_tag_avoids {outer : RuntimeCtx kind}
 theorem infinityInto_actualRecord (output : CWriteRef ctx (PointShape width)) :
     ∃ step : Store ctx → Store ctx × (infinityInto output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (infinityInto output).execute Reference state = state.mapClassical
-          (fun entry => ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
+          (fun entry => ((step entry.1).1,
+            (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, (step before).1 =
         before.write output (.ellipticCurvePoint true 0 0) := by
-  apply withCells_actualRecord_initialized_post ctx (infinityShapes width)
+  apply withCells_actualStoreRecord_initialized_post ctx (infinityShapes width)
     (fun cells _ transport _ => infinityBody (classifierRead cells.head.ref) cells.tail.head.ref
       (classifierRead cells.tail.tail.head.ref) (transport.liftWrite output))
     (fun source target => target = source.write output (.ellipticCurvePoint true 0 0))
   intro inner cells distinct transport separated
-  refine ⟨fun store => (infinityBodyStore (classifierRead cells.head.ref) cells.tail.head.ref
-    (classifierRead cells.tail.tail.head.ref) (transport.liftWrite output) store, ((), ())), ?_, ?_⟩
-  · intro reference history _ initial
-    refine (infinityBody_execute _ _ _ _ reference initial).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+  refine ⟨infinityBodyStep (model := model) (classifierRead cells.head.ref)
+    cells.tail.head.ref (classifierRead cells.tail.tail.head.ref)
+    (transport.liftWrite output), infinityBody_execute _ _ _ _, ?_⟩
   intro source before reads initialized
   obtain ⟨falseRead, zeroRead⟩ := infinityCells_initialized cells before initialized
   refine ⟨source.write output (.ellipticCurvePoint true 0 0), rfl, ?_⟩
@@ -193,9 +209,11 @@ def infinityStep (output : CWriteRef ctx (PointShape width)) :
 
 /-- Infinity initialization preserves the full quantum reference and actual execution history. -/
 theorem infinityInto_execute (output : CWriteRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (infinityInto output).execute Reference state = state.mapClassical (fun entry =>
-      ((infinityStep output entry.1).1, (entry.2, (infinityStep output entry.1).2))) :=
+      ((infinityStep output entry.1).1,
+        (entry.2.1, (entry.2.2, (infinityStep output entry.1).2)))) :=
   (Classical.choose_spec (infinityInto_actualRecord output)).1 Reference state
 
 /-- Every caller store receives the original unique nominal infinity value. -/

@@ -28,7 +28,8 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 private def currentEligible (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
@@ -45,15 +46,15 @@ private theorem currentEligible_store
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
-    (before : Store (persistentCtx ctx width scalarWidth))
-    (eligible : currentEligible curve modulus sample base target basePoint targetPoint before) :
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
+    (eligible : currentEligible curve modulus sample base target basePoint targetPoint before.1) :
     let after := persistentAttemptStore curve modulus sample base target before
     (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
       after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         (FiniteCyclicDLP.RawRecovery.outputCells modulus
           (FiniteCyclicDLP.RawRecovery.Native.preparationInput
-            (before.read (persistentInput width scalarWidth sample)))).second.first := by
+            (before.1.read (persistentInput width scalarWidth sample)))).second.first := by
   have latches := persistentAttemptStore_latches curve modulus sample base target before
     basePoint targetPoint eligible.1 eligible.2.1
   dsimp only at latches ⊢
@@ -65,13 +66,14 @@ private theorem persistentAttempt_store_support
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (predicate outputPredicate : Store (persistentCtx ctx width scalarWidth) → Prop)
-    (updates : ∀ before, predicate before →
+    (updates : ∀ before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState,
+      predicate before.1 →
       outputPredicate (persistentAttemptStore curve modulus sample base target before))
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass → predicate entry.1)
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (persistentAttempt curve modulus sample base target).Path))
+      (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
     (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
       state).block result).mass) : outputPredicate result.1 := by
   obtain ⟨record, execution, stores⟩ := attemptInto_actualRecord curve modulus
@@ -87,7 +89,8 @@ private theorem persistentAttempt_store_support
   rw [← equality]
   dsimp only
   rw [stores]
-  exact updates original.1 (holds original present)
+  rw [← persistentAttemptStore_eq]
+  exact updates (original.1, original.2.1) (holds original present)
 
 /-- A current eligible sample is accepted and its original recovered word is actually selected. -/
 theorem persistentAttempt_accepts_current_supported
@@ -95,7 +98,7 @@ theorem persistentAttempt_accepts_current_supported
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint ∧
@@ -104,7 +107,7 @@ theorem persistentAttempt_accepts_current_supported
       SampleAccepted curve modulus basePoint targetPoint
         (entry.1.read (persistentInput width scalarWidth sample)))
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (persistentAttempt curve modulus sample base target).Path))
+      (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
     (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
       state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
@@ -135,7 +138,7 @@ theorem persistentAttempt_selects_word_supported
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (wanted : (CShape.unsignedWord scalarWidth).Value)
     (holds : ∀ entry, 0 < (state.block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
@@ -148,7 +151,7 @@ theorem persistentAttempt_selects_word_supported
         (FiniteCyclicDLP.RawRecovery.Native.preparationInput
           (entry.1.read (persistentInput width scalarWidth sample)))).second.first = wanted)
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (persistentAttempt curve modulus sample base target).Path))
+      (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
     (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
       state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =

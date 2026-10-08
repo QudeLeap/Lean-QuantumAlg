@@ -7,12 +7,13 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.Layout
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Readout.Trace
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Physical.Circuit
 
 /-!
 # Encoded base-gate modular-inversion witnesses
@@ -37,18 +38,27 @@ noncomputable section
 private so the public witness surface remains normalization-preserving. -/
 private theorem applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
-    {program : UnitaryCircuit (Qubits encoding.width)} {step : Data -> Data}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
     (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
     UnitaryCircuit.applyVec program
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode x) :
-          HilbertVector (Qubits encoding.width)) =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (step x)) : HilbertVector (Qubits encoding.width)) := by
-  simpa only [UnitaryCircuit.applyNormalized_coe] using
-    congrArg
-      (fun ψ : NormalizedVector (Qubits encoding.width) =>
-        (ψ : HilbertVector (Qubits encoding.width)))
-      (h.apply_encoded_ket x)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm
+            (encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x))) : HilbertVector
+            (QubitLayout.canonical encoding.width).toQuantum.register) := by
+  change
+    (program.applyNormalized
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode x)))).vec =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x)))).vec
+  exact congrArg NormalizedVector.vec (h.apply_encoded_ket x)
 
 namespace StageState
 
@@ -117,7 +127,8 @@ def tupleAddScratchToTarget {N : Nat} : FieldTuple N -> FieldTuple N
 structure TupleTargetAddWitness {N n : Nat}
     (E : BinaryResidueEncoding N n) where
   /-- Program acting on the field tuple layout. -/
-  program : UnitaryCircuit (Qubits (fieldTupleEncoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((fieldTupleEncoding
+    E).width)).toQuantum
   /-- Correctness of the target-add program on tuple labels. -/
   realizes :
     UnitaryCircuit.Realizes (fieldTupleEncoding E) program
@@ -138,9 +149,9 @@ theorem stage_realizes (w : TupleTargetAddWitness E) :
 layout by preserving the unit-input field. -/
 def ofModularAddition (w : MAU.Addition.TargetAdd.Witness E) :
     TupleTargetAddWitness E where
-  program := UnitaryCircuit.prodRight
-    (m := (BinaryLabelEncoding.ofUnitResidueEncoding E).width) w.program
-  realizes := UnitaryCircuit.Realizes.prodRight
+  program := UnitaryCircuit.onBinarySuffix
+    (BinaryLabelEncoding.ofUnitResidueEncoding E).width w.program
+  realizes := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding E) w.realizes
 
 end TupleTargetAddWitness
@@ -204,7 +215,7 @@ abbrev FieldTupleWithWork (n : Nat) : Type :=
   FieldTuple (2 ^ n) × CarryWork n
 
 /-- Product reassociation between the staged inversion field tuple with a
-trailing work register and the product shape required by `prodRight`. -/
+trailing work register and the product shape required by suffix placement. -/
 def fieldTupleWithWorkEquiv (n : Nat) :
     FieldTupleWithWork n ≃
       ((ZMod (2 ^ n))ˣ ×
@@ -243,17 +254,18 @@ def tupleWithWorkEncoding (n : Nat) :
 
 /-- Actual tuple-level target-add circuit with explicit carry work. -/
 def tupleWithWorkProgram (n : Nat) :
-    UnitaryCircuit (Qubits (tupleWithWorkEncoding n).width) :=
-  UnitaryCircuit.prodRight
-    (m := (BinaryLabelEncoding.ofUnitResidueEncoding
-      (MAU.Addition.TargetAdd.PowerOfTwo.residueEncoding n)).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((tupleWithWorkEncoding
+      n).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix
+    (BinaryLabelEncoding.ofUnitResidueEncoding
+      (MAU.Addition.TargetAdd.PowerOfTwo.residueEncoding n)).width
     (MAU.Addition.TargetAdd.PowerOfTwo.cleanWorkWitness n).program
 
 /-- The lifted actual circuit realizes tuple-level target-add with work. -/
 theorem tupleWithWork_realizes (n : Nat) :
     UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n)
       (tupleAddScratchToTargetWithWork n) := by
-  have h := UnitaryCircuit.Realizes.prodRight
+  have h := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding
       (MAU.Addition.TargetAdd.PowerOfTwo.residueEncoding n))
     (MAU.Addition.TargetAdd.PowerOfTwo.cleanWorkWitness n).realizes
@@ -311,7 +323,8 @@ def stageWithWorkEncoding (n : Nat) :
 
 /-- Actual staged target-add circuit with explicit carry work. -/
 def stageWithWorkProgram (n : Nat) :
-    UnitaryCircuit (Qubits (stageWithWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkEncoding
+      n).width)).toQuantum :=
   tupleWithWorkProgram n
 
 /-- The actual staged circuit realizes the work-aware target-add step. -/
@@ -450,7 +463,8 @@ structure DecomposedStageWithTargetAddWitness (n : Nat) where
   /-- Program adding the inverse residue into scratch, in the same work-aware
   stage encoding used by the target-add bridge. -/
   computeProgram :
-    UnitaryCircuit (Qubits (stageWithWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkEncoding
+      n).width)).toQuantum
   /-- Correctness of the compute program on stage/work labels. -/
   computeRealizes :
     UnitaryCircuit.Realizes (stageWithWorkEncoding n)
@@ -461,9 +475,11 @@ namespace DecomposedStageWithTargetAddWitness
 /-- Compute, work-aware target-add, and reverse-compute as one base-gate
 program. -/
 def program {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
-    UnitaryCircuit (Qubits (stageWithWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkEncoding
+      n).width)).toQuantum :=
   UnitaryCircuit.seq w.computeProgram
-    (UnitaryCircuit.seq (stageWithWorkProgram n) w.computeProgram.dagger)
+    (UnitaryCircuit.seq (stageWithWorkProgram n)
+      (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed work-aware program realizes the reversible inversion
 schedule with explicit carry work. -/
@@ -472,13 +488,17 @@ theorem realizes {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
       (reversibleScheduleStepWithWork n) := by
   have huncompute :
       UnitaryCircuit.Realizes (stageWithWorkEncoding n)
-        w.computeProgram.dagger
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         (subInverseFromScratchWithWork n) :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       (addInverseToScratchWithWork_subInverseFromScratchWithWork n)
   have htail :
       UnitaryCircuit.Realizes (stageWithWorkEncoding n)
-        (UnitaryCircuit.seq (stageWithWorkProgram n) w.computeProgram.dagger)
+        (UnitaryCircuit.seq (stageWithWorkProgram n)
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : StageWithWork n =>
           subInverseFromScratchWithWork n
             (addScratchToTargetWithWork n x)) :=
@@ -502,14 +522,18 @@ theorem apply_ket {n : Nat}
     (w : DecomposedStageWithTargetAddWitness n) (x : StageWithWork n) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (stageWithWorkEncoding n).width)
-          ((stageWithWorkEncoding n).encode x) :
-          HilbertVector (Qubits (stageWithWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (stageWithWorkEncoding n).width).basisEquiv.symm
+            ((stageWithWorkEncoding n).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (stageWithWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (stageWithWorkEncoding n).width)
-        ((stageWithWorkEncoding n).encode
-          (reversibleScheduleStepWithWork n x)) :
-        HilbertVector (Qubits (stageWithWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (stageWithWorkEncoding n).width).basisEquiv.symm
+          ((stageWithWorkEncoding n).encode
+            (reversibleScheduleStepWithWork n x))) :
+        HilbertVector (QubitLayout.canonical
+          (stageWithWorkEncoding n).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 /-- Clean encoded-basis action for the work-aware decomposed staged inversion
@@ -519,19 +543,23 @@ theorem apply_clean_ket {n : Nat}
     (u : (ZMod (2 ^ n))ˣ) (z : ZMod (2 ^ n)) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (stageWithWorkEncoding n).width)
-          ((stageWithWorkEncoding n).encode
-            (initial u z, cleanWork n)) :
-          HilbertVector (Qubits (stageWithWorkEncoding n).width)) =
+          ((QubitLayout.canonical
+              (stageWithWorkEncoding n).width).basisEquiv.symm
+            ((stageWithWorkEncoding n).encode
+              (initial u z, cleanWork n))) :
+          HilbertVector (QubitLayout.canonical
+            (stageWithWorkEncoding n).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (stageWithWorkEncoding n).width)
-        ((stageWithWorkEncoding n).encode
-          (({ input := u
-              target := z + inverseResidue u
-              inverseScratch := 0
-              flag := false } : StageState (2 ^ n)),
-            cleanWork n)) :
-        HilbertVector (Qubits (stageWithWorkEncoding n).width)) := by
+        ((QubitLayout.canonical
+            (stageWithWorkEncoding n).width).basisEquiv.symm
+          ((stageWithWorkEncoding n).encode
+            (({ input := u
+                target := z + inverseResidue u
+                inverseScratch := 0
+                flag := false } : StageState (2 ^ n)),
+              cleanWork n))) :
+        HilbertVector (QubitLayout.canonical
+          (stageWithWorkEncoding n).width).toQuantum.register) := by
   simpa [reversibleScheduleStepWithWork_initial] using
     applyVec_encoded_ket_of_realizes w.realizes
       (initial u z, cleanWork n)
@@ -587,9 +615,11 @@ structure DecomposedStageWitness (N : Nat) where
   /-- Faithful encoding of staged inversion labels, including scratch. -/
   encoding : BinaryLabelEncoding (StageState N)
   /-- Program adding the inverse residue into scratch. -/
-  computeProgram : UnitaryCircuit (Qubits encoding.width)
+  computeProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Program adding scratch into the target accumulator. -/
-  targetAddProgram : UnitaryCircuit (Qubits encoding.width)
+  targetAddProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Correctness of the compute program on encoded stage labels. -/
   computeRealizes :
     UnitaryCircuit.Realizes encoding computeProgram StageState.addInverseToScratch
@@ -605,7 +635,8 @@ variable {N : Nat}
 modular-inversion layout. -/
 def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
     (computeProgram targetAddProgram :
-      UnitaryCircuit (Qubits (StageState.fieldEncoding E).width))
+      UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((StageState.fieldEncoding
+        E).width)).toQuantum)
     (computeRealizes :
       UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram
         StageState.addInverseToScratch)
@@ -622,7 +653,8 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
 @[simp] theorem ofFieldEncoding_encoding {N n : Nat}
     (E : BinaryResidueEncoding N n)
     (computeProgram targetAddProgram :
-      UnitaryCircuit (Qubits (StageState.fieldEncoding E).width))
+      UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((StageState.fieldEncoding
+        E).width)).toQuantum)
     (computeRealizes :
       UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram
         StageState.addInverseToScratch)
@@ -635,22 +667,29 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
 
 /-- Compute, target-add, and reverse-compute as one actual circuit. -/
 def program (w : DecomposedStageWitness N) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (w.encoding.width)).toQuantum
+      :=
   UnitaryCircuit.seq w.computeProgram
-    (UnitaryCircuit.seq w.targetAddProgram w.computeProgram.dagger)
+    (UnitaryCircuit.seq w.targetAddProgram
+      (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed program realizes the reversible inversion schedule. -/
 theorem realizes (w : DecomposedStageWitness N) :
     UnitaryCircuit.Realizes w.encoding w.program
       (decomposedStageStep (N := N)) := by
   have huncompute :
-      UnitaryCircuit.Realizes w.encoding w.computeProgram.dagger
+      UnitaryCircuit.Realizes w.encoding
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         StageState.subInverseFromScratch :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       StageState.addInverseToScratch_subInverseFromScratch
   have htail :
       UnitaryCircuit.Realizes w.encoding
-        (UnitaryCircuit.seq w.targetAddProgram w.computeProgram.dagger)
+        (UnitaryCircuit.seq w.targetAddProgram
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : StageState N =>
           StageState.subInverseFromScratch (StageState.addScratchToTarget x)) :=
     UnitaryCircuit.Realizes.seq
@@ -670,11 +709,15 @@ theorem realizes (w : DecomposedStageWitness N) :
 /-- Encoded-basis correctness for all staged modular-inversion labels. -/
 theorem apply_ket (w : DecomposedStageWitness N) (x : StageState N) :
     UnitaryCircuit.applyVec w.program
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (StageState.reversibleScheduleStep x)) :
-        HilbertVector (Qubits w.encoding.width)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (StageState.reversibleScheduleStep x))) :
+        HilbertVector
+          (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   applyVec_encoded_ket_of_realizes w.realizes x
 
 /-- Clean staged action:
@@ -682,16 +725,20 @@ theorem apply_ket (w : DecomposedStageWitness N) (x : StageState N) :
 theorem apply_clean_ket (w : DecomposedStageWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
     UnitaryCircuit.applyVec w.program
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (StageState.initial u z)) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := u
-             target := z + inverseResidue u
-             inverseScratch := 0
-             flag := false } : StageState N)) :
-        HilbertVector (Qubits w.encoding.width)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (StageState.initial u z))) :
+          HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            ({ input := u
+               target := z + inverseResidue u
+               inverseScratch := 0
+               flag := false } : StageState N))) :
+        HilbertVector
+          (QubitLayout.canonical w.encoding.width).toQuantum.register) := by
   simpa [StageState.reversibleScheduleStep_initial] using
     apply_ket w (StageState.initial u z)
 
@@ -699,54 +746,62 @@ theorem apply_clean_ket (w : DecomposedStageWitness N)
 compute / target-add / inverse-compute circuit. -/
 theorem applyNormalized_ket (w : DecomposedStageWitness N) (x : StageState N) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (StageState.reversibleScheduleStep x)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (StageState.reversibleScheduleStep x))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Normalized clean staged action of the exact decomposed inversion circuit. -/
 theorem applyNormalized_clean_ket (w : DecomposedStageWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (StageState.initial u z))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := u
-             target := z + inverseResidue u
-             inverseScratch := 0
-             flag := false } : StageState N)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (StageState.initial u z)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            ({ input := u
+               target := z + inverseResidue u
+               inverseScratch := 0
+               flag := false } : StageState N))) := by
   simpa [StageState.reversibleScheduleStep_initial] using
     applyNormalized_ket w (StageState.initial u z)
 
 /-- Ordered strict event trace of the exact decomposed inversion circuit. -/
 def eventTrace (w : DecomposedStageWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventTrace
 
 /-- Strict event pool of the exact decomposed inversion circuit. -/
-def eventCost (w : DecomposedStageWitness N) : ResourcePool .quantum :=
+def eventCost (w : DecomposedStageWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.program.eventCost
 
 /-- Strict symbolic event critical path of the exact decomposed circuit. -/
 def eventDepth (w : DecomposedStageWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventDepth
 
 /-- Evaluated event depth of the exact decomposed circuit. -/
 def evaluatedEventDepth (w : DecomposedStageWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.program.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the decomposed circuit. -/
 def eventQueryDepth (w : DecomposedStageWitness N)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.program.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the decomposed event pool. -/
 def eventGateCount (w : DecomposedStageWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.program.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.program.eventCost
 
 
 
@@ -777,7 +832,8 @@ structure StructuredCircuitWitness (N : Nat) where
   /-- Faithful encoding of modular-inversion labels. -/
   encoding : BinaryLabelEncoding (Data N)
   /-- Actual modular-inversion circuit. -/
-  circuit : UnitaryCircuit (Qubits encoding.width)
+  circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Direct encoded-basis realization of the public inversion update. -/
   realizes : UnitaryCircuit.Realizes encoding circuit (encodedStep (N := N))
 
@@ -788,11 +844,14 @@ variable {N : Nat}
 /-- Encoded-basis correctness for all modular-inversion data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
     UnitaryCircuit.applyVec w.circuit
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addInverseIntoTarget) :
-        HilbertVector (Qubits w.encoding.width)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addInverseIntoTarget)) : HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   by
     simpa [encodedStep] using applyVec_encoded_ket_of_realizes w.realizes x
 
@@ -801,14 +860,18 @@ theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
 theorem apply_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
     UnitaryCircuit.applyVec w.circuit
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ input := u, target := z, flag := false } : Data N))) :
+          HilbertVector
+            (QubitLayout.canonical w.encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
-            ({ input := u, target := z, flag := false } : Data N)) :
-          HilbertVector (Qubits w.encoding.width)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := u, target := z + inverseResidue u, flag := false } : Data N)) :
-        HilbertVector (Qubits w.encoding.width)) := by
+            ({ input := u, target := z + inverseResidue u, flag := false } :
+              Data N))) : HilbertVector
+                (QubitLayout.canonical w.encoding.width).toQuantum.register) := by
   simpa [encodedStep, Data.addInverseIntoTarget] using
     apply_ket (N := N) w
       ({ input := u, target := z, flag := false } : Data N)
@@ -816,9 +879,12 @@ theorem apply_clean_ket (w : StructuredCircuitWitness N)
 /-- Intrinsically normalized encoded-basis correctness. -/
 theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addInverseIntoTarget) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addInverseIntoTarget)) := by
   simpa [encodedStep] using
     w.realizes.apply_encoded_ket x
 
@@ -826,44 +892,50 @@ theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
 theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ input := u, target := z, flag := false } : Data N)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
-            ({ input := u, target := z, flag := false } : Data N))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := u, target := z + inverseResidue u, flag := false } : Data N)) := by
+            ({ input := u, target := z + inverseResidue u, flag := false } :
+              Data N))) := by
   simpa [Data.addInverseIntoTarget] using
     applyNormalized_ket (N := N) w
       ({ input := u, target := z, flag := false } : Data N)
 
 /-- Ordered strict event trace of the exact structured inversion circuit. -/
 def eventTrace (w : StructuredCircuitWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventTrace
 
 /-- Strict event pool of the exact structured inversion circuit. -/
-def eventCost (w : StructuredCircuitWitness N) : ResourcePool .quantum :=
+def eventCost (w : StructuredCircuitWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.circuit.eventCost
 
 /-- Strict symbolic event critical path of the structured circuit. -/
 def eventDepth (w : StructuredCircuitWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventDepth
 
 /-- Evaluated event depth of the exact structured circuit. -/
 def evaluatedEventDepth (w : StructuredCircuitWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.circuit.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the structured circuit. -/
 def eventQueryDepth (w : StructuredCircuitWitness N)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.circuit.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the structured event pool. -/
 def eventGateCount (w : StructuredCircuitWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.circuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    w.circuit.eventCost
 
 
 

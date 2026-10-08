@@ -28,19 +28,23 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
+omit [BitWord.Selected model] in
 private theorem shapes_ne {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) : output.key ≠ other.key := by
   intro same
   exact different (CStorageRef.storageRef_shape_eq_of_key output.toCStorageRef
     other.toCStorageRef same)
 
+omit [BitWord.Selected model] in
 private theorem marker_read (found sink : CWriteRef ctx .bit) (store : Store ctx)
     {shape : CShape} (other : CWriteRef ctx shape) (nonbit : .bit ≠ shape) :
     ((store.applyOp (pivotSelectedOp sink)).applyOp (pivotFoundOp found)).read

@@ -20,6 +20,8 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The complete actual final context retains the original public result shape. -/
@@ -34,12 +36,15 @@ def retainedRead (ctx : RuntimeCtx kind) (width : Nat)
   .storage (CStorageRef.retainedHead ctx key (XGCDOutputShape width) fresh)
 
 /-- Allocate the original public result and execute its complete actual XGCD body. -/
-def retainedCircuit
+def retainedCircuit {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    Circuit ctx (retainedCtx ctx width key fresh) :=
+    Circuit model ctx (retainedCtx ctx width key fresh) :=
   .seq (.retain ctx key (XGCDOutputShape width) fresh)
-    (publicIntoResult (input.underRetained key (XGCDOutputShape width) fresh)
+    (publicIntoResult (model := model) (input.underRetained key (XGCDOutputShape width) fresh)
       (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh))
+
+end
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native

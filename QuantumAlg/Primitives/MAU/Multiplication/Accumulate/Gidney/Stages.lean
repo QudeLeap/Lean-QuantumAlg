@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.SmallStage
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Stage
 
 /-!
 # One actual accumulation stage at every word width
@@ -24,7 +25,8 @@ noncomputable section
 /-- Select a real implementation by width, without padding either input word. -/
 def stageProgram : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → Fin (modulus.val + 1) →
-      UnitaryCircuit (Qubits (encoding width).width)
+      UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical (encoding width).width).toQuantum
   | 0, selected, _, _ => Fin.elim0 selected
   | 1, selected, modulus, constant => smallStageProgram 1 (by decide) selected modulus constant
   | 2, selected, modulus, constant => smallStageProgram 2 (by decide) selected modulus constant
@@ -43,20 +45,15 @@ theorem gidneyStage_realizes : (width : Nat) → (selected : Fin width) →
   | extra + 3, selected, modulus, constant =>
       gidneyPlacedStage_realizes extra selected modulus constant
 
-theorem gidneyStage_physical_range : (width : Nat) → (selected : Fin width) →
-    (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
-    (stageProgram width selected modulus constant).physical_idx ⊆ List.range (2 * width)
-  | 0, selected, _, _ => Fin.elim0 selected
-  | 1, selected, modulus, constant =>
-      gidneySmallStage_physical_range 1 (by decide) selected modulus constant
-  | 2, selected, modulus, constant =>
-      gidneySmallStage_physical_range 2 (by decide) selected modulus constant
-  | extra + 3, selected, modulus, constant =>
-      gidneyPlacedStage_physical_range extra selected modulus constant
+/-- Every stage inhabits the complete original two-word interface. -/
+theorem gidneyStage_interface (width : Nat) :
+    (encoding width).width = 2 * width ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
+  gidneySmallStage_interface width
 
 /-- Independent numerical event bound, with literal small-width branches. -/
 def stageEventBound (width : Nat) : Nat :=
-  if width ≤ 2 then 9 else Addition.Gidney.modularOffsetEventBound width
+  if width ≤ 2 then 9 else 4 * Addition.Gidney.modularOffsetEventBound width
 
 theorem gidneyStage_event_count_bound : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →

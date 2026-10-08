@@ -58,8 +58,10 @@ theorem outcome_injective (width : Nat) :
 
 /-- The actual measurement writes every classical cell to the specified real final store. -/
 theorem write_representative (width : Nat) (original stored : Store (context width)) :
-    Circuit.writeMeasurementPath (readouts width) original
-      (Circuit.measurementBasisPath (readouts width)
+    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty) (readouts width) original
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty) (readouts width)
         (NumeratorStoredProjection.representative width
           (NumeratorReset.outcome (stored.read (input width))))) = stored := by
   apply outcome_injective width
@@ -68,12 +70,15 @@ theorem write_representative (width : Nat) (original stored : Store (context wid
 
 /-- Every final stored outcome has exactly the original full quantum-reference source density. -/
 theorem source_eq_marginal (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     NumeratorStoredProjection.source width state stored = state.quantumMarginal := by
   unfold NumeratorStoredProjection.source
   have selected : state.filterClassical (fun entry =>
-      Circuit.writeMeasurementPath (readouts width) entry.1
-        (Circuit.measurementBasisPath (readouts width)
+      Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
+        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+          (operations := .empty) (classicalOracles := .empty) (readouts width)
           (NumeratorStoredProjection.representative width
             (NumeratorReset.outcome (stored.read (input width))))) = stored) = state := by
     apply ExecutionState.ext
@@ -86,8 +91,11 @@ def outcomeEquiv (width : Nat) : Store (context width) ≃ Fin (2 ^ width) :=
   Equiv.ofBijective (fun store => NumeratorReset.outcome (store.read (input width)))
     ⟨outcome_injective width, fun value => by
       let original := Store.ofValues (context width) (fun _ _ shape _ => CShape.initialValue shape)
-      refine ⟨Circuit.writeMeasurementPath (readouts width) original
-        (Circuit.measurementBasisPath (readouts width)
+      refine ⟨Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width) original
+        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+          (operations := .empty) (classicalOracles := .empty) (readouts width)
           (NumeratorStoredProjection.representative width value)), ?_⟩
       exact (stored_outcome width original _).trans
         (NumeratorStoredProjection.representative_word width value)⟩

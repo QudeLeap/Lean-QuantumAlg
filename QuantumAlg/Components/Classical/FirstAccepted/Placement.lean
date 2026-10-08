@@ -22,6 +22,8 @@ namespace QuantumAlg.ClassicalRoutines.FirstAccepted
 
 open Execution ClassicalWorkspace
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Structural placement retains both original selector inputs. -/
@@ -37,9 +39,13 @@ def placedRefs {inner : RuntimeCtx kind} (cells : Cells inner [.bit, .bit])
     cells.tail.head.ref, cells.head.ref⟩
 
 /-- Allocate the original two bits, run the original stored selector, and release both bits. -/
-def withSelection (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
-    (selected : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+def withSelection {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+    (selected : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   withCells ctx [.bit, .bit] fun cells _ transport _ =>
-    circuit (placedInputs inputs transport) (placedRefs cells transport accepted selected)
+    circuit (model := model) (placedInputs inputs transport) (placedRefs cells transport accepted
+      selected)
+
+end
 
 end QuantumAlg.ClassicalRoutines.FirstAccepted

@@ -107,17 +107,18 @@ def pairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (LatticePairNearestPlaneSavedTarget.sourceSamples
       (refs.pair index).pair.pair before)
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Execute every indexed pair in canonical finite order, including after the first success. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   Circuit.forRange PairCount fun index =>
     LatticePairReusableRecovery.into input (refs.pair index)
 
-/-- The canonical sequence record follows the complete store through every actual pair. -/
-def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+/-- The mathematical sequence record follows the complete store through every actual pair. -/
+noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
-  Circuit.forRangeRecord PairCount
+  Circuit.forRangeStoreRecord PairCount
     (fun index => LatticePairReusableRecovery.into input (refs.pair index))
     (fun index => LatticePairReusableRecovery.step input (refs.pair index)) store
 
@@ -127,14 +128,16 @@ theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
       (List.ofFn (fun index => fun current =>
         (LatticePairReusableRecovery.step input (refs.pair index) current).1)).foldl
           (fun current update => update current) store :=
-  Circuit.forRangeRecord_store _ _ _ store
+  Circuit.forRangeStoreRecord_store _ _ _ store
 
 /-- The indexed record is the complete actual execution, including all histories and references. -/
 theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input refs entry.1).1, (entry.2, (step input refs entry.1).2))) :=
-  Circuit.execute_forRangeRecord _ _ _
+      let actual := step input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_forRangeStoreRecord _ _ _
     (fun index => LatticePairReusableRecovery.into_execute input (refs.pair index)) Reference state
 
 private theorem initialConditions_transport (input : Input N) (generator : (ZMod N)ˣ)
@@ -236,16 +239,18 @@ private theorem slot_correct (input : Input N) (generator : (ZMod N)ˣ)
     exact (sourceSamples_frame input (refs.pair index) (refs.pair target) store
       (separation.sourceFrames index target)).trans (invariant.2 target)
 
+omit [BitWord.Selected model] in
 private theorem forRange_invariant_fold (invariant : Store ctx → Prop)
-    (selected : Store ctx → Option Nat) (count : Nat) (body : Fin count → Circuit ctx ctx)
+    (selected : Store ctx → Option Nat) (count : Nat)
+    (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     (checked : Fin count → Option Nat)
     (slots : ∀ index store, invariant store → invariant (records index store).1 ∧
       selected (records index store).1 =
         FirstAccepted.retainFirst (selected store) (checked index))
     (store : Store ctx) (initial : invariant store) :
-    invariant (Circuit.forRangeRecord count body records store).1 ∧
-      selected (Circuit.forRangeRecord count body records store).1 =
+    invariant (Circuit.forRangeStoreRecord count body records store).1 ∧
+      selected (Circuit.forRangeStoreRecord count body records store).1 =
         (List.ofFn checked).foldl FirstAccepted.retainFirst (selected store) := by
   induction count generalizing store with
   | zero => exact ⟨initial, rfl⟩
@@ -255,16 +260,17 @@ private theorem forRange_invariant_fold (invariant : Store ctx → Prop)
         (fun index => checked index.succ) (fun index => slots index.succ)
         (records 0 store).1 headHolds.1
       refine ⟨tailHolds.1, ?_⟩
-      change selected (Circuit.forRangeRecord count (fun index => body index.succ)
+      change selected (Circuit.forRangeStoreRecord count (fun index => body index.succ)
         (fun index => records index.succ) (records 0 store).1).1 = _
       rw [tailHolds.2, List.ofFn_succ, List.foldl_cons, headHolds.2]
 
-private theorem forRange_frame (count : Nat) (body : Fin count → Circuit ctx ctx)
+omit [BitWord.Selected model] in
+private theorem forRange_frame (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     {shape : CShape} (other : CInputRef ctx shape)
     (frames : ∀ index store, (records index store).1.read other = store.read other)
     (store : Store ctx) :
-    (Circuit.forRangeRecord count body records store).1.read other = store.read other := by
+    (Circuit.forRangeStoreRecord count body records store).1.read other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
@@ -306,7 +312,7 @@ theorem into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx
   exact ⟨folded.1.1, folded.1.2, folded.2, into_callerFrame input refs store⟩
 
 /-- The independent allowance pays for all 120 complete reusable pair invocations. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   ResourcePool.scale PairCount (LatticePairReusableRecovery.eventEnvelope N)
 
 /-- The independent sequential depth includes every pair, even after an earlier success. -/
@@ -330,20 +336,21 @@ theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input 
 /-- Reuse keeps the resident peak at the context plus the actual native-power scope. -/
 theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
-      ctx.residentSpace + Modular.NativePower.powerSpace kind (modulusBits N) :=
+      ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) :=
   Circuit.forRange_resident_le PairCount _ _ (le_add_of_nonneg_right zero_le)
     (fun index => LatticePairReusableRecovery.into_resident_le input (refs.pair index)) path
 
 /-- Auxiliary accounting follows the same actual reusable scope through every pair. -/
 theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + Modular.NativePower.powerSpace kind (modulusBits N) :=
+      ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) :=
   Circuit.forRange_auxiliary_le PairCount _ _ (le_add_of_nonneg_right zero_le)
     (fun index => LatticePairReusableRecovery.into_auxiliary_le input (refs.pair index)) path
 
 /-- All pairs jointly restore borrowed systems in the presence of arbitrary external references. -/
 theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute Reference state) :=
   Circuit.forRange_borrowedRestored PairCount _ Reference

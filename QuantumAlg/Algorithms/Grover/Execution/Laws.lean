@@ -22,6 +22,9 @@ import all QuantumAlg.Core.Execution.Local.Marginals
 import all QuantumAlg.Core.Execution.Unitary.Local
 import all QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Util.FinPow.BinaryBasis.Zero
 
 /-!
 # The actual prepared Grover state before measurement
@@ -44,24 +47,71 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-theorem allocationCode_localDensity (n k : Nat) {Reference : Register}
-    {H : Type} [Fintype H]
-    (state : State (preparedContext (totalQubits n k)) Reference H) :
-    ((allocationCode n k).execute Reference state).quantumMarginal.marginalLeft =
+theorem allocationCode_localDensity {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (preparedContext (totalQubits n k)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
+    ((allocationCode marked k).execute Reference state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post n k).register)
         (MeasurementCells.basisEquiv (resultContext n k) 2 n) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
   calc
     _ = ((State.retain state ⟨2⟩ (.bits n) (resultFresh n k)).quantumMarginal.reindex
         (S := Register.prod (post n k).register Reference)
-        (MeasurementCells.jointBasisEquiv (resultContext n k) 2 n Reference)).marginalLeft :=
-      congrArg (DensityOperator.marginalLeft (R := (post n k).register) (S := Reference))
-        (MeasurementCells.allocate_quantumMarginal (resultContext n k) 2 n
-          ((Circuit.retain (preparedContext (totalQubits n k))
-            ⟨2⟩ (.bits n) (resultFresh n k)).execute Reference state))
+        (MeasurementCells.jointBasisEquiv (resultContext n k) 2 n Reference)).marginalLeft := by
+      simpa only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal,
+        State.retain_quantumMarginal] using
+        congrArg (DensityOperator.marginalLeft (R := (post n k).register) (S := Reference))
+          (MeasurementCells.allocate_quantumMarginal (model := model marked)
+            (resultContext n k) 2 n
+            ((Circuit.retain (model := model marked) (preparedContext (totalQubits n k))
+              ⟨2⟩ (.bits n) (resultFresh n k)).execute Reference state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
+
+private theorem preparedPosition_eq (width : Nat) (index : Fin width) :
+    positionsOfEqualWires (QuantumSignature.qubits width).canonicalPlacement.layout
+      (preparedContext width).quantumLayout (prepared_canonical_wires width) index =
+        preparedWire width index := by
+  apply Fin.ext
+  rfl
+
+private theorem preparedLayoutEquiv_equalWires (width : Nat) :
+    basisOfEqualWires (QuantumSignature.qubits width).canonicalPlacement.layout
+      (preparedContext width).quantumLayout (prepared_canonical_wires width) =
+        preparedLayoutEquiv width := by
+  apply Equiv.ext
+  intro basis
+  funext position
+  obtain ⟨index, rfl⟩ :=
+    (positionsOfEqualWires (QuantumSignature.qubits width).canonicalPlacement.layout
+      (preparedContext width).quantumLayout (prepared_canonical_wires width)).surjective position
+  apply Fin.ext
+  rw [basisOfEqualWires_value, preparedPosition_eq]
+  exact (preparedLayoutEquiv_value width basis index).symm
+
+private theorem program_matrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    (program marked k).matrix =
+      UnitaryOperator.reindex (preparedBasisEquiv (totalQubits n k)).symm
+        (Elementary.circuit marked k).binaryMatrix := by
+  rw [program, unitaryOfEqualWires_matrix, preparedLayoutEquiv_equalWires]
+  apply Subtype.ext
+  ext row column
+  change (Elementary.circuit marked k).matrix
+    ((preparedLayoutEquiv (totalQubits n k)).symm row)
+    ((preparedLayoutEquiv (totalQubits n k)).symm column) =
+      (Elementary.circuit marked k).matrix
+        ((layout (totalQubits n k)).binaryIndexEquiv.symm
+          ((preparedBasisEquiv (totalQubits n k)) row))
+        ((layout (totalQubits n k)).binaryIndexEquiv.symm
+          ((preparedBasisEquiv (totalQubits n k)) column))
+  simp only [preparedBasisEquiv, Equiv.trans_apply, Equiv.symm_apply_apply]
+
+private theorem zeroPreparation_eq (width : Nat) :
+    BasisPreparation.zero (runtimeLayout width) = inputPreparation width := by
+  apply congrArg BasisPreparation.mk
+  exact (BinaryBasis.bigEndianEquiv_symm_zero width).symm
 
 private theorem program_input {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     DensityOperator.applyUnitary (program marked k).matrix
@@ -71,34 +121,32 @@ private theorem program_input {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat
       (DensityOperator.ofPure (Elementary.evolvedVector marked k)).reindex
         (S := (preparedContext (totalQubits n k)).register)
           (preparedBasisEquiv (totalQubits n k)).symm := by
-  rw [program, UnitaryCircuit.reindex_matrix, ← DensityOperator.applyUnitary_reindex,
-    ← DensityOperator.ofPure_apply]
-  change (DensityOperator.ofPure
-    ((Elementary.circuit marked k).applyNormalized (Elementary.inputVector n k))).reindex
-      (S := (preparedContext (totalQubits n k)).register)
-          (preparedBasisEquiv (totalQubits n k)).symm = _
-  rw [Elementary.circuit_applyNormalized_input]
+  rw [program_matrix, ← DensityOperator.applyUnitary_reindex,
+    ← DensityOperator.ofPure_apply, Elementary.circuit_applyNormalized_input]
 
 /-- The actual preparation and circuit produce the original final vector before the real Z reads. -/
 theorem beforeMeasurement_localDensity {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) :
     ((beforeMeasurement marked k).execute Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (Elementary.evolvedVector marked k)).reindex
         (S := (post n k).register) (outputBasisEquiv n k).symm := by
   have prepared :
-      ((preparationCode (totalQubits n k)).execute Reference
+      ((preparationCode marked k).execute Reference
         state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure (Elementary.inputVector n k)).reindex
           (S := (preparedContext (totalQubits n k)).register)
-          (preparedBasisEquiv (totalQubits n k)).symm :=
-    (Circuit.prepare_empty_local_density state ⟨1⟩ (runtimeLayout (totalQubits n k))
-      preparationFresh (preparationDisjoint (totalQubits n k))
-      (inputPreparation (totalQubits n k))
-      pre_systemCount normalized).trans
-        (by
-          rw [elementaryInput_eq_zero]
-          exact inputPreparation_density (totalQubits n k))
+          (preparedBasisEquiv (totalQubits n k)).symm := by
+    have prepared := Circuit.prepareZero_empty_local_density
+      (gates := AlgorithmGate.model) (oracles := Elementary.oracles marked)
+      (operations := BitWord.model) (classicalOracles := .empty)
+      state ⟨1⟩ (runtimeLayout (totalQubits n k)) preparationFresh
+      (preparationDisjoint (totalQubits n k)) pre_systemCount normalized
+    rw [zeroPreparation_eq] at prepared
+    refine prepared.trans ?_
+    rw [elementaryInput_eq_zero]
+    exact inputPreparation_density (totalQubits n k)
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, allocationCode_localDensity,
     Circuit.unitary_localDensity, prepared, program_input, DensityOperator.reindex_trans]

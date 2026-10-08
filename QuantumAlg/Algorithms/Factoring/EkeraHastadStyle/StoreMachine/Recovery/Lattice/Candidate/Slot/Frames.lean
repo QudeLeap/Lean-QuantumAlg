@@ -185,8 +185,10 @@ theorem FrameSeparation.externalAvoidsStage {kind : ProblemKind}
   intro cell _
   exact separation.externalAvoids source cell
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
+omit [BitWord.Selected model] in
 /-- A named live mutable read survives every stage that does not write that physical cell. -/
 theorem mutableWrite_avoids_stage
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)

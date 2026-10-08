@@ -27,28 +27,24 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native event formula for two refreshes, signed division and three reductions. -/
 def phaseTrace (width : Nat) (magnitudeNegative correctionNegative restoreNegative : Bool) :
-    List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width)] ++
+    List (Resource.Event model) :=
+  ([.wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .add width] :
+    List Resource.ClassicalOpLabel).map
+      (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label)) ++
     SignedWord.RoundedDiv.bodyTrace width magnitudeNegative correctionNegative restoreNegative ++
-    [.classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .sub width),
-      .classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .sub width),
-      .classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .sub width)]
+    ([.wordBinary .mulLow width, .wordBinary .sub width,
+      .wordBinary .mulLow width, .wordBinary .sub width,
+      .wordBinary .mulLow width, .wordBinary .sub width] :
+      List Resource.ClassicalOpLabel).map
+      (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Every real path matches the independent event formula with its recorded division flags. -/
 theorem firstInto_events (refs : Refs ctx width) (path : (firstInto refs).Path) :
@@ -61,6 +57,7 @@ theorem firstInto_events (refs : Refs ctx width) (path : (firstInto refs).Path) 
   rw [LatticeDotRefresh.refreshInto_events, LatticeNormRefresh.refreshInto_events,
     SignedWord.RoundedDiv.body_events, LatticeArithmetic.pointReduce_events]
   simp only [phaseTrace, List.cons_append, List.nil_append]
+  rfl
 
 /-- Actual native multiplicities are the pool of that same independent instruction formula. -/
 theorem firstInto_resourcePool (refs : Refs ctx width) (path : (firstInto refs).Path) :
@@ -101,7 +98,7 @@ theorem firstInto_depth_le (refs : Refs ctx width) (path : (firstInto refs).Path
 
 /-- Every stage preserves the complete borrowed interface on its actual incoming state. -/
 theorem firstInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (firstInto refs).BorrowedRestored Reference state
       ((firstInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
@@ -114,7 +111,7 @@ theorem firstInto_borrowedRestored (refs : Refs ctx width) (Reference : Register
 
 /-- Every visited context of the complete first phase is the original caller context. -/
 theorem firstInto_visited (refs : Refs ctx width) (path : (firstInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (firstInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (firstInto refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨dotPath, normPath, divisionPath, reductionPath⟩
   change visited ∈ (_ ++ (_ ++ (_ ++ _))) at present

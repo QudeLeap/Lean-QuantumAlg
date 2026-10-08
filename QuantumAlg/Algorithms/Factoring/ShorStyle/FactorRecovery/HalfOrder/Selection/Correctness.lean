@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.Selection.Values
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Correctness
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Preservation
@@ -60,13 +60,17 @@ private theorem lower_check_free
   · exact separate.lowerStable (List.mem_append_right halfPower.storageKeys
       (List.mem_append_right cells.one.storageKeys modulus))
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem choose_read (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store ctx) :
-    (chooseStep halfPower cells output store).1.read (.storage output.toCStorageRef) =
+    (chooseStep (model := model) halfPower cells output store).1.read (.storage
+        output.toCStorageRef) =
       if (store.read (.storage cells.lower.toCStorageRef)).toBool then
-        (packStep cells output store).1.read (.storage output.toCStorageRef)
-      else (rightStep halfPower cells output store).1.read (.storage output.toCStorageRef) := by
+        (packStep (model := model) cells output store).1.read (.storage output.toCStorageRef)
+      else (rightStep (model := model) halfPower cells output store).1.read (.storage
+          output.toCStorageRef) := by
   simp only [chooseStep]
   cases store.read (.storage cells.lower.toCStorageRef) with
   | bit value => cases value <;> rfl
@@ -77,12 +81,13 @@ private theorem right_result (source : Input N)
     (separate : Separation halfPower cells)
     (oneValue : (store.read cells.one).toNat = 1)
     (modulusValue : (store.read cells.modulus).toNat = N) :
-    (rightStep halfPower cells output store).1.read (.storage output.toCStorageRef) =
+    (rightStep (model := model) halfPower cells output store).1.read (.storage
+        output.toCStorageRef) =
       encodeOutput (N := N)
         (let candidate := Nat.gcd ((store.read halfPower).toNat + 1) N
          if 1 < candidate ∧ candidate < N then some candidate else none) := by
-  let reduced := NativeHalfGCD.step true halfPower cells.candidate store
-  have preserved := NativeHalfGCD.read_other true halfPower cells.candidate
+  let reduced := NativeHalfGCD.step (model := model) true halfPower cells.candidate store
+  have preserved := NativeHalfGCD.read_other (model := model) true halfPower cells.candidate
     (stableOperands halfPower cells) separate.candidateStable store
   have oneSame : (reduced.1.read cells.one).toNat = 1 :=
     (congrArg (fun value => value.second.first.toNat) preserved).trans oneValue
@@ -90,8 +95,8 @@ private theorem right_result (source : Input N)
     (congrArg (fun value => value.second.second.toNat) preserved).trans modulusValue
   have candidate : (reduced.1.read (.storage cells.candidate.toCStorageRef)).toNat =
       Nat.gcd ((store.read halfPower).toNat + 1) N :=
-    NativeHalfGCD.result_toNat source true halfPower cells.candidate store
-  have packed := checkedPack_result cells output reduced.1
+    NativeHalfGCD.result_toNat (model := model) source true halfPower cells.candidate store
+  have packed := checkedPack_result (model := model) cells output reduced.1
     (lower_check_free halfPower cells separate) separate.upperLower separate.upperCandidate
     separate.payloadLower
   refine packed.trans ?_
@@ -109,11 +114,11 @@ theorem result (source : Input N)
     (separate : Separation halfPower cells)
     (oneValue : (store.read cells.one).toNat = 1)
     (modulusValue : (store.read cells.modulus).toNat = N) :
-    (step halfPower cells output store).1.read (.storage output.toCStorageRef) =
+    (step (model := model) halfPower cells output store).1.read (.storage output.toCStorageRef) =
       encodeOutput (N := N) (factorFromHalfPowerValue N (store.read halfPower).toNat) := by
-  let reduced := NativeHalfGCD.step false halfPower cells.candidate store
+  let reduced := NativeHalfGCD.step (model := model) false halfPower cells.candidate store
   let compared := FactorRange.storeStep (checkRefs cells) reduced.1
-  have reducedStable := NativeHalfGCD.read_other false halfPower cells.candidate
+  have reducedStable := NativeHalfGCD.read_other (model := model) false halfPower cells.candidate
     (stableOperands halfPower cells) separate.candidateStable store
   have comparedStable := FactorRange.read_other (checkRefs cells)
     (stableOperands halfPower cells) separate.lowerStable separate.upperStable reduced.1
@@ -126,7 +131,7 @@ theorem result (source : Input N)
     (congrArg (fun value => value.second.second.toNat) reducedStable).trans modulusValue
   have candidate : (reduced.1.read (.storage cells.candidate.toCStorageRef)).toNat =
       Nat.gcd ((store.read halfPower).toNat - 1) N :=
-    NativeHalfGCD.result_toNat source false halfPower cells.candidate store
+    NativeHalfGCD.result_toNat (model := model) source false halfPower cells.candidate store
   have tag : (compared.read (.storage cells.lower.toCStorageRef)).toBool =
       (decide ((reduced.1.read cells.one).toNat <
           (reduced.1.read (.storage cells.candidate.toCStorageRef)).toNat) &&
@@ -142,14 +147,16 @@ theorem result (source : Input N)
     (.storage cells.candidate.toCStorageRef)
     (fun member => separate.lowerCandidate (List.mem_singleton.mp member))
     (fun member => separate.upperCandidate (List.mem_singleton.mp member)) reduced.1
-  change (chooseStep halfPower cells output compared).1.read (.storage output.toCStorageRef) = _
+  change (chooseStep (model := model) halfPower cells output compared).1.read (.storage
+      output.toCStorageRef) = _
   rw [choose_read, tagValue]
   by_cases accepted : 1 < Nat.gcd ((store.read halfPower).toNat - 1) N ∧
       Nat.gcd ((store.read halfPower).toNat - 1) N < N
   · have active : (decide (1 < Nat.gcd ((store.read halfPower).toNat - 1) N) &&
         decide (Nat.gcd ((store.read halfPower).toNat - 1) N < N)) = true := by
       simp only [accepted.1, accepted.2, decide_true, Bool.true_and]
-    rw [active, if_pos rfl, pack_result_numeric cells output compared separate.payloadLower,
+    rw [active, if_pos rfl, pack_result_numeric (model := model) cells output compared
+        separate.payloadLower,
       tagValue, active, if_pos rfl, candidateSame, candidate]
     simp [factorFromHalfPowerValue, accepted, encodeOutput]
   · have inactive : (decide (1 < Nat.gcd ((store.read halfPower).toNat - 1) N) &&
@@ -157,7 +164,7 @@ theorem result (source : Input N)
       rw [← Bool.decide_and]
       exact decide_eq_false accepted
     rw [inactive, if_neg (by decide : ¬ (false = true))]
-    have next := right_result source halfPower cells output compared separate
+    have next := right_result (model := model) source halfPower cells output compared separate
       ((congrArg (fun value => value.second.first.toNat) stable).trans oneValue)
       ((congrArg (fun value => value.second.second.toNat) stable).trans modulusValue)
     refine next.trans ?_

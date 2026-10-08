@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Inversion.MK.DataPath.Coefficient
 import all QuantumAlg.Primitives.MAU.Inversion.MK.DataPath.Shift
 
@@ -248,8 +249,9 @@ def comparisonBorrowOutGates
 /-- Base-gate program for one Kaliski comparison borrow-output slice. -/
 def comparisonBorrowOutProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowOutProgramAt
     (comparisonBorrowLayout n counterWidth) bit
 
@@ -335,8 +337,9 @@ def comparisonBorrowStageGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the folded Kaliski comparison borrow-chain pass. -/
 def comparisonBorrowStageProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStageProgram
     (comparisonBorrowLayout n counterWidth)
 
@@ -367,8 +370,9 @@ def comparisonBorrowStageVUGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the folded `v - u` comparison borrow-chain pass. -/
 def comparisonBorrowStageVUProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStageProgram
     (comparisonBorrowLayoutVU n counterWidth)
 
@@ -400,8 +404,9 @@ def uGreaterBorrowStageGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the cleanup-compatible `uGreater` borrow pass. -/
 def uGreaterBorrowStageProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStageProgram
     (uGreaterBorrowLayout n counterWidth)
 
@@ -854,9 +859,12 @@ def comparisonWorkToCompareGate
 /-- Base-gate program for `comparisonWorkToCompareGate`. -/
 def comparisonWorkToCompareProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.program (comparisonWorkToCompareGate n counterWidth bit)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.program
+    (comparisonWorkToCompareGate n counterWidth bit)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step for `comparisonWorkToCompareGate`. -/
 def comparisonWorkToCompareStep
@@ -871,7 +879,8 @@ theorem comparisonWorkToCompare_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (comparisonWorkToCompareProgram n counterWidth bit)
       (comparisonWorkToCompareStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (comparisonWorkToCompareGate n counterWidth bit)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (comparisonWorkToCompareGate n counterWidth bit)
 
 /-- The work-to-compare CNOT toggles `compare` by the selected borrow-work bit. -/
 theorem comparisonWorkToCompareStep_get_compare
@@ -917,9 +926,10 @@ def uGreaterCompareComputeGates
 /-- Base-gate program for computing the `uGreater` condition into `compare`. -/
 def uGreaterCompareComputeProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (uGreaterCompareComputeGates n counterWidth bit)
 
 /-- Semantic step for computing the `uGreater` condition into `compare`. -/
@@ -937,7 +947,7 @@ theorem uGreaterCompareCompute_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (uGreaterCompareComputeProgram n counterWidth bit)
       (uGreaterCompareComputeStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (uGreaterCompareComputeGates n counterWidth bit)
 
 /-- On clean comparison work and a clean comparison ancilla, the forward
@@ -988,9 +998,10 @@ def uGreaterScratchACompareComputeGates
 compare-compute slice. -/
 def uGreaterScratchACompareComputeProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareComputeGates n counterWidth bit)
 
 /-- Semantic step for the cleanup-compatible forward `uGreater`
@@ -1009,7 +1020,7 @@ theorem uGreaterScratchACompareCompute_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (uGreaterScratchACompareComputeProgram n counterWidth bit)
       (uGreaterScratchACompareComputeStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareComputeGates n counterWidth bit)
 
 /-- On clean comparison work, clean `scratchA`, and clean `compare`, the
@@ -1147,9 +1158,10 @@ def uGreaterScratchACompareSelectorGates
 /-- Base-gate program for the full `uGreater` comparison selector gate list. -/
 def uGreaterScratchACompareSelectorProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareSelectorGates n counterWidth bit)
 
 /-- Semantic step for the full `uGreater` comparison selector gate list. -/
@@ -1167,7 +1179,7 @@ theorem uGreaterScratchACompareSelector_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (uGreaterScratchACompareSelectorProgram n counterWidth bit)
       (uGreaterScratchACompareSelectorStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareSelectorGates n counterWidth bit)
 
 /-- Exact physical length of the cleanup-compatible comparison selector. -/
@@ -1655,8 +1667,11 @@ def activeFlagToggleGate (n counterWidth : Nat) :
 
 /-- Base-gate program for `activeFlagToggleGate`. -/
 def activeFlagToggleProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.program (activeFlagToggleGate n counterWidth)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step implemented by `activeFlagToggleProgram`. -/
 def activeFlagToggleStep (n counterWidth : Nat) :
@@ -1669,7 +1684,8 @@ theorem activeFlagToggle_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeFlagToggleProgram n counterWidth)
       (activeFlagToggleStep n counterWidth) :=
-  EncodedBit.GateSpec.realizes (activeFlagToggleGate n counterWidth)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (activeFlagToggleGate n counterWidth)
 
 /-- The active-flag X atom toggles the active bit. -/
 theorem activeFlagToggleStep_get_active
@@ -1851,10 +1867,11 @@ def counterWorkActiveFlagToggleStep (n counterWidth : Nat) :
 
 /-- Base-gate program for the active-flag toggle lifted over counter work. -/
 def counterWorkActiveFlagToggleProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCounterIncrementWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (counterIncrementWorkEncoding counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCounterIncrementWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix
+    (counterIncrementWorkEncoding counterWidth).width
     (activeFlagToggleProgram n counterWidth)
 
 /-- The lifted active-flag toggle realizes its product-lifted semantic action. -/
@@ -1865,15 +1882,16 @@ theorem counterWorkActiveFlagToggle_realizes (n counterWidth : Nat) :
       (counterWorkActiveFlagToggleStep n counterWidth) := by
   unfold counterWorkActiveFlagToggleProgram counterWorkActiveFlagToggleStep
     liftRegisterStepToCounterIncrementWork
-  exact UnitaryCircuit.Realizes.prodLeft
+  exact UnitaryCircuit.Realizes.onBinaryPrefix
     (right := counterIncrementWorkEncoding counterWidth)
     (activeFlagToggle_realizes n counterWidth)
 
 /-- Concrete terminating counter-mode program: clear the active flag, then
 increment the padding counter with clean work. -/
 def terminatingCounterModeWithWorkProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCounterIncrementWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCounterIncrementWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (counterWorkActiveFlagToggleProgram n counterWidth)
     (counterIncrementWithWorkProgram n counterWidth)
@@ -1934,8 +1952,11 @@ def counterLowToggleGate (n tail : Nat) :
 
 /-- Base-gate program for `counterLowToggleGate`. -/
 def counterLowToggleProgram (n tail : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n tail.succ).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n tail.succ).width).toQuantum :=
   EncodedBit.GateSpec.program (counterLowToggleGate n tail)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step implemented by `counterLowToggleProgram`. -/
 def counterLowToggleStep (n tail : Nat) :
@@ -1948,7 +1969,8 @@ theorem counterLowToggle_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ)
       (counterLowToggleProgram n tail)
       (counterLowToggleStep n tail) :=
-  EncodedBit.GateSpec.realizes (counterLowToggleGate n tail)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (counterLowToggleGate n tail)
 
 /-- The counter-low X atom toggles the low padding-counter bit. -/
 theorem counterLowToggleStep_get_counterBit_zero
@@ -2158,8 +2180,11 @@ def counterLowCarryGate (n tail : Nat) :
 
 /-- Base-gate program for `counterLowCarryGate`. -/
 def counterLowCarryProgram (n tail : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n tail.succ.succ).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n tail.succ.succ).width).toQuantum :=
   EncodedBit.GateSpec.program (counterLowCarryGate n tail)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step implemented by `counterLowCarryProgram`. -/
 def counterLowCarryStep (n tail : Nat) :
@@ -2172,7 +2197,8 @@ theorem counterLowCarry_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ)
       (counterLowCarryProgram n tail)
       (counterLowCarryStep n tail) :=
-  EncodedBit.GateSpec.realizes (counterLowCarryGate n tail)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (counterLowCarryGate n tail)
 
 /-- The low-carry CNOT atom toggles the second-lowest counter value bit exactly
 when the low counter value bit is set. -/
@@ -2226,8 +2252,11 @@ def counterTwoLowIncrementGates (n tail : Nat) :
 
 /-- Base-gate program for the two-low-bit increment prefix. -/
 def counterTwoLowIncrementProgram (n tail : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n tail.succ.succ).width) :=
-  EncodedBit.GateSpec.programList (counterTwoLowIncrementGates n tail)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n tail.succ.succ).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (counterTwoLowIncrementGates n tail)
 
 /-- Semantic step implemented by `counterTwoLowIncrementProgram`. -/
 def counterTwoLowIncrementStep (n tail : Nat) :
@@ -2240,7 +2269,8 @@ theorem counterTwoLowIncrement_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ)
       (counterTwoLowIncrementProgram n tail)
       (counterTwoLowIncrementStep n tail) :=
-  EncodedBit.GateSpec.realizesList (counterTwoLowIncrementGates n tail)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (counterTwoLowIncrementGates n tail)
 
 /-- The two-low-bit prefix makes the low counter bit agree with the
 width-preserving counter increment. -/
@@ -2344,8 +2374,11 @@ def counterBitTwoCarryPrefixGates (n tail : Nat) :
 
 /-- Base-gate program for the carry-into-bit-two prefix. -/
 def counterBitTwoCarryPrefixProgram (n tail : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n tail.succ.succ.succ).width) :=
-  EncodedBit.GateSpec.programList (counterBitTwoCarryPrefixGates n tail)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n tail.succ.succ.succ).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (counterBitTwoCarryPrefixGates n tail)
 
 /-- Semantic step implemented by `counterBitTwoCarryPrefixProgram`. -/
 def counterBitTwoCarryPrefixStep (n tail : Nat) :
@@ -2358,7 +2391,8 @@ theorem counterBitTwoCarryPrefix_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ.succ)
       (counterBitTwoCarryPrefixProgram n tail)
       (counterBitTwoCarryPrefixStep n tail) :=
-  EncodedBit.GateSpec.realizesList (counterBitTwoCarryPrefixGates n tail)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (counterBitTwoCarryPrefixGates n tail)
 
 /-- Gate list for the three-low-bit prefix of the padding-counter incrementer.
 The bit-two carry is computed and cleaned before the lower two bits are
@@ -2370,8 +2404,11 @@ def counterThreeLowIncrementGates (n tail : Nat) :
 
 /-- Base-gate program for the three-low-bit increment prefix. -/
 def counterThreeLowIncrementProgram (n tail : Nat) :
-    UnitaryCircuit (Qubits (registerEncoding n tail.succ.succ.succ).width) :=
-  EncodedBit.GateSpec.programList (counterThreeLowIncrementGates n tail)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n tail.succ.succ.succ).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (counterThreeLowIncrementGates n tail)
 
 /-- Semantic step implemented by `counterThreeLowIncrementProgram`. -/
 def counterThreeLowIncrementStep (n tail : Nat) :
@@ -2384,7 +2421,8 @@ theorem counterThreeLowIncrement_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ.succ)
       (counterThreeLowIncrementProgram n tail)
       (counterThreeLowIncrementStep n tail) :=
-  EncodedBit.GateSpec.realizesList (counterThreeLowIncrementGates n tail)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (counterThreeLowIncrementGates n tail)
 
 /-- The low-carry CNOT atom preserves the first scratch bit readout. -/
 theorem counterLowCarryStep_get_scratchA
@@ -2826,8 +2864,11 @@ def activeToHistoryGate (n counterWidth : Nat) (bit : Fin (2 * n)) :
 
 /-- Base-gate program for `activeToHistoryGate`. -/
 def activeToHistoryProgram (n counterWidth : Nat) (bit : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.program (activeToHistoryGate n counterWidth bit)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step implemented by `activeToHistoryProgram`. -/
 def activeToHistoryStep (n counterWidth : Nat) (bit : Fin (2 * n)) :
@@ -2840,7 +2881,8 @@ theorem activeToHistory_realizes (n counterWidth : Nat) (bit : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeToHistoryProgram n counterWidth bit)
       (activeToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (activeToHistoryGate n counterWidth bit)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (activeToHistoryGate n counterWidth bit)
 
 /-- The active-to-history atom toggles the selected history bit exactly when
 the active flag is set. -/
@@ -2890,8 +2932,12 @@ def activeScratchBToHistoryGate
 /-- Base-gate program for `activeScratchBToHistoryGate`. -/
 def activeScratchBToHistoryProgram
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.program (activeScratchBToHistoryGate n counterWidth bit)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.program
+    (activeScratchBToHistoryGate n counterWidth bit)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic step implemented by `activeScratchBToHistoryProgram`. -/
 def activeScratchBToHistoryStep
@@ -2906,7 +2952,8 @@ theorem activeScratchBToHistory_realizes
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeScratchBToHistoryProgram n counterWidth bit)
       (activeScratchBToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (activeScratchBToHistoryGate n counterWidth bit)
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+    (activeScratchBToHistoryGate n counterWidth bit)
 
 /-- The active/scratchB-to-history atom toggles the selected history bit exactly
 when both the active flag and second scratch bit are set. -/
@@ -3263,8 +3310,10 @@ def activeBranchCodeToScratchGates
 /-- Base-gate program for active-guarded branch-code staging. -/
 def activeBranchCodeToScratchProgram
     (n counterWidth : Nat) (branch : Branch) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeBranchCodeToScratchGates n counterWidth branch)
 
 /-- Semantic step implemented by active-guarded branch-code staging. -/
@@ -3281,7 +3330,7 @@ theorem activeBranchCodeToScratch_realizes
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeBranchCodeToScratchProgram n counterWidth branch)
       (activeBranchCodeToScratchStep n counterWidth branch) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeBranchCodeToScratchGates n counterWidth branch)
 
 /-- Active-guarded branch-code staging toggles scratchA exactly when the active
@@ -3516,8 +3565,10 @@ def activeConditionBranchCodeToScratchProgram
     (hconditionScratchB :
       condition.wire ≠ (RegisterBits.scratchBBit n counterWidth).wire)
     (branch : Branch) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeConditionBranchCodeToScratchGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch)
 
@@ -3556,7 +3607,7 @@ theorem activeConditionBranchCodeToScratch_realizes
         hactiveCondition hconditionScratchA hconditionScratchB branch)
       (activeConditionBranchCodeToScratchStep n counterWidth condition
         hactiveCondition hconditionScratchA hconditionScratchB branch) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeConditionBranchCodeToScratchGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch)
 
@@ -4514,8 +4565,10 @@ def uGreaterSelectorGates
 /-- Actual base-gate program for the compact comparison selector. -/
 def uGreaterSelectorProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (uGreaterSelectorGates n counterWidth bit)
 
 /-- Semantic action of the compact comparison selector. -/
@@ -4532,7 +4585,7 @@ theorem uGreaterSelector_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (uGreaterSelectorProgram n counterWidth bit)
       (uGreaterSelectorStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (uGreaterSelectorGates n counterWidth bit)
 
 /-- The compute-copy-uncompute comparator selector is self-inverse. -/
@@ -5246,8 +5299,11 @@ def activeOddPathStep (n counterWidth : Nat) (low : Fin n) :
           (sharedControlBit n counterWidth))
 
 def activeOddPathProgram (n counterWidth : Nat) (low : Fin n) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (activeOddPathGates n counterWidth low)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (activeOddPathGates n counterWidth low)
 
 /-- With a true active flag, clean shared control, and a non-odd input pair,
 the masked odd-path computation is the identity. -/
@@ -5289,6 +5345,7 @@ theorem activeOddPath_realizes
       (activeOddPathProgram n counterWidth low)
       (activeOddPathStep n counterWidth low) := by
   exact EncodedBit.GateSpec.controlledWithWorkWitness
+    (QubitLayout.canonical _) .empty
     (activeBit n counterWidth) (controlBit n counterWidth)
     (oddPairPathGate n counterWidth low)
     (oddPairPathGate_bitDisjoint_active n counterWidth low)
@@ -5660,8 +5717,10 @@ def activeOddUGreaterSelectorStep
 
 def activeOddUGreaterSelectorProgram
     (n counterWidth : Nat) (low finalBit : Fin n) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeOddUGreaterSelectorGates n counterWidth low finalBit)
 
 theorem activeOddUGreaterSelector_realizes
@@ -5669,7 +5728,7 @@ theorem activeOddUGreaterSelector_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (activeOddUGreaterSelectorProgram n counterWidth low finalBit)
       (activeOddUGreaterSelectorStep n counterWidth low finalBit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeOddUGreaterSelectorGates n counterWidth low finalBit)
 
 theorem activeOddUGreaterSelectorStep_eq_stages

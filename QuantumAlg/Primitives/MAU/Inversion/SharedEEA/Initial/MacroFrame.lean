@@ -121,15 +121,17 @@ theorem result_eq_frame (modulus : Nat) (input : Fin (2 ^ modulus.size))
 theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (InitialFrame.program modulus).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode
-          (MacroBoundary.frame
-            (IterationState.initial modulus (foldInput modulus input.val).2) modulus
-            (folded_initial_admissible modulus input.val positive bounded)
-            (IterationState.initial_balance modulus (foldInput modulus input.val).2)
-            (foldInput modulus input.val).1)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode
+            (MacroBoundary.frame
+              (IterationState.initial modulus (foldInput modulus input.val).2) modulus
+              (folded_initial_admissible modulus input.val positive bounded)
+              (IterationState.initial_balance modulus (foldInput modulus input.val).2)
+              (foldInput modulus input.val).1))) := by
   rw [InitialFrame.program_initial, result_eq_frame modulus input positive bounded]
 
 end

@@ -21,7 +21,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem coefficient_resident (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit)
@@ -43,10 +44,12 @@ private theorem rowBody_resident
       SpacePool.ofShape (.unsignedWord width) + ctx.residentSpace := by
   have entry : ctx.residentSpace ≤ SpacePool.ofShape (.unsignedWord width) + ctx.residentSpace :=
     fun _axis => Nat.le_add_left _ _
-  refine (Circuit.peakResidentSpace_seq (.classical (candidateMaskOp matrix free work row))
-    (.seq (.classical (decisionEqualityOp work zero flag))
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (.seq (BitWord.instruction (execution := model) (decisionEqualityOp work zero flag))
       (.branch (.storage flag.toCStorageRef) (candidateCoefficientChoice candidate column)))
     path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq,
     Circuit.peakResidentSpace_classical]
   exact SpacePool.max_le entry (SpacePool.max_le entry
@@ -123,9 +126,11 @@ theorem gf2BuildCandidate_resident_le
       (SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.residentSpace axis))
     omega
-  refine (Circuit.peakResidentSpace_seq (.classical (candidateCopyOp free candidate))
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (candidateCopyOp free candidate))
     (Circuit.forRange width (fun column => Circuit.forRange rowCount
       (fun row => candidatePivotRow matrix rows free candidate zero row column))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical]
   refine SpacePool.max_le entry (Circuit.forRange_resident_le width _ _ entry ?_ path.2)
   intro column current
@@ -152,10 +157,12 @@ private theorem rowBody_auxiliary
       SpacePool.ofShape (.unsignedWord width) + ctx.auxiliarySpace := by
   have entry : ctx.auxiliarySpace ≤ SpacePool.ofShape (.unsignedWord width) + ctx.auxiliarySpace :=
     fun _axis => Nat.le_add_left _ _
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (candidateMaskOp matrix free work row))
-    (.seq (.classical (decisionEqualityOp work zero flag))
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (.seq (BitWord.instruction (execution := model) (decisionEqualityOp work zero flag))
       (.branch (.storage flag.toCStorageRef) (candidateCoefficientChoice candidate column)))
     path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq,
     Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_le entry (SpacePool.max_le entry
@@ -232,9 +239,11 @@ theorem gf2BuildCandidate_auxiliary_le
       (SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.auxiliarySpace axis))
     omega
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (candidateCopyOp free candidate))
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (candidateCopyOp free candidate))
     (Circuit.forRange width (fun column => Circuit.forRange rowCount
       (fun row => candidatePivotRow matrix rows free candidate zero row column))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical]
   refine SpacePool.max_le entry (Circuit.forRange_auxiliary_le width _ _ entry ?_ path.2)
   intro column current

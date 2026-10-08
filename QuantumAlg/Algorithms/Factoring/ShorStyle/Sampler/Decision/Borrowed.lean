@@ -25,12 +25,13 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem result_borrowed (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    (resultStep shared scratch gcdResult store).1.readBorrowedClassical =
+    (resultStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   rw [decisionResult_store]
   split <;> simp only [unitStore, factorStore, Store.readBorrowedClassical_applyOp]
@@ -39,11 +40,11 @@ private theorem result_borrowed (shared : Proposal.SharedRefs ctx width)
 theorem decisionAccepted_borrowed_values (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    (acceptedStep shared scratch gcdResult store).1.readBorrowedClassical =
+    (acceptedStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   rw [decisionAccepted_store, result_borrowed]
   simp only [comparisonStore, Store.readBorrowedClassical_applyOp]
-  exact (NumberTheory.GCD.gcdLexical_borrowed_values
+  exact (NumberTheory.GCD.gcdLexical_borrowed_values (model := model)
     (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult
     (store.applyOp (Proposal.extendOp scratch))).trans
       (Store.readBorrowedClassical_applyOp store (Proposal.extendOp scratch))
@@ -51,11 +52,11 @@ theorem decisionAccepted_borrowed_values (shared : Proposal.SharedRefs ctx width
 private theorem acceptance_borrowed (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    (acceptanceStep shared scratch gcdResult store).1.readBorrowedClassical =
+    (acceptanceStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   rw [decisionAcceptance_store]
   split
-  · exact decisionAccepted_borrowed_values shared scratch gcdResult store
+  · exact decisionAccepted_borrowed_values (model := model) shared scratch gcdResult store
   · exact Store.readBorrowedClassical_applyOp store (clearWordOp scratch.candidate)
 
 /-- The complete actual initialization, decision and parameter write preserve borrowed values. -/
@@ -63,9 +64,9 @@ theorem decision_borrowed_values (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
-    (step shared scratch gcdResult output store).1.readBorrowedClassical =
+    (step (model := model) shared scratch gcdResult output store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
-  change (((acceptanceStep shared scratch gcdResult
+  change (((acceptanceStep (model := model) shared scratch gcdResult
     (initializationStore shared scratch store)).1).applyOp
       (packOp shared scratch output)).readBorrowedClassical = _
   rw [Store.readBorrowedClassical_applyOp, acceptance_borrowed]

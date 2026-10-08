@@ -58,11 +58,14 @@ def affineScratch (cells : Cells ctx (affineShapes width)) : AffineScratch ctx w
   yOutput := (cellAt cells ⟨1, by change 1 < 9; decide⟩).ref
   tag := (cellAt cells ⟨0, by change 0 < 9; decide⟩).ref
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Every original total arithmetic call occurs in its original chronological position. -/
 def affineStage (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width)) :
-    Fin 9 → Circuit ctx ctx :=
+    Fin 9 → Circuit model ctx ctx :=
   ![Field.Native.coefficientIntoWord spec denominator scratch.coefficient,
     Field.Native.mulIntoWord spec numerator (classifierRead scratch.coefficient) scratch.slope,
     Field.Native.mulIntoWord spec (classifierRead scratch.slope) (classifierRead scratch.slope)
@@ -81,13 +84,13 @@ def affineStage (spec : ModulusSpec width)
 def affineBody (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   Circuit.forRange 9 (affineStage spec leftX rightX leftY numerator denominator scratch output)
 
 /-- All original tail scratch is actually allocated and released; no caller tag is required. -/
 def affineInto (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (PointShape width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (PointShape width)) : Circuit model ctx ctx :=
   withCells ctx (affineShapes width) fun cells _ transport _ =>
     affineBody spec (transport.liftInput leftX) (transport.liftInput rightX)
       (transport.liftInput leftY) (transport.liftInput numerator) (transport.liftInput denominator)

@@ -186,8 +186,19 @@ def translationStep : Layout.RawRegisters → Layout.RawRegisters :=
     Layout.controlBit_wire_ne_controlWorkBit
 
 /-- Production circuit compiled from the literal total translation list. -/
-def translationProgram : UnitaryCircuit (Qubits Layout.rawEncoding.width) :=
-  EncodedBit.GateSpec.programList (translationGates (E := E) (Q := Q))
+def translationProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical Layout.rawEncoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (translationGates (E := E) (Q := Q))
+
+/-- Computational-basis state of the actual canonical physical layout. -/
+def encodedKet (state : Layout.RawRegisters) :
+    NormalizedVector
+      (QubitLayout.canonical Layout.rawEncoding.width).toQuantum.register :=
+  NormalizedVector.ket
+    ((QubitLayout.canonical Layout.rawEncoding.width).basisEquiv.symm
+      (Layout.rawEncoding.encode state))
 
 /-- A false public control makes the complete translation a no-op. -/
 theorem translationStep_eq_self_of_control_false
@@ -220,7 +231,8 @@ theorem translationProgram_realizes :
       (translationStep (E := E) (Q := Q)) := by
   simpa only [translationProgram, translationGates, translationStep] using
     EncodedBit.GateSpec.controlledListWithWorkWitness
-      Layout.controlBit Layout.controlWorkBit (baseGates (E := E) (Q := Q))
+      (QubitLayout.canonical _) .empty Layout.controlBit Layout.controlWorkBit
+      (baseGates (E := E) (Q := Q))
       baseGates_bitDisjoint_controlBit baseGates_bitDisjoint_controlWorkBit
       Layout.controlBit_wire_ne_controlWorkBit
 
@@ -385,24 +397,20 @@ theorem translationStep_clean (control : Bool)
 theorem translationProgram_clean_ket (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     (translationProgram (E := E) (Q := Q)).applyNormalized
-        (NormalizedVector.ket
-          (Layout.rawEncoding.encode
-            (Layout.translationBoundaryRegisters control
-              (Pipeline.pointWords P.1)
-              (PointAddition.PortFrame.zeroPoint params.width)
-              (PointAddition.PortFrame.zeroPoint params.width)))) =
-      NormalizedVector.ket
-        (Layout.rawEncoding.encode
-          (Layout.translationBoundaryRegisters control
-            (if control then Pipeline.resultWords P else Pipeline.pointWords P.1)
-            (PointAddition.PortFrame.zeroPoint params.width)
-            (PointAddition.PortFrame.zeroPoint params.width))) := by
+        (encodedKet (Layout.translationBoundaryRegisters control
+          (Pipeline.pointWords P.1)
+          (PointAddition.PortFrame.zeroPoint params.width)
+          (PointAddition.PortFrame.zeroPoint params.width))) =
+      encodedKet (Layout.translationBoundaryRegisters control
+        (if control then Pipeline.resultWords P else Pipeline.pointWords P.1)
+        (PointAddition.PortFrame.zeroPoint params.width)
+        (PointAddition.PortFrame.zeroPoint params.width)) := by
   have h := (translationProgram_realizes (E := E) (Q := Q)).apply_encoded_ket
     (Layout.translationBoundaryRegisters control (Pipeline.pointWords P.1)
       (PointAddition.PortFrame.zeroPoint params.width)
       (PointAddition.PortFrame.zeroPoint params.width))
   rw [translationStep_clean control P] at h
-  exact h
+  simpa only [encodedKet] using h
 
 /-! ## Literal resource coordinates -/
 
@@ -967,43 +975,43 @@ theorem translationGates_toffoliMultiplicity_sum_le :
 
 /-- Program X count projected from the actual literal gate list. -/
 theorem translationProgram_x_count_eq :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
         EncodedBit.GateSpec.xMultiplicity).sum := by
   simpa only [translationProgram] using
     (EncodedBit.GateSpec.programList_x_count_eq_sum
-      (translationGates (E := E) (Q := Q)))
+      (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Program CNOT count projected from the actual literal gate list. -/
 theorem translationProgram_cnot_count_eq :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
         EncodedBit.GateSpec.cnotMultiplicity).sum := by
   simpa only [translationProgram] using
     (EncodedBit.GateSpec.programList_cnot_count_eq_sum
-      (translationGates (E := E) (Q := Q)))
+      (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Program Toffoli count projected from the actual literal gate list. -/
 theorem translationProgram_toffoli_count_eq :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum := by
   simpa only [translationProgram] using
     (EncodedBit.GateSpec.programList_toffoli_count_eq_sum
-      (translationGates (E := E) (Q := Q)))
+      (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- The complete program contains no physical X event. -/
 theorem translationProgram_x_count_zero :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
       (translationProgram (E := E) (Q := Q)).eventCost = 0 := by
   rw [translationProgram_x_count_eq, translationGates_xMultiplicity_sum]
 
 /-- The complete program obeys its closed CNOT bound. -/
 theorem translationProgram_cnot_count_le :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (translationProgram (E := E) (Q := Q)).eventCost ≤
       translationCnotBound := by
   rw [translationProgram_cnot_count_eq]
@@ -1011,7 +1019,7 @@ theorem translationProgram_cnot_count_le :
 
 /-- The complete program obeys its closed Toffoli bound. -/
 theorem translationProgram_toffoli_count_le :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (translationProgram (E := E) (Q := Q)).eventCost ≤
       translationToffoliBound := by
   rw [translationProgram_toffoli_count_eq]
@@ -1023,10 +1031,10 @@ theorem translationProgram_eventDepth :
     (translationProgram (E := E) (Q := Q)).eventDepth =
       EncodedBit.GateSpec.depthOfEvents
         ((translationGates (E := E) (Q := Q)).map
-          EncodedBit.GateSpec.event) := by
+          (EncodedBit.GateSpec.event .empty)) := by
   simpa only [translationProgram] using
     (EncodedBit.GateSpec.programList_eventDepth
-      (translationGates (E := E) (Q := Q)))
+      (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Under unit primitive durations, sequential event depth is the actual
 literal gate-list length. -/
@@ -1035,7 +1043,7 @@ theorem translationProgram_unitDepth_eq :
       (fun _ => 1) = (translationGates (E := E) (Q := Q)).length := by
   simpa only [translationProgram] using
     (EncodedBit.GateSpec.programList_evaluatedEventDepth_unit
-      (translationGates (E := E) (Q := Q)))
+      (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Under unit primitive durations, the program obeys the closed leaf/depth
 bound. -/
@@ -1044,28 +1052,6 @@ theorem translationProgram_unitDepth_le :
       (fun _ => 1) ≤ translationGateLengthBound := by
   rw [translationProgram_unitDepth_eq]
   exact translationGates_length_le (E := E) (Q := Q)
-
-/-- Every physical wire of the complete program lies in the exact carrier
-assembled from the modular-inversion workspace and the surrounding point-addition
-registers. -/
-theorem translationProgram_physical_idx_subset_range :
-    (translationProgram (E := E) (Q := Q)).physical_idx ⊆
-      List.range
-        (Arithmetic.ModularInversion.physicalWidthFor params.width +
-          20 * params.width + 13) := by
-  simpa only [translationProgram, Layout.rawEncoding_width_exact] using
-    (EncodedBit.GateSpec.programList_physical_idx_subset_range
-      (translationGates (E := E) (Q := Q)))
-
-/-- The literal X/CNOT/Toffoli program contains no opaque quantum-subroutine
-event. -/
-theorem translationProgram_quantumSubroutine_count_zero
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (translationProgram (E := E) (Q := Q)).eventCost = 0 := by
-  simpa only [translationProgram] using
-    (EncodedBit.GateSpec.programList_quantumSubroutine_count_zero
-      (translationGates (E := E) (Q := Q)) label)
 
 end
 

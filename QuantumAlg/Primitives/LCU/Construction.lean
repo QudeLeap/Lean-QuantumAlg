@@ -7,94 +7,118 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Primitives.LCU.Basic
-public import QuantumAlg.Components.Oracle.UnitarySource
+public import QuantumAlg.Components.Oracle.LCU
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
+public import QuantumAlg.Core.Base.Oracle.Placement.Construction
 import all QuantumAlg.Primitives.LCU.Basic
-import all QuantumAlg.Components.Oracle.UnitarySource
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Core.Base.Depth.EventCount
+import all QuantumAlg.Components.Oracle.LCU
+import all QuantumAlg.Components.Oracle.BlockEncoding
+import all QuantumAlg.Core.Base.Oracle.Placement.Construction
+import all QuantumAlg.Core.Base.Oracle.Placement
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Base.Tensor.Certified
 
 /-!
 # Actual prepare, SELECT, unprepare execution
 
-The source access model uses a supplied preparation unitary and its inverse,
-and one declared SELECT query [Lin22, hermfunc.tex:531-554]. The physical
-normalization at the boundary retains every supplied system and adds no event.
+The fixed source model grants V, inverse V and SELECT on the original family.
+Every call is placed on its actual wires. The three distinct query coordinates
+and complete depth belong to that same circuit [Lin22, hermfunc.tex:531-554].
 -/
 
 namespace QuantumAlg.LinearCombinationOfUnitaries
-
 noncomputable section
 
-variable {a n : Nat}
+variable {a n : Nat} (V : UnitaryOperator (Qubits a))
+  (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
 
-/-- The actual three-query LCU circuit on the complete supplied joint register. -/
-public def circuit (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    UnitaryCircuit (Qubits (a + n)) :=
-  (lcuWalkCircuit (UnitarySource.program V) (UnitarySource.program_physicalIdx V) U).seq
-    (UnitaryCircuit.identity (Qubits (a + n)) (List.range (a + n)) List.nodup_range)
+/-- A genuine ordinary or inverse preparation query on the coefficient register. -/
+def preparation (inverse : Bool) :
+    UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+      (QuantumSignature.qubits a).canonicalPlacement.layout :=
+  if inverse then
+    .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+      .unprepare (QuantumSignature.qubits a).canonicalPlacement)
+  else
+    .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+      .prepare (QuantumSignature.qubits a).canonicalPlacement)
 
-/-- The concrete circuit has exactly the original metadata-free LCU operator. -/
-theorem circuit_matrix (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (circuit V U).matrix = lcuWalk V U := by
-  change 1 * (lcuWalkCircuit (UnitarySource.program V)
-    (UnitarySource.program_physicalIdx V) U).matrix = _
-  rw [one_mul]
-  exact lcuWalkCircuit_matrix (UnitarySource.program V)
-    (UnitarySource.program_physicalIdx V) U
+/-- A single SELECT query uses the complete joint register and its fixed family. -/
+def selection : UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+    (QuantumSignature.qubits (a + n)).canonicalPlacement.layout :=
+  .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+    .select (QuantumSignature.qubits (a + n)).canonicalPlacement)
 
-private theorem prepare_contained (V : UnitaryOperator (Qubits a)) (n : Nat) :
-    (lcuPrepareCircuit (UnitarySource.program V)
-      (UnitarySource.program_physicalIdx V) n).physical_idx ⊆
-      List.range (a + n) := by
-  apply UnitaryCircuit.tensorQubits_physical_idx_subset
-  · intro wire present
-    change wire ∈ List.range a at present
-    simp only [List.mem_range] at present ⊢
-    omega
-  · intro wire present
-    change wire ∈ (List.range n).map (fun index => a + index) at present
-    obtain ⟨index, bounded, rfl⟩ := List.mem_map.mp present
-    simp only [List.mem_range] at bounded ⊢
-    omega
+/-- Preparation and inverse preparation have exactly their independently granted semantics. -/
+theorem preparation_matrix (inverse : Bool) :
+    (preparation V U inverse).binaryMatrix = if inverse then V⁻¹ else V := by
+  cases inverse <;>
+    simp only [preparation, Bool.false_eq_true, ↓reduceIte, UnitaryCircuit.binaryMatrix,
+      UnitaryCircuit.query_matrix, OracleModel.Application.queryApplication_onPlacement_operator]
+  · change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a)
+      (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a).symm V) = _
+    exact UnitaryOperator.unitaryOperator_reindex_cancel
+      (QuantumSignature.qubitsIndexEquiv a).symm _
+  · change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a)
+      (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a).symm V⁻¹) = _
+    exact UnitaryOperator.unitaryOperator_reindex_cancel
+      (QuantumSignature.qubitsIndexEquiv a).symm _
 
-/-- The actual footprint is the original a+n supplied physical systems. -/
-theorem circuit_physicalIdx (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (circuit V U).physical_idx = List.range (a + n) := by
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  apply UnitaryCircuit.seq_physical_idx_subset
-  · apply UnitaryCircuit.seq_physical_idx_subset
-    · exact prepare_contained V n
-    · intro wire present
-      exact present
-  · exact UnitaryCircuit.dagger_physical_idx_subset _ (prepare_contained V n)
+/-- The SELECT query is the registered diagonal controlled family, with exact phase. -/
+theorem selection_matrix : (selection V U).binaryMatrix = lcuSelectOp U := by
+  simp only [selection, UnitaryCircuit.binaryMatrix, UnitaryCircuit.query_matrix,
+    OracleModel.Application.queryApplication_onPlacement_operator]
+  change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (a + n))
+    (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (a + n)).symm
+      (lcuSelectOp U)) = _
+  exact UnitaryOperator.unitaryOperator_reindex_cancel
+    (QuantumSignature.qubitsIndexEquiv (a + n)).symm _
 
-/-- Two source-unitary accesses and one SELECT access are the exact native pool. -/
-theorem circuit_events (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (circuit V U).eventCost =
-      2 • ResourcePool.singleton (UnitarySource.event a) +
-        ResourcePool.singleton (lcuSelectEvent a n) := by
-  simp only [circuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost,
-    add_zero, lcuWalkCircuit_eventCost, UnitarySource.program_eventCost, two_nsmul]
-  ac_rfl
+/-- The three actual granted calls, in execution order, on the same physical interface. -/
+public def circuit : UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+    (QuantumSignature.qubits (a + n)).canonicalPlacement.layout :=
+  ((UnitaryCircuit.onBinaryPrefix n (preparation V U false)).seq (selection V U)).seq
+    (UnitaryCircuit.onBinaryPrefix n (preparation V U true))
 
-/-- The same native execution has at most three unit-duration event layers. -/
-theorem circuit_depth (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (circuit V U).evaluatedEventDepth (fun _ => 1) ≤ 3 := by
-  calc
-    _ ≤ DepthExpr.costEval (fun _ => 1) (circuit V U).eventDepth :=
-      DepthExpr.depthEval_le_costEval (fun _ => 1) (circuit V U).eventDepth
-    _ = (circuit V U).eventCost.card :=
-      (DepthExpr.unitCost_eq_eventPool_card (circuit V U).eventDepth).trans
-        (congrArg Multiset.card (UnitaryCircuit.resourcesFromEventDepth_eq_eventCost _))
-    _ = 3 := by
-      rw [circuit_events]
-      simp [ResourcePool.singleton]
+private theorem inverse_tensor_identity :
+    (V⁻¹).tensor (1 : UnitaryOperator (Qubits n)) =
+      (V.tensor (1 : UnitaryOperator (Qubits n))).dagger := by
+  apply Subtype.ext
+  change ((V.dagger).tensor (1 : UnitaryOperator (Qubits n)) :
+      HilbertOperator (Qubits (a + n))) = _
+  rw [UnitaryOperator.coe_tensor, UnitaryOperator.coe_dagger,
+    UnitaryOperator.coe_dagger, UnitaryOperator.coe_tensor,
+    HilbertOperator.conjTranspose_tensor]
+  have identityMatrix : ((1 : UnitaryOperator (Qubits n)) :
+      HilbertOperator (Qubits n)) = 1 := rfl
+  rw [identityMatrix, Matrix.conjTranspose_one]
+
+/-- The very circuit being counted has the original independently defined LCU operator. -/
+theorem circuit_matrix : (circuit V U).binaryMatrix = lcuWalk V U := by
+  rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
+    UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
+    preparation_matrix, preparation_matrix, selection_matrix]
+  simp only [Bool.false_eq_true, ↓reduceIte]
+  rw [inverse_tensor_identity]
+  rfl
+
+/-- The exact pool distinguishes forward preparation, inverse preparation and SELECT. -/
+theorem circuit_events : (circuit V U).eventCost =
+    ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .prepare) +
+    ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .select) +
+    ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .unprepare) := rfl
+
+/-- Each of the three granted queries occupies one full sequential abstract step. -/
+theorem circuit_depth :
+    (circuit V U).evaluatedEventDepth (fun _ => 1) = 3 := rfl
 
 end
-
 end QuantumAlg.LinearCombinationOfUnitaries

@@ -8,7 +8,8 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Source.Distribution
-import all QuantumAlg.Algorithms.OrderFinding.General.Model
+import all QuantumAlg.Algorithms.OrderFinding.General.Recovery.Analysis
+import all QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.SourceMass
 import all QuantumAlg.Util.NumberTheory.EulerTotientBounds
 import all QuantumAlg.Util.PMF
 import all QuantumAlg.Util.NumberTheory.Factoring
@@ -158,24 +159,31 @@ def unitParameter {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
   .product (.unsignedWord (sampledBaseIndex input unit))
     (.product (.bit false) (CShape.wordOfNat (modulusBits N) 0))
 
-/-- A source sample selecting one fixed unit has the original selected operator's Born law. -/
-theorem sampleOutcomePMF_eq_bornMeasurement_of_parameter_eq_unit
+private theorem nativeSourcePMF_eq_of_base_eq
+    {N x y t width : Nat} (baseEq : x = y)
+    (left : ModExpOracleAccess N x t width)
+    (right : ModExpOracleAccess N y t width) :
+    OrderFinding.Native.sourceOutcomePMF left =
+      OrderFinding.Native.sourceOutcomePMF right := by
+  cases baseEq
+  rfl
+
+/-- A sample selecting one fixed unit has that unit's native source Born law. -/
+theorem sampleOutcomePMF_eq_native_of_parameter_eq_unit
     {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (unit : (ZMod N)ˣ)
     (parameterEq : parameterValue input sample = unitParameter input unit) :
     sourceSampleOutcomePMF input sample =
-      (measurement (phaseBits N) (modulusBits N)).outcomePMF
-        (OrderFinding.BornBridge.evolvedState
-          (sampledOracleAccess input unit)) := by
+      OrderFinding.Native.sourceOutcomePMF (sampledOracleAccess input unit) := by
+  have hbase :
+      (parameterValue input sample).first.toNat = sampledBase unit := by
+    calc
+      _ = (unitParameter input unit).first.toNat :=
+        congrArg (fun value => value.first.toNat) parameterEq
+      _ = sampledBase unit := rfl
   unfold sourceSampleOutcomePMF
-  apply TerminalZMeasure.outcomePMF_congr_normalized
-  change
-    (memberCircuit input (parameterValue input sample)).applyNormalized
-        (inputState (phaseBits N) (modulusBits N)).normalized =
-      (orderFindingCircuit (sampledOracleAccess input unit)).applyNormalized
-        (inputState (phaseBits N) (modulusBits N)).normalized
-  rw [parameterEq, memberCircuit_applyNormalized_eq]
-  congr 1
+  exact nativeSourcePMF_eq_of_base_eq hbase
+    (sourceAccess input sample) (sampledOracleAccess input unit)
 
 /-- Euler's elementary size bound turns the source recovery mass for any
 sampled unit into the uniform `1 / (3n)` public-width floor. -/
@@ -225,7 +233,7 @@ theorem sampleOutcomePMF_recoverable_ge_of_parameter_eq_unit
         (orderFindingOutputSuccessLowerBound (orderOf unit)) ≤
       (sourceSampleOutcomePMF (Input.ofSemiprimeModel model) sample).toOuterMeasure
           {outcome |
-            ShorSourceJoint.RecoverableOutcome unit (orderOf unit) outcome} := by
+            ShorSourceJoint.NativeRecoverableOutcome unit (orderOf unit) outcome} := by
   let input : Input N := Input.ofSemiprimeModel model
   let orderInput := sampledOrderInput input unit
   have registerBound : N ^ 2 ≤ 2 ^ phaseBits N := input.registerSquare_fits
@@ -239,11 +247,12 @@ theorem sampleOutcomePMF_recoverable_ge_of_parameter_eq_unit
   have largeRegister : 12 * orderOf unit ≤ 2 ^ phaseBits N :=
     largeRegister_of_publicRegisterBound_of_modulus_ge_twelve modulusLarge
       (input_order_lt_modulus orderInput) registerBound
-  have sourceBound := sourceOutputSuccessLowerBound_of_scaledError
+  have sourceBound := ShorSourceJoint.SourceAnalysis.sourceOutputSuccessLowerBound_of_scaledError
     orderInput scaledError largeRegister
-  rw [sampleOutcomePMF_eq_bornMeasurement_of_parameter_eq_unit
+  rw [sampleOutcomePMF_eq_native_of_parameter_eq_unit
     input sample unit parameterEq]
-  have bornEq := OrderFinding.BornBridge.bornSuccessMass_eq_sourceOutputSuccessMass
+  have bornEq :=
+    ShorSourceJoint.SourceNativeEndpoint.nativeRecoverableMass_eq_sourceSuccessMass
     orderInput (sampledOracleAccess input unit)
   rw [unitOfCoprime_sampledBase_eq input unit] at sourceBound bornEq
   calc
@@ -267,7 +276,7 @@ theorem sampleOutcomePMF_recoverable_ge_bitlength
     ENNReal.ofReal ((1 : Real) / (3 * (modulusBits N : Real))) ≤
       (sourceSampleOutcomePMF (Input.ofSemiprimeModel model) sample).toOuterMeasure
           {outcome |
-            ShorSourceJoint.RecoverableOutcome unit (orderOf unit) outcome} := by
+            ShorSourceJoint.NativeRecoverableOutcome unit (orderOf unit) outcome} := by
   refine (ENNReal.ofReal_le_ofReal
     (orderFindingFloor_ge_one_over_three_bitlength
       (Input.ofSemiprimeModel model) unit)).trans ?_
@@ -509,7 +518,7 @@ def GoodAttemptOutcome {N : Nat}
     ∃ unit, unit ∈ model.goodEventUnits ∧
       parameterValue (Input.ofSemiprimeModel model) outcome.sample =
         unitParameter (Input.ofSemiprimeModel model) unit ∧
-      ShorSourceJoint.RecoverableOutcome unit (orderOf unit)
+      ShorSourceJoint.NativeRecoverableOutcome unit (orderOf unit)
         outcome.measurement
 
 /-- The one-attempt source floor represented as an extended nonnegative real

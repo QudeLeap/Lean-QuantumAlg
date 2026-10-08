@@ -61,68 +61,6 @@ theorem unitOp_apply_ket {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) (x : ZMod N) :
   rw [unitOp, UnitaryOperator.ofPerm_apply_ket]
   rfl
 
-/-! ### Same-circuit realization -/
-
-/-- An ideal-carrier circuit contract for multiplication by one unit. Concrete
-ancilla-extended implementations must provide an explicit encoded bridge rather
-than identify their physical register with this residue carrier. -/
-structure CircuitRealization {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) where
-  /-- The executable typed circuit. -/
-  circuit : UnitaryCircuit (residueRegister N)
-  /-- The circuit implements multiplication by `u`. -/
-  matrix_eq : circuit.matrix = unitOp u
-
-namespace CircuitRealization
-
-variable {N : ℕ} [NeZero N] {u : (ZMod N)ˣ}
-
-/-- Ordered strict events derived from the realization circuit. -/
-def eventTrace (realization : CircuitRealization u) :
-    List (Resource.Event .quantum) :=
-  realization.circuit.eventTrace
-
-/-- Strict event pool derived from the realization circuit. -/
-def eventCost (realization : CircuitRealization u) : ResourcePool .quantum :=
-  realization.circuit.eventCost
-
-/-- Strict symbolic event critical path of the realization circuit. -/
-def eventDepth (realization : CircuitRealization u) :
-    DepthExpr (Resource.Event .quantum) :=
-  realization.circuit.eventDepth
-
-/-- Literal depth of one strict event coordinate in the realization circuit. -/
-def eventQueryDepth (realization : CircuitRealization u)
-    (focus : Resource.Event .quantum) : Nat :=
-  realization.circuit.eventQueryDepth focus
-
-/-- Exact multiplicity of one gate coordinate in the realization circuit. -/
-def eventGateCount (realization : CircuitRealization u)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) realization.circuit.eventCost
-
-/-- Linearizing the realization's event depth recovers its event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
-    (realization : CircuitRealization u) :
-    realization.circuit.resourcesFromEventDepth = realization.circuit.eventCost :=
-  UnitaryCircuit.resourcesFromEventDepth_eq_eventCost realization.circuit
-
-
-
-
-
-/-- Intrinsically normalized basis action of the realized multiplication
-circuit. -/
-theorem applyNormalized_ket (realization : CircuitRealization u) (x : ZMod N) :
-    realization.circuit.applyNormalized
-        (NormalizedVector.ket (R := residueRegister N) x) =
-      NormalizedVector.ket (R := residueRegister N) (multiplyByUnit u x) := by
-  change realization.circuit.matrix.apply
-      (NormalizedVector.ket (R := residueRegister N) x) = _
-  rw [realization.matrix_eq]
-  exact unitOp_apply_ket u x
-
-end CircuitRealization
-
 /-! ### Bridge to the modular-multiplication domain convention -/
 
 /-- The residue action agrees with the existing unit-carrier multiplication

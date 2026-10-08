@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent duration of zero/upper-bound loading and original modular setup. -/
 def sharedDepthBound (N : Nat) : Nat := shortLogBits N + 3 + (12 * modulusBits N + 8)
@@ -95,7 +96,7 @@ theorem pairCandidateRecoveryInto_depth_le (input : Input N) (refs : Refs ctx N)
 /-- Every actual stage restores the full borrowed-reference joint state. -/
 theorem sharedInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (sharedInto input refs).BorrowedRestored Reference state
       ((sharedInto input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -107,7 +108,7 @@ theorem sharedInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
 theorem sharedInto_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
     (LatticeCandidateConstants.loadInto (shortLogBits N) refs.constants)
     (LatticeCandidateModularSetup.setupInto input refs.setup) path).le.trans ?_
@@ -120,7 +121,7 @@ theorem sharedInto_resident_le (input : Input N) (refs : Refs ctx N)
 theorem sharedInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (LatticeCandidateConstants.loadInto (shortLogBits N) refs.constants)
     (LatticeCandidateModularSetup.setupInto input refs.setup) path).le.trans ?_
@@ -132,7 +133,7 @@ theorem sharedInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
 /-- Every actual stage restores the full borrowed-reference joint state. -/
 theorem pairCandidatePrefix_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairCandidatePrefix input refs).BorrowedRestored Reference state
       ((pairCandidatePrefix input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -144,7 +145,7 @@ theorem pairCandidatePrefix_borrowedRestored (input : Input N) (refs : Refs ctx 
 theorem pairCandidatePrefix_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
     (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs.pair)
     (sharedInto input refs) path).le.trans ?_
@@ -157,7 +158,7 @@ theorem pairCandidatePrefix_resident_le (input : Input N) (refs : Refs ctx N)
 theorem pairCandidatePrefix_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs.pair)
     (sharedInto input refs) path).le.trans ?_
@@ -169,7 +170,7 @@ theorem pairCandidatePrefix_auxiliary_le (input : Input N) (refs : Refs ctx N)
 /-- Every actual stage restores the full borrowed-reference joint state. -/
 theorem pairCandidateRecoveryInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairCandidateRecoveryInto input refs).BorrowedRestored Reference state
       ((pairCandidateRecoveryInto input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -181,7 +182,7 @@ theorem pairCandidateRecoveryInto_borrowedRestored (input : Input N) (refs : Ref
 theorem pairCandidateRecoveryInto_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
     (pairCandidatePrefix input refs)
     (LatticeCandidateScanInitialized.initializedScanInto input refs.scan) path).le.trans ?_
@@ -193,7 +194,7 @@ theorem pairCandidateRecoveryInto_resident_le (input : Input N) (refs : Refs ctx
 theorem pairCandidateRecoveryInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (pairCandidatePrefix input refs)
     (LatticeCandidateScanInitialized.initializedScanInto input refs.scan) path).le.trans ?_

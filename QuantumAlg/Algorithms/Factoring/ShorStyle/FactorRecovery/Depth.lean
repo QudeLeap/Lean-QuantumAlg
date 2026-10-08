@@ -25,30 +25,33 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- Actual modular half-power precedes the complete scoped GCD-selection dependency chain. -/
 theorem reduce_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (reduce source cells output).Path) :
-    (reduce source cells output).depth (fun _ => 1) path ≤ reduceDepth N := by
+    (path : (reduce (model := model) source cells output).Path) :
+    (reduce (model := model) source cells output).depth (fun _ => 1) path ≤ reduceDepth N := by
   exact Nat.add_le_add
     (NativeHalfPower.code_unitDepth_le source (.storage cells.base.toCStorageRef)
       (orderRead cells) cells.halfPower path.1)
     (NativeHalfFactorScope.code_unitDepth_le (halfRead cells) output path.2)
 
 /-- All five actual runtime predicates contribute one real serial native operation each. -/
-theorem guardOrder_unitDepth (cells : Cells ctx N) (path : (guardOrder cells).Path) :
-    (guardOrder cells).depth (fun _ => 1) path = 5 := rfl
+theorem guardOrder_unitDepth (cells : Cells ctx N) (path : (guardOrder (model := model)
+    cells).Path) :
+    (guardOrder (model := model) cells).depth (fun _ => 1) path = 5 := rfl
 
 private theorem checkedBranch_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output))).Path) :
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output))).Path) :
     (Circuit.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output))).depth (fun _ => 1) path ≤
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output))).depth (fun _
+            => 1) path ≤
       max 1 (reduceDepth N) := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -60,8 +63,9 @@ private theorem checkedBranch_unitDepth_le (source : Input N) (cells : Cells ctx
 /-- The real guard precedes either actual reduction or actual none packaging. -/
 theorem checkedOrder_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (checkedOrder source cells output).Path) :
-    (checkedOrder source cells output).depth (fun _ => 1) path ≤ 5 + max 1 (reduceDepth N) :=
+    (path : (checkedOrder (model := model) source cells output).Path) :
+    (checkedOrder (model := model) source cells output).depth (fun _ => 1) path ≤ 5 + max 1
+        (reduceDepth N) :=
   Nat.add_le_add (guardOrder_unitDepth cells path.1).le
     (checkedBranch_unitDepth_le source cells output path.2)
 
@@ -69,8 +73,9 @@ theorem checkedOrder_unitDepth_le (source : Input N) (cells : Cells ctx N)
 theorem dispatch_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (dispatch source parameter cells output).Path) :
-    (dispatch source parameter cells output).depth (fun _ => 1) path ≤ dispatchDepth N := by
+    (path : (dispatch (model := model) source parameter cells output).Path) :
+    (dispatch (model := model) source parameter cells output).depth (fun _ => 1) path ≤
+        dispatchDepth N := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
@@ -83,8 +88,8 @@ theorem recovered_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (recovered source parameter phase cells output).Path) :
-    (recovered source parameter phase cells output).depth (fun _ => 1) path ≤
+    (path : (recovered (model := model) source parameter phase cells output).Path) :
+    (recovered (model := model) source parameter phase cells output).depth (fun _ => 1) path ≤
       recoveredDepth N := by
   exact Nat.add_le_add_left
     (Nat.add_le_add (OrderRecovery.Native.nativeRecovery_into_unitDepth_le
@@ -94,13 +99,13 @@ theorem recovered_unitDepth_le (source : Input N)
 /-- The original even-modulus exception still executes the full literal factor-two load. -/
 theorem evenModulus_unitDepth_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (evenModulus cells output).Path) :
-    (evenModulus cells output).depth (fun _ => 1) path ≤ evenDepth N := by
-  have loaded := ConstantWord.constantWord_depth_le cells.halfPower 2
+    (path : (evenModulus (model := model) cells output).Path) :
+    (evenModulus (model := model) cells output).depth (fun _ => 1) path ≤ evenDepth N := by
+  have loaded := ConstantWord.constantWord_depth_le (model := model) cells.halfPower 2
     (fun _ => 1) path.2.2.1
-  change (ConstantWord.circuit cells.halfPower 2).depth (fun _ => 1) path.2.2.1 ≤
+  change (ConstantWord.circuit (model := model) cells.halfPower 2).depth (fun _ => 1) path.2.2.1 ≤
     modulusBits N * (1 + 1) at loaded
-  change 1 + (1 + ((ConstantWord.circuit cells.halfPower 2).depth
+  change 1 + (1 + ((ConstantWord.circuit (model := model) cells.halfPower 2).depth
     (fun _ => 1) path.2.2.1 + 1)) ≤ _
   unfold evenDepth
   omega
@@ -110,17 +115,20 @@ theorem code_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase cells output).Path) :
-    (code source parameter phase cells output).depth (fun _ => 1) path ≤ depthBound N := by
-  have allPaths : ∀ selected : (code source parameter phase cells output).Path,
-      (code source parameter phase cells output).depth (fun _ => 1) selected ≤ depthBound N := by
+    (path : (code (model := model) source parameter phase cells output).Path) :
+    (code (model := model) source parameter phase cells output).depth (fun _ => 1) path ≤
+        depthBound N := by
+  have allPaths : ∀ selected : (code (model := model) source parameter phase cells output).Path,
+      (code (model := model) source parameter phase cells output).depth (fun _ => 1) selected ≤
+          depthBound N := by
     by_cases exceptional : 2 < N ∧ Even N
-    · have same : code source parameter phase cells output = evenModulus cells output :=
+    · have same : code (model := model) source parameter phase cells output = evenModulus (model
+        := model) cells output :=
         if_pos exceptional
       rw [same]
       simpa only [depthBound, if_pos exceptional] using evenModulus_unitDepth_le cells output
-    · have same : code source parameter phase cells output =
-          recovered source parameter phase cells output := if_neg exceptional
+    · have same : code (model := model) source parameter phase cells output =
+          recovered (model := model) source parameter phase cells output := if_neg exceptional
       rw [same]
       simpa only [depthBound, if_neg exceptional] using
         recovered_unitDepth_le source parameter phase cells output

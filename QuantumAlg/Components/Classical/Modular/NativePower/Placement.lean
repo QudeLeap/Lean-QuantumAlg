@@ -24,6 +24,8 @@ namespace QuantumAlg.ClassicalRoutines.Modular.NativePower
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The first lexical cell holds the complete product. -/
@@ -64,23 +66,25 @@ def divisionCell (ctx : RuntimeCtx kind) (width : Nat) :
     (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh
 
 /-- The three closed operations placed on their real input, result and scratch cells. -/
-def placedMultiply (left right : CInputRef ctx (.unsignedWord width))
+def placedMultiply {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (divisionCtx ctx width) (divisionCtx ctx width) :=
-  multiplyBody (underMultiply left width) (underMultiply right width)
+    Circuit model (divisionCtx ctx width) (divisionCtx ctx width) :=
+  multiplyBody (model := model) (underMultiply left width) (underMultiply right width)
     (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
     (writeUnderMultiply output width)
 
 /-- Execute real full-product reduction between matching lexical allocations and releases. -/
-def scopedMultiply (left right : CInputRef ctx (.unsignedWord width))
+def scopedMultiply {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + width))
     ctx.canonicalFreshKey_fresh
     (.workspace (productCtx ctx width) (productCtx ctx width).canonicalFreshKey
       (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh
-      (placedMultiply left right modulus output))
+      (placedMultiply (model := model) left right modulus output))
 
 /-- Concrete contents after entering both actual scratch scopes. -/
 def enterMultiply (store : Store ctx) (width : Nat) : Store (divisionCtx ctx width) :=
@@ -96,13 +100,17 @@ def leaveMultiply (store : Store (divisionCtx ctx width)) : Store ctx :=
       (productCtx ctx width).canonicalFreshKey_fresh store)
 
 /-- The actual outer-store update, together with the program's real three-operation path. -/
-def scopedMultiplyStep (left right : CInputRef ctx (.unsignedWord width))
+def scopedMultiplyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (scopedMultiply left right modulus output).Path :=
-  (leaveMultiply
-    (multiplyStore (underMultiply left width) (underMultiply right width)
-      (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
-      (writeUnderMultiply output width) (enterMultiply store width)), ((), ((), ())))
+    Store ctx × (scopedMultiply (model := model) left right modulus output).Path :=
+  let result := multiplyStep (model := model)
+    (underMultiply left width) (underMultiply right width) (underMultiply modulus width)
+    (productCell ctx width) (divisionCell ctx width) (writeUnderMultiply output width)
+    (enterMultiply store width)
+  (leaveMultiply result.1, result.2)
+
+end
 
 end QuantumAlg.ClassicalRoutines.Modular.NativePower

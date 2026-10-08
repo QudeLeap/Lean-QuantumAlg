@@ -45,39 +45,52 @@ private theorem representative_word (width : Nat) (value : Fin (2 ^ width)) :
 private theorem writes (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (value : Fin (2 ^ width))
     (same : word width basis = value) :
-    Circuit.writeMeasurementPath (readouts width) store
-      (Circuit.measurementBasisPath (readouts width) basis) =
-      Circuit.writeMeasurementPath (readouts width) store
-        (Circuit.measurementBasisPath (readouts width) (representative width value)) := by
-  apply Circuit.writeMeasurementPath_eq_of_agree
+    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty) (readouts width) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty) (readouts width) basis) =
+      Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty) (readouts width) store
+        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+          (operations := .empty) (classicalOracles := .empty)
+          (readouts width) (representative width value)) := by
+  apply Circuit.writeMeasurementPath_eq_of_agree (gates := AlgorithmGate.model)
+    (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
   exact (measurement_agrees width basis (representative width value)).mpr
     (same.trans (representative_word width value).symm)
 
 /-- Keep precisely the original stores whose actual Z writes produce the selected final store. -/
 def source (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     DensityOperator (Register.prod (context width).register Reference) :=
   (state.filterClassical (fun entry =>
-    Circuit.writeMeasurementPath (readouts width) entry.1
-      (Circuit.measurementBasisPath (readouts width)
+    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty) (readouts width)
         (representative width (NumeratorReset.outcome (stored.read (input width))))) =
       stored)).quantumMarginal
 
 private theorem source_entry (width : Nat) {Reference : Register} {History : Type}
-    [Fintype History] (state : State (context width) Reference History)
+    [Fintype History] (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index) :
     (source width state stored).matrix (left, leftRef) (right, rightRef) =
       ExecutionState.weightedMatrixEntry state (fun entry =>
-        if Circuit.writeMeasurementPath (readouts width) entry.1
-          (Circuit.measurementBasisPath (readouts width)
+        if Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+          (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
+          (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+            (operations := .empty) (classicalOracles := .empty) (readouts width)
             (representative width (NumeratorReset.outcome (stored.read (input width))))) =
               stored then 1 else 0) (left, leftRef) (right, rightRef) :=
   ExecutionState.filterClassical_matrix_weighted state _ _ _
 
 /-- The existing measurement execution equals this projection on every full reference block. -/
 theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     NumeratorMeasuredSupport.density width state stored =
       ZMeasurement.branch (fun entry : (Register.prod (context width).register Reference).Index =>
         word width entry.1) (NumeratorReset.outcome (stored.read (input width)))

@@ -84,11 +84,16 @@ theorem gidney_toMontgomery_clean {p : Nat} [Fact p.Prime]
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     (MAU.Multiplication.Gidney.program p.size (InPlaceTarget.modulusWord p)
         (Semantics.radixUnit p fieldTail.succ odd)).applyNormalized
-      (NormalizedVector.ket ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
-        (fieldWord value, 0))) =
-      NormalizedVector.ket ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
-        (Fin.cast (congrArg (fun width : Nat => 2 ^ width) sameWidth)
-          (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits value), 0)) := by
+      (NormalizedVector.ket ((QubitLayout.canonical
+        (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
+        ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
+          (fieldWord value, 0)))) =
+      NormalizedVector.ket ((QubitLayout.canonical
+        (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
+        ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
+          (Fin.cast (congrArg (fun width : Nat => 2 ^ width) sameWidth)
+            (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits value),
+            0))) := by
   rw [MAU.Multiplication.Gidney.gidneyUnitMultiplication_clean p.size
     (InPlaceTarget.modulusWord p) (Fact.out : Nat.Prime p).pos
     (Semantics.radixUnit p fieldTail.succ odd) (fieldWord value) (ZMod.val_lt value)]
@@ -100,11 +105,16 @@ theorem gidney_fromMontgomery_clean {p : Nat} [Fact p.Prime]
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     (MAU.Multiplication.Gidney.program p.size (InPlaceTarget.modulusWord p)
         (Semantics.radixUnit p fieldTail.succ odd)⁻¹).applyNormalized
-      (NormalizedVector.ket ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
-        (Fin.cast (congrArg (fun width : Nat => 2 ^ width) sameWidth)
-          (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits value), 0))) =
-      NormalizedVector.ket ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
-        (fieldWord value, 0)) := by
+      (NormalizedVector.ket ((QubitLayout.canonical
+        (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
+        ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
+          (Fin.cast (congrArg (fun width : Nat => 2 ^ width) sameWidth)
+            (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits value),
+            0)))) =
+      NormalizedVector.ket ((QubitLayout.canonical
+        (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
+        ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
+          (fieldWord value, 0))) := by
   rw [MAU.Multiplication.Gidney.gidneyUnitMultiplication_clean p.size
     (InPlaceTarget.modulusWord p) (Fact.out : Nat.Prime p).pos
     (Semantics.radixUnit p fieldTail.succ odd)⁻¹ _

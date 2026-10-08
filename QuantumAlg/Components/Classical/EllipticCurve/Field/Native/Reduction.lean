@@ -54,11 +54,14 @@ def loadedModulusCell (ctx : RuntimeCtx kind) (width : Nat) :
   CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Load the actual modulus and execute the original native reduction in sequence. -/
 def loadedReductionBody (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .seq (ConstantWord.circuit modulus spec.modulus)
     (reduceWord numerator (reductionRead modulus) output)
 
@@ -67,8 +70,9 @@ def loadedReductionBodyStep (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (loadedReductionBody spec numerator modulus output).Path :=
-  Circuit.sequenceRecord (ConstantWord.circuit modulus spec.modulus)
+    Store ctx → Store ctx ×
+      (loadedReductionBody (model := model) spec numerator modulus output).Path :=
+  Circuit.sequenceStoreRecord (ConstantWord.circuit (model := model) modulus spec.modulus)
     (reduceWord numerator (reductionRead modulus) output)
     (ConstantWord.foldStep modulus (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus)))
     (reduceWordStep numerator (reductionRead modulus) output)
@@ -78,12 +82,14 @@ theorem loadedReductionBody_execute (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (loadedReductionBody spec numerator modulus output).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (loadedReductionBody (model := model) spec numerator modulus output).execute Reference state =
       state.mapClassical (fun entry =>
         ((loadedReductionBodyStep spec numerator modulus output entry.1).1,
-          (entry.2, (loadedReductionBodyStep spec numerator modulus output entry.1).2))) := by
-  exact Circuit.execute_sequenceRecord _ _ _ _
+          (entry.2.1, (entry.2.2,
+            (loadedReductionBodyStep spec numerator modulus output entry.1).2)))) := by
+  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
     (ConstantWord.constantWord_fold_execute modulus _)
     (reduceWord_execute numerator (reductionRead modulus) output) Reference state
 
@@ -124,14 +130,15 @@ theorem loadedReductionBody_read_other (spec : ModulusSpec width)
 def loadedReductionPlaced (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (loadedReductionCtx ctx width) (loadedReductionCtx ctx width) :=
-  loadedReductionBody spec (underLoadedReduction numerator width) (loadedModulusCell ctx width)
+    Circuit model (loadedReductionCtx ctx width) (loadedReductionCtx ctx width) :=
+  loadedReductionBody (model := model) spec (underLoadedReduction numerator width)
+    (loadedModulusCell ctx width)
     (writeUnderLoadedReduction output width)
 
 /-- Allocate, load and release the original modulus as part of actual raw field reduction. -/
 def reduceIntoWord (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
     (loadedReductionPlaced spec numerator output)
 
@@ -139,9 +146,9 @@ def reduceIntoWord (spec : ModulusSpec width)
 def reduceIntoWordStep (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (reduceIntoWord spec numerator output).Path :=
-  Circuit.workspaceRecord ctx.canonicalFreshKey (.unsignedWord (width + 1))
-    ctx.canonicalFreshKey_fresh (loadedReductionPlaced spec numerator output)
+    Store ctx → Store ctx × (reduceIntoWord (model := model) spec numerator output).Path :=
+  Circuit.workspaceStoreRecord ctx.canonicalFreshKey (.unsignedWord (width + 1))
+    ctx.canonicalFreshKey_fresh (loadedReductionPlaced (model := model) spec numerator output)
     (loadedReductionBodyStep spec (underLoadedReduction numerator width)
       (loadedModulusCell ctx width) (writeUnderLoadedReduction output width))
 
@@ -149,13 +156,16 @@ def reduceIntoWordStep (spec : ModulusSpec width)
 theorem reduceIntoWord_execute (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (reduceIntoWord spec numerator output).execute Reference state = state.mapClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reduceIntoWord (model := model) spec numerator output).execute Reference state =
+      state.mapClassical
       (fun entry => ((reduceIntoWordStep spec numerator output entry.1).1,
-        (entry.2, (reduceIntoWordStep spec numerator output entry.1).2))) := by
-  exact Circuit.execute_workspaceRecord _ _ _ _ _ (loadedReductionBody_execute _ _ _ _)
-    Reference state
+        (entry.2.1, (entry.2.2, (reduceIntoWordStep spec numerator output entry.1).2)))) := by
+  exact Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+    (loadedReductionBody_execute _ _ _ _) Reference state
 
+omit [BitWord.Selected model] in
 private theorem loadedModulusCell_avoids {shape : CShape} (input : CInputRef ctx shape) :
     (loadedModulusCell ctx width).key ∉ (underLoadedReduction input width).storageKeys := by
   change ctx.canonicalFreshKey ∉ (underLoadedReduction input width).storageKeys
@@ -168,7 +178,7 @@ theorem reduceIntoWord_toNat (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((reduceIntoWordStep spec numerator output store).1.read (reductionRead output)).toNat =
       (store.read numerator).toNat % spec.modulus := by
-  unfold reduceIntoWordStep Circuit.workspaceRecord
+  unfold reduceIntoWordStep Circuit.workspaceStoreRecord
   rw [Store.read_popWorkspace_underWorkspace _ _ _ _ (reductionRead output)]
   change ((loadedReductionBodyStep _ _ _ _ _).1.read
     (reductionRead (writeUnderLoadedReduction output width))).toNat = _
@@ -181,7 +191,7 @@ theorem reduceIntoWord_read_other (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (reduceIntoWordStep spec numerator output store).1.read other = store.read other := by
-  unfold reduceIntoWordStep Circuit.workspaceRecord
+  unfold reduceIntoWordStep Circuit.workspaceStoreRecord
   rw [Store.read_popWorkspace_underWorkspace _ _ _ _ other]
   change (loadedReductionBodyStep _ _ _ _ _).1.read (underLoadedReduction other width) = _
   rw [loadedReductionBody_read_other _ _ _ _ _ (loadedModulusCell_avoids other)]

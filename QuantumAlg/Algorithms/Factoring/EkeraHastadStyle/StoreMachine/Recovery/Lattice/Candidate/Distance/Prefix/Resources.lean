@@ -18,10 +18,11 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent offset formula, eighteen candidate instructions and eight distance steps. -/
-def prefixTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) : List (Resource.Event kind) :=
+def prefixTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) : List (Resource.Event model) :=
   LatticeOffsetMaterializer.offsetTrace width offset ++
     (LatticeCandidatePointMachine.candidateTrace width ++
       LatticeSquaredDistanceMachine.distanceTrace width)
@@ -69,7 +70,7 @@ theorem candidateDistancePrefixInto_depth (offset : NumberTheory.IntegerPoint3)
 
 /-- Actual candidate and distance work jointly restore all borrowed-reference states. -/
 theorem candidateDistanceInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistanceInto refs).BorrowedRestored Reference state
       ((candidateDistanceInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -80,7 +81,7 @@ theorem candidateDistanceInto_borrowedRestored (refs : Refs ctx width) (Referenc
 /-- The complete actual prefix restores every borrowed resource jointly with external references. -/
 theorem candidateDistancePrefixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistancePrefixInto offset refs).BorrowedRestored Reference state
       ((candidateDistancePrefixInto offset refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -96,7 +97,7 @@ theorem candidateDistanceInto_visited (refs : Refs ctx width)
 /-- All three actual phases preserve the original live context, including their scratch roles. -/
 theorem candidateDistancePrefixInto_visited (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (candidateDistancePrefixInto offset refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈

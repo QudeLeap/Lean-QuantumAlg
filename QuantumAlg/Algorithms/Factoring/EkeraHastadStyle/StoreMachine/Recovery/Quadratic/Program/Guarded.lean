@@ -107,10 +107,11 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   recovery : QuadraticRecoveryMachine.CallerFrameAvoids
     refs.quadratic.recovery other
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Select the actual recovery circuit exactly when the short-log latch is set. -/
-def arm (refs : Refs ctx shortWidth) : CShape.Value .bit → Circuit ctx ctx
+def arm (refs : Refs ctx shortWidth) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
   | .bit true => QuadraticRecoveryMachine.into refs.quadratic.recovery
 
@@ -122,7 +123,7 @@ def armStep (refs : Refs ctx shortWidth) (flag : CShape.Value .bit) (store : Sto
   | .bit true => QuadraticRecoveryMachine.step refs.quadratic.recovery store
 
 /-- Dispatch through the existing classical short-log acceptance cell. -/
-def chooseInto (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
+def chooseInto (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
   .branch (FirstAccepted.cellRead refs.shortLogSelection.accepted) (arm refs)
 
 /-- Record exactly the value read from the real acceptance cell and its actual arm. -/
@@ -133,14 +134,13 @@ def chooseStep (refs : Refs ctx shortWidth) (store : Store ctx) :
   (chosen.1, ⟨flag, chosen.2⟩)
 
 /-- Charge the four scratch clears, then dispatch on the existing short-log option. -/
-def into (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
+def into (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
   .seq (QuadraticRecoveryReset.into refs.quadratic) (chooseInto refs)
 
 /-- The reset and selected body return one actual store and one chronological circuit path. -/
 def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into refs).Path :=
-  let reset := QuadraticRecoveryReset.step refs.quadratic store
-  let chosen := chooseStep refs reset.1
-  (chosen.1, (reset.2, chosen.2))
+  Circuit.sequenceStoreRecord (QuadraticRecoveryReset.into refs.quadratic) (chooseInto refs)
+    (QuadraticRecoveryReset.step refs.quadratic) (chooseStep refs) store
 
 /-- The selected store follows the actual true-recovery or false-identity arm. -/
 theorem chooseStep_store (refs : Refs ctx shortWidth) (store : Store ctx) :
@@ -153,37 +153,45 @@ theorem chooseStep_store (refs : Refs ctx shortWidth) (store : Store ctx) :
 
 private theorem arm_execute (refs : Refs ctx shortWidth) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (arm refs flag).execute Reference state = state.mapClassical (fun entry =>
-      ((armStep refs flag entry.1).1, (entry.2, (armStep refs flag entry.1).2))) := by
+      let actual := armStep refs flag entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
       cases flag with
       | false =>
           refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _
+          exact ExecutionState.executionState_mapClassical_congr _ rfl
       | true => exact QuadraticRecoveryMachine.into_execute refs.quadratic.recovery Reference state
 
 /-- Actual stored-value dispatch preserves complete history and external-reference blocks. -/
 theorem chooseInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (chooseInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((chooseStep refs entry.1).1, (entry.2, (chooseStep refs entry.1).2))) :=
-  Circuit.execute_branch_mapClassical
+      let actual := chooseStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_branch_mapClassical
     (FirstAccepted.cellRead refs.shortLogSelection.accepted) (arm refs)
-    (armStep refs) (arm_execute refs) Reference state
+    (fun flag before =>
+      let actual := armStep refs flag before.1
+      ((actual.1, before.2), actual.2))
+    (fun flag reference _history _ current => arm_execute refs flag reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete reset-and-branch execution follows its actual full-store record. -/
 theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
-  simp only [into, step, Circuit.execute_seq, QuadraticRecoveryReset.into_execute,
-    chooseInto_execute, State.mapHistory, ExecutionState.executionState_mapClassical_comp,
-    Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord (QuadraticRecoveryReset.into refs.quadratic)
+    (chooseInto refs) (QuadraticRecoveryReset.step refs.quadratic) (chooseStep refs)
+    (QuadraticRecoveryReset.into_execute refs.quadratic) (chooseInto_execute refs)
+    Reference state
 
 /-- Caller reads outside the reset and optional recovery writes survive either actual branch. -/
 theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
@@ -277,7 +285,7 @@ theorem into_correct (modulus : Nat) (refs : Refs ctx shortWidth)
     cases QuadraticCandidateSelect.selectedOption (factorSelection refs) store <;> rfl
 
 /-- Independent allowance for four actual clears and the maximum optional recovery branch. -/
-def eventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
   QuadraticRecoveryReset.resetEventEnvelope shortWidth +
     ResourcePool.max (QuadraticRecoveryMachine.eventEnvelope shortWidth) 0
 
@@ -322,7 +330,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
 
 /-- Every branch keeps all supplied classical and quantum runtime entries live. -/
 theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨resetPath, flag, selected⟩
   change visited ∈ (QuadraticRecoveryReset.into refs.quadratic).visitedContexts resetPath ++
@@ -354,7 +362,8 @@ theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path)
 
 /-- Both actual branches restore borrowed systems jointly with every external quantum reference. -/
 theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact QuadraticRecoveryReset.into_borrowedRestored refs.quadratic Reference state
@@ -364,9 +373,7 @@ theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register
     | bit flag =>
         cases flag with
         | false =>
-            rw [arm, Circuit.BorrowedRestored, observeBorrowedAfter_sameContext,
-              Circuit.execute_id]
-            exact observeBorrowed_mapHistory selected _
+            exact Circuit.borrowedRestored_id (model := model) selected
         | true =>
             exact QuadraticRecoveryMachine.into_borrowedRestored
               refs.quadratic.recovery Reference selected

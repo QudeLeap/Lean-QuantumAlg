@@ -42,10 +42,13 @@ theorem divide_quotient (refs : BodyRefs ctx width) (store : Store ctx) :
   exact ClassicalOp.eval_divRem_quotient_exact (width + 1) (width + 1) ctx
     (divideOp refs).inputRef refs.division (store.read (divideOp refs).inputRef)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem restore_represents (refs : BodyRefs ctx width)
     (flag : CShape.Value .bit) (store : Store ctx) (value : Int)
     (represents : RawSignedRepresents (store.read (writeInput refs.output)) value) :
-    RawSignedRepresents ((restoreStep refs flag store).1.read (writeInput refs.output))
+    RawSignedRepresents ((restoreStep (model := model) refs flag store).1.read (writeInput
+      refs.output))
       (if flag.toBool then -value else value) := by
   cases flag with
   | bit flag =>
@@ -61,7 +64,7 @@ private theorem restore_represents (refs : BodyRefs ctx width)
 private theorem restore_frame (refs : BodyRefs ctx width)
     (flag : CShape.Value .bit) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (avoids : refs.output.key ∉ other.storageKeys) :
-    ((restoreStep refs flag store).1).read other = store.read other := by
+    ((restoreStep (model := model) refs flag store).1).read other = store.read other := by
   cases flag with
   | bit flag =>
       cases flag
@@ -75,14 +78,15 @@ private theorem restore_frame (refs : BodyRefs ctx width)
 theorem finish_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.output.key ∉ other.storageKeys) :
-    ((finishStep refs store).1).read other = store.read other := by
+    ((finishStep (model := model) refs store).1).read other = store.read other := by
   unfold finishStep
+  dsimp only [BitWord.instructionStep]
   rw [restore_frame _ _ _ _ avoids, Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids]
 
 /-- The retained sign selects the signed value represented by the resized real quotient. -/
 theorem finish_represents (refs : BodyRefs ctx width) (store : Store ctx)
     (separate : refs.output.key ≠ refs.negative.key) :
-    RawSignedRepresents ((finishStep refs store).1.read (writeInput refs.output))
+    RawSignedRepresents ((finishStep (model := model) refs store).1.read (writeInput refs.output))
       (if (store.read (writeInput refs.negative)).toBool then
         -(((store.read (.first (writeInput refs.division))).toNat : Nat) : Int)
       else (((store.read (.first (writeInput refs.division))).toNat : Nat) : Int)) := by
@@ -93,11 +97,12 @@ theorem finish_represents (refs : BodyRefs ctx width) (store : Store ctx)
       (.storage (resizeQuotientOp refs).outputRef.toCStorageRef)) _
     rw [Store.read_applyOp_output]
     exact rawSignedWordRepresents_wordResize _
-  have restored := restore_represents refs (resized.read (writeInput refs.negative))
+  have restored := restore_represents (model := model) refs (resized.read (writeInput
+    refs.negative))
     resized _ resizedValue
   rw [read_other store (resizeQuotientOp refs) refs.negative separate] at restored
   change RawSignedRepresents
-    ((restoreStep refs (resized.read (writeInput refs.negative)) resized).1.read
+    ((restoreStep (model := model) refs (resized.read (writeInput refs.negative)) resized).1.read
       (writeInput refs.output)) _
   rw [read_other store (resizeQuotientOp refs) refs.negative separate]
   exact restored

@@ -6,6 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Readout.Outcome
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
+public import QuantumAlg.Util.FinPow
+public import Mathlib.Algebra.Group.Units.Defs
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Readout.Outcome
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
@@ -31,7 +36,7 @@ variable {G : Type u} [Group G]
 /-- The raw terminal bit string selected by one invertible Fourier residue.
 The second raw frequency encodes only the hidden-line relation; this
 definition does not claim that a classical routine has recovered the secret. -/
-def selectedRawOutcome (P : KnownOrderProblem G) (input : SecretInput P)
+@[expose] public def selectedRawOutcome (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) : BornBridge.Outcome P :=
   BornBridge.measurementOutcome P
     (prodEquiv
@@ -39,12 +44,12 @@ def selectedRawOutcome (P : KnownOrderProblem G) (input : SecretInput P)
         selectedIndex P (-input.secret * (unit : ZMod P.order))))
 
 /-- Predicate selecting exactly the useful raw terminal family. -/
-def SelectedRawOutcome (P : KnownOrderProblem G) (input : SecretInput P)
+@[expose] public def SelectedRawOutcome (P : KnownOrderProblem G) (input : SecretInput P)
     (outcome : BornBridge.Outcome P) : Prop :=
   ∃ unit : (ZMod P.order)ˣ, outcome = selectedRawOutcome P input unit
 
 /-- The selected raw outcome uniquely determines its unit parameter. -/
-theorem selectedRawOutcome_injective (P : KnownOrderProblem G)
+public theorem selectedRawOutcome_injective (P : KnownOrderProblem G)
     (input : SecretInput P) : Function.Injective (selectedRawOutcome P input) := by
   intro left right h
   have hpacked := BornBridge.measurementOutcome_injective P h
@@ -63,7 +68,7 @@ open ClassicalAlgorithms.Modular
 
 /-- Store one selected big-endian terminal outcome in the exact raw shape
 consumed by the fixed-width recovery routine. -/
-def selectedRawInput (P : KnownOrderProblem G) (input : SecretInput P)
+@[expose] public def selectedRawInput (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) :
     CShape.Value
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.InputShape
@@ -364,7 +369,7 @@ theorem outputOf_selectedRawInput
 /-- Complete pure semantic bridge used by endpoint integration: the selected
 raw outcome yields `some` candidate, that candidate is the advertised secret,
 and the reconstruction flag is true. -/
-theorem outputOf_selectedRawInput_recovers
+public theorem outputOf_selectedRawInput_recovers
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :

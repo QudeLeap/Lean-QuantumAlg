@@ -67,25 +67,36 @@ private theorem bit_value (value : CShape.Value .bit) : .bit value.toBool = valu
   rfl
 
 /-- Actual two-bit allocation leaves exactly the original conditional pair of caller writes. -/
-theorem withSelection_actualRecord (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+theorem withSelection_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width)) :
-    ∃ record : Store ctx → Store ctx × (withSelection inputs accepted selected).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (withSelection
+      (model := model) inputs accepted selected).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withSelection inputs accepted selected).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withSelection (model := model) inputs accepted selected).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 = selectionWrite inputs accepted selected before := by
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = selectionWrite inputs accepted selected before.1 := by
   unfold withSelection
   apply withCells_actualRecord_initialized_post ctx [.bit, .bit]
     (fun cells _ transport _ =>
-      circuit (placedInputs inputs transport) (placedRefs cells transport accepted selected))
+      circuit (model := model) (placedInputs inputs transport) (placedRefs cells transport accepted
+        selected))
     (fun before after => after = selectionWrite inputs accepted selected before)
   intro inner cells _distinct transport separated
   let innerInputs := placedInputs inputs transport
   let refs := placedRefs cells transport accepted selected
-  refine ⟨step innerInputs refs, firstAccepted_execute innerInputs refs, ?_⟩
-  intro source before reads _initialized
+  refine ⟨fun before =>
+    let actual := step (model := model) innerInputs refs before.1
+    ((actual.1, before.2), actual.2), ?_, ?_⟩
+  · intro reference history _ state
+    exact (firstAccepted_execute innerInputs refs reference state).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  intro source entry reads _initialized
+  rcases entry with ⟨before, hidden⟩
   let decision := decisionStore innerInputs refs before
   have decisionReads : transport.ReadsAs source decision := by
     intro shape other

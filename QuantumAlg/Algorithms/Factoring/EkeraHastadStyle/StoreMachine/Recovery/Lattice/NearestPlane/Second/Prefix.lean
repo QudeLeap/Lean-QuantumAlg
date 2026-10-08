@@ -28,13 +28,15 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- First compute the cross product, the first squared norm and the second-first Gram entry. -/
-def secondMetricPrefixInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def secondMetricPrefixInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeCross.pointCrossInto refs.basis.first refs.basis.second refs.cross
       refs.crossProductLeft refs.crossProductRight)
     (.seq (metricInto refs .g11) (metricInto refs .g21))
 
 /-- All metrics required by the actual second numerator and denominator. -/
-def secondPrefixInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def secondPrefixInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (secondMetricPrefixInto refs)
     (.seq (metricInto refs .targetSecond)
       (.seq (metricInto refs .targetFirst) (metricInto refs .denominator)))
@@ -50,101 +52,144 @@ def secondPrefixStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   metricStore refs .denominator (metricStore refs .targetFirst
     (metricStore refs .targetSecond (secondMetricPrefixStore refs store)))
 
-/-- The unique path of each straight-line metric prefix records every actual native instruction. -/
-def prefixPath (refs : Refs ctx width) : (secondPrefixInto refs).Path :=
-  (((((), ((), ())), (((), ((), ())), ((), ((), ())))),
-      (((), (((), ()), ((), ()))), ((), (((), ()), ((), ()))))),
-    (((), (((), ()), ((), ()))),
-      (((), (((), ()), ((), ()))), ((), (((), ()), ((), ()))))))
+/-- Each actual metric refresh returns its native output path. -/
+def metricStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (metric : Metric)
+    (store : Store ctx) : Store ctx × (metricInto refs metric).Path :=
+  LatticeDotRefresh.refreshStep (inputPointRefs refs (metricLeft metric))
+    (inputPointRefs refs (metricRight metric)) (metricRefs refs metric) store
 
-private def metricPath (refs : Refs ctx width) (metric : Metric) : (metricInto refs metric).Path :=
-  ((), (((), ()), ((), ())))
+/-- The cross product and first two actual metric paths in chronological order. -/
+def secondMetricPrefixStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (secondMetricPrefixInto refs).Path :=
+  let cross := LatticeCross.pointStep refs.basis.first refs.basis.second refs.cross
+    refs.crossProductLeft refs.crossProductRight store
+  let g11 := metricStep refs .g11 cross.1
+  let g21 := metricStep refs .g21 g11.1
+  (g21.1, (cross.2, (g11.2, g21.2)))
 
-private theorem metric_execute (refs : Refs ctx width) (metric : Metric) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (metricInto refs metric).execute Reference state = state.mapClassical (fun entry =>
-      (metricStore refs metric entry.1, (entry.2, metricPath refs metric))) := by
-  refine (LatticeDotRefresh.refreshInto_execute _ _ _ Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+/-- All five actual metric paths and the cross path share one chronological store. -/
+def secondPrefixStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (secondPrefixInto refs).Path :=
+  let first := secondMetricPrefixStep refs store
+  let targetSecond := metricStep refs .targetSecond first.1
+  let targetFirst := metricStep refs .targetFirst targetSecond.1
+  let denominator := metricStep refs .denominator targetFirst.1
+  (denominator.1, (first.2, (targetSecond.2, (targetFirst.2, denominator.2))))
 
-private theorem metricPair_execute (refs : Refs ctx width) (left right : Metric)
+private def metricPairStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (left right : Metric)
+    (store : Store ctx) :
+    Store ctx × (Circuit.seq (metricInto refs left) (metricInto refs right)).Path :=
+  let first := metricStep refs left store
+  let second := metricStep refs right first.1
+  (second.1, (first.2, second.2))
+
+private def metricTripleStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (left middle right : Metric)
+    (store : Store ctx) :
+    Store ctx ×
+      (Circuit.seq (metricInto refs left)
+        (.seq (metricInto refs middle) (metricInto refs right))).Path :=
+  let first := metricStep refs left store
+  let rest := metricPairStep refs middle right first.1
+  (rest.1, (first.2, rest.2))
+
+private theorem metric_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (metric : Metric)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (metricInto refs metric).execute Reference state = state.mapClassical (fun entry =>
+      let actual := metricStep refs metric entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  LatticeDotRefresh.refreshInto_execute _ _ _ Reference state
+
+private theorem metricPair_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (left right : Metric)
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (metricInto refs left) (metricInto refs right)).execute Reference state =
       state.mapClassical (fun entry =>
-        (metricStore refs right (metricStore refs left entry.1),
-          (entry.2, (metricPath refs left, metricPath refs right)))) := by
+        let actual := metricPairStep refs left right entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (metricInto refs left) (metricInto refs right)
-    (fun store => (metricStore refs left store, metricPath refs left))
-    (fun store => (metricStore refs right store, metricPath refs right))
-    (metric_execute refs left) (metric_execute refs right) Reference state).trans ?_
-  congr 1
+    (fun before =>
+      let actual := metricStep refs left before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := metricStep refs right before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => metric_execute refs left reference current)
+    (fun reference _history _ current => metric_execute refs right reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-set_option maxHeartbeats 800000 in
--- Composing three opaque dependent metric paths requires additional normalization.
-private theorem metricTriple_execute (refs : Refs ctx width) (left middle right : Metric)
+private theorem metricTriple_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (left middle right : Metric)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (metricInto refs left)
       (.seq (metricInto refs middle) (metricInto refs right))).execute Reference state =
       state.mapClassical (fun entry =>
-        (metricStore refs right (metricStore refs middle (metricStore refs left entry.1)),
-          (entry.2, (metricPath refs left, (metricPath refs middle, metricPath refs right))))) := by
+        let actual := metricTripleStep refs left middle right entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (metricInto refs left)
     (.seq (metricInto refs middle) (metricInto refs right))
-    (fun store => (metricStore refs left store, metricPath refs left))
-    (fun store => (metricStore refs right (metricStore refs middle store),
-      (metricPath refs middle, metricPath refs right)))
-    (metric_execute refs left)
-    (by
-      intro Reference History _ state
-      refine (metricPair_execute refs middle right Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := metricStep refs left before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := metricPairStep refs middle right before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => metric_execute refs left reference current)
+    (fun reference _history _ current => metricPair_execute refs middle right reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem secondMetricPrefix_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+private theorem secondMetricPrefix_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (secondMetricPrefixInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (secondMetricPrefixStore refs entry.1, (entry.2, (prefixPath refs).1))) := by
+      let actual := secondMetricPrefixStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical _ _
-    (fun store => (LatticeCross.pointStore refs.basis.first refs.basis.second refs.cross
-      refs.crossProductLeft refs.crossProductRight store, (prefixPath refs).1.1))
-    (fun store => (metricStore refs .g21 (metricStore refs .g11 store), (prefixPath refs).1.2))
-    (by
-      intro Reference History _ state
-      refine (LatticeCross.pointCrossInto_execute refs.basis.first refs.basis.second refs.cross
-      refs.crossProductLeft refs.crossProductRight Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (by
-      intro Reference History _ state
-      refine (metricPair_execute refs .g11 .g21 Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeCross.pointStep refs.basis.first refs.basis.second refs.cross
+        refs.crossProductLeft refs.crossProductRight before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := metricPairStep refs .g11 .g21 before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeCross.pointCrossInto_execute refs.basis.first refs.basis.second refs.cross
+        refs.crossProductLeft refs.crossProductRight reference current)
+    (fun reference _history _ current => metricPair_execute refs .g11 .g21 reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- The complete actual metric-prefix interpreter preserves history and quantum-reference blocks. -/
-theorem secondPrefixInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+/-- The complete metric-prefix interpreter preserves the selected hidden state and history. -/
+theorem secondPrefixInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (secondPrefixInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (secondPrefixStore refs entry.1, (entry.2, prefixPath refs))) := by
+      let actual := secondPrefixStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical _ _
-    (fun store => (secondMetricPrefixStore refs store, (prefixPath refs).1))
-    (fun store => (metricStore refs .denominator
-      (metricStore refs .targetFirst (metricStore refs .targetSecond store)), (prefixPath refs).2))
-    (secondMetricPrefix_execute refs)
-    (by
-      intro Reference History _ state
-      refine (metricTriple_execute refs .targetSecond .targetFirst .denominator
-        Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := secondMetricPrefixStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := metricTripleStep refs .targetSecond .targetFirst .denominator before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => secondMetricPrefix_execute refs reference current)
+    (fun reference _history _ current =>
+      metricTriple_execute refs .targetSecond .targetFirst .denominator reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private abbrev crossPhaseCell : LatticeCross.MutableCell → PhaseCell
   | .outputFirst => .crossFirst
@@ -305,12 +350,16 @@ theorem secondPrefixInto_correct (refs : Refs ctx width) (separation : Separatio
     exact v5
 
 /-- The prefix executes nine cross-product and twenty-five dot-refresh instructions. -/
-theorem secondPrefixInto_depth (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
+theorem secondPrefixInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
+    (path : (secondPrefixInto refs).Path) :
     (secondPrefixInto refs).depth (fun _ => 1) path = 34 := rfl
 
 /-- All actual native writes jointly preserve the complete borrowed interface. -/
-theorem secondPrefixInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem secondPrefixInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (secondPrefixInto refs).BorrowedRestored Reference state
       ((secondPrefixInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq

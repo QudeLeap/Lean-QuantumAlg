@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.Representation.Model
+import all QuantumAlg.Components.Classical.Model.BitWord.Selection
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 
 /-!
@@ -58,19 +59,25 @@ theorem pointEqual_eq_components {width : Nat}
               CShape.Value.ellipticCurvePointY]
 
 /-- Exact sequence of classical events emitted by the structural core. -/
-def coreTrace {kind : ProblemKind} (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.nominalEncoding (.unpackEllipticCurvePoint width)),
-    .classicalOperation (.nominalEncoding (.unpackEllipticCurvePoint width)),
-    .classicalOperation (.bit .xor),
-    .classicalOperation (.bit .not),
-    .classicalOperation (.wordBinary .equal width),
-    .classicalOperation (.wordBinary .equal width),
-    .classicalOperation (.bit .and),
-    .classicalOperation (.bit .and)]
+def coreTrace (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.unpackEllipticCurvePoint width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.unpackEllipticCurvePoint width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .xor)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .equal width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .equal width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))]
 
 /-- Exact syntax-derived resource envelope of one structural comparison. -/
-def coreEnvelope {kind : ProblemKind} (width : Nat) : ResourcePool kind :=
-  ResourcePool.ofList (coreTrace (kind := kind) width)
+def coreEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : ResourcePool model :=
+  ResourcePool.ofList (coreTrace model width)
 
 end
 

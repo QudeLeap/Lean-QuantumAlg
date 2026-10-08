@@ -45,12 +45,12 @@ noncomputable section
   fixed 4714 repetitions.
 -/
 public def problem (I : P256.DomainParameters.PublicKeyInstance) :
-    Problem .quantum (P256.ActualRun.Pre I) (P256.ActualRun.Post I)
+    Problem (.quantum AlgorithmGate.model .empty BitWord.model)
+      (P256.ActualRun.Pre I) (P256.ActualRun.Post I)
       (P256.ActualRun.OutputShape I) := by
   letI : Fact P256.DomainParameters.fieldModulus.Prime := ⟨I.curveCert.prime⟩
-  exact LogicalResources.problem (P256.DomainParameters.curve I.curveCert) 255
-    P256.Measured.fieldTail_sameWidth P256.Measured.fieldTail_fits
-    (P256.Cascade.ecdlpInstance I) (P256.Measured.fixedSeed I) 4714 ((1 : ℝ) / 100)
+  exact LogicalResources.problem (P256.DomainParameters.curve I.curveCert)
+    (P256.Cascade.ecdlpInstance I) 4714 ((1 : ℝ) / 100)
 
 end
 

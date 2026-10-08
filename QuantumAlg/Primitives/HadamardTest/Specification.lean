@@ -58,12 +58,14 @@ def successLB {width : Nat} (unitary : UnitaryOperator (Qubits width))
   le_one := ENNReal.ofReal_le_one.mpr (probabilityZero_le_one unitary input)
 
 /-- One prepared control, two literal Hadamards, one controlled query, and one actual Z write. -/
-def eventBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.ofList
-    [.preparation { family := "builtin", name := "computational-basis", parameters := [1, 2, 0] },
-      .gate (.builtin "hadamard"), UnitarySource.controlledEvent width,
-      .gate (.builtin "hadamard"),
-      .measurement { family := "builtin", name := "z", parameters := [2] }]
+def eventBudget {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+    ResourcePool (model unitary) :=
+  ResourcePool.singleton (model := model unitary) (.preparation (2 : ℕ+)) +
+    (2 • ResourcePool.singleton (model := model unitary)
+        (.gate AlgorithmGate.Coordinate.singleQubit) +
+      ResourcePool.singleton (model := model unitary)
+        (.oracle UnitarySource.Coordinate.controlled)) +
+    ResourcePool.singleton (model := model unitary) (.measurement (2 : ℕ+))
 
 /-- All owned quantum systems and the one actual binary result remain resident. -/
 def spaceBudget (width : Nat) : SpacePool .quantum
@@ -90,16 +92,21 @@ remain live without an additional state promise.
 -/
 public def problem {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) :
-    Problem .quantum (pre width) (post width) (.finite 2) where
+    Problem (model unitary) (pre width) (post width) (.finite 2) where
   valid := fun state => inputPromise input state.quantumMarginal
+  initialization := fun _ => True
   accepts := fun _initial result => result = .finite 0
   successLB := successLB unitary input
   states := []
   resources :=
-    { events := eventBudget width
+    { events := eventBudget unitary
       resident := spaceBudget width
       auxiliary := spaceBudget width }
-  depth := .quantum (fun _event => 1) 5
+  depth :=
+    { duration := fun _ => 1
+      limit := 5
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

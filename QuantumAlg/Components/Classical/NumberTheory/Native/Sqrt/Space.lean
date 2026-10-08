@@ -29,9 +29,14 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (7 * width + 1))
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Both real comparison branches operate on the same existing context. -/
-theorem nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select refs).Path) :
-    (select refs).visitedContexts path = [ctx] := by
+theorem nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select (model := model)
+  refs).Path) :
+    (select (model := model) refs).visitedContexts path = [ctx] := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit flag => cases flag <;> rfl
@@ -39,22 +44,23 @@ theorem nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select r
 /-- A round's five instruction positions allocate no additional live cell. -/
 theorem nativeSqrt_round_visited
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
-    (path : (round input refs).Path) :
-    (round input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx] := by
+    (path : (round (model := model) input refs).Path) :
+    (round (model := model) input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx] := by
   change [ctx] ++ ([ctx] ++ ([ctx] ++
-    ((select refs).visitedContexts path.2.2.2.1 ++ [ctx]))) = _
+    ((select (model := model) refs).visitedContexts path.2.2.2.1 ++ [ctx]))) = _
   rw [nativeSqrt_select_visited]
   rfl
 
 /-- Every actual iteration visits only its original live context. -/
 theorem nativeSqrt_iteration_visited
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
-    (count : Nat) (path : (Circuit.iterate count (round input refs)).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (Circuit.iterate count (round input refs)).visitedContexts path) :
+    (count : Nat) (path : (Circuit.iterate count (round (model := model) input refs)).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (Circuit.iterate count (round (model := model) input
+      refs)).visitedContexts path) :
     visited = ctx := by
   change visited ∈ ctx :: (List.ofFn (fun index : Fin count =>
-    (round input refs).visitedContexts (path index))).flatten at present
+    (round (model := model) input refs).visitedContexts (path index))).flatten at present
   rcases List.mem_cons.mp present with same | inner
   · exact same
   · rcases List.mem_flatten.mp inner with ⟨contexts, listed, member⟩
@@ -64,32 +70,38 @@ theorem nativeSqrt_iteration_visited
 
 /-- The entire initialized body stays within the already allocated six-cell context. -/
 theorem nativeSqrt_body_visited (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (path : (body input output).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (body input output).visitedContexts path) :
+    (output : CWriteRef ctx (.unsignedWord width)) (path : (body (model := model) input
+      output).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (body (model := model) input output).visitedContexts path) :
     visited = context ctx width := by
   change visited ∈ [context ctx width] ++
-    ((ConstantWord.circuit (halfCell ctx width) (initialHalf width)).visitedContexts path.2.1 ++
-      ((rounds ctx width).visitedContexts path.2.2.1 ++ [context ctx width])) at present
+    ((ConstantWord.circuit (model := model) (halfCell ctx width) (initialHalf
+      width)).visitedContexts path.2.1 ++
+      ((rounds (model := model) ctx width).visitedContexts path.2.2.1 ++
+        [context ctx width])) at present
   simp only [List.mem_append, List.mem_singleton] at present
   rcases present with original | loader | loop | original
   · exact original
-  · exact ConstantWord.constantWord_fold_visited _ _ path.2.1 visited loader
+  · exact ConstantWord.constantWord_fold_visited (model := model) _ _ path.2.1 visited loader
   · exact nativeSqrt_iteration_visited _ _ width path.2.2.1 visited loop
   · exact original
 
-private def scopeContexts (ctx : RuntimeCtx kind) (width : Nat) : List (RuntimeCtx kind) :=
+private def scopeContexts {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat) : List
+  (RuntimeCtx kind) :=
   [ctx, wideContext ctx width, rootContext ctx width, halfContext ctx width,
     candidateContext ctx width, squareContext ctx width]
 
 -- Isolate the literal list law from the body's dependent execution path.
 private theorem into_trace (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (path : (into input output).Path) :
-    (into input output).visitedContexts path = scopeContexts ctx width ++
-      ((body input output).visitedContexts path ++ (scopeContexts ctx width).reverse) := by
+    (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
+      output).Path) :
+    (into (model := model) input output).visitedContexts path = scopeContexts ctx width ++
+      ((body (model := model) input output).visitedContexts path ++ (scopeContexts ctx
+        width).reverse) := by
   change (ctx :: ((wideContext ctx width :: ((rootContext ctx width ::
     ((halfContext ctx width :: ((candidateContext ctx width ::
-      ((squareContext ctx width :: (body input output).visitedContexts path ++
+      ((squareContext ctx width :: (body (model := model) input output).visitedContexts path ++
         [squareContext ctx width])) ++ [candidateContext ctx width])) ++
           [halfContext ctx width])) ++ [rootContext ctx width])) ++
             [wideContext ctx width])) ++ [ctx]) = _
@@ -98,8 +110,10 @@ private theorem into_trace (input : CInputRef ctx (.unsignedWord width))
 
 /-- The actual scope visits only its six allocation stages and their original parent. -/
 theorem nativeSqrt_into_visited (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (path : (into input output).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into input output).visitedContexts path) :
+    (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
+      output).Path)
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into (model := model) input
+      output).visitedContexts path) :
     visited ∈ [ctx, wideContext ctx width, rootContext ctx width, halfContext ctx width,
       candidateContext ctx width, squareContext ctx width, context ctx width] := by
   change visited ∈ scopeContexts ctx width ++ [context ctx width]
@@ -113,9 +127,10 @@ theorem nativeSqrt_into_visited (input : CInputRef ctx (.unsignedWord width))
 
 /-- The resident peak counts every actual lexical cell and preserves all quantum coordinates. -/
 theorem nativeSqrt_into_resident_le (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (path : (into input output).Path) :
-    (into input output).peakResidentSpace path ≤
-      ctx.residentSpace + additionalSpace kind width := by
+    (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
+      output).Path) :
+    (into (model := model) input output).peakResidentSpace path ≤
+      ctx.residentSpace + additionalSpace model.kind width := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   have member := nativeSqrt_into_visited input output path visited present
@@ -123,15 +138,16 @@ theorem nativeSqrt_into_resident_le (input : CInputRef ctx (.unsignedWord width)
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [additionalSpace, wideContext, rootContext, halfContext,
         candidateContext, squareContext, context, SpacePool.ofShape] <;> omega
 
 /-- Every simultaneously live scratch cell contributes to the actual auxiliary peak. -/
 theorem nativeSqrt_into_auxiliary_le (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (path : (into input output).Path) :
-    (into input output).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + additionalSpace kind width := by
+    (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
+      output).Path) :
+    (into (model := model) input output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + additionalSpace model.kind width := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   have member := nativeSqrt_into_visited input output path visited present
@@ -139,8 +155,10 @@ theorem nativeSqrt_into_auxiliary_le (input : CInputRef ctx (.unsignedWord width
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     intro axis
-    cases axis <;>
+    cases model <;> cases axis <;>
       simp [additionalSpace, wideContext, rootContext, halfContext,
         candidateContext, squareContext, context, SpacePool.ofShape] <;> omega
+
+end
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt

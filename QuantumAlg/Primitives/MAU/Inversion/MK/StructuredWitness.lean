@@ -7,12 +7,13 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.Layout
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Readout.Trace
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Physical.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.StructuredCircuit
 
 /-!
@@ -36,17 +37,25 @@ open StageState.PowerOfTwoTargetAdd
 /-- Raw-vector companion of a normalized actual-circuit realization. -/
 private theorem applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
-    {program : UnitaryCircuit (Qubits encoding.width)} {step : Data -> Data}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
     (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
     UnitaryCircuit.applyVec program
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode x) :
-          HilbertVector (Qubits encoding.width)) =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (step x)) : HilbertVector (Qubits encoding.width)) := by
-  simpa only [UnitaryCircuit.applyNormalized_coe] using
+        (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm
+            (encoding.encode x)) : HilbertVector
+              (QubitLayout.canonical encoding.width).toQuantum.register) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x))) : HilbertVector
+            (QubitLayout.canonical encoding.width).toQuantum.register) := by
+  simpa only [UnitaryCircuit.applyNormalized, UnitaryCircuit.applyVec,
+    UnitaryOperator.apply_coe] using
     congrArg
-      (fun ψ : NormalizedVector (Qubits encoding.width) =>
-        (ψ : HilbertVector (Qubits encoding.width)))
+      (fun ψ : NormalizedVector
+          (QubitLayout.canonical encoding.width).toQuantum.register =>
+        (ψ : HilbertVector
+          (QubitLayout.canonical encoding.width).toQuantum.register))
       (h.apply_encoded_ket x)
 
 /-- Staged inversion state with both VBE target-add carry work and the finite
@@ -77,9 +86,10 @@ def addScratchToTargetWithWorkspace (n counterWidth : Nat) :
 
 /-- Actual target-add program over the full inversion workspace. -/
 def stageWithWorkspaceTargetAddProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (MK.registersWithComparisonWorkEncoding n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix
+    (MK.registersWithComparisonWorkEncoding n counterWidth).width
     (stageWithWorkProgram n)
 
 /-- The lifted target-add program realizes the full-workspace target update. -/
@@ -87,7 +97,7 @@ theorem stageWithWorkspaceTargetAdd_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
       (stageWithWorkspaceTargetAddProgram n counterWidth)
       (addScratchToTargetWithWorkspace n counterWidth) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithComparisonWorkEncoding n counterWidth)
     (stageWithWork_realizes n)
 
@@ -127,23 +137,24 @@ def stageWithWorkspaceKaliskiStep {n counterWidth : Nat}
 /-- Lift an actual Montgomery--Kaliski workspace program over the staged
 public fields and VBE carry work. -/
 def stageWithWorkspaceKaliskiProgram {n counterWidth : Nat}
-    (program : UnitaryCircuit (Qubits
-      (MK.registersWithComparisonWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodRight (m := (stageWithWorkEncoding n).width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithComparisonWorkEncoding n counterWidth).width)).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Semantic realization of a lifted Montgomery--Kaliski workspace program. -/
 theorem stageWithWorkspaceKaliski_realizes {n counterWidth : Nat}
     {step : MK.RegistersWithComparisonWork n counterWidth ->
       MK.RegistersWithComparisonWork n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (MK.registersWithComparisonWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithComparisonWorkEncoding n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
       (MK.registersWithComparisonWorkEncoding n counterWidth) program step) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
       (stageWithWorkspaceKaliskiProgram program)
       (stageWithWorkspaceKaliskiStep step) :=
-  UnitaryCircuit.Realizes.prodRight (left := stageWithWorkEncoding n) h
+  UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
 /-- Full-workspace semantic step for the `uEven` branch-history write, lifted
 over the staged public fields and VBE carry work [RNSL17,
@@ -158,7 +169,8 @@ def uEvenBranchHistoryWithWorkspaceStep
 /-- Actual `uEven` branch-history program inside the full staged workspace. -/
 def uEvenBranchHistoryWithWorkspaceProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
   stageWithWorkspaceKaliskiProgram
     (MK.liftedUEvenBranchHistoryWriteProgram
       n counterWidth bit historyIndex)
@@ -188,7 +200,8 @@ def vEvenBranchHistoryWithWorkspaceStep
 def vEvenBranchHistoryWithWorkspaceProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
   stageWithWorkspaceKaliskiProgram
     (MK.liftedVEvenBranchHistoryWriteProgram
       n counterWidth uIndex vIndex historyIndex)
@@ -218,7 +231,8 @@ def uGreaterSelectorBranchHistoryWithWorkspaceStep
 /-- Actual `uGreater` selector/history-write program in the full workspace. -/
 def uGreaterSelectorBranchHistoryWithWorkspaceProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
   stageWithWorkspaceKaliskiProgram
     (MK.uGreaterSelectorBranchHistoryWriteProgram
       n counterWidth bit historyIndex)
@@ -247,7 +261,8 @@ def vLeSelectorBranchHistoryWithWorkspaceStep
 /-- Actual `vLe` selector/history-write program in the full workspace. -/
 def vLeSelectorBranchHistoryWithWorkspaceProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
   stageWithWorkspaceKaliskiProgram
     (MK.vLeSelectorBranchHistoryWriteProgram
       n counterWidth bit historyIndex)
@@ -311,10 +326,10 @@ def addScratchToTargetWithFullRoundWorkspace (n counterWidth : Nat) :
 
 /-- Actual target-add program over the full fixed-round workspace. -/
 def stageWithFullRoundWorkspaceTargetAddProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (MK.registersWithFullRoundWorkEncoding n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundWorkspaceEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix
+    (MK.registersWithFullRoundWorkEncoding n counterWidth).width
     (stageWithWorkProgram n)
 
 /-- Realization of the lifted full-round-workspace target-add program. -/
@@ -323,7 +338,7 @@ theorem stageWithFullRoundWorkspaceTargetAdd_realizes
     UnitaryCircuit.Realizes (stageWithFullRoundWorkspaceEncoding n counterWidth)
       (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
       (addScratchToTargetWithFullRoundWorkspace n counterWidth) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithFullRoundWorkEncoding n counterWidth)
     (stageWithWork_realizes n)
 
@@ -365,24 +380,24 @@ def stageWithFullRoundWorkspaceKaliskiStep {n counterWidth : Nat}
 /-- Lift an actual Montgomery--Kaliski full-workspace program over the staged
 public fields and VBE carry work. -/
 def stageWithFullRoundWorkspaceKaliskiProgram {n counterWidth : Nat}
-    (program : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodRight (m := (stageWithWorkEncoding n).width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundWorkspaceEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Realization of a lifted Montgomery--Kaliski full-workspace program. -/
 theorem stageWithFullRoundWorkspaceKaliski_realizes {n counterWidth : Nat}
     {step : MK.RegistersWithFullRoundWork n counterWidth ->
       MK.RegistersWithFullRoundWork n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
       (MK.registersWithFullRoundWorkEncoding n counterWidth) program step) :
     UnitaryCircuit.Realizes (stageWithFullRoundWorkspaceEncoding n counterWidth)
       (stageWithFullRoundWorkspaceKaliskiProgram program)
       (stageWithFullRoundWorkspaceKaliskiStep step) :=
-  UnitaryCircuit.Realizes.prodRight (left := stageWithWorkEncoding n) h
+  UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
 /-- Clean endpoint for the target-add leg after lifting it over the full
 fixed-round workspace. -/
@@ -434,11 +449,10 @@ def addScratchToTargetWithFullRoundPathControlWorkspace
 /-- Actual target-add program over the path/control fixed-round workspace. -/
 def stageWithFullRoundPathControlWorkspaceTargetAddProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (MK.registersWithFullRoundPathControlWorkEncoding
-      n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix
+    (MK.registersWithFullRoundPathControlWorkEncoding n counterWidth).width
     (stageWithWorkProgram n)
 
 /-- Realization of the lifted path/control-workspace target-add program. -/
@@ -448,7 +462,7 @@ theorem stageWithFullRoundPathControlWorkspaceTargetAdd_realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
       (stageWithFullRoundPathControlWorkspaceTargetAddProgram n counterWidth)
       (addScratchToTargetWithFullRoundPathControlWorkspace n counterWidth) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithFullRoundPathControlWorkEncoding
       n counterWidth)
     (stageWithWork_realizes n)
@@ -503,12 +517,12 @@ def stageWithFullRoundPathControlWorkspaceKaliskiStep
 public fields and VBE carry work. -/
 def stageWithFullRoundPathControlWorkspaceKaliskiProgram
     {n counterWidth : Nat}
-    (program : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundPathControlWorkEncoding
-        n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodRight (m := (stageWithWorkEncoding n).width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundPathControlWorkEncoding
+        n counterWidth).width)).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Realization of a lifted path/control Montgomery--Kaliski program. -/
 theorem stageWithFullRoundPathControlWorkspaceKaliski_realizes
@@ -518,9 +532,9 @@ theorem stageWithFullRoundPathControlWorkspaceKaliski_realizes
         n counterWidth ->
       MK.RegistersWithFullRoundPathControlWork
         n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundPathControlWorkEncoding
-        n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundPathControlWorkEncoding
+        n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
       (MK.registersWithFullRoundPathControlWorkEncoding n counterWidth)
       program step) :
@@ -528,7 +542,7 @@ theorem stageWithFullRoundPathControlWorkspaceKaliski_realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
       (stageWithFullRoundPathControlWorkspaceKaliskiProgram program)
       (stageWithFullRoundPathControlWorkspaceKaliskiStep step) :=
-  UnitaryCircuit.Realizes.prodRight (left := stageWithWorkEncoding n) h
+  UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
 /-- Clean endpoint for the target-add leg after lifting it over the
 path/control fixed-round workspace. -/
@@ -582,7 +596,8 @@ structure DecomposedStageWithWorkspaceWitness (n counterWidth : Nat) where
     StageWithWorkspace n counterWidth -> StageWithWorkspace n counterWidth
   /-- Program for the Montgomery--Kaliski compute leg over the full workspace. -/
   computeProgram :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum
   /-- Correctness of the compute program on full workspace labels. -/
   computeRealizes :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
@@ -602,10 +617,11 @@ def step {n counterWidth : Nat}
 one base-gate program. -/
 def program {n counterWidth : Nat}
     (w : DecomposedStageWithWorkspaceWitness n counterWidth) :
-    UnitaryCircuit (Qubits (stageWithWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
+      counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq w.computeProgram
     (UnitaryCircuit.seq (stageWithWorkspaceTargetAddProgram n counterWidth)
-      w.computeProgram.dagger)
+      (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed full-workspace program realizes the selected
 compute/add/uncompute semantic update. -/
@@ -620,13 +636,16 @@ theorem realizes {n counterWidth : Nat}
     stageWithWorkspaceTargetAdd_realizes n counterWidth
   have huncompute :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-        w.computeProgram.dagger w.uncomputeStep :=
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
         (UnitaryCircuit.seq (stageWithWorkspaceTargetAddProgram n counterWidth)
-          w.computeProgram.dagger)
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : StageWithWorkspace n counterWidth =>
           w.uncomputeStep (addScratchToTargetWithWorkspace n counterWidth x)) :=
     UnitaryCircuit.Realizes.seq
@@ -661,13 +680,17 @@ theorem apply_ket {n counterWidth : Nat}
     (x : StageWithWorkspace n counterWidth) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits (stageWithWorkspaceEncoding n counterWidth).width)
-          ((stageWithWorkspaceEncoding n counterWidth).encode x) :
-          HilbertVector (Qubits (stageWithWorkspaceEncoding n counterWidth).width)) =
+          ((QubitLayout.canonical
+              (stageWithWorkspaceEncoding n counterWidth).width).basisEquiv.symm
+            ((stageWithWorkspaceEncoding n counterWidth).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (stageWithWorkspaceEncoding n counterWidth).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits (stageWithWorkspaceEncoding n counterWidth).width)
-        ((stageWithWorkspaceEncoding n counterWidth).encode (w.step x)) :
-        HilbertVector (Qubits (stageWithWorkspaceEncoding n counterWidth).width)) := by
+        ((QubitLayout.canonical
+            (stageWithWorkspaceEncoding n counterWidth).width).basisEquiv.symm
+          ((stageWithWorkspaceEncoding n counterWidth).encode (w.step x))) :
+        HilbertVector (QubitLayout.canonical
+          (stageWithWorkspaceEncoding n counterWidth).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 
@@ -705,8 +728,8 @@ structure DecomposedStageWithFullRoundWorkspaceWitness
       StageWithFullRoundWorkspace n counterWidth
   /-- Program for the Montgomery--Kaliski compute leg over the full workspace. -/
   computeProgram :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundWorkspaceEncoding n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundWorkspaceEncoding n counterWidth).width)).toQuantum
   /-- Correctness of the compute program on full workspace labels. -/
   computeRealizes :
     UnitaryCircuit.Realizes
@@ -725,8 +748,8 @@ def ofKaliski {n counterWidth : Nat}
     {computeStep uncomputeStep :
       MK.RegistersWithFullRoundWork n counterWidth ->
         MK.RegistersWithFullRoundWork n counterWidth}
-    (computeProgram : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundWorkEncoding n counterWidth).width))
+    (computeProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum)
     (computeRealizes : UnitaryCircuit.Realizes
       (MK.registersWithFullRoundWorkEncoding n counterWidth)
       computeProgram computeStep)
@@ -906,12 +929,12 @@ def step {n counterWidth : Nat}
 one base-gate program. -/
 def program {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundWorkspaceWitness n counterWidth) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundWorkspaceEncoding n counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq w.computeProgram
     (UnitaryCircuit.seq
       (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
-      w.computeProgram.dagger)
+      (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed full-round-workspace program realizes the selected
 compute/add/uncompute semantic update. -/
@@ -929,15 +952,18 @@ theorem realizes {n counterWidth : Nat}
   have huncompute :
       UnitaryCircuit.Realizes
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
-        w.computeProgram.dagger w.uncomputeStep :=
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
       UnitaryCircuit.Realizes
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
         (UnitaryCircuit.seq
           (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
-          w.computeProgram.dagger)
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : StageWithFullRoundWorkspace n counterWidth =>
           w.uncomputeStep
             (addScratchToTargetWithFullRoundWorkspace n counterWidth x)) :=
@@ -976,18 +1002,22 @@ theorem apply_ket {n counterWidth : Nat}
     (x : StageWithFullRoundWorkspace n counterWidth) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits
-            (stageWithFullRoundWorkspaceEncoding n counterWidth).width)
-          ((stageWithFullRoundWorkspaceEncoding n counterWidth).encode x) :
-          HilbertVector (Qubits
-            (stageWithFullRoundWorkspaceEncoding n counterWidth).width)) =
+          ((QubitLayout.canonical
+              (stageWithFullRoundWorkspaceEncoding n
+                counterWidth).width).basisEquiv.symm
+            ((stageWithFullRoundWorkspaceEncoding n counterWidth).encode x)) :
+          HilbertVector (QubitLayout.canonical
+            (stageWithFullRoundWorkspaceEncoding n
+              counterWidth).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits
-          (stageWithFullRoundWorkspaceEncoding n counterWidth).width)
-        ((stageWithFullRoundWorkspaceEncoding n counterWidth).encode
-          (w.step x)) :
-        HilbertVector (Qubits
-          (stageWithFullRoundWorkspaceEncoding n counterWidth).width)) := by
+        ((QubitLayout.canonical
+            (stageWithFullRoundWorkspaceEncoding n
+              counterWidth).width).basisEquiv.symm
+          ((stageWithFullRoundWorkspaceEncoding n counterWidth).encode
+            (w.step x))) :
+        HilbertVector (QubitLayout.canonical
+          (stageWithFullRoundWorkspaceEncoding n
+            counterWidth).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 
@@ -1026,8 +1056,8 @@ structure DecomposedStageWithFullRoundPathControlWorkspaceWitness
       StageWithFullRoundPathControlWorkspace n counterWidth
   /-- Program for the path/control Montgomery--Kaliski compute leg. -/
   computeProgram :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)).toQuantum
   /-- Correctness of the compute program on path/control workspace labels. -/
   computeRealizes :
     UnitaryCircuit.Realizes
@@ -1046,9 +1076,9 @@ def ofKaliski {n counterWidth : Nat}
           n counterWidth ->
         MK.RegistersWithFullRoundPathControlWork
           n counterWidth}
-    (computeProgram : UnitaryCircuit (Qubits
-      (MK.registersWithFullRoundPathControlWorkEncoding
-        n counterWidth).width))
+    (computeProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((MK.registersWithFullRoundPathControlWorkEncoding
+        n counterWidth).width)).toQuantum)
     (computeRealizes : UnitaryCircuit.Realizes
       (MK.registersWithFullRoundPathControlWorkEncoding n counterWidth)
       computeProgram computeStep)
@@ -1125,12 +1155,12 @@ reverse-compute as one base-gate program. -/
 def program {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth) :
-    UnitaryCircuit (Qubits
-      (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq w.computeProgram
     (UnitaryCircuit.seq
       (stageWithFullRoundPathControlWorkspaceTargetAddProgram n counterWidth)
-      w.computeProgram.dagger)
+      (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed path/control workspace program realizes the selected
 compute/add/uncompute semantic update. -/
@@ -1152,8 +1182,11 @@ theorem realizes {n counterWidth : Nat}
   have huncompute :
       UnitaryCircuit.Realizes
         (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-        w.computeProgram.dagger w.uncomputeStep :=
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
       UnitaryCircuit.Realizes
@@ -1161,7 +1194,7 @@ theorem realizes {n counterWidth : Nat}
         (UnitaryCircuit.seq
           (stageWithFullRoundPathControlWorkspaceTargetAddProgram
             n counterWidth)
-          w.computeProgram.dagger)
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
         (fun x : StageWithFullRoundPathControlWorkspace n counterWidth =>
           w.uncomputeStep
             (addScratchToTargetWithFullRoundPathControlWorkspace
@@ -1205,23 +1238,23 @@ theorem apply_ket {n counterWidth : Nat}
     (x : StageWithFullRoundPathControlWorkspace n counterWidth) :
     UnitaryCircuit.applyVec w.program
         (NormalizedVector.ket
-          (R := Qubits
+          ((QubitLayout.canonical
+              (stageWithFullRoundPathControlWorkspaceEncoding
+                n counterWidth).width).basisEquiv.symm
+            ((stageWithFullRoundPathControlWorkspaceEncoding
+              n counterWidth).encode x)) :
+          HilbertVector (QubitLayout.canonical
             (stageWithFullRoundPathControlWorkspaceEncoding
-              n counterWidth).width)
-          ((stageWithFullRoundPathControlWorkspaceEncoding
-            n counterWidth).encode x) :
-          HilbertVector (Qubits
-            (stageWithFullRoundPathControlWorkspaceEncoding
-              n counterWidth).width)) =
+              n counterWidth).width).toQuantum.register) =
       (NormalizedVector.ket
-        (R := Qubits
+        ((QubitLayout.canonical
+            (stageWithFullRoundPathControlWorkspaceEncoding
+              n counterWidth).width).basisEquiv.symm
+          ((stageWithFullRoundPathControlWorkspaceEncoding
+            n counterWidth).encode (w.step x))) :
+        HilbertVector (QubitLayout.canonical
           (stageWithFullRoundPathControlWorkspaceEncoding
-            n counterWidth).width)
-        ((stageWithFullRoundPathControlWorkspaceEncoding
-          n counterWidth).encode (w.step x)) :
-        HilbertVector (Qubits
-          (stageWithFullRoundPathControlWorkspaceEncoding
-            n counterWidth).width)) := by
+            n counterWidth).width).toQuantum.register) := by
   exact applyVec_encoded_ket_of_realizes w.realizes x
 
 end DecomposedStageWithFullRoundPathControlWorkspaceWitness

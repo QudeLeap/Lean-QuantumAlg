@@ -74,6 +74,7 @@ private theorem cells_eq_of_storage_reads {kind : ProblemKind}
       · cases entry with
         | storage key role shape => exact equal key role shape .here
         | borrowedLayout key layout => exact Subsingleton.elim (α := Unit) _ _
+        | suppliedLayout key layout => exact Subsingleton.elim (α := Unit) _ _
         | ownedLayout key layout => exact Subsingleton.elim (α := Unit) _ _
         | ownedCopies key bank => exact Subsingleton.elim (α := Unit) _ _
       · exact ih first.2 second.2 (fun key role shape slot => equal key role shape (.there slot))

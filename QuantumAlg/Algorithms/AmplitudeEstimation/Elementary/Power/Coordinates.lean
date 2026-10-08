@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Layout
-import all QuantumAlg.Algorithms.QPE.Construction
+import all QuantumAlg.Algorithms.QPE.Query.Exponents
 import all QuantumAlg.Util.FinPow
 
 /-!
@@ -55,7 +55,7 @@ theorem extendedStage_testBit {t : Nat} (n : Nat) (stage : Fin t)
 theorem extendedStage_exponent {t : Nat} (n : Nat) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) :
     2 ^ stage.val * (phase.val.testBit (extendedStage n stage).val).toNat =
-      qpeStageExponent stage (originalPhase t n phase) := by
+      QuantumPhaseEstimation.Native.stageExponent stage (originalPhase t n phase) := by
   rw [extendedStage_testBit]
   rfl
 

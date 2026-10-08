@@ -37,6 +37,7 @@ def borrowedClassicalCells {kind : ProblemKind} : RuntimeEntry kind → List (St
   | .storage _ .retained _ => []
   | .storage _ .finalOutput _ => []
   | .borrowedLayout _ _ => []
+  | .suppliedLayout _ _ => []
   | .ownedLayout _ _ => []
   | .ownedCopies _ _ => []
 
@@ -128,7 +129,7 @@ private def prependBorrowedCell {kind : ProblemKind} (entry : RuntimeEntry kind)
       cases role with
       | borrowedInput => exact .product value rest
       | workspace | retained | finalOutput => exact rest
-  | borrowedLayout | ownedLayout | ownedCopies => exact rest
+  | borrowedLayout | suppliedLayout | ownedLayout | ownedCopies => exact rest
 
 /-- Read only borrowed-role cells directly from the existing heterogeneous store. -/
 private def readBorrowedCells {kind : ProblemKind} (entries : List (RuntimeEntry kind))
@@ -214,24 +215,24 @@ end Execution
 namespace Circuit
 
 /-- The circuit preserves all borrowed classical cell identities and their ordered shapes. -/
-theorem borrowedClassicalCells_preserved {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) : post.borrowedClassicalCells = pre.borrowedClassicalCells := by
+theorem borrowedClassicalCells_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) : post.borrowedClassicalCells = pre.borrowedClassicalCells := by
   induction code with
-  | id | classical | declaredCall | unitary | measureZ | randomBits | iterate | workspace => rfl
+  | id | classical | classicalQuery | unitary | measureZ | iterate | workspace => rfl
   | retain ctx key shape fresh => exact ctx.borrowedClassicalCells_addRetained key shape fresh
-  | prepare ctx key layout fresh disjoint preparation =>
+  | prepareZero ctx key layout fresh disjoint =>
       exact ctx.borrowedClassicalCells_addOwnedLayout key layout fresh disjoint
   | seq first second firstIH secondIH => exact secondIH.trans firstIH
   | branch input body bodyIH => exact bodyIH (CShape.initialValue _)
 
 /-- The borrowed classical observation has one common shape before and after execution. -/
-theorem borrowedClassicalShape_preserved {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) : post.borrowedClassicalShape = pre.borrowedClassicalShape :=
+theorem borrowedClassicalShape_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) : post.borrowedClassicalShape = pre.borrowedClassicalShape :=
   RuntimeCtx.borrowedClassicalShape_eq code.borrowedClassicalCells_preserved
 
 /-- Compare the same borrowed classical values across the circuit's exact shape equality. -/
-def borrowedClassicalValueTransport {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) :
+def borrowedClassicalValueTransport {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) :
     post.borrowedClassicalShape.Value ≃ pre.borrowedClassicalShape.Value :=
   Equiv.cast (congrArg CShape.Value code.borrowedClassicalShape_preserved)
 

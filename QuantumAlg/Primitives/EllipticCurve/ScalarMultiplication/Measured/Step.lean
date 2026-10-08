@@ -39,7 +39,8 @@ private theorem residentBody_local {p : Nat} (E : PrimeFieldShortWeierstrass p) 
 /-- Execute the indexed measured point call with every exponent and result cell resident. -/
 def step {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count) :
-    Circuit (readyContext p.size count) (readyContext p.size count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext p.size count) (readyContext p.size count) :=
   ContextPermutation.localCircuit (residentBody E Q active) (residentBody_local E Q active)
     (readyContext p.size count) (framed_entries p.size active)
 
@@ -65,14 +66,15 @@ theorem step_execute {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {Reference : Register} {H : Type} [Fintype H]
     (original : State ((MeasuredPointAddition.Placement.context p.size
       (storageMap p.size active) (physicalMap p.size active)).disjointUnion
-        (ambientContext p.size active) (ambient_disjoint p.size active)) Reference H) :
+        (ambientContext p.size active) (ambient_disjoint p.size active)) Reference
+        (ClassicalOracleModel.empty.HiddenState × H)) :
     (step E Q active).execute Reference
       (ContextPermutation.state (framed_entries p.size active) original) =
         (ContextPermutation.state (framed_entries p.size active)
           ((residentBody E Q active).execute Reference original)).mapHistory
-            (fun record => (record.1, ContextPermutation.localPathEquiv
+            (fun record => (record.1, (record.2.1, ContextPermutation.localPathEquiv
               (residentBody E Q active) (residentBody_local E Q active)
-              (readyContext p.size count) (framed_entries p.size active) record.2)) :=
+              (readyContext p.size count) (framed_entries p.size active) record.2.2))) :=
   ContextPermutation.localCircuit_execute (residentBody E Q active) (residentBody_local E Q active)
     (readyContext p.size count) (framed_entries p.size active) Reference original
 

@@ -18,28 +18,44 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native trace of the original two eligibility conjunctions. -/
-def eligibilityTrace : List (Resource.Event kind) :=
-  [.classicalOperation (.bit .and), .classicalOperation (.bit .and)]
+def eligibilityTrace : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))]
 
 /-- Independent allowance for both original conjunctions and the two possible persistent copies. -/
-def candidateSelectorEventEnvelope (kind : ProblemKind) (width : Nat) : ResourcePool kind :=
-  ResourcePool.ofList eligibilityTrace +
-    ResourcePool.ofList (ClassicalRoutines.FirstAccepted.Direct.copyTrace width)
+def candidateSelectorEventEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : ResourcePool model :=
+  ResourcePool.ofList (eligibilityTrace (model := model)) +
+    ResourcePool.ofList (ClassicalRoutines.FirstAccepted.Direct.copyTrace (model := model) width)
+
+private theorem candidateEligibilityInto_events (refs : Refs ctx width)
+    (path : (candidateEligibilityInto refs).Path) :
+    (candidateEligibilityInto refs).eventTrace path = eligibilityTrace (model := model) := by
+  change (BitWord.instruction (execution := model) (intermediateOp refs)).eventTrace path.1 ++
+    (BitWord.instruction (execution := model) (eligibleOp refs)).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Both original actual eligibility instructions precede precisely the selected native copy arm. -/
 theorem candidateSelectorInto_events (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).eventTrace path =
-      eligibilityTrace ++ (selectionInto refs).eventTrace path.2 := rfl
+      eligibilityTrace (model := model) ++ (selectionInto refs).eventTrace path.2 := by
+  change (candidateEligibilityInto refs).eventTrace path.1 ++ _ = _
+  rw [candidateEligibilityInto_events]
 
 /-- The actual closing suffix fits the independent native allowance for its four possible writes. -/
 theorem candidateSelectorInto_pool_le (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
-    (candidateSelectorInto refs).resourcePool path ≤ candidateSelectorEventEnvelope kind width := by
-  change ResourcePool.ofList (_ ++ _) ≤ _
+    (candidateSelectorInto refs).resourcePool path ≤
+      candidateSelectorEventEnvelope model width := by
+  change ResourcePool.ofList
+    ((candidateEligibilityInto refs).eventTrace path.1 ++ _) ≤ _
+  rw [candidateEligibilityInto_events]
   rw [ResourcePool.ofList_append]
   exact add_le_add le_rfl (ClassicalRoutines.FirstAccepted.Direct.into_pool_le
     (writeInput refs.eligible) refs.candidate refs.selection path.2)
@@ -47,7 +63,12 @@ theorem candidateSelectorInto_pool_le (refs : Refs ctx width)
 /-- The original two actual eligibility operations have exactly two unit durations. -/
 theorem candidateEligibilityInto_depth (refs : Refs ctx width)
     (path : (candidateEligibilityInto refs).Path) :
-    (candidateEligibilityInto refs).depth (fun _ => 1) path = 2 := rfl
+    (candidateEligibilityInto refs).depth (fun _ => 1) path = 2 := by
+  change (BitWord.instruction (execution := model) (intermediateOp refs)).depth
+    (fun _ => 1) path.1 +
+    (BitWord.instruction (execution := model) (eligibleOp refs)).depth
+      (fun _ => 1) path.2 = _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
 
 /-- Actual depth includes eligibility-to-selection dependencies and at most four native writes. -/
 theorem candidateSelectorInto_depth_le (refs : Refs ctx width)
@@ -61,7 +82,8 @@ theorem candidateSelectorInto_depth_le (refs : Refs ctx width)
 
 /-- The actual original conjunctions restore the complete borrowed-reference joint state. -/
 theorem candidateEligibilityInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateEligibilityInto refs).BorrowedRestored Reference state
       ((candidateEligibilityInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
@@ -69,7 +91,8 @@ theorem candidateEligibilityInto_borrowedRestored (refs : Refs ctx width) (Refer
 
 /-- Actual candidate selection preserves every borrowed system and external reference jointly. -/
 theorem candidateSelectorInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSelectorInto refs).BorrowedRestored Reference state
       ((candidateSelectorInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -79,7 +102,7 @@ theorem candidateSelectorInto_borrowedRestored (refs : Refs ctx width) (Referenc
 
 /-- All original eligibility and direct-selection instructions visit only the supplied context. -/
 theorem candidateSelectorInto_visited (refs : Refs ctx width)
-    (path : (candidateSelectorInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (candidateSelectorInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (candidateSelectorInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ [ctx, ctx] ++ (selectionInto refs).visitedContexts path.2 at present
   rcases List.mem_append.mp present with eligible | selected

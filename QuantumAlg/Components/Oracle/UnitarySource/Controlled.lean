@@ -6,56 +6,57 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Components.Oracle.UnitarySource
-import all QuantumAlg.Components.Oracle.UnitarySource
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Components.Control
+public import QuantumAlg.Components.Oracle.UnitarySource.Model
+public import QuantumAlg.Core.Base.Oracle.Placement.Construction
+public import QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Components.Oracle.UnitarySource.Model
+import all QuantumAlg.Core.Base.Oracle.Placement.Construction
+import all QuantumAlg.Core.Base.Oracle.Placement
+import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.Layout.Signature
 
 /-!
-# A supplied unitary with one actual leading control
+# One explicitly granted controlled source query
 
-The source query is placed after physical system zero and structurally
-controlled by that system. Its native label is derived from the original
-query, as in the eigenvalue kickback circuit [CEMM98, cemm6.tex:140-166].
+The access model grants the controlled query on the complete leading-control
+and target word. It has its own oracle coordinate and exact source operator
+[CEMM98, cemm6.tex:140-166]. Ordinary access alone does not supply this query.
 -/
 
 namespace QuantumAlg.UnitarySource
 
 noncomputable section
 
-/-- The actual controlled source query on the complete control/input word. -/
-def controlledProgram {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit (Qubits (1 + width)) :=
-  let shifted := UnitaryCircuit.shiftPhysicalIdx 1 (program unitary)
-  UnitaryCircuit.controlQubitsAt [0] shifted
-    { left_nodup := by simp
-      right_nodup := shifted.physical_idx_nodup
-      disjoint := by simp [shifted, UnitaryCircuit.shiftPhysicalIdx] }
-    (1 : Fin 2)
-
-theorem controlledProgram_matrix {width : Nat}
+/-- Execute the granted controlled query on its complete canonical physical word. -/
+public def controlledProgram (gates : GateModel) {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram unitary).matrix = UnitaryOperator.controlledQubits unitary := by
-  simp [controlledProgram, UnitaryOperator.controlledQubits, program_matrix]
+    UnitaryCircuit gates (model unitary true)
+      (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
+  .query (OracleModel.Application.onPlacement (model unitary true) (.controlled rfl)
+    (QuantumSignature.qubits (1 + width)).canonicalPlacement)
 
-theorem controlledProgram_physicalIdx {width : Nat}
+/-- The query's actual physical matrix is exactly the declared controlled source operator. -/
+theorem controlledProgram_matrix (gates : GateModel) {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram unitary).physical_idx = List.range (1 + width) := by
-  change [0] ++ (List.range width).map (fun wire => 1 + wire) = _
-  simpa [Nat.add_comm, Nat.succ_eq_add_one] using
-    (List.range_succ_eq_map : List.range (width + 1) =
-      0 :: (List.range width).map Nat.succ).symm
-
-theorem controlledProgram_events {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram unitary).eventCost =
-      ResourcePool.singleton (controlledEvent width) := by
+    (controlledProgram gates unitary).matrix =
+      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
+        (UnitaryOperator.controlledQubits unitary) := by
+  rw [controlledProgram, UnitaryCircuit.query_matrix,
+    OracleModel.Application.queryApplication_onPlacement_operator]
+  apply Subtype.ext
   rfl
 
-theorem controlledProgram_depth {width : Nat}
+/-- The complete event pool contains one granted controlled query. -/
+theorem controlledProgram_events (gates : GateModel) {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram unitary).evaluatedEventDepth (fun _ => 1) = 1 := by
-  rfl
+    (controlledProgram gates unitary).eventCost =
+      ResourcePool.singleton (model := .quantum gates (model unitary true))
+        (.oracle Coordinate.controlled) := rfl
+
+/-- The abstract controlled query occupies one dependency step. -/
+theorem controlledProgram_depth (gates : GateModel) {width : Nat}
+    (unitary : UnitaryOperator (Qubits width)) :
+    (controlledProgram gates unitary).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
 end
 

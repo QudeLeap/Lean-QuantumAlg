@@ -133,6 +133,14 @@ public def apply (U : UnitaryOperator R) (ψ : NormalizedVector R) : NormalizedV
 theorem apply_coe (U : UnitaryOperator R) (ψ : NormalizedVector R) :
     ((U.apply ψ : NormalizedVector R) : HilbertVector R) = U.applyVec ψ := rfl
 
+/-- The identity unitary fixes every normalized state. -/
+@[simp] public theorem one_apply (ψ : NormalizedVector R) :
+    (1 : UnitaryOperator R).apply ψ = ψ := by
+  apply NormalizedVector.ext
+  intro index
+  change (1 : UnitaryOperator R).applyVec (ψ : HilbertVector R) index = ψ index
+  rw [one_applyVec]
+
 /-- Unitary permutation operator on computational-basis labels. -/
 @[expose]
 public def ofPerm (σ : Equiv.Perm R.Index) : UnitaryOperator R :=

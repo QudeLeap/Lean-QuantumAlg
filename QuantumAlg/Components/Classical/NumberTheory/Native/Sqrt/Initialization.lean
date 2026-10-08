@@ -35,13 +35,6 @@ theorem nativeSqrt_initialHalf_lt (width : Nat) : initialHalf width < 2 ^ width 
       have positive := Nat.two_pow_pos width
       omega
 
-/-- Actual store after widening and the existing literal constant-word loader. -/
-noncomputable def initializeStore (input : CInputRef ctx (.unsignedWord width))
-    (store : Store (context ctx width)) : Store (context ctx width) :=
-  (ConstantWord.foldStep (halfCell ctx width)
-    (List.ofFn (ConstantWord.constantBits width (initialHalf width)))
-    (store.applyOp (widenOp input))).1
-
 /-- The actual widening operation preserves the complete original unsigned value. -/
 theorem nativeSqrt_widen_read (input : CInputRef ctx (.unsignedWord width))
     (store : Store (context ctx width)) :
@@ -55,11 +48,21 @@ theorem nativeSqrt_widen_read (input : CInputRef ctx (.unsignedWord width))
   exact (store.read (underRead input width)).toNat_lt.trans_le
     (Nat.pow_le_pow_right (by decide) (Nat.le_add_right width width))
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Actual store after widening and the existing literal constant-word loader. -/
+noncomputable def initializeStore (input : CInputRef ctx (.unsignedWord width))
+    (store : Store (context ctx width)) : Store (context ctx width) :=
+  (ConstantWord.foldStep (model := model) (halfCell ctx width)
+    (List.ofFn (ConstantWord.constantBits width (initialHalf width)))
+    (store.applyOp (widenOp input))).1
+
 /-- The saved input, real zero root and literal increment establish every internal invariant. -/
 theorem nativeSqrt_initial_invariant (input : CInputRef ctx (.unsignedWord width))
     (store : Store ctx) :
     LoopInvariant (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width)
-      (store.read input).toNat width (initializeStore input (pushStore width store)) := by
+      (store.read input).toNat width (initializeStore (model := model) input (pushStore width
+        store)) := by
   let pushed := pushStore width store
   let saved := pushed.applyOp (widenOp input)
   let rootRead : CInputRef (context ctx width) (.unsignedWord width) :=
@@ -79,38 +82,42 @@ theorem nativeSqrt_initial_invariant (input : CInputRef ctx (.unsignedWord width
   have wideRoot : (widenOp input).outputRef.key ∉ rootRead.storageKeys := by
     change (wideCell ctx width).key ∉ [(rootCell ctx width).key]
     exact fun present => rootWide.symm (List.mem_singleton.mp present)
-  have inputValue : (initializeStore input pushed).read wideRead = saved.read wideRead :=
-    ConstantWord.constantWord_fold_read_other (halfCell ctx width)
+  have inputValue : (initializeStore (model := model) input pushed).read wideRead = saved.read
+    wideRead :=
+    ConstantWord.constantWord_fold_read_other (model := model) (halfCell ctx width)
       (List.ofFn (ConstantWord.constantBits width (initialHalf width))) wideRead halfWide saved
   have savedValue : (saved.read wideRead).toNat = (store.read input).toNat :=
     (nativeSqrt_widen_read input pushed).trans
       (congrArg CShape.Value.toNat (nativeSqrt_push_read input width store))
-  have rootValue : ((initializeStore input pushed).read rootRead).toNat = 0 :=
+  have rootValue : ((initializeStore (model := model) input pushed).read rootRead).toNat = 0 :=
     (congrArg CShape.Value.toNat
-      ((ConstantWord.constantWord_fold_read_other (halfCell ctx width)
+      ((ConstantWord.constantWord_fold_read_other (model := model) (halfCell ctx width)
         (List.ofFn (ConstantWord.constantBits width (initialHalf width)))
         rootRead halfRoot saved).trans
         (Store.read_applyOp_of_not_mem_storageKeys pushed (widenOp input) rootRead wideRoot))).trans
       (nativeSqrt_push_root_zero width store)
-  have halfValue : ((initializeStore input pushed).read
+  have halfValue : ((initializeStore (model := model) input pushed).read
       (.storage (halfCell ctx width).toCStorageRef)).toNat = initialHalf width :=
-    (ConstantWord.constantWord_read (halfCell ctx width) (initialHalf width) saved).trans
+    (ConstantWord.constantWord_read (model := model) (halfCell ctx width) (initialHalf width)
+      saved).trans
       (Nat.mod_eq_of_lt (nativeSqrt_initialHalf_lt width))
   refine ⟨(congrArg CShape.Value.toNat inputValue).trans savedValue, ?_, ?_, halfValue⟩
   · change Nat.BinarySqrt.Interval (store.read input).toNat width
-      ((initializeStore input pushed).read rootRead).toNat
+      ((initializeStore (model := model) input pushed).read rootRead).toNat
     rw [rootValue]
     exact Nat.BinarySqrt.initial_interval (store.read input).toNat_lt
-  · change ((initializeStore input pushed).read rootRead).toNat + 2 ^ width ≤ 2 ^ width
+  · change ((initializeStore (model := model) input pushed).read rootRead).toNat +
+      2 ^ width ≤ 2 ^ width
     rw [rootValue, Nat.zero_add]
 
 /-- Real allocation and initialization followed by the real rounds produce the exact root. -/
 theorem nativeSqrt_initialized_iteration_root
     (input : CInputRef ctx (.unsignedWord width)) (store : Store ctx) :
-    ((iteratedRoundStep (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width)
-      width (initializeStore input (pushStore width store))).1.read
+    ((iteratedRoundStep (model := model) (.storage (wideCell ctx width).toCStorageRef) (roundRefs
+      ctx width)
+      width (initializeStore (model := model) input (pushStore width store))).1.read
       (.storage (rootCell ctx width).toCStorageRef)).toNat = Nat.sqrt (store.read input).toNat :=
   nativeSqrt_iteration_root _ _ (nativeSqrt_round_separated ctx width) _ _ _
-    (nativeSqrt_initial_invariant input store)
+    (nativeSqrt_initial_invariant (model := model) input store)
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt

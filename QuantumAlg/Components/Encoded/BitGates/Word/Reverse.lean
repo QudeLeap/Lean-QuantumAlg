@@ -25,6 +25,7 @@ namespace QuantumAlg.EncodedBit.Word
 noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 private def reverseLeftIndex (width : Nat) (index : Fin (width / 2)) : Fin width :=
   ⟨index.val, index.isLt.trans_le (Nat.div_le_self width 2)⟩
@@ -86,8 +87,8 @@ def reverseGates (word : Word encoding width)
 /-- The reversal program is compiled from that same native gate list. -/
 def reverseProgram (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (reverseGates word distinct)
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (reverseGates word distinct)
 
 /-- Fold the actual symmetric-pair gate list on the complete encoded data. -/
 def reverseStep (word : Word encoding width)
@@ -170,8 +171,9 @@ theorem reverseStep_preserves_projection {Projection : Type} (word : Word encodi
 /-- The same literal native program realizes the entire encoded-data action. -/
 theorem reverse_realizes (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
-    UnitaryCircuit.Realizes encoding (reverseProgram word distinct) (reverseStep word distinct) :=
-  GateSpec.realizesList (reverseGates word distinct)
+    UnitaryCircuit.Realizes encoding
+      (reverseProgram physical oracles word distinct) (reverseStep word distinct) :=
+  GateSpec.realizesList physical oracles (reverseGates word distinct)
 
 /-- Exactly three CNOT occurrences are emitted per symmetric pair, including width zero. -/
 theorem reverseGates_length (word : Word encoding width)
@@ -183,10 +185,13 @@ theorem reverseGates_length (word : Word encoding width)
 /-- Literal serial scheduling charges precisely the same emitted CNOT list. -/
 theorem reverseProgram_resources (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
-    (reverseProgram word distinct).eventCost.card = 3 * (width / 2) ∧
-      (reverseProgram word distinct).evaluatedEventDepth (fun _ => 1) = 3 * (width / 2) :=
-  ⟨(GateSpec.programList_eventCost_card _).trans (reverseGates_length word distinct),
-    (GateSpec.programList_evaluatedEventDepth_unit _).trans (reverseGates_length word distinct)⟩
+    (reverseProgram physical oracles word distinct).eventCost.card = 3 * (width / 2) ∧
+      (reverseProgram physical oracles word distinct).evaluatedEventDepth (fun _ => 1) =
+        3 * (width / 2) :=
+  ⟨(GateSpec.programList_eventCost_card physical oracles _).trans
+      (reverseGates_length word distinct),
+    (GateSpec.programList_evaluatedEventDepth_unit physical oracles _).trans
+      (reverseGates_length word distinct)⟩
 
 end
 

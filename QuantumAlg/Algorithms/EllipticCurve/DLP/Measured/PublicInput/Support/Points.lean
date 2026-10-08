@@ -46,7 +46,8 @@ private theorem original_before_noBorrowedClassical :
 
 private theorem original_terminal_noBorrowedClassical :
     (exponentMeasurementContext p exponentWidth).borrowedClassicalCells = [] :=
-  (MeasurementCells.allocate (Allocation.after p.size (2 * exponentWidth))
+  (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    (Allocation.after p.size (2 * exponentWidth))
     2 (2 * exponentWidth)).borrowedClassicalCells_preserved.trans
       ((Allocation.initializeWork p (2 * exponentWidth)).borrowedClassicalCells_preserved.trans
         (original_before_noBorrowedClassical (p := p) exponentWidth))
@@ -64,22 +65,27 @@ private theorem frame_store_eq_of_borrowed_eq (first second : Store (frame E exp
   cases same
   rfl
 
-private theorem borrowed_transport_heq {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (value : post.borrowedClassicalShape.Value) :
+private theorem borrowed_transport_heq {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (value : post.borrowedClassicalShape.Value) :
     HEq (code.borrowedClassicalValueTransport value) value := by
   exact ((Equiv.cast_eq_iff_heq
     (congrArg CShape.Value code.borrowedClassicalShape_preserved)).mp rfl).symm
 
 variable [Fact p.Prime]
 
+attribute [local irreducible] exponentRun
+
+set_option maxHeartbeats 500000 in
+-- The complete run's dependent record type needs extra elaboration budget.
 /-- Every positive actual terminal block reads the two originally prescribed public values. -/
 theorem exponentRun_supported_points (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) {Reference : Register}
     (original : Input (Allocation.before p.size (2 * orderWidth problem)) Reference)
     (record : (exponentRun E fieldTail odd problem points).Record)
-    (positive : 0 < (((exponentRun E fieldTail odd problem points).execute Reference
-      (initialInput E (orderWidth problem) problem original).state).block record).mass) :
+    (positive : 0 < ((initialRunExecution E fieldTail odd problem points original).block
+      record).mass) :
     record.1.read (terminalBaseRef E (orderWidth problem)) =
         Canonical.Runtime.Context.pointValue E problem.generator.toMathlib ∧
       record.1.read (terminalTargetRef E (orderWidth problem)) =
@@ -128,8 +134,8 @@ theorem exponentRun_supported_represents (fieldTail : Nat) (odd : Odd p)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) {Reference : Register}
     (original : Input (Allocation.before p.size (2 * orderWidth problem)) Reference)
     (record : (exponentRun E fieldTail odd problem points).Record)
-    (positive : 0 < (((exponentRun E fieldTail odd problem points).execute Reference
-      (initialInput E (orderWidth problem) problem original).state).block record).mass) :
+    (positive : 0 < ((initialRunExecution E fieldTail odd problem points original).block
+      record).mass) :
     ClassicalRoutines.EllipticCurve.PointRepresents (Canonical.Layout.curveSpec E)
       (record.1.read (terminalBaseRef E (orderWidth problem))) problem.generator.toMathlib ∧
     ClassicalRoutines.EllipticCurve.PointRepresents (Canonical.Layout.curveSpec E)

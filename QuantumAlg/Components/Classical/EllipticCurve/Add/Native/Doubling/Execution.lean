@@ -28,26 +28,33 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Each actual prefix instruction or original tail contributes its real full Store and path. -/
 def doublingStageRecord (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (index : Fin 7) : Store ctx → Store ctx ×
-      (doublingStage spec pointX pointY scratch output index).Path := by
-  refine Fin.cases (Field.Native.mulIntoWordStep spec.field pointX pointX scratch.xSquared)
+    (index : Fin 7) : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) ×
+        (doublingStage spec pointX pointY scratch output index).Path := by
+  refine Fin.cases (Circuit.preserveHiddenRecord
+    (Field.Native.mulIntoWordStep spec.field pointX pointX scratch.xSquared))
     (fun index => ?_) index
-  refine Fin.cases (Field.Native.addIntoWordStep spec.field (classifierRead scratch.xSquared)
-    (classifierRead scratch.xSquared) scratch.doubledXSquared) (fun index => ?_) index
-  refine Fin.cases (Field.Native.addIntoWordStep spec.field (classifierRead scratch.doubledXSquared)
-    (classifierRead scratch.xSquared) scratch.tripledXSquared) (fun index => ?_) index
-  refine Fin.cases (ConstantWord.foldStep scratch.a
-    (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat)))
+  refine Fin.cases (Circuit.preserveHiddenRecord
+    (Field.Native.addIntoWordStep spec.field (classifierRead scratch.xSquared)
+      (classifierRead scratch.xSquared) scratch.doubledXSquared)) (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord
+    (Field.Native.addIntoWordStep spec.field (classifierRead scratch.doubledXSquared)
+      (classifierRead scratch.xSquared) scratch.tripledXSquared)) (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord (ConstantWord.foldStep scratch.a
+    (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat))))
     (fun index => ?_) index
-  refine Fin.cases (Field.Native.addIntoWordStep spec.field (classifierRead scratch.tripledXSquared)
-    (classifierRead scratch.a) scratch.numerator) (fun index => ?_) index
-  refine Fin.cases (Field.Native.addIntoWordStep spec.field pointY pointY scratch.denominator)
+  refine Fin.cases (Circuit.preserveHiddenRecord
+    (Field.Native.addIntoWordStep spec.field (classifierRead scratch.tripledXSquared)
+      (classifierRead scratch.a) scratch.numerator)) (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord
+    (Field.Native.addIntoWordStep spec.field pointY pointY scratch.denominator))
     (fun index => ?_) index
   refine Fin.cases (affineIntoStep spec.field pointX pointX pointY
     (classifierRead scratch.numerator)
@@ -59,32 +66,41 @@ theorem doublingStage_execute (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 7) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (doublingStage spec pointX pointY scratch output index).execute Reference state =
       state.mapClassical (fun entry =>
-        ((doublingStageRecord spec pointX pointY scratch output index entry.1).1,
-          (entry.2, (doublingStageRecord spec pointX pointY scratch output index entry.1).2))) := by
+        let result := doublingStageRecord spec pointX pointY scratch output index
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.mulIntoWord_execute _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact Field.Native.mulIntoWord_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact ConstantWord.constantWord_fold_execute _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact ConstantWord.constantWord_fold_execute _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact Field.Native.addIntoWord_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact affineInto_execute _ _ _ _ _ _ _ Reference state
+  · dsimp only [doublingStage, doublingStageRecord]
+    exact affineInto_execute _ _ _ _ _ _ _ Reference state
   exact Fin.elim0 index
 
 /-- Actual chronological Store and native paths of the complete original doubling body. -/
 def doublingBodyStep (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width)) :
-    Store ctx → Store ctx × (doublingBody spec pointX pointY scratch output).Path :=
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (doublingBody spec pointX pointY scratch output).Path :=
   Circuit.forRangeRecord 7 (doublingStage spec pointX pointY scratch output)
     (doublingStageRecord spec pointX pointY scratch output)
 
@@ -93,11 +109,12 @@ theorem doublingBody_execute (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (doublingBody spec pointX pointY scratch output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((doublingBodyStep spec pointX pointY scratch output entry.1).1,
-          (entry.2, (doublingBodyStep spec pointX pointY scratch output entry.1).2))) :=
+        let result := doublingBodyStep spec pointX pointY scratch output
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   Circuit.execute_forRangeRecord 7 (doublingStage spec pointX pointY scratch output)
     (doublingStageRecord spec pointX pointY scratch output)
     (doublingStage_execute spec pointX pointY scratch output) Reference state

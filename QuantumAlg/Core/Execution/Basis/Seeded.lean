@@ -140,7 +140,7 @@ theorem fiber_store_blocks (state : State ctx Reference History)
         (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix
           (basis, leftRef) (basis, rightRef) := by
   have observed := ExecutionState.referenceFiberSum_mapClassical
-    (R := ctx.register) (Reference := Reference) state
+    (R := ctx.register) (Reference := Reference) (decision := inferInstance) state
     (fun entry => entry.1) weight leftRef rightRef
   refine observed.symm.trans ?_
   unfold ExecutionState.referenceFiberSum

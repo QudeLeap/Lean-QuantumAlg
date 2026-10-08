@@ -52,11 +52,11 @@ theorem member_column (width : Nat) (value : CShape.Value (.fixedVector width (.
       vector (frameBasis width row))
     (NumeratorReset.member_ket width value (framePrefix width source))
   have matrixColumn := (HilbertOperator.applyVec_ket
-    ((NumeratorReset.member width value).matrix :
+    ((NumeratorReset.member width value).binaryMatrix :
       HilbertOperator (Qubits (OutputCopy.encoding width).width))
     (prodEquiv (framePrefix width source, NumeratorReset.outcome value))
       (frameBasis width row)).symm.trans column
-  rw [NumeratorRuntime.program_matrix, ← actual]
+  rw [NumeratorRuntime.program_binary_matrix, ← actual]
   exact matrixColumn
 
 /-- No actual reset column on its measured support has an output with nonzero Y. -/
@@ -79,7 +79,8 @@ theorem member_zero (width : Nat) (value : CShape.Value (.fixedVector width (.fi
 
 /-- The selected actual reset on a real stored measurement block keeps every reference entry. -/
 def density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     DensityOperator (Register.prod (context width).register Reference) :=
   DensityOperator.applyUnitary
     (UnitaryOperator.prodTensor
@@ -90,7 +91,8 @@ def density (width : Nat) {Reference : Register} {History : Type} [Fintype Histo
 
 /-- Every full output row with nonzero Y vanishes, including all reference coordinates. -/
 theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width))
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index)
     (nonzero : word width left ≠ 0) :
     (density width state stored).matrix (left, leftRef) (right, rightRef) = 0 := by
@@ -109,7 +111,8 @@ theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype 
 
 /-- This density is the actual sequential Z-write and stored-result reset block. -/
 theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     (ExecutionState.filterClassical
       ((Circuit.seq (NumeratorMeasurement.measure width) (NumeratorReset.reset width)).execute
         Reference state) (fun entry => entry.1 = stored)).quantumMarginal =
@@ -118,13 +121,12 @@ theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fi
   apply DensityOperator.ext
   exact Circuit.selectedUnitary_store_matrix (input width)
     (fun value => NumeratorRuntime.program width (NumeratorReset.member width value))
-    (fun value => NumeratorRuntime.program_physical width (NumeratorReset.member width value)
-      (NumeratorReset.member_within width value))
     ((NumeratorMeasurement.measure width).execute Reference state) stored
 
 /-- The complete actual H/Z/reset sequence has no output numerator support away from zero. -/
 theorem actual_code_row_zero (width : Nat) {Reference : Register} {History : Type}
-    [Fintype History] (state : State (context width) Reference History)
+    [Fintype History] (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index)
     (nonzero : word width left ≠ 0) :

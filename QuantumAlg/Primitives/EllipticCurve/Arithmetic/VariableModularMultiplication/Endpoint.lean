@@ -525,12 +525,14 @@ endpoint for the same actual schedule whose strict resources are projected. -/
 theorem circuit_applyNormalized_clean_ket (x : VariableModularMul.Data) :
     circuit.applyNormalized
         (NormalizedVector.ket
-          (VariableModularMul.encoding.encode
-            (VariableModularMul.cleanRegisters x))) =
+          ((QubitLayout.canonical VariableModularMul.rawEncoding.width).basisEquiv.symm
+            (VariableModularMul.encoding.encode
+              (VariableModularMul.cleanRegisters x)))) =
       NormalizedVector.ket
-        (VariableModularMul.encoding.encode
-          (VariableModularMul.cleanRegisters
-            (VariableModularMul.Data.addProduct x))) := by
+        ((QubitLayout.canonical VariableModularMul.rawEncoding.width).basisEquiv.symm
+          (VariableModularMul.encoding.encode
+            (VariableModularMul.cleanRegisters
+              (VariableModularMul.Data.addProduct x)))) := by
   have h := realizes.apply_encoded_ket (VariableModularMul.cleanRegisters x)
   rw [step_cleanEndpoint x] at h
   exact h

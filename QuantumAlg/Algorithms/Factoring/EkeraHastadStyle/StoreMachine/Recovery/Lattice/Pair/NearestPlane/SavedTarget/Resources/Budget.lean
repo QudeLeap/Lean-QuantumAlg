@@ -23,10 +23,11 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent native coordinate budget including the three original saved-target copies. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   LatticeWideLllMachine.eventEnvelope N +
     (ResourcePool.ofList (LatticeRows.pointCopyTrace (LatticeWideLllMachine.Width N)) +
       LatticeNearestPlaneThree.eventEnvelope (LatticeWideLllMachine.Width N))

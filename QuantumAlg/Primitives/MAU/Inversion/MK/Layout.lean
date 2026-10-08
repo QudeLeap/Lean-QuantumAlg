@@ -7,11 +7,12 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.GateSpec
+import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -449,26 +450,29 @@ def liftFullRoundWorkStepToPathWork
 /-- Lift an actual full-round workspace circuit over the trailing path bit. -/
 def liftFullRoundWorkProgramToPathWork
     (n counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundWorkEncoding n counterWidth).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix BinaryLabelEncoding.bool.width program
 
 /-- Actual-circuit realization is preserved when adding the path bit. -/
 theorem liftFullRoundWorkProgramToPathWork_realizes
     (n counterWidth : Nat)
     {step : RegistersWithFullRoundWork n counterWidth ->
       RegistersWithFullRoundWork n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundWorkEncoding n counterWidth).width).toQuantum}
     (h : UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding n counterWidth) program step) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathWorkEncoding n counterWidth)
       (liftFullRoundWorkProgramToPathWork n counterWidth program)
       (liftFullRoundWorkStepToPathWork n counterWidth step) :=
-  UnitaryCircuit.Realizes.prodLeft (right := BinaryLabelEncoding.bool) h
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := BinaryLabelEncoding.bool) h
 
 /-- Lift a path-work step over the trailing control-work bit, preserving that
 bit. -/
@@ -484,26 +488,29 @@ def liftFullRoundPathWorkStepToControlWork
 /-- Lift an actual path-work circuit over the trailing control-work bit. -/
 def liftFullRoundPathWorkProgramToControlWork
     (n counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathWorkEncoding n counterWidth).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathControlWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix BinaryLabelEncoding.bool.width program
 
 /-- Actual-circuit realization is preserved when adding control work. -/
 theorem liftFullRoundPathWorkProgramToControlWork_realizes
     (n counterWidth : Nat)
     {step : RegistersWithFullRoundPathWork n counterWidth ->
       RegistersWithFullRoundPathWork n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathWorkEncoding n counterWidth).width).toQuantum}
     (h : UnitaryCircuit.Realizes
       (registersWithFullRoundPathWorkEncoding n counterWidth) program step) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding n counterWidth)
       (liftFullRoundPathWorkProgramToControlWork n counterWidth program)
       (liftFullRoundPathWorkStepToControlWork n counterWidth step) :=
-  UnitaryCircuit.Realizes.prodLeft (right := BinaryLabelEncoding.bool) h
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := BinaryLabelEncoding.bool) h
 
 /-- Lift a full-round workspace step over path and control-work bits. -/
 def liftFullRoundWorkStepToPathControlWork
@@ -519,10 +526,12 @@ def liftFullRoundWorkStepToPathControlWork
 /-- Lift an actual full-round circuit over path and control-work bits. -/
 def liftFullRoundWorkProgramToPathControlWork
     (n counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding n counterWidth).width) :=
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundWorkEncoding n counterWidth).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathControlWorkEncoding n counterWidth).width).toQuantum :=
   liftFullRoundPathWorkProgramToControlWork n counterWidth
     (liftFullRoundWorkProgramToPathWork n counterWidth program)
 
@@ -531,8 +540,9 @@ theorem liftFullRoundWorkProgramToPathControlWork_realizes
     (n counterWidth : Nat)
     {step : RegistersWithFullRoundWork n counterWidth ->
       RegistersWithFullRoundWork n counterWidth}
-    {program : UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundWorkEncoding n counterWidth).width).toQuantum}
     (h : UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding n counterWidth) program step) :
     UnitaryCircuit.Realizes

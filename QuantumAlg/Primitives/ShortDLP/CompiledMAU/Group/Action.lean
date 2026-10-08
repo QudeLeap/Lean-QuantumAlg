@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Exponentiation
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Placement
+import all QuantumAlg.Primitives.ShortDLP.Oracle.Mathematics
 
 /-!
 # Two actual new exponentiations on one shared unit workspace
@@ -27,10 +28,10 @@ noncomputable section
 register. -/
 def firstExponentiationProgram (m ell width N : Nat)
     (g : (ZMod N)ˣ) :
-    UnitaryCircuit
-      (Qubits
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
         (firstBits (registerParameters m ell width) + ell +
-          workspaceBits width)) :=
+          workspaceBits width)).toQuantum :=
   UnitaryCircuit.insertMiddle
     (leftWidth := firstBits (registerParameters m ell width))
     (middleWidth := ell) (rightWidth := workspaceBits width)
@@ -40,10 +41,10 @@ def firstExponentiationProgram (m ell width N : Nat)
 both exponentiations address the same arithmetic workspace. -/
 def secondExponentiationProgram (m ell width N : Nat)
     (x : (ZMod N)ˣ) :
-    UnitaryCircuit
-      (Qubits
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
         (firstBits (registerParameters m ell width) + ell +
-          workspaceBits width)) :=
+          workspaceBits width)).toQuantum :=
   castProgram
     (Nat.add_assoc
       (firstBits (registerParameters m ell width)) ell
@@ -55,10 +56,10 @@ def secondExponentiationProgram (m ell width N : Nat)
 /-- Actual shared-workspace program for `(a,b) ↦ g^a * (x^b)⁻¹`. -/
 def compiledGroupActionProgram (m ell width N : Nat)
     (g x : (ZMod N)ˣ) :
-    UnitaryCircuit
-      (Qubits
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
         (firstBits (registerParameters m ell width) + ell +
-          workspaceBits width)) :=
+          workspaceBits width)).toQuantum :=
   UnitaryCircuit.seq
     (firstExponentiationProgram m ell width N g)
     (secondExponentiationProgram m ell width N x)
@@ -78,22 +79,7 @@ theorem firstExponentiationProgram_realizes
     UnitaryCircuit.Realizes (groupEncoding m ell width)
       (firstExponentiationProgram m ell width N g)
       (firstExponentiationStep m ell width N g) := by
-  change
-    UnitaryCircuit.Realizes
-      (BinaryLabelEncoding.prod
-        (BinaryLabelEncoding.prod
-          (BinaryLabelEncoding.finIdentity (ell + m))
-          (BinaryLabelEncoding.finIdentity ell))
-        (workspaceEncoding width))
-      (UnitaryCircuit.insertMiddle
-        (leftWidth := ell + m) (middleWidth := ell)
-        (rightWidth := workspaceBits width)
-        (exponentiationProgram (ell + m) width N g))
-      (fun input =>
-        let updated := exponentiationRawStep
-          (ell + m) width N g (input.1.1, input.2)
-        ((updated.1, input.1.2), updated.2))
-  exact UnitaryCircuit.Realizes.insertMiddle
+  exact UnitaryCircuit.Realizes.onBinaryMiddle
     (left := BinaryLabelEncoding.finIdentity (ell + m))
     (middle := BinaryLabelEncoding.finIdentity ell)
     (right := workspaceEncoding width)
@@ -134,7 +120,7 @@ theorem secondExponentiationProgram_realizes
         (Fin (2 ^ ell) × WorkspaceRegisters width) :=
     (a, updated)
   have hraw :=
-    (UnitaryCircuit.Realizes.prodRight
+    (UnitaryCircuit.Realizes.onBinarySuffix
       (left := BinaryLabelEncoding.finIdentity
         (firstBits (registerParameters m ell width)))
       (exponentiationRaw_realizes ell width N x⁻¹)).apply_encoded_ket
@@ -170,24 +156,28 @@ theorem secondExponentiationProgram_realizes
   change
     (castProgram hwidth rawProgram).applyNormalized
         (NormalizedVector.ket
-          ((groupEncoding m ell width).encode ((a, b), workspace))) =
+          ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+            ((groupEncoding m ell width).encode ((a, b), workspace)))) =
       NormalizedVector.ket
-        ((groupEncoding m ell width).encode
-          ((a, updated.1), updated.2))
+        ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+          ((groupEncoding m ell width).encode
+            ((a, updated.1), updated.2)))
   rw [← hinput, ← houtput]
   change
     (castProgram hwidth rawProgram).applyNormalized
         (NormalizedVector.ket
+          ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+            (castLabel hwidth
+              (prodEquiv
+                (a, prodEquiv
+                  (b, (workspaceEncoding width).encode workspace)))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
           (castLabel hwidth
             (prodEquiv
               (a, prodEquiv
-                (b, (workspaceEncoding width).encode workspace))))) =
-      NormalizedVector.ket
-        (castLabel hwidth
-          (prodEquiv
-            (a, prodEquiv
-              (updated.1,
-                (workspaceEncoding width).encode updated.2)))) at hcast
+                (updated.1,
+                  (workspaceEncoding width).encode updated.2))))) at hcast
   exact hcast
 
 /-- Full-register semantic action of the two actual exponentiation circuits. -/
@@ -218,10 +208,12 @@ theorem compiledGroupActionProgram_applyLabel_clean
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
     (compiledGroupActionProgram m ell width N g x).applyNormalized
         (NormalizedVector.ket
-          (cleanLabel m ell width N a b value)) =
+          ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+            (cleanLabel m ell width N a b value))) =
       NormalizedVector.ket
-        (cleanLabel m ell width N a b
-          (oracleValue g x a.val b.val * value)) := by
+        ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+          (cleanLabel m ell width N a b
+            (oracleValue g x a.val b.val * value))) := by
   let input : GroupRegisters m ell width :=
     ((a, b), cleanWorkspace width N value)
   have haction :=
@@ -242,63 +234,8 @@ theorem compiledGroupActionProgram_applyLabel_clean
       ((a, b), cleanWorkspace width N result))
     simp only [oracleValue, inv_pow]
     ac_rfl
-  calc
-    (compiledGroupActionProgram m ell width N g x).applyNormalized
-          (NormalizedVector.ket
-            (cleanLabel m ell width N a b value)) =
-        (compiledGroupActionProgram m ell width N g x).applyNormalized
-          (NormalizedVector.ket
-            ((groupEncoding m ell width).encode input)) := by
-      rfl
-    _ = NormalizedVector.ket
-          ((groupEncoding m ell width).encode
-            (compiledGroupActionStep m ell width N g x input)) := haction
-    _ = NormalizedVector.ket
-          ((groupEncoding m ell width).encode
-            ((a, b), cleanWorkspace width N
-              (oracleValue g x a.val b.val * value))) := by
-      rw [hstep]
-    _ = NormalizedVector.ket
-          (cleanLabel m ell width N a b
-            (oracleValue g x a.val b.val * value)) := by
-      rfl
-
-/-- The first member uses only its exponent and the same declared arithmetic words. -/
-theorem firstExponentiationProgram_physical_idx_subset_range (m ell width N : Nat)
-    (g : (ZMod N)ˣ) :
-    (firstExponentiationProgram m ell width N g).physical_idx ⊆
-      List.range (totalQubits (registerParameters m ell width)) :=
-  UnitaryCircuit.insertMiddle_physical_idx_subset_range
-    (leftWidth := ell + m) (middleWidth := ell) (rightWidth := workspaceBits width)
-    (exponentiationProgram (ell + m) width N g)
-    (exponentiationProgram_physical_idx_subset_range (ell + m) width N g)
-
-/-- The second member addresses that same workspace after both exponent fields. -/
-theorem secondExponentiationProgram_physical_idx_subset_range (m ell width N : Nat)
-    (x : (ZMod N)ˣ) :
-    (secondExponentiationProgram m ell width N x).physical_idx ⊆
-      List.range (totalQubits (registerParameters m ell width)) := by
-  intro index member
-  unfold secondExponentiationProgram at member
-  rw [castProgram_physical_idx] at member
-  have shifted := UnitaryCircuit.prodRight_physical_idx_subset_range
-    (m := firstBits (registerParameters m ell width))
-    (exponentiationProgram ell width N x⁻¹)
-    (exponentiationProgram_physical_idx_subset_range ell width N x⁻¹) member
-  exact List.mem_range.mpr (by
-    have bound := List.mem_range.mp shifted
-    change index < ((ell + m) + ell + workspaceBits width)
-    change index < (ell + m) + (ell + workspaceBits width) at bound
-    omega)
-
-/-- The actual two-member composition retains the one flat shared carrier. -/
-theorem compiledGroupActionProgram_physical_idx_subset (m ell width N : Nat)
-    (g x : (ZMod N)ˣ) :
-    (compiledGroupActionProgram m ell width N g x).physical_idx ⊆
-      List.range (totalQubits (registerParameters m ell width)) :=
-  UnitaryCircuit.seq_physical_idx_subset _ _
-    (firstExponentiationProgram_physical_idx_subset_range m ell width N g)
-    (secondExponentiationProgram_physical_idx_subset_range m ell width N x)
+  rw [hstep] at haction
+  exact haction
 
 end
 

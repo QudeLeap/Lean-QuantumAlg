@@ -135,19 +135,25 @@ theorem step_eq_sourceStep {width : Nat} (state : Registers width) (clean : stat
 
 /-- The compiled program is precisely the above native list. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Its exact all-label realization retains relative phases by the original circuit semantics. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (program width enough) step :=
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (gates_step width enough)
 
 /-- The actual program acts as the source phase update on each internally prepared basis label. -/
 theorem program_apply_clean (width : Nat) (enough : 2 ≤ width.size) (state : Registers width)
     (clean : state.control = false) :
-    (program width enough).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep state)) := by
+    (program width enough).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep state))) := by
   rw [(program_realizes width enough).apply_encoded_ket, step_eq_sourceStep state clean]
 
 /-- The independently written elementary count of one predicate computation. -/

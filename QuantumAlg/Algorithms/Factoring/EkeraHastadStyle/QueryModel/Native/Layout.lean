@@ -6,8 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters.Source
+public import QuantumAlg.Primitives.ShortDLP.Layout
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters
-import all QuantumAlg.Primitives.ShortDLP
+import all QuantumAlg.Primitives.ShortDLP.Measurement
+import all QuantumAlg.Core.Base.Layout.Qubit.Quantum
 import all QuantumAlg.Core.Execution.Measurement.Cells.Inputs
 import all QuantumAlg.Core.Execution.Owned.ClassicalInputs
 import all QuantumAlg.Core.Execution.Context.Layout
@@ -29,10 +32,17 @@ open Execution
 noncomputable section
 
 /-- The original oracle uses one modulus-width target register. -/
-def parameters (N : Nat) : ShortDLP.RegisterParameters where
+public def parameters (N : Nat) : ShortDLP.RegisterParameters where
   m := shortLogBits N
   ell := tradeoffBits N
   workspaceBits := modulusBits N
+
+/-- The known modulus determines its original injective residue encoding. -/
+public def encoding {N : Nat} (input : Input N) :
+    ShortDLP.UnitEncoding N (parameters N).workspaceBits :=
+  ShortDLP.UnitEncoding.ofResidueEncoding
+    { modulus_pos := input.modulus_pos
+      register_fits := input.samplerInput.register_fits }
 
 /-- The exact original physical bank, without compiled arithmetic auxiliaries. -/
 def layout (N : Nat) : QuantumLayout (ShortDLP.totalQubits (parameters N)) :=
@@ -59,7 +69,7 @@ theorem nativeOracle_qubitCount_sameBit {n : Nat} (pair : RSA.RSAKeyPairBits n)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 include noQuantum in
-private theorem allocationDisjoint : List.Disjoint (layout N).identities base.physicalIdx := by
+theorem allocationDisjoint : List.Disjoint (layout N).identities base.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, noQuantum, List.map_nil]
   exact List.disjoint_nil_right _
 
@@ -116,6 +126,43 @@ theorem nativeOracle_context_wires :
   rw [context, RuntimeCtx.quantumWires_addRetained, cellsContext,
     MeasurementCells.context_quantumWires]
   exact nativeOracle_bankContext_wires base noQuantum N
+
+variable {ctx : RuntimeCtx .quantum} (N : Nat) (sameWires : ctx.quantumWires = (layout N).wires)
+
+include sameWires in
+private theorem layoutWires : (layout N).wires = ctx.quantumLayout.wires :=
+  (ctx.quantumLayout_wires.trans sameWires).symm
+
+/-- Corresponding positions preserve complete wire identities and dimensions. -/
+def wireEquiv : Fin (ShortDLP.totalQubits (parameters N)) ≃ Fin ctx.systemCount :=
+  Execution.positionsOfEqualWires (layout N) ctx.quantumLayout (layoutWires N sameWires)
+
+/-- The actual wire at each source position retains its physical identity and dimension. -/
+theorem nativeOracle_wire_preserved (wire : Fin (ShortDLP.totalQubits (parameters N))) :
+    ctx.quantumLayout.wire (wireEquiv N sameWires wire) = (layout N).wire wire :=
+  Execution.wireAtCorrespondingPosition (layout N) ctx.quantumLayout (layoutWires N sameWires) wire
+
+include sameWires in
+/-- Every actual bank wire has dimension two. -/
+theorem nativeOracle_context_qubits (wire : Fin ctx.systemCount) :
+    (ctx.quantumLayout.wire wire).dimension = 2 := by
+  obtain ⟨original, rfl⟩ := (wireEquiv N sameWires).surjective wire
+  exact congrArg QuantumWire.dimension (nativeOracle_wire_preserved N sameWires original)
+
+/-- Binary source labels identify the same actual ordered physical wires. -/
+def basisEquiv : ctx.register.Index ≃ (Qubits (ShortDLP.totalQubits (parameters N))).Index :=
+  (Execution.basisOfEqualWires (layout N) ctx.quantumLayout (layoutWires N sameWires)).symm.trans
+    (ShortDLP.layout (parameters N)).binaryIndexEquiv
+
+include sameWires in
+/-- The runtime bank has exactly the consecutive source identities. -/
+theorem nativeOracle_physicalIdx :
+    ctx.physicalIdx = List.range (ShortDLP.totalQubits (parameters N)) := by
+  change ctx.quantumWires.map QuantumWire.identity = _
+  rw [sameWires]
+  exact (layout_identities_eq_map_wires (layout N)).symm.trans
+    (ShortDLP.layout_systemIdx (parameters N))
+
 
 end
 

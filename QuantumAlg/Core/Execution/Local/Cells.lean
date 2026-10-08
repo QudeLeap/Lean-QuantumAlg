@@ -26,11 +26,11 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-private def localUnderMeasurementCells (code : Circuit ctx ctx) (supported : code.IsLocal)
+private def localUnderMeasurementCells (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (dimension : ℕ+) : (count : Nat) →
-    { extended : Circuit (MeasurementCells.context ctx dimension count)
+    { extended : Circuit model (MeasurementCells.context ctx dimension count)
         (MeasurementCells.context ctx dimension count) // extended.IsLocal }
   | 0 => ⟨code, supported⟩
   | count + 1 =>
@@ -42,20 +42,20 @@ private def localUnderMeasurementCells (code : Circuit ctx ctx) (supported : cod
           inner.canonicalFreshKey_fresh⟩
 
 /-- Run the original local circuit while keeping all existing finite cells resident. -/
-def underMeasurementCells (code : Circuit ctx ctx) (supported : code.IsLocal)
+def underMeasurementCells (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (dimension : ℕ+) (count : Nat) :
-    Circuit (MeasurementCells.context ctx dimension count)
+    Circuit model (MeasurementCells.context ctx dimension count)
       (MeasurementCells.context ctx dimension count) :=
   (localUnderMeasurementCells code supported dimension count).val
 
 /-- No allocation, release or additional interpreter is introduced by the extension. -/
-theorem underMeasurementCells_isLocal (code : Circuit ctx ctx) (supported : code.IsLocal)
+theorem underMeasurementCells_isLocal (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (dimension : ℕ+) (count : Nat) :
     (underMeasurementCells code supported dimension count).IsLocal :=
   (localUnderMeasurementCells code supported dimension count).property
 
 /-- The existing measurement cells add no outcome or branch choice to the actual path. -/
-def underMeasurementCellsPathEquiv (code : Circuit ctx ctx) (supported : code.IsLocal)
+def underMeasurementCellsPathEquiv (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (dimension : ℕ+) : (count : Nat) →
     code.Path ≃ (underMeasurementCells code supported dimension count).Path
   | 0 => Equiv.refl _

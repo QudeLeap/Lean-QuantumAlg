@@ -36,7 +36,8 @@ private def ordinaryStep (modulus : Nat) (state : Registers modulus.size) :
       (FoldRegisters.grouping modulus.size state).2)
 
 private def ordinaryProgram (modulus : Nat) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   FoldComparisonPlacement.placeFocus modulus.size
     (FoldComparisonFocus.place (modulus.size + 3) (OutputCorrectionFocus.program modulus))
 
@@ -56,32 +57,24 @@ private theorem ordinary_realizes (modulus : Nat) :
           ((FoldComparisonFocus.fieldEquiv (modulus.size + 3)).symm_apply_apply
             (OutputCorrectionFocus.step modulus (FoldRegisters.grouping modulus.size state).1)))
 
-private theorem ordinary_physical (modulus : Nat) :
-    (ordinaryProgram modulus).physical_idx = List.range (encoding modulus.size).width :=
-  FoldComparisonPlacement.placeFocus_physical modulus.size _
-    (FoldComparisonFocus.place_physical_range (modulus.size + 3) _
-      (OutputCorrectionFocus.program_physical_range modulus))
-
-private theorem ordinary_within (modulus : Nat) :
-    (ordinaryProgram modulus).physical_idx ⊆ List.range (encoding modulus.size).width := by
-  rw [ordinary_physical]
-  exact List.Subset.refl _
-
 /-- The complete field action reads and writes Work2 in its actual little-endian orientation. -/
 def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.size :=
   (OutputOrientation.grouping modulus.size).symm
     (ordinaryStep modulus (OutputOrientation.grouping modulus.size state))
 
 /-- Place the real reflection and both flag X gates on the original little-endian coefficient. -/
-def program (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   (OutputOrientation.placement modulus.size).place (ordinaryProgram modulus)
-    (ordinary_within modulus)
 
 /-- Complete exact amplitude action with arbitrary original spectator and helper values. -/
 theorem program_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) (step modulus) :=
-  (OutputOrientation.placement modulus.size).place_realizes
-    (ordinary_within modulus) (ordinary_realizes modulus)
+  ((OutputOrientation.placement modulus.size).place_realizes
+    (ordinary_realizes modulus)).congrStep (by
+      intro state
+      simp only [EncodedBit.FullPlacement.step, step,
+        OutputOrientation.placement_grouping_eq])
 
 /-- Read the resulting Work2 coefficient in its physical little-endian orientation. -/
 theorem step_word (modulus : Nat) (state : Registers modulus.size) :
@@ -116,15 +109,10 @@ theorem step_value (modulus : Nat) (state : Registers modulus.size)
   exact OutputCorrectionFocus.step_value modulus state.flags.iteration state.control
     (BitVec.equivFin state.secondWord.reverse) bounded
 
-/-- The actual correction retains exactly the original complete frame footprint. -/
-theorem program_physical (modulus : Nat) :
-    (program modulus).physical_idx = List.range (encoding modulus.size).width :=
-  (OutputOrientation.placement modulus.size).place_physical _ (ordinary_within modulus)
-
 /-- Every elementary event survives both actual coordinate placements. -/
 theorem program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (OutputCorrectionFocus.program modulus).eventTrace :=
-  ((OutputOrientation.placement modulus.size).place_eventTrace _ (ordinary_within modulus)).trans
+  ((OutputOrientation.placement modulus.size).place_eventTrace _).trans
     ((FoldComparisonPlacement.placeFocus_eventTrace modulus.size _).trans
       (FoldComparisonFocus.place_eventTrace (modulus.size + 3) _))
 

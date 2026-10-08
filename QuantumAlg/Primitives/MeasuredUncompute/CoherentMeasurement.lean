@@ -32,7 +32,7 @@ def measuredOperator (width : Nat) (Reference : Register) (outcome : Fin (2 ^ wi
     HilbertOperator (Register.prod (Qubits width) Reference) :=
   ZMeasurement.projector (R := Register.prod (Qubits width) Reference)
       (fun index => index.1) outcome *
-    (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayer width).matrix
+    (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayerOperator width)
       (1 : UnitaryOperator Reference) : HilbertOperator (Register.prod (Qubits width) Reference))
 
 /-- Every reference-labelled input ket retains its own exact measured character. -/

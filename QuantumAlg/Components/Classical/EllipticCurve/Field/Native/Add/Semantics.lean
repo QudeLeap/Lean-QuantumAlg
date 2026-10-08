@@ -37,12 +37,17 @@ def additionStore (left right : CInputRef ctx (.unsignedWord width))
   ((store.applyOp (additionLeftOp left scratch)).applyOp
     (additionRightOp right scratch)).applyOp (additionSumOp scratch)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual finite arithmetic record returns exactly those three chronological updates. -/
 theorem additionStageRecord_store (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (store : Store ctx) :
-    (Circuit.forRangeRecord 3 (additionStage left right scratch)
+    (Circuit.forRangeStoreRecord 3 (additionStage (model := model) left right scratch)
       (additionStageRecord left right scratch) store).1 =
       additionStore left right scratch store := rfl
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Actual storage identities written by the original arithmetic prefix. -/
 def AddScratch.keys (scratch : AddScratch ctx width) : List StorageKey :=
@@ -146,6 +151,9 @@ private theorem word_eq_of_toNat (first second : CShape.Word width)
     cases second with
     | unsignedWord second => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Exact modular arithmetic is computed by the actual addition and loaded-reduction body. -/
 theorem additionBody_toNat (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
@@ -178,6 +186,7 @@ theorem additionBody_store (spec : ModulusSpec width)
     apply reduceIntoWord_read_other
     simpa [CInputRef.storageKeys] using free
 
+omit [BitWord.Selected model] in
 private theorem additionScratch_keys (cells : Cells ctx (additionShapes width)) :
     (additionScratch cells).keys = cells.keys.reverse := by
   cases cells with
@@ -189,7 +198,8 @@ private theorem additionScratch_keys (cells : Cells ctx (additionShapes width)) 
         cases rest
         rfl
 
-private theorem additionScratch_separation {outer : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem additionScratch_separation {outer : RuntimeCtx model.kind}
     (left right : CInputRef outer (.unsignedWord width))
     (cells : Cells ctx (additionShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -210,15 +220,17 @@ private theorem additionScratch_separation {outer : RuntimeCtx kind}
 theorem addIntoWord_actualRecord (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    ∃ step : Store ctx → Store ctx × (addIntoWord spec left right output).Path,
+    ∃ step : Store ctx → Store ctx ×
+      (addIntoWord (model := model) spec left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (addIntoWord spec left right output).execute Reference state = state.mapClassical
-          (fun entry => ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
+        (state : State ctx Reference (model.HiddenState × History)),
+        (addIntoWord (model := model) spec left right output).execute Reference state =
+          state.mapClassical (fun entry => ((step entry.1).1,
+            (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, (step before).1 = before.write output
         (CShape.wordOfNat width (((before.read left).toNat + (before.read right).toNat) %
           spec.modulus)) := by
-  apply withCells_actualRecord_post ctx (additionShapes width)
+  apply withCells_actualStoreRecord_post ctx (additionShapes width)
     (fun cells _ transport _ => additionBody spec (transport.liftInput left)
       (transport.liftInput right) (additionScratch cells) (transport.liftWrite output))
     (fun source target => target = source.write output
@@ -256,7 +268,7 @@ theorem addIntoWord_actualRecord (spec : ModulusSpec width)
 def addIntoWordStep (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (addIntoWord spec left right output).Path :=
+    Store ctx → Store ctx × (addIntoWord (model := model) spec left right output).Path :=
   Classical.choose (addIntoWord_actualRecord spec left right output)
 
 /-- The complete actual addition retains arbitrary quantum-reference correlations and history. -/
@@ -264,10 +276,11 @@ theorem addIntoWord_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (addIntoWord spec left right output).execute Reference state = state.mapClassical
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (addIntoWord (model := model) spec left right output).execute Reference state =
+      state.mapClassical
       (fun entry => ((addIntoWordStep spec left right output entry.1).1,
-        (entry.2, (addIntoWordStep spec left right output entry.1).2))) :=
+        (entry.2.1, (entry.2.2, (addIntoWordStep spec left right output entry.1).2)))) :=
   (Classical.choose_spec (addIntoWord_actualRecord spec left right output)).1 Reference state
 
 /-- Exactly the caller's chosen result is overwritten with the canonical modular sum. -/

@@ -82,6 +82,20 @@ public theorem appendBasisEquiv_join (left : QuantumLayout leftCount)
       (appendJoinBasis left right disjoint leftBasis rightBasis) = (leftBasis, rightBasis) :=
   (appendBasisEquiv left right disjoint).apply_symm_apply (leftBasis, rightBasis)
 
+/-- Joining the two all-zero subsystem labels gives the all-zero label of the
+complete appended layout. -/
+public theorem appendJoinBasis_zero (left : QuantumLayout leftCount)
+    (right : QuantumLayout rightCount)
+    (disjoint : List.Disjoint left.identities right.identities) :
+    appendJoinBasis left right disjoint left.zeroLabel right.zeroLabel =
+      (append left right disjoint).zeroLabel := by
+  funext index
+  refine Fin.addCases (fun first => ?_) (fun second => ?_) index
+  · apply Fin.ext
+    simp [appendJoinBasis, zeroLabel]
+  · apply Fin.ext
+    simp [appendJoinBasis, zeroLabel]
+
 /-- The left physical wire receives precisely its original finite value. -/
 public theorem appendJoinBasis_left_value (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)

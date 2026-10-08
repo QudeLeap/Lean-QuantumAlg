@@ -25,29 +25,80 @@ noncomputable section
 
 open Execution
 
-private theorem storedWeight_seq_assoc {kind : ProblemKind}
-    {origin first second final : RuntimeCtx kind}
-    (priorCode : Circuit origin first) (middle : Circuit first second)
-    (tail : Circuit second final) {Reference : Register} {H : Type} [Fintype H]
-    (state : State origin Reference H)
+private theorem storedWeight_seq_assoc {model : ExecutionModel}
+    {origin first second final : RuntimeCtx model.kind}
+    (priorCode : Circuit model origin first) (middle : Circuit model first second)
+    (tail : Circuit model second final) {Reference : Register} {H : Type} [Fintype H]
+    (state : State origin Reference (model.HiddenState × H))
     (effects : Store final → Effect (final.register.prod Reference)) :
     ((priorCode.seq (middle.seq tail)).execute Reference state).effectWeight
         (fun record => effects record.1) =
       (((priorCode.seq middle).seq tail).execute Reference state).effectWeight
         (fun record => effects record.1) := by
-  simp only [execute_seq, execute_mapHistory, State.effectWeight_mapHistory]
+  simp only [execute_seq, State.effectWeight_mapHistory]
+  rw [execute_mapHistory tail Reference
+    (middle.execute Reference (priorCode.execute Reference state))
+    (fun history => (history.1.1, (history.1.2, history.2))), State.effectWeight_mapHistory]
+
+private theorem storedWeight_execute_mapHistory {model : ExecutionModel}
+    {origin result : RuntimeCtx model.kind}
+    (code : Circuit model origin result) {Reference : Register}
+    {H K : Type} [Fintype H] [Fintype K]
+    (state : State origin Reference (model.HiddenState × H)) (update : H → K)
+    (effects : Store result → Effect (result.register.prod Reference)) :
+    (code.execute Reference
+      (state.mapHistory (fun record => (record.1, update record.2)))).effectWeight
+        (fun record => effects record.1) =
+      (code.execute Reference state).effectWeight (fun record => effects record.1) := by
+  rw [execute_mapHistory code Reference state update, State.effectWeight_mapHistory]
+
+/-- Rebracketing four actual stages leaves every final store observation unchanged. -/
+theorem storedWeight_four_stage {model : ExecutionModel}
+    {origin first second final result : RuntimeCtx model.kind}
+    (setup : Circuit model origin first) (allocation : Circuit model first second)
+    (body : Circuit model second final) (packing : Circuit model final result)
+    {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H))
+    (effects : Store result → Effect (result.register.prod Reference)) :
+    ((setup.seq ((allocation.seq body).seq packing)).execute Reference initial).effectWeight
+        (fun entry => effects entry.1) =
+      (packing.execute Reference (((setup.seq allocation).seq body).execute
+        Reference initial)).effectWeight (fun entry => effects entry.1) := by
+  simp only [execute_seq, State.effectWeight_mapHistory]
+  rw [execute_mapHistory body Reference
+    (allocation.execute Reference (setup.execute Reference initial))
+    (fun history => (history.1.1, (history.1.2, history.2)))]
+  simp only [State.mapHistory_comp, Function.comp_def]
+  let state : State final Reference
+      (model.HiddenState × (((H × setup.Path) × allocation.Path) × body.Path)) :=
+    body.execute Reference (allocation.execute Reference (setup.execute Reference initial))
+  let leftUpdate : (((H × setup.Path) × allocation.Path) × body.Path) →
+      (H × setup.Path) × (allocation.Path × body.Path) :=
+    fun history => (history.1.1, (history.1.2, history.2))
+  let rightUpdate : (((H × setup.Path) × allocation.Path) × body.Path) →
+      H × ((setup.Path × allocation.Path) × body.Path) :=
+    fun history => (history.1.1.1, ((history.1.1.2, history.1.2), history.2))
+  change (packing.execute Reference
+      (state.mapHistory (fun record => (record.1, leftUpdate record.2)))).effectWeight
+        (fun record => effects record.1) =
+    (packing.execute Reference
+      (state.mapHistory (fun record => (record.1, rightUpdate record.2)))).effectWeight
+        (fun record => effects record.1)
+  rw [storedWeight_execute_mapHistory packing state leftUpdate effects,
+    storedWeight_execute_mapHistory packing state rightUpdate effects]
 
 /-- Uniform bounds on the real prefixes give geometric contraction for that same finite loop. -/
-theorem forRange_effectWeight_le_on_actual_prefix {kind : ProblemKind}
-    {origin ctx : RuntimeCtx kind} {Reference : Register} {H : Type} [Fintype H]
-    (initial : State origin Reference H) (count : Nat) (body : Fin count → Circuit ctx ctx)
+theorem forRange_effectWeight_le_on_actual_prefix {model : ExecutionModel}
+    {origin ctx : RuntimeCtx model.kind} {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H))
+    (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (effects : Store ctx → Effect (ctx.register.prod Reference))
     (ratio : ℝ) (nonnegative : 0 ≤ ratio)
-    (step : ∀ (priorCode : Circuit origin ctx) index,
+    (step : ∀ (priorCode : Circuit model origin ctx) index,
       ((priorCode.seq (body index)).execute Reference initial).effectWeight
           (fun record => effects record.1) ≤
         ratio * (priorCode.execute Reference initial).effectWeight (fun record => effects record.1))
-    (priorCode : Circuit origin ctx) :
+    (priorCode : Circuit model origin ctx) :
     ((priorCode.seq (forRange count body)).execute Reference initial).effectWeight
         (fun record => effects record.1) ≤
       ratio ^ count * (priorCode.execute Reference initial).effectWeight

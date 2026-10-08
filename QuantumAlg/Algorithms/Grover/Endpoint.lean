@@ -19,6 +19,7 @@ import all QuantumAlg.Algorithms.Grover.Restoration
 import all QuantumAlg.Algorithms.Grover.Resources
 import all QuantumAlg.Algorithms.Grover.Space
 import all QuantumAlg.Algorithms.Grover.Specification
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Core.Measure.Distribution
@@ -54,14 +55,15 @@ public theorem problem_accepts_bits_iff {n t : Nat}
 
 /-- The complete prepared search execution, with actual measured-result storage and full Output. -/
 public def algorithm (n : Nat) (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Algorithm .quantum pre (post n k) (.bits n) where
+    Algorithm (model marked) pre (post n k) (.bits n) where
   run := run marked k
 
 /-- The named algorithm's actual output has exactly the source sin-squared marked probability. -/
 public theorem algorithm_outputProbability_eq {n t k : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (counted : markedCount marked = t) (positive : 0 < t)
-    {Reference : Register} (input : Execution.Input pre Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput (model marked).classicalOracles pre Reference) :
     ((algorithm n marked k).run.outputDistribution input).toOuterMeasure
       {result | match result with
         | .bits outcome => marked (TerminalZMeasure.fullRegisterIndex outcome) = true} =
@@ -79,11 +81,11 @@ public theorem algorithm_outputProbability_eq {n t k : Nat}
     rfl
   exact projection.symm.trans (actual_success marked k counted positive input)
 
-/-- All actual quantum-subroutine calls are the k source phase queries. -/
+/-- All actual oracle calls are the k source phase queries. -/
 public theorem algorithm_queryCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
     (path : (algorithm n marked k).run.code.Path) :
     ResourcePool.weightedCount (fun event => match event with
-      | .quantumSubroutine _ => 1
+      | .oracle _ => 1
       | _ => 0) ((algorithm n marked k).run.code.resourcePool path) = k :=
   code_queryCount marked k path
 
@@ -95,28 +97,71 @@ public theorem algorithm_elementaryGateCount {n : Nat} (marked : Fin (2 ^ n) →
         n + k * (2 * n + ZeroReflection.elementaryGateCount n) :=
   code_elementaryGateCount marked k path
 
+/-- The actual search run has this exact single-qubit gate multiplicity. -/
+public theorem algorithm_singleQubitCount {n : Nat}
+    (marked : Fin (2 ^ n) → Bool) (k : Nat)
+    (path : (algorithm n marked k).run.code.Path) :
+    ResourcePool.count (model := model marked) (.gate .singleQubit)
+      ((algorithm n marked k).run.code.resourcePool path) =
+        n + k * (2 * n + ZeroReflection.elementarySingleQubitCount n) :=
+  code_singleQubitCount marked k path
+
+/-- The actual search run uses CNOT only in its width-two reflections. -/
+public theorem algorithm_cnotCount {n : Nat}
+    (marked : Fin (2 ^ n) → Bool) (k : Nat)
+    (path : (algorithm n marked k).run.code.Path) :
+    ResourcePool.count (model := model marked) (.gate .cnot)
+      ((algorithm n marked k).run.code.resourcePool path) =
+        k * ZeroReflection.elementaryCNOTCount n :=
+  code_cnotCount marked k path
+
+/-- The actual search run uses the selected source reflection's exact Toffoli schedule. -/
+public theorem algorithm_toffoliCount {n : Nat}
+    (marked : Fin (2 ^ n) → Bool) (k : Nat)
+    (path : (algorithm n marked k).run.code.Path) :
+    ResourcePool.count (model := model marked) (.gate .toffoli)
+      ((algorithm n marked k).run.code.resourcePool path) =
+        k * ZeroReflection.elementaryToffoliCount n :=
+  code_toffoliCount marked k path
+
+/-- The named public execution satisfies its full independent input,
+state and resource contract. -/
+public theorem algorithm_solves {n t k : Nat} (marked : Fin (2 ^ n) → Bool) :
+    Algorithm.Solves (algorithm n marked k) (problem (t := t) marked k) := by
+  constructor
+  · intro Reference input promised _initialized
+    exact le_of_eq (actual_success marked k promised.2.1 promised.2.2 input).symm
+  · intro _Reference _input _promised _initialized requirement present
+    exact False.elim (List.not_mem_nil present)
+  · intro Reference input _promised _initialized
+    have restored := code_borrowedRestored marked k
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
+    have history := Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
+    change (code marked k).BorrowedRestored _ input.state
+      ((code marked k).execute _
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
+    unfold Circuit.BorrowedRestored at restored ⊢
+    rw [restored]
+    refine Eq.trans ?_ history
+    apply congrArg (Execution.observeBorrowed _)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
+  · intro _Reference _input _promised _initialized path _supported
+    exact le_of_eq (code_events marked k path)
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_residentSpace marked k path
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_auxiliarySpace marked k path
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_depth marked k path
+
+
 /-- The actual search execution solves the original positive-width problem with independent
 complete event, space and depth bounds and mandatory joint borrowed restoration. -/
 public theorem main {n t k : Nat} (marked : Fin (2 ^ n) → Bool) :
-    ∃ candidate : Algorithm .quantum pre (post n k) (.bits n),
-      Algorithm.Solves candidate (problem (t := t) marked k) := by
-  refine ⟨algorithm n marked k, ?_⟩
-  constructor
-  · intro Reference input promised
-    exact le_of_eq (actual_success marked k promised.2.1 promised.2.2 input).symm
-  · intro _Reference _input _promised requirement present
-    exact False.elim (List.not_mem_nil present)
-  · intro Reference input _promised
-    exact code_borrowedRestored marked k
-      (input.state.mapClassical (fun store => (store, store)))
-  · intro _Reference _input _promised path _supported
-    exact le_of_eq (code_events marked k path)
-  · intro _Reference _input _promised path _supported
-    exact code_residentSpace marked k path
-  · intro _Reference _input _promised path _supported
-    exact code_auxiliarySpace marked k path
-  · intro _Reference _input _promised path _supported
-    exact le_of_eq (code_depth marked k path)
+    ∃ candidate : Algorithm (model marked) pre (post n k) (.bits n),
+      Algorithm.Solves candidate (problem (t := t) marked k) :=
+  ⟨algorithm n marked k, algorithm_solves marked⟩
 
 end
 

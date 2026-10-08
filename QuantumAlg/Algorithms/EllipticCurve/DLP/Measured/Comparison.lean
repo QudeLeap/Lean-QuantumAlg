@@ -35,35 +35,49 @@ open ScalarMultiplication.MeasuredPlacement.Allocation
 open FiniteCyclicDLP
 
 private theorem outputProbability_bound_by_inputEffect
-    {pre post : RuntimeCtx .quantum} {shape : CShape}
-    (actual : AlgorithmRun pre post shape) {Reference : Register}
-    (stored : Store pre) (vector : NormalizedVector (Register.prod pre.register Reference))
+    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
+    (actual : AlgorithmRun model pre post shape) {Reference : Register}
+    (stored : Store pre × model.HiddenState)
+    (vector : NormalizedVector (Register.prod pre.register Reference))
     (good : HilbertVector (Register.prod pre.register Reference)) (bounded : ‖good‖ ≤ 1)
     (ideal : Effect (Register.prod pre.register Reference)) (event : shape.Value → Bool)
+    (effects : actual.Record → Effect (Register.prod post.register Reference))
+    (goodInput : ExecutionState (Store pre × model.HiddenState)
+      (Register.prod pre.register Reference))
+    (eventEffects : effects = actual.recordEventEffects Reference (event ∘ actual.result))
+    (goodInputWeight :
+      goodInput.effectWeight (actual.effectPullback Reference effects) =
+        (actual.effectPullback Reference effects stored).weight
+          (DensityOperator.ofSubnormalizedVector good bounded))
     (agrees :
-      (actual.execute Reference (ExecutionState.ofValue stored
-        (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight
-          (actual.recordEventEffects Reference (event ∘ actual.result)) =
+      (actual.execute Reference goodInput).effectWeight effects =
       ideal.weight (DensityOperator.ofSubnormalizedVector good bounded)) :
     ENNReal.ofReal (ideal.weight (DensityOperator.ofPure vector)) ≤
       (actual.outputDistribution (AlgorithmRun.pureInput stored vector)).map event true +
         ENNReal.ofReal (4 * ‖vector.vec - good‖) := by
-  let actualEffect := actual.effectPullback Reference
-    (actual.recordEventEffects Reference (event ∘ actual.result)) stored
+  let actualEffect := actual.effectPullback Reference effects stored
   have actualGood := actual.effectWeight_execute Reference
-    (ExecutionState.ofValue stored (DensityOperator.ofSubnormalizedVector good bounded))
-    (actual.recordEventEffects Reference (event ∘ actual.result))
-  rw [ExecutionState.effectWeight_ofValue] at actualGood
+    goodInput effects
   have comparison := Effect.weight_le_add_four_mul_omitted_norm actualEffect ideal vector
-    good bounded (actualGood.symm.trans agrees)
+    good bounded (goodInputWeight.symm.trans (actualGood.symm.trans agrees))
   have probability :
       (actual.outputDistribution (AlgorithmRun.pureInput stored vector)).map event true =
-        ENNReal.ofReal (actualEffect.weight (DensityOperator.ofPure vector)) :=
-    (actual.outputDistribution_event_eq_input_effectWeight
-      (AlgorithmRun.pureInput stored vector) event).trans (congrArg ENNReal.ofReal
-        (ExecutionState.effectWeight_ofValue stored (DensityOperator.ofPure vector)
-          (actual.effectPullback Reference
-            (actual.recordEventEffects Reference (event ∘ actual.result)))))
+        ENNReal.ofReal (actualEffect.weight (DensityOperator.ofPure vector)) := by
+    have observed := actual.outputDistribution_event_eq_input_effectWeight
+      (AlgorithmRun.pureInput stored vector) event
+    have eventEffects' : effects = (fun record =>
+        if event (actual.result record) = true then
+          Effect.one (Register.prod post.register Reference)
+        else Effect.zero (Register.prod post.register Reference)) := by
+      change effects = (fun record =>
+        if event (actual.result record) = true then
+          Effect.one (Register.prod post.register Reference)
+        else Effect.zero (Register.prod post.register Reference)) at eventEffects
+      exact eventEffects
+    rw [← eventEffects'] at observed
+    exact observed.trans (congrArg ENNReal.ofReal
+        (ExecutionState.effectWeight_ofValue_decision _ stored (DensityOperator.ofPure vector)
+          (actual.effectPullback Reference effects)))
   rw [probability]
   exact (ENNReal.ofReal_le_ofReal comparison).trans ENNReal.ofReal_add_le
 
@@ -95,27 +109,36 @@ theorem idealEventWeight_le_exponentRunProbability_add
         ideal.weight (DensityOperator.ofSubnormalizedVector good bounded)) :
     ENNReal.ofReal (ideal.weight (DensityOperator.ofPure vector)) ≤
       ((exponentRun E fieldTail odd problem points).outputDistribution
-        (AlgorithmRun.pureInput stored vector)).map
+        (AlgorithmRun.pureInput (stored, ()) vector)).map
           (fun value => event (QubitReadouts.mask value)) true +
         ENNReal.ofReal (4 * ‖vector.vec - good‖) := by
-  apply outputProbability_bound_by_inputEffect
-    (exponentRun E fieldTail odd problem points) stored vector good bounded ideal
-    (fun value => event (QubitReadouts.mask value))
-  let input := ExecutionState.ofValue stored
+  let input := ExecutionState.ofValue (stored, ())
     (DensityOperator.ofSubnormalizedVector good bounded)
-  have original : input.quantumMarginal =
-      DensityOperator.ofSubnormalizedVector good bounded :=
-    ExecutionState.ofValue_quantumMarginal stored _
-  have supported : ∀ basis,
-      ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
-        (exponentPreparedDensity E problem Reference input.quantumMarginal).matrix
-          basis basis = 0 := by
-    rw [original]
-    exact support
-  have actual := exponentRun_eventWeight E fieldTail sameWidth fits odd problem points seed
-    input supported event
-  rw [original] at actual
-  exact actual.trans idealAgreement
+  apply outputProbability_bound_by_inputEffect
+    (exponentRun E fieldTail odd problem points) (stored, ()) vector good bounded ideal
+    (fun value => event (QubitReadouts.mask value))
+    (fun record => if event (QubitReadouts.mask (record.1.read
+      (QubitReadouts.input (exponentMeasurementCells p (orderWidth problem))))) = true then
+        Effect.one (Register.prod
+          (exponentMeasurementContext p (orderWidth problem)).register Reference)
+      else Effect.zero (Register.prod
+        (exponentMeasurementContext p (orderWidth problem)).register Reference)) input
+  · funext record
+    rfl
+  · simp only [input, ExecutionState.effectWeight_ofValue_decision]
+  · have original : input.quantumMarginal =
+        DensityOperator.ofSubnormalizedVector good bounded :=
+      ExecutionState.ofValue_quantumMarginal (stored, ()) _
+    have supported : ∀ basis,
+        ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
+          (exponentPreparedDensity E problem Reference input.quantumMarginal).matrix
+            basis basis = 0 := by
+      rw [original]
+      exact support
+    have actual := exponentRun_eventWeight E fieldTail sameWidth fits odd problem points seed
+      input supported event
+    rw [original] at actual
+    exact actual.trans idealAgreement
 
 end
 

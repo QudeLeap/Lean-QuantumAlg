@@ -28,8 +28,9 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual cross product, in first, second and third coordinate order. -/
-def pointCrossInto (left right output : LatticeState.PointRefs ctx width)
-    (productLeft productRight : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+def pointCrossInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
+    (productLeft productRight : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .seq (coordinateCross (writeInput left.second) (writeInput right.third)
       (writeInput left.third) (writeInput right.second) output.first productLeft productRight)
     (.seq (coordinateCross (writeInput left.third) (writeInput right.first)
@@ -49,19 +50,47 @@ def pointStore (left right output : LatticeState.PointRefs ctx width)
         (writeInput left.third) (writeInput right.second) output.first productLeft productRight
         store))
 
+/-- The nine actual writes and their selected chronological operation paths. -/
+def pointStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
+    (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (pointCrossInto (model := model) left right output productLeft productRight).Path :=
+  let first := coordinateStep (model := model)
+    (writeInput left.second) (writeInput right.third)
+    (writeInput left.third) (writeInput right.second)
+    output.first productLeft productRight store
+  let second := coordinateStep (model := model)
+    (writeInput left.third) (writeInput right.first)
+    (writeInput left.first) (writeInput right.third)
+    output.second productLeft productRight first.1
+  let third := coordinateStep (model := model)
+    (writeInput left.first) (writeInput right.second)
+    (writeInput left.second) (writeInput right.first)
+    output.third productLeft productRight second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
+    (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (pointStep (model := model) left right output productLeft productRight store).1 =
+      pointStore left right output productLeft productRight store := rfl
+
 /-- The full interpreter retains every incoming history and quantum-reference block. -/
-theorem pointCrossInto_execute (left right output : LatticeState.PointRefs ctx width)
+theorem pointCrossInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pointCrossInto left right output productLeft productRight).execute Reference state =
-      state.mapClassical (fun entry => (pointStore left right output productLeft productRight
-        entry.1, (entry.2, (((), ((), ())), (((), ((), ())), ((), ((), ()))))))) := by
-  simp only [pointCrossInto, coordinateCross, ProductDifference.computeInto,
-    Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointCrossInto (model := model) left right output productLeft productRight).execute
+      Reference state =
+      state.mapClassical (fun entry =>
+        let actual := pointStep (model := model) left right output productLeft productRight
+          entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [pointCrossInto, pointStep, Circuit.execute_seq, coordinateCross_execute,
+    State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Reads outside the five mutable words are unchanged. -/
 theorem pointCrossInto_callerFrame (left right output : LatticeState.PointRefs ctx width)

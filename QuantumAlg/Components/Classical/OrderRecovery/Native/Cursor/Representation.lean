@@ -62,13 +62,14 @@ structure ScanSourceReads
   oneValue : (store.read cells.one).toNat = 1
 
 /-- The actual initialization establishes the source cursor without an initialization premise. -/
-theorem nativeRecovery_initialized_cursor
+theorem nativeRecovery_initialized_cursor {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)
     (sampleValue : store.read sample = .bits input.terminalBits) :
     PendingCursorReads (recoveryCells ctx modulusWidth (phaseBits + 1))
-      (initializeScanStep ctx modulusWidth phaseBits sample
+      (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
         (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1
       (.initial (ClassicalAlgorithms.OrderRecovery.decodedIndex input).val
         (2 ^ phaseBits)) := by
@@ -77,20 +78,24 @@ theorem nativeRecovery_initialized_cursor
     have positive := Nat.two_pow_pos phaseBits
     omega
   refine ⟨⟨?_, ?_, ?_, ?_⟩, ?_, ?_⟩
-  · have actual := nativeRecovery_initialized_numerator modulusWidth phaseBits sample store
+  · have actual := nativeRecovery_initialized_numerator (model := model)
+      modulusWidth phaseBits sample store
     rw [sampleValue] at actual
     exact actual
-  · exact nativeRecovery_initialized_denominator modulusWidth phaseBits sample store
-  · change ((initializeScanStep ctx modulusWidth phaseBits sample
+  · exact nativeRecovery_initialized_denominator (model := model)
+      modulusWidth phaseBits sample store
+  · change ((initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
         (cellRead (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.older)).toNat = 1
     have actual := congrArg CShape.Value.toNat
-      (nativeRecovery_initialized_older modulusWidth phaseBits sample store)
+      (nativeRecovery_initialized_older (model := model) modulusWidth phaseBits sample store)
     simpa only [CShape.wordOfNat_val, CShape.wordModulus, Nat.mod_eq_of_lt capacity] using actual
-  · have actual := nativeRecovery_initialize_unwritten_field modulusWidth phaseBits sample store
+  · have actual := nativeRecovery_initialize_unwritten_field (model := model)
+      modulusWidth phaseBits sample store
       5 (by decide)
     exact congrArg CShape.Value.toNat actual
-  · have actual := nativeRecovery_initialized_active modulusWidth phaseBits sample store
+  · have actual := nativeRecovery_initialized_active (model := model)
+      modulusWidth phaseBits sample store
     have active :
         (ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor.initial
           (ClassicalAlgorithms.OrderRecovery.decodedIndex input).val
@@ -98,11 +103,13 @@ theorem nativeRecovery_initialized_cursor
       exact decide_eq_true (Nat.two_pow_pos phaseBits).ne'
     rw [active]
     exact actual
-  · exact nativeRecovery_initialize_unwritten_field modulusWidth phaseBits sample store
+  · exact nativeRecovery_initialize_unwritten_field (model := model)
+      modulusWidth phaseBits sample store
       9 (by decide)
 
 /-- The actual initialization establishes the source base and comparison operands. -/
-theorem nativeRecovery_initialized_source_reads
+theorem nativeRecovery_initialized_source_reads {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -111,18 +118,20 @@ theorem nativeRecovery_initialized_source_reads
     ScanSourceReads spec input
       (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
       (recoveryCells ctx modulusWidth (phaseBits + 1))
-      (initializeScanStep ctx modulusWidth phaseBits sample
+      (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
         (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1 := by
   refine ⟨?_, ?_, ?_⟩
-  · exact (nativeRecovery_initialize_read_original modulusWidth phaseBits sample store base).trans
+  · exact (nativeRecovery_initialize_read_original (model := model)
+      modulusWidth phaseBits sample store base).trans
       baseValue
   · exact congrArg CShape.Value.toNat
-      (nativeRecovery_initialize_unwritten_field modulusWidth phaseBits sample store 0 (by decide))
+      (nativeRecovery_initialize_unwritten_field (model := model)
+      modulusWidth phaseBits sample store 0 (by decide))
   · have capacity : 1 < 2 ^ modulusWidth :=
       (ClassicalAlgorithms.Modular.modulusSpec_one_lt spec.modulusSpec).trans_le
         spec.modulusSpec.le_capacity
     have actual := congrArg CShape.Value.toNat
-      (nativeRecovery_initialized_one modulusWidth phaseBits sample store)
+      (nativeRecovery_initialized_one (model := model) modulusWidth phaseBits sample store)
     simpa only [CShape.wordOfNat_val, CShape.wordModulus, Nat.mod_eq_of_lt capacity] using actual
 
 end

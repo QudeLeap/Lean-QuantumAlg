@@ -26,13 +26,14 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Enter the three actual scopes, execute the schedule and release exactly those cells. -/
 def lexicalStep (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (lexicalBody input result).Path :=
-  let final := scheduledStep (underLoop input width) (currentCell ctx width)
+    Store ctx × (lexicalBody (model := model) input result).Path :=
+  let final := scheduledStep (model := model) (underLoop input width) (currentCell ctx width)
     (previousCell ctx width) (conditionCell ctx width) (writeUnderLoop result width)
     (pushLoopStore width store)
   (popLoopStore width final.1, final.2)
@@ -41,14 +42,15 @@ def lexicalStep (input : CInputRef ctx (operandShape width))
 theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (lexicalBody input result).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (lexicalBody (model := model) input result).execute Reference state =
       state.mapClassical (fun entry =>
-        ((lexicalStep input result entry.1).1,
-          (entry.2, (lexicalStep input result entry.1).2))) := by
-  let scheduled := scheduledBody (underLoop input width) (currentCell ctx width)
+        let result := lexicalStep (model := model) input result entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  let scheduled := scheduledBody (model := model) (underLoop input width) (currentCell ctx width)
     (previousCell ctx width) (conditionCell ctx width) (writeUnderLoop result width)
-  let scheduledUpdate := scheduledStep (underLoop input width) (currentCell ctx width)
+  let scheduledUpdate := scheduledStep (model := model) (underLoop input width) (currentCell ctx
+    width)
     (previousCell ctx width) (conditionCell ctx width) (writeUnderLoop result width)
   let inner := Circuit.workspace (previousCtx ctx width)
     (previousCtx ctx width).canonicalFreshKey .bit
@@ -69,15 +71,20 @@ theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
     (Store.popWorkspace (currentCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (currentCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
-    (.unsignedWord width) ctx.canonicalFreshKey_fresh middle middleUpdate
+    (.unsignedWord width) ctx.canonicalFreshKey_fresh middle
+    (fun before => let next := middleUpdate before.1; ((next.1, before.2), next.2))
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
   · exact Circuit.execute_workspace_mapClassical (currentCtx ctx width).canonicalFreshKey
-      (.unsignedWord width) (currentCtx ctx width).canonicalFreshKey_fresh inner innerUpdate
+      (.unsignedWord width) (currentCtx ctx width).canonicalFreshKey_fresh inner
+      (fun before => let next := innerUpdate before.1; ((next.1, before.2), next.2))
       (fun reference {_} _ initial =>
         Circuit.execute_workspace_mapClassical (previousCtx ctx width).canonicalFreshKey
-          .bit (previousCtx ctx width).canonicalFreshKey_fresh scheduled scheduledUpdate
-          (gcdScheduled_execute (underLoop input width) (currentCell ctx width)
-            (previousCell ctx width) (conditionCell ctx width) (writeUnderLoop result width))
+          .bit (previousCtx ctx width).canonicalFreshKey_fresh scheduled
+          (fun before => let next := scheduledUpdate before.1; ((next.1, before.2), next.2))
+          (fun reference history _ state =>
+            (gcdScheduled_execute (model := model) (underLoop input width) (currentCell ctx width)
+              (previousCell ctx width) (conditionCell ctx width) (writeUnderLoop result width)
+              reference state).trans (ExecutionState.executionState_mapClassical_congr _ rfl))
           reference initial)
       reference initial
   · congr 1
@@ -86,7 +93,7 @@ theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
 theorem gcdLexical_read_result (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (zeroValue : (store.read (cellRead result)).toNat = 0) :
-    ((lexicalStep input result store).1).read (cellRead result) =
+    ((lexicalStep (model := model) input result store).1).read (cellRead result) =
       encodeWord (ClassicalAlgorithms.NumberTheory.GCD.eval
         (decodeOperands (store.read input))) := by
   have separated := gcdLayout_state_separation ctx width
@@ -109,7 +116,8 @@ theorem gcdLexical_read_result (input : CInputRef ctx (operandShape width))
     separated.1 separated.2.1 separated.2.2 inputSeparated.1
     firstResult secondResult activeResult (pushLoopStore width store) initializedZero
   have exited := gcdLayout_pop_read (cellRead result) width
-    (scheduledStep (underLoop input width) (currentCell ctx width) (previousCell ctx width)
+    (scheduledStep (model := model) (underLoop input width) (currentCell ctx width) (previousCell
+      ctx width)
       (conditionCell ctx width) (writeUnderLoop result width) (pushLoopStore width store)).1
   exact exited.trans (actual.trans (congrArg
     (fun value => encodeWord (ClassicalAlgorithms.NumberTheory.GCD.eval

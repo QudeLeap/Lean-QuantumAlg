@@ -22,21 +22,23 @@ tight maximum over correlated matrix decisions.
 
 namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original native vector-row XOR coordinate, at its actual matrix dimensions. -/
-def eliminationEvent (kind : ProblemKind) (rowCount width : Nat) : Resource.Event kind :=
-  .classicalOperation (.vector .rowXor rowCount width)
+def eliminationEvent (rowCount width : Nat) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.vector .rowXor rowCount width))
 
 private theorem target_selectedTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
     ∃ active : Bool,
       (eliminateTarget matrix pivot target column).eventTrace path =
-        (if active then [eliminationEvent kind rowCount width] else []) ∧
+        (if active then [eliminationEvent (model := model) rowCount width] else []) ∧
       (eliminateTarget matrix pivot target column).depth duration path =
-        (if active then duration (eliminationEvent kind rowCount width) else 0) ∧
+        (if active then duration (eliminationEvent (model := model) rowCount width) else 0) ∧
       (eliminateTarget matrix pivot target column).visitedContexts path = [ctx] := by
   revert path
   dsimp only [eliminateTarget]
@@ -50,7 +52,19 @@ private theorem target_selectedTrace
       | bit bit =>
           cases bit
           · exact ⟨false, rfl, rfl, rfl⟩
-          · exact ⟨true, rfl, rfl, rfl⟩
+          · change (BitWord.instruction (execution := model)
+              (eliminationXorOp matrix pivot target)).Path at branchPath
+            refine ⟨true, ?_, ?_, rfl⟩
+            · change (BitWord.instruction (execution := model)
+                (eliminationXorOp matrix pivot target)).eventTrace branchPath =
+                  [eliminationEvent (model := model) rowCount width]
+              rw [BitWord.bitWord_instruction_eventTrace]
+              rfl
+            · change (BitWord.instruction (execution := model)
+                (eliminationXorOp matrix pivot target)).depth duration branchPath =
+                  duration (eliminationEvent (model := model) rowCount width)
+              rw [BitWord.bitWord_instruction_depth]
+              rfl
 
 /-- One actual target emits at most the original single row-XOR event. -/
 theorem gf2EliminateTarget_pool_le
@@ -58,7 +72,7 @@ theorem gf2EliminateTarget_pool_le
     (pivot target : Fin rowCount) (column : Fin width)
     (path : (eliminateTarget matrix pivot target column).Path) :
     (eliminateTarget matrix pivot target column).resourcePool path ≤
-      ResourcePool.singleton (eliminationEvent kind rowCount width) := by
+      ResourcePool.singleton (eliminationEvent (model := model) rowCount width) := by
   obtain ⟨active, trace, _, _⟩ := target_selectedTrace matrix pivot target column (fun _ => 1) path
   change ResourcePool.ofList _ ≤ _
   rw [trace]
@@ -69,10 +83,10 @@ theorem gf2EliminateTarget_pool_le
 /-- The same target's actual dependency depth is bounded by its one possible instruction. -/
 theorem gf2EliminateTarget_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
     (eliminateTarget matrix pivot target column).depth duration path ≤
-      duration (eliminationEvent kind rowCount width) := by
+      duration (eliminationEvent (model := model) rowCount width) := by
   obtain ⟨active, _, depth, _⟩ := target_selectedTrace matrix pivot target column duration path
   rw [depth]
   cases active
@@ -82,7 +96,7 @@ theorem gf2EliminateTarget_depth_le
 /-- Actual serial depth is exactly the sum of the target's emitted event durations. -/
 theorem gf2EliminateTarget_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
     (eliminateTarget matrix pivot target column).depth duration path =
       (((eliminateTarget matrix pivot target column).eventTrace path).map duration).sum := by
@@ -119,29 +133,30 @@ theorem gf2EliminateWithPivot_pool_le
     (pivot : Fin rowCount) (column : Fin width)
     (path : (eliminateWithPivot matrix pivot column).Path) :
     (eliminateWithPivot matrix pivot column).resourcePool path ≤
-      ResourcePool.scale rowCount (ResourcePool.singleton (eliminationEvent kind rowCount width)) :=
+      ResourcePool.scale rowCount
+        (ResourcePool.singleton (eliminationEvent (model := model) rowCount width)) :=
   Circuit.forRange_pool_le rowCount _ _
     (fun target => gf2EliminateTarget_pool_le matrix pivot target column) path
 
 /-- The full original target order adds the possible dependency duration of every row. -/
 theorem gf2EliminateWithPivot_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateWithPivot matrix pivot column).Path) :
     (eliminateWithPivot matrix pivot column).depth duration path ≤
-      rowCount * duration (eliminationEvent kind rowCount width) := by
+      rowCount * duration (eliminationEvent (model := model) rowCount width) := by
   change (Circuit.forRange rowCount
     (fun target => eliminateTarget matrix pivot target column)).depth duration path ≤ _
   simpa only [Finset.sum_const, Finset.card_fin, smul_eq_mul] using
     Circuit.forRange_depth_le_sum rowCount
       (fun target => eliminateTarget matrix pivot target column) duration
-      (fun _ => duration (eliminationEvent kind rowCount width))
+      (fun _ => duration (eliminationEvent (model := model) rowCount width))
       (fun target => gf2EliminateTarget_depth_le matrix pivot target column duration) path
 
 /-- The same complete path keeps exact serial event-duration accounting. -/
 theorem gf2EliminateWithPivot_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateWithPivot matrix pivot column).Path) :
     (eliminateWithPivot matrix pivot column).depth duration path =
       (((eliminateWithPivot matrix pivot column).eventTrace path).map duration).sum :=

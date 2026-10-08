@@ -6,7 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Execution.Context.Union.State
+import all QuantumAlg.Core.Base.Model
+import all QuantumAlg.Core.Execution.Interpret
+import all QuantumAlg.Core.Execution.Context.Union.State.Laws
 import all QuantumAlg.Core.Execution.Context.Union.Measurement.Store
 import all QuantumAlg.Core.Execution.State.Coordinate.Measurement
 
@@ -104,6 +106,30 @@ theorem contextUnion_splitState_measureZ
   convert writes.trans (steps.trans histories.symm) using 1 <;>
     dsimp only [splitState, State.measureZ, State.mapHistory, basis, original, outcomeEquiv] <;>
     congr! 2
+
+/-- Actual Z execution preserves the service and every complete resident-frame block. -/
+theorem contextUnion_splitServiceState_measureZ
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History))
+    (wire : Fin left.systemCount)
+    (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension)) :
+    splitServiceState left right separate
+        ((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+          (classicalOracles := services) (leftPosition left right separate wire)
+          (measurementLeft separate wire output)).execute Reference state) =
+      ((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+        (classicalOracles := services) wire output).execute
+          (Register.prod right.register Reference)
+          (splitServiceState left right separate state)).mapHistory
+        (fun value => (value.1, (value.2.1.1, (value.2.1.2,
+          Fin.cast (congrArg (fun dimension : ℕ+ => (dimension : Nat))
+            (contextUnion_left_dimension left right separate wire).symm) value.2.2)))) := by
+  dsimp only [Circuit.execute, interpret, preserveService, splitServiceState]
+  rw [contextUnion_splitState_mapHistory, contextUnion_splitState_measureZ,
+    State.mapHistory_measureZ]
+  simp only [State.mapHistory_comp, Function.comp_def]
+  rfl
 
 end
 

@@ -27,23 +27,15 @@ noncomputable section
 open MAU.Multiplication ProductPlacement
 
 private def body (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (sourceEncoding width).width) :=
-  UnitaryCircuit.prodLeft (n := historyWidth width) (VariableGidney.program width modulus)
-
-private theorem body_within (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (body width modulus).physical_idx ⊆ List.range (sourceEncoding width).width := by
-  apply UnitaryCircuit.prodLeft_physical_idx_subset_range
-  rw [VariableGidney.variableGidney_physical]
-  have count : (VariableGidney.encoding width).width = 3 * width := by
-    change width + (width + width) = 3 * width
-    omega
-  rw [count]
-  exact List.Subset.refl _
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (sourceEncoding width).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (historyWidth width) (VariableGidney.program width modulus)
 
 /-- Execute the actual native product on the three existing ports in the complete shared frame. -/
 def program (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (frameEncoding width).width) :=
-  (placement width).place (body width modulus) (body_within width modulus)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (frameEncoding width).width).toQuantum :=
+  (placement width).place (body width modulus)
 
 /-- Reassemble the independent arithmetic action and retained history through real ports. -/
 def step (width : Nat) (modulus : Fin (2 ^ width + 1)) : Frame width → Frame width :=
@@ -53,8 +45,8 @@ def step (width : Nat) (modulus : Fin (2 ^ width + 1)) : Frame width → Frame w
 /-- Every complete basis label follows the actual placed product with its full retained frame. -/
 theorem nativeProductFrame_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (frameEncoding width) (program width modulus) (step width modulus) :=
-  (placement width).place_realizes (body_within width modulus)
-    (UnitaryCircuit.Realizes.prodLeft
+  (placement width).place_realizes
+    (UnitaryCircuit.Realizes.onBinaryPrefix
       (right := BinaryLabelEncoding.finIdentity (historyWidth width))
       (VariableGidney.variableGidney_realizes width modulus))
 
@@ -62,7 +54,7 @@ theorem nativeProductFrame_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)
 theorem nativeProductFrame_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).eventTrace = (VariableGidney.program width modulus).eventTrace := by
   rw [program, EncodedBit.FullPlacement.place_eventTrace]
-  exact UnitaryCircuit.prodLeft_eventTrace _
+  exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace _ _
 
 /-- The same independent native product allowance bounds the actual placed operation. -/
 theorem nativeProductFrame_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
@@ -72,10 +64,10 @@ theorem nativeProductFrame_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) 
   exact VariableGidney.variableGidney_native_budget width modulus
 
 /-- The original complete frame remains live; no system is added or released by placement. -/
-theorem nativeProductFrame_physical (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (program width modulus).physical_idx =
+theorem nativeProductFrame_physical (width : Nat) (_modulus : Fin (2 ^ width + 1)) :
+    (QubitLayout.canonical (frameEncoding width).width).systemIdx =
       List.range (3 * width + 11 + 4 * width.size) := by
-  rw [program, EncodedBit.FullPlacement.place_physical, frame_width]
+  rw [QubitLayout.canonical_systemIdx, frame_width]
   have count : ProductWires.width width (tailWidth width) = 3 * width + 11 + 4 * width.size := by
     unfold ProductWires.width tailWidth
     omega
@@ -87,9 +79,12 @@ theorem nativeProductFrame_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
       VariableGidney.eventBound width := by
   rw [program, EncodedBit.FullPlacement.place_evaluatedEventDepth]
   change UnitaryCircuit.evaluatedEventDepth (fun _ => 1)
-    (UnitaryCircuit.prodLeft (n := historyWidth width) (VariableGidney.program width modulus)) ≤ _
-  rw [UnitaryCircuit.prodLeft_evaluatedEventDepth]
-  exact VariableGidney.variableGidney_unit_depth width modulus
+    (UnitaryCircuit.onBinaryPrefix (historyWidth width)
+      (VariableGidney.program width modulus)) ≤ _
+  exact (UnitaryCircuit.unitaryCircuit_onBinaryPrefix_evaluatedEventDepth
+    (historyWidth width) (fun _ => 1)
+    (VariableGidney.program width modulus)).le.trans
+      (VariableGidney.variableGidney_unit_depth width modulus)
 
 end
 

@@ -25,15 +25,17 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem range_read (count : Nat) (body : Fin count → Circuit ctx ctx)
+omit [BitWord.Selected model] in
+private theorem range_read (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     {shape : CShape} (other : CInputRef ctx shape)
     (preserves : ∀ index store, (records index store).1.read other = store.read other)
     (store : Store ctx) :
-    (Circuit.forRangeRecord count body records store).1.read other = store.read other :=
-  Circuit.forRangeRecord_invariant count body records
+    (Circuit.forRangeStoreRecord count body records store).1.read other = store.read other :=
+  Circuit.forRangeStoreRecord_invariant count body records
     (fun _ current => current.read other = store.read other)
     (fun index current same => (preserves index current).trans same) store rfl
 
@@ -53,7 +55,7 @@ include matrixFree usedFree rowsFree columnsFree foundFree sinkFree
 private theorem selected_read (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (selectPivotStep matrix used rows columns found sink pivot column store).1.read other =
       store.read other := by
-  dsimp only [selectPivotStep, Circuit.sequenceRecord]
+  dsimp only [selectPivotStep, Circuit.sequenceStoreRecord]
   rw [gf2EliminateWithPivot_read_other matrix pivot column _ other matrixFree,
     gf2MaterializePivotColumn_read_other columns column _ other columnsFree,
     gf2MaterializePivotRow_read_other used rows pivot column _ other usedFree rowsFree]
@@ -111,7 +113,7 @@ private theorem absent_read (value : CShape.Value .bit) (store : Store ctx) :
 private theorem column_body_read (column : Fin width) (store : Store ctx) :
     (reduceColumnBodyStep matrix used rows columns found sink column store).1.read other =
       store.read other := by
-  dsimp only [reduceColumnBodyStep, Circuit.sequenceRecord]
+  dsimp only [reduceColumnBodyStep, Circuit.sequenceStoreRecord]
   refine (absent_read sink other sinkFree _ _).trans ?_
   refine (range_read rowCount _ _ other (fun row current =>
     probe_read matrix used rows columns found sink other matrixFree usedFree rowsFree
@@ -125,11 +127,13 @@ private def searchRead {shape : CShape} (other : CInputRef ctx shape) :
   (other.underWorkspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh).underWorkspace
     (pivotSinkContext ctx).canonicalFreshKey .bit (pivotSinkContext ctx).canonicalFreshKey_fresh
 
+omit [BitWord.Selected model] in
 private theorem search_keys {shape : CShape} (other : CInputRef ctx shape) :
     (searchRead other).storageKeys = other.storageKeys := by
   unfold searchRead
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
 
+omit [BitWord.Selected model] in
 private theorem search_found_fresh {shape : CShape} (other : CInputRef ctx shape) :
     (pivotLatch (pivotSinkContext ctx)).key ∉ (searchRead other).storageKeys := by
   unfold searchRead
@@ -138,6 +142,7 @@ private theorem search_found_fresh {shape : CShape} (other : CInputRef ctx shape
     ((other.underWorkspace ctx.canonicalFreshKey .bit
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
+omit [BitWord.Selected model] in
 private theorem search_sink_fresh {shape : CShape} (other : CInputRef ctx shape) :
     ((pivotLatch ctx).underWorkspace (pivotSinkContext ctx).canonicalFreshKey .bit
       (pivotSinkContext ctx).canonicalFreshKey_fresh).key ∉ (searchRead other).storageKeys := by
@@ -185,7 +190,7 @@ theorem gf2LoadAndReduce_read_other
     (matrixFree : matrix.key ∉ other.storageKeys) (usedFree : used.key ∉ other.storageKeys)
     (rowsFree : rows.key ∉ other.storageKeys) (columnsFree : columns.key ∉ other.storageKeys) :
     (loadAndReduceStep matrix used rows columns input store).1.read other = store.read other := by
-  dsimp only [loadAndReduceStep, reduceMatrixStep, Circuit.sequenceRecord]
+  dsimp only [loadAndReduceStep, reduceMatrixStep, Circuit.sequenceStoreRecord]
   refine (range_read width _ _ other (fun column current =>
     gf2ReduceColumn_read_other matrix used rows columns column current other matrixFree
       usedFree rowsFree columnsFree) _).trans ?_
@@ -198,7 +203,7 @@ theorem gf2LoadAndReduce_read_other
     (fun row current => gf2LoadRow_read_other input matrix row current other matrixFree) store
 
 /-- The original seven-cell placement internally frames success, zero and every caller input. -/
-theorem gf2LoadAndReduce_cellFrame {outer : RuntimeCtx kind}
+theorem gf2LoadAndReduce_cellFrame {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

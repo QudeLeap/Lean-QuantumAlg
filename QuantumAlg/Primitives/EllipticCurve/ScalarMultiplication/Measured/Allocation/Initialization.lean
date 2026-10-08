@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Assembly
+import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Preparation.Framed.Entries
 
 /-!
 # Exact joint state of actual measured scalar initialization
@@ -28,7 +29,8 @@ variable {Reference : Register} {History : Type} [Fintype History]
 
 /-- Actual work preparation tensors the fixed auxiliary factor with the complete old joint state. -/
 theorem auxiliary_entry (modulus count : Nat)
-    (state : State (before modulus.size count) Reference History)
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (newRow newColumn : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (oldRow oldColumn : (Register.prod (before modulus.size count).register Reference).Index) :
     ((prepareAuxiliary modulus count).execute Reference state).quantumMarginal.matrix
@@ -37,23 +39,15 @@ theorem auxiliary_entry (modulus count : Nat)
       ((InPlacePreparation.preparation modulus).normalized.vec newRow *
         star ((InPlacePreparation.preparation modulus).normalized.vec newColumn)) *
           state.quantumMarginal.matrix oldRow oldColumn :=
-  Circuit.prepare_joined_entry state InversePreparation.auxiliaryKey
-    (InputPreparation.auxiliaryLayout modulus.size)
-    (preparation_fresh_union InversePreparation.auxiliaryKey _
-      (InversePreparation.auxiliary_fresh modulus.size)
-      (InversePreparation.auxiliary_disjoint modulus.size)
-      (auxiliary_disjoint modulus.size count))
-    (preparation_wires_union InversePreparation.auxiliaryKey _
-      (InversePreparation.auxiliary_fresh modulus.size)
-      (InversePreparation.auxiliary_disjoint modulus.size)
-      (auxiliary_disjoint modulus.size count))
-    (InPlacePreparation.preparation modulus) newRow newColumn oldRow oldColumn
+  InPlacePreparation.Framed.execute_joined_entry modulus
+    (exponents modulus.size count) (auxiliary_disjoint modulus.size count)
+    state newRow newColumn oldRow oldColumn
 
 /-- Actual original-cell retains preserve every entry of the full old joint quantum state. -/
 theorem cells_entry (width count : Nat)
     (state : State ((InversePreparation.after width).disjointUnion
       (exponents width count) (auxiliary_disjoint width count))
-      Reference History)
+      Reference (ClassicalOracleModel.empty.HiddenState × History))
     (row column : (Register.prod
       ((InversePreparation.after width).disjointUnion (exponents width count)
         (auxiliary_disjoint width count)).register Reference).Index) :
@@ -61,6 +55,7 @@ theorem cells_entry (width count : Nat)
       (cellsAssembly width count row.1, row.2) (cellsAssembly width count column.1, column.2) =
         state.quantumMarginal.matrix row column := by
   have marginal := MeasurementCells.allocateFramed_quantumMarginal
+    (model := .quantum AlgorithmGate.model .empty)
     (InversePreparation.after width) (exponents width count) 2 width
     (complete_disjoint width count) state
   let coordinates := MeasurementCells.framedJointBasisEquiv (InversePreparation.after width)
@@ -76,7 +71,8 @@ theorem cells_entry (width count : Nat)
 
 /-- Actual selector preparation supplies its fixed factor beside the full old joint state. -/
 theorem selector_entry (width count : Nat)
-    (state : State (withCells width count) Reference History)
+    (state : State (withCells width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (newRow newColumn : (indexedLayout width count).register.Index)
     (oldRow oldColumn :
       (Register.prod (withCells width count).register Reference).Index) :
@@ -86,13 +82,16 @@ theorem selector_entry (width count : Nat)
       ((BasisPreparation.zero (indexedLayout width count)).normalized.vec newRow *
         star ((BasisPreparation.zero (indexedLayout width count)).normalized.vec newColumn)) *
           state.quantumMarginal.matrix oldRow oldColumn :=
-  Circuit.prepare_joined_entry state (indexedKey width count) (indexedLayout width count)
+  Circuit.prepareZero_joined_entry (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := .empty) (classicalOracles := .empty)
+    state (indexedKey width count) (indexedLayout width count)
     (selector_fresh width count) (selector_disjoint width count)
-    (BasisPreparation.zero (indexedLayout width count)) newRow newColumn oldRow oldColumn
+    newRow newColumn oldRow oldColumn
 
 /-- Both actual preparations and all retains preserve the exact complete incoming coherence. -/
 theorem initialize_entry (modulus count : Nat)
-    (state : State (before modulus.size count) Reference History)
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (selectorRow selectorColumn : (indexedLayout modulus.size count).register.Index)
     (auxiliaryRow auxiliaryColumn : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (oldRow oldColumn : (Register.prod (before modulus.size count).register Reference).Index) :

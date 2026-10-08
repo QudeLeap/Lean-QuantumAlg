@@ -42,8 +42,8 @@ private theorem recoverySpaceArithmetic {kind : ProblemKind}
   omega
 
 /-- The independent additional-space pool has exactly the displayed classical-bit formula. -/
-theorem fixedBatchRecovery_additionalSpace_eq_bits {kind : ProblemKind} (N : Nat) :
-    (LatticeFixedBatchRecoveryMachine.additionalSpace N : SpacePool kind) =
+theorem fixedBatchRecovery_additionalSpace_eq_bits {model : ExecutionModel} (N : Nat) :
+    LatticeFixedBatchRecoveryMachine.additionalSpace (model := model) N =
       SpacePool.ofShape (.bits (fixedBatchRecoveryAdditionalBits N)) := by
   rw [LatticeFixedBatchRecoveryMachine.additionalSpace,
     LatticeBatchRecoveryWorkspace.batchAllocationSpace_eq_bits]
@@ -52,18 +52,21 @@ theorem fixedBatchRecovery_additionalSpace_eq_bits {kind : ProblemKind} (N : Nat
     (QuadraticScratchLayout.CandidateWidth N) (QuadraticScratchLayout.CenterWidth N)
     (QuadraticScratchLayout.WorkWidth N)
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Every actual resident peak includes the caller plus the explicit extra classical capacity. -/
 theorem fixedBatchRecovery_resident_le_bits (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
-    (path : (LatticeFixedBatchRecoveryMachine.into ctx input parameter terminals result).Path) :
-    (LatticeFixedBatchRecoveryMachine.into ctx input parameter terminals result).peakResidentSpace
+    (path : (LatticeFixedBatchRecoveryMachine.into (model := model)
+      ctx input parameter terminals result).Path) :
+    (LatticeFixedBatchRecoveryMachine.into (model := model)
+      ctx input parameter terminals result).peakResidentSpace
       path ≤
       SpacePool.ofShape (.bits (fixedBatchRecoveryAdditionalBits N)) + ctx.residentSpace := by
-  rw [← fixedBatchRecovery_additionalSpace_eq_bits]
+  rw [← fixedBatchRecovery_additionalSpace_eq_bits (model := model)]
   exact LatticeFixedBatchRecoveryMachine.into_resident_le input parameter terminals result path
 
 /-- Every actual auxiliary peak includes the same complete additional classical capacity. -/
@@ -71,11 +74,13 @@ theorem fixedBatchRecovery_auxiliary_le_bits (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
-    (path : (LatticeFixedBatchRecoveryMachine.into ctx input parameter terminals result).Path) :
-    (LatticeFixedBatchRecoveryMachine.into ctx input parameter terminals result).peakAuxiliarySpace
+    (path : (LatticeFixedBatchRecoveryMachine.into (model := model)
+      ctx input parameter terminals result).Path) :
+    (LatticeFixedBatchRecoveryMachine.into (model := model)
+      ctx input parameter terminals result).peakAuxiliarySpace
       path ≤
       SpacePool.ofShape (.bits (fixedBatchRecoveryAdditionalBits N)) + ctx.auxiliarySpace := by
-  rw [← fixedBatchRecovery_additionalSpace_eq_bits]
+  rw [← fixedBatchRecovery_additionalSpace_eq_bits (model := model)]
   exact LatticeFixedBatchRecoveryMachine.into_auxiliary_le input parameter terminals result path
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticeRecoveryResources

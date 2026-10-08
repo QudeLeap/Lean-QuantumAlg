@@ -131,20 +131,22 @@ theorem gates_reverse_step (width : Nat) (field : Field) (firstWord : Bool)
 
 /-- The unitary circuit is compiled directly from the same actual native gate list. -/
 def program (width : Nat) (field : Field) (firstWord : Bool) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width field firstWord)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width field firstWord)
 
 /-- Complete basis-vector correctness retains every field and all relative amplitudes. -/
 theorem program_realizes (width : Nat) (field : Field) (firstWord : Bool) :
     UnitaryCircuit.Realizes (encoding width) (program width field firstWord)
       (step width field firstWord) :=
-  GateSpec.realizesList_congrStep _ (gates_step width field firstWord)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width field firstWord) (gates_step width field firstWord)
 
 /-- The actual trace contains every emitted elementary gate, including all nonmatching keys. -/
 theorem program_eventTrace (width : Nat) (field : Field) (firstWord : Bool) :
     (program width field firstWord).eventTrace =
-      (gates width field firstWord).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+      (gates width field firstWord).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 end
 

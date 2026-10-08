@@ -25,7 +25,10 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Independent capacity of the real sampler scopes and simultaneously live GCD work. -/
 def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -34,46 +37,49 @@ def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 /-- Loading and scanning reuse exactly the already present resident context. -/
 theorem samplerScan_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
-    (path : (Scan.circuit N sample).Path) :
-    (Scan.circuit N sample).peakResidentSpace path ≤
+    (path : (Scan.circuit (model := model) N sample).Path) :
+    (Scan.circuit (model := model) N sample).peakResidentSpace path ≤
       (Layout.context ctx (modulusBits N)).residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (Scan.loader ctx N)
-    (Proposal.scan (Layout.underRead sample (modulusBits N))
+  refine (Circuit.peakResidentSpace_seq (Scan.loader (model := model) ctx N)
+    (Proposal.scan (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))) path).le.trans ?_
   exact SpacePool.max_le
-    (ConstantWord.constantWord_resident_le (Layout.modulusCell ctx (modulusBits N)) N path.1)
-    (Proposal.proposalScan_resident_le (Layout.underRead sample (modulusBits N))
+    (ConstantWord.constantWord_resident_le (model := model)
+        (Layout.modulusCell ctx (modulusBits N)) N path.1)
+    (Proposal.proposalScan_resident_le (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- The actual loader and scan add no auxiliary storage beyond their existing cells. -/
 theorem samplerScan_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
-    (path : (Scan.circuit N sample).Path) :
-    (Scan.circuit N sample).peakAuxiliarySpace path ≤
+    (path : (Scan.circuit (model := model) N sample).Path) :
+    (Scan.circuit (model := model) N sample).peakAuxiliarySpace path ≤
       (Layout.context ctx (modulusBits N)).auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (Scan.loader ctx N)
-    (Proposal.scan (Layout.underRead sample (modulusBits N))
+  refine (Circuit.peakAuxiliarySpace_seq (Scan.loader (model := model) ctx N)
+    (Proposal.scan (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))) path).le.trans ?_
   exact SpacePool.max_le
-    (ConstantWord.constantWord_auxiliary_le (Layout.modulusCell ctx (modulusBits N)) N path.1)
-    (Proposal.proposalScan_auxiliary_le (Layout.underRead sample (modulusBits N))
+    (ConstantWord.constantWord_auxiliary_le (model := model)
+        (Layout.modulusCell ctx (modulusBits N)) N path.1)
+    (Proposal.proposalScan_auxiliary_le (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- The complete inner resident peak adds only the real selected Euclidean work. -/
 theorem samplerInner_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (inner N sample output).Path) :
-    (inner N sample output).peakResidentSpace path ≤
+    (path : (inner (model := model) N sample output).Path) :
+    (inner (model := model) N sample output).peakResidentSpace path ≤
       (Layout.context ctx (modulusBits N)).residentSpace +
-        NumberTheory.GCD.lexicalAdditionalSpace kind (modulusBits N + 1) := by
-  refine (Circuit.peakResidentSpace_seq (Scan.circuit N sample)
-    (Decision.circuit (Layout.shared ctx (modulusBits N))
+        NumberTheory.GCD.lexicalAdditionalSpace model.kind (modulusBits N + 1) := by
+  refine (Circuit.peakResidentSpace_seq (Scan.circuit (model := model) N sample)
+    (Decision.circuit (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N))) path).le.trans ?_
   apply SpacePool.max_le
-  · exact (samplerScan_resident_le N sample path.1).trans (fun axis => Nat.le_add_right _ _)
-  · exact Decision.decision_resident_le (Layout.shared ctx (modulusBits N))
+  · exact (samplerScan_resident_le (model := model)
+      N sample path.1).trans (fun axis => Nat.le_add_right _ _)
+  · exact Decision.decision_resident_le (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N)) path.2
 
@@ -81,21 +87,22 @@ theorem samplerInner_resident_le (N : Nat)
 theorem samplerInner_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (inner N sample output).Path) :
-    (inner N sample output).peakAuxiliarySpace path ≤
+    (path : (inner (model := model) N sample output).Path) :
+    (inner (model := model) N sample output).peakAuxiliarySpace path ≤
       (Layout.context ctx (modulusBits N)).auxiliarySpace +
-        NumberTheory.GCD.lexicalAdditionalSpace kind (modulusBits N + 1) := by
-  refine (Circuit.peakAuxiliarySpace_seq (Scan.circuit N sample)
-    (Decision.circuit (Layout.shared ctx (modulusBits N))
+        NumberTheory.GCD.lexicalAdditionalSpace model.kind (modulusBits N + 1) := by
+  refine (Circuit.peakAuxiliarySpace_seq (Scan.circuit (model := model) N sample)
+    (Decision.circuit (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N))) path).le.trans ?_
   apply SpacePool.max_le
-  · exact (samplerScan_auxiliary_le N sample path.1).trans (fun axis => Nat.le_add_right _ _)
-  · exact Decision.decision_auxiliary_le (Layout.shared ctx (modulusBits N))
+  · exact (samplerScan_auxiliary_le (model := model)
+      N sample path.1).trans (fun axis => Nat.le_add_right _ _)
+  · exact Decision.decision_auxiliary_le (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N)) path.2
 
-private theorem resident_budget (width : Nat) :
+private theorem resident_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
     (Layout.context ctx width).residentSpace +
       NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) =
         ctx.residentSpace + additionalSpace kind width := by
@@ -106,7 +113,7 @@ private theorem resident_budget (width : Nat) :
     simp [Layout.cellSpace, NumberTheory.GCD.lexicalAdditionalSpace,
       additionalSpace, SpacePool.ofShape]; omega
 
-private theorem auxiliary_budget (width : Nat) :
+private theorem auxiliary_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
     (Layout.context ctx width).auxiliarySpace +
       NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) =
         ctx.auxiliarySpace + additionalSpace kind width := by
@@ -121,24 +128,26 @@ private theorem auxiliary_budget (width : Nat) :
 theorem samplerProgram_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (circuit N sample output).Path) :
-    (circuit N sample output).peakResidentSpace path ≤
-      ctx.residentSpace + additionalSpace kind (modulusBits N) := by
-  exact (samplerScopes_resident_le (modulusBits N) (inner N sample output) path _
+    (path : (circuit (model := model) N sample output).Path) :
+    (circuit (model := model) N sample output).peakResidentSpace path ≤
+      ctx.residentSpace + additionalSpace model.kind (modulusBits N) := by
+  exact (samplerScopes_resident_le (modulusBits N) (inner (model := model) N sample output) path _
     (fun axis => Nat.le_add_right _ _)
-    (samplerInner_resident_le N sample output path)).trans_eq
+    (samplerInner_resident_le (model := model) N sample output path)).trans_eq
       (resident_budget (ctx := ctx) (modulusBits N))
 
 /-- The same path accounts for all live workspace roles throughout entry, body and release. -/
 theorem samplerProgram_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (circuit N sample output).Path) :
-    (circuit N sample output).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + additionalSpace kind (modulusBits N) := by
-  exact (samplerScopes_auxiliary_le (modulusBits N) (inner N sample output) path _
+    (path : (circuit (model := model) N sample output).Path) :
+    (circuit (model := model) N sample output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + additionalSpace model.kind (modulusBits N) := by
+  exact (samplerScopes_auxiliary_le (modulusBits N) (inner (model := model) N sample output) path _
     (fun axis => Nat.le_add_right _ _)
-    (samplerInner_auxiliary_le N sample output path)).trans_eq
+    (samplerInner_auxiliary_le (model := model) N sample output path)).trans_eq
       (auxiliary_budget (ctx := ctx) (modulusBits N))
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

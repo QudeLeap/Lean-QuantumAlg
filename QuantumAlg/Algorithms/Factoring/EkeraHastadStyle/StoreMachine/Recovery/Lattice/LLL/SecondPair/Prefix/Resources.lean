@@ -23,33 +23,52 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Independent native dot-refresh formula, including its initial overwrite. -/
-def dotTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width), .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width), .classicalOperation (.wordBinary .add width)]
+def dotTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width))]
 
 /-- Independent native formula for reducing all three coordinates of one row. -/
-def reductionTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width), .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width), .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width), .classicalOperation (.wordBinary .sub width)]
+def reductionTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width))]
 
 /-- Independent chronological formula for the three recorded division decisions. -/
 def secondPairPrefixTrace (width : Nat)
     (magnitudeNegative correctionNegative restoreNegative : Bool) :
-    List (Resource.Event kind) :=
-  (dotTrace width ++
-    (dotTrace width ++ LatticeSecondReductionInputs.secondReductionInputsTrace width))
-    ++ (RoundedDiv.bodyTrace width magnitudeNegative correctionNegative restoreNegative ++
-      reductionTrace width)
+    List (Resource.Event model) :=
+  (dotTrace (model := model) width ++
+    (dotTrace (model := model) width ++
+      LatticeSecondReductionInputs.secondReductionInputsTrace (model := model) width)) ++
+    (RoundedDiv.bodyTrace (model := model) width magnitudeNegative correctionNegative
+      restoreNegative ++ reductionTrace (model := model) width)
 
 /-- The actual path emits exactly the independent five-stage native instruction sequence. -/
 theorem secondPairPrefixInto_events (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    (secondPairPrefixInto refs).eventTrace path = secondPairPrefixTrace width
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    (secondPairPrefixInto (model := model) refs).eventTrace path =
+      secondPairPrefixTrace (model := model) width
       path.2.1.1.1.2.1.toBool path.2.1.2.1.2.1.1.toBool path.2.1.2.2.2.2.1.toBool := by
   change (_ ++ (_ ++ _)) ++ (_ ++ _) = _
   rw [LatticeDotRefresh.refreshInto_events, LatticeDotRefresh.refreshInto_events,
@@ -59,38 +78,43 @@ theorem secondPairPrefixInto_events (refs : Refs ctx width)
 
 /-- Actual native multiplicity is computed from the independently specified event sequence. -/
 theorem secondPairPrefixInto_resourcePool (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    (secondPairPrefixInto refs).resourcePool path = ResourcePool.ofList (secondPairPrefixTrace width
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    (secondPairPrefixInto (model := model) refs).resourcePool path =
+      ResourcePool.ofList (secondPairPrefixTrace (model := model) width
       path.2.1.1.1.2.1.toBool path.2.1.2.1.2.1.1.toBool path.2.1.2.2.2.2.1.toBool) := by
-  change ResourcePool.ofList ((secondPairPrefixInto refs).eventTrace path) = _
+  change ResourcePool.ofList ((secondPairPrefixInto (model := model) refs).eventTrace path) = _
   rw [secondPairPrefixInto_events]
 
 /-- Every actual prefix path executes at most 35 native classical instructions. -/
 theorem secondPairPrefixInto_eventCount_le (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    ((secondPairPrefixInto refs).eventTrace path).length ≤ 35 := by
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    ((secondPairPrefixInto (model := model) refs).eventTrace path).length ≤ 35 := by
   have division := RoundedDiv.body_eventCount_le refs.division32 path.2.1
   change List.length ((_ ++ (_ ++ _)) ++ (_ ++ _)) ≤ 35
   simp only [List.length_append]
-  change 5 + (5 + 6) + (((RoundedDiv.body refs.division32).eventTrace path.2.1).length + 6) ≤ 35
+  change 5 + (5 + 6) +
+    (((RoundedDiv.body (model := model) refs.division32).eventTrace path.2.1).length + 6) ≤ 35
   omega
 
 /-- Unit-duration serial depth includes all dependencies on actual earlier writes and decisions. -/
 theorem secondPairPrefixInto_depth_le (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    (secondPairPrefixInto refs).depth (fun _ => 1) path ≤ 35 := by
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    (secondPairPrefixInto (model := model) refs).depth (fun _ => 1) path ≤ 35 := by
   have division := RoundedDiv.body_depth_le refs.division32 path.2.1
-  change 5 + (5 + 6) + ((RoundedDiv.body refs.division32).depth (fun _ => 1) path.2.1 + 6) ≤ 35
+  change 5 + (5 + 6) +
+    ((RoundedDiv.body (model := model) refs.division32).depth (fun _ => 1) path.2.1 + 6) ≤ 35
   omega
 
 /-- Actual prefix execution restores all borrowed correlations jointly with external references. -/
 theorem secondPairPrefixInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (secondPairPrefixInto refs).BorrowedRestored Reference state
-      ((secondPairPrefixInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq (refreshInputsInto refs) (divisionReductionInto refs)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (secondPairPrefixInto (model := model) refs).BorrowedRestored Reference state
+      ((secondPairPrefixInto (model := model) refs).execute Reference state) := by
+  apply Circuit.borrowedRestored_seq
+    (refreshInputsInto (model := model) refs) (divisionReductionInto (model := model) refs)
   · apply Circuit.borrowedRestored_seq
-      (LatticeDotRefresh.refreshInto refs.basis.second refs.basis.first (refreshG21Refs refs))
+      (LatticeDotRefresh.refreshInto (model := model)
+        refs.basis.second refs.basis.first (refreshG21Refs refs))
       (refresh32InputsInto refs)
     · exact LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference state
     · exact Circuit.borrowedRestored_seq _ _ _
@@ -102,8 +126,9 @@ theorem secondPairPrefixInto_borrowedRestored (refs : Refs ctx width) (Reference
 
 /-- Every actual prefix phase uses the complete supplied context without hidden allocation. -/
 theorem secondPairPrefixInto_visited (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (secondPairPrefixInto refs).visitedContexts path) : visited = ctx := by
+    (path : (secondPairPrefixInto (model := model) refs).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (secondPairPrefixInto (model := model) refs).visitedContexts path) :
+    visited = ctx := by
   change visited ∈ ((_ ++ (_ ++ _)) ++ (_ ++ _)) at present
   simp only [List.mem_append] at present
   rcases present with (firstDot | secondDot | inputs) | division | reduction
@@ -119,16 +144,16 @@ theorem secondPairPrefixInto_visited (refs : Refs ctx width)
 
 /-- Resident space counts every supplied quantum system and actual classical cell. -/
 theorem secondPairPrefixInto_resident_le (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    (secondPairPrefixInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    (secondPairPrefixInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [secondPairPrefixInto_visited refs path visited present]
 
 /-- Auxiliary accounting preserves all caller roles and counts every scratch cell throughout. -/
 theorem secondPairPrefixInto_auxiliary_le (refs : Refs ctx width)
-    (path : (secondPairPrefixInto refs).Path) :
-    (secondPairPrefixInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+    (path : (secondPairPrefixInto (model := model) refs).Path) :
+    (secondPairPrefixInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [secondPairPrefixInto_visited refs path visited present]

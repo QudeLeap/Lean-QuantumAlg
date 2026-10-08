@@ -20,18 +20,20 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The original verification allowance charges the actual scalar, comparison and both flags. -/
-theorem verificationEnvelope_card_le (kind : ProblemKind) (spec : CurveSpec width)
+theorem verificationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width)
     (scalarWidth : Nat) :
-    (verificationEnvelope kind spec scalarWidth).card ≤
+    (verificationEnvelope model spec scalarWidth).card ≤
       scalarWidth * (248 * width + 644) + 12 := by
-  have scalar := ScalarMul.Native.scalarEnvelope_card_le kind spec scalarWidth
+  have scalar := ScalarMul.Native.scalarEnvelope_card_le model spec scalarWidth
   simp only [verificationEnvelope, verificationStageEnvelope, Fin.sum_univ_succ,
     Matrix.cons_val_zero, Matrix.cons_val_succ, Fin.sum_univ_zero, add_zero,
     Multiset.card_add]
-  change (ScalarMul.Native.scalarEnvelope kind spec scalarWidth).card + (8 + (1 + 1)) ≤ _
+  change (ScalarMul.Native.scalarEnvelope model spec scalarWidth).card + (8 + (1 + 1)) ≤ _
   omega
 
 /-- Every actual target-verification path obeys that same original numerical ceiling. -/
@@ -46,6 +48,6 @@ theorem verifyInto_eventCount_le (spec : CurveSpec width)
       scalarResult accepted).eventTrace path).length ≤ scalarWidth * (248 * width + 644) + 12 :=
   (Multiset.card_le_card (verifyInto_pool_le spec candidate base target inverseSuccess
     reconstruction scalarResult accepted path)).trans
-      (verificationEnvelope_card_le kind spec scalarWidth)
+      (verificationEnvelope_card_le model spec scalarWidth)
 
 end QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native

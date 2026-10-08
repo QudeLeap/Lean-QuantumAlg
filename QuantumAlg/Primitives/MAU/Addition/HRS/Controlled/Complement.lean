@@ -41,8 +41,9 @@ def controlledComplementGates (low high : Nat) :
 
 /-- Compile the actual CNOT list on the shared low/high/dirty carrier. -/
 def controlledComplementProgram (low high : Nat) :
-    UnitaryCircuit (Qubits (bridgeEncoding low high).width) :=
-  programList (controlledComplementGates low high)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (bridgeEncoding low high).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (controlledComplementGates low high)
 
 private theorem gates_eq_constantXor (low high : Nat) :
     controlledComplementGates low high =
@@ -102,25 +103,34 @@ theorem hrsControlledComplement_step (low high : Nat)
 theorem hrsControlledComplement_realizes (low high : Nat) :
     UnitaryCircuit.Realizes (bridgeEncoding low high)
       (controlledComplementProgram low high) bridgeComplementStep :=
-  realizesList_congrStep (controlledComplementGates low high)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (controlledComplementGates low high)
     (hrsControlledComplement_step low high)
 
 /-- Native coordinates of the actual high-word CNOT list. -/
 theorem hrsControlledComplement_native_count (low high : Nat)
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (controlledComplementProgram low high).eventCost =
-      high * (if (.gate (.builtin "cnot") : Resource.Event .quantum) = focus then 1 else 0) := by
+      high * (if (.gate .cnot :
+        Resource.Event (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0) := by
   rw [controlledComplementProgram, programList_event_count_eq_sum_eventMultiplicity]
-  by_cases h : (.gate (.builtin "cnot") : Resource.Event .quantum) = focus
-  · simp [controlledComplementGates, eventMultiplicity, event, List.sum_ofFn, h]
-  · simp [controlledComplementGates, eventMultiplicity, event, List.sum_ofFn, h]
+  by_cases h : (.gate .cnot :
+      Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
+  · simp [controlledComplementGates, eventMultiplicity, EncodedBit.GateSpec.event,
+      EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+      AlgorithmGate.model, AlgorithmGate.coordinate, List.sum_ofFn, h]
+  · simp [controlledComplementGates, eventMultiplicity, EncodedBit.GateSpec.event,
+      EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+      AlgorithmGate.model, AlgorithmGate.coordinate, List.sum_ofFn, h]
 
 /-- A shared dirty control is executed serially, once per high bit. -/
 theorem hrsControlledComplement_serial_resources (low high : Nat) :
     (controlledComplementProgram low high).eventCost.card = high ∧
       (controlledComplementProgram low high).evaluatedEventDepth (fun _ => 1) = high := by
-  change (programList (controlledComplementGates low high)).eventCost.card = high ∧
-    (programList (controlledComplementGates low high)).evaluatedEventDepth (fun _ => 1) = high
+  change (programList (QubitLayout.canonical _) .empty
+      (controlledComplementGates low high)).eventCost.card = high ∧
+    (programList (QubitLayout.canonical _) .empty
+      (controlledComplementGates low high)).evaluatedEventDepth (fun _ => 1) = high
   rw [programList_eventCost_card, programList_evaluatedEventDepth_unit]
   simp [controlledComplementGates]
 

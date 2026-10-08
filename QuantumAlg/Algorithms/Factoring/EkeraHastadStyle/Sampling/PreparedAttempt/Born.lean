@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.PreparedAttempt
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Distribution
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.ParameterLayout
 import all QuantumAlg.Core.Algorithm.Probability.Minorization
 import all QuantumAlg.Primitives.ShortDLP.BornProbability
 import all QuantumAlg.Util.BinomialTail
@@ -104,11 +104,9 @@ theorem selectedOutcomePMF_pair_apply {N : Nat} (input : Input N)
         (compiledUnitEncoding input) (preparedResidue sample).unit
         (RSA.targetUnit (preparedResidue sample).unit) pair := by
   unfold selectedOutcomePMF
+  rw [dif_pos (show 1 < N ∧ N < 2 ^ arithmeticBits N from
+    ⟨input.modulus_gt_one, modulus_lt_arithmeticCapacity N⟩)]
   rw [parameterUnit_parameterValue, parameterTarget_parameterValue]
-  rw [ShortDLP.CompiledMAU.outcomePMF_eq_ideal
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-    (preparedResidue sample).unit (RSA.targetUnit (preparedResidue sample).unit)
-    input.modulus_gt_one (modulus_lt_arithmeticCapacity N)]
   rw [compiledUnitEncoding_eq_raw input]
   exact ShortDLP.BornProbability.shortDLPBornOutcomeProbability_eq_pairBornProbability
     (params := registerParameters N)

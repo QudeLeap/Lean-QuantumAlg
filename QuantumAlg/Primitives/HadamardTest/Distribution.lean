@@ -31,8 +31,8 @@ open Execution
 /-- The complete run's actual zero-result probability is exactly the source formula. -/
 theorem outputDistribution_zero {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (source : NormalizedVector (Qubits width)) {Reference : Register}
-    (input : Input (pre width) Reference)
-    (promised : inputPromise source input.localState.quantumMarginal) :
+    (input : OracleInput .empty (pre width) Reference)
+    (promised : inputPromise source input.caller.localState.quantumMarginal) :
     (run unitary).outputDistribution input (.finite 0) =
       ENNReal.ofReal (probabilityZero unitary source) := by
   have actual := congrArg (fun distribution : PMF (CShape.Value (.finite 2)) =>
@@ -43,19 +43,21 @@ theorem outputDistribution_zero {width : Nat} (unitary : UnitaryOperator (Qubits
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code unitary).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code unitary).execute Reference
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef width).toCStorageRef))
       |>.block (.finite 0)).mass) = _
   apply congrArg ENNReal.ofReal
   apply code_zero_mass unitary source
-  rw [ExecutionState.mapClassical_quantumMarginal, ← Input.localState_quantumMarginal]
+  rw [ExecutionState.mapClassical_quantumMarginal,
+    ← OracleInput.oracleInput_caller_quantumMarginal, ← Input.localState_quantumMarginal]
   exact promised
 
 /-- The relational success event of the same run attains exactly its independent lower bound. -/
 theorem actual_success {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (source : NormalizedVector (Qubits width)) {Reference : Register}
-    (input : Input (pre width) Reference)
-    (promised : inputPromise source input.localState.quantumMarginal) :
+    (input : OracleInput .empty (pre width) Reference)
+    (promised : inputPromise source input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (probabilityZero unitary source) =
       ((run unitary).relationalDistribution input).toOuterMeasure
         {pair | pair.2 = .finite 0} := by

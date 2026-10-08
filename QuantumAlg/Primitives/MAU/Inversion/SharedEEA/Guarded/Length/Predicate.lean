@@ -127,10 +127,12 @@ theorem original_guard (width : Nat) (field : Field) (key : BitVec width.size) (
 theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
-      (GateSpec.programList (gates width field key firstWord position output))
+      (GateSpec.programList (QubitLayout.canonical _) .empty
+        (gates width field key firstWord position output))
       (fun state => if Guard state ∧ LengthPredicate.Selected field key firstWord position state
         then (outputBit width field output).flip state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width field key firstWord position output)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    _ (gates_step width field key firstWord position output)
 
 /-- All actual added guard controls and their arbitrary-work cleanup are counted. -/
 theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)

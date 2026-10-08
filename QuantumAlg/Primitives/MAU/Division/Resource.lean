@@ -54,37 +54,40 @@ variable {N : Nat}
 
 /-- The exact circuit folded from the witness inverse / product / target-add /
 inverse-product / inverse-inverse program. -/
-def circuit (w : DecomposedPipelineWitness N) : UnitaryCircuit (Qubits w.encoding.width) :=
+def circuit (w : DecomposedPipelineWitness N) : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (w.encoding.width)).toQuantum :=
   w.program
 
 /-- Ordered strict events of the exact decomposed circuit. -/
 def eventTrace (w : DecomposedPipelineWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventTrace
 
 /-- Strict event pool of the exact decomposed circuit. -/
-def eventCost (w : DecomposedPipelineWitness N) : ResourcePool .quantum :=
+def eventCost (w : DecomposedPipelineWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.program.eventCost
 
 /-- Strict symbolic event critical path of the decomposed circuit. -/
 def eventDepth (w : DecomposedPipelineWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.program.eventDepth
 
 /-- Evaluated decomposed-circuit depth under literal event durations. -/
 def evaluatedEventDepth (w : DecomposedPipelineWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.program.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the decomposed circuit. -/
 def eventQueryDepth (w : DecomposedPipelineWitness N)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.program.eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the decomposed event pool. -/
 def eventGateCount (w : DecomposedPipelineWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.program.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+    (.gate label) w.program.eventCost
 
 
 
@@ -104,16 +107,17 @@ def qubitCount (w : DecomposedPipelineWitness N) : Nat :=
 theorem applyNormalized_clean_ket (w : DecomposedPipelineWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (PipelineState.initial u v z))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode (PipelineState.initial u v z)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode
           ({ denominator := u
              numerator := v
              target := z + quotientResidue u v
              inverseScratch := 0
              quotientScratch := 0
-             flag := false } : PipelineState N)) :=
+             flag := false } : PipelineState N))) :=
   DecomposedPipelineWitness.applyNormalized_clean_ket w u v z
 
 
@@ -126,8 +130,9 @@ theorem resourcesFromEventDepth_eq_eventCost (w : DecomposedPipelineWitness N) :
 /-- Event-native source bound whose predicates refer to literal event
 coordinates of the same exact circuit. -/
 structure SupportsEventSourceBound (w : DecomposedPipelineWitness N)
-    (eventCostBound : ResourcePool .quantum)
-    (eventDepthBound : Resource.Event .quantum → Nat) : Prop where
+    (eventCostBound : ResourcePool (.quantum AlgorithmGate.model .empty))
+    (eventDepthBound :
+      Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Prop where
   eventCost_le : eventCost w ≤ eventCostBound
   eventQueryDepth_le :
     ∀ event, eventQueryDepth w event ≤ eventDepthBound event
@@ -143,37 +148,40 @@ namespace EncodedCircuit
 variable {N : Nat}
 
 /-- Exact circuit carried by an encoded division witness. -/
-def circuit (w : StructuredCircuitWitness N) : UnitaryCircuit (Qubits w.encoding.width) :=
+def circuit (w : StructuredCircuitWitness N) : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (w.encoding.width)).toQuantum :=
   w.circuit
 
 /-- Ordered strict events of the exact encoded circuit. -/
 def eventTrace (w : StructuredCircuitWitness N) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventTrace
 
 /-- Strict event pool of the exact encoded circuit. -/
-def eventCost (w : StructuredCircuitWitness N) : ResourcePool .quantum :=
+def eventCost (w : StructuredCircuitWitness N) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.circuit.eventCost
 
 /-- Strict symbolic event critical path of the encoded circuit. -/
 def eventDepth (w : StructuredCircuitWitness N) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.circuit.eventDepth
 
 /-- Evaluated encoded-circuit depth under literal event durations. -/
 def evaluatedEventDepth (w : StructuredCircuitWitness N)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   w.circuit.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the encoded circuit. -/
 def eventQueryDepth (w : StructuredCircuitWitness N)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.circuit.eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the encoded event pool. -/
 def eventGateCount (w : StructuredCircuitWitness N)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.circuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+    (.gate label) w.circuit.eventCost
 
 
 
@@ -193,16 +201,16 @@ def qubitCount (w : StructuredCircuitWitness N) : Nat :=
 theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode
             ({ denominator := u, numerator := v, target := z, flag := false } :
-              Data N))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
+              Data N)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode
           ({ denominator := u
              numerator := v
              target := z + quotientResidue u v
-             flag := false } : Data N)) :=
+             flag := false } : Data N))) :=
   StructuredCircuitWitness.applyNormalized_clean_ket w u v z
 
 

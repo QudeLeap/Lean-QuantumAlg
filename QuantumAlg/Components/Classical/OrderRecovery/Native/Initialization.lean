@@ -40,11 +40,13 @@ def initialPhaseBitRefs (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
       (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields sample) index)
 
 /-- The existing decoder writes the widened numerator from those actual bit references. -/
-def decodeInitialNumerator (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
+def decodeInitialNumerator {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) :
-    Circuit (recoveryContext ctx modulusWidth (phaseBits + 1))
+    Circuit model (recoveryContext ctx modulusWidth (phaseBits + 1))
       (recoveryContext ctx modulusWidth (phaseBits + 1)) :=
-  TerminalDecode.intoFromBitRefs .bigEndian (initialPhaseBitRefs ctx modulusWidth phaseBits sample)
+  TerminalDecode.intoFromBitRefs (model := model) .bigEndian
+    (initialPhaseBitRefs ctx modulusWidth phaseBits sample)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator
 
 /-- Increment the genuinely fresh zero older-continuant denominator. -/
@@ -73,47 +75,60 @@ def initializeActiveOp (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat) :
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.active
 
 /-- Complete actual cursor initialization after the genuine field allocations. -/
-def initializeScan (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
+def initializeScan {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) :
-    Circuit (recoveryContext ctx modulusWidth (phaseBits + 1))
+    Circuit model (recoveryContext ctx modulusWidth (phaseBits + 1))
       (recoveryContext ctx modulusWidth (phaseBits + 1)) :=
-  .seq (decodeInitialNumerator ctx modulusWidth phaseBits sample)
-    (.seq (ConstantWord.circuit (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
+  .seq (decodeInitialNumerator (model := model) ctx modulusWidth phaseBits sample)
+    (.seq (ConstantWord.circuit (model := model)
+      (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
       (2 ^ phaseBits))
-      (.seq (.classical (initializeOlderOp ctx modulusWidth phaseBits))
-        (.seq (.classical (initializeOneOp ctx modulusWidth phaseBits))
-          (.classical (initializeActiveOp ctx modulusWidth phaseBits)))))
+      (.seq (BitWord.instruction (execution := model)
+          (initializeOlderOp ctx modulusWidth phaseBits))
+        (.seq (BitWord.instruction (execution := model)
+          (initializeOneOp ctx modulusWidth phaseBits))
+          (BitWord.instruction (execution := model)
+          (initializeActiveOp ctx modulusWidth phaseBits)))))
 
 /-- Concrete initial store and the real decoder, loader and elementary initialization paths. -/
-def initializeScanStep (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
+def initializeScanStep {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
     Store (recoveryContext ctx modulusWidth (phaseBits + 1)) ×
-      (initializeScan ctx modulusWidth phaseBits sample).Path :=
-  let decoded := TerminalDecode.foldStep
+      (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path :=
+  let decoded := TerminalDecode.foldStep (model := model)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator
     (List.ofFn (initialPhaseBitRefs ctx modulusWidth phaseBits sample)) store
-  let loaded := ConstantWord.foldStep
+  let loaded := ConstantWord.foldStep (model := model)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
     (List.ofFn (ConstantWord.constantBits (phaseBits + 1) (2 ^ phaseBits))) decoded.1
-  let older := loaded.1.applyOp (initializeOlderOp ctx modulusWidth phaseBits)
-  let one := older.applyOp (initializeOneOp ctx modulusWidth phaseBits)
-  (one.applyOp (initializeActiveOp ctx modulusWidth phaseBits),
-    (decoded.2, (loaded.2, ((), ((), ())))))
+  let older := BitWord.instructionStep (execution := model)
+    (initializeOlderOp ctx modulusWidth phaseBits) loaded.1
+  let one := BitWord.instructionStep (execution := model)
+    (initializeOneOp ctx modulusWidth phaseBits) older.1
+  let active := BitWord.instructionStep (execution := model)
+    (initializeActiveOp ctx modulusWidth phaseBits) one.1
+  (active.1, (decoded.2, (loaded.2, (older.2, (one.2, active.2)))))
 
 /-- The one actual interpreter executes exactly those initialization records on every full block. -/
-theorem nativeRecovery_initialize_execute (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
+theorem nativeRecovery_initialize_execute {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (recoveryContext ctx modulusWidth (phaseBits + 1)) Reference History) :
-    (initializeScan ctx modulusWidth phaseBits sample).execute Reference state =
+    (state : State (recoveryContext ctx modulusWidth (phaseBits + 1))
+      Reference (model.HiddenState × History)) :
+    (initializeScan (model := model) ctx modulusWidth phaseBits sample).execute Reference state =
       state.mapClassical (fun entry =>
-        ((initializeScanStep ctx modulusWidth phaseBits sample entry.1).1,
-          (entry.2, (initializeScanStep ctx modulusWidth phaseBits sample entry.1).2))) := by
+        ((initializeScanStep (model := model) ctx modulusWidth phaseBits sample entry.1).1,
+          (entry.2.1, (entry.2.2,
+            (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
+              entry.1).2)))) := by
   simp only [initializeScan, decodeInitialNumerator, TerminalDecode.intoFromBitRefs,
     TerminalDecode.sourceIndex, ConstantWord.circuit, Circuit.execute_seq,
     TerminalDecode.terminalDecode_fold_execute, ConstantWord.constantWord_fold_execute,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   congr 1
   exact Subsingleton.elim _ _

@@ -214,8 +214,9 @@ theorem gates_divisorLength_of_zero (width : Nat) (state : Registers width)
   rw [gates_divisorLength, zero, BitVec.zero_xor]
 
 /-- The same elementary gate list compiles directly to its native unitary circuit. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Correctness holds as exact normalized-vector action, including every work coordinate. -/
 theorem program_realizes (width : Nat) :
@@ -223,7 +224,7 @@ theorem program_realizes (width : Nat) :
       (fun state => Word.xorConstantStep (target width)
         (constant width (payloadValue state).size (Nat.size_le.mpr (payloadValue_fits state)))
         state) :=
-  GateSpec.realizesList_congrStep (gates width) (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width)
 
 end
 

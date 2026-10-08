@@ -11,6 +11,7 @@ import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Core.Execution.Trace.Bounds
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Components.Classical.NumberTheory.SignedWord
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual difference of two products
@@ -45,13 +46,6 @@ def subtractProductsOp (output productLeft productRight : CWriteRef ctx (.unsign
   .wordBinary .sub width ctx
     (.product (.storage productLeft.toCStorageRef) (.storage productRight.toCStorageRef)) output
 
-/-- Native multiplication, multiplication and subtraction for one difference of products. -/
-def computeInto (a b c d : CInputRef ctx (.unsignedWord width))
-    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (productOp a b productLeft))
-    (.seq (.classical (productOp c d productRight))
-      (.classical (subtractProductsOp output productLeft productRight)))
-
 /-- The three actual chronological writes of one difference of products. -/
 def computedStore (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
@@ -60,17 +54,48 @@ def computedStore (a b c d : CInputRef ctx (.unsignedWord width))
     (productOp c d productRight)).applyOp
       (subtractProductsOp output productLeft productRight)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Native multiplication, multiplication and subtraction for one difference of products. -/
+def computeInto (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (productOp a b productLeft))
+    (.seq (BitWord.instruction (execution := model) (productOp c d productRight))
+      (BitWord.instruction (execution := model)
+        (subtractProductsOp output productLeft productRight)))
+
+/-- Actual returned outputs of the three sequential native instructions. -/
+def computationStep (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (computeInto (model := model) a b c d output productLeft productRight).Path :=
+  let first := BitWord.instructionStep (execution := model) (productOp a b productLeft) store
+  let second := BitWord.instructionStep (execution := model) (productOp c d productRight) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (subtractProductsOp output productLeft productRight) second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+/-- The native interpreter's final store is the chronological arithmetic store. -/
+theorem computationStep_store (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (computationStep (model := model) a b c d output productLeft productRight store).1 =
+      computedStore a b c d output productLeft productRight store := rfl
+
 /-- The complete arithmetic interpreter retains the original history and quantum-reference block. -/
 theorem computeInto_execute (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (computeInto a b c d output productLeft productRight).execute Reference state =
-      state.mapClassical (fun entry => (computedStore a b c d output productLeft productRight
-        entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [computeInto, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (computeInto (model := model) a b c d output productLeft productRight).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := computationStep (model := model) a b c d output productLeft productRight
+          entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [computeInto, computationStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- All reads outside the three actual output keys remain unchanged. -/
 theorem computeInto_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))
@@ -136,40 +161,54 @@ theorem computeInto_correct (a b c d : CInputRef ctx (.unsignedWord width))
   · rw [leftFrame]; exact leftValue
   · exact rightValue
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- All borrowed classical and quantum correlations survive the three actual arithmetic writes. -/
 theorem computeInto_borrowedRestored (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (computeInto a b c d output productLeft productRight).BorrowedRestored Reference state
-      ((computeInto a b c d output productLeft productRight).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (computeInto (model := model) a b c d output productLeft productRight).BorrowedRestored
+      Reference state
+      ((computeInto (model := model) a b c d output productLeft productRight).execute Reference
+        state) := by
   exact Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
     (Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
       (Circuit.borrowedRestored_classical _ _))
 
 /-- Independent three-operation native instruction formula. -/
-def operationTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width)]
+def operationTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width))]
 
 /-- Every actual path emits the two multiplications followed by the subtraction. -/
 theorem computeInto_events (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (computeInto a b c d output productLeft productRight).Path) :
-    (computeInto a b c d output productLeft productRight).eventTrace path =
-      operationTrace width := rfl
+    (path : (computeInto (model := model) a b c d output productLeft productRight).Path) :
+    (computeInto (model := model) a b c d output productLeft productRight).eventTrace path =
+      operationTrace (model := model) width := by
+  change (BitWord.instruction (execution := model) (productOp a b productLeft)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (productOp c d productRight)).eventTrace path.2.1 ++
+      (BitWord.instruction (execution := model)
+        (subtractProductsOp output productLeft productRight)).eventTrace path.2.2) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- All three actual native operations are sequentially dependent. -/
 theorem computeInto_depth (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (computeInto a b c d output productLeft productRight).Path) :
-    (computeInto a b c d output productLeft productRight).depth (fun _ => 1) path = 3 := rfl
+    (path : (computeInto (model := model) a b c d output productLeft productRight).Path) :
+    (computeInto (model := model) a b c d output productLeft productRight).depth (fun _ => 1) path =
+      3 := rfl
 
 /-- All three operations visit the original supplied context without allocating storage. -/
 theorem computeInto_visited (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (computeInto a b c d output productLeft productRight).Path) :
-    (computeInto a b c d output productLeft productRight).visitedContexts path =
+    (path : (computeInto (model := model) a b c d output productLeft productRight).Path) :
+    (computeInto (model := model) a b c d output productLeft productRight).visitedContexts path =
       [ctx, ctx, ctx] := rfl
 
 end

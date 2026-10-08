@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Packed
+import all QuantumAlg.Core.Execution.Measurement.Cells.Frame
 import all QuantumAlg.Core.Execution.Store.Read
 
 /-!
@@ -25,19 +26,6 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 noncomputable section
 
 open Execution
-
-private theorem measured_input {ctx : RuntimeCtx .quantum} {shape : CShape}
-    (readouts : List (ZReadout ctx)) (input : CInputRef ctx shape)
-    (separate : ∀ item ∈ readouts, item.output.key ∉ input.storageKeys)
-    (store : Store ctx) (path : (Circuit.measurementSequence readouts).Path) :
-    (Circuit.writeMeasurementPath readouts store path).read input = store.read input := by
-  induction readouts generalizing store with
-  | nil => rfl
-  | cons head tail induction =>
-      exact (induction (fun item present => separate item (.tail head present))
-        (store.write head.output (.finite path.1)) path.2).trans
-        (Store.read_write_of_not_mem_storageKeys store head.output (.finite path.1)
-          input (separate head (.head tail)))
 
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -59,10 +47,17 @@ theorem shortDLP_runtimePacked_read_preserved {shape : CShape} (input : CInputRe
     exact cellsSeparate index
       ((shortDLP_runtimeReadout_key m ell width sameWires cells index) ▸ member)
   exact (Store.read_applyOp_of_not_mem_storageKeys
-    (Circuit.writeMeasurementPath (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (readouts m ell width sameWires cells) basis))
+    (Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+      (readouts m ell width sameWires cells) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells) basis))
     (packing m ell width cells result) input resultSeparate).trans
-    (measured_input (readouts m ell width sameWires cells) input separate store _)
+    (Circuit.writeMeasurementPath_read_input
+      (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+      (readouts m ell width sameWires cells) input separate store _)
 
 /-- The actual joint read combines unchanged earlier data with the source measurement outcome. -/
 theorem shortDLP_runtimePacked_joint_read {shape : CShape} (input : CInputRef ctx shape)

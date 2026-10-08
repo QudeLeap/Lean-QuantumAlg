@@ -19,7 +19,7 @@ import all QuantumAlg.Primitives.MAU.Inversion.MK.Readout.Round
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Readout.Trace
 import all QuantumAlg.Primitives.MAU.Inversion.MK.StructuredWitness
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Resource.QuantumSubroutine
+import all QuantumAlg.Primitives.MAU.Inversion.MK.Resource
 /-!
 # Fixed-round binary-GCD modular inversion
 

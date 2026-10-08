@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+public import QuantumAlg.Core.Base.Layout.Signature
+import all QuantumAlg.Core.Base.Layout.Signature
 import Mathlib.Data.List.FinRange
 public import Mathlib.Tactic.Linter.Style
 
@@ -66,6 +68,13 @@ end QubitSelection
 
 namespace QubitLayout
 
+/-- Canonical placement of a qubit word on physical systems zero through
+`qubitCount - 1`. -/
+@[expose]
+public def canonical (qubitCount : Nat) : QubitLayout qubitCount where
+  physical_idx := Fin.val
+  physical_idx_injective := Fin.val_injective
+
 /-- Build a typed qubit layout from an actual duplicate-free list of physical
 systems.  The logical-qubit count is the list length; no separate count can be
 claimed by the caller. -/
@@ -77,6 +86,15 @@ def ofSystemIdx (systemIdx : List Nat) (systemIdxNodup : systemIdx.Nodup) :
 /-- List view of a typed layout, ordered by logical-qubit index. -/
 public def systemIdx {qubitCount : Nat} (layout : QubitLayout qubitCount) : List Nat :=
   List.ofFn layout.physical_idx
+
+/-- The canonical layout lists every physical qubit in increasing order. -/
+@[simp] public theorem canonical_systemIdx (qubitCount : Nat) :
+    (canonical qubitCount).systemIdx = List.range qubitCount := by
+  change List.ofFn (fun index : Fin qubitCount => index.val) = List.range qubitCount
+  apply List.ext_getElem
+  · simp
+  · intro index _left _right
+    simp
 
 @[simp] theorem systemIdx_ofSystemIdx (physicalIdx : List Nat)
     (physicalIdxNodup : physicalIdx.Nodup) :
@@ -110,6 +128,23 @@ def append {leftCount rightCount : Nat}
     (append left right disjoint).systemIdx =
       left.systemIdx ++ right.systemIdx := by
   simp [systemIdx, append, List.ofFn_fin_append]
+
+/-- The same addressed qubits as a dimension-certified physical layout. -/
+@[expose, implicit_reducible]
+public def toQuantum {qubitCount : Nat} (layout : QubitLayout qubitCount) :
+    QuantumLayout qubitCount :=
+  ((QuantumSignature.qubits qubitCount).place layout.physical_idx
+    layout.physical_idx_injective).layout
+
+/-- The physical conversion retains each actual qubit identity and dimension. -/
+@[simp] public theorem toQuantum_wire {qubitCount : Nat} (layout : QubitLayout qubitCount)
+    (index : Fin qubitCount) :
+    layout.toQuantum.wire index = ⟨layout.physical_idx index, 2⟩ := rfl
+
+/-- Fixed big-endian coordinates relate physical qubits to binary word labels. -/
+public def basisEquiv {qubitCount : Nat} (layout : QubitLayout qubitCount) :
+    layout.toQuantum.register.Index ≃ (Qubits qubitCount).Index :=
+  QuantumSignature.qubitsIndexEquiv qubitCount
 
 end QubitLayout
 

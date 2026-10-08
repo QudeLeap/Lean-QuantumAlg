@@ -44,17 +44,19 @@ def successLowerBound (κ : SecurityParameter) : ProbabilityLowerBound where
   le_one := tsub_le_self
 
 /-- Independently fixed event coordinates and complete live-space allowances. -/
-def resourceBudget (n : Nat) (κ : SecurityParameter) : ResourceBudget .quantum where
-  events := Native.recoveryEnvelope n (sampleCount n κ)
-  resident := Native.recoveryScratchSpace n (sampleCount n κ) +
+def resourceBudget {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
+    (κ : SecurityParameter) : ResourceBudget (executionModel oracle) where
+  events := Native.recoveryEnvelope oracle (sampleCount n κ)
+  resident := Native.recoveryScratchSpace (sourceModel oracle) n (sampleCount n κ) +
     Native.samplingSpace n (sampleCount n κ)
-  auxiliary := Native.recoveryScratchSpace n (sampleCount n κ) +
+  auxiliary := Native.recoveryScratchSpace (sourceModel oracle) n (sampleCount n κ) +
     Native.samplingSpace n (sampleCount n κ)
 
 /-- Original member depth plus the paid reset, terminal and polynomial recovery stages. -/
-def depthLimit (n : Nat) (κ : SecurityParameter) : Nat :=
+def depthLimit {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
+    (κ : SecurityParameter) : Nat :=
   Native.samplingDepthLimit n (sampleCount n κ) +
-    ClassicalRoutines.GF2.Native.intoDepthLimit (kind := .quantum)
+    ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel oracle)
       (sampleCount n κ) n (fun _ => 1)
 
 /-- Fixed-sample Simon with the original oracle promise and an actual retained output.
@@ -68,7 +70,8 @@ def depthLimit (n : Nat) (κ : SecurityParameter) : Nat :=
 - An optional machine word equal to the original hidden mask. The complete
   output also retains the physical bank and measured sample slots.
 **Resource budget.**
-- One preparation; `n + κ` original members, each followed by `n` actual Z
+- One preparation per bank qubit in a parallel layer; `n + κ` original members, each followed by
+  `n` actual Z
   measurements and one row pack; `n + κ - 1` paid resets of the same `2n`
   bank; then one GF(2) recovery. Event envelopes include reset alternatives.
 - Live storage includes every sample slot and finite readout cell, the one
@@ -85,13 +88,20 @@ def depthLimit (n : Nat) (κ : SecurityParameter) : Nat :=
 -/
 public def problem {n : Nat} {α : Type u} {f : Simon.Oracle n α}
     {secret : Simon.BitVec n} (model : Model f secret) (κ : SecurityParameter) :
-    Problem .quantum inputContext (outputContext n κ) (.option (.unsignedWord n)) where
+    Problem (executionModel model.sampling.oracle) inputContext (outputContext n κ) (.option
+      (.unsignedWord n)) where
   valid := fun _ => Simon.Promise f secret
+  initialization := fun _ => True
   accepts := fun _ output => output = .optionSome (.unsignedWord model.secret)
   successLB := successLowerBound κ
   states := []
-  resources := resourceBudget n κ
-  depth := .quantum (fun _ => 1) (depthLimit n κ)
+  resources := resourceBudget model.sampling.oracle κ
+  depth := {
+    duration := fun _ => 1
+    limit := depthLimit model.sampling.oracle κ
+    classicalQuery_unit := fun _ => rfl
+    quantumQuery_unit := fun _ => rfl
+  }
 
 end
 

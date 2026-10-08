@@ -31,165 +31,138 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The real nominal unpack feeds the existing selector's actual path. -/
 def selectionStep (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (selection cells result).Path :=
-  let selected := FirstAccepted.step (selectorInputs cells) (selectorRefs cells)
-    (store.applyOp (unpackOp cells result))
-  (selected.1, ((), selected.2))
+    Store ctx × (selection (model := model) cells result).Path :=
+  let unpacked := BitWord.instructionStep (execution := model) (unpackOp cells result) store
+  let selected := FirstAccepted.step (model := model) (selectorInputs cells) (selectorRefs cells)
+    unpacked.1
+  (selected.1, (unpacked.2, selected.2))
 
 /-- A real factor-recovery record precedes the actual first-success latch record. -/
 def visitStep (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (visit source inputs cells result).Path :=
-  let recovered := FactorRecovery.NativeFactorScope.step source
+    Store ctx × (visit (model := model) source inputs cells result).Path :=
+  let recovered := FactorRecovery.NativeFactorScope.step (model := model) source
     inputs.parameter inputs.phase result store
-  let selected := selectionStep cells result recovered.1
+  let selected := selectionStep (model := model) cells result recovered.1
   (selected.1, (recovered.2, selected.2))
 
 /-- Actual stores and paths of the literal reference list in its original order. -/
 def scanStep (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
     (inputs : List (Inputs ctx N)) → Store ctx →
-      Store ctx × (scan source cells result inputs).Path
+      Store ctx × (scan (model := model) source cells result inputs).Path
   | [], store => (store, ())
   | inputs :: rest, store =>
-      let visited := visitStep source inputs cells result store
+      let visited := visitStep (model := model) source inputs cells result store
       let later := scanStep source cells result rest visited.1
       (later.1, (visited.2, later.2))
 
 /-- The real latch clear, complete scan and final nominal option write. -/
 def step (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (code source inputs cells result).Path :=
-  let scanned := scanStep source cells result inputs (store.applyOp (clearAcceptedOp cells))
-  (scanned.1.applyOp (packOp cells result), ((), (scanned.2, ())))
+    Store ctx × (code (model := model) source inputs cells result).Path :=
+  let cleared := BitWord.instructionStep (execution := model) (clearAcceptedOp cells) store
+  let scanned := scanStep (model := model) source cells result inputs cleared.1
+  let packed := BitWord.instructionStep (execution := model) (packOp cells result) scanned.1
+  (packed.1, (cleared.2, (scanned.2, packed.2)))
 
-/-- The actual unpack and native selector preserve the full quantum-reference block. -/
+/-- Actual execution retains the complete store, hidden service and history. -/
 theorem selection_execute (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (selection cells result).execute Reference state =
-      state.mapClassical (fun entry => ((selectionStep cells result entry.1).1,
-        (entry.2, (selectionStep cells result entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (unpackOp cells result))
-    (FirstAccepted.circuit (selectorInputs cells) (selectorRefs cells))
-    (fun store => (store.applyOp (unpackOp cells result), ()))
-    (FirstAccepted.step (selectorInputs cells) (selectorRefs cells))
-    (fun reference _ _ initial => FactorRecovery.NativeHalfPower.classical_path_execute
-      (unpackOp cells result) reference initial _)
-    (FirstAccepted.firstAccepted_execute (selectorInputs cells) (selectorRefs cells))
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (selection cells result).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((selectionStep cells result entry.1).1,
-          (entry.2, (selectionStep cells result entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (selection (model := model) cells result).execute Reference state =
+      state.mapClassical (fun entry =>
+          let actual := selectionStep (model := model) cells result entry.1
+          (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  unfold selection
+  rw [Circuit.execute_seq, FirstAccepted.firstAccepted_execute,
+    BitWord.bitWord_instruction_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- Each actual visit uses its own genuine stored parameter and measured phase. -/
+/-- Actual execution retains the complete store, hidden service and history. -/
 theorem visit_execute (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (visit source inputs cells result).execute Reference state =
-      state.mapClassical (fun entry => ((visitStep source inputs cells result entry.1).1,
-        (entry.2, (visitStep source inputs cells result entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (FactorRecovery.NativeFactorScope.code source inputs.parameter inputs.phase result)
-    (selection cells result)
-    (FactorRecovery.NativeFactorScope.step source inputs.parameter inputs.phase result)
-    (selectionStep cells result)
-    (FactorRecovery.NativeFactorScope.code_execute source inputs.parameter inputs.phase result)
-    (selection_execute cells result) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (visit source inputs cells result).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((visitStep source inputs cells result entry.1).1,
-          (entry.2, (visitStep source inputs cells result entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (visit (model := model) source inputs cells result).execute Reference state =
+      state.mapClassical (fun entry =>
+          let actual := visitStep (model := model) source inputs cells result entry.1
+          (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  unfold visit
+  rw [Circuit.execute_seq, selection_execute, FactorRecovery.NativeFactorScope.code_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- The original finite ordering is the actual sequence executed on complete CQ blocks. -/
+/-- Actual execution retains the complete store, hidden service and history. -/
 theorem scan_execute (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (inputs : List (Inputs ctx N)) :
     ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (scan source cells result inputs).execute Reference state =
-        state.mapClassical (fun entry => ((scanStep source cells result inputs entry.1).1,
-          (entry.2, (scanStep source cells result inputs entry.1).2))) := by
+      (state : State ctx Reference (model.HiddenState × History)),
+      (scan (model := model) source cells result inputs).execute Reference state =
+        state.mapClassical (fun entry =>
+          let actual := scanStep (model := model) source cells result inputs entry.1
+          (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   induction inputs with
   | nil =>
       intro Reference History _ state
-      refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-      exact congrArg
-        (fun decision : DecidableEq (Store ctx × (History × (Circuit.id ctx).Path)) =>
-          @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-            decision state (fun entry => (entry.1, (entry.2, ())))) (Subsingleton.elim _ _)
+      exact (Circuit.execute_id_mapClassical Reference state).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons inputs rest ih =>
       intro Reference History _ state
-      refine (Circuit.execute_seq_mapClassical (visit source inputs cells result)
-        (scan source cells result rest) (visitStep source inputs cells result)
-        (scanStep source cells result rest) (visit_execute source inputs cells result)
-        ih Reference state).trans ?_
-      exact congrArg
-        (fun decision : DecidableEq
-            (Store ctx × (History × (scan source cells result (inputs :: rest)).Path)) =>
-          @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-            decision state (fun entry => ((scanStep source cells result (inputs :: rest)
-              entry.1).1, (entry.2, (scanStep source cells result (inputs :: rest) entry.1).2))))
-        (Subsingleton.elim _ _)
+      change (Circuit.seq (visit (model := model) source inputs cells result)
+        (scan (model := model) source cells result rest)).execute Reference state = _
+      rw [Circuit.execute_seq, ih, visit_execute]
+      simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+        Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def scanPackStep (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (Circuit.seq (scan source cells result inputs)
-      (.classical (packOp cells result))).Path :=
-  let scanned := scanStep source cells result inputs store
-  (scanned.1.applyOp (packOp cells result), (scanned.2, ()))
+    Store ctx × (Circuit.seq (scan (model := model) source cells result inputs)
+      (BitWord.instruction (execution := model) (packOp cells result))).Path :=
+  let scanned := scanStep (model := model) source cells result inputs store
+  let packed := BitWord.instructionStep (execution := model) (packOp cells result) scanned.1
+  (packed.1, (scanned.2, packed.2))
 
 private theorem scanPack_execute (source : Input N) (inputs : List (Inputs ctx N))
     (cells : Cells ctx N) (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (scan source cells result inputs) (.classical (packOp cells result))).execute
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (scan (model := model) source cells result inputs) (BitWord.instruction (execution
+      := model) (packOp cells result))).execute
       Reference state = state.mapClassical (fun entry =>
-        ((scanPackStep source inputs cells result entry.1).1,
-          (entry.2, (scanPackStep source inputs cells result entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (scan source cells result inputs)
-    (.classical (packOp cells result)) (scanStep source cells result inputs)
-    (fun store => (store.applyOp (packOp cells result), ()))
-    (scan_execute source cells result inputs)
-    (fun reference _ _ initial => FactorRecovery.NativeHalfPower.classical_path_execute
-      (packOp cells result) reference initial _) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History ×
-        (Circuit.seq (scan source cells result inputs) (.classical (packOp cells result))).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((scanPackStep source inputs cells result entry.1).1,
-          (entry.2, (scanPackStep source inputs cells result entry.1).2)))) (Subsingleton.elim _ _)
+          let actual := scanPackStep (model := model) source inputs cells result entry.1
+          (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  rw [Circuit.execute_seq, BitWord.bitWord_instruction_execute, scan_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- One actual execution includes initialization, every visit and the surviving result write. -/
+/-- Actual execution retains the complete store, hidden service and history. -/
 theorem code_execute (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code source inputs cells result).execute Reference state =
-      state.mapClassical (fun entry => ((step source inputs cells result entry.1).1,
-        (entry.2, (step source inputs cells result entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (clearAcceptedOp cells))
-    (.seq (scan source cells result inputs) (.classical (packOp cells result)))
-    (fun store => (store.applyOp (clearAcceptedOp cells), ()))
-    (scanPackStep source inputs cells result)
-    (fun reference _ _ initial => FactorRecovery.NativeHalfPower.classical_path_execute
-      (clearAcceptedOp cells) reference initial _)
-    (scanPack_execute source inputs cells result) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (code source inputs cells result).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((step source inputs cells result entry.1).1,
-          (entry.2, (step source inputs cells result entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) source inputs cells result).execute Reference state =
+      state.mapClassical (fun entry =>
+          let actual := step (model := model) source inputs cells result entry.1
+          (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  unfold code
+  rw [Circuit.execute_seq, scanPack_execute, BitWord.bitWord_instruction_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

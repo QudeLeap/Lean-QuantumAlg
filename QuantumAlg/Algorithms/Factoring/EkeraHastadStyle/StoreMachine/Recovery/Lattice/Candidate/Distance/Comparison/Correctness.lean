@@ -20,12 +20,13 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Copying followed by three actual shifts computes eight times the input modulo its width. -/
-theorem copyScaleInto_read_mod (input : CInputRef ctx (.unsignedWord width))
+theorem copyScaleInto_read_mod [BitWord.Selected model]
+    (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    ((copyScaleStep input output store).1.read (writeInput output)).toNat =
+    ((copyScaleStep (model := model) input output store).1.read (writeInput output)).toNat =
       (8 * (store.read input).toNat) % 2 ^ width := by
   change ((ClassicalRoutines.Word.PowerOfTwo.shiftStore 3 output
     (store.applyOp (copyOp input output))).read (writeInput output)).toNat = _
@@ -40,11 +41,13 @@ theorem copyScaleInto_read_mod (input : CInputRef ctx (.unsignedWord width))
   norm_num [Nat.mul_comm]
 
 /-- The original scaled operand bound gives exact unsigned scaling with arbitrary scratch. -/
-theorem copyScaleInto_read (input : CInputRef ctx (.unsignedWord width))
+theorem copyScaleInto_read [BitWord.Selected model]
+    (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) (value : Nat)
     (inputValue : (store.read input).toNat = value)
     (fits : 8 * value < CShape.wordModulus width) :
-    ((copyScaleStep input output store).1.read (writeInput output)).toNat = 8 * value := by
+    ((copyScaleStep (model := model) input output store).1.read (writeInput output)).toNat =
+      8 * value := by
   rw [copyScaleInto_read_mod, inputValue]
   exact Nat.mod_eq_of_lt fits
 
@@ -70,9 +73,10 @@ theorem squareOp_read (refs : Refs ctx width) (store : Store ctx) (value : Nat)
     (raw_of_toNat _ value input) (raw_of_toNat _ value input)
 
 /-- The original range square remains available while its scaled copy is computed. -/
-theorem rangeSquare_at_add (refs : Refs ctx width) (separation : Separation refs)
+theorem rangeSquare_at_add [BitWord.Selected model]
+    (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (copyScaleStep (writeInput refs.rangeSquare) refs.scaledRange store).1.read
+    (copyScaleStep (model := model) (writeInput refs.rangeSquare) refs.scaledRange store).1.read
         (writeInput refs.rangeSquare) = store.read (writeInput refs.rangeSquare) :=
   copyScaleInto_callerFrame _ _ _ _
     (mutable_avoids refs separation refs.rangeSquare .rangeSquare .scaledRange rfl (by decide))
@@ -95,17 +99,19 @@ theorem addRangeOp_read (refs : Refs ctx width) (store : Store ctx) (square : Na
     (raw_of_toNat _ _ scaled) (raw_of_toNat _ _ original)
 
 /-- The two actual stored comparison operands equal their original source arithmetic values. -/
-theorem preparedStore_operands (refs : Refs ctx width) (separation : Separation refs)
+theorem preparedStore_operands [BitWord.Selected model]
+    (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (distance upperBound : Nat)
     (initial : InitialConditions store refs distance upperBound) :
-    ((preparedStore refs store).read (writeInput refs.scaledDistance)).toNat = 8 * distance ∧
-      ((preparedStore refs store).read (writeInput refs.scaledRange)).toNat =
+    ((preparedStore (model := model) refs store).read (writeInput refs.scaledDistance)).toNat =
+        8 * distance ∧
+      ((preparedStore (model := model) refs store).read (writeInput refs.scaledRange)).toNat =
         9 * (upperBound * upperBound) := by
   have distanceInput :=
     rawSignedRepresents_toNat_eq_of_lt _ initial.distanceRaw initial.distanceFits
   have upperInput :=
     rawSignedRepresents_toNat_eq_of_lt _ initial.upperBoundRaw initial.upperBoundFits
-  let copied := (copyScaleStep refs.distance refs.scaledDistance store).1
+  let copied := (copyScaleStep (model := model) refs.distance refs.scaledDistance store).1
   have upperFrame : copied.read refs.upperBound = store.read refs.upperBound :=
     copyScaleInto_callerFrame _ _ _ _ (separation.sourceAvoidsMutable .upperBound .scaledDistance)
   have square := squareOp_read refs copied upperBound (by rw [upperFrame]; exact upperInput)
@@ -141,10 +147,11 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- The actual eleven-instruction circuit realizes the original scaled near-target comparison. -/
-theorem scaleInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem scaleInto_correct [BitWord.Selected model]
+    (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (distance upperBound : Nat)
     (initial : InitialConditions store refs distance upperBound) :
-    Outcome refs store (scaleStep refs store).1 distance upperBound := by
+    Outcome refs store (scaleStep (model := model) refs store).1 distance upperBound := by
   have operands := preparedStore_operands refs separation store distance upperBound initial
   refine ⟨?_, scaleInto_callerFrame refs store⟩
   change (((preparedStore refs store).applyOp (compareOp refs)).read

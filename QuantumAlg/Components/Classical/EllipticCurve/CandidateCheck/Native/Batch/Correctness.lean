@@ -29,7 +29,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- The original raw observations satisfy the complete natural-scalar candidate condition. -/
 def SampleAccepted (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -47,7 +48,8 @@ local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
   unfold SampleAccepted
   infer_instance
 
-private theorem attemptKeys_permutation (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+private theorem attemptKeys_permutation {kind : ProblemKind}
+    (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     [(persistentInverseSuccess ctx width scalarWidth).key,
       (persistentCandidate ctx width scalarWidth).key,
       (persistentReconstruction ctx width scalarWidth).key,
@@ -61,7 +63,8 @@ private theorem attemptKeys_permutation (ctx : RuntimeCtx kind) (width scalarWid
   simp only [persistentKeys, List.count_cons, List.count_nil]
   omega
 
-private theorem attemptKeys_distinct (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+private theorem attemptKeys_distinct {kind : ProblemKind}
+    (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     [(persistentInverseSuccess ctx width scalarWidth).key,
       (persistentCandidate ctx width scalarWidth).key,
       (persistentReconstruction ctx width scalarWidth).key,
@@ -72,22 +75,49 @@ private theorem attemptKeys_distinct (ctx : RuntimeCtx kind) (width scalarWidth 
   (attemptKeys_permutation ctx width scalarWidth).nodup_iff.mpr
     (persistentKeys_distinct ctx width scalarWidth)
 
+private theorem persistentAttemptStore_eq
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
+    persistentAttemptStore curve modulus sample base target before =
+      attemptStore curve modulus (persistentInput width scalarWidth sample)
+        (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
+        (persistentInverseSuccess ctx width scalarWidth)
+        (persistentCandidate ctx width scalarWidth)
+        (persistentReconstruction ctx width scalarWidth)
+        (persistentScalar ctx width scalarWidth)
+        (persistentTargetAccepted ctx width scalarWidth)
+        (persistentAccepted ctx width scalarWidth)
+        (persistentSelected ctx width scalarWidth) before := by
+  exact (Classical.choose_spec (attemptInto_actualRecord curve modulus
+    (persistentInput width scalarWidth sample)
+    (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
+    (persistentInverseSuccess ctx width scalarWidth)
+    (persistentCandidate ctx width scalarWidth)
+    (persistentReconstruction ctx width scalarWidth)
+    (persistentScalar ctx width scalarWidth)
+    (persistentTargetAccepted ctx width scalarWidth)
+    (persistentAccepted ctx width scalarWidth)
+    (persistentSelected ctx width scalarWidth))).2 before
+
 /-- A real persistent attempt preserves every original structural input. -/
 theorem persistentAttemptStore_preserves_read
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     {shape : CShape} (observed : CInputRef ctx shape) :
     (persistentAttemptStore curve modulus sample base target before).read
       (persistentInput width scalarWidth observed) =
-        before.read (persistentInput width scalarWidth observed) := by
+        before.1.read (persistentInput width scalarWidth observed) := by
+  rw [persistentAttemptStore_eq]
   apply attemptStore_preserves_read curve modulus (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
     (persistentReconstruction ctx width scalarWidth) (persistentScalar ctx width scalarWidth)
     (persistentTargetAccepted ctx width scalarWidth) (persistentAccepted ctx width scalarWidth)
-    (persistentSelected ctx width scalarWidth) before
+    (persistentSelected ctx width scalarWidth) before.1 before.2
     (persistentInput width scalarWidth observed)
   intro key member
   exact persistentInput_separate width scalarWidth observed key
@@ -98,32 +128,33 @@ theorem persistentAttemptStore_latches
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint) :
-    let value := before.read (persistentInput width scalarWidth sample)
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint) :
+    let value := before.1.read (persistentInput width scalarWidth sample)
     let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
       (FiniteCyclicDLP.RawRecovery.Native.preparationInput value)
     let after := persistentAttemptStore curve modulus sample base target before
     ((after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ↔
-      (before.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+      (before.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∨ SampleAccepted curve modulus basePoint targetPoint value) ∧
     after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
-      if (before.read
+      if (before.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool then
-        before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)
+        before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)
       else if SampleAccepted curve modulus basePoint targetPoint value then raw.second.first
-        else before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+        else before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+  simp only [persistentAttemptStore_eq]
   apply attemptStore_latches curve modulus (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
     (persistentReconstruction ctx width scalarWidth) (persistentScalar ctx width scalarWidth)
     (persistentTargetAccepted ctx width scalarWidth) (persistentAccepted ctx width scalarWidth)
-    (persistentSelected ctx width scalarWidth) before
+    (persistentSelected ctx width scalarWidth) before.1 before.2
     basePoint targetPoint baseRep targetRep (attemptKeys_distinct ctx width scalarWidth)
   all_goals
     intro key member
@@ -136,15 +167,15 @@ theorem persistentAttemptStore_preserves_soundness
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
-    (priorSound : (before.read
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
+    (priorSound : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →
-      (before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
+      (before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
         basePoint = targetPoint)
     (acceptedNow : ((persistentAttemptStore curve modulus sample base target before).read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true) :
@@ -155,7 +186,7 @@ theorem persistentAttemptStore_preserves_soundness
     basePoint targetPoint baseRep targetRep
   dsimp only at latches
   rw [latches.2]
-  by_cases already : (before.read
+  by_cases already : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true
   · rw [if_pos already]
     exact priorSound already
@@ -166,60 +197,62 @@ theorem persistentAttemptStore_preserves_soundness
 private theorem fold_preserves_read (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : List (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     {shape : CShape} (observed : CInputRef ctx shape) :
     (samples.foldl (fun current sample =>
-      persistentAttemptStore curve modulus sample base target current) before).read
+      persistentAttemptState curve modulus sample base target current) before).1.read
         (persistentInput width scalarWidth observed) =
-          before.read (persistentInput width scalarWidth observed) := by
+          before.1.read (persistentInput width scalarWidth observed) := by
   induction samples generalizing before with
   | nil => rfl
   | cons sample rest ih =>
-      exact (ih (persistentAttemptStore curve modulus sample base target before)).trans
+      exact (ih (persistentAttemptState curve modulus sample base target before)).trans
         (persistentAttemptStore_preserves_read curve modulus sample base target before observed)
 
 private theorem fold_accepts_iff (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : List (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint) :
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint) :
     ((samples.foldl (fun current sample =>
-      persistentAttemptStore curve modulus sample base target current) before).read
+      persistentAttemptState curve modulus sample base target current) before).1.read
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ↔
-      (before.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+      (before.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∨ ∃ sample ∈ samples, SampleAccepted curve modulus basePoint targetPoint
-          (before.read (persistentInput width scalarWidth sample)) := by
+          (before.1.read (persistentInput width scalarWidth sample)) := by
   induction samples generalizing before with
   | nil => simp
   | cons sample rest ih =>
-      let next := persistentAttemptStore curve modulus sample base target before
+      let next := persistentAttemptState curve modulus sample base target before
+      have nextStore : next.1 = persistentAttemptStore curve modulus sample base target before :=
+        rfl
       have nextBase : PointRepresents curve
-          (next.read (persistentInput width scalarWidth base)) basePoint := by
-        rw [persistentAttemptStore_preserves_read]
+          (next.1.read (persistentInput width scalarWidth base)) basePoint := by
+        rw [nextStore, persistentAttemptStore_preserves_read]
         exact baseRep
       have nextTarget : PointRepresents curve
-          (next.read (persistentInput width scalarWidth target)) targetPoint := by
-        rw [persistentAttemptStore_preserves_read]
+          (next.1.read (persistentInput width scalarWidth target)) targetPoint := by
+        rw [nextStore, persistentAttemptStore_preserves_read]
         exact targetRep
       have tail := ih next nextBase nextTarget
       have preserved (input : CInputRef ctx
           (.fixedVector (scalarWidth + scalarWidth) (.finite 2))) :
           SampleAccepted curve modulus basePoint targetPoint
-            (next.read (persistentInput width scalarWidth input)) ↔
+            (next.1.read (persistentInput width scalarWidth input)) ↔
           SampleAccepted curve modulus basePoint targetPoint
-            (before.read (persistentInput width scalarWidth input)) := by
-        rw [persistentAttemptStore_preserves_read]
+            (before.1.read (persistentInput width scalarWidth input)) := by
+        rw [nextStore, persistentAttemptStore_preserves_read]
       have head := (persistentAttemptStore_latches curve modulus sample base target before
         basePoint targetPoint baseRep targetRep).1
       simp only [preserved] at tail
       change ((rest.foldl (fun current input =>
-        persistentAttemptStore curve modulus input base target current) next).read
+        persistentAttemptState curve modulus input base target current) next).1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ↔ _
-      rw [tail, head]
+      rw [tail, nextStore, head]
       simp only [List.mem_cons]
       constructor
       · rintro ((prior | first) | ⟨input, member, accepted⟩)
@@ -236,30 +269,36 @@ private theorem fold_preserves_soundness
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : List (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
-    (priorSound : (before.read
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
+    (priorSound : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →
-      (before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
+      (before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
         basePoint = targetPoint) :
     ((samples.foldl (fun current sample =>
-      persistentAttemptStore curve modulus sample base target current) before).read
+      persistentAttemptState curve modulus sample base target current) before).1.read
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →
       ((samples.foldl (fun current sample =>
-        persistentAttemptStore curve modulus sample base target current) before).read
+        persistentAttemptState curve modulus sample base target current) before).1.read
           (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
             basePoint = targetPoint := by
   induction samples generalizing before with
   | nil => exact priorSound
   | cons sample rest ih =>
-      apply ih (persistentAttemptStore curve modulus sample base target before)
-      · rw [persistentAttemptStore_preserves_read]
+      apply ih (persistentAttemptState curve modulus sample base target before)
+      · change PointRepresents curve
+          ((persistentAttemptStore curve modulus sample base target before).read
+            (persistentInput width scalarWidth base)) basePoint
+        rw [persistentAttemptStore_preserves_read]
         exact baseRep
-      · rw [persistentAttemptStore_preserves_read]
+      · change PointRepresents curve
+          ((persistentAttemptStore curve modulus sample base target before).read
+            (persistentInput width scalarWidth target)) targetPoint
+        rw [persistentAttemptStore_preserves_read]
         exact targetRep
       · exact persistentAttemptStore_preserves_soundness curve modulus sample base target before
           basePoint targetPoint baseRep targetRep priorSound
@@ -268,15 +307,15 @@ private theorem repeatedAttemptsStore_fold
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth)) :
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
     repeatedAttemptsStore curve modulus samples base target before =
-      (List.ofFn samples).foldl (fun current sample =>
-        persistentAttemptStore curve modulus sample base target current) before := by
-  unfold repeatedAttemptsStore
+      ((List.ofFn samples).foldl (fun current sample =>
+        persistentAttemptState curve modulus sample base target current) before).1 := by
+  unfold repeatedAttemptsStore repeatedAttemptsState
   have updates : List.ofFn (fun index =>
-      persistentAttemptStore curve modulus (samples index) base target) =
+      persistentAttemptState curve modulus (samples index) base target) =
       (List.ofFn samples).map (fun sample =>
-        persistentAttemptStore curve modulus sample base target) := by
+        persistentAttemptState curve modulus sample base target) := by
     rw [List.map_ofFn]
     rfl
   rw [updates, List.foldl_map]
@@ -286,11 +325,11 @@ theorem repeatedAttemptsStore_preserves_read
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     {shape : CShape} (observed : CInputRef ctx shape) :
     (repeatedAttemptsStore curve modulus samples base target before).read
       (persistentInput width scalarWidth observed) =
-        before.read (persistentInput width scalarWidth observed) := by
+        before.1.read (persistentInput width scalarWidth observed) := by
   rw [repeatedAttemptsStore_fold]
   exact fold_preserves_read curve modulus (List.ofFn samples) base target before observed
 
@@ -299,17 +338,17 @@ theorem repeatedAttemptsStore_accepts_iff
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint) :
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint) :
     ((repeatedAttemptsStore curve modulus samples base target before).read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ↔
-      (before.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+      (before.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∨ ∃ index, SampleAccepted curve modulus basePoint targetPoint
-          (before.read (persistentInput width scalarWidth (samples index))) := by
+          (before.1.read (persistentInput width scalarWidth (samples index))) := by
   rw [repeatedAttemptsStore_fold, fold_accepts_iff curve modulus (List.ofFn samples)
     base target before basePoint targetPoint baseRep targetRep]
   apply or_congr Iff.rfl
@@ -325,16 +364,17 @@ theorem repeatedAttemptsStore_initial_accepts_iff
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (before : Store ctx)
+    (hidden : model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve (before.read base) basePoint)
     (targetRep : PointRepresents curve (before.read target) targetPoint) :
     ((repeatedAttemptsStore curve modulus samples base target
-      (persistentInitialStore width scalarWidth before)).read
+      (persistentInitialStore width scalarWidth before, hidden)).read
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ↔
       ∃ index, SampleAccepted curve modulus basePoint targetPoint
         (before.read (samples index)) := by
   have correct := repeatedAttemptsStore_accepts_iff curve modulus samples base target
-    (persistentInitialStore width scalarWidth before) basePoint targetPoint
+    (persistentInitialStore width scalarWidth before, hidden) basePoint targetPoint
     (by rw [persistentInitialStore_read]; exact baseRep)
     (by rw [persistentInitialStore_read]; exact targetRep)
   have initial : (persistentInitialStore width scalarWidth before).read
@@ -348,15 +388,15 @@ theorem repeatedAttemptsStore_preserves_soundness
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
-    (priorSound : (before.read
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
+    (priorSound : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →
-      (before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
+      (before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
         basePoint = targetPoint) :
     ((repeatedAttemptsStore curve modulus samples base target before).read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →

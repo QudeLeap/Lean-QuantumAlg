@@ -15,7 +15,7 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP
 # Typed small-curve ECDLP endpoint
 
 The published certificate specializes the canonical budget-parametric run and
-its independent Algorithm.Solves problem to the fixed curve instance.
+its complete declared execution and independent Algorithm.Solves problem to the fixed curve.
 -/
 
 section
@@ -74,7 +74,7 @@ theorem publishedThreshold_eq_ninetyNineHundredths :
 def algorithm (budget : FailureBudget) :=
   ECDLP.algorithm ecdLPInstance orderExpansion access budget
 
-/-- The original small-curve instance with its independent native resource contract.
+/-- The original small-curve instance with its complete declared resource contract.
 
 **Input.**
 - The prescribed points `P = (0,1)` and `Q = (3,3)` on the certified curve
@@ -83,9 +83,9 @@ def algorithm (budget : FailureBudget) :=
 - An optional word representing the scalar three modulo seven, alongside
   the complete retained input, quantum bank, measured cells and recovery cells.
 **Resource budget.**
-- The general independent native formulas specialize to field width three,
+- The general independent scalar formulas specialize to field width three,
   Fourier width seven and binary exponents zero, one and two. The original
-  logarithmic count selects the number of paid reset-and-recovery rounds.
+  logarithmic count selects complete double-reset and checked-recovery rounds.
 - Resident and auxiliary limits include the one bank, all classical storage,
   complete recovery scratch and final result; depth counts the actual events.
 **Success.**
@@ -101,7 +101,10 @@ def problem (budget : FailureBudget) (wellFormed : budget.WellFormed) :=
 /-- Every original well-formed failure budget applies to the actual fixed example. -/
 theorem mainForBudget (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     (algorithm budget).Solves (problem budget wellFormed) :=
-  ECDLP.main ecdLPInstance orderExpansion access budget wellFormed
+  by
+    rcases ECDLP.main ecdLPInstance orderExpansion access budget wellFormed with
+      ⟨_, correct, _, _, _⟩
+    exact correct
 
 /-- The actual fixed example meets its original one-percent failure contract. -/
 theorem main : (algorithm publishedFailureBudget).Solves

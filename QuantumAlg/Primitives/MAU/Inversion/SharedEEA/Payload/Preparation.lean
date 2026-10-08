@@ -8,6 +8,10 @@ module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Input.PreparedFrame
 import all QuantumAlg.Core.Execution.Owned.Qubits
+import all QuantumAlg.Core.Execution.Preparation.Loaded
+import all QuantumAlg.Core.Execution.Prepared.BasisSupport
+import all QuantumAlg.Core.Execution.State.Preservation
+import all QuantumAlg.Core.Execution.Reference.Unitary
 
 /-!
 # Actual supplied input, retained arithmetic payload, and one fixed preparation
@@ -122,14 +126,30 @@ def after (width payloadWidth : Nat) : RuntimeCtx .quantum :=
     (payloadPreparation_auxiliary_fresh width payloadWidth)
       (payloadPreparation_auxiliary_disjoint width payloadWidth)
 
-/-- The preparation is the existing fixed source basis and depends only on the modulus. -/
-def circuit (modulus payloadWidth : Nat) : Circuit (before modulus.size payloadWidth) (after
-  modulus.size payloadWidth) :=
-  .prepare (before modulus.size payloadWidth) auxiliaryKey (InputPreparation.auxiliaryLayout
-    modulus.size)
+/-- Literal X loading of the fixed source seed beside every supplied payload bit. -/
+def loadProgram (modulus payloadWidth : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (after modulus.size payloadWidth).quantumLayout :=
+  Execution.PreparationLoaded.program (before modulus.size payloadWidth) auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
     (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
-      (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
-    (InputPreparation.preparation modulus)
+    (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+    (EncodedBit.Word.BasisLoad.program (InputPreparation.auxiliaryQubitLayout modulus.size)
+      .empty (InputPreparation.loadConstant modulus))
+
+/-- The auxiliary bank is allocated in the physical zero state first. -/
+def zeroCircuit (modulus payloadWidth : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before modulus.size payloadWidth) (after modulus.size payloadWidth) :=
+  .prepareZero (before modulus.size payloadWidth) auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
+    (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+    (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+
+/-- The same fixed source basis is loaded with actual gates, independently of payload data. -/
+def circuit (modulus payloadWidth : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before modulus.size payloadWidth) (after modulus.size payloadWidth) :=
+  (zeroCircuit modulus payloadWidth).seq (Circuit.unitary (loadProgram modulus payloadWidth))
 
 /-- Exact actual fresh/old wire assembly, preserving all original quantum input and payload bits. -/
 def assembly (width payloadWidth : Nat) :
@@ -151,11 +171,102 @@ theorem payloadPreparation_total_width (width payloadWidth : Nat) :
   have complete := InputPreparation.complete_width width
   omega
 
-/-- The one allocation event is the same fixed preparation on the real auxiliary wires. -/
-theorem payloadPreparation_circuit_eventTrace (modulus payloadWidth : Nat) (path : (circuit
-  modulus payloadWidth).Path) :
-    (circuit modulus payloadWidth).eventTrace path = [(InputPreparation.preparation
-      modulus).event] := rfl
+/-- The trace records every zero allocation and literal fixed-seed X gate. -/
+theorem payloadPreparation_circuit_eventTrace (modulus payloadWidth : Nat)
+    (path : (circuit modulus payloadWidth).Path) :
+    (circuit modulus payloadWidth).eventTrace path =
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout modulus.size) ++
+          (loadProgram modulus payloadWidth).eventTrace := by
+  change (zeroCircuit modulus payloadWidth).eventTrace path.1 ++
+    (Circuit.unitary (loadProgram modulus payloadWidth)).eventTrace path.2 = _
+  rfl
+
+/-- Fixed-seed X gates preserve arbitrary old input and payload basis values. -/
+theorem loadProgram_seed (modulus payloadWidth : Nat)
+    (old : (before modulus.size payloadWidth).register.Index) :
+    (loadProgram modulus payloadWidth).applyNormalized
+      (NormalizedVector.ket
+        (assembly modulus.size payloadWidth
+          ((BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value, old))) =
+      NormalizedVector.ket
+        (assembly modulus.size payloadWidth
+          ((InputPreparation.preparation modulus).value, old)) :=
+  Execution.PreparationLoaded.program_joined_ket
+    (before modulus.size payloadWidth) auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
+    (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+    (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+    _ _ _ (InputPreparation.sourceLoad_seed modulus) old
+
+/-- Actual fixed loading obeys the independent one-X-per-fresh-wire bound. -/
+theorem loadProgram_resources (modulus payloadWidth : Nat) :
+    (loadProgram modulus payloadWidth).eventCost.card ≤
+        InputPreparation.auxiliaryWidth modulus.size ∧
+      (loadProgram modulus payloadWidth).evaluatedEventDepth (fun _ => 1) ≤
+        InputPreparation.auxiliaryWidth modulus.size := by
+  have count : (loadProgram modulus payloadWidth).eventCost.card =
+      EncodedBit.Word.BasisLoad.xCount (InputPreparation.loadConstant modulus) := by
+    calc
+      _ = (EncodedBit.Word.BasisLoad.program
+          (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
+          (InputPreparation.loadConstant modulus)).eventCost.card := by
+        exact congrArg Multiset.card
+          (Execution.PreparationLoaded.program_eventCost
+            (before modulus.size payloadWidth) auxiliaryKey
+            (InputPreparation.auxiliaryLayout modulus.size)
+            (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+            (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth) _)
+      _ = _ := by
+        rw [EncodedBit.Word.BasisLoad.basisLoad_eventCost]
+        simp [ResourcePool.singleton]
+  have depth : (loadProgram modulus payloadWidth).evaluatedEventDepth (fun _ => 1) =
+      EncodedBit.Word.BasisLoad.xCount (InputPreparation.loadConstant modulus) := by
+    exact (Execution.PreparationLoaded.program_unitDepth
+      (before modulus.size payloadWidth) auxiliaryKey
+      (InputPreparation.auxiliaryLayout modulus.size)
+      (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+      (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth) _).trans
+        (EncodedBit.Word.BasisLoad.basisLoad_unitDepth
+          (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
+          (InputPreparation.loadConstant modulus))
+  exact ⟨count.le.trans (EncodedBit.Word.BasisLoad.basisLoad_count_le _),
+    depth.le.trans (EncodedBit.Word.BasisLoad.basisLoad_count_le _)⟩
+
+variable {Reference : Register} {H : Type} [Fintype H]
+
+/-- Actual zero allocation and X gates realize the complete fixed-seed tensor density. -/
+theorem execute_preparedDensity (modulus payloadWidth : Nat)
+    (state : State (before modulus.size payloadWidth) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
+    ((circuit modulus payloadWidth).execute Reference state).quantumMarginal =
+      preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+        (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+        (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+        (InputPreparation.preparation modulus).normalized Reference state.quantumMarginal := by
+  have zero : ((zeroCircuit modulus payloadWidth).execute Reference state).quantumMarginal =
+      preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+        (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+        (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+        (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).normalized
+        Reference state.quantumMarginal := by
+    change ((state.prepare auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+      (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+      (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+      (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size))).mapHistory
+        (fun record => (record.1.1, (record.1.2, record.2)))).quantumMarginal = _
+    rw [State.mapHistory_quantumMarginal, State.prepare_quantumMarginal,
+      prepareContext_quantumMarginal_eq_preparedDensity]
+  rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
+    Circuit.unitary_jointDensity, zero]
+  exact preparedDensity_load_ket auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
+    (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
+    (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
+    (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value
+    (InputPreparation.preparation modulus).value
+    (loadProgram modulus payloadWidth).matrix (loadProgram_seed modulus payloadWidth)
+    state.quantumMarginal
 
 private theorem auxiliary_space (width : Nat) :
     SpacePool.ofQuantumLayout (InputPreparation.auxiliaryLayout width) =

@@ -642,7 +642,7 @@ theorem computeGates_length :
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     ((liftAuxGates gates).map EncodedBit.GateSpec.cnotMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (PointAddition.PortFrame.liftAuxGates_map_event
       auxEncoding params.width gates)
 
@@ -760,7 +760,7 @@ private theorem selectedSubtractGates_cnotMultiplicity_sum :
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
           EncodedBit.GateSpec.cnotMultiplicity).sum := by
-  have hshared := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hshared := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       (ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit))
@@ -777,7 +777,7 @@ private theorem selectedSubtractGates_toffoliMultiplicity_sum :
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
           EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  have hshared := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hshared := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       (ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit))
@@ -822,7 +822,7 @@ private theorem liftedMultiplicationGates_cnotMultiplicity_sum :
       (ParameterizedPointAddition.Workspace.multiplicationGates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum := by
   rw [liftAuxGates_cnotMultiplicity_sum]
-  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
@@ -833,7 +833,7 @@ private theorem liftedMultiplicationGates_toffoliMultiplicity_sum :
       (ParameterizedPointAddition.Workspace.multiplicationGates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum := by
   rw [liftAuxGates_toffoliMultiplicity_sum]
-  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
@@ -844,7 +844,7 @@ private theorem liftedReverseMultiplicationGates_cnotMultiplicity_sum :
       (ParameterizedPointAddition.Workspace.multiplicationGates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum := by
   rw [liftAuxGates_cnotMultiplicity_sum, List.map_reverse, List.sum_reverse]
-  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
@@ -855,7 +855,7 @@ private theorem liftedReverseMultiplicationGates_toffoliMultiplicity_sum :
       (ParameterizedPointAddition.Workspace.multiplicationGates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum := by
   rw [liftAuxGates_toffoliMultiplicity_sum, List.map_reverse, List.sum_reverse]
-  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 

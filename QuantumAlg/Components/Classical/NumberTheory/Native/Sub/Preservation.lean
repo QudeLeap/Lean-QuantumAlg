@@ -23,44 +23,44 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.NativeSub
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Both real output instructions restore the complete borrowed interface in each selected fiber. -/
 theorem nativeSub_selected_borrowedRestored
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx) Reference History) :
-    (selected left right output value).BorrowedRestored Reference state
-      ((selected left right output value).execute Reference state) := by
+    (state : State (context ctx) Reference (model.HiddenState × History)) :
+    (selected (model := model) left right output value).BorrowedRestored Reference state
+      ((selected (model := model) left right output value).execute Reference state) := by
   cases value with
   | bit flag =>
       cases flag
-      · exact Circuit.borrowedRestored_classical (subtractOp left right output) state
-      · exact Circuit.borrowedRestored_classical (clearOp output) state
+      · exact Circuit.borrowedRestored_classical _ state
+      · exact Circuit.borrowedRestored_classical _ state
 
 /-- The real comparison and its true stored-value branch restore all borrowed correlations. -/
 theorem nativeSub_body_borrowedRestored (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State (context ctx) Reference History) :
-    (body left right output).BorrowedRestored Reference state
-      ((body left right output).execute Reference state) :=
-  Circuit.borrowedRestored_seq (.classical (compareOp left right))
-    (.branch (.storage (decision ctx).toCStorageRef) (selected left right output)) state
-    (Circuit.borrowedRestored_classical (compareOp left right) state)
-    (Circuit.borrowedRestored_branch (.storage (decision ctx).toCStorageRef)
-      (selected left right output) Reference
-      (fun value {_} _ initial =>
-        nativeSub_selected_borrowedRestored left right output value Reference initial) _)
+    {History : Type} [Fintype History] (state : State (context ctx) Reference (model.HiddenState ×
+      History)) :
+    (body (model := model) left right output).BorrowedRestored Reference state
+      ((body (model := model) left right output).execute Reference state) := by
+  apply Circuit.borrowedRestored_seq
+  · exact Circuit.borrowedRestored_classical _ state
+  · apply Circuit.borrowedRestored_branch
+    intro value _history _ current
+    exact nativeSub_selected_borrowedRestored left right output value Reference current
 
 /-- The one real lexical flag is released while all original borrowed systems return jointly. -/
 theorem nativeSub_into_borrowedRestored (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (into left right output).BorrowedRestored Reference state
-      ((into left right output).execute Reference state) :=
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) left right output).BorrowedRestored Reference state
+      ((into (model := model) left right output).execute Reference state) :=
   Circuit.borrowedRestored_workspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh
-    (body left right output) Reference
+    (body (model := model) left right output) Reference
     (fun {_} _ initial => nativeSub_body_borrowedRestored left right output Reference initial) state
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSub

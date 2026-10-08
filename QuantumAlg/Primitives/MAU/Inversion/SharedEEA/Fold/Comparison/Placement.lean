@@ -90,7 +90,7 @@ private theorem middle_width (width : Nat) :
 
 /-- Compose the actual focus relabeling, middle insertion, and Work1 prefix address maps. -/
 def nativePhysicalIndex (width index : Nat) : Nat :=
-  (width + 3) + UnitaryCircuit.insertMiddlePhysicalIndex (width + 3)
+  (width + 3) + UnitaryCircuit.binaryMiddleIndex (width + 3)
     (middleEncoding width).width (FoldComparisonFocus.physicalIndex (width + 3) index)
 
 /-- Every original native address agrees with the actual selected source-register coordinate. -/
@@ -98,7 +98,7 @@ theorem nativePhysicalIndex_eq (width : Nat) (index : Fin (width + 5)) :
     nativePhysicalIndex width index.val = FoldRegisters.physicalIndex width index.val := by
   have within := index.isLt
   unfold nativePhysicalIndex FoldComparisonFocus.physicalIndex
-    UnitaryCircuit.insertMiddlePhysicalIndex FoldRegisters.physicalIndex
+    UnitaryCircuit.binaryMiddleIndex FoldRegisters.physicalIndex
   rw [middle_width]
   split <;> split
   all_goals try split
@@ -136,20 +136,27 @@ private theorem packedIndex_encode (width : Nat) (state : Registers width) :
   ring
 
 private def rawFocus (width : Nat)
-    (body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width)) :
-    UnitaryCircuit (Qubits (packedEncoding width).width) :=
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (packedEncoding width).width).toQuantum :=
   UnitaryCircuit.prodRight (m := width + 3)
     (UnitaryCircuit.insertMiddle
       (leftWidth := width + 3) (middleWidth := (middleEncoding width).width)
       (rightWidth := 1 + 1) body)
 
 private theorem inserted_prefix_trace (width : Nat)
-    (body : UnitaryCircuit (Qubits ((width + 3) + (1 + 1)))) :
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical ((width + 3) + (1 + 1))).toQuantum) :
     (UnitaryCircuit.prodRight (m := width + 3)
       (UnitaryCircuit.insertMiddle (leftWidth := width + 3)
         (middleWidth := (middleEncoding width).width) (rightWidth := 1 + 1) body)).eventTrace =
       body.eventTrace := by
-  rw [UnitaryCircuit.prodRight_eventTrace, UnitaryCircuit.insertMiddle_eventTrace]
+  simp only [UnitaryCircuit.prodRight, UnitaryCircuit.insertMiddle,
+    UnitaryCircuit.onBinarySuffix, UnitaryCircuit.onBinaryMiddle,
+    UnitaryCircuit.embed_eventTrace, UnitaryCircuit.relabel_eventTrace]
+  exact UnitaryCircuit.relabel_eventTrace body
+    (UnitaryCircuit.binaryMiddleShift (width + 3) (middleEncoding width).width)
 
 private def rawStep {width : Nat}
     (action : FoldComparisonFocus.Data (width + 3) → FoldComparisonFocus.Data (width + 3))
@@ -158,29 +165,22 @@ private def rawStep {width : Nat}
   (state.1, ((result.1, state.2.1.2), result.2))
 
 private theorem rawFocus_realizes (width : Nat)
-    {body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width)}
+    {body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum}
     {action : FoldComparisonFocus.Data (width + 3) → FoldComparisonFocus.Data (width + 3)}
     (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body
       action) :
     UnitaryCircuit.Realizes (packedEncoding width) (rawFocus width body) (rawStep action) :=
-  (realizes.insertMiddle (middle := middleEncoding width)).prodRight
+  (realizes.onBinaryMiddle (middle := middleEncoding width)).onBinarySuffix
     (left := wordEncoding (width + 3))
-
-private theorem rawFocus_range (width : Nat)
-    (body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width))
-    (within : body.physical_idx ⊆ List.range ((width + 3) + (1 + 1))) :
-    (rawFocus width body).physical_idx ⊆ List.range (packedEncoding width).width := by
-  exact UnitaryCircuit.prodRight_physical_idx_subset_range
-    (UnitaryCircuit.insertMiddle (middleWidth := (middleEncoding width).width) body)
-    (UnitaryCircuit.insertMiddle_physical_idx_subset_range _ within)
 
 /-- Place an existing word/Iter/Ctrl program among the exact original spectator fields. -/
 def placeFocus (width : Nat)
-    (body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (UnitaryCircuit.reindex (packedIndex width) (rawFocus width body)).seq
-    (UnitaryCircuit.identity (Qubits (encoding width).width)
-      (List.range (encoding width).width) List.nodup_range)
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  UnitaryCircuit.castCanonicalQubitWidth (packed_width width) (rawFocus width body)
 
 /-- Named-field action of the actual program, keeping every complementary field unchanged. -/
 def focusStep {width : Nat}
@@ -193,51 +193,76 @@ def focusStep {width : Nat}
 
 /-- Actual tensor insertion and exact binary regrouping preserve the full certified action. -/
 theorem placeFocus_realizes (width : Nat)
-    {body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width)}
+    {body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum}
     {action : FoldComparisonFocus.Data (width + 3) → FoldComparisonFocus.Data (width + 3)}
     (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body
       action) :
     UnitaryCircuit.Realizes (encoding width) (placeFocus width body) (focusStep action) where
   apply_encoded_ket := by
     intro state
-    have raw := (rawFocus_realizes width realizes).apply_encoded_ket (packedEquiv width state)
-    have output : rawStep action (packedEquiv width state) =
-        packedEquiv width (focusStep action state) := by
+    let input := packedEquiv width state
+    let output := rawStep action input
+    have run := (rawFocus_realizes width realizes).apply_encoded_ket input
+    have result : output = packedEquiv width (focusStep action state) := by
       rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
         ⟨p1, p2, sign, iter⟩, control⟩
       rfl
-    rw [output] at raw
-    have placed := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-      (R := Qubits (packedEncoding width).width) (S := Qubits (encoding width).width)
-      (packedIndex width) (rawFocus width body) _ _ raw
-    rw [packedIndex_encode, packedIndex_encode] at placed
-    unfold placeFocus
-    rw [UnitaryCircuit.applyNormalized_seq, UnitaryCircuit.applyNormalized_identity]
-    exact placed
-
-/-- The actual physical footprint is the complete original frame, with no extra wire. -/
-theorem placeFocus_physical (width : Nat)
-    (body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width))
-    (within : body.physical_idx ⊆ List.range ((width + 3) + (1 + 1))) :
-    (placeFocus width body).physical_idx = List.range (encoding width).width := by
-  change UnitaryCircuit.unionPhysicalIdx (rawFocus width body).physical_idx
-    (List.range (encoding width).width) = _
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  simpa only [packed_width] using rawFocus_range width body within
+    have inputCast : packed_width width ▸ NormalizedVector.ket
+        ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
+          ((packedEncoding width).encode input)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode state)) := by
+      rw [UnitaryCircuit.castCanonicalQubitWidth_ket]
+      exact congrArg
+        (fun label => NormalizedVector.ket
+          ((QubitLayout.canonical (encoding width).width).basisEquiv.symm label))
+        (by simpa only [input, packedIndex, UnitaryCircuit.castQubitWidthIndex] using
+          packedIndex_encode width state)
+    have outputCast : packed_width width ▸ NormalizedVector.ket
+        ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
+          ((packedEncoding width).encode output)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (focusStep action state))) := by
+      rw [result, UnitaryCircuit.castCanonicalQubitWidth_ket]
+      exact congrArg
+        (fun label => NormalizedVector.ket
+          ((QubitLayout.canonical (encoding width).width).basisEquiv.symm label))
+        (by simpa only [packedIndex, UnitaryCircuit.castQubitWidthIndex] using
+          packedIndex_encode width (focusStep action state))
+    calc
+      _ = (placeFocus width body).applyNormalized
+          (packed_width width ▸ NormalizedVector.ket
+            ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
+              ((packedEncoding width).encode input))) :=
+        congrArg (placeFocus width body).applyNormalized inputCast.symm
+      _ = packed_width width ▸ (rawFocus width body).applyNormalized
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
+              ((packedEncoding width).encode input))) :=
+        UnitaryCircuit.castCanonicalQubitWidth_applyNormalized
+          (packed_width width) (rawFocus width body) _
+      _ = packed_width width ▸ NormalizedVector.ket
+          ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
+            ((packedEncoding width).encode output)) := congrArg (fun vector =>
+        packed_width width ▸ vector) run
+      _ = _ := outputCast
 
 /-- Spectator tensor insertion and regrouping retain every actual native event in order. -/
 theorem placeFocus_eventTrace (width : Nat)
-    (body : UnitaryCircuit (Qubits (FoldComparisonFocus.encoding (width + 3)).width)) :
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum) :
     (placeFocus width body).eventTrace = body.eventTrace := by
-  have empty : (UnitaryCircuit.identity (Qubits (encoding width).width)
-      (List.range (encoding width).width) List.nodup_range).eventTrace = [] := rfl
-  rw [placeFocus, UnitaryCircuit.seq_eventTrace, empty, List.append_nil,
-    UnitaryCircuit.reindex_eventTrace]
-  exact inserted_prefix_trace width body
+  exact (UnitaryCircuit.castCanonicalQubitWidth_eventTrace
+    (packed_width width) (rawFocus width body)).trans
+      (inserted_prefix_trace width body)
 
 /-- The same actual comparison occupies its original full canonical source frame. -/
 def program (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   placeFocus width (FoldComparisonFocus.program (width + 3) pivot)
 
 /-- Only Iter changes, by comparison with the actual Work2 value; every spectator is retained. -/
@@ -249,12 +274,6 @@ theorem program_realizes (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
       rintro ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
         ⟨p1, p2, sign, iter⟩, control⟩
       rfl)
-
-/-- The declared physical footprint is exactly the complete original encoding. -/
-theorem program_physical (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
-    (program width pivot).physical_idx = List.range (encoding width).width :=
-  placeFocus_physical width (FoldComparisonFocus.program (width + 3) pivot)
-    (FoldComparisonFocus.program_physical_range (width + 3) pivot)
 
 /-- Every actual native event is retained; adding untouched fields adds no arithmetic event. -/
 theorem program_eventTrace (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :

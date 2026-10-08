@@ -7,10 +7,11 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.BigOperators.Group.Finset.Defs
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Data.Fintype.Prod
+public import Mathlib.Algebra.Group.Defs
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Data.Fintype.Prod
 
 /-!
 # Formal circuit-history expressions with cost and depth evaluators
@@ -91,7 +92,7 @@ variable {U : Type} {M : Type} [AddCommMonoid M]
 `assign` valued in an additive commutative monoid.  Every composition adds;
 `iterate n` scales by `n`; an indexed product sums its start and step blocks;
 `inverse`/`controlled` pass through. -/
-def costEval (assign : U → M) : DepthExpr U → M
+public def costEval (assign : U → M) : DepthExpr U → M
   | .id => 0
   | .atom u => assign u
   | .seq l r => costEval assign l + costEval assign r

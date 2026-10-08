@@ -86,6 +86,23 @@ theorem physicalIndex_within {width : Nat} (window : Window width)
   ArithmeticWindowFullCoordinates.physicalIndex_within window
     ⟨operandSlots window.length index.val, operandSlots_within window index⟩
 
+/-- Reflect only the two operand intervals as a complete permutation of grouped wires. -/
+def operandWireEquiv {width : Nat} (window : Window width) :
+    Fin (groupedEncoding window).width ≃ Fin (groupedEncoding window).width where
+  toFun index := ⟨operandSlots window.length index.val, operandSlots_within window index⟩
+  invFun index := ⟨operandSlots window.length index.val, operandSlots_within window index⟩
+  left_inv index := Fin.ext (operandSlots_twice window.length index.val)
+  right_inv index := Fin.ext (operandSlots_twice window.length index.val)
+
+/-- Every coefficient-native wire is mapped through the proven original-frame bijection. -/
+def wireEquiv {width : Nat} (window : Window width) :
+    Fin (groupedEncoding window).width ≃ Fin (encoding width).width :=
+  (operandWireEquiv window).trans (ArithmeticWindowFullCoordinates.wireEquiv window)
+
+theorem wireEquiv_val {width : Nat} (window : Window width)
+    (index : Fin (groupedEncoding window).width) :
+    (wireEquiv window index).val = physicalIndex window index.val := rfl
+
 /-- TTK source bit `i` is physically the original Work1 coefficient bit `above + i`. -/
 theorem physicalIndex_source {width : Nat} (window : Window width) (index : Fin window.length) :
     physicalIndex window (window.length - 1 - index.val) = window.above + index.val := by

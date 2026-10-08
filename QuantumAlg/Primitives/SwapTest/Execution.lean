@@ -14,6 +14,10 @@ import all QuantumAlg.Core.Execution.Owned.Qubit.Prefix
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.State
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Execution.Owned.Qubit.Prefix.Coordinates
+import all QuantumAlg.Core.Execution.Measurement.Sequence
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 
 /-!
@@ -21,7 +25,7 @@ import all QuantumAlg.Core.Algorithm.AlgorithmRun
 
 Prepare the one leading control, execute the literal gate list, and write the
 actual Z outcome to the retained binary cell. The original two owned input
-words and the control all remain in Output [BCWdW01, main.tex:287-328].
+words and the control all remain in Output [BCWdW01, main.tex:287-329].
 -/
 
 namespace QuantumAlg.SwapTest
@@ -29,6 +33,9 @@ namespace QuantumAlg.SwapTest
 noncomputable section
 
 open Execution
+
+/-- Default native operations with no quantum or classical oracle access. -/
+public abbrev model : ExecutionModel := .quantum AlgorithmGate.model .empty
 
 /-- The two complete supplied owned words, before the internal control is prepared. -/
 @[reducible] public def pre (width : Nat) : RuntimeCtx .quantum :=
@@ -44,58 +51,96 @@ public def inputBasisEquiv (width : Nat) :
   HadamardTest.inputBasisEquiv (width + width)
 
 def nativeProgram (width : Nat) :
-    UnitaryCircuit (HadamardTest.prepared (width + width)).register :=
-  UnitaryCircuit.reindex (OwnedQubitPrefix.basisEquiv 1 (width + width)).symm
-    (sourceCircuit width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (HadamardTest.prepared (width + width)).quantumLayout :=
+  Execution.unitaryOfEqualWires (Gate.ControlledRegisterSwap.layout width)
+    (HadamardTest.prepared (width + width)).quantumLayout
+    (OwnedQubitPrefix.post_canonical_wires 1 (width + width)) (sourceCircuit width)
 
-theorem nativeProgram_placement (width : Nat) :
-    (nativeProgram width).physical_idx = (HadamardTest.prepared (width + width)).physicalIdx := by
-  change (sourceCircuit width).physical_idx = _
-  rw [sourceCircuit_physicalIdx, HadamardTest.prepared, OwnedQubitPrefix.post_physicalIdx]
-
-def beforeMeasurement (width : Nat) : Circuit (pre width) (post width) :=
-  .seq (OwnedQubitPrefix.prepareCode 1 (width + width))
-    (.seq (.unitary (nativeProgram width) (nativeProgram_placement width))
-      (.retain (HadamardTest.prepared (width + width)) ⟨2⟩ (.finite 2)
+def beforeMeasurement (width : Nat) : Circuit model (pre width) (post width) :=
+  .seq (OwnedQubitPrefix.prepareCode AlgorithmGate.model .empty 1 (width + width))
+    (.seq (.unitary (nativeProgram width))
+      (.retain (model := model) (HadamardTest.prepared (width + width)) ⟨2⟩ (.finite 2)
         (HadamardTest.resultFresh (width + width))))
 
-def code (width : Nat) : Circuit (pre width) (post width) :=
-  .seq (beforeMeasurement width) (HadamardTest.readoutCode (width + width))
+def readoutCode (width : Nat) : Circuit model (post width) (post width) :=
+  Circuit.measurementSequence [HadamardTest.readout (width + width)]
 
-def run (width : Nat) : AlgorithmRun (pre width) (post width) (.finite 2) where
+def code (width : Nat) : Circuit model (pre width) (post width) :=
+  .seq (beforeMeasurement width) (readoutCode width)
+
+def run (width : Nat) : AlgorithmRun model (pre width) (post width) (.finite 2) where
   code := code width
   output := Output.all (post width)
     (.read (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))
 
 /-- Only the complete native run is stored in the public algorithm. -/
-public def algorithm (width : Nat) : Algorithm .quantum (pre width) (post width) (.finite 2) :=
+public def algorithm (width : Nat) : Algorithm model (pre width) (post width) (.finite 2) :=
   ⟨run width⟩
 
 /-- Native and abstract source operators coincide in the exact actual physical coordinates. -/
 theorem nativeProgram_matrix (width : Nat) :
     (nativeProgram width).matrix =
       (HadamardTest.nativeProgram (swapRegistersOp width)).matrix := by
-  simp only [nativeProgram, HadamardTest.nativeProgram, UnitaryCircuit.reindex_matrix,
-    sourceCircuit_matrix, HadamardTest.sourceCircuit_matrix]
-  rfl
+  rw [HadamardTest.nativeProgram_matrix]
+  have physical : (sourceCircuit width).matrix =
+      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + (width + width))).symm
+        (swapTest width) := by
+    rw [← sourceCircuit_matrix]
+    exact (UnitaryOperator.unitaryOperator_reindex_cancel
+      (QuantumSignature.qubitsIndexEquiv (1 + (width + width)))
+      (sourceCircuit width).matrix).symm
+  rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, physical,
+    ← OwnedQubitPrefix.canonicalBasisEquiv_eq_basisEquiv]
+  exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _
+
+private theorem preparation_execute (width : Nat) {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    (OwnedQubitPrefix.prepareCode AlgorithmGate.model .empty 1 (width + width)).execute
+        Reference state =
+      (OwnedQubitPrefix.prepareCode AlgorithmGate.model
+        (UnitarySource.model (swapRegistersOp width) true) 1 (width + width)).execute
+          Reference state := rfl
 
 private theorem nativeProgram_execute (width : Nat) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State (HadamardTest.prepared (width + width)) Reference History) :
-    state.unitary (nativeProgram width) =
-      state.unitary (HadamardTest.nativeProgram (swapRegistersOp width)) := by
-  unfold State.unitary
-  rw [nativeProgram_matrix]
+    (state : State (HadamardTest.prepared (width + width)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
+    (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
+      (nativeProgram width)).execute Reference state =
+      (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
+        (HadamardTest.nativeProgram (swapRegistersOp width))).execute Reference state := by
+  rw [Circuit.execute_unitary, Circuit.execute_unitary, nativeProgram_matrix]
+
+private theorem beforeMeasurement_execute (width : Nat) {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    (beforeMeasurement width).execute Reference state =
+      (HadamardTest.beforeMeasurement (swapRegistersOp width)).execute Reference state := by
+  simp only [beforeMeasurement, HadamardTest.beforeMeasurement, Circuit.execute_seq,
+    Circuit.execute_retain]
+  rw [nativeProgram_execute, preparation_execute]
+  rfl
+
+private theorem readout_execute (width : Nat) {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State (post width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    (readoutCode width).execute Reference state =
+      (HadamardTest.readoutCode (swapRegistersOp width)).execute Reference state := rfl
 
 /-- The complete quantum/classical state equals the source experiment; actual event ledgers
 are derived separately from the elementary program. -/
 theorem code_execute (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre width) Reference History) :
+    (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     (code width).execute Reference state =
       (HadamardTest.code (swapRegistersOp width)).execute Reference state := by
-  simp only [code, beforeMeasurement, HadamardTest.code, HadamardTest.beforeMeasurement,
-    Circuit.execute_seq, Circuit.execute_unitary, nativeProgram_execute]
-  congr 1
+  simp only [code, HadamardTest.code, Circuit.execute_seq]
+  exact congrArg
+    (fun result => result.mapHistory
+      (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))))
+    ((congrArg ((readoutCode width).execute Reference)
+      (beforeMeasurement_execute width state)).trans (readout_execute width _))
 
 end
 

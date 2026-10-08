@@ -74,6 +74,10 @@ theorem relabel_eq_self {kind : ProblemKind} (entry : RuntimeEntry kind)
       have same : layout.relabel physical = layout := QuantumLayout.relabel_eq_self _ _ (by
         simpa only [physicalIdx, quantumWires, ← layout_identities_eq_map_wires] using fixedWires)
       exact congrArg₂ (fun key layout => RuntimeEntry.borrowedLayout key layout) fixedKey same
+  | suppliedLayout key layout =>
+      have same : layout.relabel physical = layout := QuantumLayout.relabel_eq_self _ _ (by
+        simpa only [physicalIdx, quantumWires, ← layout_identities_eq_map_wires] using fixedWires)
+      exact congrArg₂ (fun key layout => RuntimeEntry.suppliedLayout key layout) fixedKey same
   | ownedLayout key layout =>
       have same : layout.relabel physical = layout := QuantumLayout.relabel_eq_self _ _ (by
         simpa only [physicalIdx, quantumWires, ← layout_identities_eq_map_wires] using fixedWires)

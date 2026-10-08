@@ -20,6 +20,9 @@ with the unitary acting on their complete joint reference state
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
 noncomputable section
 
 open Execution
@@ -28,11 +31,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Observing actual classical stores commutes with their same fixed local unitary instruction. -/
 theorem unitary_store_filter {ctx : RuntimeCtx .quantum}
-    (program : UnitaryCircuit ctx.register) (placed : program.physical_idx = ctx.physicalIdx)
+    (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (predicate : Store ctx → Prop)
+    (state : State ctx Reference (services.HiddenState × History))
+    (predicate : Store ctx → Prop)
     [DecidablePred predicate] :
-    (ExecutionState.filterClassical ((Circuit.unitary program placed).execute Reference state)
+    (ExecutionState.filterClassical
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        program).execute Reference state)
       (fun entry => predicate entry.1)).quantumMarginal =
       DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
@@ -41,21 +47,21 @@ theorem unitary_store_filter {ctx : RuntimeCtx .quantum}
   let part := state.filterClassical (fun entry => predicate entry.1)
   apply DensityOperator.ext
   calc
-    _ = ∑ original : Store ctx × History,
+    _ = ∑ original : Store ctx × (services.HiddenState × History),
         if predicate original.1 then
           (DensityOperator.applyUnitary operator (state.block original)).matrix else 0 := by
       ext left right
       rw [ExecutionState.filterClassical_matrix_weighted, Circuit.execute_unitary]
-      simp only [State.unitary]
       refine (@ExecutionState.weightedMatrixEntry_mapClassical
-        (Store ctx × History) (Store ctx × (History × Unit)) _ _ _ _
+        (Store ctx × (services.HiddenState × History))
+        (Store ctx × (services.HiddenState × (History × Unit))) _ _ _ _
         (state.applyUnitary (fun _ => operator))
-        (fun value => (value.1, (value.2, ())))
+        (fun value => (value.1, (value.2.1, (value.2.2, ()))))
         (fun value => if predicate value.1 then (1 : ℂ) else 0) left right).trans ?_
       simp only [ExecutionState.weightedMatrixEntry,
         ExecutionState.applyUnitary_block, Matrix.sum_apply, Matrix.ite_apply, Matrix.zero_apply,
         ite_mul, one_mul, zero_mul, operator]
-    _ = ∑ original : Store ctx × History,
+    _ = ∑ original : Store ctx × (services.HiddenState × History),
         (DensityOperator.applyUnitary operator (part.block original)).matrix := by
       apply Finset.sum_congr rfl
       intro original _

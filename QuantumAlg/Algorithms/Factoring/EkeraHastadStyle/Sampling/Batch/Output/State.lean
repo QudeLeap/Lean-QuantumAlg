@@ -40,7 +40,8 @@ def restoredSeed : (context base noQuantum N).register.Index :=
 /-- Every complete output-reference matrix block has the actual bank seed and source probability. -/
 theorem nativeBatch_output_joint_entry (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (selected : (resultShape N).Value)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (selected : (resultShape N).Value)
     (left right : (context base noQuantum N).register.Index)
     (leftRef rightRef : Reference.Index) :
     ((((code base noQuantum N).execute Reference state).mapClassical

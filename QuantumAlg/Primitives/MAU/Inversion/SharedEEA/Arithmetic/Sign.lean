@@ -84,22 +84,28 @@ theorem coefficientGates_step (width : Nat) (state : Registers width) :
   cases first <;> cases sign <;> rfl
 
 /-- Compile exactly the remainder Sign mask/Toffoli/inverse-mask list. -/
-def remainderProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (remainderGates width)
+def remainderProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (remainderGates width)
 
 /-- Compile exactly the coefficient Sign CNOT. -/
-def coefficientProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (coefficientGates width)
+def coefficientProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (coefficientGates width)
 
 /-- Exact whole-frame basis amplitudes of the actual remainder Sign program. -/
 theorem remainderProgram_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (remainderProgram width) remainderStep :=
-  GateSpec.realizesList_congrStep _ (remainderGates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (remainderGates width) (remainderGates_step width)
 
 /-- Exact whole-frame basis amplitudes of the actual coefficient Sign program. -/
 theorem coefficientProgram_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (coefficientProgram width) coefficientStep :=
-  GateSpec.realizesList_congrStep _ (coefficientGates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (coefficientGates width) (coefficientGates_step width)
 
 /-- Remainder Sign changes never alter the original Ctrl. -/
 theorem remainderStep_control {width : Nat} (state : Registers width) :
@@ -124,25 +130,25 @@ theorem coefficientGates_inverse (width : Nat) (state : Registers width) :
 /-- Every input emits the actual X/Toffoli/X trace, including inactive phase inputs. -/
 theorem remainderProgram_eventTrace (width : Nat) :
     (remainderProgram width).eventTrace =
-      [.gate (.builtin "x"), .gate (.builtin "toffoli"), .gate (.builtin "x")] := by
+      [.gate .singleQubit, .gate .toffoli, .gate .singleQubit] := by
   rw [remainderProgram, GateSpec.programList_eventTrace]
   rfl
 
 /-- Every input emits the actual single CNOT event. -/
 theorem coefficientProgram_eventTrace (width : Nat) :
-    (coefficientProgram width).eventTrace = [.gate (.builtin "cnot")] := by
+    (coefficientProgram width).eventTrace = [.gate .cnot] := by
   rw [coefficientProgram, GateSpec.programList_eventTrace]
   rfl
 
 /-- Actual strict sequential unit depth includes both negative-control mask gates. -/
 theorem remainderProgram_unitDepth (width : Nat) :
     (remainderProgram width).evaluatedEventDepth (fun _ => 1) = 3 :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 /-- Actual unit depth of the coefficient Sign CNOT. -/
 theorem coefficientProgram_unitDepth (width : Nat) :
     (coefficientProgram width).evaluatedEventDepth (fun _ => 1) = 1 :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

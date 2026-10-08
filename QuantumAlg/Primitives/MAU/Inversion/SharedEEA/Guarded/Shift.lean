@@ -72,22 +72,29 @@ private def lastStep {width : Nat} (selected : Bool) (state : Registers width) :
   if state.control ^^ PhaseGuard.descendingPredicate selected state then descending state else state
 
 private def firstProgram (width : Nat) (selected : Bool) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (GateSpec.programList (PhaseGuard.firstGates width selected)).seq
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (GateSpec.programList (QubitLayout.canonical _) .empty
+    (PhaseGuard.firstGates width selected)).seq
     ((ControlledShift.leftProgram width).seq
-      (GateSpec.programList (PhaseGuard.firstGates width selected).reverse))
+      (GateSpec.programList (QubitLayout.canonical _) .empty
+        (PhaseGuard.firstGates width selected).reverse))
 
 private def lastProgram (width : Nat) (selected : Bool) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (GateSpec.programList (PhaseGuard.descendingGates width selected)).seq
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (GateSpec.programList (QubitLayout.canonical _) .empty
+    (PhaseGuard.descendingGates width selected)).seq
     (((ControlledShift.rightProgram width).seq (ControlledShift.rightProgram width)).seq
-      (GateSpec.programList (PhaseGuard.descendingGates width selected).reverse))
+      (GateSpec.programList (QubitLayout.canonical _) .empty
+        (PhaseGuard.descendingGates width selected).reverse))
 
 private theorem first_realizes (width : Nat) (selected : Bool) :
     UnitaryCircuit.Realizes (encoding width) (firstProgram width selected) (firstStep selected) :=
   ((PhaseGuard.first_realizes width selected).seq
     ((ControlledShift.left_realizes width).seq
-      (GateSpec.realizesList_congrStep (PhaseGuard.firstGates width selected).reverse
+      (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+        (PhaseGuard.firstGates width selected).reverse
         (PhaseGuard.first_reverse_step width selected)))).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -98,7 +105,8 @@ private theorem last_realizes (width : Nat) (selected : Bool) :
     UnitaryCircuit.Realizes (encoding width) (lastProgram width selected) (lastStep selected) :=
   ((PhaseGuard.descending_realizes width selected).seq
     (((ControlledShift.right_realizes width).seq (ControlledShift.right_realizes width)).seq
-      (GateSpec.realizesList_congrStep (PhaseGuard.descendingGates width selected).reverse
+      (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+        (PhaseGuard.descendingGates width selected).reverse
         (PhaseGuard.descending_reverse_step width selected)))).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -106,7 +114,9 @@ private theorem last_realizes (width : Nat) (selected : Bool) :
     cases selected <;> cases p1 <;> cases p2 <;> cases control <;> rfl)
 
 /-- Execute both source shift stages and their actual inverse predicate cleanup. -/
-def program (width : Nat) (selected : Bool) : UnitaryCircuit (Qubits (encoding width).width) :=
+def program (width : Nat) (selected : Bool) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   (firstProgram width selected).seq (lastProgram width selected)
 
 /-- Complete actual state action, including arbitrary incoming Ctrl and finite-counter wrap. -/
@@ -153,10 +163,12 @@ theorem step_eq_source (width : Nat) (selected : Bool) (state : Registers width)
 theorem program_prepared (width : Nat) (selected : Bool) (state : Registers width)
     (preparedControl : state.control = false) :
     (program width selected).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding width).width)
-          ((encoding width).encode state)) =
-      NormalizedVector.ket (R := Qubits (encoding width).width)
-        ((encoding width).encode (sourceStep selected state)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+            ((encoding width).encode state))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (sourceStep selected state))) := by
   have actual := (program_realizes width selected).apply_encoded_ket state
   rw [step_eq_source width selected state preparedControl] at actual
   exact actual
@@ -164,13 +176,13 @@ theorem program_prepared (width : Nat) (selected : Bool) (state : Registers widt
 /-- The literal event trace retains every predicate, arithmetic pair, and inverse cleanup. -/
 theorem program_eventTrace (width : Nat) (selected : Bool) :
     (program width selected).eventTrace =
-      (PhaseGuard.firstGates width selected).map GateSpec.event ++
+      (PhaseGuard.firstGates width selected).map (GateSpec.event .empty) ++
       (ControlledShift.leftProgram width).eventTrace ++
-      (PhaseGuard.firstGates width selected).reverse.map GateSpec.event ++
-      (PhaseGuard.descendingGates width selected).map GateSpec.event ++
+      (PhaseGuard.firstGates width selected).reverse.map (GateSpec.event .empty) ++
+      (PhaseGuard.descendingGates width selected).map (GateSpec.event .empty) ++
       (ControlledShift.rightProgram width).eventTrace ++
       (ControlledShift.rightProgram width).eventTrace ++
-      (PhaseGuard.descendingGates width selected).reverse.map GateSpec.event := by
+      (PhaseGuard.descendingGates width selected).reverse.map (GateSpec.event .empty) := by
   simp only [program, firstProgram, lastProgram, UnitaryCircuit.seq_eventTrace,
     GateSpec.programList_eventTrace, List.append_assoc]
 

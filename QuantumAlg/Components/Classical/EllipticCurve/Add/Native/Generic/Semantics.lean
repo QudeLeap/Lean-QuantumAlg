@@ -42,14 +42,20 @@ structure GenericSeparation
   numerator : ∀ input ∈ [leftX, leftY, rightX, rightY], numerator.key ∉ input.storageKeys
   denominator : ∀ input ∈ [leftX, leftY, rightX, rightY], denominator.key ∉ input.storageKeys
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Both actual prefix results and the total affine result appear in the complete returned Store. -/
 theorem genericBodyStep_store (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (separate : GenericSeparation leftX leftY rightX rightY numerator denominator)
-    (store : Store ctx) :
-    (genericBodyStep spec leftX leftY rightX rightY numerator denominator output store).1 =
+    (store : Store ctx) (hidden : model.HiddenState) :
+    (genericBodyStep spec leftX leftY rightX rightY numerator denominator output
+      (store, hidden)).1.1 =
       ((store.write numerator (Field.Native.subtractionWord spec
         (store.read rightY) (store.read leftY))).write denominator
           (Field.Native.subtractionWord spec (store.read rightX) (store.read leftX))).write output
@@ -64,6 +70,7 @@ theorem genericBodyStep_store (spec : ModulusSpec width)
   have dr := separate.denominator rightX (by simp)
   have dn := Ne.symm separate.distinct
   rw [genericBodyStep, Circuit.sequenceRecord_store, Circuit.sequenceRecord_store]
+  dsimp only [Circuit.preserveHiddenRecord]
   rw [Field.Native.subIntoWordStep_store, Field.Native.subIntoWordStep_store, affineIntoStep_store]
   simp only [classifierRead, Store.read_write_same,
     Store.read_write_of_not_mem_storageKeys _ numerator _ leftX nx,
@@ -73,6 +80,8 @@ theorem genericBodyStep_store (spec : ModulusSpec width)
     Store.read_write_of_not_mem_storageKeys _ denominator _ leftY dy,
     Store.read_write_of_not_mem_storageKeys _ denominator _ rightX dr,
     Store.read_write_other _ denominator numerator.toCStorageRef _ dn]
+
+end
 
 private theorem genericCells_distinct (cells : Cells ctx (genericShapes width))
     (distinct : cells.Distinct) : cells.tail.head.ref.key ≠ cells.head.ref.key := by
@@ -134,20 +143,29 @@ private theorem genericCells_separation {outer : RuntimeCtx kind}
     subst input
     exact genericCells_denominator_avoids cells transport separated rightY
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual allocation supplies all prefix conditions and returns the sole original caller write. -/
 theorem genericInto_completeRecord (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store ctx × (genericInto spec left right output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) ×
+          (genericInto (model := model) spec left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (genericInto spec left right output).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (genericInto (model := model) spec left right output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ store : Store ctx, (record store).1 = store.write output
-        (genericOutputValue spec (store.read left) (store.read right)) := by
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = before.1.write output
+          (genericOutputValue spec (before.1.read left) (before.1.read right)) := by
   apply withCells_actualRecord_initialized_post ctx (genericShapes width)
-    (fun cells _ transport _ => genericBody spec
+    (fun cells _ transport _ => genericBody (model := model) spec
       (transport.liftInput (.first (.second left)))
       (transport.liftInput (.second (.second left)))
       (transport.liftInput (.first (.second right)))
@@ -163,7 +181,7 @@ theorem genericInto_completeRecord (spec : ModulusSpec width)
   let denominator := Field.Native.subtractionWord spec (source.read right).second.first
     (source.read left).second.first
   have prefixReads : transport.ReadsAs source
-      ((before.write cells.tail.head.ref numerator).write cells.head.ref denominator) := by
+      ((before.1.write cells.tail.head.ref numerator).write cells.head.ref denominator) := by
     intro shape input
     rw [Store.read_write_of_not_mem_storageKeys _ cells.head.ref _
       (transport.liftInput input)
@@ -185,26 +203,32 @@ theorem genericInto_completeRecord (spec : ModulusSpec width)
 def genericIntoStep (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) :
-    Store ctx → Store ctx × (genericInto spec left right output).Path :=
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (genericInto (model := model) spec left right output).Path :=
   Classical.choose (genericInto_completeRecord spec left right output)
 
 /-- Actual reference-preserving generic execution follows that same complete native record. -/
 theorem genericInto_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (genericInto spec left right output).execute Reference state = state.mapClassical (fun entry =>
-      ((genericIntoStep spec left right output entry.1).1,
-        (entry.2, (genericIntoStep spec left right output entry.1).2))) :=
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (genericInto (model := model) spec left right output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := genericIntoStep spec left right output (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (genericInto_completeRecord spec left right output)).1 Reference state
 
 /-- The actual generic return changes precisely the chosen nominal result cell. -/
 theorem genericIntoStep_store (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
-    (output : CWriteRef ctx (PointShape width)) (store : Store ctx) :
-    (genericIntoStep spec left right output store).1 =
+    (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
+    (hidden : model.HiddenState) :
+    (genericIntoStep spec left right output (store, hidden)).1.1 =
       store.write output (genericOutputValue spec (store.read left) (store.read right)) :=
-  (Classical.choose_spec (genericInto_completeRecord spec left right output)).2 store
+  (Classical.choose_spec (genericInto_completeRecord spec left right output)).2 (store, hidden)
+
+end
 
 end
 

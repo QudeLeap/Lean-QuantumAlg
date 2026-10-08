@@ -7,7 +7,8 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Program
-import all QuantumAlg.Components.Encoded.BitGates.Control
+import all QuantumAlg.Components.Encoded.BitGates.Controlled.Product
+import all QuantumAlg.Components.Encoded.BitGates.Controlled.Small
 import all QuantumAlg.Util.Nat.FixedWidth.Unit.Exponentiation
 
 /-!
@@ -26,6 +27,7 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 noncomputable section
 
 open QuantumAlg.Nat.FixedWidth.UnitExponentiation Nat.FixedWidth
+open EncodedBit GateSpec
 
 /-- The complete exponent, current power, and shared multiplication auxiliary words. -/
 abbrev Registers (exponentWidth width : Nat) :=
@@ -47,6 +49,10 @@ theorem gidneyExponentBit_get (exponentWidth : Nat) (bit : Fin exponentWidth)
   change exponent.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
+private theorem exponentBits_wire (exponentWidth : Nat)
+    (position : Fin (BinaryLabelEncoding.finIdentity exponentWidth).width) :
+    (BinaryLabelEncoding.finIdentityBit exponentWidth position).wire = position := rfl
+
 /-- Independent total two-word action selected by the unchanged exponent bit. -/
 def stageOutput {exponentWidth width : Nat} (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth)
@@ -54,28 +60,71 @@ def stageOutput {exponentWidth width : Nat} (modulus : Fin (2 ^ width + 1))
   (state.1, if state.1.val.testBit bit.val then
     unitMultiplicationPairEquiv modulus (stageUnit base bit) state.2 else state.2)
 
-/-- Coherently control the actual multiplier without allocating a separate control bit. -/
+/-- Every multiplier wire has its original encoded position in the two-word body. -/
+private def bodyBits (width : Nat) :
+    Fin (Multiplication.Accumulate.Gidney.encoding width).width →
+      EncodedBit (Multiplication.Accumulate.Gidney.encoding width) :=
+  productBit (BinaryLabelEncoding.finIdentityBit width)
+    (BinaryLabelEncoding.finIdentityBit width)
+
+private theorem bodyBits_wire (width : Nat)
+    (position : Fin (Multiplication.Accumulate.Gidney.encoding width).width) :
+    (bodyBits width position).wire = position :=
+  productBit_wire (left := BinaryLabelEncoding.finIdentity width)
+    (right := BinaryLabelEncoding.finIdentity width)
+    (BinaryLabelEncoding.finIdentityBit width)
+    (BinaryLabelEncoding.finIdentityBit width) (fun _ => rfl) (fun _ => rfl) position
+
+/-- Control the literal multiplier gates using only the exponent and existing word wires. -/
+def stageGates (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
+    (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth) :
+    List (GateSpec
+      (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity exponentWidth)
+        (Multiplication.Accumulate.Gidney.encoding width))) :=
+  if small : width ≤ 1 then
+    (Multiplication.Gidney.gates width modulus (stageUnit base bit)).map
+      (controlSmall (exponentBit exponentWidth bit)
+        (by change width + width ≤ 2; omega))
+  else
+    controlRightList (BinaryLabelEncoding.finIdentityBit exponentWidth) (bodyBits width)
+      (exponentBits_wire exponentWidth) (bodyBits_wire width)
+      (by
+        have positive := bit.isLt
+        change 5 ≤ exponentWidth + (width + width)
+        omega)
+      (exponentBit exponentWidth bit)
+      (Multiplication.Gidney.gates width modulus (stageUnit base bit))
+
+/-- Both control branches retain the complete exponent and the multiplier's joint action. -/
+theorem gidneyExponentStageGates_step (exponentWidth width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
+    (bit : Fin exponentWidth) (state : Registers exponentWidth width) :
+    stepList (stageGates exponentWidth width modulus base bit) state =
+      stageOutput modulus base bit state := by
+  by_cases small : width ≤ 1
+  · simp only [stageGates, dif_pos small]
+    rw [controlSmallList_step, Multiplication.Gidney.gidneyUnitMultiplicationGates_step,
+      gidneyExponentBit_get]
+    rfl
+  · simp only [stageGates, dif_neg small]
+    rw [controlRightList_step, Multiplication.Gidney.gidneyUnitMultiplicationGates_step,
+      gidneyExponentBit_get]
+    rfl
+
+/-- Actual native selected-power stage on the original exponent and two-word carrier. -/
 def stageProgram (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth) :
-    UnitaryCircuit (Qubits (encoding exponentWidth width).width) :=
-  UnitaryCircuit.controlAtEncodedBit (exponentBit exponentWidth bit)
-    (Multiplication.Gidney.program width modulus (stageUnit base bit))
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding exponentWidth width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (stageGates exponentWidth width modulus base bit)
 
-/-- Exact all-label action includes both the selected and unselected coherent branches. -/
+/-- Exact all-label action includes both selected and unselected coherent branches. -/
 theorem gidneyExponentStage_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth) :
     UnitaryCircuit.Realizes (encoding exponentWidth width)
-      (stageProgram exponentWidth width modulus base bit) (stageOutput modulus base bit) where
-  apply_encoded_ket := by
-    rintro ⟨exponent, state⟩
-    have actual := UnitaryCircuit.controlAtEncodedBit_applyNormalized_of_eq
-      (exponentBit exponentWidth bit) (Multiplication.Accumulate.Gidney.encoding width)
-      (Multiplication.Gidney.program width modulus (stageUnit base bit))
-      state (unitMultiplicationPairEquiv modulus (stageUnit base bit) state)
-      ((Multiplication.Gidney.gidneyUnitMultiplication_realizes width modulus
-        (stageUnit base bit)).apply_encoded_ket state) exponent
-    rw [gidneyExponentBit_get] at actual
-    exact actual
+      (stageProgram exponentWidth width modulus base bit) (stageOutput modulus base bit) :=
+  realizesList_congrStep _ _ _
+    (gidneyExponentStageGates_step exponentWidth width modulus base bit)
 
 /-- Each canonical selected stage restores the same zero auxiliary word exactly. -/
 theorem gidneyExponentStage_clean (exponentWidth width : Nat)
@@ -84,12 +133,17 @@ theorem gidneyExponentStage_clean (exponentWidth width : Nat)
     (exponent : Fin (2 ^ exponentWidth)) (power : Fin (2 ^ width))
     (valid : power.val < modulus.val) :
     (stageProgram exponentWidth width modulus base bit).applyNormalized
-        (NormalizedVector.ket ((encoding exponentWidth width).encode (exponent, power, 0))) =
-      NormalizedVector.ket ((encoding exponentWidth width).encode
-        (exponent, if exponent.val.testBit bit.val then
-          unitProductWord modulus positive (stageUnit base bit) power else power, 0)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+            ((encoding exponentWidth width).encode (exponent, power, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+          ((encoding exponentWidth width).encode
+            (exponent, if exponent.val.testBit bit.val then
+              unitProductWord modulus positive (stageUnit base bit) power else power, 0))) := by
   rw [(gidneyExponentStage_realizes exponentWidth width modulus base bit).apply_encoded_ket]
   apply congrArg NormalizedVector.ket
+  apply congrArg (QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
   apply congrArg (encoding exponentWidth width).encode
   unfold stageOutput
   cases selected : exponent.val.testBit bit.val
@@ -97,24 +151,17 @@ theorem gidneyExponentStage_clean (exponentWidth width : Nat)
   · simp only [if_true,
       unitMultiplicationPairEquiv_clean modulus positive (stageUnit base bit) power valid]
 
-theorem gidneyExponentStage_physical_range (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth) :
-    (stageProgram exponentWidth width modulus base bit).physical_idx ⊆
-      List.range (exponentWidth + 2 * width) := by
-  have body : (Multiplication.Gidney.program width modulus (stageUnit base bit)).physical_idx ⊆
-      List.range (Multiplication.Accumulate.Gidney.encoding width).width := by
-    rw [Multiplication.Gidney.gidneyUnitMultiplication_physical]
-    change List.range (2 * width) ⊆ List.range (width + width)
-    simpa only [Nat.two_mul] using (List.Subset.refl (List.range (width + width)))
-  have placed := UnitaryCircuit.controlAtEncodedBit_physical_idx_subset_range
-    (exponentBit exponentWidth bit)
-    (Multiplication.Gidney.program width modulus (stageUnit base bit)) body
-  have size : (BinaryLabelEncoding.finIdentity exponentWidth).width +
-      (Multiplication.Accumulate.Gidney.encoding width).width = exponentWidth + 2 * width := by
-    change exponentWidth + (width + width) = exponentWidth + 2 * width
+/-- The complete source layout has the exponent and the original two words. -/
+theorem gidneyExponentStage_interface (exponentWidth width : Nat) :
+    (encoding exponentWidth width).width = exponentWidth + 2 * width ∧
+      (QubitLayout.canonical (encoding exponentWidth width).width).systemIdx =
+        List.range (exponentWidth + 2 * width) := by
+  constructor
+  · change exponentWidth + (width + width) = exponentWidth + 2 * width
     omega
-  unfold stageProgram
-  simpa only [size] using placed
+  · rw [(show (encoding exponentWidth width).width = exponentWidth + 2 * width from
+        by change exponentWidth + (width + width) = _; omega)]
+    exact QubitLayout.canonical_systemIdx _
 
 end
 

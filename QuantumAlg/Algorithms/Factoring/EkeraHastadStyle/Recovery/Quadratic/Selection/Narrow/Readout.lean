@@ -85,6 +85,9 @@ theorem nativeQuadratic_narrow_resize_read (candidate : CInputRef ctx (.unsigned
       CShape.wordOfNat width (store.read (underRead candidate width)).toNat :=
   Store.read_applyOp_output store (resizeOp candidate width)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Narrowing never overwrites an earlier factor; otherwise the actual first eligible word wins. -/
 theorem nativeQuadratic_narrow_latches (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
@@ -124,7 +127,8 @@ theorem nativeQuadratic_narrow_latches (eligible : CInputRef ctx .bit)
         CShape.wordOfNat width value.toNat)
         (Store.read_pushWorkspace_underWorkspace store ctx.canonicalFreshKey
           (.unsignedWord width) ctx.canonicalFreshKey_fresh candidate))
-  have actual := FirstAccepted.firstAccepted_latches (inputs eligible width) (refs original)
+  have actual := FirstAccepted.firstAccepted_latches (model := model)
+    (inputs eligible width) (refs original)
     (nativeQuadratic_narrow_separated eligible original separated) resized
   have acceptedExit := congrArg CShape.Value.toBool
     (Store.read_popWorkspace_underWorkspace ctx.canonicalFreshKey (.unsignedWord width)

@@ -6,20 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
+import all QuantumAlg.Components.Encoded.Circuit
 import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
-import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
-import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
-import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
-import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
-import all QuantumAlg.Components.Encoded.BitGates.Realization
 
 /-!
 # Encoded-word xor by a classical constant
@@ -40,6 +31,7 @@ namespace EncodedBit
 namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Indices of the set bits of a fixed-width classical constant. -/
 def constantOneIndices (constant : Fin (2 ^ width)) : List (Fin width) :=
@@ -123,15 +115,8 @@ theorem xorConstantGates_toffoliMultiplicity_sum
 
 /-- Base-gate program that xors a classical constant into an encoded word. -/
 def xorConstantProgram (target : Word encoding width)
-    (constant : Fin (2 ^ width)) : UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (xorConstantGates target constant)
-
-/-- A constant word-xor program uses only wires of its shared encoding. -/
-theorem xorConstantProgram_physical_idx_subset_range
-    (target : Word encoding width) (constant : Fin (2 ^ width)) :
-    (xorConstantProgram target constant).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
+    (constant : Fin (2 ^ width)) : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (xorConstantGates target constant)
 
 /-- Semantic action of constant xor. -/
 def xorConstantStep (target : Word encoding width)
@@ -266,15 +251,15 @@ theorem xorConstantStep_get_observed_of_target_ne
 theorem xorConstant_realizes (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes encoding
-      (xorConstantProgram target constant) (xorConstantStep target constant) :=
-  GateSpec.realizesList (xorConstantGates target constant)
+      (xorConstantProgram physical oracles target constant) (xorConstantStep target constant) :=
+  GateSpec.realizesList physical oracles (xorConstantGates target constant)
 
 /-- Direct realization proof for uncontrolled constant xor. -/
 theorem xorConstantWitness (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes encoding (xorConstantProgram target constant)
+    UnitaryCircuit.Realizes encoding (xorConstantProgram physical oracles target constant)
       (xorConstantStep target constant) :=
-  xorConstant_realizes target constant
+  xorConstant_realizes physical oracles target constant
 
 /-! ### Uncontrolled unload -/
 
@@ -285,8 +270,8 @@ def xorConstantUnloadGates (target : Word encoding width)
 
 /-- Base-gate program for unloading an uncontrolled constant. -/
 def xorConstantUnloadProgram (target : Word encoding width)
-    (constant : Fin (2 ^ width)) : UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (xorConstantUnloadGates target constant)
+    (constant : Fin (2 ^ width)) : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (xorConstantUnloadGates target constant)
 
 /-- Folded reverse-list semantics for unloading an uncontrolled constant. -/
 def xorConstantUnloadStep (target : Word encoding width)
@@ -296,16 +281,16 @@ def xorConstantUnloadStep (target : Word encoding width)
 theorem xorConstantUnload_realizes (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes encoding
-      (xorConstantUnloadProgram target constant)
+      (xorConstantUnloadProgram physical oracles target constant)
       (xorConstantUnloadStep target constant) :=
-  GateSpec.realizesList (xorConstantUnloadGates target constant)
+  GateSpec.realizesList physical oracles (xorConstantUnloadGates target constant)
 
 /-- Direct realization proof for reverse-list uncontrolled unloading. -/
 theorem xorConstantUnloadWitness (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes encoding (xorConstantUnloadProgram target constant)
+    UnitaryCircuit.Realizes encoding (xorConstantUnloadProgram physical oracles target constant)
       (xorConstantUnloadStep target constant) :=
-  xorConstantUnload_realizes target constant
+  xorConstantUnload_realizes physical oracles target constant
 
 /-- Uncontrolled unload preserves every readout outside the target word. -/
 theorem xorConstantUnloadStep_get_observed_of_target_ne
@@ -384,19 +369,9 @@ def controlledXorConstantGates (control : EncodedBit encoding)
 def controlledXorConstantProgram (control : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledXorConstantGates control target constant hcontrolTarget)
-
-/-- A controlled constant word-xor program uses only wires of its shared
-encoding. -/
-theorem controlledXorConstantProgram_physical_idx_subset_range
-    (control : EncodedBit encoding) (target : Word encoding width)
-    (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
-    (controlledXorConstantProgram control target constant hcontrolTarget).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
 
 /-- A controlled constant xor contains at most one CNOT per target bit. -/
 theorem controlledXorConstantGates_length_le_width
@@ -547,9 +522,9 @@ theorem controlledXorConstant_realizes
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorConstantProgram control target constant hcontrolTarget)
+      (controlledXorConstantProgram physical oracles control target constant hcontrolTarget)
       (controlledXorConstantStep control target constant hcontrolTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledXorConstantGates control target constant hcontrolTarget)
 
 /-- Direct realization proof for singly controlled constant xor. -/
@@ -558,9 +533,9 @@ theorem controlledXorConstantWitness
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorConstantProgram control target constant hcontrolTarget)
+      (controlledXorConstantProgram physical oracles control target constant hcontrolTarget)
       (controlledXorConstantStep control target constant hcontrolTarget) :=
-  controlledXorConstant_realizes control target constant hcontrolTarget
+  controlledXorConstant_realizes physical oracles control target constant hcontrolTarget
 
 /-! ### Singly controlled unload -/
 
@@ -575,19 +550,9 @@ def controlledXorConstantUnloadGates (control : EncodedBit encoding)
 def controlledXorConstantUnloadProgram (control : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledXorConstantUnloadGates control target constant hcontrolTarget)
-
-/-- A reverse controlled constant word-xor program uses only wires of its
-shared encoding. -/
-theorem controlledXorConstantUnloadProgram_physical_idx_subset_range
-    (control : EncodedBit encoding) (target : Word encoding width)
-    (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
-    (controlledXorConstantUnloadProgram control target constant
-      hcontrolTarget).physical_idx ⊆ List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
 
 /-- Folded reverse-list semantics for singly controlled unloading. -/
 def controlledXorConstantUnloadStep (control : EncodedBit encoding)
@@ -602,9 +567,9 @@ theorem controlledXorConstantUnload_realizes
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorConstantUnloadProgram control target constant hcontrolTarget)
+      (controlledXorConstantUnloadProgram physical oracles control target constant hcontrolTarget)
       (controlledXorConstantUnloadStep control target constant hcontrolTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledXorConstantUnloadGates control target constant hcontrolTarget)
 
 /-- Direct realization proof for reverse-list singly controlled unloading. -/
@@ -613,11 +578,11 @@ theorem controlledXorConstantUnloadWitness
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledXorConstantUnloadProgram control target constant
+      (controlledXorConstantUnloadProgram physical oracles control target constant
         hcontrolTarget)
       (controlledXorConstantUnloadStep control target constant
         hcontrolTarget) :=
-  controlledXorConstantUnload_realizes control target constant hcontrolTarget
+  controlledXorConstantUnload_realizes physical oracles control target constant hcontrolTarget
 
 /-- Singly controlled unload preserves readouts outside the target word. -/
 theorem controlledXorConstantUnloadStep_get_observed_of_target_ne
@@ -749,8 +714,8 @@ def constantScheduleProgram (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (constantScheduleGates control zeroControl target constant
       hcontrolTarget hzeroTarget)
 
@@ -770,11 +735,11 @@ theorem constantSchedule_realizes (control zeroControl : EncodedBit encoding)
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (constantScheduleProgram control zeroControl target constant
+      (constantScheduleProgram physical oracles control zeroControl target constant
         hcontrolTarget hzeroTarget)
       (constantScheduleStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (constantScheduleGates control zeroControl target constant
       hcontrolTarget hzeroTarget)
 
@@ -784,11 +749,11 @@ theorem constantScheduleWitness (control zeroControl : EncodedBit encoding)
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (constantScheduleProgram control zeroControl target constant
+      (constantScheduleProgram physical oracles control zeroControl target constant
         hcontrolTarget hzeroTarget)
       (constantScheduleStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  constantSchedule_realizes control zeroControl target constant
+  constantSchedule_realizes physical oracles control zeroControl target constant
     hcontrolTarget hzeroTarget
 
 /-- Each fixed-schedule bit block has exactly three gates. -/
@@ -824,9 +789,9 @@ private theorem constantScheduleBitGates_events_eq
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire)
     (bit : Fin width) :
     (constantScheduleBitGates control zeroControl target left
-        hcontrolTarget hzeroTarget bit).map GateSpec.event =
+        hcontrolTarget hzeroTarget bit).map (GateSpec.event oracles) =
       (constantScheduleBitGates control zeroControl target right
-        hcontrolTarget hzeroTarget bit).map GateSpec.event := by
+        hcontrolTarget hzeroTarget bit).map (GateSpec.event oracles) := by
   unfold constantScheduleBitGates
   split <;> split <;> rfl
 
@@ -838,16 +803,16 @@ theorem constantScheduleGates_events_eq
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     (constantScheduleGates control zeroControl target left
-        hcontrolTarget hzeroTarget).map GateSpec.event =
+        hcontrolTarget hzeroTarget).map (GateSpec.event oracles) =
       (constantScheduleGates control zeroControl target right
-        hcontrolTarget hzeroTarget).map GateSpec.event := by
+        hcontrolTarget hzeroTarget).map (GateSpec.event oracles) := by
   unfold constantScheduleGates
   generalize List.ofFn (fun bit : Fin width => bit) = bits
   induction bits with
   | nil => rfl
   | cons bit rest ih =>
       simp only [List.flatMap_cons, List.map_append]
-      rw [constantScheduleBitGates_events_eq
+      rw [constantScheduleBitGates_events_eq oracles
         control zeroControl target left right hcontrolTarget hzeroTarget bit,
         ih]
 
@@ -858,7 +823,7 @@ theorem constantScheduleProgram_primitiveEventCount
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     GateSpec.primitiveEventCount
-      (constantScheduleProgram control zeroControl target constant
+      (constantScheduleProgram physical oracles control zeroControl target constant
         hcontrolTarget hzeroTarget) = 3 * width := by
   rw [constantScheduleProgram, GateSpec.primitiveEventCount_programList,
     constantScheduleGates_length]
@@ -909,8 +874,8 @@ theorem constantScheduleProgram_cnot_eventCount
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    ResourcePool.count (.gate (.builtin "cnot"))
-        (constantScheduleProgram control zeroControl target constant
+    ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
+        (constantScheduleProgram physical oracles control zeroControl target constant
           hcontrolTarget hzeroTarget).eventCost =
       3 * width := by
   rw [constantScheduleProgram, GateSpec.programList_cnot_count_eq_sum]
@@ -920,18 +885,6 @@ theorem constantScheduleProgram_cnot_eventCount
   exact constantScheduleGates_length control zeroControl target constant
     hcontrolTarget hzeroTarget
 
-
-
-
-
-
-
-
-
-
-
-
-
 /-- Fixed-schedule strict event cost is independent of the classical constant,
 directly from its equal strict event schedule. -/
 theorem constantScheduleProgram_eventCost_eq
@@ -939,13 +892,13 @@ theorem constantScheduleProgram_eventCost_eq
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    (constantScheduleProgram control zeroControl target left
+    (constantScheduleProgram physical oracles control zeroControl target left
         hcontrolTarget hzeroTarget).eventCost =
-      (constantScheduleProgram control zeroControl target right
+      (constantScheduleProgram physical oracles control zeroControl target right
         hcontrolTarget hzeroTarget).eventCost := by
   unfold constantScheduleProgram
   apply GateSpec.programList_eventCost_eq_of_events_eq
-  exact constantScheduleGates_events_eq
+  exact constantScheduleGates_events_eq oracles
     control zeroControl target left right hcontrolTarget hzeroTarget
 
 /-- Fixed-schedule strict event depth is independent of the classical constant,
@@ -955,13 +908,13 @@ theorem constantScheduleProgram_eventDepth_eq
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    (constantScheduleProgram control zeroControl target left
+    (constantScheduleProgram physical oracles control zeroControl target left
         hcontrolTarget hzeroTarget).eventDepth =
-      (constantScheduleProgram control zeroControl target right
+      (constantScheduleProgram physical oracles control zeroControl target right
         hcontrolTarget hzeroTarget).eventDepth := by
   unfold constantScheduleProgram
   apply GateSpec.programList_eventDepth_eq_of_events_eq
-  exact constantScheduleGates_events_eq
+  exact constantScheduleGates_events_eq oracles
     control zeroControl target left right hcontrolTarget hzeroTarget
 
 /-- Reverse-list unload for the fixed schedule. -/
@@ -970,8 +923,8 @@ def constantScheduleUnloadProgram
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (constantScheduleGates control zeroControl target constant
       hcontrolTarget hzeroTarget).reverse
 
@@ -982,7 +935,7 @@ theorem constantScheduleUnloadProgram_primitiveEventCount
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     GateSpec.primitiveEventCount
-      (constantScheduleUnloadProgram control zeroControl target constant
+      (constantScheduleUnloadProgram physical oracles control zeroControl target constant
         hcontrolTarget hzeroTarget) = 3 * width := by
   rw [constantScheduleUnloadProgram, GateSpec.primitiveEventCount_programList,
     List.length_reverse, constantScheduleGates_length]
@@ -1005,11 +958,11 @@ theorem constantScheduleUnload_realizes
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (constantScheduleUnloadProgram control zeroControl target constant
+      (constantScheduleUnloadProgram physical oracles control zeroControl target constant
         hcontrolTarget hzeroTarget)
       (constantScheduleUnloadStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  GateSpec.realizesList _
+  GateSpec.realizesList physical oracles _
 
 private theorem reverse_constantScheduleGates_isCnot
     (control zeroControl : EncodedBit encoding)
@@ -1024,10 +977,6 @@ private theorem reverse_constantScheduleGates_isCnot
   exact constantScheduleGates_isCnot control zeroControl target constant
     hcontrolTarget hzeroTarget gate (by simpa using hgate)
 
-
-
-
-
 /-- Reverse fixed-schedule strict event cost is independent of the classical
 constant. -/
 theorem constantScheduleUnloadProgram_eventCost_eq
@@ -1035,15 +984,15 @@ theorem constantScheduleUnloadProgram_eventCost_eq
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    (constantScheduleUnloadProgram control zeroControl target left
+    (constantScheduleUnloadProgram physical oracles control zeroControl target left
         hcontrolTarget hzeroTarget).eventCost =
-      (constantScheduleUnloadProgram control zeroControl target right
+      (constantScheduleUnloadProgram physical oracles control zeroControl target right
         hcontrolTarget hzeroTarget).eventCost := by
   unfold constantScheduleUnloadProgram
   apply GateSpec.programList_eventCost_eq_of_events_eq
   simpa only [List.map_reverse] using
     congrArg List.reverse
-      (constantScheduleGates_events_eq
+      (constantScheduleGates_events_eq oracles
         control zeroControl target left right hcontrolTarget hzeroTarget)
 
 /-- Reverse fixed-schedule strict event depth is independent of the classical
@@ -1053,15 +1002,15 @@ theorem constantScheduleUnloadProgram_eventDepth_eq
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
     (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
-    (constantScheduleUnloadProgram control zeroControl target left
+    (constantScheduleUnloadProgram physical oracles control zeroControl target left
         hcontrolTarget hzeroTarget).eventDepth =
-      (constantScheduleUnloadProgram control zeroControl target right
+      (constantScheduleUnloadProgram physical oracles control zeroControl target right
         hcontrolTarget hzeroTarget).eventDepth := by
   unfold constantScheduleUnloadProgram
   apply GateSpec.programList_eventDepth_eq_of_events_eq
   simpa only [List.map_reverse] using
     congrArg List.reverse
-      (constantScheduleGates_events_eq
+      (constantScheduleGates_events_eq oracles
         control zeroControl target left right hcontrolTarget hzeroTarget)
 
 /-- Recursive view of the fixed-schedule bit blocks over an explicit index
@@ -1230,8 +1179,8 @@ def doubleControlledXorConstantProgram
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (doubleControlledXorConstantGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
@@ -1326,11 +1275,11 @@ theorem doubleControlledXorConstant_realizes
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (doubleControlledXorConstantProgram controlA controlB target constant
+      (doubleControlledXorConstantProgram physical oracles controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget)
       (doubleControlledXorConstantStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (doubleControlledXorConstantGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
@@ -1341,11 +1290,11 @@ theorem doubleControlledXorConstantWitness
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (doubleControlledXorConstantProgram controlA controlB target constant
+      (doubleControlledXorConstantProgram physical oracles controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget)
       (doubleControlledXorConstantStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  doubleControlledXorConstant_realizes controlA controlB target constant
+  doubleControlledXorConstant_realizes physical oracles controlA controlB target constant
     hcontrols hcontrolATarget hcontrolBTarget
 
 /-! ### Doubly controlled unload -/
@@ -1366,8 +1315,8 @@ def doubleControlledXorConstantUnloadProgram
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (doubleControlledXorConstantUnloadGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
@@ -1388,11 +1337,11 @@ theorem doubleControlledXorConstantUnload_realizes
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (doubleControlledXorConstantUnloadProgram controlA controlB target
+      (doubleControlledXorConstantUnloadProgram physical oracles controlA controlB target
         constant hcontrols hcontrolATarget hcontrolBTarget)
       (doubleControlledXorConstantUnloadStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (doubleControlledXorConstantUnloadGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
@@ -1403,11 +1352,11 @@ theorem doubleControlledXorConstantUnloadWitness
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
     (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
     UnitaryCircuit.Realizes encoding
-      (doubleControlledXorConstantUnloadProgram controlA controlB target
+      (doubleControlledXorConstantUnloadProgram physical oracles controlA controlB target
         constant hcontrols hcontrolATarget hcontrolBTarget)
       (doubleControlledXorConstantUnloadStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  doubleControlledXorConstantUnload_realizes controlA controlB target constant
+  doubleControlledXorConstantUnload_realizes physical oracles controlA controlB target constant
     hcontrols hcontrolATarget hcontrolBTarget
 
 /-- Doubly controlled unload preserves readouts outside the target word. -/

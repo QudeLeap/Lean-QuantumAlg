@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.TerminalDecode.FoldSemantics
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Algorithm.ClassicalOp.Finite.Bits
 import all QuantumAlg.Core.Execution.Classical.Workspace
 
@@ -61,75 +62,89 @@ def measuredPackOp (input : CInputRef ctx (.fixedVector count (.finite 2))) :
   .packFiniteBits count (decodeCtx ctx count) (underDecode input count) (packedCell ctx count)
 
 /-- Pack, then run the original literal big-endian shift-and-increment decoder. -/
-def measuredDecodeBody (input : CInputRef ctx (.fixedVector count (.finite 2)))
+def measuredDecodeBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) :
-    Circuit (decodeCtx ctx count) (decodeCtx ctx count) :=
-  .seq (.classical (measuredPackOp input))
-    (TerminalDecode.into .bigEndian (packedInput ctx count) (writeUnderDecode decoded count))
+    Circuit model (decodeCtx ctx count) (decodeCtx ctx count) :=
+  .seq (BitWord.instruction (execution := model) (measuredPackOp input))
+    (TerminalDecode.into (model := model) .bigEndian
+      (packedInput ctx count) (writeUnderDecode decoded count))
 
 /-- Actual complete decoder with the packing allocation and its matching release. -/
-def measuredDecodeInto (input : CInputRef ctx (.fixedVector count (.finite 2)))
-    (decoded : CWriteRef ctx (.unsignedWord count)) : Circuit ctx ctx :=
+def measuredDecodeInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
+    (decoded : CWriteRef ctx (.unsignedWord count)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh
-    (measuredDecodeBody input decoded)
+    (measuredDecodeBody (model := model) input decoded)
 
 /-- Real sequential store and branch path inside the packing scope. -/
-def measuredDecodeBodyStep (input : CInputRef ctx (.fixedVector count (.finite 2)))
+def measuredDecodeBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store (decodeCtx ctx count)) :
-    Store (decodeCtx ctx count) × (measuredDecodeBody input decoded).Path :=
-  let packed := store.applyOp (measuredPackOp input)
-  let later := TerminalDecode.foldStep (writeUnderDecode decoded count)
-    (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index)) packed
-  (later.1, ((), later.2))
+    Store (decodeCtx ctx count) × (measuredDecodeBody (model := model) input decoded).Path :=
+  let packed := BitWord.instructionStep (execution := model) (measuredPackOp input) store
+  let later := TerminalDecode.foldStep (model := model) (writeUnderDecode decoded count)
+    (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index)) packed.1
+  (later.1, (packed.2, later.2))
 
 /-- Real outer-store update after releasing the exact lexical packing head. -/
-def measuredDecodeStep (input : CInputRef ctx (.fixedVector count (.finite 2)))
+def measuredDecodeStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store ctx) :
-    Store ctx × (measuredDecodeInto input decoded).Path :=
-  let result := measuredDecodeBodyStep input decoded
+    Store ctx × (measuredDecodeInto (model := model) input decoded).Path :=
+  let result := measuredDecodeBodyStep (model := model) input decoded
     (store.pushWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh)
   (Store.popWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh result.1,
     result.2)
 
-/-- Literal pack and decoder execution retain every complete quantum-reference block. -/
-theorem measuredDecodeBody_execute (input : CInputRef ctx (.fixedVector count (.finite 2)))
+/-- Literal packing and decoding preserve the complete service/reference record. -/
+theorem measuredDecodeBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State (decodeCtx ctx count) Reference History) :
-    (measuredDecodeBody input decoded).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State (decodeCtx ctx count) Reference (model.HiddenState × History)) :
+    (measuredDecodeBody (model := model) input decoded).execute Reference state =
       state.mapClassical (fun entry =>
-        ((measuredDecodeBodyStep input decoded entry.1).1,
-          (entry.2, (measuredDecodeBodyStep input decoded entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (measuredPackOp input))
-    (TerminalDecode.into .bigEndian (packedInput ctx count) (writeUnderDecode decoded count))
-    (fun store => (store.applyOp (measuredPackOp input), ()))
-    (TerminalDecode.foldStep (writeUnderDecode decoded count)
-      (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index)))
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical (measuredPackOp input)
-        reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (TerminalDecode.terminalDecode_fold_execute (writeUnderDecode decoded count) _
-        reference initial).trans ?_
-      congr 1)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+        let result := measuredDecodeBodyStep (model := model) input decoded entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (measuredPackOp input))
+    (TerminalDecode.into (model := model) .bigEndian
+      (packedInput ctx count) (writeUnderDecode decoded count))
+    (fun before =>
+      let result := BitWord.instructionStep (execution := model) (measuredPackOp input) before.1
+      ((result.1, before.2), result.2))
+    (fun before =>
+      let result := TerminalDecode.foldStep (model := model) (writeUnderDecode decoded count)
+        (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index)) before.1
+      ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (BitWord.bitWord_instruction_execute (execution := model) (measuredPackOp input)
+      initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · intro reference history _ initial
+    exact (TerminalDecode.terminalDecode_fold_execute (model := model)
+      (writeUnderDecode decoded count) _ reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- The complete native decoder acts on actual stores and records its actual finite path. -/
-theorem measuredDecodeInto_execute (input : CInputRef ctx (.fixedVector count (.finite 2)))
+/-- Releasing the packed cell retains the actual native path and full service state. -/
+theorem measuredDecodeInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (measuredDecodeInto input decoded).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (measuredDecodeInto (model := model) input decoded).execute Reference state =
       state.mapClassical (fun entry =>
-        ((measuredDecodeStep input decoded entry.1).1,
-          (entry.2, (measuredDecodeStep input decoded entry.1).2))) := by
+        let result := measuredDecodeStep (model := model) input decoded entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.bits count)
-    ctx.canonicalFreshKey_fresh (measuredDecodeBody input decoded)
-    (measuredDecodeBodyStep input decoded) (measuredDecodeBody_execute input decoded)
-    Reference state).trans ?_
-  congr 1
+    ctx.canonicalFreshKey_fresh (measuredDecodeBody (model := model) input decoded)
+    (fun before =>
+      let result := measuredDecodeBodyStep (model := model) input decoded before.1
+      ((result.1, before.2), result.2)) ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (measuredDecodeBody_execute (model := model) input decoded reference initial).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The mathematical binary sequence is only a specification of the actual packing output. -/
 def measuredDecodeInput (value : CShape.Value (.fixedVector count (.finite 2))) :
@@ -143,14 +158,15 @@ private theorem decoded_key_ne_fresh (decoded : CWriteRef ctx (.unsignedWord cou
   rw [← same]
   exact List.mem_map_of_mem decoded.toCStorageRef.present
 
-private theorem measuredDecodeBody_read_output
+private theorem measuredDecodeBody_read_output {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store (decodeCtx ctx count)) :
-    ((measuredDecodeBodyStep input decoded store).1.read
+    ((measuredDecodeBodyStep (model := model) input decoded store).1.read
       (TerminalDecode.writeInput (writeUnderDecode decoded count))).toNat =
         (ClassicalAlgorithms.TerminalDecode.eval
           (measuredDecodeInput (store.read (underDecode input count)))).val := by
-  have result := TerminalDecode.terminalDecode_intoFromBitRefs_read_output
+  have result := TerminalDecode.terminalDecode_intoFromBitRefs_read_output (model := model)
     .bigEndian (fun index => CInputRef.bitsGet (packedInput ctx count) index)
     (writeUnderDecode decoded count) (store.applyOp (measuredPackOp input)) (by
       intro index
@@ -170,16 +186,18 @@ private theorem measuredDecodeBody_read_output
     (ClassicalAlgorithms.TerminalDecode.eval value).val) source)
 
 /-- The actual decoded word equals the original big-endian value, for every initial store. -/
-theorem measuredDecodeInto_read_output (input : CInputRef ctx (.fixedVector count (.finite 2)))
+theorem measuredDecodeInto_read_output {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store ctx) :
-    ((measuredDecodeStep input decoded store).1.read (TerminalDecode.writeInput decoded)).toNat =
+    ((measuredDecodeStep (model := model) input decoded store).1.read
+      (TerminalDecode.writeInput decoded)).toNat =
       (ClassicalAlgorithms.TerminalDecode.eval (measuredDecodeInput (store.read input))).val := by
   have exitRead := Store.read_popWorkspace_underWorkspace ctx.canonicalFreshKey (.bits count)
     ctx.canonicalFreshKey_fresh
-    (measuredDecodeBodyStep input decoded
+    (measuredDecodeBodyStep (model := model) input decoded
       (store.pushWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh)).1
     (TerminalDecode.writeInput decoded)
-  have decodedValue := measuredDecodeBody_read_output input decoded
+  have decodedValue := measuredDecodeBody_read_output (model := model) input decoded
     (store.pushWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh)
   have source := Store.read_pushWorkspace_underWorkspace store ctx.canonicalFreshKey (.bits count)
     ctx.canonicalFreshKey_fresh input
@@ -188,15 +206,17 @@ theorem measuredDecodeInto_read_output (input : CInputRef ctx (.fixedVector coun
       (ClassicalAlgorithms.TerminalDecode.eval (measuredDecodeInput value)).val) source))
 
 /-- All original structural reads outside the decoded output remain unchanged. -/
-theorem measuredDecodeInto_read_other (input : CInputRef ctx (.fixedVector count (.finite 2)))
+theorem measuredDecodeInto_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : decoded.key ∉ other.storageKeys) :
-    (measuredDecodeStep input decoded store).1.read other = store.read other := by
+    (measuredDecodeStep (model := model) input decoded store).1.read other = store.read other := by
   have exitRead := Store.read_popWorkspace_underWorkspace ctx.canonicalFreshKey (.bits count)
     ctx.canonicalFreshKey_fresh
-    (measuredDecodeBodyStep input decoded
+    (measuredDecodeBodyStep (model := model) input decoded
       (store.pushWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh)).1 other
-  have folded := TerminalDecode.terminalDecode_fold_read_other (writeUnderDecode decoded count)
+  have folded := TerminalDecode.terminalDecode_fold_read_other (model := model)
+    (writeUnderDecode decoded count)
     (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index))
     ((store.pushWorkspace ctx.canonicalFreshKey (.bits count) ctx.canonicalFreshKey_fresh).applyOp
       (measuredPackOp input)) (underDecode other count) (by

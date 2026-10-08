@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Resources
 import all QuantumAlg.Core.Execution.Trace.Preparation
+import all QuantumAlg.Core.Execution.Context.Union.Preparation.Resources
 
 /-!
 # Exact live space of the allocating measured point-addition circuit
@@ -28,15 +29,25 @@ private theorem auxiliary_resident (modulus : Nat) (path : (prepareAuxiliary mod
     (prepareAuxiliary modulus).peakResidentSpace path =
       ((InversePreparation.after modulus.size).disjointUnion
         (InPlaceControlled.controlContext modulus.size)
-        (auxiliary_disjoint_control modulus.size)).residentSpace :=
-  Circuit.prepare_peakResidentSpace _ _ _ _ _ _ path
+        (auxiliary_disjoint_control modulus.size)).residentSpace := by
+  exact ContextUnion.prepareFramed_peakResidentSpace
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (auxiliary_disjoint_control modulus.size)
+    (InPlacePreparation.loadProgram modulus) path
 
 private theorem auxiliary_auxiliary (modulus : Nat) (path : (prepareAuxiliary modulus).Path) :
     (prepareAuxiliary modulus).peakAuxiliarySpace path =
       ((InversePreparation.after modulus.size).disjointUnion
         (InPlaceControlled.controlContext modulus.size)
-        (auxiliary_disjoint_control modulus.size)).auxiliarySpace :=
-  Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _ path
+        (auxiliary_disjoint_control modulus.size)).auxiliarySpace := by
+  exact ContextUnion.prepareFramed_peakAuxiliarySpace
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (auxiliary_disjoint_control modulus.size)
+    (InPlacePreparation.loadProgram modulus) path
 
 private theorem cells_resident (width : Nat) (path : (allocateCells width).Path) :
     (allocateCells width).peakResidentSpace path =
@@ -52,11 +63,11 @@ private theorem cells_auxiliary (width : Nat) (path : (allocateCells width).Path
 
 private theorem selector_resident (width : Nat) (path : (prepareSelector width).Path) :
     (prepareSelector width).peakResidentSpace path = (after width).residentSpace :=
-  Circuit.prepare_peakResidentSpace _ _ _ _ _ _ path
+  Circuit.prepare_peakResidentSpace _ _ _ _ _ _
 
 private theorem selector_auxiliary (width : Nat) (path : (prepareSelector width).Path) :
     (prepareSelector width).peakAuxiliarySpace path = (after width).auxiliarySpace :=
-  Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _ path
+  Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _
 
 private theorem auxiliary_le_cells_resident (width : Nat) :
     ((InversePreparation.after width).disjointUnion (InPlaceControlled.controlContext width)

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Placement
+import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Placement.Geometry
 
 /-!
 # Actual exponent and selector entries beside the shared arithmetic workspace

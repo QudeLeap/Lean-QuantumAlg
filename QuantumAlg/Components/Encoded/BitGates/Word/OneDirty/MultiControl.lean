@@ -10,7 +10,7 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.OneDirty.Conjunction
 import all QuantumAlg.Components.Encoded.BitGates.Word.OneDirty.Layout
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.Circuit
 
 /-!
 # Elementary multi-control X with one restored arbitrary work bit
@@ -39,6 +39,7 @@ def gates : {controls : Nat} → OneDirtyLayout (encoding := encoding) controls 
   | controls + 3, layout => layout.balancedGates (by omega)
 
 variable {controls : Nat} (layout : OneDirtyLayout (encoding := encoding) controls)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- The exact complete encoded action xors the conjunction into the output at every width. -/
 theorem gates_step (state : Data) :
@@ -104,10 +105,10 @@ theorem gates_source_restored (state : Data) (index : Fin controls) :
 
 /-- The actual elementary circuit realizes the exact all-input multi-control action. -/
 theorem gates_realizes :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList layout.gates)
+    UnitaryCircuit.Realizes encoding (GateSpec.programList physical oracles layout.gates)
       (fun state => if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep layout.gates layout.gates_step
+  GateSpec.realizesList_congrStep physical oracles layout.gates layout.gates_step
 
 /-- Below three controls the actual list contains just the corresponding elementary gate. -/
 theorem gates_length_of_small (small : controls < 3) : layout.gates.length = 1 := by

@@ -28,7 +28,8 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private def caseMaximum {α : Type} (combine : α → α → α) (values : Case → α) : α :=
   combine (values .leftInfinity) (combine (values .rightInfinity)
@@ -51,33 +52,40 @@ private theorem case_le_caseMaximum {α : Type} [Preorder α]
   · exact (belowRight _ _).trans ((belowRight _ _).trans (belowRight _ _))
 
 /-- Original independent native allowance of each actual complete-addition arm. -/
-def additionArmEnvelope (kind : ProblemKind) (spec : CurveSpec width) : Case → ResourcePool kind
+def additionArmEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) : Case → ResourcePool model
   | .leftInfinity | .rightInfinity =>
-      ResourcePool.ofList [.classicalOperation (.nominalEncoding (.packEllipticCurvePoint width))]
-  | .vertical => ResourcePool.ofList (infinityTrace width)
-  | .doubling => doublingEnvelope kind spec
-  | .generic => genericEnvelope kind spec.field
+      ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.nominalEncoding (.packEllipticCurvePoint width)))]
+  | .vertical => ResourcePool.ofList (infinityTrace model width)
+  | .doubling => doublingEnvelope model spec
+  | .generic => genericEnvelope model spec.field
 
 /-- Original alternatives retain the native coordinate maximum of the actual dispatch tree. -/
-def additionBranchEnvelope (kind : ProblemKind) (spec : CurveSpec width) : ResourcePool kind :=
-  caseMaximum ResourcePool.max (additionArmEnvelope kind spec)
+def additionBranchEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) : ResourcePool model :=
+  caseMaximum ResourcePool.max (additionArmEnvelope model spec)
 
 /-- Original classifier events precede the actual complete arm allowance. -/
-def additionEnvelope (kind : ProblemKind) (spec : CurveSpec width) : ResourcePool kind :=
-  ResourcePool.ofList (classifierTrace width) + additionBranchEnvelope kind spec
+def additionEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) : ResourcePool model :=
+  ResourcePool.ofList (classifierTrace model width) + additionBranchEnvelope model spec
 
 /-- Original independent serial duration allowance of each actual arm. -/
-def additionArmDepthLimit (spec : CurveSpec width) (duration : Resource.Event kind → Nat) :
+def additionArmDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (duration : Resource.Event model → Nat) :
     Case → Nat
   | .leftInfinity | .rightInfinity =>
-      duration (.classicalOperation (.nominalEncoding (.packEllipticCurvePoint width)))
-  | .vertical => ((infinityTrace width).map duration).sum
+      duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.nominalEncoding (.packEllipticCurvePoint width))))
+  | .vertical => ((infinityTrace model width).map duration).sum
   | .doubling => doublingDepthLimit spec duration
   | .generic => genericDepthLimit spec.field duration
 
 /-- Original classifier durations precede the original conditional arm maximum. -/
-def additionDepthLimit (spec : CurveSpec width) (duration : Resource.Event kind → Nat) : Nat :=
-  ((classifierTrace width).map duration).sum +
+def additionDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (duration : Resource.Event model → Nat) : Nat :=
+  ((classifierTrace model width).map duration).sum +
     caseMaximum Nat.max (additionArmDepthLimit spec duration)
 
 /-- Each actual arm owns its complete original lexical workspace. -/
@@ -102,31 +110,31 @@ private theorem additionArm_pool_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
     (additionArm spec classifier output selected).resourcePool path ≤
-      additionArmEnvelope kind spec selected := by
+      additionArmEnvelope model spec selected := by
   cases selected
-  all_goals first
-    | exact le_rfl
-    | exact (infinityInto_resourcePool _ path).le
-    | exact doublingInto_pool_le _ _ _ path
-    | exact genericInto_pool_le _ _ _ _ path
+  · exact (congrArg ResourcePool.ofList (repackRawInto_eventTrace _ _ path)).le
+  · exact (congrArg ResourcePool.ofList (repackRawInto_eventTrace _ _ path)).le
+  · exact (infinityInto_resourcePool _ path).le
+  · exact doublingInto_pool_le _ _ _ path
+  · exact genericInto_pool_le _ _ _ _ path
 
 private theorem additionDispatch_pool_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
     (dispatch classifier (additionArm spec classifier output)).resourcePool path ≤
-      additionBranchEnvelope kind spec := by
+      additionBranchEnvelope model spec := by
   obtain ⟨selected, armPath, trace, _, _⟩ := dispatch_selectedTrace classifier
     (additionArm spec classifier output) path
   exact (congrArg ResourcePool.ofList trace).le.trans
     ((additionArm_pool_le spec classifier output selected armPath).trans
       (case_le_caseMaximum ResourcePool.max ResourcePool.le_max_left ResourcePool.le_max_right
-        (additionArmEnvelope kind spec) selected))
+        (additionArmEnvelope model spec) selected))
 
 private theorem additionArm_depth_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
     (additionArm spec classifier output selected).depth duration path ≤
       additionArmDepthLimit spec duration selected := by
@@ -140,7 +148,7 @@ private theorem additionArm_depth_le (spec : CurveSpec width)
 private theorem additionDispatch_depth_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
     (dispatch classifier (additionArm spec classifier output)).depth duration path ≤
       caseMaximum Nat.max (additionArmDepthLimit spec duration) := by
@@ -154,7 +162,7 @@ private theorem additionDispatch_depth_le (spec : CurveSpec width)
 private theorem additionArm_duration_eventTrace (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
     (additionArm spec classifier output selected).depth duration path =
       (((additionArm spec classifier output selected).eventTrace path).map duration).sum := by
@@ -172,7 +180,7 @@ private theorem additionArm_duration_eventTrace (spec : CurveSpec width)
 private theorem additionDispatch_duration_eventTrace (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
     (dispatch classifier (additionArm spec classifier output)).depth duration path =
       (((dispatch classifier (additionArm spec classifier output)).eventTrace path).map
@@ -188,14 +196,14 @@ theorem addInto_pool_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
-    (addInto spec left right output).resourcePool path ≤ additionEnvelope kind spec := by
+    (addInto spec left right output).resourcePool path ≤ additionEnvelope model spec := by
   apply withCellsFrom_property (Transport.id ctx) (classifierShapes width)
     (fun cells _ transport _ =>
       .seq (classifierBody (transport.liftInput left) (transport.liftInput right)
         (classifierOfCells cells))
         (dispatch (classifierOfCells cells)
           (additionArm spec (classifierOfCells cells) (transport.liftWrite output))))
-    (fun _ code => ∀ selected, code.resourcePool selected ≤ additionEnvelope kind spec)
+    (fun _ code => ∀ selected, code.resourcePool selected ≤ additionEnvelope model spec)
     (fun _ _ _ _ _ available => available) _ path
   intro inner cells _ transport _ selected
   change ResourcePool.ofList (_ ++ _) ≤ _
@@ -207,7 +215,7 @@ theorem addInto_pool_le (spec : CurveSpec width)
 theorem addInto_depth_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (addInto spec left right output).Path) :
     (addInto spec left right output).depth duration path ≤ additionDepthLimit spec duration := by
   apply withCellsFrom_property (Transport.id ctx) (classifierShapes width)
@@ -226,7 +234,7 @@ theorem addInto_depth_le (spec : CurveSpec width)
 theorem addInto_duration_eventTrace (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (addInto spec left right output).Path) :
     (addInto spec left right output).depth duration path =
       (((addInto spec left right output).eventTrace path).map duration).sum := by
@@ -261,7 +269,7 @@ private theorem additionArm_resident_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
     (additionArm spec classifier output selected).peakResidentSpace path ≤
-      additionArmSpace kind width selected + ctx.residentSpace := by
+      additionArmSpace model.kind width selected + ctx.residentSpace := by
   cases selected
   all_goals first
     | exact (repackRawInto_resident _ _ path).le.trans_eq (zero_add _).symm
@@ -274,13 +282,13 @@ private theorem additionDispatch_resident_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
     (dispatch classifier (additionArm spec classifier output)).peakResidentSpace path ≤
-      additionActiveSpace kind width + ctx.residentSpace := by
+      additionActiveSpace model.kind width + ctx.residentSpace := by
   obtain ⟨selected, armPath, _, _, contexts⟩ := dispatch_selectedTrace classifier
     (additionArm spec classifier output) path
   exact (congrArg (Circuit.peak RuntimeCtx.residentSpace) contexts).le.trans
     ((additionArm_resident_le spec classifier output selected armPath).trans
       (add_le_add (case_le_caseMaximum SpacePool.max SpacePool.le_max_left SpacePool.le_max_right
-        (additionArmSpace kind width) selected) le_rfl))
+        (additionArmSpace model.kind width) selected) le_rfl))
 
 /-- All original classifier cells coexist with the largest actual complete arm scope. -/
 theorem addInto_resident_le (spec : CurveSpec width)
@@ -288,11 +296,11 @@ theorem addInto_resident_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
     (addInto spec left right output).peakResidentSpace path ≤
-      additionScratchSpace kind width + ctx.residentSpace :=
+      additionScratchSpace model.kind width + ctx.residentSpace :=
   withClassification_resident left right
     (fun classifier transport =>
       dispatch classifier (additionArm spec classifier (transport.liftWrite output)))
-    (additionActiveSpace kind width)
+    (additionActiveSpace model.kind width)
     (fun classifier transport selected =>
       additionDispatch_resident_le spec classifier (transport.liftWrite output) selected) path
 
@@ -301,7 +309,7 @@ private theorem additionArm_auxiliary_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
     (additionArm spec classifier output selected).peakAuxiliarySpace path ≤
-      additionArmSpace kind width selected + ctx.auxiliarySpace := by
+      additionArmSpace model.kind width selected + ctx.auxiliarySpace := by
   cases selected
   all_goals first
     | exact (repackRawInto_auxiliary _ _ path).le.trans_eq (zero_add _).symm
@@ -314,13 +322,13 @@ private theorem additionDispatch_auxiliary_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
     (dispatch classifier (additionArm spec classifier output)).peakAuxiliarySpace path ≤
-      additionActiveSpace kind width + ctx.auxiliarySpace := by
+      additionActiveSpace model.kind width + ctx.auxiliarySpace := by
   obtain ⟨selected, armPath, _, _, contexts⟩ := dispatch_selectedTrace classifier
     (additionArm spec classifier output) path
   exact (congrArg (Circuit.peak RuntimeCtx.auxiliarySpace) contexts).le.trans
     ((additionArm_auxiliary_le spec classifier output selected armPath).trans
       (add_le_add (case_le_caseMaximum SpacePool.max SpacePool.le_max_left SpacePool.le_max_right
-        (additionArmSpace kind width) selected) le_rfl))
+        (additionArmSpace model.kind width) selected) le_rfl))
 
 /-- All original classifier cells coexist with the largest actual complete arm scope. -/
 theorem addInto_auxiliary_le (spec : CurveSpec width)
@@ -328,11 +336,11 @@ theorem addInto_auxiliary_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
     (addInto spec left right output).peakAuxiliarySpace path ≤
-      additionScratchSpace kind width + ctx.auxiliarySpace :=
+      additionScratchSpace model.kind width + ctx.auxiliarySpace :=
   withClassification_auxiliary left right
     (fun classifier transport =>
       dispatch classifier (additionArm spec classifier (transport.liftWrite output)))
-    (additionActiveSpace kind width)
+    (additionActiveSpace model.kind width)
     (fun classifier transport selected =>
       additionDispatch_auxiliary_le spec classifier (transport.liftWrite output) selected) path
 

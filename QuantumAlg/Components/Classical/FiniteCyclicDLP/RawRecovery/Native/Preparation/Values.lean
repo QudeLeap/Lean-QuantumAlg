@@ -7,6 +7,9 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Native.Preparation
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
+public import QuantumAlg.Core.Base.Classical.Value
 
 /-!
 # Original measured values through raw-recovery preparation
@@ -68,47 +71,57 @@ theorem PreparationRefs.scale_separation (refs : PreparationRefs ctx width)
     free 5 7 (by decide), free 6 7 (by decide), free 8 7 (by decide)⟩
 
 /-- Pure specification of the actual finite measurement values, in original big-endian order. -/
-def preparationInput (value : CShape.Value (.fixedVector (width + width) (.finite 2))) :
+public def preparationInput (value : CShape.Value (.fixedVector (width + width) (.finite 2))) :
     CShape.Value (InputShape width) :=
   .bits (measuredDecodeInput value).bits
 
 /-- Actual decoder and split produce the same two raw frequencies as the original input model. -/
-theorem preparationDecode_values
+theorem preparationDecode_values {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx) :
-    ((preparationDecodeStep input refs store).1.read (scaleRead refs.rawLeft)).toNat =
+    ((preparationDecodeStep (model := model) input refs store).1.read (scaleRead
+      refs.rawLeft)).toNat =
         leftRaw (preparationInput (store.read input)) ∧
-      ((preparationDecodeStep input refs store).1.read (scaleRead refs.rawRight)).toNat =
+      ((preparationDecodeStep (model := model) input refs store).1.read (scaleRead
+        refs.rawRight)).toNat =
         rightRaw (preparationInput (store.read input)) := by
-  let decoded := (measuredDecodeStep input refs.decoded store).1
+  let decoded := (measuredDecodeStep (model := model) input refs.decoded store).1
   have value : (decoded.read (scaleRead refs.decoded)).toNat =
       decodedTerminal (preparationInput (store.read input)) :=
-    measuredDecodeInto_read_output input refs.decoded store
-  exact ⟨(Word.Split.splitInto_high refs.split (refs.split_separation separate) decoded).trans
+    measuredDecodeInto_read_output (model := model) input refs.decoded store
+  exact ⟨(Word.Split.splitInto_high (model := model) refs.split (refs.split_separation
+    separate) decoded).trans
       (congrArg (fun word => word / 2 ^ width) value),
-    (Word.Split.splitInto_low refs.split (refs.split_separation separate) decoded).trans
+    (Word.Split.splitInto_low (model := model) refs.split (refs.split_separation separate)
+      decoded).trans
       (congrArg (fun word => word % 2 ^ width) value)⟩
 
 /-- The decode-and-split phase changes no read outside its three real destinations. -/
-theorem preparationDecode_read_other
+theorem preparationDecode_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (decodedFree : refs.decoded.key ∉ other.storageKeys)
     (leftFree : refs.rawLeft.key ∉ other.storageKeys)
     (rightFree : refs.rawRight.key ∉ other.storageKeys) (store : Store ctx) :
-    (preparationDecodeStep input refs store).1.read other = store.read other :=
-  (Word.Split.splitInto_callerFrame refs.split _ other decodedFree leftFree rightFree).trans
-    (measuredDecodeInto_read_other input refs.decoded store other decodedFree)
+    (preparationDecodeStep (model := model) input refs store).1.read other = store.read other :=
+  (Word.Split.splitInto_callerFrame (model := model) refs.split _ other decodedFree leftFree
+    rightFree).trans
+    (measuredDecodeInto_read_other (model := model) input refs.decoded store other decodedFree)
 
 /-- Both original constants are loaded exactly; the internal denominator starts at actual zero. -/
-theorem preparationConstants_values (spec : ModulusSpec width)
+theorem preparationConstants_values {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
     (initialZero : (store.read (scaleRead refs.denominator)).toNat = 0) :
-    ((preparationConstantsStep spec refs store).1.read (scaleRead refs.modulusWide)).toNat =
+    ((preparationConstantsStep (model := model) spec refs store).1.read (scaleRead
+      refs.modulusWide)).toNat =
         spec.modulus ∧
-      ((preparationConstantsStep spec refs store).1.read (scaleRead refs.denominator)).toNat =
+      ((preparationConstantsStep (model := model) spec refs store).1.read (scaleRead
+        refs.denominator)).toNat =
         2 ^ width := by
-  let loaded := (ConstantWord.foldStep refs.modulusWide
+  let loaded := (ConstantWord.foldStep (model := model) refs.modulusWide
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus)) store).1
   have different : refs.modulusWide.key ≠ refs.denominator.key :=
     refs.key_ne separate 3 4 (by decide)
@@ -118,32 +131,35 @@ theorem preparationConstants_values (spec : ModulusSpec width)
     simpa only [scaleRead, CInputRef.storageKeys, List.mem_singleton] using different
   constructor
   · exact (congrArg CShape.Value.toNat
-      (scaleSeed_read_other refs.denominator loaded (scaleRead refs.modulusWide)
+      (scaleSeed_read_other (model := model) refs.denominator loaded (scaleRead refs.modulusWide)
         modulusFree)).trans
-      ((ConstantWord.constantWord_read refs.modulusWide spec.modulus store).trans
+      ((ConstantWord.constantWord_read (model := model) refs.modulusWide spec.modulus store).trans
         (Nat.mod_eq_of_lt (modulusSpec_modulus_lt_extended spec)))
-  · apply scaleSeed_zero_value refs.denominator loaded
+  · apply scaleSeed_zero_value (model := model) refs.denominator loaded
     exact (congrArg CShape.Value.toNat
-      (ConstantWord.constantWord_fold_read_other refs.modulusWide _
+      (ConstantWord.constantWord_fold_read_other (model := model) refs.modulusWide _
         (scaleRead refs.denominator) denominatorFree store)).trans initialZero
 
 /-- The original two loaders preserve every read outside their actual two constant cells. -/
-theorem preparationConstants_read_other (spec : ModulusSpec width)
+theorem preparationConstants_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (modulusFree : refs.modulusWide.key ∉ other.storageKeys)
     (denominatorFree : refs.denominator.key ∉ other.storageKeys) (store : Store ctx) :
-    (preparationConstantsStep spec refs store).1.read other = store.read other :=
-  (scaleSeed_read_other refs.denominator _ other denominatorFree).trans
-    (ConstantWord.constantWord_fold_read_other refs.modulusWide _ other modulusFree store)
+    (preparationConstantsStep (model := model) spec refs store).1.read other = store.read other :=
+  (scaleSeed_read_other (model := model) refs.denominator _ other denominatorFree).trans
+    (ConstantWord.constantWord_fold_read_other (model := model) refs.modulusWide _ other
+      modulusFree store)
 
 /-- The exact stored original constants make both native scaling results the original residues. -/
-theorem preparationScale_original_values (spec : ModulusSpec width)
+theorem preparationScale_original_values {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
     (modulusValue : (store.read (scaleRead refs.modulusWide)).toNat = spec.modulus)
     (denominatorValue : (store.read (scaleRead refs.denominator)).toNat = 2 ^ width) :
-    ((preparationScaleStep refs store).1.read (scaleRead refs.left)).toNat =
+    ((preparationScaleStep (model := model) refs store).1.read (scaleRead refs.left)).toNat =
         (scaleFrequency spec (store.read (scaleRead refs.rawLeft)).toNat).val ∧
-      ((preparationScaleStep refs store).1.read (scaleRead refs.right)).toNat =
+      ((preparationScaleStep (model := model) refs store).1.read (scaleRead refs.right)).toNat =
         (scaleFrequency spec (store.read (scaleRead refs.rawRight)).toNat).val := by
   have values := scalePairBody_results (scaleRead refs.rawLeft) (scaleRead refs.rawRight)
     (scaleRead refs.modulusWide) (scaleRead refs.denominator)

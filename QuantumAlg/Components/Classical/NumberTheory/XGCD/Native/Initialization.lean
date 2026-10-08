@@ -59,15 +59,17 @@ def incrementSecondRightOp (cells : Cells ctx (stateShapes width)) :
     (GCD.cellRead (secondRightCell cells)) (secondRightCell cells)
 
 /-- The original copy, copy, increment, increment, equality, negation instruction order. -/
-def initializationBody (cells : Cells ctx (stateShapes width))
+def initializationBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (zero : CInputRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (copyFirstOp cells input))
-    (.seq (.classical (copySecondOp cells input))
-      (.seq (.classical (incrementFirstLeftOp cells))
-        (.seq (.classical (incrementSecondRightOp cells))
-          (.seq (.classical (GCD.testActiveOp (firstCell cells) zero (activeCell cells)))
-            (.classical (GCD.negateActiveOp (activeCell cells)))))))
+    (zero : CInputRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (copyFirstOp cells input))
+    (.seq (BitWord.instruction (execution := model) (copySecondOp cells input))
+      (.seq (BitWord.instruction (execution := model) (incrementFirstLeftOp cells))
+        (.seq (BitWord.instruction (execution := model) (incrementSecondRightOp cells))
+          (.seq (BitWord.instruction (execution := model) (GCD.testActiveOp (firstCell cells)
+            zero (activeCell cells)))
+            (BitWord.instruction (execution := model) (GCD.negateActiveOp (activeCell cells)))))))
 
 /-- The actual store after exactly those six closed operations. -/
 def initializationStore (cells : Cells ctx (stateShapes width))
@@ -78,49 +80,97 @@ def initializationStore (cells : Cells ctx (stateShapes width))
       (GCD.testActiveOp (firstCell cells) zero (activeCell cells))).applyOp
         (GCD.negateActiveOp (activeCell cells))
 
+/-- Actual primitive outputs retain the initialization's complete chronological path. -/
+def initializationStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
+    (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
+    (zero : CInputRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (initializationBody (model := model) cells input zero).Path :=
+  let first := BitWord.instructionStep (execution := model) (copyFirstOp cells input)
+    store
+  let second := BitWord.instructionStep (execution := model) (copySecondOp cells input)
+    first.1
+  let third := BitWord.instructionStep (execution := model) (incrementFirstLeftOp cells)
+    second.1
+  let fourth := BitWord.instructionStep (execution := model) (incrementSecondRightOp cells)
+    third.1
+  let fifth := BitWord.instructionStep (execution := model) (GCD.testActiveOp (firstCell cells)
+    zero (activeCell cells))
+    fourth.1
+  let sixth := BitWord.instructionStep (execution := model) (GCD.negateActiveOp (activeCell cells))
+    fifth.1
+  (sixth.1, (first.2, (second.2, (third.2, (fourth.2, (fifth.2, sixth.2))))))
+
 /-- All original quantum-reference blocks and the complete six-step path are retained. -/
-theorem xgcdNativeInitialization_execute (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitialization_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (initializationBody cells input zero).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (initializationBody (model := model) cells input zero).execute Reference state =
       state.mapClassical (fun entry =>
-        (initializationStore cells input zero entry.1,
-          (entry.2, ((), ((), ((), ((), ((), ())))))))) := by
-  simp only [initializationBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let result := initializationStep (model := model) cells input zero entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [initializationBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Independent original six-operation initialization trace at the original widths. -/
-def initializationEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .increment (PureXGCD.executionCoefficientWidth width)),
-    .classicalOperation (.wordUnary .increment (PureXGCD.executionCoefficientWidth width)),
-    .classicalOperation (.wordBinary .equal width), .classicalOperation (.bit .not)]
+def initializationEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat) : List
+  (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .increment
+      (PureXGCD.executionCoefficientWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .increment
+      (PureXGCD.executionCoefficientWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .equal
+      width)), .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- Every actual initialization path emits precisely the original six native operations. -/
-theorem xgcdNativeInitialization_eventTrace (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitialization_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (path : (initializationBody cells input zero).Path) :
-    (initializationBody cells input zero).eventTrace path = initializationEvents kind width := rfl
+    (path : (initializationBody (model := model) cells input zero).Path) :
+    (initializationBody (model := model) cells input zero).eventTrace path = initializationEvents
+      model width := by
+  change (BitWord.instruction (execution := model) (copyFirstOp cells input)).eventTrace
+    path.1 ++ ((BitWord.instruction (execution := model) (copySecondOp cells input)).eventTrace
+    path.2.1 ++ ((BitWord.instruction (execution := model) (incrementFirstLeftOp cells)).eventTrace
+    path.2.2.1 ++ ((BitWord.instruction (execution := model) (incrementSecondRightOp
+      cells)).eventTrace
+    path.2.2.2.1 ++ ((BitWord.instruction (execution := model) (GCD.testActiveOp (firstCell
+      cells) zero (activeCell cells))).eventTrace
+    path.2.2.2.2.1 ++ ((BitWord.instruction (execution := model) (GCD.negateActiveOp (activeCell
+      cells))).eventTrace
+    path.2.2.2.2.2))))) = _
+  rw [BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Resource accounting follows those same actual initialization operations. -/
-theorem xgcdNativeInitialization_resourcePool (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitialization_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (path : (initializationBody cells input zero).Path) :
-    (initializationBody cells input zero).resourcePool path =
-      ResourcePool.ofList (initializationEvents kind width) := rfl
+    (path : (initializationBody (model := model) cells input zero).Path) :
+    (initializationBody (model := model) cells input zero).resourcePool path =
+      ResourcePool.ofList (initializationEvents model width) :=
+  congrArg ResourcePool.ofList (xgcdNativeInitialization_eventTrace cells input zero path)
 
 /-- The six actual dependent operations contribute six units of serial depth. -/
-theorem xgcdNativeInitialization_unitDepth (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitialization_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (path : (initializationBody cells input zero).Path) :
-    (initializationBody cells input zero).depth (fun _ => 1) path = 6 := rfl
+    (path : (initializationBody (model := model) cells input zero).Path) :
+    (initializationBody (model := model) cells input zero).depth (fun _ => 1) path = 6 := rfl
 
 end
 

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Components.Encoded.BitGates.Word.OneDirty.MultiControl
+import all QuantumAlg.Components.Encoded.BitGates.Word.OneDirty.Resources
 
 /-!
 # Actual list control with one arbitrary restored work bit
@@ -194,16 +194,239 @@ theorem listWithDirtyControl_length (control work : EncodedBit encoding)
       rw [listWithDirtyControl, List.length_append, withDirtyControl_length, ih]
       rfl
 
-/-- The actual compiled native program has the same complete conditional action. -/
-theorem listWithDirtyControl_realizes (control work : EncodedBit encoding)
+/-- A single dirty-control lowering emits no physical X instruction. -/
+private theorem withDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
+    (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
+    (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
+    ((withDirtyControl control work gate hcontrol hwork different).map
+      xMultiplicity).sum = 0 := by
+  cases gate with
+  | x => rfl
+  | cnot => rfl
+  | toffoli first second target fs ft st =>
+      rw [withDirtyControl, ← programList_x_count_eq_sum
+        (layout := QubitLayout.canonical encoding.width) (oracles := .empty),
+        programList_eventCost,
+        (threeControlLayout control first second target work
+          hcontrol.1.symm hcontrol.2.1.symm hcontrol.2.2.symm different fs ft st
+          hwork.1 hwork.2.1 hwork.2.2.symm).gates_events (.empty),
+        Word.OneDirtyLayout.gateCount_three]
+      rfl
+
+/-- One source X becomes one CNOT; other source coordinates emit no CNOT. -/
+private theorem withDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
+    (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
+    (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
+    ((withDirtyControl control work gate hcontrol hwork different).map
+      cnotMultiplicity).sum = xMultiplicity gate := by
+  cases gate with
+  | x => rfl
+  | cnot => rfl
+  | toffoli first second target fs ft st =>
+      rw [withDirtyControl, ← programList_cnot_count_eq_sum
+        (layout := QubitLayout.canonical encoding.width) (oracles := .empty),
+        programList_eventCost,
+        (threeControlLayout control first second target work
+          hcontrol.1.symm hcontrol.2.1.symm hcontrol.2.2.symm different fs ft st
+          hwork.1 hwork.2.1 hwork.2.2.symm).gates_events (.empty),
+        Word.OneDirtyLayout.gateCount_three]
+      rfl
+
+/-- One source CNOT becomes one Toffoli and one source Toffoli becomes four. -/
+private theorem withDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
+    (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
+    (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
+    ((withDirtyControl control work gate hcontrol hwork different).map
+      toffoliMultiplicity).sum =
+      cnotMultiplicity gate + 4 * toffoliMultiplicity gate := by
+  cases gate with
+  | x => rfl
+  | cnot => rfl
+  | toffoli first second target fs ft st =>
+      rw [withDirtyControl, ← programList_toffoli_count_eq_sum
+        (layout := QubitLayout.canonical encoding.width) (oracles := .empty),
+        programList_eventCost,
+        (threeControlLayout control first second target work
+          hcontrol.1.symm hcontrol.2.1.symm hcontrol.2.2.symm different fs ft st
+          hwork.1 hwork.2.1 hwork.2.2.symm).gates_events (.empty),
+        Word.OneDirtyLayout.gateCount_three]
+      rfl
+
+/-- A dirty-work control lift contains no physical X instruction. -/
+theorem listWithDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
     (different : control.wire ≠ work.wire) :
-    UnitaryCircuit.Realizes encoding
-      (programList (listWithDirtyControl control work gates hcontrol hwork different))
+    ((listWithDirtyControl control work gates hcontrol hwork different).map
+      xMultiplicity).sum = 0 := by
+  induction gates with
+  | nil => rfl
+  | cons gate rest ih =>
+      rw [listWithDirtyControl, List.map_append, List.sum_append,
+        withDirtyControl_xMultiplicity_sum]
+      simpa using ih
+        (fun next present => hcontrol next (by simp [present]))
+        (fun next present => hwork next (by simp [present]))
+
+/-- Source X instructions become CNOTs; no other source coordinate emits a
+CNOT under the dirty-work control lowering. -/
+theorem listWithDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
+    (gates : List (GateSpec encoding))
+    (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
+    (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
+    (different : control.wire ≠ work.wire) :
+    ((listWithDirtyControl control work gates hcontrol hwork different).map
+      cnotMultiplicity).sum = (gates.map xMultiplicity).sum := by
+  induction gates with
+  | nil => rfl
+  | cons gate rest ih =>
+      rw [listWithDirtyControl, List.map_append, List.sum_append,
+        withDirtyControl_cnotMultiplicity_sum,
+        ih
+          (fun next present => hcontrol next (by simp [present]))
+          (fun next present => hwork next (by simp [present]))]
+      rfl
+
+/-- Exact Toffoli coordinate of a dirty-work control lift: source CNOTs
+become one Toffoli and source Toffolis become four Toffolis. -/
+theorem listWithDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
+    (gates : List (GateSpec encoding))
+    (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
+    (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
+    (different : control.wire ≠ work.wire) :
+    ((listWithDirtyControl control work gates hcontrol hwork different).map
+      toffoliMultiplicity).sum =
+      (gates.map cnotMultiplicity).sum +
+        4 * (gates.map toffoliMultiplicity).sum := by
+  induction gates with
+  | nil => rfl
+  | cons gate rest ih =>
+      rw [listWithDirtyControl, List.map_append, List.sum_append,
+        withDirtyControl_toffoliMultiplicity_sum,
+        ih
+          (fun next present => hcontrol next (by simp [present]))
+          (fun next present => hwork next (by simp [present]))]
+      simp
+      omega
+
+/-- One source gate together with a gate-local arbitrary work bit.  The work
+bit is restored inside this gate's lowering, so consecutive source gates may
+choose different existing wires. -/
+structure DirtyControlPlan (control : EncodedBit encoding) where
+  gate : GateSpec encoding
+  work : EncodedBit encoding
+  controlDisjoint : bitDisjoint control gate
+  workDisjoint : bitDisjoint work gate
+  controlWork : control.wire ≠ work.wire
+
+/-- Original source list carried by a sequence of gate-local dirty-work plans. -/
+def plannedSourceGates (control : EncodedBit encoding) :
+    List (DirtyControlPlan control) → List (GateSpec encoding) :=
+  List.map DirtyControlPlan.gate
+
+/-- Lower a source list using an independently selected restored work bit for
+each gate.  This is useful when no one carrier wire is disjoint from the whole
+source circuit. -/
+def listWithDirtyControlBy (control : EncodedBit encoding) :
+    List (DirtyControlPlan control) → List (GateSpec encoding)
+  | [] => []
+  | plan :: rest =>
+      withDirtyControl control plan.work plan.gate plan.controlDisjoint
+        plan.workDisjoint plan.controlWork ++
+      listWithDirtyControlBy control rest
+
+/-- Gate-local dirty work gives the same complete conditional action as the
+original source list, for every initial value of every selected work bit. -/
+theorem listWithDirtyControlBy_step (control : EncodedBit encoding)
+    (plans : List (DirtyControlPlan control)) (state : Data) :
+    stepList (listWithDirtyControlBy control plans) state =
+      if control.get state then stepList (plannedSourceGates control plans) state else state := by
+  induction plans generalizing state with
+  | nil =>
+      change state = if control.get state then state else state
+      split <;> rfl
+  | cons plan rest ih =>
+      rw [listWithDirtyControlBy, stepList_append, withDirtyControl_step]
+      by_cases selected : control.get state = true
+      · rw [if_pos selected, ih,
+          step_get_of_bitDisjoint plan.gate control plan.controlDisjoint,
+          if_pos selected, if_pos selected]
+        rfl
+      · rw [if_neg selected, ih, if_neg selected, if_neg selected]
+
+/-- Exact elementary length with gate-local work selection. -/
+theorem listWithDirtyControlBy_length (control : EncodedBit encoding)
+    (plans : List (DirtyControlPlan control)) :
+    (listWithDirtyControlBy control plans).length =
+      ((plannedSourceGates control plans).map dirtyControlCount).sum := by
+  induction plans with
+  | nil => rfl
+  | cons plan rest ih =>
+      simp [listWithDirtyControlBy, withDirtyControl_length,
+        plannedSourceGates, ih]
+
+/-- Gate-local dirty-work control emits no physical X instruction. -/
+theorem listWithDirtyControlBy_xMultiplicity_sum (control : EncodedBit encoding)
+    (plans : List (DirtyControlPlan control)) :
+    ((listWithDirtyControlBy control plans).map xMultiplicity).sum = 0 := by
+  induction plans with
+  | nil => rfl
+  | cons plan rest ih =>
+      rw [listWithDirtyControlBy, List.map_append, List.sum_append,
+        withDirtyControl_xMultiplicity_sum, ih]
+
+/-- Source X instructions become exactly the CNOT instructions of the
+gate-local dirty-work control lowering. -/
+theorem listWithDirtyControlBy_cnotMultiplicity_sum (control : EncodedBit encoding)
+    (plans : List (DirtyControlPlan control)) :
+    ((listWithDirtyControlBy control plans).map cnotMultiplicity).sum =
+      ((plannedSourceGates control plans).map xMultiplicity).sum := by
+  induction plans with
+  | nil => rfl
+  | cons plan rest ih =>
+      rw [listWithDirtyControlBy, List.map_append, List.sum_append,
+        withDirtyControl_cnotMultiplicity_sum, ih]
+      rfl
+
+/-- Source CNOTs become one Toffoli and source Toffolis become four Toffolis
+under gate-local dirty-work control. -/
+theorem listWithDirtyControlBy_toffoliMultiplicity_sum (control : EncodedBit encoding)
+    (plans : List (DirtyControlPlan control)) :
+    ((listWithDirtyControlBy control plans).map toffoliMultiplicity).sum =
+      ((plannedSourceGates control plans).map cnotMultiplicity).sum +
+        4 * ((plannedSourceGates control plans).map toffoliMultiplicity).sum := by
+  induction plans with
+  | nil => rfl
+  | cons plan rest ih =>
+      rw [listWithDirtyControlBy, List.map_append, List.sum_append,
+        withDirtyControl_toffoliMultiplicity_sum, ih]
+      simp [plannedSourceGates]
+      omega
+
+/-- Compile gate-local dirty control into an actual native program. -/
+theorem listWithDirtyControlBy_realizes (control : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    (plans : List (DirtyControlPlan control)) :
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles (listWithDirtyControlBy control plans))
+      (fun state => if control.get state then
+        stepList (plannedSourceGates control plans) state else state) :=
+  realizesList_congrStep layout oracles _
+    (listWithDirtyControlBy_step control plans)
+
+/-- The actual compiled native program has the same complete conditional action. -/
+theorem listWithDirtyControl_realizes (control work : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    (gates : List (GateSpec encoding))
+    (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
+    (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
+    (different : control.wire ≠ work.wire) :
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      (programList layout oracles
+        (listWithDirtyControl control work gates hcontrol hwork different))
       (fun state => if control.get state then stepList gates state else state) :=
-  realizesList_congrStep _
+  realizesList_congrStep layout oracles _
     (listWithDirtyControl_step control work gates hcontrol hwork different)
 
 end

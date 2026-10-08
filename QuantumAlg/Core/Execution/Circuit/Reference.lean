@@ -54,15 +54,16 @@ private theorem reference_select {C D : Type} [Fintype C] [DecidableEq D]
     apply_ite DensityOperator.matrix]
   split <;> rfl
 
-private theorem reference_random {C : Type} [Fintype C] {R S : Register}
-    (state : ExecutionState C R) (basis : R.Index ≃ S.Index) (count : ℕ+) :
-    uniformChoice (state.reindex (S := S) basis) count =
-      (uniformChoice state count).reindex (S := S) basis := by
+private theorem reference_kernel {C Outcome : Type} [Fintype C] [Fintype Outcome]
+    {R S : Register} (state : ExecutionState C R) (basis : R.Index ≃ S.Index)
+    (transition : C → PMF Outcome) :
+    kernelChoice (state.reindex (S := S) basis) transition =
+      (kernelChoice state transition).reindex (S := S) basis := by
   apply ExecutionState.ext
-  intro value
+  rintro ⟨value, outcome⟩
   apply DensityOperator.ext
   ext row column
-  rfl
+  simp only [kernelChoice_block_matrix, reindex_block_entry, Matrix.smul_apply]
 
 private theorem reference_unitary {C : Type} [Fintype C] {R Reference Other : Register}
     (state : ExecutionState C (R.prod Reference))
@@ -187,16 +188,16 @@ end Execution
 
 namespace Circuit
 
-private theorem reference_branch {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit pre post)
+private theorem reference_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
     {Reference Other : Register} (basis : Reference.Index ≃ Other.Index)
-    (natural : ∀ value {H : Type} [Fintype H] (state : State pre Reference H),
+    (natural : ∀ value {H : Type} [Fintype H] (state : State pre Reference (model.HiddenState × H)),
       (body value).execute Other
           (state.reindex (S := pre.register.prod Other)
         ((Equiv.refl pre.register.Index).prodCongr basis)) =
         ((body value).execute Reference state).reindex (S := post.register.prod Other)
           ((Equiv.refl post.register.Index).prodCongr basis))
-    {H : Type} [Fintype H] (state : State pre Reference H) :
+    {H : Type} [Fintype H] (state : State pre Reference (model.HiddenState × H)) :
     (Circuit.branch input body).execute Other
         (state.reindex (S := pre.register.prod Other)
         ((Equiv.refl pre.register.Index).prodCongr basis)) =
@@ -214,14 +215,15 @@ private theorem reference_branch {kind : ProblemKind} {pre post : RuntimeCtx kin
   rw [ExecutionState.reference_select, natural, State.reference_history]
   rfl
 
-private theorem reference_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (body : Circuit ctx ctx) {Reference Other : Register} (basis : Reference.Index ≃ Other.Index)
-    (natural : ∀ {H : Type} [Fintype H] (state : State ctx Reference H),
+private theorem reference_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (body : Circuit model ctx ctx) {Reference Other : Register}
+    (basis : Reference.Index ≃ Other.Index)
+    (natural : ∀ {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H)),
       body.execute Other (state.reindex (S := ctx.register.prod Other)
         ((Equiv.refl ctx.register.Index).prodCongr basis)) =
         (body.execute Reference state).reindex (S := ctx.register.prod Other)
           ((Equiv.refl ctx.register.Index).prodCongr basis))
-    (count : Nat) {H : Type} [Fintype H] (state : State ctx Reference H) :
+    (count : Nat) {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H)) :
     (Circuit.iterate count body).execute Other
         (state.reindex (S := ctx.register.prod Other)
         ((Equiv.refl ctx.register.Index).prodCongr basis)) =
@@ -234,45 +236,44 @@ private theorem reference_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
         State.reference_history, execute_iterate_succ]
 
 /-- Actual execution commutes with an arbitrary change of external-reference basis. -/
-theorem execute_referenceReindex {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) {Reference Other : Register}
+theorem execute_referenceReindex {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) {Reference Other : Register}
     (basis : Reference.Index ≃ Other.Index) {H : Type} [Fintype H]
-    (state : State pre Reference H) :
+    (state : State pre Reference (model.HiddenState × H)) :
     code.execute Other (state.reindex (S := pre.register.prod Other)
         ((Equiv.refl pre.register.Index).prodCongr basis)) =
       (code.execute Reference state).reindex (S := post.register.prod Other)
         ((Equiv.refl post.register.Index).prodCongr basis) := by
   induction code generalizing H with
   | id ctx =>
-      exact State.reference_history state basis (fun history => (history, ()))
-  | classical op =>
-      exact ExecutionState.coordinate_reindex_mapClassical state _ _
-  | declaredCall call =>
-      exact ExecutionState.coordinate_reindex_mapClassical state _ _
-  | unitary program placement =>
-      change ((state.reindex _).applyUnitary _).mapClassical _ =
-        ((state.applyUnitary _).mapClassical _).reindex _
-      rw [ExecutionState.reference_unitary]
-      exact ExecutionState.coordinate_reindex_mapClassical _ _ _
-  | @measureZ ctx wire output =>
-      change (ExecutionState.measureZ (state.reindex _) _).mapClassical _ =
-        ((ExecutionState.measureZ state _).mapClassical _).reindex _
+      rw [execute_id, execute_id]
+      exact ExecutionState.reference_map _ _ _ _ _
+  | classical application =>
+      rw [execute_classical, execute_classical, ExecutionState.reference_kernel]
+      exact ExecutionState.reference_map _ _ _ _ _
+  | classicalQuery application =>
+      dsimp only [execute, interpret, queryStep]
+      rw [ExecutionState.reference_kernel]
+      exact ExecutionState.reference_map _ _ _ _ _
+  | unitary program =>
+      rw [execute_unitary, execute_unitary, ExecutionState.reference_unitary]
+      exact ExecutionState.reference_map _ _ _ _ _
+  | @measureZ gates oracles ctx operations services wire output =>
+      rw [execute_measureZ, execute_measureZ]
       erw [ExecutionState.reference_measure (S := ctx.register.prod Other) state
         ((Equiv.refl ctx.register.Index).prodCongr basis) (fun value => value.1 wire)
         (fun value : (ctx.register.prod Other).Index => value.1 wire) (fun _ => rfl)]
-      exact ExecutionState.coordinate_reindex_mapClassical _ _ _
-  | randomBits width output =>
-      change (uniformChoice (state.reindex _) _).mapClassical _ =
-        ((uniformChoice state _).mapClassical _).reindex _
-      erw [ExecutionState.reference_random]
-      exact ExecutionState.coordinate_reindex_mapClassical _ _ _
+      exact ExecutionState.reference_map _ _ _ _ _
   | retain ctx key shape fresh =>
-      exact ExecutionState.coordinate_reindex_mapClassical state _ _
-  | prepare ctx key layout fresh disjoint preparation =>
-      change (prepareContext (state.reindex _) _ _ _ _ _).mapClassical _ =
-        ((prepareContext state _ _ _ _ _).mapClassical _).reindex _
+      rw [execute_retain, execute_retain]
+      exact ExecutionState.reference_map _ _ _ _ _
+  | prepareZero ctx key layout fresh disjoint =>
+      rw [execute_prepareZero, execute_prepareZero]
+      dsimp only [State.prepare, State.mapHistory]
+      rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance),
+        ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
       rw [Execution.reference_prepare]
-      exact ExecutionState.coordinate_reindex_mapClassical _ _ _
+      exact ExecutionState.reference_map _ _ _ _ _
   | seq first second firstEquation secondEquation =>
       rw [execute_seq, firstEquation, secondEquation, State.reference_history, execute_seq]
   | branch input body bodyEquation =>

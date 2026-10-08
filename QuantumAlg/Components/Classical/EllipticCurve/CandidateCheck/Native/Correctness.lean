@@ -56,12 +56,14 @@ private theorem bit_true_iff (value : CShape.Value .bit) :
   simp only [CShape.Value.toBool, CShape.Value.bit.injEq]
 
 /-- Actual acceptance is exactly the original target equation and both original success flags. -/
-theorem verifyStep_accepts_iff (spec : CurveSpec width)
+theorem verifyStep_accepts_iff {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (store : Store ctx) (scalar : ClassicalAlgorithms.Word scalarWidth)
+    (store : Store ctx) (hidden : model.HiddenState)
+    (scalar : ClassicalAlgorithms.Word scalarWidth)
     (basePoint targetPoint : Pure.Point spec)
     (candidateValue : store.read candidate = .unsignedWord scalar)
     (baseRep : PointRepresents spec (store.read base) basePoint)
@@ -74,46 +76,48 @@ theorem verifyStep_accepts_iff (spec : CurveSpec width)
     (acceptedInverse : accepted.key ∉ inverseSuccess.storageKeys)
     (acceptedReconstruction : accepted.key ∉ reconstruction.storageKeys) :
     ((verifyStep spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted store).1.read (.storage accepted.toCStorageRef)).toBool = true ↔
+      scalarResult accepted (store, hidden)).1.1.read
+        (.storage accepted.toCStorageRef)).toBool = true ↔
       scalar.val • basePoint = targetPoint ∧
         (store.read inverseSuccess).toBool = true ∧
         (store.read reconstruction).toBool = true := by
   let afterScalar := (ScalarMul.Native.scalarStep spec (candidateBits candidate)
-    base scalarResult store).1
+    base scalarResult (store, hidden)).1
   let afterComparison := (PointEquality.Native.compareStep
-    (.storage scalarResult.toCStorageRef) target accepted afterScalar).1
+    (.storage scalarResult.toCStorageRef) target accepted afterScalar.1).1
   let afterInverse := afterComparison.applyOp (conjunctionOp inverseSuccess accepted)
   have scalarRep : PointRepresents spec
-      (afterScalar.read (.storage scalarResult.toCStorageRef)) (scalar.val • basePoint) := by
+      (afterScalar.1.read (.storage scalarResult.toCStorageRef))
+      (scalar.val • basePoint) := by
     apply ScalarMul.Native.scalarStep_represents_eval spec (candidateBits candidate)
-      base scalarResult store ⟨scalar, basePoint⟩
+      base scalarResult (store, hidden) ⟨scalar, basePoint⟩
       (candidateBits_separate candidate scalarResult.key scalarCandidate) scalarBase
     · intro index
       change ((store.read candidate).wordBitGet index).toBool = _
       rw [candidateValue]
       rfl
     · exact baseRep
-  have targetAfter : PointRepresents spec (afterScalar.read target) targetPoint := by
+  have targetAfter : PointRepresents spec (afterScalar.1.read target) targetPoint := by
     rw [ScalarMul.Native.scalarStep_preserves_read spec (candidateBits candidate)
-      base scalarResult store target scalarTarget]
+      base scalarResult (store, hidden) target scalarTarget]
     exact targetRep
   have comparison : (afterComparison.read (.storage accepted.toCStorageRef)).toBool = true ↔
       scalar.val • basePoint = targetPoint :=
     (bit_true_iff _).trans (PointEquality.Native.compareInto_accepts_iff spec
-      (.storage scalarResult.toCStorageRef) target accepted afterScalar
+      (.storage scalarResult.toCStorageRef) target accepted afterScalar.1
       (scalar.val • basePoint) targetPoint scalarRep targetAfter)
   have inverseAfter : afterComparison.read inverseSuccess = store.read inverseSuccess :=
-    (PointEquality.Native.compareInto_preserves_read _ _ accepted afterScalar
+    (PointEquality.Native.compareInto_preserves_read _ _ accepted afterScalar.1
       inverseSuccess acceptedInverse).trans
       (ScalarMul.Native.scalarStep_preserves_read spec (candidateBits candidate)
-        base scalarResult store inverseSuccess scalarInverse)
+        base scalarResult (store, hidden) inverseSuccess scalarInverse)
   have reconstructionAfter : afterInverse.read reconstruction = store.read reconstruction :=
     (Store.read_applyOp_of_not_mem_storageKeys afterComparison
       (conjunctionOp inverseSuccess accepted) reconstruction acceptedReconstruction).trans
-      ((PointEquality.Native.compareInto_preserves_read _ _ accepted afterScalar
+      ((PointEquality.Native.compareInto_preserves_read _ _ accepted afterScalar.1
         reconstruction acceptedReconstruction).trans
         (ScalarMul.Native.scalarStep_preserves_read spec (candidateBits candidate)
-          base scalarResult store reconstruction scalarReconstruction))
+          base scalarResult (store, hidden) reconstruction scalarReconstruction))
   rw [verifyStep_store]
   change ((afterInverse.applyOp (conjunctionOp reconstruction accepted)).read
     (.storage accepted.toCStorageRef)).toBool = true ↔ _

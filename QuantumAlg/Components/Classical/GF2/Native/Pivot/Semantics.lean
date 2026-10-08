@@ -26,26 +26,25 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.classical op).execute Reference state =
-      state.mapClassical (D := Store ctx × (History × (Circuit.classical op).Path))
-        (fun entry => (entry.1.applyOp op, (entry.2, ()))) := by
-  refine (Circuit.execute_classical_mapClassical op Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (BitWord.instruction (execution := model) op).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := BitWord.instructionStep (execution := model) op entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
+  BitWord.bitWord_instruction_execute (execution := model) op state
 
+omit [BitWord.Selected model] in
 private theorem idle_execute (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.id ctx).execute Reference state =
-      state.mapClassical (D := Store ctx × (History × (Circuit.id ctx).Path))
-        (fun entry => (entry.1, (entry.2, ()))) := by
-  refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.id (model := model) ctx).execute Reference state =
+      state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
+  exact (Circuit.execute_id_mapClassical (model := model) Reference state).trans
+    (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (used : CWriteRef ctx (.unsignedWord rowCount))
@@ -55,64 +54,76 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 /-- The selected row follows its five actual stages and their intermediate stores. -/
 def selectPivotStep (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     Store ctx × (selectPivot matrix used rows columns found sink pivot column).Path :=
-  Circuit.sequenceRecord (.classical (pivotSelectedOp sink))
+  Circuit.sequenceStoreRecord
+    (BitWord.instruction (execution := model) (pivotSelectedOp sink))
       (.seq
-        (.classical (pivotFoundOp found))
-      (.seq (materializePivotRow used rows pivot column)
-      (.seq (materializePivotColumn columns column) (eliminateWithPivot matrix pivot column))))
-  (fun current => (current.applyOp (pivotSelectedOp sink), ()))
-  (Circuit.sequenceRecord (.classical (pivotFoundOp found))
-      (.seq (materializePivotRow used rows pivot column)
-      (.seq (materializePivotColumn columns column) (eliminateWithPivot matrix pivot column)))
-    (fun current => (current.applyOp (pivotFoundOp found), ()))
-    (Circuit.sequenceRecord (materializePivotRow used rows pivot column)
-      (.seq (materializePivotColumn columns column) (eliminateWithPivot matrix pivot column))
+        (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (.seq (materializePivotRow (model := model) used rows pivot column)
+      (.seq (materializePivotColumn (model := model) columns column)
+        (eliminateWithPivot (model := model) matrix pivot column))))
+  (BitWord.instructionStep (execution := model) (pivotSelectedOp sink))
+  (Circuit.sequenceStoreRecord
+    (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (.seq (materializePivotRow (model := model) used rows pivot column)
+      (.seq (materializePivotColumn (model := model) columns column)
+        (eliminateWithPivot (model := model) matrix pivot column)))
+    (BitWord.instructionStep (execution := model) (pivotFoundOp found))
+    (Circuit.sequenceStoreRecord (materializePivotRow (model := model) used rows pivot column)
+      (.seq (materializePivotColumn (model := model) columns column)
+        (eliminateWithPivot (model := model) matrix pivot column))
       (materializePivotRowStep used rows pivot column)
-      (Circuit.sequenceRecord (materializePivotColumn columns column)
-        (eliminateWithPivot matrix pivot column)
+      (Circuit.sequenceStoreRecord (materializePivotColumn (model := model) columns column)
+        (eliminateWithPivot (model := model) matrix pivot column)
         (materializePivotColumnStep columns column)
         (eliminateWithPivotStep matrix pivot column)))) store
 
 /-- The selected-pivot sequence acts on every complete store/reference/history block. -/
 theorem gf2SelectPivot_execute (pivot : Fin rowCount) (column : Fin width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (selectPivot matrix used rows columns found sink pivot column).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (selectPivot (model := model) matrix used rows columns found sink pivot column).execute
+        Reference state =
       state.mapClassical (fun entry =>
         ((selectPivotStep matrix used rows columns found sink pivot column entry.1).1,
-          (entry.2, (selectPivotStep matrix used rows columns found sink pivot column entry.1).2)))
+          (entry.2.1, (entry.2.2,
+            (selectPivotStep matrix used rows columns found sink pivot column entry.1).2))))
             :=
-  Circuit.execute_sequenceRecord _ _ _ _ (operation_execute (pivotSelectedOp sink))
-  (Circuit.execute_sequenceRecord _ _ _ _ (operation_execute (pivotFoundOp found))
-    (Circuit.execute_sequenceRecord _ _ _ _ (gf2MaterializePivotRow_execute used rows pivot column)
-      (Circuit.execute_sequenceRecord _ _ _ _ (gf2MaterializePivotColumn_execute columns column)
-        (gf2EliminateWithPivot_execute matrix pivot column)))) Reference state
+  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (operation_execute (pivotSelectedOp sink))
+  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (operation_execute (pivotFoundOp found))
+    (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+      (gf2MaterializePivotRow_execute (model := model) used rows pivot column)
+      (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+        (gf2MaterializePivotColumn_execute (model := model) columns column)
+        (gf2EliminateWithPivot_execute (model := model) matrix pivot column)))) Reference state
 
 /-- The actual matrix-bit decision retains either its selected record or its rejection copy. -/
 def pivotMatrixChoiceStep (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     Store ctx × (pivotMatrixChoice matrix used rows columns found sink row column value).Path :=
   match value with
-  | .bit false => (store.applyOp (pivotRejectedOp sink), ())
+  | .bit false => BitWord.instructionStep (execution := model) (pivotRejectedOp sink) store
   | .bit true => selectPivotStep matrix used rows columns found sink row column store
 
 private theorem pivotMatrixChoice_execute (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pivotMatrixChoice matrix used rows columns found sink row column value).execute Reference state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotMatrixChoice (model := model)
+      matrix used rows columns found sink row column value).execute Reference state
       =
       state.mapClassical (fun entry =>
         ((pivotMatrixChoiceStep matrix used rows columns found sink row column value entry.1).1,
-          (entry.2,
+          (entry.2.1, (entry.2.2,
             (pivotMatrixChoiceStep matrix used rows columns found sink row column value
-              entry.1).2))) :=
+              entry.1).2)))) :=
   by
     cases value with
     | bit bit =>
         cases bit
         · exact operation_execute (pivotRejectedOp sink) Reference state
-        · exact gf2SelectPivot_execute matrix used rows columns found sink row column
-            Reference state
+        · exact gf2SelectPivot_execute (model := model)
+            matrix used rows columns found sink row column Reference state
 
 /-- A used row is rejected directly; an unused row records the actual matrix-bit branch. -/
 def pivotUsedChoiceStep (row : Fin rowCount) (column : Fin width)
@@ -123,25 +134,28 @@ def pivotUsedChoiceStep (row : Fin rowCount) (column : Fin width)
       let bit := store.read (eliminationBit matrix row column)
       let actual := pivotMatrixChoiceStep matrix used rows columns found sink row column bit store
       (actual.1, ⟨bit, actual.2⟩)
-  | .bit true => (store.applyOp (pivotRejectedOp sink), ())
+  | .bit true => BitWord.instructionStep (execution := model) (pivotRejectedOp sink) store
 
 private theorem pivotUsedChoice_execute (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pivotUsedChoice matrix used rows columns found sink row column value).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotUsedChoice (model := model) matrix used rows columns found sink row column value).execute
+        Reference state =
       state.mapClassical (fun entry =>
         ((pivotUsedChoiceStep matrix used rows columns found sink row column value entry.1).1,
-          (entry.2,
-            (pivotUsedChoiceStep matrix used rows columns found sink row column value entry.1).2)))
+          (entry.2.1, (entry.2.2,
+            (pivotUsedChoiceStep matrix used rows columns found sink row column value entry.1).2))))
               :=
   by
     cases value with
     | bit bit =>
         cases bit
-        · exact Circuit.execute_branch_mapClassical (eliminationBit matrix row column)
-            (pivotMatrixChoice matrix used rows columns found sink row column)
+        · exact Circuit.execute_branchStoreRecord (model := model)
+            (eliminationBit matrix row column)
+            (pivotMatrixChoice (model := model) matrix used rows columns found sink row column)
             (pivotMatrixChoiceStep matrix used rows columns found sink row column)
-            (pivotMatrixChoice_execute matrix used rows columns found sink row column) Reference
+            (pivotMatrixChoice_execute (model := model)
+              matrix used rows columns found sink row column) Reference
               state
         · exact operation_execute (pivotRejectedOp sink) Reference state
 
@@ -158,23 +172,27 @@ def pivotFoundChoiceStep (row : Fin rowCount) (column : Fin width)
 
 private theorem pivotFoundChoice_execute (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pivotFoundChoice matrix used rows columns found sink row column value).execute Reference state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotFoundChoice (model := model)
+      matrix used rows columns found sink row column value).execute Reference state
       =
       state.mapClassical (fun entry =>
         ((pivotFoundChoiceStep matrix used rows columns found sink row column value entry.1).1,
-          (entry.2,
-            (pivotFoundChoiceStep matrix used rows columns found sink row column value entry.1).2)))
+          (entry.2.1, (entry.2.2,
+            (pivotFoundChoiceStep matrix used rows columns found sink row column value
+              entry.1).2))))
               :=
   by
     cases value with
     | bit bit =>
         cases bit
-        · exact Circuit.execute_branch_mapClassical (pivotUsedBit used row)
-            (pivotUsedChoice matrix used rows columns found sink row column)
+        · exact Circuit.execute_branchStoreRecord (model := model) (pivotUsedBit used row)
+            (pivotUsedChoice (model := model) matrix used rows columns found sink row column)
             (pivotUsedChoiceStep matrix used rows columns found sink row column)
-            (pivotUsedChoice_execute matrix used rows columns found sink row column) Reference state
-        · exact idle_execute Reference state
+            (pivotUsedChoice_execute (model := model)
+              matrix used rows columns found sink row column) Reference state
+        · refine (idle_execute (model := model) Reference state).trans ?_
+          exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual row-probe record begins with the current found latch. -/
 def pivotProbeRowStep (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
@@ -186,50 +204,58 @@ def pivotProbeRowStep (row : Fin rowCount) (column : Fin width) (store : Store c
 /-- All three original stored-bit decisions preserve their actual complete state correlations. -/
 theorem gf2PivotProbeRow_execute (row : Fin rowCount) (column : Fin width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pivotProbeRow matrix used rows columns found sink row column).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotProbeRow (model := model) matrix used rows columns found sink row column).execute
+        Reference state =
       state.mapClassical (fun entry =>
         ((pivotProbeRowStep matrix used rows columns found sink row column entry.1).1,
-          (entry.2, (pivotProbeRowStep matrix used rows columns found sink row column entry.1).2)))
+          (entry.2.1, (entry.2.2,
+            (pivotProbeRowStep matrix used rows columns found sink row column entry.1).2))))
             :=
-  Circuit.execute_branch_mapClassical (.storage found.toCStorageRef)
-    (pivotFoundChoice matrix used rows columns found sink row column)
+  Circuit.execute_branchStoreRecord (model := model) (.storage found.toCStorageRef)
+    (pivotFoundChoice (model := model) matrix used rows columns found sink row column)
     (pivotFoundChoiceStep matrix used rows columns found sink row column)
-    (pivotFoundChoice_execute matrix used rows columns found sink row column) Reference state
+    (pivotFoundChoice_execute (model := model) matrix used rows columns found sink row column)
+    Reference state
 
 /-- The final no-pivot record keeps the original real self-XOR only in the unfound branch. -/
 def pivotAbsentChoiceStep (sink : CWriteRef ctx .bit) (value : CShape.Value .bit)
     (store : Store ctx) : Store ctx × (pivotAbsentChoice sink value).Path :=
   match value with
-  | .bit false => (store.applyOp (pivotClearOp sink), ())
+  | .bit false => BitWord.instructionStep (execution := model) (pivotClearOp sink) store
   | .bit true => (store, ())
 
 private theorem pivotAbsentChoice_execute (sink : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (pivotAbsentChoice sink value).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotAbsentChoice (model := model) sink value).execute Reference state =
       state.mapClassical (fun entry =>
         ((pivotAbsentChoiceStep sink value entry.1).1,
-          (entry.2, (pivotAbsentChoiceStep sink value entry.1).2))) := by
+          (entry.2.1, (entry.2.2, (pivotAbsentChoiceStep sink value entry.1).2)))) := by
   cases value with
   | bit bit =>
       cases bit
       · exact operation_execute (pivotClearOp sink) Reference state
-      · exact idle_execute Reference state
+      · refine (idle_execute (model := model) Reference state).trans ?_
+        exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Clear, ordered actual row records and the original final found decision. -/
 def reduceColumnBodyStep (column : Fin width) (store : Store ctx) :
     Store ctx × (reduceColumnBody matrix used rows columns found sink column).Path :=
-  Circuit.sequenceRecord (.classical (pivotClearOp found))
+  Circuit.sequenceStoreRecord
+    (BitWord.instruction (execution := model) (pivotClearOp found))
     (.seq (Circuit.forRange rowCount
-      (fun row => pivotProbeRow matrix used rows columns found sink row column))
-      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice sink)))
-    (fun current => (current.applyOp (pivotClearOp found), ()))
-    (Circuit.sequenceRecord (Circuit.forRange rowCount
-      (fun row => pivotProbeRow matrix used rows columns found sink row column))
-      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice sink))
-      (Circuit.forRangeRecord rowCount
-        (fun row => pivotProbeRow matrix used rows columns found sink row column)
+      (fun row => pivotProbeRow (model := model)
+        matrix used rows columns found sink row column))
+      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice (model := model) sink)))
+    (BitWord.instructionStep (execution := model) (pivotClearOp found))
+    (Circuit.sequenceStoreRecord (Circuit.forRange rowCount
+      (fun row => pivotProbeRow (model := model)
+        matrix used rows columns found sink row column))
+      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice (model := model) sink))
+      (Circuit.forRangeStoreRecord rowCount
+        (fun row => pivotProbeRow (model := model)
+          matrix used rows columns found sink row column)
         (fun row => pivotProbeRowStep matrix used rows columns found sink row column))
       (fun current =>
         let value := current.read (.storage found.toCStorageRef)
@@ -238,19 +264,25 @@ def reduceColumnBodyStep (column : Fin width) (store : Store ctx) :
 
 /-- One complete column body retains its actual increasing-order scan and all old correlations. -/
 theorem gf2ReduceColumnBody_execute (column : Fin width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (reduceColumnBody matrix used rows columns found sink column).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reduceColumnBody (model := model) matrix used rows columns found sink column).execute
+        Reference state =
       state.mapClassical (fun entry =>
         ((reduceColumnBodyStep matrix used rows columns found sink column entry.1).1,
-          (entry.2, (reduceColumnBodyStep matrix used rows columns found sink column entry.1).2)))
+          (entry.2.1, (entry.2.2,
+            (reduceColumnBodyStep matrix used rows columns found sink column entry.1).2))))
             :=
-  Circuit.execute_sequenceRecord _ _ _ _ (operation_execute (pivotClearOp found))
-    (Circuit.execute_sequenceRecord _ _ _ _
-      (Circuit.execute_forRangeRecord rowCount _ _
-        (fun row => gf2PivotProbeRow_execute matrix used rows columns found sink row column))
-      (fun reference {_} _ current => Circuit.execute_branch_mapClassical
-        (.storage found.toCStorageRef) (pivotAbsentChoice sink) (pivotAbsentChoiceStep sink)
-        (pivotAbsentChoice_execute sink) reference current)) Reference state
+  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (operation_execute (pivotClearOp found))
+    (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+      (Circuit.execute_forRangeStoreRecord (model := model) rowCount _ _
+        (fun row => gf2PivotProbeRow_execute (model := model)
+          matrix used rows columns found sink row column))
+      (fun reference {_} _ current => Circuit.execute_branchStoreRecord (model := model)
+        (.storage found.toCStorageRef) (pivotAbsentChoice (model := model) sink)
+        (pivotAbsentChoiceStep sink)
+        (pivotAbsentChoice_execute (model := model) sink) reference current)) Reference state
 
 /-- The first lexical exit removes only the actual found latch after the complete column body. -/
 def scopedPivotSearchStep (column : Fin width) (store : Store (pivotSinkContext ctx)) :
@@ -265,13 +297,15 @@ def scopedPivotSearchStep (column : Fin width) (store : Store (pivotSinkContext 
     (pivotSinkContext ctx).canonicalFreshKey_fresh actual.1, actual.2)
 
 private theorem scopedPivotSearch_execute (column : Fin width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State (pivotSinkContext ctx) Reference History) :
-    (scopedPivotSearch matrix used rows columns column).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State (pivotSinkContext ctx) Reference (model.HiddenState × History)) :
+    (scopedPivotSearch (model := model) matrix used rows columns column).execute Reference state =
       state.mapClassical (fun entry =>
         ((scopedPivotSearchStep matrix used rows columns column entry.1).1,
-          (entry.2, (scopedPivotSearchStep matrix used rows columns column entry.1).2))) :=
-  Circuit.execute_workspace_mapClassical _ _ _ _ _
-    (gf2ReduceColumnBody_execute _ _ _ _ _ _ column) Reference state
+          (entry.2.1, (entry.2.2,
+            (scopedPivotSearchStep matrix used rows columns column entry.1).2)))) :=
+  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+    (gf2ReduceColumnBody_execute (model := model) _ _ _ _ _ _ column) Reference state
 
 /-- The complete real column record initializes both bits and releases found before sink. -/
 def reduceColumnStep (column : Fin width) (store : Store ctx) :
@@ -282,13 +316,15 @@ def reduceColumnStep (column : Fin width) (store : Store ctx) :
 
 /-- The actual per-column circuit preserves every arbitrary caller-store/reference/history block. -/
 theorem gf2ReduceColumn_execute (column : Fin width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (reduceColumn matrix used rows columns column).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reduceColumn (model := model) matrix used rows columns column).execute Reference state =
       state.mapClassical (fun entry =>
         ((reduceColumnStep matrix used rows columns column entry.1).1,
-          (entry.2, (reduceColumnStep matrix used rows columns column entry.1).2))) :=
-  Circuit.execute_workspace_mapClassical _ _ _ _ _
-    (scopedPivotSearch_execute matrix used rows columns column) Reference state
+          (entry.2.1, (entry.2.2,
+            (reduceColumnStep matrix used rows columns column entry.1).2)))) :=
+  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+    (scopedPivotSearch_execute (model := model) matrix used rows columns column) Reference state
 
 end
 

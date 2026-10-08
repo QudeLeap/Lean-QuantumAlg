@@ -133,20 +133,22 @@ theorem gates_clockBit (width : Nat) (clock observed : Fin (width.size + 2))
 
 /-- Compile precisely the same actual adjacent-Toffoli decoder sweep. -/
 def program (width : Nat) (clock : Fin (width.size + 2)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width clock)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width clock)
 
 /-- Exact complete-frame basis semantics retains all relative amplitudes and history values. -/
 theorem program_realizes (width : Nat) (clock : Fin (width.size + 2)) :
     UnitaryCircuit.Realizes (encoding width) (program width clock)
       (fun state => if (clockBit width clock).get state then
         { state with secondWord := state.secondWord.rotateRight 1 } else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width clock)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (gates_step width clock)
 
 /-- The actual trace contains every emitted adjacent-swap Toffoli on every input. -/
 theorem program_eventTrace (width : Nat) (clock : Fin (width.size + 2)) :
-    (program width clock).eventTrace = (gates width clock).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width clock).eventTrace = (gates width clock).map (GateSpec.event .empty) :=
+  GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty _
 
 /-- The physical one-bit-controlled inverse sweep has exactly three gates per adjacent pair. -/
 theorem gates_length (width : Nat) (clock : Fin (width.size + 2)) :

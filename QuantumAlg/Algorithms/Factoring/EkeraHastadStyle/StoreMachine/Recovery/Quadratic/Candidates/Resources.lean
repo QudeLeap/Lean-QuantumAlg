@@ -21,43 +21,52 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Two original width conversions before the actual candidate arithmetic. -/
-def resizeTrace (shortWidth : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordResize (QuadraticPrefix.centerWidth shortWidth)
-      (candidateWidth shortWidth)),
-    .classicalOperation (.wordResize (QuadraticPrefix.discriminantWidth shortWidth)
-      (candidateWidth shortWidth))]
+def resizeTrace (shortWidth : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (QuadraticPrefix.centerWidth shortWidth) (candidateWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (QuadraticPrefix.discriminantWidth shortWidth) (candidateWidth shortWidth)))]
 
 /-- Independent five-operation suffix formula, including the selected subtraction branch. -/
-def suffixTrace (shortWidth : Nat) (underflow : Bool) : List (Resource.Event kind) :=
+def suffixTrace (shortWidth : Nat) (underflow : Bool) : List (Resource.Event model) :=
   resizeTrace shortWidth ++ NatSub.nativeTrace (candidateWidth shortWidth) underflow ++
-    [.classicalOperation (.addCarry (candidateWidth shortWidth))]
+    [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.addCarry (candidateWidth shortWidth)))]
 
 /-- Placement-independent allowance for both conversions and the original candidate arithmetic. -/
-def suffixEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def suffixEnvelope (shortWidth : Nat) : ResourcePool model :=
   (ResourcePool.ofList (resizeTrace shortWidth) +
     NatSub.eventEnvelope (candidateWidth shortWidth)) +
-    ResourcePool.singleton (.classicalOperation (.addCarry (candidateWidth shortWidth)))
+    ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.addCarry (candidateWidth shortWidth))))
 
 /-- The actual suffix path emits exactly the independently specified five native instructions. -/
 theorem suffixInto_events (refs : Refs ctx shortWidth) (path : (suffixInto refs).Path) :
     (suffixInto refs).eventTrace path =
       suffixTrace shortWidth path.2.2.1.2.1.toBool := by
-  change resizeTrace shortWidth ++ (NatSub.into refs.first).eventTrace path.2.2.1 ++
-    [.classicalOperation (.addCarry (candidateWidth shortWidth))] = _
-  rw [NatSub.into_events]
+  change (BitWord.instruction (execution := model) (centerOp refs)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (rootOp refs)).eventTrace path.2.1 ++
+      ((NatSub.into refs.first).eventTrace path.2.2.1 ++
+        (BitWord.instruction (execution := model) (secondOp refs)).eventTrace path.2.2.2)) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    NatSub.into_events, BitWord.bitWord_instruction_eventTrace]
   rfl
 
 /-- Every actual suffix branch meets the original independent native coordinate allowance. -/
 theorem suffixInto_pool_le (refs : Refs ctx shortWidth) (path : (suffixInto refs).Path) :
     (suffixInto refs).resourcePool path ≤ suffixEnvelope shortWidth := by
-  change ResourcePool.ofList (resizeTrace shortWidth ++
-    (NatSub.into refs.first).eventTrace path.2.2.1 ++
-      [.classicalOperation (.addCarry (candidateWidth shortWidth))]) ≤ _
+  change ResourcePool.ofList ((suffixInto refs).eventTrace path) ≤ _
+  rw [suffixInto_events]
+  unfold suffixTrace
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append]
-  exact add_le_add (add_le_add le_rfl (NatSub.into_pool_le refs.first path.2.2.1)) le_rfl
+  have firstPool := NatSub.into_pool_le refs.first path.2.2.1
+  change ResourcePool.ofList ((NatSub.into refs.first).eventTrace path.2.2.1) ≤ _ at firstPool
+  rw [NatSub.into_events] at firstPool
+  exact add_le_add (add_le_add le_rfl firstPool) le_rfl
 
 /-- Both candidate writes and the real comparison are charged in addition to the resizes. -/
 theorem suffixInto_eventCount (refs : Refs ctx shortWidth) (path : (suffixInto refs).Path) :
@@ -81,25 +90,29 @@ theorem suffixInto_visited (refs : Refs ctx shortWidth) (path : (suffixInto refs
 
 /-- Every actual suffix operation restores borrowed storage jointly with external references. -/
 theorem suffixInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (suffixInto refs).BorrowedRestored Reference state
       ((suffixInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical (centerOp refs) state
+  · exact Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (centerOp refs)) state
   · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical (rootOp refs) _
+    · exact Circuit.borrowedRestored_classical
+        (BitWord.selectedApplication (execution := model) (rootOp refs)) _
     · exact Circuit.borrowedRestored_seq _ _ _
         (NatSub.into_borrowedRestored refs.first Reference _)
-        (Circuit.borrowedRestored_classical (secondOp refs) _)
+        (Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (secondOp refs)) _)
 
 /-- The complete original formula accounts for the actual discriminant and candidate branches. -/
 def nativeTrace (shortWidth : Nat) (discriminantUnderflow candidateUnderflow : Bool) :
-    List (Resource.Event kind) :=
+    List (Resource.Event model) :=
   QuadraticPrefix.nativeTrace shortWidth discriminantUnderflow ++
     suffixTrace shortWidth candidateUnderflow
 
 /-- The complete native allowance is specified independently of every execution record. -/
-def eventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
   QuadraticPrefix.eventEnvelope shortWidth + suffixEnvelope shortWidth
 
 /-- Prefix, square-root refinement and both candidate instructions share one actual path. -/
@@ -144,7 +157,7 @@ theorem into_depth (refs : Refs ctx shortWidth) (path : (into refs).Path) :
 
 /-- Every supplied classical cell and quantum system remains live through candidate construction. -/
 theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (QuadraticPrefix.into refs.quadraticPrefix).visitedContexts path.1 ++
     (suffixInto refs).visitedContexts path.2 at present
@@ -169,7 +182,8 @@ theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path)
 
 /-- Complete execution restores borrowed systems jointly with arbitrary external references. -/
 theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact QuadraticPrefix.into_borrowedRestored refs.quadraticPrefix Reference state

@@ -69,6 +69,20 @@ public def Holds (requirement : StateRequirement pre post) (input : Execution.In
         (DensityOperator.observeSelectionWithReference post.quantumLayout selection Reference
           (observed.block value))
 
+/-- A constant marginal pure promise is checked on each actual output-read
+block, after every unobserved classical path has been summed. -/
+theorem marginal_pure_holds_iff
+    (selection : Finset (Fin post.systemCount)) {shape : CShape}
+    (read : OutputRead post shape)
+    (target : NormalizedVector (post.quantumLayout.selectedRegister selection))
+    (input : Execution.Input pre Reference)
+    (final : ExecutionState (Execution.Store post) (Register.prod post.register Reference)) :
+    (StateRequirement.marginal selection read
+      (fun _ _ => StatePromise.pure target)).Holds input final ↔
+      ∀ value, (StatePromise.pure target).Holds
+        (DensityOperator.observeSelection post.quantumLayout selection Reference
+          ((final.mapClassical read.eval).block value)) := Iff.rfl
+
 /-- A dirty requirement omits state information while leaving its observed systems live. -/
 theorem marginal_dirty_holds (selection : Finset (Fin post.systemCount)) {shape : CShape}
     (read : OutputRead post shape) (input : Execution.Input pre Reference)

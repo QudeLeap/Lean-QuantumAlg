@@ -14,7 +14,6 @@ import all QuantumAlg.Algorithms.BernsteinVazirani.Construction
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Accounting.Space
-import all QuantumAlg.Components.Oracle.Common
 
 /-!
 # The independent complete Bernstein-Vazirani problem
@@ -32,22 +31,18 @@ open WalshHadamard.Readout
 
 noncomputable section
 
-/-- The independent basis-preparation coordinate: n zeros followed by target one. -/
-def preparationEvent (n : Nat) : Resource.Event .quantum :=
-  .preparation
-    { family := "builtin"
-      name := "computational-basis"
-      parameters := (n + 1) ::
-        (List.replicate (n + 1) 2 ++ (List.replicate n 0 ++ [1])) }
-
-/-- Explicit event multiplicities for preparation, the query circuit, measurement, and packing. -/
-def eventBudget (n : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (preparationEvent n) +
-    ((2 * n + 1) • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      ResourcePool.singleton (.quantumSubroutine (xorOracleSubroutineLabel n).quantum)) +
-    (n • ResourcePool.singleton
-      (.measurement { family := "builtin", name := "z", parameters := [2] }) +
-      ResourcePool.singleton (.classicalOperation (.nominalEncoding (.packFiniteBits n))))
+/-- Explicit native counts, independent of the candidate circuit. -/
+def eventBudget {n : Nat} (hidden : Fin (2 ^ n)) : ResourcePool (model (oracle hidden)) :=
+  (n + 1) • ResourcePool.singleton (model := model (oracle hidden))
+      (.preparation (2 : ℕ+)) +
+    ((2 * n + 2) • ResourcePool.singleton (model := model (oracle hidden))
+      (.gate AlgorithmGate.Coordinate.singleQubit) +
+      ResourcePool.singleton (model := model (oracle hidden))
+      (.oracle XorOracle.Coordinate.xor)) +
+    (n • ResourcePool.singleton (model := model (oracle hidden))
+      (.measurement (2 : ℕ+)) +
+      ResourcePool.singleton (model := model (oracle hidden))
+      (.classicalOperation (Resource.ClassicalOpLabel.nominalEncoding (.packFiniteBits n))))
 
 /-- All prepared systems and both actual classical result representations remain live. -/
 def spaceBudget (n : Nat) : SpacePool .quantum
@@ -55,7 +50,7 @@ def spaceBudget (n : Nat) : SpacePool .quantum
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then n + 1 else 0
 
 /-- Preparation, the query circuit, n sequential measurements, and one actual packing step. -/
-def depthBudget (n : Nat) : Nat := 1 + (if n = 0 then 2 else 3) + n + 1
+def depthBudget (n : Nat) : Nat := 1 + (if n = 0 then 3 else 4) + n + 1
 
 /-- The actual packed result must encode precisely the hidden string. -/
 def accepts {n : Nat} (hidden : Fin (2 ^ n))
@@ -75,12 +70,13 @@ systems are prepared by the code itself.
 Output retains the borrowed unit, n+1 prepared quantum systems, n finite
 binary measurement cells and the final n-bit string. The target remains
 unmeasured. At n=0 the result is the unique empty bit string.
-**Resource budget.** One computational-basis preparation of n zero query
-qubits and target one, 2n+1 Hadamards, one n-input XOR-oracle call, n binary
-Z measurements, and one width-tagged finite-bit packing operation. Both
+**Resource budget.** Fixed zero preparation of all n+1 qubits, followed by
+one target X and 2n+1 Hadamards, charged as 2n+2 native single-qubit gates.
+One n-input XOR-oracle call, n binary Z measurements, and one width-tagged
+finite-bit packing operation in the built-in bit/word model. Both
 resident and auxiliary space are at most n+1 dimension-two systems and 2n
 classical bits, with no systems at other dimensions. Unit-event depth is at
-most `1+(if n=0 then 2 else 3)+n+1`. At n=0 no measurement is performed and
+most `1+(if n=0 then 3 else 4)+n+1`. At n=0 no measurement is performed and
 packing still emits one actual event.
 **Success.** Exact recovery with probability one, together with mandatory
 joint restoration of the borrowed classical input and external reference.
@@ -90,13 +86,19 @@ uses the same query circuit as Deutsch-Jozsa. Native preparation, individual
 measurement writes and classical packing are additionally accounted for.
 -/
 public def problem {n : Nat} (hidden : Fin (2 ^ n)) :
-    Problem .quantum pre (post n) (.bits n) where
+    Problem (model (oracle hidden)) pre (post n) (.bits n) where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := accepts hidden
   successLB := ⟨1, le_rfl⟩
   states := []
-  resources := { events := eventBudget n, resident := spaceBudget n, auxiliary := spaceBudget n }
-  depth := .quantum (fun _ => 1) (depthBudget n)
+  resources :=
+    { events := eventBudget hidden, resident := spaceBudget n, auxiliary := spaceBudget n }
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBudget n
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

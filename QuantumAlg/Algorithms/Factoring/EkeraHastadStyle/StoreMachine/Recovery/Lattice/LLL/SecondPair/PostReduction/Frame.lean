@@ -49,10 +49,12 @@ theorem refresh_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .g31 (by decide)) (avoids .refreshG21Product (by decide))
 
 /-- Actual final-direction division preserves reads outside its original six mutable cells. -/
-theorem division_frame (refs : Refs ctx width) (store : Store ctx)
+theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine divisionCells other) :
-    (RoundedDiv.bodyStep refs.machine.division31 store).1.read other = store.read other := by
+    (RoundedDiv.bodyStep (model := model) refs.machine.division31 store).1.read other =
+      store.read other := by
   apply RoundedDiv.body_callerFrame refs.machine.division31 store other
   intro key member
   change key ∈ divisionCells.map (LatticeSecondPairMachine.cellKey refs.machine) at member
@@ -73,10 +75,11 @@ theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .b32 (by decide)) (avoids .b33 (by decide))
 
 /-- Complete actual final reduction preserves every read outside the union of its written cells. -/
-theorem postReductionInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem postReductionInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine mutableCells other) :
-    (postReductionStep refs store).1.read other = store.read other := by
+    (postReductionStep (model := model) refs store).1.read other = store.read other := by
   have refresh : LatticeSecondPairMachine.FrameAvoids refs.machine refreshCells other :=
     fun cell member => avoids cell (by simp [mutableCells, member])
   have division : LatticeSecondPairMachine.FrameAvoids refs.machine divisionCells other :=
@@ -86,16 +89,18 @@ theorem postReductionInto_callerFrame (refs : Refs ctx width) (store : Store ctx
     fun cell member => avoids cell (by simp [mutableCells, member])
   change (LatticeArithmetic.pointStore (writeInput refs.machine.division31.output)
     refs.machine.basis.first refs.machine.basis.third refs.machine.reduceProduct
-    (RoundedDiv.bodyStep refs.machine.division31 (LatticeDotRefresh.refreshStore
+    (RoundedDiv.bodyStep (model := model) refs.machine.division31 (LatticeDotRefresh.refreshStore
       refs.machine.basis.third refs.machine.basis.first
         (refreshG31Refs refs) store)).1).read other = _
   rw [reduction_frame refs _ other reduction, division_frame refs _ other division,
     refresh_frame refs _ other refresh]
 
 /-- The final reduction retains the original first norm word exactly. -/
-theorem postReductionInto_g11 (refs : Refs ctx width) (separation : Separation refs)
+theorem postReductionInto_g11 {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (postReductionStep refs store).1.read (writeInput refs.machine.metric.g11) =
+    (postReductionStep (model := model) refs store).1.read
+      (writeInput refs.machine.metric.g11) =
       store.read (writeInput refs.machine.metric.g11) :=
   postReductionInto_callerFrame refs store _
     (LatticeSecondPairMachine.metric_avoids refs.machine separation.phase .g11 mutableCells

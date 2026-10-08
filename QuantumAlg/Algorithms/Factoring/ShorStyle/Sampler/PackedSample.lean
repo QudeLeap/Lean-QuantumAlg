@@ -10,6 +10,8 @@ import all QuantumAlg.Algorithms.Factoring.ShorStyle.Parameters
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Random
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Components.Classical.Model.BitWord.Random.Semantics
+import all QuantumAlg.Components.Classical.Model.BitWord.Random.Indexed
 
 /-!
 # Native random storage and exact RSA proposal addresses
@@ -99,20 +101,55 @@ theorem packedSample_proposalValue_eq_bits {width count : Nat}
   rw [← bitsEq, Nat.ofBits_testBit]
 
 /-- The native source contains precisely one random instruction of the public width. -/
-def draw {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
-    (output : CWriteRef ctx (.bits (residueSamplingBits N))) : Circuit ctx ctx :=
-  .randomBits (residueSamplingBits N) output
+def draw {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N))) :
+    Circuit model ctx ctx := BitWord.Random.code output
 
-/-- The sample path is the instruction's actual finite uniform choice. -/
-theorem packedSample_draw_execute {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N)))
+/-- Finite source labels bijectively name the actual native bit-string paths. -/
+def drawPathEquiv {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N))) :
+    (draw (model := model) N output).Path ≃ Fin (2 ^ residueSamplingBits N) :=
+  (BitWord.Random.pathEquiv output).trans (BitWord.Random.sampleEquiv _)
+
+private theorem decoded_sample (width : Nat) (value : Fin (2 ^ width)) :
+    (BitWord.Random.sampleEquiv width).symm value = .bits (storedBits value) := by
+  have bits := BitWord.Random.randomSampleEquiv_symm_bit width value
+  cases decoded : (BitWord.Random.sampleEquiv width).symm value with
+  | bits values =>
+      apply congrArg CShape.Value.bits
+      funext index
+      have result := bits index
+      rw [decoded] at result
+      exact result
+
+/-- The same uniform source writes the original bits and records their actual native path. -/
+theorem packedSample_draw_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N)))
     (Reference : Register) {H : Type} [Fintype H]
-    (state : Execution.State ctx Reference H) :
-    (draw N output).execute Reference state =
+    (state : Execution.State ctx Reference (model.HiddenState × H)) :
+    (draw (model := model) N output).execute Reference state =
       (Execution.uniformChoice state ⟨2 ^ residueSamplingBits N,
         Nat.two_pow_pos _⟩).mapClassical (fun value =>
           (value.1.1.write output (.bits (storedBits value.2)),
-            (value.1.2, value.2))) := rfl
+            (value.1.2.1, (value.1.2.2,
+              (drawPathEquiv (model := model) N output).symm value.2)))) := by
+  refine (BitWord.Random.randomCode_execute (execution := model) output Reference state).trans ?_
+  let update : (Execution.Store ctx × (model.HiddenState × H)) ×
+      CShape.Value (.bits (residueSamplingBits N)) →
+      Execution.Store ctx × (model.HiddenState × (H × (draw (model := model) N output).Path)) :=
+    fun entry => (entry.1.1.write output entry.2,
+      (entry.1.2.1, (entry.1.2.2, (BitWord.Random.pathEquiv output).symm entry.2)))
+  have bridge := BitWord.Random.randomKernel_map_indexed state (residueSamplingBits N) update
+  refine (ExecutionState.executionState_mapClassical_congr _ (g := update) rfl).trans
+    (bridge.trans ?_)
+  refine ExecutionState.executionState_mapClassical_congr _ ?_
+  funext entry
+  exact congrArg (fun value => (entry.1.1.write output value,
+    (entry.1.2.1, (entry.1.2.2,
+      (drawPathEquiv (model := model) N output).symm entry.2))))
+    (decoded_sample (residueSamplingBits N) entry.2)
 
 private theorem mapped_uniformChoice_matrix {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D]
@@ -128,24 +165,25 @@ private theorem mapped_uniformChoice_matrix {C D : Type} [Fintype C] [Fintype D]
     (Execution.uniformChoice_block_matrix state count entry.1 entry.2)
 
 open Classical in
-/-- Exact complete matrix law: every sample has one uniform fraction of its
-original quantum-reference block, and the written bits encode that same sample. -/
-theorem packedSample_draw_block_matrix {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N)))
+/-- Exact complete matrix law, retaining shared service state and every prior correlation. -/
+theorem packedSample_draw_block_matrix {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N)))
     (Reference : Register) {H : Type} [Fintype H]
-    (state : Execution.State ctx Reference H)
-    (result : Execution.Store ctx × (H × Fin (2 ^ residueSamplingBits N))) :
-    (((draw N output).execute Reference state).block result).matrix =
-      ∑ value : (Execution.Store ctx × H) × Fin (2 ^ residueSamplingBits N),
+    (state : Execution.State ctx Reference (model.HiddenState × H))
+    (result : Execution.Store ctx ×
+      (model.HiddenState × (H × (draw (model := model) N output).Path))) :
+    (((draw (model := model) N output).execute Reference state).block result).matrix =
+      ∑ value : (Execution.Store ctx × (model.HiddenState × H)) ×
+          Fin (2 ^ residueSamplingBits N),
         if (value.1.1.write output (.bits (storedBits value.2)),
-            (value.1.2, value.2)) = result then
+            (value.1.2.1, (value.1.2.2,
+              (drawPathEquiv (model := model) N output).symm value.2))) = result then
           ((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ • (state.block value.1).matrix
         else 0 := by
   rw [packedSample_draw_execute]
   exact mapped_uniformChoice_matrix state
-    (⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩ : ℕ+)
-    (fun value =>
-      (value.1.1.write output (.bits (storedBits value.2)), (value.1.2, value.2))) result
+    (⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩ : ℕ+) _ result
 
 /-- Writing the sampled outcome makes every proposal address readable as its
 original source integer; this is a store equality, not an input assumption. -/
@@ -160,27 +198,35 @@ theorem packedSample_draw_written_proposal {kind : ProblemKind}
   packedSample_proposalRefs_read _ _ value
     (Execution.Store.read_write_same store output _) proposal bit
 
-/-- Every actual random path emits exactly the declared random-bit event. -/
-theorem packedSample_draw_trace {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N)))
-    (path : (draw N output).Path) :
-    (draw N output).eventTrace path =
-      [.classicalOperation (.randomBits (residueSamplingBits N))] := rfl
+/-- Every actual random path emits exactly the selected model's random-bit coordinate. -/
+theorem packedSample_draw_trace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N)))
+    (path : (draw (model := model) N output).Path) :
+    (draw (model := model) N output).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.randomBits (residueSamplingBits N)))] :=
+  BitWord.Random.randomCode_eventTrace output path
 
 /-- Exact native pool, independent of the chosen sample and prior state. -/
-theorem packedSample_draw_pool {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N)))
-    (path : (draw N output).Path) :
-    (draw N output).resourcePool path =
-      ResourcePool.singleton (.classicalOperation (.randomBits (residueSamplingBits N))) := by
+theorem packedSample_draw_pool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N)))
+    (path : (draw (model := model) N output).Path) :
+    (draw (model := model) N output).resourcePool path =
+      ResourcePool.singleton (.classicalOperation
+        (BitWord.selectedCoordinate (execution := model)
+          (.randomBits (residueSamplingBits N)))) := by
   simp only [Circuit.resourcePool, packedSample_draw_trace,
     ResourcePool.ofList_cons, ResourcePool.ofList_nil, add_zero]
 
 /-- Native random sampling has one sequential dependency layer. -/
-theorem packedSample_draw_unit_depth {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (N : Nat) (output : CWriteRef ctx (.bits (residueSamplingBits N)))
-    (path : (draw N output).Path) :
-    (draw N output).depth (fun _event => 1) path = 1 := rfl
+theorem packedSample_draw_unit_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (N : Nat)
+    (output : CWriteRef ctx (.bits (residueSamplingBits N)))
+    (path : (draw (model := model) N output).Path) :
+    (draw (model := model) N output).depth (fun _event => 1) path = 1 :=
+  BitWord.Random.randomCode_unitDepth output path
 
 end
 

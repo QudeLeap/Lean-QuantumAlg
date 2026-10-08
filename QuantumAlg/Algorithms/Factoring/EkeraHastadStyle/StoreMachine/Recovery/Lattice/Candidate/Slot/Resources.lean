@@ -19,23 +19,26 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 /-- Independent native allowance for either original signed-magnitude normalization arm. -/
-def exponentEnvelope (kind : ProblemKind) (width : Nat) : ResourcePool kind :=
+def exponentEnvelope (execution : ExecutionModel) [BitWord.Selected execution]
+    (width : Nat) : ResourcePool execution :=
   ResourcePool.max (ResourcePool.ofList (LatticeCandidateExponent.exponentTrace width false))
     (ResourcePool.ofList (LatticeCandidateExponent.exponentTrace width true))
 
 /-- Independent complete five-stage allowance, including literal offset loading and real power
 work. -/
-def candidateSlotEventEnvelope (kind : ProblemKind) (coordinateWidth modulusWidth : Nat)
-    (offset : NumberTheory.IntegerPoint3) : ResourcePool kind :=
+def candidateSlotEventEnvelope (execution : ExecutionModel) [BitWord.Selected execution]
+    (coordinateWidth modulusWidth : Nat)
+    (offset : NumberTheory.IntegerPoint3) : ResourcePool execution :=
   ResourcePool.ofList (LatticeCandidateDistancePrefix.prefixTrace coordinateWidth offset) +
     (ResourcePool.ofList (LatticeNearTargetScale.scaleTrace coordinateWidth) +
-      (exponentEnvelope kind coordinateWidth +
-        (LatticeCandidatePowerMachine.candidatePowerEventEnvelope kind modulusWidth
+      (exponentEnvelope execution coordinateWidth +
+        (LatticeCandidatePowerMachine.candidatePowerEventEnvelope execution modulusWidth
           coordinateWidth +
-          LatticeCandidateSelector.candidateSelectorEventEnvelope kind coordinateWidth)))
+          LatticeCandidateSelector.candidateSelectorEventEnvelope execution coordinateWidth)))
 
 /-- Independent unit-duration bound for initialization, all original checks and native powering. -/
 def candidateSlotDepthBound (coordinateWidth modulusWidth : Nat)
@@ -61,7 +64,7 @@ theorem candidateSlotInto_events (spec : ModulusSpec modulusWidth)
 private theorem exponent_pool_le (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (LatticeCandidateExponent.candidateExponentInto refs.exponent).Path) :
     (LatticeCandidateExponent.candidateExponentInto refs.exponent).resourcePool path ≤
-      exponentEnvelope kind coordinateWidth := by
+      exponentEnvelope model coordinateWidth := by
   refine (LatticeCandidateExponent.candidateExponentInto_resourcePool
     refs.exponent path).le.trans ?_
   cases path.1.2.1.toBool
@@ -73,7 +76,7 @@ theorem candidateSlotInto_pool_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).resourcePool path ≤
-      candidateSlotEventEnvelope kind coordinateWidth modulusWidth offset := by
+      candidateSlotEventEnvelope model coordinateWidth modulusWidth offset := by
   change ResourcePool.ofList (_ ++ (_ ++ (_ ++ (_ ++ _)))) ≤ _
   simp only [ResourcePool.ofList_append]
   exact add_le_add
@@ -108,7 +111,8 @@ theorem candidateSlotInto_depth_le (spec : ModulusSpec modulusWidth)
 theorem candidateSlotInto_borrowedRestored (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSlotInto spec offset refs).BorrowedRestored Reference state
       ((candidateSlotInto spec offset refs).execute Reference state) := by
   refine Circuit.borrowedRestored_seq
@@ -129,7 +133,7 @@ theorem candidateSlotInto_resident_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind modulusWidth := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind modulusWidth := by
   refine (Circuit.peakResidentSpace_seq
     (LatticeCandidateDistancePrefix.candidateDistancePrefixInto offset refs.distance)
     (rangeChecksInto spec refs) path).le.trans ?_
@@ -161,7 +165,7 @@ theorem candidateSlotInto_auxiliary_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind modulusWidth := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind modulusWidth := by
   refine (Circuit.peakAuxiliarySpace_seq
     (LatticeCandidateDistancePrefix.candidateDistancePrefixInto offset refs.distance)
     (rangeChecksInto spec refs) path).le.trans ?_

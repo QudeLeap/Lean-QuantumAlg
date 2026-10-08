@@ -14,36 +14,79 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Exponentiation.Depth
 
 The two exponent registers select actual unit-multiplier stages on one
 shared power and auxiliary pair. Register insertion and reassociation do
-not introduce events. Independent coordinate budgets keep every native
-control label; a separate bound counts actual occurrences more tightly.
+not introduce events. Independent coordinate budgets include every gate in
+the native control expansion; a separate bound counts all occurrences.
 -/
 
 namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+/-- The first register embedding preserves the actual eventCost. -/
+@[simp] theorem firstExponentiationProgram_eventCost (m ell width N : Nat) (g : (ZMod N)ˣ) :
+    (firstExponentiationProgram m ell width N g).eventCost =
+      (exponentiationProgram (ell + m) width N g).eventCost :=
+  UnitaryCircuit.insertMiddle_eventCost (middleWidth := ell)
+    (exponentiationProgram (ell + m) width N g)
+
+/-- The second register embedding and reassociation preserve the actual eventCost. -/
+@[simp] theorem secondExponentiationProgram_eventCost (m ell width N : Nat) (x : (ZMod N)ˣ) :
+    (secondExponentiationProgram m ell width N x).eventCost =
+      (exponentiationProgram ell width N x⁻¹).eventCost := by
+  exact (castProgram_eventCost
+    (Nat.add_assoc (firstBits (registerParameters m ell width)) ell (workspaceBits width)).symm
+    (UnitaryCircuit.prodRight
+      (m := firstBits (registerParameters m ell width))
+      (exponentiationProgram ell width N x⁻¹))).trans
+    (UnitaryCircuit.prodRight_eventCost
+      (m := firstBits (registerParameters m ell width))
+      (exponentiationProgram ell width N x⁻¹))
+
+/-- The first register embedding preserves the actual eventDepth. -/
+@[simp] theorem firstExponentiationProgram_eventDepth (m ell width N : Nat) (g : (ZMod N)ˣ) :
+    (firstExponentiationProgram m ell width N g).eventDepth =
+      (exponentiationProgram (ell + m) width N g).eventDepth :=
+  UnitaryCircuit.insertMiddle_eventDepth (middleWidth := ell)
+    (exponentiationProgram (ell + m) width N g)
+
+/-- The second register embedding and reassociation preserve the actual eventDepth. -/
+@[simp] theorem secondExponentiationProgram_eventDepth (m ell width N : Nat) (x : (ZMod N)ˣ) :
+    (secondExponentiationProgram m ell width N x).eventDepth =
+      (exponentiationProgram ell width N x⁻¹).eventDepth := by
+  exact (castProgram_eventDepth
+    (Nat.add_assoc (firstBits (registerParameters m ell width)) ell (workspaceBits width)).symm
+    (UnitaryCircuit.prodRight
+      (m := firstBits (registerParameters m ell width))
+      (exponentiationProgram ell width N x⁻¹))).trans
+    (UnitaryCircuit.prodRight_eventDepth
+      (m := firstBits (registerParameters m ell width))
+      (exponentiationProgram ell width N x⁻¹))
+
 /-- Independent native coordinates of the first lifted selected-power fold. -/
-def firstExponentiationEventEnvelope (m ell width N : Nat) : ResourcePool .quantum :=
+def firstExponentiationEventEnvelope (m ell width N : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   exponentiationEventEnvelope (ell + m) width N
 
 /-- Independent native coordinates of the second lifted selected-power fold. -/
-def secondExponentiationEventEnvelope (ell width N : Nat) : ResourcePool .quantum :=
+def secondExponentiationEventEnvelope (ell width N : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   exponentiationEventEnvelope ell width N
 
 theorem firstExponentiationProgram_eventCost_le (m ell width N : Nat) (g : (ZMod N)ˣ) :
     (firstExponentiationProgram m ell width N g).eventCost ≤
       firstExponentiationEventEnvelope m ell width N := by
-  rw [firstExponentiationProgram, UnitaryCircuit.insertMiddle_eventCost]
+  rw [firstExponentiationProgram_eventCost]
   exact exponentiationProgram_eventCost_le (ell + m) width N g
 
 theorem secondExponentiationProgram_eventCost_le (m ell width N : Nat) (x : (ZMod N)ˣ) :
     (secondExponentiationProgram m ell width N x).eventCost ≤
       secondExponentiationEventEnvelope ell width N := by
-  rw [secondExponentiationProgram, castProgram_eventCost, UnitaryCircuit.prodRight_eventCost]
+  rw [secondExponentiationProgram_eventCost]
   exact exponentiationProgram_eventCost_le ell width N x⁻¹
 
 /-- The two independently capped coordinate pools on their shared arithmetic workspace. -/
-def compiledGroupActionEventEnvelope (m ell width N : Nat) : ResourcePool .quantum :=
+def compiledGroupActionEventEnvelope (m ell width N : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   firstExponentiationEventEnvelope m ell width N + secondExponentiationEventEnvelope ell width N
 
 /-- Cardinality of the two independent coordinate pools. -/
@@ -85,60 +128,55 @@ theorem compiledGroupActionProgram_eventCount_le (m ell width N : Nat) (g x : (Z
 
 /-- A tighter bound on actual occurrences, before independently capping every native coordinate. -/
 def groupActionActualEventBound (m ell width : Nat) : Nat :=
-  (m + 2 * ell) * MAU.Multiplication.Gidney.eventBound width
+  (m + 2 * ell) * MAU.Exponentiation.Gidney.stageEventBound width
 
 theorem compiledGroupActionProgram_actual_event_bound
     (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledGroupActionProgram m ell width N g x).eventCost.card ≤
       groupActionActualEventBound m ell width := by
   rw [compiledGroupActionProgram, UnitaryCircuit.seq_eventCost, Multiset.card_add,
-    firstExponentiationProgram, UnitaryCircuit.insertMiddle_eventCost,
-    secondExponentiationProgram, castProgram_eventCost, UnitaryCircuit.prodRight_eventCost]
+    firstExponentiationProgram_eventCost, secondExponentiationProgram_eventCost]
   have first := exponentiationProgram_actual_event_bound (ell + m) width N g
   have second := exponentiationProgram_actual_event_bound ell width N x⁻¹
   calc
-    _ ≤ (ell + m) * MAU.Multiplication.Gidney.eventBound width +
-        ell * MAU.Multiplication.Gidney.eventBound width := Nat.add_le_add first second
+    _ ≤ (ell + m) * MAU.Exponentiation.Gidney.stageEventBound width +
+        ell * MAU.Exponentiation.Gidney.stageEventBound width := Nat.add_le_add first second
     _ = groupActionActualEventBound m ell width := by
       unfold groupActionActualEventBound
       ring
 
 /-- The untouched middle word contributes no duration to the first member's envelope. -/
 def firstExponentiationDepthEnvelope (m ell width N : Nat) :
-    DepthExpr (Resource.Event .quantum) :=
-  .tensor (exponentiationDepthEnvelope (ell + m) width N) .id
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
+  exponentiationDepthEnvelope (ell + m) width N
 
 /-- The untouched first word contributes no duration to the second member's envelope. -/
 def secondExponentiationDepthEnvelope (ell width N : Nat) :
-    DepthExpr (Resource.Event .quantum) :=
-  .tensor .id (exponentiationDepthEnvelope ell width N)
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
+  exponentiationDepthEnvelope ell width N
 
 theorem firstExponentiationProgram_eventDepth_le (m ell width N : Nat) (g : (ZMod N)ˣ)
-    (assignment : Resource.Event .quantum → Nat) :
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (firstExponentiationProgram m ell width N g).eventDepth ≤
       DepthExpr.depthEval assignment (firstExponentiationDepthEnvelope m ell width N) := by
-  simp only [firstExponentiationProgram, UnitaryCircuit.insertMiddle_eventDepth,
-    firstExponentiationDepthEnvelope, DepthExpr.depthEval_tensor,
-    DepthExpr.depthEval_id, max_zero]
+  rw [firstExponentiationProgram_eventDepth, firstExponentiationDepthEnvelope]
   exact exponentiationProgram_eventDepth_le (ell + m) width N g assignment
 
 theorem secondExponentiationProgram_eventDepth_le (m ell width N : Nat) (x : (ZMod N)ˣ)
-    (assignment : Resource.Event .quantum → Nat) :
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (secondExponentiationProgram m ell width N x).eventDepth ≤
       DepthExpr.depthEval assignment (secondExponentiationDepthEnvelope ell width N) := by
-  simp only [secondExponentiationProgram, castProgram_eventDepth,
-    UnitaryCircuit.prodRight_eventDepth, secondExponentiationDepthEnvelope,
-    DepthExpr.depthEval_tensor, DepthExpr.depthEval_id, zero_max]
+  rw [secondExponentiationProgram_eventDepth, secondExponentiationDepthEnvelope]
   exact exponentiationProgram_eventDepth_le ell width N x⁻¹ assignment
 
 /-- The two members execute sequentially on the same actual arithmetic words. -/
 def compiledGroupActionDepthEnvelope (m ell width N : Nat) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   .seq (firstExponentiationDepthEnvelope m ell width N)
     (secondExponentiationDepthEnvelope ell width N)
 
 theorem compiledGroupActionProgram_eventDepth_le (m ell width N : Nat) (g x : (ZMod N)ˣ)
-    (assignment : Resource.Event .quantum → Nat) :
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (compiledGroupActionProgram m ell width N g x).eventDepth ≤
       DepthExpr.depthEval assignment (compiledGroupActionDepthEnvelope m ell width N) := by
   rw [compiledGroupActionProgram, UnitaryCircuit.seq_eventDepth,
@@ -161,11 +199,8 @@ theorem compiledGroupActionProgram_depth_eq_events (m ell width N : Nat) (g x : 
     (compiledGroupActionProgram m ell width N g x).eventDepth = _
   simp only [compiledGroupActionProgram, UnitaryCircuit.seq_eventDepth,
     UnitaryCircuit.seq_eventCost, Multiset.card_add, DepthExpr.depthEval_seq,
-    firstExponentiationProgram, UnitaryCircuit.insertMiddle_eventDepth,
-    UnitaryCircuit.insertMiddle_eventCost, secondExponentiationProgram,
-    castProgram_eventDepth, castProgram_eventCost, UnitaryCircuit.prodRight_eventDepth,
-    UnitaryCircuit.prodRight_eventCost, DepthExpr.depthEval_tensor, DepthExpr.depthEval_id,
-    max_zero, zero_max]
+    firstExponentiationProgram_eventDepth, firstExponentiationProgram_eventCost,
+    secondExponentiationProgram_eventDepth, secondExponentiationProgram_eventCost]
   exact congrArg₂ Nat.add (exponentiationProgram_depth_eq_events (ell + m) width N g)
     (exponentiationProgram_depth_eq_events ell width N x⁻¹)
 

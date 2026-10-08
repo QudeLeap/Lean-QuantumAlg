@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Source
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit
 import all QuantumAlg.Core.Execution.Context.Layout
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 
@@ -73,26 +74,32 @@ theorem shortDLP_runtimePlacement_physicalIdx :
     (shortDLP_runtimeLayout_identities m ell width)
 
 /-- The actual compiled two-exponentiation member acts on the same runtime bank. -/
-def memberProgram (N : Nat) (generator target : (ZMod N)ˣ) : UnitaryCircuit ctx.register :=
-  UnitaryCircuit.reindex (basisEquiv m ell width sameWires).symm
+def memberProgram (N : Nat) (generator target : (ZMod N)ˣ) :
+    UnitaryCircuit AlgorithmGate.model .empty ctx.quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout m ell width) ctx.quantumLayout
+    (layoutWires m ell width sameWires)
     (compiledCircuit m ell width N generator target)
 
 /-- The actual X reload acts on the same systems after their proved reset. -/
-def reloadProgram (N : Nat) : UnitaryCircuit ctx.register :=
-  UnitaryCircuit.reindex (basisEquiv m ell width sameWires).symm
+def reloadProgram (N : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty ctx.quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout m ell width) ctx.quantumLayout
+    (layoutWires m ell width sameWires)
     (CompiledMAU.reloadProgram m ell width N)
 
-/-- The member's actual unitary constructor covers the complete existing bank. -/
-theorem shortDLP_runtimeMember_physicalIdx (N : Nat) (generator target : (ZMod N)ˣ) :
-    (memberProgram m ell width sameWires N generator target).physical_idx = ctx.physicalIdx :=
-  (compiledCircuit_physical_idx m ell width N generator target).trans
-    (shortDLP_runtimePlacement_physicalIdx m ell width sameWires).symm
+/-- Full-bank placement preserves every actual native and oracle event. -/
+theorem shortDLP_runtimeMember_eventTrace (N : Nat) (generator target : (ZMod N)ˣ)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (memberProgram m ell width sameWires N generator target).eventTrace operations services =
+      (compiledCircuit m ell width N generator target).eventTrace operations services :=
+  Execution.unitaryOfEqualWires_trace _ _ _ _ operations services
 
-/-- Reload preserves the same complete bank even when no X gate is needed. -/
-theorem shortDLP_runtimeReload_physicalIdx (N : Nat) :
-    (reloadProgram m ell width sameWires N).physical_idx = ctx.physicalIdx :=
-  (shortDLP_reload_physical_idx m ell width N).trans
-    (shortDLP_runtimePlacement_physicalIdx m ell width sameWires).symm
+/-- The same-bank reload retains its literal X event word, including the empty word. -/
+theorem shortDLP_runtimeReload_eventTrace (N : Nat)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (reloadProgram m ell width sameWires N).eventTrace operations services =
+      (CompiledMAU.reloadProgram m ell width N).eventTrace operations services :=
+  Execution.unitaryOfEqualWires_trace _ _ _ _ operations services
 
 end
 

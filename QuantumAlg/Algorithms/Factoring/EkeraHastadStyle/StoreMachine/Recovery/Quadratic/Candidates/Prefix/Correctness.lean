@@ -21,7 +21,8 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The three actual preparation writes preserve every read outside center and square. -/
 theorem prepareInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)

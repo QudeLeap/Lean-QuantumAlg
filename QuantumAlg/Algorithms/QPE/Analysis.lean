@@ -8,7 +8,7 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Algorithms.QPE.Basic
-import all QuantumAlg.Primitives.WalshHadamard
+import all QuantumAlg.Primitives.WalshHadamard.Uniform
 import all QuantumAlg.Util.Real.ReciprocalSquareTail
 import Mathlib.Analysis.Normed.Group.AddCircle
 

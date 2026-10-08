@@ -58,27 +58,33 @@ public def unitary {ctx : RuntimeCtx .quantum} (operator : UnitaryOperator ctx.r
       (unitaryTarget_normalized operator Reference input)
 
 /-- Equality of the actual program operator proves its independent full joint-state target. -/
-theorem unitary_holds {ctx : RuntimeCtx .quantum} {shape : CShape}
-    (operator : UnitaryOperator ctx.register) (program : UnitaryCircuit ctx.register)
-    (placement : program.physical_idx = ctx.physicalIdx) (same : program.matrix = operator)
-    (output : Output ctx shape) {Reference : Register} (input : Execution.Input ctx Reference) :
-    (unitary operator).Holds input
-      (({ code := .unitary program placement, output := output } :
-        AlgorithmRun ctx ctx shape).finalState Reference input.state) := by
+theorem unitary_holds {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} {shape : CShape}
+    (operator : UnitaryOperator ctx.register)
+    (program : UnitaryCircuit gates oracles ctx.quantumLayout) (same : program.matrix = operator)
+    (output : Output ctx shape) {Reference : Register}
+    (input : Execution.OracleInput services ctx Reference) :
+    (unitary operator).Holds input.caller
+      (({ code := .unitary program, output := output } :
+        AlgorithmRun (.quantum gates oracles operations services) ctx ctx shape).finalState
+          Reference input.state) := by
   intro value
   cases value with
   | unit =>
-      change (StatePromise.mixed (unitaryTarget operator Reference input)
-          (unitaryTarget_normalized operator Reference input)).Holds
+      change (StatePromise.mixed (unitaryTarget operator Reference input.caller)
+          (unitaryTarget_normalized operator Reference input.caller)).Holds
         (DensityOperator.observeSelectionWithReference ctx.quantumLayout Finset.univ Reference
-          (((({ code := .unitary program placement, output := output } :
-            AlgorithmRun ctx ctx shape).finalState Reference input.state).mapClassical
+          (((({ code := .unitary program, output := output } :
+            AlgorithmRun (.quantum gates oracles operations services) ctx ctx shape).finalState
+              Reference input.state).mapClassical
               (fun _ => CShape.Value.unit)).block CShape.Value.unit))
       rw [ExecutionState.executionState_mapClassical_const_block,
-        AlgorithmRun.finalState_unitary_quantumMarginal, same]
-      change (unitaryTarget operator Reference input).matrix =
-        ((unitaryTarget operator Reference input).mass : ℝ) •
-          (unitaryTarget operator Reference input).matrix
+        AlgorithmRun.finalState_unitary_quantumMarginal, same,
+        ← Execution.OracleInput.oracleInput_caller_quantumMarginal input]
+      change (unitaryTarget operator Reference input.caller).matrix =
+        ((unitaryTarget operator Reference input.caller).mass : ℝ) •
+          (unitaryTarget operator Reference input.caller).matrix
       rw [unitaryTarget_normalized]
       simp only [one_smul]
 

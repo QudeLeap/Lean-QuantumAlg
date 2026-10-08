@@ -21,6 +21,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
 
 /-- The actual final context adds exactly the original optional-result encoding. -/
@@ -34,11 +36,17 @@ def retainedRead (ctx : RuntimeCtx kind) (width : Nat)
     CInputRef (retainedCtx ctx width key fresh) (.option (.unsignedWord width)) :=
   .storage (CStorageRef.retainedHead ctx key (.option (.unsignedWord width)) fresh)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Real result retention precedes all actual recovery scopes and original instructions. -/
 def retainedCircuit (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) : Circuit ctx (retainedCtx ctx width key fresh) :=
+    (key : StorageKey) (fresh : key ∉ ctx.keys) :
+    Circuit model ctx (retainedCtx ctx width key fresh) :=
   .seq (.retain ctx key (.option (.unsignedWord width)) fresh)
-    (withState (input.underRetained key (.option (.unsignedWord width)) fresh)
+    (withState (model := model) (input.underRetained key (.option (.unsignedWord width)) fresh)
       (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh))
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

@@ -7,8 +7,16 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Components.Gates
-import all QuantumAlg.Components.Gates
+public import QuantumAlg.Core.Base.Control.Operator
+public import QuantumAlg.Core.Base.Tensor.Certified
+public import QuantumAlg.Components.Kets
+import all QuantumAlg.Core.Base.Control.Operator
+import all QuantumAlg.Core.Base.Tensor.Basic
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Components.Kets
 
 /-!
 # Controlled unitary operators
@@ -38,10 +46,10 @@ namespace HilbertOperator
 /-! ## Computational-basis projectors -/
 
 /-- The one-qubit projector `|0><0| = [[1, 0], [0, 0]]`. -/
-def proj0 : HilbertOperator (Qubits 1) := !![(1 : ℂ), 0; 0, 0]
+@[expose] public def proj0 : HilbertOperator (Qubits 1) := !![(1 : ℂ), 0; 0, 0]
 
 /-- The one-qubit projector `|1><1| = [[0, 0], [0, 1]]`. -/
-def proj1 : HilbertOperator (Qubits 1) := !![(0 : ℂ), 0; 0, 1]
+@[expose] public def proj1 : HilbertOperator (Qubits 1) := !![(0 : ℂ), 0; 0, 1]
 
 @[simp]
 theorem proj0_applyVec_ket0 :
@@ -87,7 +95,7 @@ public def controlledQubits (U : UnitaryOperator (Qubits n)) :
     (controlled (Qubits 1) (1 : Fin (2 ^ 1)) U)
 
 /-- Add a leading qubit control active on `|0>`. -/
-def controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
+public def controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
     UnitaryOperator (Qubits (1 + n)) :=
   reindex (prodEquiv (m := 1) (n := n))
     (controlled (Qubits 1) (0 : Fin (2 ^ 1)) U)
@@ -130,7 +138,7 @@ theorem coe_controlledQubits (U : UnitaryOperator (Qubits n)) :
     simp [HilbertOperator.proj0, HilbertOperator.proj1, Matrix.one_apply]
 
 /-- Raw block-matrix view of a leading control active on `|0>`. -/
-theorem coe_controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
+public theorem coe_controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
     ((controlledQubitsOnZero U : UnitaryOperator (Qubits (1 + n))) :
       HilbertOperator (Qubits (1 + n))) =
       HilbertOperator.tensor HilbertOperator.proj0
@@ -206,7 +214,7 @@ theorem controlledQubits_applyVec_ket1_tensor
 
 /-- On the `|0>` branch a zero-controlled operator applies `U`. -/
 @[simp]
-theorem controlledQubitsOnZero_applyVec_ket0_tensor
+public theorem controlledQubitsOnZero_applyVec_ket0_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubitsOnZero U).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) ψ) =
@@ -225,7 +233,7 @@ theorem controlledQubitsOnZero_applyVec_ket0_tensor
 
 /-- On the `|1>` branch a zero-controlled operator is the identity. -/
 @[simp]
-theorem controlledQubitsOnZero_applyVec_ket1_tensor
+public theorem controlledQubitsOnZero_applyVec_ket1_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubitsOnZero U).applyVec
         (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1)) ψ) =

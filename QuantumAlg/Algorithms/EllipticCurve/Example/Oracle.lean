@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Access.Unitary
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Access.Specification
 import all QuantumAlg.Algorithms.EllipticCurve.Example.Curve
 import Mathlib.Logic.Equiv.Fintype
 
@@ -97,29 +97,6 @@ theorem oraclePermutation_sourceLabel (x : OracleDomain) :
     (Equiv.Perm.exists_extending_pair sourceLabel targetLabel
       sourceLabel_injective targetLabel_injective)) x
 
-namespace EndpointDeclarations
-
-/-- Declared fixed-example oracle endpoint at a caller-supplied placement. -/
-def compiledOracleLeafAt (systemIdx : List Nat) : UnitaryLeaf
-    (Qubits totalQubits) :=
-  UnitaryLeaf.subroutine
-    (ECDLP.Canonical.uPQSubroutineLabel ecdLPInstance)
-    systemIdx
-    (UnitaryOperator.ofPerm oraclePermutation.symm)
-
-end EndpointDeclarations
-
-/-- Sealed semantic oracle leaf whose operator is the fixed full-basis
-permutation. -/
-def compiledOracleLeaf : UnitaryLeaf
-    (Qubits totalQubits) :=
-  EndpointDeclarations.compiledOracleLeafAt
-    (List.range totalQubits)
-
-/-- Concrete one-query circuit whose operator is the fixed oracle permutation. -/
-def compiledOracle : UnitaryCircuit (Qubits totalQubits) :=
-  UnitaryCircuit.ofLeaf compiledOracleLeaf List.nodup_range
-
 theorem oracleOperator_basisAction (x : OracleDomain) :
     (UnitaryOperator.ofPerm (R := Qubits totalQubits)
         oraclePermutation.symm).apply
@@ -132,28 +109,12 @@ theorem oracleOperator_basisAction (x : OracleDomain) :
         (R := Qubits totalQubits) z)
     (oraclePermutation_sourceLabel x)
 
-theorem compiledOracle_basisAction
-    (a b : WorkspaceLabel) (y : GroupPoint curve) :
-    compiledOracle.applyNormalized
-        (NormalizedVector.ket
-          (ECDLP.Canonical.basisIndex ecdLPInstance a b y)) =
-      NormalizedVector.ket
-        (ECDLP.Canonical.basisIndex ecdLPInstance a b
-          (y * canonicalProblem.toSourceScope.oracleMultiplier
-            a.val b.val)) := by
-  change
-    (UnitaryOperator.ofPerm
-        (R := Qubits totalQubits)
-        oraclePermutation.symm).apply
-      (NormalizedVector.ket (sourceLabel ((a, b), y))) =
-        NormalizedVector.ket (targetLabel ((a, b), y))
-  exact oracleOperator_basisAction ((a, b), y)
-
-/-- Semantic oracle access constructed entirely from the fixed problem data;
-the generic ECDLP layer seals this operator as the unique typed oracle leaf. -/
+/-- Fixed full-basis access supplies the operator and its original action law;
+the generic declared model owns its sole query coordinate and placement. -/
 def access : ECDLP.Canonical.Access ecdLPInstance where
-  operator := compiledOracleLeaf.operator
-  basisAction := compiledOracle_basisAction
+  operator := UnitaryOperator.ofPerm oraclePermutation.symm
+  basisAction := fun left right workspace =>
+    oracleOperator_basisAction ((left, right), workspace)
 
 end
 

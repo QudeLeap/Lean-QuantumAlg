@@ -7,10 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base.Accounting.Kind
-import all QuantumAlg.Core.Base.UnitaryCircuit.Leaf
+public import QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Tensor.Basic
 import all QuantumAlg.Util.FinPow
@@ -141,7 +138,7 @@ private theorem lcuSelectFormula_apply
   · simp [HilbertOperator.tensor_apply, lcuProj, h]
 
 /-- Metadata-free SELECT carrier [Lin22, hermfunc.tex:492]. -/
-def lcuSelectOp (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
+public def lcuSelectOp (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
     UnitaryOperator (Qubits (a + n)) :=
   UnitaryOperator.ofMatrix
     (∑ i, HilbertOperator.tensor (lcuProj i)
@@ -181,30 +178,6 @@ theorem lcuSelectOp_apply (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
       (U i : HilbertOperator (Qubits n)))
       (prodEquiv (x, y)) (prodEquiv (x', y')) = _
   exact lcuSelectFormula_apply U x x' y y'
-
-/-- Stable opaque-subroutine label for the `a`-control, `n`-system SELECT
-family. -/
-def lcuSelectSubroutineLabel (a n : Nat) : Resource.SubroutineLabel where
-  family := "lcu"
-  name := "lcu-select"
-  parameters := [a, n]
-
-
-
-/-- Literal strict event for one LCU SELECT query. -/
-def lcuSelectEvent (a n : Nat) : Resource.Event .quantum :=
-  .quantumSubroutine (lcuSelectSubroutineLabel a n).quantum
-
-variable (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
-
-/-- Declared SELECT member at a caller-supplied physical placement. Its fixed
-label and operator family are owned by this component. -/
-def lcuSelectLeafAt (systemIdx : List Nat) : UnitaryLeaf (Qubits (a + n)) :=
-  UnitaryLeaf.subroutine (lcuSelectSubroutineLabel a n) systemIdx (lcuSelectOp U)
-
-/-- Declared SELECT leaf on the canonical joint layout. -/
-def lcuSelectLeaf : UnitaryLeaf (Qubits (a + n)) :=
-  lcuSelectLeafAt U (List.range (a + n))
 
 end
 

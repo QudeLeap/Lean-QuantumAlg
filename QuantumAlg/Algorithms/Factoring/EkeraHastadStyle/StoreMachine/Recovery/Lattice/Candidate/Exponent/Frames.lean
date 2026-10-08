@@ -19,8 +19,10 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
+omit [BitWord.Selected model] in
 /-- An actual mutable input avoids every differently named mutable destination. -/
 theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
@@ -32,6 +34,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
   intro equal
   exact different (separation.mutableKeyInjective equal.symm)
 
+omit [BitWord.Selected model] in
 /-- One actual native write retains a distinct original mutable value. -/
 theorem mutable_read_apply (refs : Refs ctx width) (separation : Separation refs)
     {inputShape outputShape shape : CShape} (op : ClassicalOp inputShape outputShape ctx ctx)
@@ -44,6 +47,7 @@ theorem mutable_read_apply (refs : Refs ctx width) (separation : Separation refs
   rw [outputKey]
   exact mutable_avoids refs separation source saved written sourceKey different
 
+omit [BitWord.Selected model] in
 /-- One actual native write retains each original candidate or constant source input. -/
 theorem source_read_apply (refs : Refs ctx width) (separation : Separation refs)
     {inputShape outputShape : CShape} (op : ClassicalOp inputShape outputShape ctx ctx)
@@ -61,6 +65,7 @@ def SuffixFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
       refs.belowUpper.key ∉ other.storageKeys → refs.nonnegative.key ∉ other.storageKeys →
         refs.accepted.key ∉ other.storageKeys → after.read other = before.read other
 
+omit [BitWord.Selected model] in
 /-- All seven actual suffix instructions preserve reads outside their five original destinations. -/
 theorem suffixInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     SuffixFrame refs store (suffixStore refs store) := by
@@ -79,10 +84,12 @@ theorem normalize_source_frame (refs : Refs ctx width) (separation : Separation 
     (store : Store ctx) (source : SourceCell) :
     (normalizeStep refs store).1.read (sourceInput refs source) =
       store.read (sourceInput refs source) :=
-  normalizeMagnitude_callerFrame (candidateInput refs) refs.negative refs.magnitude store _
+  normalizeMagnitude_callerFrame (model := model) (candidateInput refs)
+    refs.negative refs.magnitude store _
     (separation.sourceAvoidsMutable source .negative)
     (separation.sourceAvoidsMutable source .magnitude)
 
+omit [BitWord.Selected model] in
 /-- Actual suffix execution retains the selected original normalized magnitude. -/
 theorem suffix_magnitude_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
@@ -95,6 +102,7 @@ theorem suffix_magnitude_frame (refs : Refs ctx width) (separation : Separation 
     (mutable_avoids refs separation refs.magnitude .magnitude .nonnegative rfl (by decide))
     (mutable_avoids refs separation refs.magnitude .magnitude .accepted rfl (by decide))
 
+omit [BitWord.Selected model] in
 /-- Actual suffix execution retains the real sign produced by normalization. -/
 theorem suffix_negative_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
@@ -119,7 +127,8 @@ theorem candidateExponentInto_callerFrame (refs : Refs ctx width) (store : Store
   change (suffixStore refs (normalizeStep refs store).1).read other = _
   rw [suffixInto_callerFrame refs _ other (avoids .exponent) (avoids .positive)
     (avoids .belowUpper) (avoids .nonnegative) (avoids .accepted)]
-  exact normalizeMagnitude_callerFrame (candidateInput refs) refs.negative refs.magnitude
+  exact normalizeMagnitude_callerFrame (model := model) (candidateInput refs)
+    refs.negative refs.magnitude
     store other
     (avoids .negative) (avoids .magnitude)
 

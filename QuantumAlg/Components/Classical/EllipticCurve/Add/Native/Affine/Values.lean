@@ -75,6 +75,11 @@ structure AffineScratch.Separation
   numerator : ∀ key ∈ scratch.keys, key ∉ numerator.storageKeys
   denominator : ∀ key ∈ scratch.keys, key ∉ denominator.storageKeys
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Each actual native component has exactly its certified one-destination Store update. -/
 def affineStageStore (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
@@ -99,34 +104,45 @@ def affineStageStore (spec : ModulusSpec width)
         (store.read (classifierRead scratch.xDifference)).toNat % spec.modulus)),
     fun store => store.write scratch.yOutput (Field.Native.subtractionWord spec
       (store.read (classifierRead scratch.yProduct)) (store.read leftY)),
-    repackStore (.product (classifierRead scratch.tag)
+    repackStore (model := model) (.product (classifierRead scratch.tag)
       (.product (classifierRead scratch.xOutput) (classifierRead scratch.yOutput))) output]
 
 /-- The exact Store part of each certified actual path is its native arithmetic update. -/
 theorem affineStageRecord_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (index : Fin 9) (store : Store ctx) :
-    (affineStageRecord spec leftX rightX leftY numerator denominator scratch output index store).1 =
+    (index : Fin 9) (before : Store ctx × model.HiddenState) :
+    (affineStageRecord spec leftX rightX leftY numerator denominator scratch output index
+      before).1.1 =
       affineStageStore spec leftX rightX leftY numerator denominator scratch output
-        index store := by
+        index before.1 := by
+  rcases before with ⟨store, hidden⟩
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.coefficientIntoWordStep_store _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.coefficientIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.mulIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.mulIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.mulIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.mulIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.subIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.subIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.subIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.subIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.subIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.subIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.mulIntoWordStep_store _ _ _ _ _
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.mulIntoWordStep_store _ _ _ _ _
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact Field.Native.subIntoWordStep_store _ _ _ _ _
-  refine Fin.cases rfl (fun index => ?_) index
+  · dsimp only [affineStageRecord, affineStageStore]
+    exact Field.Native.subIntoWordStep_store _ _ _ _ _
+  refine Fin.cases ?_ (fun index => ?_) index
+  · rfl
   exact Fin.elim0 index
 
 /-- The original arithmetic chronology is the fold of the nine actual destination writes. -/
@@ -141,11 +157,15 @@ def affineBodyStore (spec : ModulusSpec width)
 theorem affineBodyStep_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (store : Store ctx) :
-    (affineBodyStep spec leftX rightX leftY numerator denominator scratch output store).1 =
+    (store : Store ctx) (hidden : model.HiddenState) :
+    (affineBodyStep spec leftX rightX leftY numerator denominator scratch output
+      (store, hidden)).1.1 =
       affineBodyStore spec leftX rightX leftY numerator denominator scratch output store := by
   rw [affineBodyStep, Circuit.forRangeRecord_store]
-  simp only [affineStageRecord_store, affineBodyStore]
+  simp only [List.ofFn_succ, List.ofFn_zero, List.foldl_cons, List.foldl_nil,
+    affineStageRecord_store, affineBodyStore]
+
+end
 
 /-- The eight actual arithmetic cells contain these complete finite values before packing. -/
 def affineArithmeticStore (scratch : AffineScratch ctx width) (values : AffineValues width)
@@ -165,6 +185,12 @@ private theorem read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+omit [BitWord.Selected model] in
 /-- The real chronological arithmetic and pack yield exactly the closed original finite values. -/
 theorem affineBodyStore_values (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
@@ -345,6 +371,8 @@ theorem affineBodyStore_values (spec : ModulusSpec width)
     store))))))))) = _
   rw [step0, step1, step2, step3, step4, step5, step6, step7, step8]
   rfl
+
+end
 
 /-- The exact arithmetic prefix preserves every read outside the actual eight written cells. -/
 theorem affineArithmeticStore_preserves (scratch : AffineScratch ctx width)

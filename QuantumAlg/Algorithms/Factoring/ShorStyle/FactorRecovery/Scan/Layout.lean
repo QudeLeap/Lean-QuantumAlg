@@ -122,15 +122,20 @@ def cells (ctx : RuntimeCtx kind) (N : Nat) : Cells (context ctx N) N where
   selected := selectedRef ctx N
   scratch := scratchRef ctx N
 
+section Selected
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The real scan visits precisely the given original operands in order. -/
 def body (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (context ctx N) (context ctx N) :=
-  NativeFactorScan.code source (inputs.map liftInputs) (cells ctx N) (liftWrite result)
+    Circuit model (context ctx N) (context ctx N) :=
+  NativeFactorScan.code (model := model) source (inputs.map liftInputs) (cells ctx N) (liftWrite
+    result)
 
 /-- Four genuine lexical entries enclose the whole scan and are then actually released. -/
 def code (source : Input N) (inputs : List (Inputs ctx N))
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
     ctx.canonicalFreshKey_fresh
     (.workspace (candidateContext ctx N) (candidateContext ctx N).canonicalFreshKey .bit
@@ -138,7 +143,10 @@ def code (source : Input N) (inputs : List (Inputs ctx N))
       (.workspace (acceptedContext ctx N) (acceptedContext ctx N).canonicalFreshKey
         (.unsignedWord (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
         (.workspace (selectedContext ctx N) (selectedContext ctx N).canonicalFreshKey .bit
-          (selectedContext ctx N).canonicalFreshKey_fresh (body source inputs result))))
+          (selectedContext ctx N).canonicalFreshKey_fresh (body (model := model) source inputs
+            result))))
+
+end Selected
 
 /-- These four scopes preserve the original bank's exact physical wire list. -/
 theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :

@@ -114,13 +114,17 @@ namespace Circuit
 
 /-- Local unitary execution restores every uniquely valued borrowed classical
 interface together with the external reference when no quantum wire is borrowed. -/
-theorem borrowedRestored_unitary_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
+theorem borrowedRestored_unitary_noBorrowedQuantum {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value]
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
-    {H : Type} [Fintype H] (program : UnitaryCircuit ctx.register)
-    (placed : program.physical_idx = ctx.physicalIdx) (state : Execution.State ctx Reference H) :
-    (Circuit.unitary program placed).BorrowedRestored Reference state
-      ((Circuit.unitary program placed).execute Reference state) := by
+    {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (state : Execution.State ctx Reference (classicalOracles.HiddenState × H)) :
+    (Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+      program).BorrowedRestored Reference state
+      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+      program).execute Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
   intro value
@@ -130,20 +134,24 @@ theorem borrowedRestored_unitary_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
   rcases column with ⟨right, refRight⟩
   rw [Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum,
     Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum]
-  exact unitary_reference_entry program placed state refLeft refRight
+  exact unitary_reference_entry program state refLeft refRight
 
 /-- Local unitary execution restores an empty borrowed interface together with its reference. -/
-theorem borrowedRestored_unitary_noBorrowed {ctx : RuntimeCtx .quantum}
+theorem borrowedRestored_unitary_noBorrowed {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
-    {H : Type} [Fintype H] (program : UnitaryCircuit ctx.register)
-    (placed : program.physical_idx = ctx.physicalIdx) (state : Execution.State ctx Reference H) :
-    (Circuit.unitary program placed).BorrowedRestored Reference state
-      ((Circuit.unitary program placed).execute Reference state) := by
+    {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (state : Execution.State ctx Reference (classicalOracles.HiddenState × H)) :
+    (Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+      program).BorrowedRestored Reference state
+      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+      program).execute Reference state) := by
   let : Subsingleton ctx.borrowedClassicalShape.Value := by
     rw [noClassical]
     exact ⟨fun a b => by cases a; cases b; rfl⟩
-  exact borrowedRestored_unitary_noBorrowedQuantum noQuantum program placed state
+  exact borrowedRestored_unitary_noBorrowedQuantum noQuantum program state
 
 end Circuit
 

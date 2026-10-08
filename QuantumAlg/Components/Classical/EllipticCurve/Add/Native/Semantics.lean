@@ -26,61 +26,66 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual store update and native path of one classifier instruction. -/
 def classifierStageRecord (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (index : Fin 5) :
-    Store ctx → Store ctx × (classifierStage left right classifier index).Path := by
+    Store ctx → Store ctx ×
+      (classifierStage (model := model) left right classifier index).Path := by
   refine Fin.cases
-    (fun store => (store.applyOp (classifierUnpackLeft left classifier), ()))
+    (BitWord.instructionStep (execution := model) (classifierUnpackLeft left classifier))
     (fun index => ?_) index
   refine Fin.cases
-    (fun store => (store.applyOp (classifierUnpackRight right classifier), ()))
+    (BitWord.instructionStep (execution := model) (classifierUnpackRight right classifier))
     (fun index => ?_) index
   refine Fin.cases
-    (fun store => (store.applyOp (classifierEqualX classifier), ()))
+    (BitWord.instructionStep (execution := model) (classifierEqualX classifier))
     (fun index => ?_) index
   refine Fin.cases
-    (fun store => (store.applyOp (classifierEqualY classifier), ()))
+    (BitWord.instructionStep (execution := model) (classifierEqualY classifier))
     (fun index => ?_) index
   refine Fin.cases
-    (fun store => (store.applyOp (classifierZeroY classifier), ()))
+    (BitWord.instructionStep (execution := model) (classifierZeroY classifier))
     (fun index => ?_) index
   exact Fin.elim0 index
 
 /-- Every classifier stage preserves all complete quantum-reference blocks and prior history. -/
 theorem classifierStage_execute (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (index : Fin 5) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (classifierStage left right classifier index).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (classifierStage (model := model) left right classifier index).execute Reference state =
       state.mapClassical (fun entry =>
         ((classifierStageRecord left right classifier index entry.1).1,
-          (entry.2, (classifierStageRecord left right classifier index entry.1).2))) := by
+          (entry.2.1, (entry.2.2,
+            (classifierStageRecord left right classifier index entry.1).2)))) := by
   fin_cases index <;>
-    refine (Circuit.execute_classical_mapClassical _ Reference state).trans ?_
-  all_goals
-    congr 1
-    exact Subsingleton.elim _ _
+    exact BitWord.bitWord_instruction_execute (execution := model) _ state
 
 /-- The exact record of the original five-instruction classifier. -/
 def classifierRecord (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) :
-    Store ctx → Store ctx × (classifierBody left right classifier).Path :=
-  Circuit.forRangeRecord 5 (classifierStage left right classifier)
+    Store ctx → Store ctx × (classifierBody (model := model) left right classifier).Path :=
+  Circuit.forRangeStoreRecord 5 (classifierStage (model := model) left right classifier)
     (classifierStageRecord left right classifier)
 
 /-- The complete classifier interpreter is its actual deterministic classical update. -/
 theorem classifierBody_execute (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (classifierBody left right classifier).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (classifierBody (model := model) left right classifier).execute Reference state =
       state.mapClassical (fun entry =>
         ((classifierRecord left right classifier entry.1).1,
-          (entry.2, (classifierRecord left right classifier entry.1).2))) :=
-  Circuit.execute_forRangeRecord 5 (classifierStage left right classifier)
+          (entry.2.1, (entry.2.2, (classifierRecord left right classifier entry.1).2)))) :=
+  Circuit.execute_forRangeStoreRecord (model := model) 5
+    (classifierStage (model := model) left right classifier)
     (classifierStageRecord left right classifier) (classifierStage_execute left right classifier)
     Reference state
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The exact chronological Store after the original five native instructions. -/
 def classifierStore (left right : CInputRef ctx (PointShape width))
@@ -91,12 +96,17 @@ def classifierStore (left right : CInputRef ctx (PointShape width))
   let store4 := store3.applyOp (classifierEqualY classifier)
   store4.applyOp (classifierZeroY classifier)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The interpreter record returns precisely the five actual native Store updates. -/
 theorem classifierRecord_store (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (store : Store ctx) :
     (classifierRecord left right classifier store).1 =
       classifierStore left right classifier store :=
   rfl
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The actual identities of all classifier cells, including the allocated zero word. -/
 def Classifier.keys (classifier : Classifier ctx width) : List StorageKey :=

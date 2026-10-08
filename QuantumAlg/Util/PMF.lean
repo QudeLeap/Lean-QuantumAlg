@@ -6,18 +6,19 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
+public import QuantumAlg.Init
+public import QuantumAlg.Util.Combinatorics
 import all QuantumAlg.Util.Combinatorics
-import Mathlib.Data.Vector.Basic
-import Mathlib.Probability.ProbabilityMassFunction.Constructions
-import Mathlib.Probability.Distributions.Uniform
+public import Mathlib.Data.Vector.Basic
+public import Mathlib.Probability.ProbabilityMassFunction.Constructions
+public import Mathlib.Probability.Distributions.Uniform
 
 /-!
 # Probability-mass combinatorics
 
 Algorithm-independent constructions and event-mass identities for independent
-sampling. This module has no dependency on either the canonical typed runtime
-or the frozen deferred-run compatibility layer.
+sampling. This module has no dependency on an algorithm-specific execution
+layer.
 -/
 
 section
@@ -29,7 +30,7 @@ namespace PMF
 noncomputable section
 
 /-- Independently sample one PMF a fixed number of times. -/
-def independentReplicate {Sample : Type} (distribution : PMF Sample) :
+public def independentReplicate {Sample : Type} (distribution : PMF Sample) :
     Nat → PMF (List Sample)
   | 0 => PMF.pure []
   | count + 1 =>
@@ -37,7 +38,7 @@ def independentReplicate {Sample : Type} (distribution : PMF Sample) :
         (independentReplicate distribution count).map (List.cons sample)
 
 /-- Independently sample one PMF while retaining the sample count in its type. -/
-def independentReplicateVector {Sample : Type} (distribution : PMF Sample) :
+public def independentReplicateVector {Sample : Type} (distribution : PMF Sample) :
     (count : Nat) → PMF (List.Vector Sample count)
   | 0 => PMF.pure List.Vector.nil
   | count + 1 =>
@@ -45,7 +46,7 @@ def independentReplicateVector {Sample : Type} (distribution : PMF Sample) :
         (independentReplicateVector distribution count).map
           (List.Vector.cons sample)
 
-theorem independentReplicateVector_toList {Sample : Type}
+public theorem independentReplicateVector_toList {Sample : Type}
     (distribution : PMF Sample) (count : Nat) :
     (independentReplicateVector distribution count).map List.Vector.toList =
       independentReplicate distribution count := by
@@ -72,7 +73,7 @@ theorem independentReplicateVector_toList {Sample : Type}
         _ = (independentReplicate distribution count).map
               (List.cons sample) := by rw [ih]
 
-theorem independentReplicateVector_map_toList {Sample Target : Type}
+public theorem independentReplicateVector_map_toList {Sample Target : Type}
     (distribution : PMF Sample) (count : Nat)
     (projection : List Sample → Target) :
     (independentReplicateVector distribution count).map
@@ -80,7 +81,7 @@ theorem independentReplicateVector_map_toList {Sample Target : Type}
       (independentReplicate distribution count).map projection := by
   rw [← PMF.map_comp, independentReplicateVector_toList]
 
-theorem independentReplicateVector_map {Sample Target : Type}
+public theorem independentReplicateVector_map {Sample Target : Type}
     (distribution : PMF Sample) (projection : Sample → Target) :
     ∀ count,
       (independentReplicateVector distribution count).map
@@ -113,7 +114,7 @@ theorem independentReplicateVector_map {Sample Target : Type}
           rw [independentReplicateVector_map distribution projection count]
 
 /-- An injective relabeling preserves the point mass of every source atom. -/
-theorem map_apply_of_injective {Sample Target : Type}
+public theorem map_apply_of_injective {Sample Target : Type}
     (distribution : PMF Sample) (embedding : Sample → Target)
     (hinjective : Function.Injective embedding) (sample : Sample) :
     (distribution.map embedding) (embedding sample) = distribution sample := by
@@ -125,7 +126,7 @@ theorem map_apply_of_injective {Sample Target : Type}
   · simp
 
 /-- A list of independent samples contains a successful draw. -/
-def ContainsEvent {Sample : Type} (event : Sample → Prop)
+public def ContainsEvent {Sample : Type} (event : Sample → Prop)
     (samples : List Sample) : Prop :=
   ∃ sample ∈ samples, event sample
 
@@ -967,7 +968,7 @@ theorem independentReplicate_successProbability_eq {Sample : Type}
 
 /-- Independent repetition amplifies a one-attempt success floor to any target
 below the corresponding geometric failure bound. -/
-theorem independentReplicate_successProbability_ge {Sample : Type}
+public theorem independentReplicate_successProbability_ge {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat)
     (attemptFloor target : ENNReal)
     (hattempt : attemptFloor ≤

@@ -26,16 +26,23 @@ noncomputable section
 
 open Execution ContextUnion ClassicalAlgorithms.EllipticCurve
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-private def PathResources {base outer : RuntimeCtx kind}
-    (code : Circuit base base) (extended : Circuit outer outer)
+/-- Every executed path contains a physical measurement in its native trace. -/
+def ContainsMeasurement {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) : Prop :=
+  ∀ path : code.Path, ∃ dimension : model.SystemDimension,
+    Resource.Event.measurement dimension ∈ code.eventTrace path
+
+private def PathResources {base outer : RuntimeCtx model.kind}
+    (code : Circuit model base base) (extended : Circuit model outer outer)
     (paths : code.Path ≃ extended.Path) : Prop :=
   (∀ path, extended.eventTrace (paths path) = code.eventTrace path) ∧
     ∀ duration path, extended.depth duration (paths path) = code.depth duration path
 
-private theorem resources_beside {base outer : RuntimeCtx kind} (code : Circuit base base)
-    (localCode : { code : Circuit outer outer // code.IsLocal })
+private theorem resources_beside {base outer : RuntimeCtx model.kind}
+    (code : Circuit model base base)
+    (localCode : { code : Circuit model outer outer // code.IsLocal })
     (paths : code.Path ≃ localCode.val.Path)
     (prior : PathResources code localCode.val paths) (shape : CShape) :
     PathResources code (besideCell localCode shape).val (besidePath localCode shape paths) := by
@@ -50,11 +57,11 @@ private theorem resources_beside {base outer : RuntimeCtx kind} (code : Circuit 
         (prior.2 duration path)
 
 /-- One canonical actual path preserves every event and all native-duration assignments together. -/
-theorem underPersistent_pathResources (code : Circuit ctx ctx) (supported : code.IsLocal)
+theorem underPersistent_pathResources (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (width scalarWidth : Nat) :
     PathResources code (underPersistent code supported width scalarWidth)
       (underPersistentPathEquiv code supported width scalarWidth) := by
-  let original := (⟨code, supported⟩ : { code : Circuit ctx ctx // code.IsLocal })
+  let original := (⟨code, supported⟩ : { code : Circuit model ctx ctx // code.IsLocal })
   have accepted := @resources_beside _ _ _ code original (Equiv.refl _)
     ⟨fun _ => rfl, fun _ _ => rfl⟩ .bit
   have selected := @resources_beside _ _ _ code (besideCell original .bit) _ accepted
@@ -66,7 +73,31 @@ theorem underPersistent_pathResources (code : Circuit ctx ctx) (supported : code
   have verified := @resources_beside _ _ _ code _ _ reconstruction .bit
   exact @resources_beside _ _ _ code _ _ verified (PointShape width)
 
-private theorem local_resident (code : Circuit ctx ctx) (supported : code.IsLocal)
+private theorem containsMeasurement_of_pathResources {base outer : RuntimeCtx model.kind}
+    (code : Circuit model base base) (extended : Circuit model outer outer)
+    (paths : code.Path ≃ extended.Path) (resources : PathResources code extended paths)
+    (measured : ContainsMeasurement code) : ContainsMeasurement extended := by
+  intro path
+  obtain ⟨dimension, present⟩ := measured (paths.symm path)
+  refine ⟨dimension, ?_⟩
+  have sameTrace := resources.1 (paths.symm path)
+  have actual : Resource.Event.measurement dimension ∈
+      extended.eventTrace (paths (paths.symm path)) := by
+    rw [sameTrace]
+    exact present
+  simpa only [Equiv.apply_symm_apply] using actual
+
+/-- Seven retained classical cells preserve measurement on every actual path. -/
+theorem underPersistent_containsMeasurement (code : Circuit model ctx ctx)
+    (supported : code.IsLocal) (width scalarWidth : Nat)
+    (measured : ContainsMeasurement code) :
+    ContainsMeasurement (underPersistent code supported width scalarWidth) :=
+  containsMeasurement_of_pathResources code
+    (underPersistent code supported width scalarWidth)
+    (underPersistentPathEquiv code supported width scalarWidth)
+    (underPersistent_pathResources code supported width scalarWidth) measured
+
+private theorem local_resident (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (path : code.Path) : code.peakResidentSpace path = ctx.residentSpace := by
   have upper := code.peakResidentSpace_le_of_visited path ctx.residentSpace (by
     intro visited present
@@ -75,7 +106,7 @@ private theorem local_resident (code : Circuit ctx ctx) (supported : code.IsLoca
   have lower := code.residentSpace_le_peak_of_visited path ctx (local_pre_mem code supported path)
   exact le_antisymm upper lower
 
-private theorem local_auxiliary (code : Circuit ctx ctx) (supported : code.IsLocal)
+private theorem local_auxiliary (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (path : code.Path) : code.peakAuxiliarySpace path = ctx.auxiliarySpace := by
   have upper := code.peakAuxiliarySpace_le_of_visited path ctx.auxiliarySpace (by
     intro visited present
@@ -84,16 +115,17 @@ private theorem local_auxiliary (code : Circuit ctx ctx) (supported : code.IsLoc
   have lower := code.auxiliarySpace_le_peak_of_visited path ctx (local_pre_mem code supported path)
   exact le_antisymm upper lower
 
-private def LocalSpace {outer : RuntimeCtx kind} (code : Circuit outer outer) : Prop :=
+private def LocalSpace {outer : RuntimeCtx model.kind}
+    (code : Circuit model outer outer) : Prop :=
   (∀ path, code.peakResidentSpace path = outer.residentSpace) ∧
     ∀ path, code.peakAuxiliarySpace path = outer.auxiliarySpace
 
-private theorem local_space (code : Circuit ctx ctx) (supported : code.IsLocal) :
+private theorem local_space (code : Circuit model ctx ctx) (supported : code.IsLocal) :
     LocalSpace code :=
   ⟨local_resident code supported, local_auxiliary code supported⟩
 
 /-- Both exact peaks are the actual persistent context, whose seven shapes are counted once. -/
-theorem underPersistent_space (code : Circuit ctx ctx) (supported : code.IsLocal)
+theorem underPersistent_space (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (width scalarWidth : Nat) :
     LocalSpace (underPersistent code supported width scalarWidth) :=
   local_space _ (underPersistent_isLocal code supported width scalarWidth)

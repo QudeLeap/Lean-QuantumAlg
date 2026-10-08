@@ -9,6 +9,8 @@ module
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.Problem
 public import QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
 public import QuantumAlg.Core.Algorithm.Problem
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord
 public import Mathlib.Data.Nat.Bits
 public import Mathlib.Data.Real.Basic
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Problem
@@ -74,11 +76,10 @@ def successLowerBound (failure : ℝ) : ProbabilityLowerBound where
   le_one := tsub_le_self
 
 /-- All preparations, real resets, samples, classical checks and final packing are charged. -/
-def resourceBudget (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
-    (fits : p < 2 ^ fieldTail.succ) (I : ECDLPInstance E) (seed : AffinePoint E)
-    (count : Nat) : ResourceBudget .quantum where
-  events := repeatedRunBudget E fieldTail sameWidth fits (ECDLP.Canonical.problem I)
-    seed I.subgroupOrder_prime.two_le count
+def resourceBudget (I : ECDLPInstance E) (count : Nat) :
+    ResourceBudget (.quantum AlgorithmGate.model .empty BitWord.model) where
+  events := repeatedRunBudget E (ECDLP.Canonical.problem I)
+    I.subgroupOrder_prime.two_le count
   resident :=
     recoveryTailScratchSpace .quantum (ECDLP.Canonical.Layout.fieldWidth E)
         (orderWidth (ECDLP.Canonical.problem I)) +
@@ -92,12 +93,10 @@ def resourceBudget (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
         (orderWidth (ECDLP.Canonical.problem I)) +
       (PublicInput.terminal E (orderWidth (ECDLP.Canonical.problem I))).auxiliarySpace
 
-/-- The unit native-event duration allowance has one setup and one final pack. -/
+/-- The unit-duration allowance counts the complete original native event envelope. -/
 def depthLimit (I : ECDLPInstance E) (count : Nat) : Nat :=
-  2 + count * (samplingRoundUnitDepth E (ECDLP.Canonical.problem I) +
-    attemptDepthLimit (kind := .quantum) (ECDLP.Canonical.Layout.curveSpec E)
-      (recoveryModulusSpec (ECDLP.Canonical.problem I) I.subgroupOrder_prime.two_le)
-        (fun _ => 1)) + 1
+  ResourcePool.weightedCount (fun _ => 1)
+    (repeatedRunBudget E (ECDLP.Canonical.problem I) I.subgroupOrder_prime.two_le count)
 
 /-- Original measured ECDLP with explicit finite repetition and independent native budgets.
 
@@ -109,13 +108,14 @@ def depthLimit (I : ECDLPInstance E) (count : Nat) : Nat :=
 **Output.**
 - An optional bounded scalar satisfying the original public group equation.
 **Resource budget.**
-- Native events: the two preparations, followed by `count` times the complete
-  sampling/reset and checked-recovery allowances, then one actual option pack.
+- Native events: all original zero preparations and fixed-bit loads, followed by
+  `count` times the complete sampling/reset and checked-recovery allowances,
+  then one actual option pack.
 - Resident and auxiliary space: the complete original terminal context plus
   seven persistent cells and the maximum successive recovery scratch scope.
   Repetition reuses this space; it does not multiply live storage by `count`.
-- Depth: `2 + count * (samplingRoundUnitDepth + attemptDepthLimit) + 1`
-  under unit duration for each declared native event.
+- Depth: the unit-weighted count of the independent complete native-event
+  envelope. This is a serial bound on the actual dependency path.
 **Success.**
 - At least `1 - failure`; the implementation theorem retains the original
   affine-addend and exceptional-error finite-repetition conditions.
@@ -126,18 +126,22 @@ def depthLimit (I : ECDLPInstance E) (count : Nat) : Nat :=
 - The finite Fourier sampling and classical recovery use the original
   registered finite-cyclic DLP analysis.
 -/
-public def problem (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
-    (fits : p < 2 ^ fieldTail.succ) (I : ECDLPInstance E) (seed : AffinePoint E)
-    (count : Nat) (failure : ℝ) :
-    Problem .quantum (inputContext E I) (outputContext E I)
+public def problem (I : ECDLPInstance E) (count : Nat) (failure : ℝ) :
+    Problem (.quantum AlgorithmGate.model .empty BitWord.model)
+      (inputContext E I) (outputContext E I)
       (.option (.unsignedWord (orderWidth (ECDLP.Canonical.problem I)))) where
   valid := PublicInput.inputDomain E (orderWidth (ECDLP.Canonical.problem I))
     (ECDLP.Canonical.problem I)
+  initialization := fun _ => True
   accepts := fun _store output => AcceptedOutput E I output
   successLB := successLowerBound failure
   states := []
-  resources := resourceBudget E fieldTail sameWidth fits I seed count
-  depth := .quantum (fun _ => 1) (depthLimit E I count)
+  resources := resourceBudget E I count
+  depth :=
+    { duration := fun _ => 1
+      limit := depthLimit E I count
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

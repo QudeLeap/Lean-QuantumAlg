@@ -43,30 +43,33 @@ private theorem stateFree_transport {inner : RuntimeCtx kind}
   exact free index
 
 /-- One actual scoped record supplies execution, caller framing, signed state and activity. -/
-theorem xgcdNativeScopedActive_actualRecord
+theorem xgcdNativeScopedActive_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
     (stateZero : ∀ index : Fin 7, stateKey cells index ∉ zero.storageKeys) :
-    ∃ record : Store ctx → Store ctx × (scopedActive cells zero).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (scopedActive
+      (model := model) cells zero).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (scopedActive cells zero).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (scopedActive (model := model) cells zero).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape),
           (∀ index : Fin 7, stateKey cells index ∉ other.storageKeys) →
-            ((record before).1).read other = before.read other) ∧
+            ((record before).1.1).read other = before.1.read other) ∧
         (ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
           (PureXGCD.executionCoefficientWidth width)
-          (PureXGCD.step (storedState cells before)).firstLeftCoefficient →
+          (PureXGCD.step (storedState cells before.1)).firstLeftCoefficient →
         ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
           (PureXGCD.executionCoefficientWidth width)
-          (PureXGCD.step (storedState cells before)).firstRightCoefficient →
-          storedState cells (record before).1 = PureXGCD.step (storedState cells before)) ∧
-        ((before.read zero).toNat = 0 →
-          (((record before).1).read (GCD.cellRead (activeCell cells))).toBool =
-            decide ((storedState cells (record before).1).first ≠ 0)) := by
+          (PureXGCD.step (storedState cells before.1)).firstRightCoefficient →
+          storedState cells (record before).1.1 = PureXGCD.step (storedState cells before.1)) ∧
+        ((before.1.read zero).toNat = 0 →
+          (((record before).1.1).read (GCD.cellRead (activeCell cells))).toBool =
+            decide ((storedState cells (record before).1.1).first ≠ 0)) := by
   let Post (before after : Store ctx) : Prop :=
     (∀ {shape : CShape} (other : CInputRef ctx shape),
       (∀ index : Fin 7, stateKey cells index ∉ other.storageKeys) →
@@ -83,7 +86,8 @@ theorem xgcdNativeScopedActive_actualRecord
         decide ((storedState cells after).first ≠ 0))
   refine withCells_actualRecord_post ctx (activeScratchShapes width)
     (fun scratch _ transport _ =>
-      activeBody (transportCells transport cells) scratch (transport.liftInput zero)) Post ?_
+      activeBody (model := model) (transportCells transport cells) scratch (transport.liftInput
+        zero)) Post ?_
   intro inner scratch scratchDistinct transport separated
   let lifted := transportCells transport cells
   let liftedZero := transport.liftInput zero
@@ -93,11 +97,13 @@ theorem xgcdNativeScopedActive_actualRecord
   have scratchZero : ∀ index : Fin 4, (cellAt scratch index).ref.key ∉
       liftedZero.storageKeys := fun index =>
     Cells.workspaceCells_cellAt_transport_avoids scratch transport separated zero index
-  refine ⟨fun store => (activeBodyStore lifted scratch liftedZero store,
-    activeBodyPath lifted scratch liftedZero), ?_, ?_⟩
-  · intro reference history historyFinite state
-    exact xgcdNativeActiveBody_execute lifted scratch liftedZero reference state
-  · intro source before reads
+  refine ⟨fun before =>
+    let result := activeBodyStep (model := model) lifted scratch liftedZero before.1
+    ((result.1, before.2), result.2), ?_, ?_⟩
+  · intro reference history _ state
+    exact (xgcdNativeActiveBody_execute (model := model) lifted scratch liftedZero reference
+      state).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · rintro source ⟨before, hidden⟩ reads
     let final := activeBodyStore lifted scratch liftedZero before
     let target := transport.restrict final
     have returned : transport.ReadsAs target final :=

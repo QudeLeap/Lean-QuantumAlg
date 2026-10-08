@@ -43,9 +43,9 @@ def terminalOneClearGates (fieldTail counterWidth : Nat) :
 
 /-- Circuit compiled from the one-gate terminal-`u` clearing ledger. -/
 def terminalOneClearProgram (fieldTail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (terminalOneClearGates fieldTail counterWidth)
 
 /-- Folded action of the terminal-`u` clearing ledger. -/
@@ -88,6 +88,7 @@ theorem terminalOneClear_realizes (fieldTail counterWidth : Nat) :
       (terminalOneClearProgram fieldTail counterWidth)
       (terminalOneClearStep fieldTail counterWidth) :=
   EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty
     (terminalOneClearGates fieldTail counterWidth)
 
 /-- Reverse action of the terminal-`u` clearing gate. -/
@@ -237,9 +238,9 @@ def compactInversionProgram
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Folded action of the complete compact inversion ledger. -/
@@ -577,6 +578,7 @@ theorem compactInversion_realizes
       (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth)
       (compactInversionStep fieldTail counterTail p hfit hcapacity hwidth) :=
   EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-! ## Native-gate and depth ledger -/
@@ -648,19 +650,8 @@ theorem compactInversionProgram_eventCost_card
     (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost.card =
       (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth).length := by
   exact EncodedBit.GateSpec.programList_eventCost_card
+    (QubitLayout.canonical _) .empty
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
-
-/-- Direct compilation emits no opaque quantum-subroutine event. -/
-theorem compactInversionProgram_quantumSubroutine_count_zero
-    (fieldTail counterTail p : Nat)
-    (hfit : counterTail.succ <= fieldTail.succ)
-    (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
-    (hwidth : counterTail + 2 <= fieldTail.succ)
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost = 0 := by
-  exact EncodedBit.GateSpec.programList_quantumSubroutine_count_zero
-    (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth) label
 
 /-- Exact X count of the directly compiled complete inversion. -/
 theorem compactInversionProgram_x_count
@@ -668,7 +659,8 @@ theorem compactInversionProgram_x_count
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost =
       4 * correctionSlotOneCountSum fieldTail.succ (counterTail + 1)
           hcapacity +
@@ -685,7 +677,8 @@ theorem compactInversionProgram_cnot_count
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost =
       8 * fieldTail.succ * counterTail + 126 * fieldTail.succ + 54 +
         6 * modulusOneCount fieldTail p := by
@@ -700,7 +693,8 @@ theorem compactInversionProgram_toffoli_count
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost =
       448 * fieldTail.succ * fieldTail +
         230 * fieldTail.succ * fieldTail.succ +
@@ -758,7 +752,8 @@ theorem compactInversionProgram_toffoli_count_le
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventCost <=
       234 * fieldTail.succ * fieldTail.succ +
         448 * fieldTail.succ * fieldTail +
@@ -777,8 +772,9 @@ theorem compactInversionProgram_eventDepth
     (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth).eventDepth =
       EncodedBit.GateSpec.depthOfEvents
         ((compactInversionGates fieldTail counterTail p hfit hcapacity hwidth).map
-          EncodedBit.GateSpec.event) := by
+          (EncodedBit.GateSpec.event .empty)) := by
   exact EncodedBit.GateSpec.programList_eventDepth
+    (QubitLayout.canonical _) .empty
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Under unit duration per native event, the strict sequential depth is

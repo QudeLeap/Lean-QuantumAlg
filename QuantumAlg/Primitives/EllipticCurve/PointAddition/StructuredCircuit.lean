@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.GateSpec
+import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Controlled
 
 /-!
@@ -258,9 +260,9 @@ def slopeProgram {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E}
     (restEncoding : BinaryLabelEncoding (DecomposedRest E Q))
     (divisionWitness : MAU.Division.StructuredCircuitWitness p) :
-    UnitaryCircuit (Qubits
-      (decomposedEncoding restEncoding divisionWitness).width) :=
-  UnitaryCircuit.prodRight (m := restEncoding.width) divisionWitness.circuit
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((decomposedEncoding
+      restEncoding divisionWitness).width)).toQuantum :=
+  UnitaryCircuit.onBinarySuffix restEncoding.width divisionWitness.circuit
 
 /-- The lifted modular-division circuit realizes the slope update. -/
 theorem slope_realizes {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
@@ -270,9 +272,8 @@ theorem slope_realizes {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
       (slopeProgram restEncoding divisionWitness)
       DecomposedState.slopeStep := by
-  have hproduct := UnitaryCircuit.Realizes.prodRight
-    (left := restEncoding) (right := divisionWitness.encoding)
-    divisionWitness.realizes
+  have hproduct := UnitaryCircuit.Realizes.onBinarySuffix
+    (left := restEncoding) divisionWitness.realizes
   have hrelabel := UnitaryCircuit.Realizes.relabel
     (DecomposedState.layout E Q) hproduct
   exact hrelabel.congrStep (by
@@ -291,14 +292,16 @@ structure DecomposedWitness (E : PrimeFieldShortWeierstrass p)
   divisionWitness : MAU.Division.StructuredCircuitWitness p
   /-- Program computing affine coordinates from the slope into result scratch. -/
   coordinateProgram :
-    UnitaryCircuit (Qubits (decomposedEncoding restEncoding divisionWitness).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((decomposedEncoding
+      restEncoding divisionWitness).width)).toQuantum
   /-- Correctness of the coordinate program under the decomposed encoding. -/
   coordinateRealizes :
     UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
       coordinateProgram DecomposedState.coordinateStep
   /-- Program adding result-coordinate scratch into the public targets. -/
   targetProgram :
-    UnitaryCircuit (Qubits (decomposedEncoding restEncoding divisionWitness).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((decomposedEncoding
+      restEncoding divisionWitness).width)).toQuantum
   /-- Correctness of the target-write program under the decomposed encoding. -/
   targetRealizes :
     UnitaryCircuit.Realizes (decomposedEncoding restEncoding divisionWitness)
@@ -313,13 +316,14 @@ structure DecomposedWitness (E : PrimeFieldShortWeierstrass p)
     [ slopeProgram restEncoding divisionWitness,
         coordinateProgram,
         targetProgram,
-        coordinateProgram.dagger,
-        (slopeProgram restEncoding divisionWitness).dagger ].foldr
+        coordinateProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty),
+        (slopeProgram restEncoding divisionWitness).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty) ].foldr
       UnitaryCircuit.seq
-        (UnitaryCircuit.identity
-          (Qubits (decomposedEncoding restEncoding divisionWitness).width)
-          [] (by simp)) =
-      EncodedBit.GateSpec.programList fullGates
+        (UnitaryCircuit.identity AlgorithmGate.model .empty
+          (QubitLayout.canonical
+            (decomposedEncoding restEncoding divisionWitness).width).toQuantum) =
+      EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty fullGates
 
 namespace DecomposedWitness
 
@@ -333,18 +337,21 @@ abbrev encoding (w : DecomposedWitness E Q) :
 
 /-- Folded program for the decomposed generic ECADD witness. -/
 def program (w : DecomposedWitness E Q) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (w.encoding.width)).toQuantum
+      :=
   [ slopeProgram w.restEncoding w.divisionWitness,
       w.coordinateProgram,
       w.targetProgram,
-      w.coordinateProgram.dagger,
-      (slopeProgram w.restEncoding w.divisionWitness).dagger ].foldr
-    UnitaryCircuit.seq (UnitaryCircuit.identity (Qubits w.encoding.width) [] (by simp))
+      w.coordinateProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty),
+      (slopeProgram w.restEncoding w.divisionWitness).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty) ].foldr
+    UnitaryCircuit.seq (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum)
 
 /-- The actual five-stage generic ECADD program is exactly the circuit folded
 from its recorded primitive gate list. -/
 theorem program_eq_programList (w : DecomposedWitness E Q) :
-    w.program = EncodedBit.GateSpec.programList w.fullGates := by
+    w.program = EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty w.fullGates := by
   simpa only [program] using w.fullProgram_eq_programList
 
 /-- The folded decomposed program realizes the five-stage ECADD semantic
@@ -353,25 +360,35 @@ theorem realizes (w : DecomposedWitness E Q) :
     UnitaryCircuit.Realizes w.encoding w.program DecomposedState.fullStep := by
   dsimp [program, DecomposedState.fullStep, DecomposedState.stageSteps]
   have huncoordinate :
-      UnitaryCircuit.Realizes w.encoding w.coordinateProgram.dagger
+      UnitaryCircuit.Realizes w.encoding
+        (w.coordinateProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
         DecomposedState.uncoordinateStep :=
     UnitaryCircuit.Realizes.dagger_of_rightInverse
-      w.coordinateRealizes DecomposedState.coordinateStep_uncoordinateStep
+      w.coordinateRealizes
+      (by
+        rw [UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
+      DecomposedState.coordinateStep_uncoordinateStep
   have hunslope :
       UnitaryCircuit.Realizes w.encoding
-        (slopeProgram w.restEncoding w.divisionWitness).dagger
+        ((slopeProgram w.restEncoding w.divisionWitness).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty))
         DecomposedState.unslopeStep := by
     exact
       UnitaryCircuit.Realizes.dagger_of_rightInverse
         (slope_realizes w.restEncoding w.divisionWitness)
+        (by
+          rw [UnitaryCircuit.dagger_matrix]
+          exact Unitary.star_eq_inv _)
         DecomposedState.slopeStep_unslopeStep
   exact
-    UnitaryCircuit.Realizes.appendList w.encoding
+    UnitaryCircuit.Realizes.appendList w.encoding (QubitLayout.canonical _)
       [ slopeProgram w.restEncoding w.divisionWitness,
         w.coordinateProgram,
         w.targetProgram,
-        w.coordinateProgram.dagger,
-        (slopeProgram w.restEncoding w.divisionWitness).dagger ]
+        w.coordinateProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty),
+        (slopeProgram w.restEncoding w.divisionWitness).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty) ]
       [ DecomposedState.slopeStep,
         DecomposedState.coordinateStep,
         DecomposedState.targetStep,
@@ -397,32 +414,42 @@ theorem fullGates_step (w : DecomposedWitness E Q)
     EncodedBit.GateSpec.stepList w.fullGates x =
       DecomposedState.fullStep x := by
   have hlist :=
-    (EncodedBit.GateSpec.realizesList w.fullGates).apply_encoded_ket x
+    (EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      w.fullGates).apply_encoded_ket x
   have hfull :
       UnitaryCircuit.Realizes w.encoding
-        (EncodedBit.GateSpec.programList w.fullGates)
+        (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty w.fullGates)
         DecomposedState.fullStep := by
     rw [← w.program_eq_programList]
     exact w.realizes
   have hket := hlist.symm.trans (hfull.apply_encoded_ket x)
-  exact w.encoding.encode_injective (NormalizedVector.ket_injective hket)
+  exact w.encoding.encode_injective
+    ((QubitLayout.canonical w.encoding.width).basisEquiv.symm.injective
+      (NormalizedVector.ket_injective hket))
 
 /-- Encoded-basis correctness for all decomposed generic ECADD labels. -/
 theorem apply_ket (w : DecomposedWitness E Q) (x : DecomposedState E Q) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.fullStep x)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (DecomposedState.fullStep x))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Clean encoded-basis action for the decomposed generic ECADD program. -/
 theorem apply_clean_ket (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P targetX targetY))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P targetX targetY)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              (DecomposedState.initial P targetX targetY)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            (DecomposedState.cleanOutput P targetX targetY))) := by
   simpa [DecomposedState.fullStep_initial] using
     apply_ket w (DecomposedState.initial P targetX targetY)
 
@@ -462,7 +489,8 @@ structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
   /-- Faithful encoding of generic ECADD labels. -/
   encoding : BinaryLabelEncoding (Data E Q)
   /-- Actual generic ECADD circuit. -/
-  circuit : UnitaryCircuit (Qubits encoding.width)
+  circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Direct realization of the public generic ECADD update. -/
   realizes : UnitaryCircuit.Realizes encoding circuit
     (encodedStep (E := E) (Q := Q))
@@ -474,9 +502,12 @@ variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 /-- Encoded-basis correctness for all generic ECADD data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addIntoTarget)) :=
   by
     simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
@@ -484,18 +515,20 @@ theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
 theorem apply_clean_ket (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ input := P
+                 targetX := targetX
+                 targetY := targetY
+                 flag := false } : Data E Q)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
             ({ input := P
-               targetX := targetX
-               targetY := targetY
-               flag := false } : Data E Q))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := P
-             targetX := targetX + genericAddX E P.1 Q
-             targetY := targetY + genericAddY E P.1 Q
-             flag := false } : Data E Q)) := by
+               targetX := targetX + genericAddX E P.1 Q
+               targetY := targetY + genericAddY E P.1 Q
+               flag := false } : Data E Q))) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P, targetX := targetX, targetY := targetY, flag := false } :
@@ -808,8 +841,9 @@ def baseStep (w : DecomposedWitness E Q) :
 
 /-- Controlled program compiled directly from the exact expanded gate list. -/
 def program (w : DecomposedWitness E Q) :
-    UnitaryCircuit (Qubits w.baseEncoding.width) :=
-  EncodedBit.GateSpec.programList w.gates
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (w.baseEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty w.gates
 
 /-- The semantic encoding exposes the state control field on the outer control
 wire. -/
@@ -837,6 +871,7 @@ theorem base_realizes (w : DecomposedWitness E Q) :
     UnitaryCircuit.Realizes w.baseEncoding w.program w.baseStep := by
   simpa only [program, gates, baseStep] using
     EncodedBit.GateSpec.controlledListWithWorkWitness
+      (QubitLayout.canonical _) .empty
       w.controlBit w.workBit w.genericLiftedGates
       w.controlDisjoint w.workDisjoint w.controlBit_workBit_ne
 
@@ -882,23 +917,29 @@ theorem realizes (w : DecomposedWitness E Q) :
     change
       w.program.applyNormalized
           (NormalizedVector.ket
-            (w.baseEncoding.encode (cleanCarrier s))) =
+            ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+              (w.baseEncoding.encode (cleanCarrier s)))) =
         NormalizedVector.ket
-          (w.baseEncoding.encode
-            (cleanCarrier (DecomposedState.fullStep s)))
+          ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+            (w.baseEncoding.encode
+              (cleanCarrier (DecomposedState.fullStep s))))
     calc
       w.program.applyNormalized
           (NormalizedVector.ket
-            (w.baseEncoding.encode (cleanCarrier s))) =
+            ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+              (w.baseEncoding.encode (cleanCarrier s)))) =
         NormalizedVector.ket
-          (w.baseEncoding.encode (w.baseStep (cleanCarrier s))) :=
+          ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+            (w.baseEncoding.encode (w.baseStep (cleanCarrier s)))) :=
         w.base_realizes.apply_encoded_ket (cleanCarrier s)
       _ = NormalizedVector.ket
-          (w.baseEncoding.encode
-            (cleanCarrier (DecomposedState.fullStep s))) := by
+          ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+            (w.baseEncoding.encode
+              (cleanCarrier (DecomposedState.fullStep s)))) := by
         apply congrArg (fun carrier =>
-          NormalizedVector.ket (R := Qubits w.baseEncoding.width)
-            (w.baseEncoding.encode carrier))
+          NormalizedVector.ket
+            ((QubitLayout.canonical w.baseEncoding.width).basisEquiv.symm
+              (w.baseEncoding.encode carrier)))
         rcases s with ⟨control, generic⟩
         cases control
         · change w.baseStep ((false, generic), false) =
@@ -912,19 +953,26 @@ theorem realizes (w : DecomposedWitness E Q) :
 /-- Encoded-basis correctness for all decomposed controlled ECADD labels. -/
 theorem apply_ket (w : DecomposedWitness E Q) (x : DecomposedState E Q) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.fullStep x)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (DecomposedState.fullStep x))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Encoded zero-control branch for the decomposed controlled ECADD program. -/
 theorem apply_zero_branch (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P false targetX targetY))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P false targetX targetY)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              (DecomposedState.initial P false targetX targetY)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            (DecomposedState.cleanOutput P false targetX targetY))) := by
   simpa [DecomposedState.fullStep_initial_false] using
     apply_ket w (DecomposedState.initial P false targetX targetY)
 
@@ -932,10 +980,14 @@ theorem apply_zero_branch (w : DecomposedWitness E Q)
 theorem apply_one_branch (w : DecomposedWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (DecomposedState.initial P true targetX targetY))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (DecomposedState.cleanOutput P true targetX targetY)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              (DecomposedState.initial P true targetX targetY)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode
+            (DecomposedState.cleanOutput P true targetX targetY))) := by
   simpa [DecomposedState.fullStep_initial_true] using
     apply_ket w (DecomposedState.initial P true targetX targetY)
 
@@ -954,7 +1006,8 @@ structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
   /-- Faithful encoding of controlled ECADD labels. -/
   encoding : BinaryLabelEncoding (Data E Q)
   /-- Actual controlled ECADD circuit. -/
-  circuit : UnitaryCircuit (Qubits encoding.width)
+  circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- Direct realization of the public controlled ECADD update. -/
   realizes : UnitaryCircuit.Realizes encoding circuit
     (encodedStep (E := E) (Q := Q))
@@ -966,9 +1019,12 @@ variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
 /-- Encoded-basis correctness for all controlled ECADD data labels. -/
 theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode x))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode x.addIntoTarget)) :=
   by
     simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
@@ -976,20 +1032,22 @@ theorem apply_ket (w : StructuredCircuitWitness E Q) (x : Data E Q) :
 theorem apply_zero_branch (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ input := P
+                 control := false
+                 targetX := targetX
+                 targetY := targetY
+                 flag := false } : Data E Q)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
             ({ input := P
                control := false
                targetX := targetX
                targetY := targetY
-               flag := false } : Data E Q))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := P
-             control := false
-             targetX := targetX
-             targetY := targetY
-             flag := false } : Data E Q)) := by
+               flag := false } : Data E Q))) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P
@@ -1002,20 +1060,22 @@ theorem apply_zero_branch (w : StructuredCircuitWitness E Q)
 theorem apply_one_branch (w : StructuredCircuitWitness E Q)
     (P : Input E Q) (targetX targetY : ZMod p) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+            (w.encoding.encode
+              ({ input := P
+                 control := true
+                 targetX := targetX
+                 targetY := targetY
+                 flag := false } : Data E Q)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
             ({ input := P
                control := true
-               targetX := targetX
-               targetY := targetY
-               flag := false } : Data E Q))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode
-          ({ input := P
-             control := true
-             targetX := targetX + genericAddX E P.1 Q
-             targetY := targetY + genericAddY E P.1 Q
-             flag := false } : Data E Q)) := by
+               targetX := targetX + genericAddX E P.1 Q
+               targetY := targetY + genericAddY E P.1 Q
+               flag := false } : Data E Q))) := by
   simpa [encodedStep, Data.addIntoTarget] using
     apply_ket (E := E) (Q := Q) w
       ({ input := P

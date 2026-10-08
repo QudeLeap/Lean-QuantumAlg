@@ -25,7 +25,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution ClassicalWorkspace
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 noncomputable section
 
@@ -34,11 +35,11 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
 
 /-- All seven real lexical scopes retain the original complete native event allowance. -/
 theorem gf2WithState_pool_le (path : (withState input output).Path) :
-    (withState input output).resourcePool path ≤ intoEnvelope kind rowCount width := by
+    (withState input output).resourcePool path ≤ intoEnvelope model rowCount width := by
   apply ClassicalWorkspace.withCellsFrom_pool_le (Transport.id ctx)
     (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
-    (intoEnvelope kind rowCount width) ?_ path
+    (intoEnvelope model rowCount width) ?_ path
   intro inner cells _distinct transport _separated current
   exact gf2Into_pool_le (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
@@ -46,7 +47,7 @@ theorem gf2WithState_pool_le (path : (withState input output).Path) :
     (transport.liftWrite output) current
 
 /-- Actual initialization and release retain all original arbitrary event durations. -/
-theorem gf2WithState_depth_le (duration : Resource.Event kind → Nat)
+theorem gf2WithState_depth_le (duration : Resource.Event model → Nat)
     (path : (withState input output).Path) :
     (withState input output).depth duration path ≤ intoDepthLimit rowCount width duration := by
   apply ClassicalWorkspace.withCellsFrom_depth_le (Transport.id ctx)
@@ -60,7 +61,7 @@ theorem gf2WithState_depth_le (duration : Resource.Event kind → Nat)
     (transport.liftWrite output) duration current
 
 /-- The actual lexical scopes preserve the exact same-path serial event-duration equation. -/
-theorem gf2WithState_duration_eventTrace (duration : Resource.Event kind → Nat)
+theorem gf2WithState_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (withState input output).Path) :
     (withState input output).depth duration path =
       (((withState input output).eventTrace path).map duration).sum := by
@@ -81,7 +82,7 @@ theorem gf2WithState_duration_eventTrace (duration : Resource.Event kind → Nat
 /-- Every actual instruction remains charged after the original seven cells are released. -/
 theorem gf2WithState_eventCount_le (path : (withState input output).Path) :
     ((withState input output).eventTrace path).length ≤
-      intoDepthLimit (kind := kind) rowCount width (fun _ => 1) := by
+      intoDepthLimit (model := model) rowCount width (fun _ => 1) := by
   have bound := gf2WithState_depth_le input output (fun _ => 1) path
   rw [gf2WithState_duration_eventTrace] at bound
   simpa only [List.map_const', List.sum_replicate, smul_eq_mul, Nat.mul_one] using bound
@@ -90,11 +91,11 @@ theorem gf2WithState_eventCount_le (path : (withState input output).Path) :
 theorem gf2WithState_resident_le (path : (withState input output).Path) :
     (withState input output).peakResidentSpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
-        intoScratchSpace kind rowCount width + ctx.residentSpace := by
+        intoScratchSpace model rowCount width + ctx.residentSpace := by
   apply ClassicalWorkspace.withCellsFrom_resident_le (Transport.id ctx)
     (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
-    (intoScratchSpace kind rowCount width) ?_ path
+    (intoScratchSpace model rowCount width) ?_ path
   intro inner cells _distinct transport _separated current
   exact gf2Into_resident_le (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
@@ -105,11 +106,11 @@ theorem gf2WithState_resident_le (path : (withState input output).Path) :
 theorem gf2WithState_auxiliary_le (path : (withState input output).Path) :
     (withState input output).peakAuxiliarySpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
-        intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+        intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
   apply ClassicalWorkspace.withCellsFrom_auxiliary_le (Transport.id ctx)
     (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
-    (intoScratchSpace kind rowCount width) ?_ path
+    (intoScratchSpace model rowCount width) ?_ path
   intro inner cells _distinct transport _separated current
   exact gf2Into_auxiliary_le (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref

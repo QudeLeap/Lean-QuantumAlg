@@ -38,7 +38,8 @@ private theorem placedConvertedCascade_marginal {p : Nat} (E : PrimeFieldShortWe
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (readyContext p.size count) Reference H) :
+    (original : State (readyContext p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     ((placedConvertedCascade E points order coefficient).execute Reference
       (ContextPermutation.state (Allocation.body_entries p.size count) original)).quantumMarginal =
       ((convertedCascade E points order coefficient).execute Reference
@@ -50,7 +51,8 @@ private theorem placedConvertedCascade_marginal {p : Nat} (E : PrimeFieldShortWe
     (Allocation.after p.size count) (Allocation.body_entries p.size count) Reference original
   have marginal := congrArg
     (fun result : State (Allocation.after p.size count) Reference
-      (H × (placedConvertedCascade E points order coefficient).Path) =>
+      (ClassicalOracleModel.empty.HiddenState ×
+        (H × (placedConvertedCascade E points order coefficient).Path)) =>
         result.quantumMarginal) actual
   exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans
     (Allocation.permuted_marginal _ _))
@@ -69,7 +71,8 @@ theorem placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (Allocation.after p.size count) Reference H)
+    (original : State (Allocation.after p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
         (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
@@ -82,16 +85,16 @@ theorem placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass
         original.quantumMarginal := by
   let coordinates := ContextPermutation.referenceBasis (Allocation.body_entries p.size count)
     Reference
-  let labels := ContextPermutation.recordEquiv (Allocation.body_entries p.size count) H
-  let reversed : State (readyContext p.size count) Reference H :=
-    (original.mapClassical labels.symm).reindex coordinates.symm
-  have roundtrip : ContextPermutation.state (Allocation.body_entries p.size count) reversed =
-      original :=
-    ExecutionState.coordinate_transport_inverse original labels.symm coordinates.symm
+  obtain ⟨reversed, roundtrip⟩ :=
+    ContextPermutation.state_surjective (Allocation.body_entries p.size count) original
   have reversedMarginal : reversed.quantumMarginal =
       original.quantumMarginal.reindex coordinates.symm := by
-    dsimp only [reversed]
-    rw [MeasuredPointAddition.reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
+    have mapped := Allocation.permuted_marginal (Allocation.body_entries p.size count) reversed
+    rw [roundtrip] at mapped
+    have back := congrArg (fun density => density.reindex coordinates.symm) mapped.symm
+    rw [DensityOperator.reindex_trans, Equiv.self_trans_symm,
+      DensityOperator.reindex_refl] at back
+    exact back
   have originalSupport : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
         (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
@@ -131,7 +134,8 @@ def convertedInitializedSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
 theorem convertedCircuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
-    (original : State (Allocation.before p.size count) Reference H)
+    (original : State (Allocation.before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : convertedInitializedSupport E points order coefficient Reference
       original.quantumMarginal) :
     ((convertedCircuit E points order coefficient).execute Reference original).quantumMarginal =

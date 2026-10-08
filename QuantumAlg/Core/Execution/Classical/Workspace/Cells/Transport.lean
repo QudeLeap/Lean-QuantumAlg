@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells.Index
+public import QuantumAlg.Core.Execution.Classical.Workspace.Transport
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells.Index
 import all QuantumAlg.Core.Execution.Classical.Workspace.Transport
 
@@ -16,7 +18,7 @@ import all QuantumAlg.Core.Execution.Classical.Workspace.Transport
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- Lift a heterogeneous cell collection along one structural scope transport. -/
-def transportCells {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public def transportCells {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     {shapes : List CShape} (transport : Transport outer inner) :
     Cells outer shapes → Cells inner shapes
   | .nil => .nil
@@ -29,7 +31,7 @@ def transportCells {kind : ProblemKind} {outer inner : RuntimeCtx kind}
         (transportCells transport tail)
 
 /-- Transporting cells preserves their physical-key list. -/
-theorem workspaceCells_transportCells_keys {kind : ProblemKind}
+public theorem workspaceCells_transportCells_keys {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes) :
     (transportCells transport cells).keys = cells.keys := by
@@ -40,7 +42,7 @@ theorem workspaceCells_transportCells_keys {kind : ProblemKind}
       rw [transport.liftWrite_key head.ref, inductionHypothesis]
 
 /-- Transporting cells preserves avoidance of every physical key. -/
-theorem workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
+public theorem workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes)
     (key : StorageKey) :
@@ -52,7 +54,7 @@ theorem workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
       rw [transport.liftWrite_key head.ref, inductionHypothesis]
 
 /-- Transporting a heterogeneous workspace preserves pairwise distinctness. -/
-theorem workspaceCells_transportCells_distinct {kind : ProblemKind}
+public theorem workspaceCells_transportCells_distinct {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes)
     (distinct : cells.Distinct) :

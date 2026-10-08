@@ -8,14 +8,14 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Control
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.Hadamard.Operator
+import all QuantumAlg.Components.Gates.Hadamard.Action
 public import QuantumAlg.Components.Kets
 import all QuantumAlg.Components.Kets
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Core.Base.Depth.Expr
+public import QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Basic
+import all QuantumAlg.Core.Base.State.Pure
 
 /-!
 # The Hadamard test
@@ -27,8 +27,8 @@ then measure the control qubit. The outcome probabilities are
 `P(0) = (1 + Re <psi| U |psi>)/2`, `P(1) = (1 - Re <psi| U |psi>)/2`.
 
 State normalization and operator unitarity are carried by `NormalizedVector`
-and `UnitaryOperator`.  The resource-aware realization is assembled only from
-sealed `UnitaryCircuit` leaves.
+and `UnitaryOperator`.  The mathematical operator and Born probabilities are independent of
+the native execution model; actual query access is specified by the execution layer.
 -/
 
 section
@@ -41,224 +41,15 @@ noncomputable section
 
 variable {n : ℕ}
 
-/-- Strict event coordinate of each Hadamard-test boundary Hadamard. -/
-def hadamardTestHadamardEvent : Resource.Event .quantum :=
-  Gate.atomicEvent (.builtin "hadamard")
-
 /-- Metadata-free Hadamard action on the leading control qubit. -/
 def hadamardTestHadamardOp (n : ℕ) : UnitaryOperator (Qubits (1 + n)) :=
   Gate.leadingHadamardOp n
-
-/-- Sealed leading-control Hadamard leaf.  Its operator is the actual `H ⊗ I`,
-and its gate coordinate is projected from this same occurrence. -/
-def hadamardTestHadamardLeaf (n : ℕ) : UnitaryLeaf (Qubits (1 + n)) :=
-  Gate.leadingHadamardLeafAt n [0]
-
-/-- One canonical Hadamard leaf on the control qubit. -/
-def hadamardTestHadamardLayer (n : ℕ) : UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.ofLeaf (hadamardTestHadamardLeaf n)
-    (by simp [hadamardTestHadamardLeaf, Gate.leadingHadamardLeafAt])
-
-@[simp]
-theorem hadamardTestHadamardLayer_matrix (n : ℕ) :
-    (hadamardTestHadamardLayer n).matrix = hadamardTestHadamardOp n :=
-  rfl
-
-@[simp]
-theorem hadamardTestHadamardLayer_eventTrace (n : ℕ) :
-    (hadamardTestHadamardLayer n).eventTrace =
-      [hadamardTestHadamardEvent] :=
-  rfl
-
-@[simp]
-theorem hadamardTestHadamardLayer_eventCost (n : ℕ) :
-    (hadamardTestHadamardLayer n).eventCost =
-      ResourcePool.singleton hadamardTestHadamardEvent :=
-  rfl
-
-@[simp]
-theorem hadamardTestHadamardLayer_eventDepth (n : ℕ) :
-    (hadamardTestHadamardLayer n).eventDepth =
-      .atom hadamardTestHadamardEvent :=
-  rfl
-
-
-
-
-
-/-- Resource-aware controlled unitary on the canonical `(control, target)`
-layout. Its operator comes from the metadata-free controlled construction. -/
-def hadamardTestControlledLayer (U : UnitaryCircuit (Qubits n)) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  let shifted := UnitaryCircuit.shiftPhysicalIdx 1 U
-  UnitaryCircuit.controlQubitsAt [0] shifted
-    { left_nodup := by simp
-      right_nodup := shifted.physical_idx_nodup
-      disjoint := by
-        simp [shifted, UnitaryCircuit.shiftPhysicalIdx] }
-    (1 : Fin 2)
-
-@[simp]
-theorem hadamardTestControlledLayer_applyVec (U : UnitaryCircuit (Qubits n))
-    (state : HilbertVector (Qubits (1 + n))) :
-    (hadamardTestControlledLayer U).applyVec state =
-      (UnitaryOperator.controlledQubits U.matrix).applyVec state := by
-  simp [hadamardTestControlledLayer, UnitaryOperator.controlledQubits,
-    UnitaryCircuit.applyVec]
-
-@[simp]
-theorem hadamardTestControlledLayer_matrix (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestControlledLayer U).matrix =
-      UnitaryOperator.controlledQubits U.matrix := by
-  simp [hadamardTestControlledLayer, UnitaryOperator.controlledQubits]
-
-@[simp]
-theorem hadamardTestControlledLayer_eventTrace (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestControlledLayer U).eventTrace =
-      U.eventTrace.map (fun event => event.controlForDimension 2) := by
-  simp [hadamardTestControlledLayer]
-
-@[simp]
-theorem hadamardTestControlledLayer_eventCost (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestControlledLayer U).eventCost =
-      ResourcePool.controlForDimension 2 U.eventCost := by
-  simp [hadamardTestControlledLayer]
-
-@[simp]
-theorem hadamardTestControlledLayer_eventDepth (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestControlledLayer U).eventDepth =
-      .controlled "circuit-control"
-        (DepthExpr.controlEventsForDimension 2 U.eventDepth) := by
-  simp [hadamardTestControlledLayer]
-
-/-- A body event keeps its exact multiplicity at the transformed controlled
-coordinate. -/
-theorem hadamardTestControlledLayer_event_count
-    (focus : Resource.Event .quantum) (U : UnitaryCircuit (Qubits n)) :
-    ResourcePool.count (focus.controlForDimension 2)
-        (hadamardTestControlledLayer U).eventCost =
-      ResourcePool.count focus U.eventCost := by
-  simp [hadamardTestControlledLayer]
-
-/-- Strict controlled-query depth counts every source occurrence at the
-transformed coordinate, since the controlled events share one control wire. -/
-@[simp]
-theorem hadamardTestControlledLayer_eventQueryDepth
-    (focus : Resource.Event .quantum) (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestControlledLayer U).eventQueryDepth
-        (focus.controlForDimension 2) =
-      DepthExpr.costEval (DepthExpr.indicator focus) U.eventDepth := by
-  have hshift :
-      DepthExpr.costEval (DepthExpr.indicator focus)
-          (UnitaryCircuit.shiftPhysicalIdx 1 U).eventDepth =
-        DepthExpr.costEval (DepthExpr.indicator focus) U.eventDepth := by
-    exact congrArg (DepthExpr.costEval (DepthExpr.indicator focus))
-      (UnitaryCircuit.shiftPhysicalIdx_eventDepth 1 U)
-  simpa only [hadamardTestControlledLayer,
-    UnitaryCircuit.eventQueryDepth_controlQubitsAt] using hshift
-
-
-
-
-
-/-- The Hadamard test as three structural circuit blocks, in execution order. -/
-def hadamardTestCircuit (U : UnitaryCircuit (Qubits n)) : UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.seq
-    (UnitaryCircuit.seq
-      (hadamardTestHadamardLayer n)
-      (hadamardTestControlledLayer U))
-    (hadamardTestHadamardLayer n)
 
 /-- Metadata-free Hadamard-test unitary. -/
 public def hadamardTest (U : UnitaryOperator (Qubits n)) :
     UnitaryOperator (Qubits (1 + n)) :=
   hadamardTestHadamardOp n *
     (UnitaryOperator.controlledQubits U * hadamardTestHadamardOp n)
-
-/-- The typed realization has exactly the metadata-free Hadamard-test
-semantics of its underlying operator. -/
-@[simp]
-theorem hadamardTestCircuit_matrix (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).matrix = hadamardTest U.matrix := by
-  change (hadamardTestHadamardLayer n).matrix *
-      ((hadamardTestControlledLayer U).matrix *
-        (hadamardTestHadamardLayer n).matrix) = hadamardTest U.matrix
-  rw [hadamardTestHadamardLayer_matrix, hadamardTestControlledLayer_matrix]
-  rfl
-
-/-- Ordered strict execution events of the three Hadamard-test blocks. -/
-@[simp]
-theorem hadamardTestCircuit_eventTrace (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).eventTrace =
-      [hadamardTestHadamardEvent] ++
-        U.eventTrace.map (fun event => event.controlForDimension 2) ++
-          [hadamardTestHadamardEvent] := by
-  simp only [hadamardTestCircuit, UnitaryCircuit.seq_eventTrace,
-    hadamardTestHadamardLayer_eventTrace,
-    hadamardTestControlledLayer_eventTrace, List.append_assoc]
-
-/-- Exact strict event pool of the three Hadamard-test blocks. -/
-@[simp]
-theorem hadamardTestCircuit_eventCost (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).eventCost =
-      ResourcePool.singleton hadamardTestHadamardEvent +
-        ResourcePool.controlForDimension 2 U.eventCost +
-          ResourcePool.singleton hadamardTestHadamardEvent := by
-  simp only [hadamardTestCircuit, UnitaryCircuit.seq_eventCost,
-    hadamardTestHadamardLayer_eventCost,
-    hadamardTestControlledLayer_eventCost]
-
-/-- Exact strict symbolic critical path of the three Hadamard-test blocks. -/
-@[simp]
-theorem hadamardTestCircuit_eventDepth (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).eventDepth =
-      .seq
-        (.seq (.atom hadamardTestHadamardEvent)
-          (.controlled "circuit-control"
-            (DepthExpr.controlEventsForDimension 2 U.eventDepth)))
-        (.atom hadamardTestHadamardEvent) := by
-  simp only [hadamardTestCircuit, UnitaryCircuit.seq_eventDepth,
-    hadamardTestHadamardLayer_eventDepth,
-    hadamardTestControlledLayer_eventDepth]
-
-/-- With unit duration per strict event, the controlled body contributes one
-sequential layer per event and the two boundary Hadamards add two more. -/
-theorem hadamardTestCircuit_evaluatedEventDepth_of_one
-    (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).evaluatedEventDepth (fun _event => 1) =
-      DepthExpr.costEval (fun _event => 1) U.eventDepth + 2 := by
-  have hcontrolled :
-      (hadamardTestControlledLayer U).evaluatedEventDepth (fun _event => 1) =
-        DepthExpr.costEval (fun _event => 1) U.eventDepth := by
-    change DepthExpr.depthEval (fun _event => 1)
-        (hadamardTestControlledLayer U).eventDepth =
-      DepthExpr.costEval (fun _event => 1) U.eventDepth
-    rw [hadamardTestControlledLayer_eventDepth,
-      DepthExpr.depthEval_controlled,
-      DepthExpr.depthEval_controlEventsForDimension]
-  have hhadamard :
-      (hadamardTestHadamardLayer n).evaluatedEventDepth (fun _event => 1) = 1 := by
-    change DepthExpr.depthEval (fun _event => 1)
-        (hadamardTestHadamardLayer n).eventDepth = 1
-    rw [hadamardTestHadamardLayer_eventDepth]
-    rfl
-  rw [hadamardTestCircuit, UnitaryCircuit.evaluatedEventDepth_seq,
-    UnitaryCircuit.evaluatedEventDepth_seq, hcontrolled, hhadamard]
-  omega
-
-/-- Linearizing the strict Hadamard-test critical path recovers its exact
-event pool. -/
-theorem hadamardTestCircuit_resourcesFromEventDepth
-    (U : UnitaryCircuit (Qubits n)) :
-    (hadamardTestCircuit U).resourcesFromEventDepth =
-      ResourcePool.singleton hadamardTestHadamardEvent +
-        ResourcePool.controlForDimension 2 U.eventCost +
-          ResourcePool.singleton hadamardTestHadamardEvent := by
-  rw [UnitaryCircuit.resourcesFromEventDepth_eq_eventCost,
-    hadamardTestCircuit_eventCost]
-
-
-
 
 
 private theorem tensor_H_one_applyVec_ket0
@@ -278,7 +69,7 @@ private theorem tensor_H_one_applyVec_ket0
   have hH : HOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ketPlus : HilbertVector (Qubits 1)) :=
     congrArg (fun v : NormalizedVector (Qubits 1) =>
-      (v : HilbertVector (Qubits 1))) H_apply_ket0
+      (v : HilbertVector (Qubits 1))) hadamardOperator_apply_ket0
   rw [hH, HilbertOperator.one_applyVec]
 
 private theorem ketPlus_tensor (ψ : HilbertVector (Qubits n)) :
@@ -341,11 +132,11 @@ private theorem tensor_H_one_finish
   have hH0 : HOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ketPlus : HilbertVector (Qubits 1)) :=
     congrArg (fun v : NormalizedVector (Qubits 1) =>
-      (v : HilbertVector (Qubits 1))) H_apply_ket0
+      (v : HilbertVector (Qubits 1))) hadamardOperator_apply_ket0
   have hH1 : HOp.applyVec (ket1 : HilbertVector (Qubits 1)) =
       (ketMinus : HilbertVector (Qubits 1)) :=
     congrArg (fun v : NormalizedVector (Qubits 1) =>
-      (v : HilbertVector (Qubits 1))) H_apply_ket1
+      (v : HilbertVector (Qubits 1))) hadamardOperator_apply_ket1
   rw [hH0, hH1, HilbertOperator.one_applyVec, HilbertOperator.one_applyVec]
   apply WithLp.ofLp_injective
   funext i

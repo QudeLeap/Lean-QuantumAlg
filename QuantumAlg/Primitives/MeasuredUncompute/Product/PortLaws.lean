@@ -114,10 +114,12 @@ theorem program_output_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
         (numerator width state).val) % modulus.val)
     (readHistory : history width result = history width state) :
     (NativeProductFrame.program width modulus).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding width).width)
-          ((frameEncoding width).encode state)) =
-      NormalizedVector.ket (R := Qubits (frameEncoding width).width)
-        ((frameEncoding width).encode result) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
+            ((frameEncoding width).encode state))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
+          ((frameEncoding width).encode result)) := by
   have actual :=
     (NativeProductFrame.nativeProductFrame_realizes width modulus).apply_encoded_ket state
   rw [step_eq_of_reads width modulus state result valid readInput readNumerator

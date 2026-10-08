@@ -6,9 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.OrderFinding.BornModel
-import all QuantumAlg.Algorithms.OrderFinding.BornModel
-import all QuantumAlg.Algorithms.OrderFinding.AccessCircuit
+public import QuantumAlg.Core.Measure
+import all QuantumAlg.Algorithms.OrderFinding.Exact.Native.SourceSupport
 import all QuantumAlg.Algorithms.QPE.Basic
 import all QuantumAlg.Util.Order.Finding
 import all QuantumAlg.Util.Classical.TerminalDecode
@@ -64,13 +63,13 @@ def SuccessfulOutcome (r : Nat) {t : Nat} (output : Output t) : Prop :=
       ∃ s : Fin r, word.val = s.val * (2 ^ t / r)
 
 /-- Canonical encoding of one actually measured phase-register outcome. -/
-def encodedOutcome {t : Nat} (outcome : Outcome t) : Output t :=
+def encodedOutcome {t : Nat} (outcome : TerminalZMeasure.Outcome t) : Output t :=
   .unsignedWord
     (ClassicalAlgorithms.TerminalDecode.fullRegisterIndex outcome)
 
 @[simp] theorem successful_encodedOutcome_iff {r t : Nat}
-    (outcome : Outcome t) :
-    SuccessfulOutcome r (encodedOutcome outcome) ↔ ExactOutcome r t outcome := by
+    (outcome : TerminalZMeasure.Outcome t) :
+    SuccessfulOutcome r (encodedOutcome outcome) ↔ Native.ExactOutcome r t outcome := by
   rfl
 
 end

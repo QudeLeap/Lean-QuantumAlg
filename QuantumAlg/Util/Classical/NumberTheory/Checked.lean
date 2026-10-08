@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Util.Classical.Modular.Basic
 import QuantumAlg.Init
 import Mathlib.Data.BitVec
 import Mathlib.Data.Finset.Lattice.Fold
@@ -53,7 +54,7 @@ structure UnitResidue {width : Nat} (spec : ModulusSpec width) where
 
 /-- The canonical representative selected by the extended-GCD inverse on
 `ZMod`. This is only a candidate until a coprimality proof is supplied. -/
-def inverseCandidate {width : Nat} (spec : ModulusSpec width)
+public def inverseCandidate {width : Nat} (spec : ModulusSpec width)
     (value : Residue spec) : Residue spec := by
   letI : NeZero spec.modulus :=
     ⟨Nat.ne_of_gt (modulusSpec_modulus_pos spec)⟩
@@ -136,10 +137,10 @@ theorem inverse_eq_candidate_of_mul_mod {width : Nat}
 namespace TryInv
 
 /-- A checked inverse accepts one canonical residue. -/
-abbrev Input {width : Nat} (spec : ModulusSpec width) := Residue spec
+public abbrev Input {width : Nat} (spec : ModulusSpec width) := Residue spec
 
 /-- A checked inverse returns a canonical residue exactly on unit inputs. -/
-abbrev Output {width : Nat} (spec : ModulusSpec width) := Option (Residue spec)
+public abbrev Output {width : Nat} (spec : ModulusSpec width) := Option (Residue spec)
 
 /-- Public relation for checked inversion. A successful answer may use any
 canonical inverse; it is not tied to Mathlib's coefficient normalization. -/
@@ -153,7 +154,7 @@ def accepts {width : Nat} {spec : ModulusSpec width}
 
 /-- Checked inversion exposes failure instead of treating total ring inverse as
 evidence that every residue is a unit. -/
-def eval {width : Nat} (spec : ModulusSpec width)
+public def eval {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) : Output spec :=
   if _coprime : Nat.Coprime input.val spec.modulus then
     some (inverseCandidate spec input)

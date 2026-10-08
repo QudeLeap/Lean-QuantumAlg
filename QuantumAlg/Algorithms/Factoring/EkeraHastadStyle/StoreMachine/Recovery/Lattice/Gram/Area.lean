@@ -63,8 +63,9 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   norm : LatticeNormRefresh.Separation refs.cross (normRefs refs)
 
 /-- The actual cross-product output is read by the actual squared-norm circuit. -/
-def refreshInto (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width) :
-    Circuit ctx ctx :=
+def refreshInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeCross.pointCrossInto left right refs.cross refs.productLeft refs.productRight)
     (LatticeNormRefresh.refreshInto refs.cross (normRefs refs))
 
@@ -74,36 +75,50 @@ def refreshStore (left right : LatticeState.PointRefs ctx width) (refs : Refs ct
   LatticeNormRefresh.refreshStore refs.cross (normRefs refs)
     (LatticeCross.pointStore left right refs.cross refs.productLeft refs.productRight store)
 
+/-- Actual selected cross-product and norm paths on their chronological stores. -/
+def refreshStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (refreshInto (model := model) left right refs).Path :=
+  let crossed := LatticeCross.pointStep (model := model)
+    left right refs.cross refs.productLeft refs.productRight store
+  let squared := LatticeDotRefresh.refreshStep (model := model)
+    refs.cross refs.cross (LatticeNormRefresh.dotRefs (normRefs refs)) crossed.1
+  (squared.1, (crossed.2, squared.2))
+
+theorem refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    (refreshStep (model := model) left right refs store).1 =
+      refreshStore left right refs store := rfl
+
 /-- Complete actual execution preserves histories and quantum-reference correlations. -/
-theorem refreshInto_execute (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (refreshInto left right refs).execute Reference state = state.mapClassical (fun entry =>
-      (refreshStore left right refs entry.1,
-        (entry.2, ((((), ((), ())), (((), ((), ())), ((), ((), ())))),
-          ((), (((), ()), ((), ()))))))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshInto (model := model) left right refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := refreshStep (model := model) left right refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (LatticeCross.pointCrossInto left right refs.cross refs.productLeft refs.productRight)
-    (LatticeNormRefresh.refreshInto refs.cross (normRefs refs))
-    (fun store => (LatticeCross.pointStore left right refs.cross
-      refs.productLeft refs.productRight store,
-      (((), ((), ())), (((), ((), ())), ((), ((), ()))))))
-    (fun store => (LatticeNormRefresh.refreshStore refs.cross (normRefs refs) store,
-      ((), (((), ()), ((), ())))))
-    (by
-      intro ref history _ current
-      refine (LatticeCross.pointCrossInto_execute left right refs.cross
-        refs.productLeft refs.productRight ref current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (by
-      intro ref history _ current
-      refine (LatticeNormRefresh.refreshInto_execute refs.cross (normRefs refs)
-        ref current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (LatticeCross.pointCrossInto (model := model)
+      left right refs.cross refs.productLeft refs.productRight)
+    (LatticeNormRefresh.refreshInto (model := model) refs.cross (normRefs refs))
+    (fun before =>
+      let actual := LatticeCross.pointStep (model := model)
+        left right refs.cross refs.productLeft refs.productRight before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeDotRefresh.refreshStep (model := model)
+        refs.cross refs.cross (LatticeNormRefresh.dotRefs (normRefs refs)) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeCross.pointCrossInto_execute _ _ _ _ _ reference current)
+    (fun reference _history _ current =>
+      LatticeNormRefresh.refreshInto_execute _ _ reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Reads outside all seven writable cells are preserved by the actual area refresh. -/
 def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
@@ -146,68 +161,100 @@ theorem refreshInto_correct (left right : LatticeState.PointRefs ctx width)
     (NumberTheory.integerPointCross leftValue rightValue) crossed
 
 /-- Both actual phases preserve the complete borrowed interface jointly with external references. -/
-theorem refreshInto_borrowedRestored (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (refreshInto left right refs).BorrowedRestored Reference state
-      ((refreshInto left right refs).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshInto (model := model) left right refs).BorrowedRestored Reference state
+      ((refreshInto (model := model) left right refs).execute Reference state) := by
   exact Circuit.borrowedRestored_seq _ _ state
     (LatticeCross.pointCrossInto_borrowedRestored _ _ _ _ _ Reference state)
     (LatticeNormRefresh.refreshInto_borrowedRestored _ _ Reference _)
 
 /-- Independent native instruction formula of the nine-operation cross and five-operation norm. -/
-def phaseTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width)]
+def phaseTrace {model : ExecutionModel} [BitWord.Selected model] (width : Nat) :
+    List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add width))]
 
 /-- Every actual path has the independent fourteen-instruction formula. -/
-theorem refreshInto_events (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).eventTrace path = phaseTrace width := rfl
+theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).eventTrace path =
+      phaseTrace (model := model) width := by
+  change _ ++ _ = _
+  rw [LatticeCross.pointCrossInto_events, LatticeNormRefresh.refreshInto_events]
+  rfl
 
 /-- Native multiplicities are exactly those of the independent instruction formula. -/
-theorem refreshInto_resourcePool (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).resourcePool path = ResourcePool.ofList (phaseTrace width) := rfl
+theorem refreshInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).resourcePool path =
+      ResourcePool.ofList (phaseTrace (model := model) width) := by
+  change ResourcePool.ofList ((refreshInto (model := model) left right refs).eventTrace
+    path) = _
+  rw [refreshInto_events]
 
 /-- All fourteen instructions contribute to the actual unit-duration dependency depth. -/
-theorem refreshInto_depth (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).depth (fun _ => 1) path = 14 := rfl
+theorem refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).depth (fun _ => 1) path = 14 := rfl
 
 /-- The two actual stages retain the complete original caller context. -/
-theorem refreshInto_visited (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (refreshInto left right refs).visitedContexts
-      path) : visited = ctx := by
+theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (refreshInto (model := model) left right refs).visitedContexts path) :
+    visited = ctx := by
   change visited ∈ (_ ++ _) at present
   rw [LatticeCross.pointCrossInto_visited, LatticeNormRefresh.refreshInto_visited] at present
   simpa only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
 /-- Resident accounting includes every supplied classical cell and quantum dimension. -/
-theorem refreshInto_resident_le (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).peakResidentSpace path ≤ ctx.residentSpace := by
+theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [refreshInto_visited left right refs path visited present]
 
 /-- Auxiliary accounting retains the supplied roles without a temporary allocation. -/
-theorem refreshInto_auxiliary_le (left right : LatticeState.PointRefs ctx width)
-    (refs : Refs ctx width) (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+theorem refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [refreshInto_visited left right refs path visited present]

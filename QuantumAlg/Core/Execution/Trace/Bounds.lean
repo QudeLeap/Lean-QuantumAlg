@@ -31,15 +31,17 @@ private theorem peak_le_of_contexts {kind : ProblemKind}
         (ih (fun ctx member => bounded ctx (.tail head member)))
 
 /-- A resident budget bounds the peak if it bounds every actually visited live context. -/
-theorem peakResidentSpace_le_of_visited {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (path : code.Path) (budget : SpacePool kind)
+theorem peakResidentSpace_le_of_visited {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (path : code.Path) (budget : SpacePool model.kind)
     (bounded : ∀ ctx ∈ code.visitedContexts path, ctx.residentSpace ≤ budget) :
     code.peakResidentSpace path ≤ budget :=
   peak_le_of_contexts RuntimeCtx.residentSpace _ budget bounded
 
 /-- Auxiliary roles are bounded on the same complete list of visited contexts. -/
-theorem peakAuxiliarySpace_le_of_visited {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (path : code.Path) (budget : SpacePool kind)
+theorem peakAuxiliarySpace_le_of_visited {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (path : code.Path) (budget : SpacePool model.kind)
     (bounded : ∀ ctx ∈ code.visitedContexts path, ctx.auxiliarySpace ≤ budget) :
     code.peakAuxiliarySpace path ≤ budget :=
   peak_le_of_contexts RuntimeCtx.auxiliarySpace _ budget bounded
@@ -59,16 +61,18 @@ private theorem peak_append {kind : ProblemKind}
       exact (SpacePool.max_assoc _ _ _).symm
 
 /-- Sequential resident peak is exactly the maximum of the two actual execution peaks. -/
-theorem peakResidentSpace_seq {kind : ProblemKind} {pre middle post : RuntimeCtx kind}
-    (first : Circuit pre middle) (second : Circuit middle post)
+theorem peakResidentSpace_seq {model : ExecutionModel}
+    {pre middle post : RuntimeCtx model.kind}
+    (first : Circuit model pre middle) (second : Circuit model middle post)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).peakResidentSpace path =
       SpacePool.max (first.peakResidentSpace path.1) (second.peakResidentSpace path.2) :=
   peak_append RuntimeCtx.residentSpace _ _
 
 /-- Sequential auxiliary peak is exactly the maximum for the same two path segments. -/
-theorem peakAuxiliarySpace_seq {kind : ProblemKind} {pre middle post : RuntimeCtx kind}
-    (first : Circuit pre middle) (second : Circuit middle post)
+theorem peakAuxiliarySpace_seq {model : ExecutionModel}
+    {pre middle post : RuntimeCtx model.kind}
+    (first : Circuit model pre middle) (second : Circuit model middle post)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).peakAuxiliarySpace path =
       SpacePool.max (first.peakAuxiliarySpace path.1) (second.peakAuxiliarySpace path.2) :=

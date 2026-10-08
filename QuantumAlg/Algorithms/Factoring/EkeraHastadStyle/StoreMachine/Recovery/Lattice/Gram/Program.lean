@@ -26,8 +26,9 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Refresh all six Gram entries directly, with no preceding accumulator clear. -/
-def refreshInto (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width) :
-    Circuit ctx ctx :=
+def refreshInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (entryInto basis refs .g11)
     (.seq (entryInto basis refs .g21)
       (.seq (entryInto basis refs .g31)
@@ -40,27 +41,46 @@ def refreshStore (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx wid
   entryStore basis refs .g33 (entryStore basis refs .g32 (entryStore basis refs .g22
     (entryStore basis refs .g31 (entryStore basis refs .g21 (entryStore basis refs .g11 store)))))
 
-/-- The unique path of each five-operation dot refresh. -/
-def entryPath (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width) (entry : Entry) :
-    (entryInto basis refs entry).Path := ((), (((), ()), ((), ())))
+/-- Six actual Gram updates and their value-bearing selected paths. -/
+def refreshStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (refreshInto (model := model) basis refs).Path :=
+  let first := entryStep (model := model) basis refs .g11 store
+  let second := entryStep (model := model) basis refs .g21 first.1
+  let third := entryStep (model := model) basis refs .g31 second.1
+  let fourth := entryStep (model := model) basis refs .g22 third.1
+  let fifth := entryStep (model := model) basis refs .g32 fourth.1
+  let sixth := entryStep (model := model) basis refs .g33 fifth.1
+  (sixth.1, (first.2, (second.2, (third.2, (fourth.2, (fifth.2, sixth.2))))))
 
-/-- The complete chronological path of the six actual refreshes. -/
-def refreshPath (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width) :
-    (refreshInto basis refs).Path :=
-  (entryPath basis refs .g11, entryPath basis refs .g21, entryPath basis refs .g31,
-    entryPath basis refs .g22, entryPath basis refs .g32, entryPath basis refs .g33)
+theorem refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    (refreshStep (model := model) basis refs store).1 =
+      refreshStore basis refs store := rfl
+
+/-- The complete chronological path depends on the actual input store. -/
+def refreshPath {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    (refreshInto (model := model) basis refs).Path :=
+  (refreshStep (model := model) basis refs store).2
 
 /-- Full actual execution preserves histories and all quantum-reference correlations. -/
-theorem refreshInto_execute (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
+theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (refreshInto basis refs).execute Reference state = state.mapClassical (fun entry =>
-      (refreshStore basis refs entry.1, (entry.2, refreshPath basis refs))) := by
-  simp only [refreshInto, entryInto, LatticeDotRefresh.refreshInto, LatticeDot.coordinateAccumulate,
-    Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshInto (model := model) basis refs).execute Reference state =
+      state.mapClassical (fun record =>
+        let actual := refreshStep (model := model) basis refs record.1
+        (actual.1, (record.2.1, (record.2.2, actual.2)))) := by
+  simp only [refreshInto, refreshStep, Circuit.execute_seq, entryInto_execute,
+    State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual caller read outside the seven written cells is unchanged. -/
 theorem refreshInto_callerFrame (basis : LatticeState.BasisRefs ctx width)

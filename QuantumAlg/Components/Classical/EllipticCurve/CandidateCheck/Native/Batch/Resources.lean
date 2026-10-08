@@ -26,12 +26,14 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- All declared iterations contribute their original independent native allowance. -/
-def repeatedAttemptsEnvelope (kind : ProblemKind) (curve : CurveSpec width)
-    (modulus : ModulusSpec scalarWidth) (count : Nat) : ResourcePool kind :=
-  ResourcePool.scale count (attemptEnvelope kind curve modulus)
+def repeatedAttemptsEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (count : Nat) : ResourcePool model :=
+  ResourcePool.scale count (attemptEnvelope model curve modulus)
 
 variable (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
@@ -41,24 +43,24 @@ variable (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
 theorem repeatedAttempts_pool_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).resourcePool path ≤
-      repeatedAttemptsEnvelope kind curve modulus count := by
+      repeatedAttemptsEnvelope model curve modulus count := by
   exact Circuit.forRange_pool_le count
     (fun index => persistentAttempt curve modulus (samples index) base target)
-    (attemptEnvelope kind curve modulus)
+    (attemptEnvelope model curve modulus)
     (fun _ iteration => attemptInto_pool_le curve modulus _ _ _ _ _ _ _ _ _ _ iteration) path
 
 /-- Counting the same native pool includes every actual event on this path. -/
 theorem repeatedAttempts_eventCount_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     ((repeatedAttempts curve modulus samples base target).eventTrace path).length ≤
-      count * (attemptEnvelope kind curve modulus).card := by
+      count * (attemptEnvelope model curve modulus).card := by
   have bounded := Multiset.card_le_card
     (repeatedAttempts_pool_le curve modulus samples base target path)
   simpa only [Circuit.resourcePool, ResourcePool.ofList, Multiset.coe_card,
     repeatedAttemptsEnvelope, ResourcePool.scale, Multiset.card_nsmul, smul_eq_mul] using bounded
 
 /-- Arbitrary event durations retain the serial order of every actual attempt. -/
-theorem repeatedAttempts_depth_le (duration : Resource.Event kind → Nat)
+theorem repeatedAttempts_depth_le (duration : Resource.Event model → Nat)
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration := by
@@ -74,7 +76,7 @@ theorem repeatedAttempts_depth_le (duration : Resource.Event kind → Nat)
 theorem repeatedAttempts_resident_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).peakResidentSpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).residentSpace := by
   exact Circuit.forRange_resident_le count
     (fun index => persistentAttempt curve modulus (samples index) base target) _
@@ -85,7 +87,7 @@ theorem repeatedAttempts_resident_le
 theorem repeatedAttempts_auxiliary_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).peakAuxiliarySpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by
   exact Circuit.forRange_auxiliary_le count
     (fun index => persistentAttempt curve modulus (samples index) base target) _

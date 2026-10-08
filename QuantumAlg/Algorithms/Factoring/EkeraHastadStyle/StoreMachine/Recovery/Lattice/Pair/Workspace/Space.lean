@@ -106,14 +106,14 @@ private theorem fourSpace_reassociate {kind : ProblemKind}
       first + second + third + fourth + extra + base := by
   simp only [add_assoc]
 
-variable {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
-      (transport : Transport ctx inner), Certificates transport cells → Circuit inner inner)
-    (additional : SpacePool kind)
+variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
+      (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)
+    (additional : SpacePool model.kind)
 
 /-- The actual resident peak jointly accounts for all six packages and body allocations. -/
 theorem withWorkspaces_resident_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakResidentSpace path ≤
@@ -121,11 +121,11 @@ theorem withWorkspaces_resident_le
     (path : (withWorkspaces ctx N body).Path) :
     (withWorkspaces ctx N body).peakResidentSpace path ≤
       allocationSpace N + additional + ctx.residentSpace := by
-  let targetSpace : SpacePool kind :=
+  let targetSpace : SpacePool model.kind :=
     ((LatticeWideTargetWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let lllSpace : SpacePool kind :=
+  let lllSpace : SpacePool model.kind :=
     ((LatticeFixedFuelScratchWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let nearestSpace : SpacePool kind :=
+  let nearestSpace : SpacePool model.kind :=
     ((LatticeNearestPlaneScratchWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (LatticePairCoreWorkspace.withWorkspaces_resident_le _ _ _
@@ -142,7 +142,7 @@ theorem withWorkspaces_resident_le
 
 /-- The actual auxiliary peak jointly accounts for all six packages and body allocations. -/
 theorem withWorkspaces_auxiliary_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakAuxiliarySpace path ≤
@@ -150,11 +150,11 @@ theorem withWorkspaces_auxiliary_le
     (path : (withWorkspaces ctx N body).Path) :
     (withWorkspaces ctx N body).peakAuxiliarySpace path ≤
       allocationSpace N + additional + ctx.auxiliarySpace := by
-  let targetSpace : SpacePool kind :=
+  let targetSpace : SpacePool model.kind :=
     ((LatticeWideTargetWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let lllSpace : SpacePool kind :=
+  let lllSpace : SpacePool model.kind :=
     ((LatticeFixedFuelScratchWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let nearestSpace : SpacePool kind :=
+  let nearestSpace : SpacePool model.kind :=
     ((LatticeNearestPlaneScratchWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (LatticePairCoreWorkspace.withWorkspaces_auxiliary_le _ _ _
@@ -171,7 +171,7 @@ theorem withWorkspaces_auxiliary_le
 
 /-- Resident and auxiliary bounds hold jointly on one actual path through all six scopes. -/
 theorem withWorkspaces_space_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakResidentSpace path ≤

@@ -26,43 +26,92 @@ modular validation and option packing allowances without changing them.
 
 namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 
+noncomputable section
+
 /-- The two real selection arms share four copies and retain their other three coordinates. -/
-theorem selectionEnvelope_eq_list (kind : ProblemKind) (width : Nat) :
-    selectionEnvelope kind width = ResourcePool.ofList
-      [.classicalOperation (.wordUnary .copy width),
-        .classicalOperation (.wordUnary .copy width),
-        .classicalOperation (.wordUnary .copy width),
-        .classicalOperation (.wordUnary .copy width),
-        .classicalOperation (.wordBinary .lessThan width),
-        .classicalOperation (.bit .copy), .classicalOperation (.bit .not)] := by
-  apply Multiset.ext.mpr
-  intro event
-  change ResourcePool.count event (selectionEnvelope kind width) = ResourcePool.count event _
-  by_cases copied : Resource.Event.classicalOperation (.wordUnary .copy width) = event
-  · subst event
-    simp [selectionEnvelope, rejectionEvents, acceptanceEvents]
-  by_cases compared : Resource.Event.classicalOperation (.wordBinary .lessThan width) = event
-  · subst event
-    simp [selectionEnvelope, rejectionEvents, acceptanceEvents]
-  by_cases latched : Resource.Event.classicalOperation (.bit .copy) = event
-  · subst event
-    simp [selectionEnvelope, rejectionEvents, acceptanceEvents]
-  by_cases stopped : Resource.Event.classicalOperation (.bit .not) = event
-  · subst event
-    simp [selectionEnvelope, rejectionEvents, acceptanceEvents]
-  simp [selectionEnvelope, rejectionEvents, acceptanceEvents, copied, compared, latched, stopped]
+theorem selectionEnvelope_eq_list (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) :
+    selectionEnvelope model width = ResourcePool.ofList
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordUnary .copy width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordUnary .copy width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordUnary .copy width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordUnary .copy width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .lessThan width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .copy)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))] := by
+  cases model with
+  | classical operations services =>
+      have same := BitWord.Selected.operations_eq
+        (execution := .classical operations services)
+      change operations = BitWord.model at same
+      cases same
+      apply Multiset.ext.mpr
+      intro event
+      change ResourcePool.count event (selectionEnvelope _ width) = ResourcePool.count event _
+      by_cases copied : Resource.Event.classicalOperation
+          (model := .classical BitWord.model services) (.wordUnary .copy width) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases compared : Resource.Event.classicalOperation
+          (model := .classical BitWord.model services) (.wordBinary .lessThan width) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases latched : Resource.Event.classicalOperation
+          (model := .classical BitWord.model services) (.bit .copy) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases stopped : Resource.Event.classicalOperation
+          (model := .classical BitWord.model services) (.bit .not) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents,
+        copied, compared, latched, stopped]
+  | quantum gates oracles operations services =>
+      have same := BitWord.Selected.operations_eq
+        (execution := .quantum gates oracles operations services)
+      change operations = BitWord.model at same
+      cases same
+      apply Multiset.ext.mpr
+      intro event
+      change ResourcePool.count event (selectionEnvelope _ width) = ResourcePool.count event _
+      by_cases copied : Resource.Event.classicalOperation
+          (model := .quantum gates oracles BitWord.model services) (.wordUnary .copy width) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases compared : Resource.Event.classicalOperation
+          (model := .quantum gates oracles BitWord.model services)
+          (.wordBinary .lessThan width) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases latched : Resource.Event.classicalOperation
+          (model := .quantum gates oracles BitWord.model services) (.bit .copy) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      by_cases stopped : Resource.Event.classicalOperation
+          (model := .quantum gates oracles BitWord.model services) (.bit .not) = event
+      · subst event
+        simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents]
+      simp [BitWord.selectedCoordinate, selectionEnvelope, rejectionEvents, acceptanceEvents,
+        copied, compared, latched, stopped]
 
 /-- The coordinatewise selection allowance contains seven classical operations. -/
-theorem selectionEnvelope_classicalCount (kind : ProblemKind) (width : Nat) :
+theorem selectionEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (selectionEnvelope kind width) = 7 := by
+      (selectionEnvelope model width) = 7 := by
   rw [selectionEnvelope_eq_list]
   simp [Resource.Event.classicalOperationWeight]
 
 /-- The existing modular-power allowance has this exact total classical weight. -/
-private theorem powerEnvelope_classicalCount (kind : ProblemKind) (modulusWidth width : Nat) :
+private theorem powerEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+    (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (Modular.NativePower.eventEnvelope kind modulusWidth width) =
+      (Modular.NativePower.eventEnvelope model modulusWidth width) =
       2 * modulusWidth + 5 + 6 * width := by
   simp [Modular.NativePower.eventEnvelope, Modular.NativePower.exponentEnvelope,
     Modular.NativePower.bitEnvelope, Modular.NativePower.multiplyEnvelope,
@@ -71,17 +120,19 @@ private theorem powerEnvelope_classicalCount (kind : ProblemKind) (modulusWidth 
   omega
 
 /-- Each visit allowance includes all actual candidate, power, validation and selection work. -/
-theorem visitEnvelope_classicalCount (kind : ProblemKind) (modulusWidth width : Nat) :
+theorem visitEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+    (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (visitEnvelope kind modulusWidth width) = 2 * modulusWidth + 18 + 6 * width := by
+      (visitEnvelope model modulusWidth width) = 2 * modulusWidth + 18 + 6 * width := by
   simp [visitEnvelope, candidateEvents, validationEvents, powerEnvelope_classicalCount,
     selectionEnvelope_classicalCount, Resource.Event.classicalOperationWeight]
   omega
 
 /-- The padded decoder, denominator loader and three initialization writes are all counted. -/
-theorem initializationEnvelope_classicalCount (kind : ProblemKind) (modulusWidth width : Nat) :
+theorem initializationEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+    (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (initializationEnvelope kind modulusWidth width) = 4 * width + 3 := by
+      (initializationEnvelope model modulusWidth width) = 4 * width + 3 := by
   simp [initializationEnvelope, TerminalDecode.envelope, TerminalDecode.bitEnvelope,
     TerminalDecode.shiftEvent, TerminalDecode.incrementEvent, ConstantWord.envelope,
     ConstantWord.bitEnvelope, ConstantWord.shiftEvent, ConstantWord.incrementEvent,
@@ -89,9 +140,10 @@ theorem initializationEnvelope_classicalCount (kind : ProblemKind) (modulusWidth
   omega
 
 /-- Exact classical weight of the fixed independent recovery budget, including option packing. -/
-theorem eventEnvelope_classicalCount (kind : ProblemKind) (modulusWidth phaseBits : Nat) :
+theorem eventEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+    (modulusWidth phaseBits : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (eventEnvelope kind modulusWidth phaseBits) =
+      (eventEnvelope model modulusWidth phaseBits) =
       4 * (phaseBits + 1) + 4 +
         2 * (phaseBits + 1) * (2 * modulusWidth + 18 + 6 * (phaseBits + 1)) := by
   simp only [eventEnvelope, ResourcePool.weightedCount_add,
@@ -99,5 +151,7 @@ theorem eventEnvelope_classicalCount (kind : ProblemKind) (modulusWidth phaseBit
     ResourcePool.weightedCount_nsmul, visitEnvelope_classicalCount,
     ResourcePool.weightedCount_singleton, Resource.Event.classicalOperationWeight, Nat.mul_one]
   omega
+
+end
 
 end QuantumAlg.ClassicalRoutines.OrderRecovery.Native

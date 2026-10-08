@@ -58,7 +58,8 @@ theorem shortDLP_runtimeRound_weighted_outcome_reference
       (CInputRef.product parameter previous).storageKeys)
     (resultSeparate : result.key ∉ (CInputRef.product parameter previous).storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (weight : (CShape.product parameterShape previousShape).Value →
       (CShape.bits (resultBits m ell width)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :

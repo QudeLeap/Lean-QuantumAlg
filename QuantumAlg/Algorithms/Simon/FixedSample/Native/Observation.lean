@@ -11,6 +11,7 @@ import all QuantumAlg.Core.Execution.FiniteReadout
 import all QuantumAlg.Core.Execution.Measurement.Cells.Frame
 import all QuantumAlg.Core.Execution.Unitary.StoreFilter
 import all QuantumAlg.Core.Measure.RealWeights
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Conditional Simon Born observations on the actual retained bank
@@ -28,6 +29,8 @@ open Execution
 noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
+
+variable {oracles : OracleModel}
 
 private theorem source_weight (amplitude coefficient : ℂ) :
     amplitude * coefficient * star amplitude = ((‖amplitude‖ ^ 2 : ℝ) : ℂ) * coefficient := by
@@ -74,11 +77,20 @@ private theorem readouts_nodup :
 
 private theorem measured_cell (store : Store (context base noQuantum n count))
     (basis : (context base noQuantum n count).register.Index) (index : Fin n) :
-    ((Circuit.writeMeasurementPath (readouts base noQuantum n count) store
-      (Circuit.measurementBasisPath (readouts base noQuantum n count) basis)).read
+    ((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) store
+      (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) basis)).read
         (.storage (cells base noQuantum n count index).toCStorageRef)).toFin.val =
       (basis (readout base noQuantum n count index).wire).val := by
-  have actual := Circuit.writeMeasurementBasis_read (readouts base noQuantum n count)
+  have actual := Circuit.writeMeasurementBasis_read
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (services := .empty)
+        (readouts base noQuantum n count)
     (readouts_nodup base noQuantum n count) (readout base noQuantum n count index)
     (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
@@ -88,7 +100,7 @@ private theorem measured_cell (store : Store (context base noQuantum n count))
 private theorem wire_value (basis : (context base noQuantum n count).register.Index)
     (index : Fin (2 * n)) :
     (basis (wireEquiv n (nativeSimon_context_wires base noQuantum n count) index)).val =
-      ((SimonsProblem.layout n).binaryIndexEquiv.symm
+      ((SimonsProblem.layout n).basisEquiv.symm
         (basisEquiv n (nativeSimon_context_wires base noQuantum n count) basis) index).val := by
   let correspondence := Execution.basisOfEqualWires (bankLayout n)
     (context base noQuantum n count).quantumLayout
@@ -100,10 +112,10 @@ private theorem wire_value (basis : (context base noQuantum n count).register.In
   change (correspondence (correspondence.symm basis)
     (wireEquiv n (nativeSimon_context_wires base noQuantum n count) index)).val = _ at value
   rw [Equiv.apply_symm_apply] at value
-  have inverse := Equiv.symm_apply_apply (SimonsProblem.layout n).binaryIndexEquiv
+  have inverse := Equiv.symm_apply_apply (SimonsProblem.layout n).basisEquiv
     (correspondence.symm basis)
   exact value.trans (congrArg
-    (fun source : (SimonsProblem.layout n).toQuantumLayout.Basis => (source index).val)
+    (fun source : (SimonsProblem.layout n).toQuantum.Basis => (source index).val)
     inverse).symm
 
 private theorem measured_bit (basis : (context base noQuantum n count).register.Index)
@@ -114,13 +126,16 @@ private theorem measured_bit (basis : (context base noQuantum n count).register.
   let source := (SimonsProblem.measurement n).logical_idx index
   let binary := basisEquiv n (nativeSimon_context_wires base noQuantum n count) basis
   have finiteValue := wire_value base noQuantum n count basis source
-  have bit := (SimonsProblem.layout n).binaryIndexEquiv_bit
-    ((SimonsProblem.layout n).binaryIndexEquiv.symm binary) source
+  have bit := BinaryBasis.bigEndianEquiv_bit (2 * n)
+    ((SimonsProblem.layout n).basisEquiv.symm binary) source
+  change ((SimonsProblem.layout n).basisEquiv
+    ((SimonsProblem.layout n).basisEquiv.symm binary)).val.testBit source.rev.val =
+      finTwoEquiv ((SimonsProblem.layout n).basisEquiv.symm binary source) at bit
   rw [Equiv.apply_symm_apply] at bit
   have converted (value : Fin 2) : decide (value.val = 1) = finTwoEquiv value := by
     fin_cases value <;> rfl
   calc
-    _ = finTwoEquiv ((SimonsProblem.layout n).binaryIndexEquiv.symm binary source) :=
+    _ = finTwoEquiv ((SimonsProblem.layout n).basisEquiv.symm binary source) :=
       (congrArg (fun value => decide (value = 1)) finiteValue).trans (converted _)
     _ = binary.val.testBit source.rev.val := bit.symm
     _ = _ := by
@@ -134,16 +149,28 @@ private theorem measured_bit (basis : (context base noQuantum n count).register.
 theorem nativeSimon_packed_output (index : Fin count)
     (store : Store (context base noQuantum n count))
     (basis : (context base noQuantum n count).register.Index) :
-    ((Circuit.writeMeasurementPath (readouts base noQuantum n count) store
-      (Circuit.measurementBasisPath (readouts base noQuantum n count) basis)).applyOp
+    ((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) store
+      (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) basis)).applyOp
         (packing base noQuantum n count index)).read
           (.storage (sampleRef base noQuantum n count index).toCStorageRef) =
       CShape.Value.bits ((SimonsProblem.measurement n).readout
         (basisEquiv n (nativeSimon_context_wires base noQuantum n count) basis)) := by
   refine (Store.read_applyOp_output _ (packing base noQuantum n count index)).trans ?_
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (readouts base noQuantum n count) store
-      (Circuit.measurementBasisPath (readouts base noQuantum n count) basis)).read
+    (((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) store
+      (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) basis)).read
         (.storage (cells base noQuantum n count index).toCStorageRef)).toFin.val = 1)) = _
   apply congrArg CShape.Value.bits
   funext index
@@ -155,18 +182,27 @@ private theorem measured_packed_reference {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {input output : CShape}
     (pack : ClassicalOp input output ctx ctx)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (observe : Store ctx → ℂ)
+    (state : State ctx Reference (Unit × History)) (observe : Store ctx → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      (((Circuit.measurementSequence readouts).seq (.classical pack)).execute Reference state)
+      (((Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+        (operations := BitWord.model) (classicalOracles := .empty) readouts).seq
+          (BitWord.instruction pack)).execute Reference state)
       (fun entry _ => observe entry.1) left right =
       ExecutionState.referenceFiberSum state (fun entry basis => observe
-        ((Circuit.writeMeasurementPath readouts entry.1
-          (Circuit.measurementBasisPath readouts basis)).applyOp pack)) left right := by
-  rw [Circuit.execute_seq]
+        ((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty) readouts entry.1
+          (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+            readouts basis)).applyOp pack)) left right := by
+  rw [Circuit.execute_seq, BitWord.bitWord_instruction_execute]
   simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical,
-    Circuit.execute_classical_mapClassical]
-  exact Circuit.measurementSequence_referenceFiberSum readouts state _ left right
+    BitWord.instructionStep]
+  exact Circuit.measurementSequence_referenceFiberSum
+    (gates := AlgorithmGate.model) (oracles := oracles) (operations := BitWord.model)
+    (classicalOracles := .empty) readouts state _ left right
 
 private theorem weighted_fiber {Basis : Type} [Fintype Basis]
     (predicate : Basis → Prop) (decision : DecidablePred predicate)
@@ -196,8 +232,14 @@ theorem nativeSimon_packed_input (index : Fin count) {shape : CShape}
     (separate : (bankSlot base noQuantum n count index).key ∉ other.storageKeys)
     (store : Store (context base noQuantum n count))
     (basis : (context base noQuantum n count).register.Index) :
-    ((Circuit.writeMeasurementPath (readouts base noQuantum n count) store
-      (Circuit.measurementBasisPath (readouts base noQuantum n count) basis)).applyOp
+    ((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) store
+      (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) basis)).applyOp
         (packing base noQuantum n count index)).read (MeasurementCells.liftInput 2 other n) =
       store.read (MeasurementCells.liftInput 2 other n) := by
   have packSeparate : (packing base noQuantum n count index).outputRef.key ∉
@@ -208,6 +250,8 @@ theorem nativeSimon_packed_input (index : Fin count) {shape : CShape}
   refine (Store.read_applyOp_of_not_mem_storageKeys _ (packing base noQuantum n count index)
     (MeasurementCells.liftInput 2 other n) packSeparate).trans ?_
   apply Circuit.writeMeasurementPath_read_input
+      (gates := AlgorithmGate.model) (oracles := oracles)
+      (operations := BitWord.model) (classicalOracles := .empty)
   intro item present
   obtain ⟨position, rfl⟩ := List.mem_ofFn.mp present
   rw [readout_key]
@@ -215,14 +259,14 @@ theorem nativeSimon_packed_input (index : Fin count) {shape : CShape}
 
 private theorem unitary_seed_entry (sampling : SamplingCircuit n)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum n count) Reference History)
+    (state : State (context base noQuantum n count) Reference (Unit × History))
     (seeded : BasisSeeded.Holds (context base noQuantum n count).quantumLayout.zeroLabel state)
     (original : Store (context base noQuantum n count))
     (left right : (context base noQuantum n count).register.Index)
     (leftRef rightRef : Reference.Index) :
-    (((Circuit.unitary (member n (nativeSimon_context_wires base noQuantum n count) sampling)
-      (nativeSimon_member_physicalIdx n (nativeSimon_context_wires base noQuantum n count)
-        sampling)).execute Reference state).filterClassical
+    (((Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
+      (member n (nativeSimon_context_wires base noQuantum n count) sampling)).execute
+        Reference state).filterClassical
           (fun entry => entry.1 = original)).quantumMarginal.matrix
             (left, leftRef) (right, rightRef) =
       sampling.evolvedState.normalized
@@ -233,8 +277,8 @@ private theorem unitary_seed_entry (sampling : SamplingCircuit n)
       star (sampling.evolvedState.normalized
         (basisEquiv n (nativeSimon_context_wires base noQuantum n count) right)) := by
   have filtered := Circuit.unitary_store_filter
+    (operations := BitWord.model) (services := .empty)
     (member n (nativeSimon_context_wires base noQuantum n count) sampling)
-    (nativeSimon_member_physicalIdx n (nativeSimon_context_wires base noQuantum n count) sampling)
     state (fun store => store = original)
   have entries := congrArg
     (fun density : DensityOperator
@@ -251,7 +295,7 @@ theorem nativeSimon_sample_outcome_reference (sampling : SamplingCircuit n) (ind
     {shape : CShape} (other : CInputRef (bankContext base noQuantum n count) shape)
     (separate : (bankSlot base noQuantum n count index).key ∉ other.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum n count) Reference History)
+    (state : State (context base noQuantum n count) Reference (Unit × History))
     (seeded : BasisSeeded.Holds (context base noQuantum n count).quantumLayout.zeroLabel state)
     (weight : shape.Value → ℂ) (outcome : Outcome n) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
@@ -267,13 +311,13 @@ theorem nativeSimon_sample_outcome_reference (sampling : SamplingCircuit n) (ind
     weight (store.read (MeasurementCells.liftInput 2 other n)) *
       if store.read (.storage (sampleRef base noQuantum n count index).toCStorageRef) =
         CShape.Value.bits outcome then (1 : ℂ) else 0
-  let unitary := Circuit.unitary
+  let unitary := Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
     (member n (nativeSimon_context_wires base noQuantum n count) sampling)
-    (nativeSimon_member_physicalIdx n (nativeSimon_context_wires base noQuantum n count) sampling)
   have first := Circuit.referenceFiberSum_execute_seq unitary
     ((Circuit.measurementSequence (readouts base noQuantum n count)).seq
-      (.classical (packing base noQuantum n count index))) state observed leftRef rightRef
-  refine first.trans ((measured_packed_reference (readouts base noQuantum n count)
+      (BitWord.instruction (packing base noQuantum n count index))) state observed leftRef rightRef
+  refine first.trans ((measured_packed_reference (oracles := sourceModel sampling.oracle)
+    (readouts base noQuantum n count)
     (packing base noQuantum n count index) (unitary.execute Reference state)
     observed leftRef rightRef).trans ?_)
   let indicator := fun basis : (context base noQuantum n count).register.Index =>
@@ -284,12 +328,19 @@ theorem nativeSimon_sample_outcome_reference (sampling : SamplingCircuit n) (ind
     weight (store.read (MeasurementCells.liftInput 2 other n))
   have actualWeight (store : Store (context base noQuantum n count))
       (basis : (context base noQuantum n count).register.Index) :
-      observed ((Circuit.writeMeasurementPath (readouts base noQuantum n count) store
-        (Circuit.measurementBasisPath (readouts base noQuantum n count) basis)).applyOp
+      observed ((Circuit.writeMeasurementPath
+      (gates := AlgorithmGate.model) (oracles := sourceModel sampling.oracle)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) store
+        (Circuit.measurementBasisPath
+      (gates := AlgorithmGate.model) (oracles := sourceModel sampling.oracle)
+      (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts base noQuantum n count) basis)).applyOp
           (packing base noQuantum n count index)) = oldWeight store * indicator basis := by
     dsimp only [observed, oldWeight, indicator]
-    rw [nativeSimon_packed_input base noQuantum n count index other separate,
-      nativeSimon_packed_output]
+    rw [nativeSimon_packed_input (oracles := sourceModel sampling.oracle)
+      base noQuantum n count index other separate,
+      nativeSimon_packed_output (oracles := sourceModel sampling.oracle)]
     exact congrArg (fun value : ℂ =>
       weight (store.read (MeasurementCells.liftInput 2 other n)) * value)
       (bits_indicator n _ outcome)
@@ -350,7 +401,7 @@ theorem nativeSimon_reusedSample_outcome_reference (sampling : SamplingCircuit n
     (other : CInputRef (bankContext base noQuantum n count) shape)
     (separate : (bankSlot base noQuantum n count index).key ∉ other.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum n count) Reference History)
+    (state : State (context base noQuantum n count) Reference (Unit × History))
     (weight : shape.Value → ℂ) (outcome : Outcome n) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((reusedSample base noQuantum n count sampling index).execute Reference state)
@@ -361,15 +412,20 @@ theorem nativeSimon_reusedSample_outcome_reference (sampling : SamplingCircuit n
         ExecutionState.referenceFiberSum state
           (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
           leftRef rightRef := by
-  have first := Circuit.referenceFiberSum_execute_seq (reset base noQuantum n count)
+  have first := Circuit.referenceFiberSum_execute_seq
+    (reset (oracles := sourceModel sampling.oracle) base noQuantum n count)
     (sample base noQuantum n count sampling index) state
     (fun store => weight (store.read (MeasurementCells.liftInput 2 other n)) *
       if store.read (.storage (sampleRef base noQuantum n count index).toCStorageRef) =
         CShape.Value.bits outcome then (1 : ℂ) else 0) leftRef rightRef
   have born := nativeSimon_sample_outcome_reference base noQuantum n count sampling index
-    other separate ((reset base noQuantum n count).execute Reference state)
-    (nativeSimon_reset_seeded base noQuantum n count state) weight outcome leftRef rightRef
-  have retained := nativeSimon_reset_reference base noQuantum n count state
+    other separate
+    ((reset (oracles := sourceModel sampling.oracle) base noQuantum n count).execute
+      Reference state)
+    (nativeSimon_reset_seeded (oracles := sourceModel sampling.oracle) base noQuantum n count state)
+    weight outcome leftRef rightRef
+  have retained := nativeSimon_reset_reference (oracles := sourceModel sampling.oracle)
+    base noQuantum n count state
     (fun store => weight (store.read (MeasurementCells.liftInput 2 other n))) leftRef rightRef
   exact first.trans (born.trans (congrArg
     (fun coefficient : ℂ => ((sampling.outcomePMF outcome).toReal : ℂ) * coefficient) retained))

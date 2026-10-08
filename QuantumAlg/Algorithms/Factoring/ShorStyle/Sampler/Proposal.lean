@@ -75,42 +75,50 @@ def eligibleOp (scratch : ScratchRefs ctx width) :
   .bit .and ctx (.product (FirstAccepted.cellRead scratch.positive)
     (FirstAccepted.cellRead scratch.belowModulus)) scratch.eligible
 
-/-- The literal four-instruction comparison suffix after decoding. -/
-def comparisonBody (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) :
-    Circuit ctx ctx :=
-  .seq (.classical (extendOp scratch))
-    (.seq (.classical (positiveOp shared scratch))
-      (.seq (.classical (belowOp shared scratch)) (.classical (eligibleOp scratch))))
-
-/-- Decode the real addressed bits and compute their stored interval predicate. -/
-def prefixBody (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
-    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit ctx ctx :=
-  .seq (TerminalDecode.intoFromBitRefs .littleEndian
-    (PackedSample.proposalRefs sample proposal) scratch.candidate)
-      (comparisonBody shared scratch)
-
 /-- The existing candidate and its actual stored eligibility are the selector's only inputs. -/
 def selectorInputs (scratch : ScratchRefs ctx width) : FirstAccepted.Inputs ctx width where
   eligible := FirstAccepted.cellRead scratch.eligible
   candidate := FirstAccepted.cellRead scratch.candidate
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- The literal four-instruction comparison suffix after decoding. -/
+def comparisonBody (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (extendOp scratch))
+    (.seq (BitWord.instruction (positiveOp shared scratch))
+      (.seq (BitWord.instruction (belowOp shared scratch))
+        (BitWord.instruction (eligibleOp scratch))))
+
+/-- Decode the real addressed bits and compute their stored interval predicate. -/
+def prefixBody (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
+    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit model ctx ctx :=
+  .seq (TerminalDecode.intoFromBitRefs .littleEndian
+    (PackedSample.proposalRefs sample proposal) scratch.candidate)
+      (comparisonBody shared scratch)
+
 /-- One real decoded proposal followed by stored-condition first-accepted selection. -/
 def slot (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
-    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit ctx ctx :=
+    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit model ctx ctx :=
   .seq (prefixBody sample proposal shared scratch)
     (FirstAccepted.circuit (selectorInputs scratch) shared.selector)
 
 /-- Literal ordered composition retains the first success through all later proposal slots. -/
 def foldSlots (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) :
-    List (Fin count) → Circuit ctx ctx
+    List (Fin count) → Circuit model ctx ctx
   | [] => .id ctx
   | proposal :: remaining =>
       .seq (slot sample proposal shared scratch) (foldSlots sample shared scratch remaining)
 
 /-- Visit each source proposal in its original ascending finite order. -/
 def scan (sample : CInputRef ctx (.bits (count * width)))
-    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit ctx ctx :=
+    (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width) : Circuit model ctx ctx :=
   foldSlots sample shared scratch (List.ofFn (fun proposal : Fin count => proposal))
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Proposal

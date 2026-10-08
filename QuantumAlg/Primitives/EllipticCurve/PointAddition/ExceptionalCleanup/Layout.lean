@@ -164,8 +164,8 @@ def liftPipelineGates
 primitive-event trace. -/
 theorem liftPipelineGates_map_event
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
-    (liftPipelineGates gates).map EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+    (liftPipelineGates gates).map (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold liftPipelineGates
   exact EncodedBit.GateSpec.map_event_prodLeft selectorEncoding gates
 
@@ -182,7 +182,7 @@ theorem liftPipelineGates_xMultiplicity_sum
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.xMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.xMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     (liftPipelineGates_map_event gates)
 
 /-- Extending the carrier preserves the exact CNOT coordinate. -/
@@ -191,7 +191,7 @@ theorem liftPipelineGates_cnotMultiplicity_sum
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (liftPipelineGates_map_event gates)
 
 /-- Extending the carrier preserves the exact Toffoli coordinate. -/
@@ -200,7 +200,7 @@ theorem liftPipelineGates_toffoliMultiplicity_sum
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (liftPipelineGates_map_event gates)
 
 /-- A lifted pipeline list acts only on the pipeline component and preserves

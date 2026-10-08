@@ -36,10 +36,12 @@ theorem comparison_basis (refs : Refs ctx width) (separation : Separation refs)
   intro cell member
   cases cell <;> decide
 
-private theorem selectArm_basis (refs : Refs ctx width) (separation : Separation refs)
+private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (flag : CShape.Value .bit) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
-    LatticeMetricMachine.BasisRawRepresents (selectArmStep refs flag store).1 refs.basis
+    LatticeMetricMachine.BasisRawRepresents
+      (selectArmStep (model := model) refs flag store).1 refs.basis
       (if flag.toBool then basis else basis.swapFirstSecond) := by
   cases flag with
   | bit flag =>
@@ -58,22 +60,25 @@ private theorem selectArm_basis (refs : Refs ctx width) (separation : Separation
     · exact rep
 
 /-- The actual stored decision selects exactly the original pure Lovasz basis result. -/
-theorem select_basis (refs : Refs ctx width) (separation : Separation refs)
+theorem select_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
     (decision : (store.read (writeInput refs.lovasz.passes)).toBool = basis.firstLovasz) :
-    LatticeMetricMachine.BasisRawRepresents (selectStep refs store).1 refs.basis
+    LatticeMetricMachine.BasisRawRepresents (selectStep (model := model) refs store).1 refs.basis
       (lovaszBranchResult basis) := by
   have result := selectArm_basis refs separation
     (store.read (writeInput refs.lovasz.passes)) store basis rep
   change LatticeMetricMachine.BasisRawRepresents
-    (selectArmStep refs (store.read (writeInput refs.lovasz.passes)) store).1 refs.basis _
+    (selectArmStep (model := model) refs
+      (store.read (writeInput refs.lovasz.passes)) store).1 refs.basis _
   simpa only [decision, lovaszBranchResult] using result
 
 /-- Both actual selected arms preserve the comparison result bit exactly. -/
-theorem select_passes (refs : Refs ctx width) (separation : Separation refs)
+theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (selectStep refs store).1.read (writeInput refs.lovasz.passes) =
+    (selectStep (model := model) refs store).1.read (writeInput refs.lovasz.passes) =
       store.read (writeInput refs.lovasz.passes) := by
   apply select_frame
   intro cell member
@@ -85,18 +90,21 @@ theorem select_passes (refs : Refs ctx width) (separation : Separation refs)
   simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton, cellKey] using keyNe
 
 /-- The actual comparison and selected exchange retain the refreshed second norm word. -/
-theorem lovaszBranch_g22 (refs : Refs ctx width) (separation : Separation refs)
+theorem lovaszBranch_g22 {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (lovaszBranchStep refs store).1.read (writeInput refs.metric.g22) =
+    (lovaszBranchStep (model := model) refs store).1.read (writeInput refs.metric.g22) =
       store.read (writeInput refs.metric.g22) := by
-  change (selectStep refs (LatticeLovasz.firstLovaszStore refs.metric refs.lovasz store)).1.read
+  change (selectStep (model := model) refs
+    (LatticeLovasz.firstLovaszStore refs.metric refs.lovasz store)).1.read
     (writeInput (LatticeMetricMachine.metricCellRef refs.metric .g22)) = _
   rw [select_frame refs _ _ (metric_avoids refs separation .g22 swapCells (by decide)),
     comparison_frame refs _ _ (metric_avoids refs separation .g22 comparisonCells (by decide))]
   rfl
 
 /-- Actual bounded norm comparison followed by its actual selected row exchange is correct. -/
-theorem lovaszBranch_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem lovaszBranch_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
     (firstNorm : RawSignedRepresents (store.read (writeInput refs.metric.g11))
@@ -106,15 +114,17 @@ theorem lovaszBranch_correct (refs : Refs ctx width) (separation : Separation re
     (firstFits : NumberTheory.integerPointSquaredNorm basis.first < CShape.wordModulus width)
     (twiceSecondFits : 2 * NumberTheory.integerPointSquaredNorm basis.second <
       CShape.wordModulus width) :
-    LatticeMetricMachine.BasisRawRepresents (lovaszBranchStep refs store).1 refs.basis
+    LatticeMetricMachine.BasisRawRepresents
+      (lovaszBranchStep (model := model) refs store).1 refs.basis
         (lovaszBranchResult basis) ∧
-      ((lovaszBranchStep refs store).1.read (writeInput refs.lovasz.passes)).toBool =
+      ((lovaszBranchStep (model := model) refs store).1.read
+        (writeInput refs.lovasz.passes)).toBool =
         basis.firstLovasz := by
   have decision := LatticeLovasz.firstLovaszInto_matches_rawNorms _ _ separation.lovasz store
     _ _ firstNorm secondNorm firstFits twiceSecondFits
   have compared := comparison_basis refs separation store basis rep
   refine ⟨select_basis refs separation _ basis compared decision, ?_⟩
-  change ((selectStep refs
+  change ((selectStep (model := model) refs
     (LatticeLovasz.firstLovaszStore refs.metric refs.lovasz store)).1.read
       (writeInput refs.lovasz.passes)).toBool = _
   rw [select_passes refs separation]

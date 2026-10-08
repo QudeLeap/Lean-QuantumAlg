@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -168,8 +169,11 @@ def gates : List (EncodedBit.GateSpec encoding) :=
   majorityStage layout ++ sumStage layout ++ reverseCleanupStage layout
 
 /-- Base-gate program for the folded schedule shell. -/
-def program : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (gates layout)
+def program :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (gates layout)
 
 /-- Folded semantic action of the schedule shell. -/
 def step : Carrier -> Carrier :=
@@ -179,7 +183,8 @@ def step : Carrier -> Carrier :=
 whose resource profile is later projected. -/
 theorem realizes :
     UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
-  EncodedBit.GateSpec.realizesList (gates layout)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (gates layout)
 
 /-- Package this folded schedule as a plain-adder structured witness once a
 separate word-level invariant proves that its folded step is `addIntoRight`. -/
@@ -2904,8 +2909,11 @@ theorem cleanCarrySumGates_bitDisjoint
       hwork gate hsum
 
 /-- Base-gate program for the cleanup-aware carry/sum schedule object. -/
-def cleanCarrySumProgram : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (cleanCarrySumGates layout)
+def cleanCarrySumProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (cleanCarrySumGates layout)
 
 /-- Folded semantic action of the cleanup-aware carry/sum schedule object. -/
 def cleanCarrySumStep : Carrier -> Carrier :=
@@ -3020,7 +3028,8 @@ with the same base-gate program object used for resources. -/
 theorem cleanCarrySum_realizes :
     UnitaryCircuit.Realizes encoding
       (cleanCarrySumProgram layout) (cleanCarrySumStep layout) :=
-  EncodedBit.GateSpec.realizesList (cleanCarrySumGates layout)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (cleanCarrySumGates layout)
 
 /-- Folded carry/sum gate list for the carry-work layout.  This leaves the
 temporary carry-work register dirty; a correct reverse-cleanup schedule cannot
@@ -3062,8 +3071,11 @@ theorem carryAndSumGates_get_right (i : Fin n) (x : Carrier) :
   rw [carryStage_get_right, carryStage_get_left]
 
 /-- Base-gate program for the folded dirty-work carry/sum schedule object. -/
-def program : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (carryAndSumGates layout)
+def program :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (carryAndSumGates layout)
 
 /-- Folded semantic action of the dirty-work carry/sum schedule object. -/
 def step : Carrier -> Carrier :=
@@ -3073,7 +3085,8 @@ def step : Carrier -> Carrier :=
 the same base-gate program object used for resources. -/
 theorem realizes :
     UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
-  EncodedBit.GateSpec.realizesList (carryAndSumGates layout)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (carryAndSumGates layout)
 
 end CarryWorkLayout
 
@@ -3813,7 +3826,8 @@ def carryWorkCleanCarrySumGates (n : Nat) :
 
 /-- Base-gate program for the canonical cleanup-aware carry-work schedule. -/
 def carryWorkCleanCarrySumProgram (n : Nat) :
-    UnitaryCircuit (Qubits (dataWithCarryWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (dataWithCarryWorkEncoding n).width).toQuantum :=
   CarryWorkLayout.cleanCarrySumProgram (carryWorkLayout n)
 
 
@@ -3989,7 +4003,9 @@ def gates (n : Nat) : List (EncodedBit.GateSpec (dataEncoding n)) :=
   SingleCarryLayout.gates (singleCarryLayout n)
 
 /-- Base-gate program for the canonical single-carry schedule shell. -/
-def program (n : Nat) : UnitaryCircuit (Qubits (dataEncoding n).width) :=
+def program (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (dataEncoding n).width).toQuantum :=
   SingleCarryLayout.program (singleCarryLayout n)
 
 /-- Folded semantic action of the canonical single-carry schedule shell. -/
@@ -4018,8 +4034,9 @@ def structuredWithCarryWorkWitness (n : Nat)
   encoding := dataWithCarryWorkEncoding n
   cleanWork := cleanCarryWork n
   step := EncodedBit.GateSpec.stepList gates
-  program := EncodedBit.GateSpec.programList gates
-  realizes := EncodedBit.GateSpec.realizesList gates
+  program := EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
+  realizes :=
+    EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates
   cleanEndpoint := hclean
 
 /-- Structured clean-work plain-adder witness built from the canonical
@@ -4038,30 +4055,36 @@ def carryWorkStructuredWitness (n : Nat) :
 carry-work program. This one object carries both endpoint semantics and
 resource metadata. -/
 def carryWorkCircuit (n : Nat) :
-    UnitaryCircuit (Qubits (dataWithCarryWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical ((dataWithCarryWorkEncoding n).width)).toQuantum :=
   (carryWorkStructuredWitness n).program
 
 /-- Ordered strict event trace derived from the canonical carry-work circuit. -/
-def carryWorkEventTrace (n : Nat) : List (Resource.Event .quantum) :=
+def carryWorkEventTrace (n : Nat) :
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (carryWorkCircuit n).eventTrace
 
 /-- Strict event pool derived from the canonical carry-work circuit. -/
-def carryWorkEventCost (n : Nat) : ResourcePool .quantum :=
+def carryWorkEventCost (n : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (carryWorkCircuit n).eventCost
 
 /-- Strict symbolic event critical path of the canonical carry-work circuit. -/
 def carryWorkEventDepth (n : Nat) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (carryWorkCircuit n).eventDepth
 
 /-- Literal depth of one strict event coordinate in the carry-work circuit. -/
 def carryWorkEventQueryDepth (n : Nat)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   (carryWorkCircuit n).eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the carry-work event pool. -/
-def carryWorkEventGateCount (n : Nat) (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) (carryWorkCircuit n).eventCost
+def carryWorkEventGateCount (n : Nat)
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    (carryWorkCircuit n).eventCost
 
 
 
@@ -4075,10 +4098,14 @@ theorem carryWorkCircuit_applyNormalized_clean_ket
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     (carryWorkCircuit n).applyNormalized
         (NormalizedVector.ket
-          ((dataWithCarryWorkEncoding n).encode (x, cleanCarryWork n))) =
+          ((QubitLayout.canonical
+              (dataWithCarryWorkEncoding n).width).basisEquiv.symm
+            ((dataWithCarryWorkEncoding n).encode (x, cleanCarryWork n)))) =
       NormalizedVector.ket
-        ((dataWithCarryWorkEncoding n).encode
-          (Data.addIntoRight x, cleanCarryWork n)) :=
+        ((QubitLayout.canonical
+            (dataWithCarryWorkEncoding n).width).basisEquiv.symm
+          ((dataWithCarryWorkEncoding n).encode
+            (Data.addIntoRight x, cleanCarryWork n))) :=
   StructuredWithWorkWitness.applyNormalized_clean_ket
     (carryWorkStructuredWitness n) x hcarry
 

@@ -7,23 +7,10 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Util.Nat.FixedWidth
-import all QuantumAlg.Components.Control
-import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
-import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
-import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
-import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
-import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
-import all QuantumAlg.Components.Encoded.BitGates.Realization
-import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CopyValue
-import all QuantumAlg.Components.Encoded.BitGates.Control
+import all QuantumAlg.Components.Encoded.Circuit
 
 /-!
 # Clean encoded-word zero test
@@ -65,6 +52,7 @@ structure ZeroTestLayout (tail : Nat) where
 namespace ZeroTestLayout
 
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- The source index consumed alongside the previous conjunction result at a
 non-initial chain stage. -/
@@ -899,8 +887,8 @@ theorem gates_toffoliMultiplicity_sum :
   omega
 
 /-- Directly compiled physical circuit for the clean zero-test schedule. -/
-def program : UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (gates layout)
+def program : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (gates layout)
 
 /-- Folded semantic action of the physical zero-test schedule. -/
 def step : Data → Data :=
@@ -908,8 +896,8 @@ def step : Data → Data :=
 
 /-- The physical zero-test circuit realizes its exact ordered gate-list step. -/
 theorem realizes :
-    UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
-  GateSpec.realizesList (gates layout)
+    UnitaryCircuit.Realizes encoding (program layout physical oracles) (step layout) :=
+  GateSpec.realizesList physical oracles (gates layout)
 
 theorem computeGates_reverse_output_flip (x : Data) :
     GateSpec.stepList (computeGates layout).reverse (layout.output.flip x) =

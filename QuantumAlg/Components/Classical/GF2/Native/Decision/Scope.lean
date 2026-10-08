@@ -25,25 +25,30 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
+omit [BitWord.Selected model] in
 private def lifted {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     CInputRef (decisionContext ctx width) shape :=
   (input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh).underWorkspace (pivotMaskContext ctx width).canonicalFreshKey
       .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
 
+omit [BitWord.Selected model] in
 private def entered (store : Store ctx) (width : Nat) : Store (decisionContext ctx width) :=
   (store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh).pushWorkspace (pivotMaskContext ctx width).canonicalFreshKey
       .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
 
+omit [BitWord.Selected model] in
 private theorem entered_read (store : Store ctx) (width : Nat) {shape : CShape}
     (input : CInputRef ctx shape) : (entered store width).read (lifted input width) =
       store.read input := by
   unfold entered lifted
   rw [Store.read_pushWorkspace_underWorkspace, Store.read_pushWorkspace_underWorkspace]
 
+omit [BitWord.Selected model] in
 private theorem exited_read (store : Store (decisionContext ctx width)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
@@ -53,6 +58,7 @@ private theorem exited_read (store : Store (decisionContext ctx width)) {shape :
   rw [Store.read_popWorkspace_underWorkspace, Store.read_popWorkspace_underWorkspace]
   rfl
 
+omit [BitWord.Selected model] in
 private theorem latch_fresh {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     (pivotLatch (pivotMaskContext ctx width)).key ∉ (lifted input width).storageKeys := by
   unfold lifted
@@ -61,6 +67,7 @@ private theorem latch_fresh {shape : CShape} (input : CInputRef ctx shape) (widt
     ((input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
+omit [BitWord.Selected model] in
 private theorem latch_separate (success : CWriteRef ctx .bit) (width : Nat) :
     (pivotLatch (pivotMaskContext ctx width)).key ≠ (decisionWrite width success).key := by
   have fresh := latch_fresh (.storage success.toCStorageRef) width
@@ -108,12 +115,14 @@ theorem gf2CandidateNonzero_read_other (candidate zero : CWriteRef ctx (.unsigne
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
   exact separate
 
+omit [BitWord.Selected model] in
 private theorem work_fresh {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     (decisionWork ctx width).key ∉ (lifted input width).storageKeys := by
   unfold lifted
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
+omit [BitWord.Selected model] in
 private theorem work_separate {shape : CShape} (output : CWriteRef ctx shape) (width : Nat) :
     (decisionWork ctx width).key ≠ (decisionWrite width output).key := by
   intro same
@@ -123,6 +132,7 @@ private theorem work_separate {shape : CShape} (output : CWriteRef ctx shape) (w
   exact CInputRef.storageKeys_subset_context (.storage output.toCStorageRef)
     (by simp [CInputRef.storageKeys])
 
+omit [BitWord.Selected model] in
 private theorem entered_write (store : Store ctx) (width : Nat) {shape : CShape}
     (output : CWriteRef ctx shape) :
     (entered store width).read (.storage (decisionWrite width output).toCStorageRef) =

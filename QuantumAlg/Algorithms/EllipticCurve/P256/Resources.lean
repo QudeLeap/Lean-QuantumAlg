@@ -6,29 +6,30 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Solves
+public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.SevenCoordinates
 public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Memory
-public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Bounds
-import all QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Solves
+import all QuantumAlg.Algorithms.EllipticCurve.P256.Resources.SevenCoordinates
 
 /-!
-# Public P-256 correctness and logical-resource theorem
+# Complete original P-256 correctness, physical cycles and numeric resources
 
-The fixed endpoint specializes the complete original measured ECDLP theorem.
-The one named actual algorithm meets the independent one-percent failure,
-native-event, resident-space, auxiliary-space and depth requirements. Its
-quantum input and every external reference extension remain in the domain.
-The public coordinates expose exact independent space allowances and proved
-numeric ceilings for classical memory, native events and complete unit depth.
+The registered main directly specializes the accepted arbitrary-width
+contract to the standard parameters. It binds one named actual algorithm
+to original ninety-nine-percent success, state and joint borrowed restoration,
+physically complete cycles and every independent numeric resource coordinate.
+The whole chronological depth is retained separately from maximum cycle depth.
+All ceilings are conservative implementation bounds [PZ03, ecc.tex:448-556].
 -/
 
 namespace QuantumAlg.EllipticCurve.P256LogicalResources
 
-/-- The original actual P-256 algorithm meets its independent complete-run resource problem. -/
+/-- The same original P-256 run satisfies correctness, complete cycles and all seven bounds. -/
 public theorem main (I : P256.DomainParameters.PublicKeyInstance) :
-    ∃ candidate : Algorithm .quantum (P256.ActualRun.Pre I)
-        (P256.ActualRun.Post I) (P256.ActualRun.OutputShape I),
-      candidate.Solves (problem I) :=
-  ⟨algorithm I, algorithm_solves I⟩
+    ∃ cycles : Algorithm.CycleSolves (algorithm I) (completeCycleProblem I),
+      (algorithm I).Solves (problem I) ∧
+        (∀ path : (algorithm I).run.code.Path, SevenCoordinateBounds I cycles path) ∧
+        (∀ path : (algorithm I).run.code.Path,
+          (algorithm I).run.code.depth (fun _ => 1) path ≤ Limits.wholeRunDepth) :=
+  algorithm_completeContract I
 
 end QuantumAlg.EllipticCurve.P256LogicalResources

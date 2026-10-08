@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells
 
 /-!
@@ -14,13 +15,13 @@ import all QuantumAlg.Core.Execution.Classical.Workspace.Cells
 
 namespace QuantumAlg.Execution.ClassicalWorkspace.Cells
 
-theorem workspaceCells_storageKey_mem_keys {kind : ProblemKind}
+public theorem workspaceCells_storageKey_mem_keys {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shape : CShape} (ref : CStorageRef ctx shape) :
     ref.key ∈ ctx.keys := by
   rw [RuntimeCtx.keys, List.mem_map]
   exact ⟨_, ref.present, rfl⟩
 
-theorem workspaceCells_underWorkspace_avoidsKey {kind : ProblemKind}
+public theorem workspaceCells_underWorkspace_avoidsKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (avoided : StorageKey)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -34,7 +35,7 @@ theorem workspaceCells_underWorkspace_avoidsKey {kind : ProblemKind}
       simpa only [Cells.underWorkspace, CWriteRef.underWorkspace,
         CStorageRef.underWorkspace] using headAvoids
 
-theorem workspaceCells_underWorkspace_avoids_fresh {kind : ProblemKind}
+public theorem workspaceCells_underWorkspace_avoids_fresh {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
@@ -49,7 +50,7 @@ theorem workspaceCells_underWorkspace_avoids_fresh {kind : ProblemKind}
       rw [← equal]
       exact workspaceCells_storageKey_mem_keys head.ref.toCStorageRef
 
-theorem workspaceCells_underWorkspace_distinct {kind : ProblemKind}
+public theorem workspaceCells_underWorkspace_distinct {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (distinct : cells.Distinct)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
@@ -62,7 +63,7 @@ theorem workspaceCells_underWorkspace_distinct {kind : ProblemKind}
       exact workspaceCells_underWorkspace_avoidsKey tail head.ref.toCStorageRef.key
         key shape fresh headDistinct
 
-theorem workspaceCells_cons_distinct {kind : ProblemKind}
+public theorem workspaceCells_cons_distinct {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shape : CShape} {shapes : List CShape}
     (head : Cell ctx shape) (tail : Cells ctx shapes)
     (tailAvoids : tail.AvoidsKey head.ref.toCStorageRef.key)

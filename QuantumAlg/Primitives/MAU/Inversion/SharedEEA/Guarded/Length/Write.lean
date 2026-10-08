@@ -121,10 +121,12 @@ theorem original_guard (width : Nat) (field : Field) (firstWord : Bool) (state :
 
 /-- The actual program compiled from the enlarged-source lists retains complete basis amplitudes. -/
 theorem gates_realizes (width : Nat) (field : Field) (firstWord : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (GateSpec.programList (gates width field firstWord))
+    UnitaryCircuit.Realizes (encoding width)
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates width field firstWord))
       (fun state => if Guard state
         then LengthSchedule.step width field firstWord state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width field firstWord)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    _ (gates_step width field firstWord)
 
 end
 

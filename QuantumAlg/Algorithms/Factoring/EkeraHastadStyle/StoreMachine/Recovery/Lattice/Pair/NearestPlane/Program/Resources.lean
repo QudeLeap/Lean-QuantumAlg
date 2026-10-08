@@ -22,7 +22,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual path composes both verified component traces in chronological order. -/
 theorem pairToNearestPlaneInto_events (refs : Refs ctx N)
@@ -60,7 +61,8 @@ theorem pairToNearestPlaneInto_depth_le (refs : Refs ctx N)
 
 /-- The complete actual original-sample run restores every borrowed-reference joint state. -/
 theorem pairToNearestPlaneInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairToNearestPlaneInto refs).BorrowedRestored Reference state
       ((pairToNearestPlaneInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -69,7 +71,7 @@ theorem pairToNearestPlaneInto_borrowedRestored (refs : Refs ctx N) (Reference :
 
 /-- Every actual original-sample instruction retains the complete originally supplied context. -/
 theorem pairToNearestPlaneInto_visited (refs : Refs ctx N)
-    (path : (pairToNearestPlaneInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (pairToNearestPlaneInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pairToNearestPlaneInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim

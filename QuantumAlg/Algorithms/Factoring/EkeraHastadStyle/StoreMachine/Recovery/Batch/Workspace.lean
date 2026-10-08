@@ -102,14 +102,15 @@ theorem factorFrames {kind : ProblemKind}
       ((LatticePairRecoveryBatch.terminalPairs terminals).get index).2 cell
 
 /-- Allocate persistent batch state, the original six pair packages and quadratic scratch. -/
-def withWorkspaces {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {topCtx inner : RuntimeCtx kind}
+def withWorkspaces {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N), top.Distinct →
       (topTransport : Transport ctx topCtx) → top.TransportSeparated topTransport →
       (cells : LatticePairFactorWorkspaceSeparation.Cells inner N) →
       (pairTransport : Transport topCtx inner) →
-      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells → Circuit inner inner) :
-    Circuit ctx ctx :=
+      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells →
+        Circuit model inner inner) :
+    Circuit model ctx ctx :=
   withCells ctx (LatticeBatchRecoveryWorkspaceLayout.topShapes N) fun
       top topDistinct topTransport topSeparated =>
     LatticePairRecoveryWorkspace.withWorkspaces _ N fun pair pairTransport pairCertificates =>

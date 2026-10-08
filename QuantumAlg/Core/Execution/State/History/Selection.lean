@@ -55,7 +55,7 @@ variable {ctx : RuntimeCtx .quantum}
 
 /-- Actual unitary execution retains the original-history selection exactly. -/
 theorem selectHistory_unitary (state : State ctx Reference H)
-    (program : UnitaryCircuit ctx.register) (read : H → D) (value : D) :
+    (program : UnitaryOperator ctx.register) (read : H → D) (value : D) :
     (state.unitary program).selectHistory (fun record => read record.1) value =
       (state.selectHistory read value).unitary program := by
   dsimp only [unitary, selectHistory]

@@ -22,7 +22,8 @@ open QuadraticPrefix (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The five actual suffix instructions preserve every read outside their writable cells. -/
 theorem suffixInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)

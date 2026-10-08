@@ -37,7 +37,8 @@ def body {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     (frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint (Placement.context p.size keys physical) frame) :
-    Circuit (context p.size keys physical frame separate)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (context p.size keys physical frame separate)
       (context p.size keys physical frame separate) :=
   ContextUnion.frameLocal (Placement.body E Q keys physical)
     (Placement.body_isLocal E Q keys physical) frame separate
@@ -131,14 +132,16 @@ theorem body_execute {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint (Placement.context p.size keys physical) frame)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (context p.size keys physical frame separate) Reference H) :
-    ContextUnion.splitState (Placement.context p.size keys physical) frame separate
+    (original : State (context p.size keys physical frame separate) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
+    ContextUnion.splitServiceState (Placement.context p.size keys physical) frame separate
       ((body E Q keys physical frame separate).execute Reference original) =
         ((Placement.body E Q keys physical).execute (Register.prod frame.register Reference)
-          (ContextUnion.splitState (Placement.context p.size keys physical) frame separate
-            original)).mapHistory (fun record => (record.1.1,
-              (record.1.2, ContextUnion.frameLocalPathEquiv _
-                (Placement.body_isLocal E Q keys physical) frame separate record.2))) :=
+          (ContextUnion.splitServiceState (Placement.context p.size keys physical) frame
+            separate original)).mapHistory (fun record =>
+              (record.1, (record.2.1.1, (record.2.1.2,
+                ContextUnion.frameLocalPathEquiv _
+                  (Placement.body_isLocal E Q keys physical) frame separate record.2.2)))) :=
   ContextUnion.frameLocal_execute _ (Placement.body_isLocal E Q keys physical)
     frame separate Reference original
 

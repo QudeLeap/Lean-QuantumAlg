@@ -72,11 +72,43 @@ theorem mapHistory (seed : ctx.register.Index) (state : State ctx Reference Hist
         matrix (left, leftRef) (right, rightRef))
       (store_matrix (state.mapHistory update) original)).symm.trans entries
 
-/-- A real retained cell leaves the same physical quantum basis seeded in every final store. -/
-theorem retain (seed : ctx.register.Index) (state : State ctx Reference History)
+/-- Erasing only a finite path cannot create physical seed support that was
+absent from a complete original store-reference block. -/
+theorem of_mapHistory (seed : ctx.register.Index) (state : State ctx Reference History)
+    {Later : Type} [Fintype Later] (update : History → Later)
+    (seeded : Holds seed (state.mapHistory update)) : Holds seed state := by
+  have unchanged (original : Store ctx) :
+      ((state.mapHistory update).filterClassical
+        (fun entry => entry.1 = original)).quantumMarginal =
+      (state.filterClassical
+        (fun entry => entry.1 = original)).quantumMarginal := by
+    have mapped :
+        (state.mapHistory update).mapClassical (fun entry => entry.1) =
+          state.mapClassical (fun entry => entry.1) := by
+      change (state.mapClassical
+        (fun entry => (entry.1, update entry.2))).mapClassical
+          (fun entry => entry.1) = _
+      calc
+        _ = state.mapClassical
+            ((fun entry => entry.1) ∘
+              (fun entry => (entry.1, update entry.2))) :=
+          ExecutionState.executionState_mapClassical_comp_instances state _ _
+        _ = _ := ExecutionState.executionState_mapClassical_congr _ rfl
+    apply DensityOperator.ext
+    exact (store_matrix (state.mapHistory update) original).symm.trans
+      ((congrArg (fun result : ExecutionState (Store ctx)
+        (Register.prod ctx.register Reference) =>
+          (result.block original).matrix) mapped).trans
+        (store_matrix state original))
+  intro original left right leftRef rightRef
+  have result := seeded original left right leftRef rightRef
+  rw [unchanged original] at result
+  exact result
+
+private theorem retain_raw (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     Holds (ctx := ctx.addRetained key shape fresh) seed
-      ((Circuit.retain ctx key shape fresh).execute Reference state) := by
+      (state.retain key shape fresh) := by
   let output := state.retain key shape fresh
   change Holds (ctx := ctx.addRetained key shape fresh) seed output
   intro original left right leftRef rightRef
@@ -107,10 +139,21 @@ theorem retain (seed : ctx.register.Index) (state : State ctx Reference History)
         matrix (left, leftRef) (right, rightRef))
       (store_matrix output original)).symm.trans (grouped.trans entries)
 
+/-- A real retained cell preserves the seeded basis and the persistent service state. -/
+theorem retain {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (seed : ctx.register.Index) (state : State ctx Reference (model.HiddenState × History))
+    (seeded : Holds seed state) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
+    Holds (ctx := ctx.addRetained key shape fresh) seed
+      ((Circuit.retain (model := model) ctx key shape fresh).execute Reference state) := by
+  exact mapHistory (ctx := ctx.addRetained key shape fresh) seed (state.retain key shape fresh)
+    (retain_raw seed state seeded key shape fresh)
+    (fun record => (record.1.1, (record.1.2, record.2)))
+
 /-- The real sequential interpreter has the seed of its actually executed second body. -/
-theorem seq {middle post : RuntimeCtx kind} (first : Circuit ctx middle)
-    (second : Circuit middle post) (seed : post.register.Index)
-    (state : State ctx Reference History)
+theorem seq {model : ExecutionModel} {ctx middle post : RuntimeCtx model.kind}
+    (first : Circuit model ctx middle) (second : Circuit model middle post)
+    (seed : post.register.Index)
+    (state : State ctx Reference (model.HiddenState × History))
     (seeded : Holds seed (second.execute Reference (first.execute Reference state))) :
     Holds seed ((Circuit.seq first second).execute Reference state) := by
   intro original left right leftRef rightRef
@@ -134,22 +177,25 @@ namespace QuantumAlg.Execution.MeasurementCells
 noncomputable section
 
 /-- Actual retained measurement cells preserve the seed in the existing physical basis map. -/
-theorem allocate_seeded {kind : ProblemKind} (ctx : RuntimeCtx kind)
+theorem allocate_seeded {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
     (dimension : ℕ+) (count : Nat) (seed : ctx.register.Index)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : BasisSeeded.Holds seed state) :
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : BasisSeeded.Holds seed state) :
     BasisSeeded.Holds (ctx := context ctx dimension count) (basisEquiv ctx dimension count seed)
-      ((allocate ctx dimension count).execute Reference state) := by
+      ((allocate (model := model) ctx dimension count).execute Reference state) := by
   induction count with
   | zero =>
-      exact BasisSeeded.mapHistory seed state seeded (fun history => (history, ()))
+      exact BasisSeeded.mapHistory seed
+        (state.skip) (BasisSeeded.mapHistory seed state seeded (fun history => (history, ())))
+        (fun record => (record.1.1, (record.1.2, record.2)))
   | succ count induction =>
-      exact BasisSeeded.seq (allocate ctx dimension count)
+      exact BasisSeeded.seq (allocate (model := model) ctx dimension count)
         (.retain (context ctx dimension count) (context ctx dimension count).canonicalFreshKey
           (.finite dimension) (context ctx dimension count).canonicalFreshKey_fresh)
         (basisEquiv ctx dimension (count + 1) seed) state
         (BasisSeeded.retain (basisEquiv ctx dimension count seed)
-          ((allocate ctx dimension count).execute Reference state) induction
+          ((allocate (model := model) ctx dimension count).execute Reference state) induction
           (context ctx dimension count).canonicalFreshKey (.finite dimension)
           (context ctx dimension count).canonicalFreshKey_fresh)
 

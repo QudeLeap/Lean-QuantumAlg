@@ -27,28 +27,32 @@ open Execution ClassicalWorkspace
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Real lexical allocation and release wrap the same actual full-state recovery record. -/
 theorem gf2WithState_actualRecord
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    ∃ record : Store ctx → Store ctx × (withState input output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (withState input output).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withState input output).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withState (model := model) input output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2))) := by
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   apply ClassicalWorkspace.withCellsFrom_hasRecord (Transport.id ctx)
     (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
   intro inner cells _distinct transport _separated
-  exact ⟨intoStep (transport.liftInput input)
+  exact ⟨Circuit.preserveHiddenRecord (model := model) (intoStep (transport.liftInput input)
       cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.head.ref cells.tail.tail.head.ref cells.tail.head.ref cells.head.ref
-    (transport.liftWrite output),
-    gf2Into_execute (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
+    (transport.liftWrite output)),
+    gf2Into_execute (model := model) (transport.liftInput input)
+    cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.head.ref cells.tail.tail.head.ref cells.tail.head.ref cells.head.ref
     (transport.liftWrite output)⟩

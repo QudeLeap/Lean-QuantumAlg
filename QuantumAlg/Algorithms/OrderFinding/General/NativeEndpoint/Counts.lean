@@ -1,0 +1,162 @@
+/-
+Copyright (c) 2026 QudeLeap. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: QudeLeap Team
+-/
+
+module
+
+public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Endpoint
+public import QuantumAlg.Util.Order.Finding
+public import QuantumAlg.Algorithms.OrderFinding.Oracle
+public import QuantumAlg.Core.Base.Accounting.ResourcePool
+import all QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Endpoint
+import all QuantumAlg.Algorithms.OrderFinding.General.Sampling.Native.Counts
+import all QuantumAlg.Components.Classical.OrderRecovery.Native.Budget
+import all QuantumAlg.Components.Classical.Modular.NativePower.Full.Resources
+import all QuantumAlg.Components.Classical.Modular.NativePower.Resources
+import all QuantumAlg.Components.Classical.ConstantWord.Resources
+import all QuantumAlg.Components.Classical.TerminalDecode.Resources
+import all QuantumAlg.Core.Execution.Trace
+
+/-!
+# Actual source-query count of general native order finding
+
+The framed source sample makes one declared modular-exponentiation call. The
+retained continued-fraction recovery is entirely selected classical execution.
+-/
+
+namespace QuantumAlg.OrderFinding.ShorSourceJoint.SourceNativeEndpoint
+
+noncomputable section
+
+private theorem recovery_oracleCount_zero {N x r t width : Nat}
+    (hinput : OrderFinding.Input N x r)
+    (access : ModExpOracleAccess N x t width)
+    (path : (recoveryCode hinput access).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((recoveryCode hinput access).resourcePool path) = 0 := by
+  have bounded := ResourcePool.le_iff_count.mp
+    (ClassicalRoutines.OrderRecovery.Native.nativeRecovery_into_pool_le
+      (model := Sampling.Native.Framed.model access)
+      (recoverySpec hinput access) (baseInput t width) (sampleInput t width)
+      (resultRef t width) path)
+    (.oracle UnitarySource.Coordinate.ordinary :
+      Resource.Event (Sampling.Native.Framed.model access))
+  have zero : ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((recoveryCode hinput access).resourcePool path) ≤ 0 := by
+    simpa [recoveryCode, ClassicalRoutines.OrderRecovery.Native.eventEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.initializationEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.visitEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.selectionEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.candidateEvents,
+      ClassicalRoutines.OrderRecovery.Native.validationEvents,
+      ClassicalRoutines.OrderRecovery.Native.rejectionEvents,
+      ClassicalRoutines.OrderRecovery.Native.acceptanceEvents,
+      ClassicalRoutines.Modular.NativePower.eventEnvelope,
+      ClassicalRoutines.Modular.NativePower.exponentEnvelope,
+      ClassicalRoutines.Modular.NativePower.bitEnvelope,
+      ClassicalRoutines.Modular.NativePower.multiplyEnvelope,
+      ClassicalRoutines.ConstantWord.envelope,
+      ClassicalRoutines.ConstantWord.bitEnvelope,
+      ClassicalRoutines.ConstantWord.shiftEvent,
+      ClassicalRoutines.ConstantWord.incrementEvent,
+      ClassicalRoutines.TerminalDecode.envelope,
+      ClassicalRoutines.TerminalDecode.bitEnvelope,
+      ClassicalRoutines.TerminalDecode.shiftEvent,
+      ClassicalRoutines.TerminalDecode.incrementEvent] using bounded
+  exact Nat.eq_zero_of_le_zero zero
+
+/-- Every complete general native run invokes the declared source oracle once. -/
+theorem code_modExpCount {N x r t width : Nat}
+    (hinput : OrderFinding.Input N x r)
+    (access : ModExpOracleAccess N x t width)
+    (path : (code hinput access).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((code hinput access).resourcePool path) = 1 := by
+  change ResourcePool.count (model := Sampling.Native.Framed.model access)
+    (.oracle UnitarySource.Coordinate.ordinary)
+    (ResourcePool.ofList ((SourceNativeSampling.code access).eventTrace path.1 ++
+      (recoveryCode hinput access).eventTrace path.2.2)) = 1
+  rw [ResourcePool.ofList_append, ResourcePool.count_add]
+  change ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((SourceNativeSampling.code access).resourcePool path.1) +
+    ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((recoveryCode hinput access).resourcePool path.2.2) = 1
+  have sampled :
+      ResourcePool.count (model := Sampling.Native.Framed.model access)
+        (.oracle UnitarySource.Coordinate.ordinary)
+        ((SourceNativeSampling.code access).resourcePool path.1) = 1 :=
+    Sampling.Native.Framed.code_modExpCount
+      (pre width) (pre_quantumWires width) access path.1
+  rw [sampled, recovery_oracleCount_zero, Nat.add_zero]
+
+/-- The public general algorithm uses that same one-query execution. -/
+public theorem generalOrderFinding_algorithm_modExpCount {N x r t width : Nat}
+    (hinput : OrderFinding.Input N x r)
+    (access : ModExpOracleAccess N x t width)
+    (path : (algorithm hinput access).run.code.Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.oracle UnitarySource.Coordinate.ordinary)
+      ((algorithm hinput access).run.code.resourcePool path) = 1 :=
+  code_modExpCount hinput access path
+
+/-- The complete algorithm writes every source phase measurement exactly once. -/
+public theorem generalOrderFinding_algorithm_measurementCount {N x r t width : Nat}
+    (hinput : OrderFinding.Input N x r)
+    (access : ModExpOracleAccess N x t width)
+    (path : (algorithm hinput access).run.code.Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.measurement (2 : ℕ+))
+      ((algorithm hinput access).run.code.resourcePool path) = t := by
+  change ResourcePool.count (model := Sampling.Native.Framed.model access)
+    (.measurement (2 : ℕ+)) ((code hinput access).resourcePool path) = t
+  have bounded := ResourcePool.le_iff_count.mp
+    (code_events_le hinput access path)
+    (.measurement (2 : ℕ+) : Resource.Event (Sampling.Native.Framed.model access))
+  have upper : ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.measurement (2 : ℕ+)) ((code hinput access).resourcePool path) ≤ t := by
+    simpa [eventBudget, Sampling.Native.eventBudget,
+      Sampling.Native.unitaryBudget, ResourcePool.count_add,
+      ResourcePool.count_nsmul, ResourcePool.count_singleton,
+      ClassicalRoutines.OrderRecovery.Native.eventEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.initializationEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.visitEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.selectionEnvelope,
+      ClassicalRoutines.OrderRecovery.Native.candidateEvents,
+      ClassicalRoutines.OrderRecovery.Native.validationEvents,
+      ClassicalRoutines.OrderRecovery.Native.rejectionEvents,
+      ClassicalRoutines.OrderRecovery.Native.acceptanceEvents,
+      ClassicalRoutines.Modular.NativePower.eventEnvelope,
+      ClassicalRoutines.Modular.NativePower.exponentEnvelope,
+      ClassicalRoutines.Modular.NativePower.bitEnvelope,
+      ClassicalRoutines.Modular.NativePower.multiplyEnvelope,
+      ClassicalRoutines.ConstantWord.envelope,
+      ClassicalRoutines.ConstantWord.bitEnvelope,
+      ClassicalRoutines.ConstantWord.shiftEvent,
+      ClassicalRoutines.ConstantWord.incrementEvent,
+      ClassicalRoutines.TerminalDecode.envelope,
+      ClassicalRoutines.TerminalDecode.bitEnvelope,
+      ClassicalRoutines.TerminalDecode.shiftEvent,
+      ClassicalRoutines.TerminalDecode.incrementEvent] using bounded
+  have lower : t ≤ ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.measurement (2 : ℕ+)) ((code hinput access).resourcePool path) := by
+    change t ≤ ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.measurement (2 : ℕ+))
+      (ResourcePool.ofList ((SourceNativeSampling.code access).eventTrace path.1 ++
+        (recoveryCode hinput access).eventTrace path.2.2))
+    rw [ResourcePool.ofList_append, ResourcePool.count_add]
+    change t ≤ ResourcePool.count (model := Sampling.Native.Framed.model access)
+      (.measurement (2 : ℕ+)) ((SourceNativeSampling.code access).resourcePool path.1) + _
+    rw [SourceNativeSampling.measurementCount access path.1]
+    omega
+  omega
+
+end
+
+end QuantumAlg.OrderFinding.ShorSourceJoint.SourceNativeEndpoint

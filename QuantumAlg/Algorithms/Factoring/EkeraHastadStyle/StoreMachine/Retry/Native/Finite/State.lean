@@ -30,7 +30,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -39,14 +39,15 @@ section Empty
 variable (base : RuntimeCtx .quantum) (N : Nat)
 
 private theorem zero_outputState {Reference : Register}
-    (input : Execution.Input base Reference) :
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((NativeRetryEmpty.run base N).finalState Reference input.state).mapClassical
         (NativeRetryEmpty.run base N).output.eval =
       input.state.mapClassical
         (fun _ => (.optionNone : (LatticeBatchRecoveryOutput.OutputShape N).Value)) := by
-  let record : Store base → (NativeRetryEmpty.run base N).Record := fun store =>
-    (store.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
-      base.canonicalFreshKey_fresh, (store, ()))
+  let record : Store base × RuntimeRound.model.HiddenState →
+      (NativeRetryEmpty.run base N).Record := fun entry =>
+    (entry.1.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
+      base.canonicalFreshKey_fresh, (entry.2, (entry.1, ())))
   have actual : (NativeRetryEmpty.run base N).execute Reference input.state =
       input.state.mapClassical record := by
     refine (NativeRetryEmpty.run_execute base N input.state).trans ?_
@@ -55,18 +56,25 @@ private theorem zero_outputState {Reference : Register}
   rw [AlgorithmRun.finalState_readout, actual,
     ExecutionState.executionState_mapClassical_comp]
   exact congrArg
-    (fun read : Store base → (LatticeBatchRecoveryOutput.OutputShape N).Value =>
+    (fun read : Store base × RuntimeRound.model.HiddenState →
+        (LatticeBatchRecoveryOutput.OutputShape N).Value =>
       input.state.mapClassical read)
-    (funext fun store => NativeRetryEmpty.run_output base N store)
+    (funext fun entry => NativeRetryEmpty.run_output base N entry.1)
 
 private theorem zero_output_statePromise {Reference : Register}
-    (input : Execution.Input base Reference)
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
-    (StatePromise.mixed input.state.quantumMarginal
-      ((ExecutionState.quantumMarginal_mass input.state).trans input.normalized)).Holds
+    (StatePromise.mixed input.caller.state.quantumMarginal
+      ((ExecutionState.quantumMarginal_mass input.caller.state).trans
+        input.caller.normalized)).Holds
       ((((NativeRetryEmpty.run base N).finalState Reference input.state).mapClassical
         (NativeRetryEmpty.run base N).output.eval).block value) := by
-  rw [zero_outputState]
+  change ((((NativeRetryEmpty.run base N).finalState Reference input.state).mapClassical
+      (NativeRetryEmpty.run base N).output.eval).block value).matrix =
+    (((((NativeRetryEmpty.run base N).finalState Reference input.state).mapClassical
+      (NativeRetryEmpty.run base N).output.eval).block value).mass : ℝ) •
+        input.caller.state.quantumMarginal.matrix
+  rw [OracleInput.oracleInput_caller_quantumMarginal, zero_outputState]
   by_cases empty : value = .optionNone
   · subst value
     rw [ExecutionState.executionState_mapClassical_const_block]
@@ -82,7 +90,8 @@ private theorem zero_output_statePromise {Reference : Register}
       rw [ExecutionState.mapClassical_block_matrix]
       simp only [Ne.symm empty, if_false, Finset.sum_const_zero, DensityOperator.zero_matrix]
     rw [absent]
-    exact StatePromise.holds_zero _
+    exact StatePromise.holds_zero (.mixed input.state.quantumMarginal
+      ((ExecutionState.quantumMarginal_mass input.state).trans input.normalized))
 
 private def zeroStateRequirement : StateRequirement base (NativeRetryEmpty.context base N) :=
   .jointReference Finset.univ
@@ -97,12 +106,12 @@ private def zeroStateRequirement : StateRequirement base (NativeRetryEmpty.conte
           ((ExecutionState.quantumMarginal_mass input.state).trans input.normalized)))
 
 private theorem zero_stateRequirement_holds {Reference : Register}
-    (input : Execution.Input base Reference) :
-    (zeroStateRequirement base N).Holds input
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
+    (zeroStateRequirement base N).Holds input.caller
       ((NativeRetryEmpty.run base N).finalState Reference input.state) :=
   fun value => StatePromise.mixed_fullSelection
-    (NativeRetryEmpty.context base N).quantumLayout Reference input.state.quantumMarginal
-    ((ExecutionState.quantumMarginal_mass input.state).trans input.normalized)
+    (NativeRetryEmpty.context base N).quantumLayout Reference input.caller.state.quantumMarginal
+    ((ExecutionState.quantumMarginal_mass input.caller.state).trans input.caller.normalized)
     _ (zero_output_statePromise base N input value)
 
 end Empty
@@ -119,8 +128,9 @@ public def stateRequirement : (totalRounds : Nat) →
 /-- The same actual finite run meets its complete output-state requirement, including zero
 batches and impossible optional results, without a caller seed or independence hypothesis. -/
 theorem stateRequirement_holds (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
-    (stateRequirement base noQuantum N totalRounds).Holds input
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
+    (stateRequirement base noQuantum N totalRounds).Holds input.caller
       ((run base noQuantum specification totalRounds).finalState Reference input.state) := by
   cases totalRounds with
   | zero => exact zero_stateRequirement_holds base N input

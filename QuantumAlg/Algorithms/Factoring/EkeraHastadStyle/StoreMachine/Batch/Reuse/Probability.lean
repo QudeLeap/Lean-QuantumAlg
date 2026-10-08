@@ -101,11 +101,12 @@ private theorem source_output_mem_support (input : Input N)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state)
     (entry : Store (NativeBatchReuse.context base N) ×
-      (History × (NativeBatchReuse.code base N sameWires originalCells).Path))
+      (RuntimeRound.model.HiddenState ×
+        (History × (NativeBatchReuse.code base N sameWires originalCells).Path)))
     (positive : 0 < (((NativeBatchReuse.code base N sameWires originalCells).execute
       Reference state).block entry).mass) :
     (NativeBatchReuse.run base N sameWires originalCells).output.eval entry.1 ∈
@@ -130,7 +131,7 @@ theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state)
     (weight : previousShape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
@@ -148,13 +149,14 @@ theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
     (NativeBatchReuse.callerInput base N previous) sourceState weight leftRef rightRef
   have recovered := reference_eq_on_support sourceState
     (fun entry _ => weight (entry.1.read (NativeBatchReuse.callerInput base N previous))
-      ((step base input entry.1).1.read (.storage (resultRef base N).toCStorageRef)))
+      ((step base input (entry.1, entry.2.1)).1.1.read
+        (.storage (resultRef base N).toCStorageRef)))
     (fun entry _ => weight (entry.1.read (NativeBatchReuse.callerInput base N previous))
       (NativeBatchRecovery.packedValue
         ((NativeBatchReuse.run base N sameWires originalCells).output.eval entry.1)))
     (fun entry positive _ => congrArg
       (weight (entry.1.read (NativeBatchReuse.callerInput base N previous)))
-      (output_on_source_support base sameWires originalCells input entry.1
+      (output_on_source_support base sameWires originalCells input entry.1 entry.2.1
         (source_output_mem_support base sameWires originalCells input previous distinct
           separate state seeded entry positive))) leftRef rightRef
   have sourceLaw := NativeBatchReuse.nativeBatchReuse_output_weighted_reference

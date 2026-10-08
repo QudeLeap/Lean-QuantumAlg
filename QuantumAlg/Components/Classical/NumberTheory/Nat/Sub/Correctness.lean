@@ -70,11 +70,13 @@ private theorem subtract_output (refs : Refs ctx width) (store : Store ctx)
   rw [Store.read_applyOp_output]
   exact wordSub_toNat_eq_sub (store.read refs.left) (store.read refs.right) rightLeLeft
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The actual selected instruction changes only the result cell. -/
 theorem selectedStep_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : refs.output.key ∉ other.storageKeys) :
-    (selectedStep refs store).1.read other = store.read other := by
+    (selectedStep (model := model) refs store).1.read other = store.read other := by
   rw [selectedStep_store]
   split <;> exact Store.read_applyOp_of_not_mem_storageKeys store _ other separate
 
@@ -83,14 +85,14 @@ theorem into_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsLessThan : refs.lessThan.key ∉ other.storageKeys)
     (avoidsOutput : refs.output.key ∉ other.storageKeys) :
-    (step refs store).1.read other = store.read other := by
+    (step (model := model) refs store).1.read other = store.read other := by
   rw [step_store]
   exact (selectedStep_callerFrame refs _ other avoidsOutput).trans
     (Store.read_applyOp_of_not_mem_storageKeys store (compareOp refs) other avoidsLessThan)
 
 /-- The actual result is natural truncated subtraction at every word width. -/
 theorem into_value (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
-    ((step refs store).1.read (writeInput refs.output)).toNat =
+    ((step (model := model) refs store).1.read (writeInput refs.output)).toNat =
       (store.read refs.left).toNat - (store.read refs.right).toNat := by
   have comparedFlag := compare_correct refs store
   have leftAtCompare := Store.read_applyOp_of_not_mem_storageKeys store (compareOp refs)
@@ -113,7 +115,7 @@ theorem into_value (refs : Refs ctx width) (separation : Separation refs) (store
 
 /-- The selected output write preserves the actual comparison latch. -/
 theorem into_flag (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
-    ((step refs store).1.read (writeInput refs.lessThan)).toBool =
+    ((step (model := model) refs store).1.read (writeInput refs.lessThan)).toBool =
       decide ((store.read refs.left).toNat < (store.read refs.right).toNat) := by
   rw [step_store]
   exact (congrArg CShape.Value.toBool
@@ -122,14 +124,14 @@ theorem into_flag (refs : Refs ctx width) (separation : Separation refs) (store 
 
 /-- The actual execution record satisfies the complete original arithmetic and caller contract. -/
 theorem into_correct (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
-    Relation refs store (step refs store).1 :=
+    Relation refs store (step (model := model) refs store).1 :=
   ⟨into_value refs separation store, into_flag refs separation store,
     fun other avoidsFlag avoidsOutput => into_callerFrame refs store other avoidsFlag avoidsOutput⟩
 
 /-- Width zero still executes comparison and subtraction, returning zero and a false latch. -/
 theorem into_zero_width (refs : Refs ctx 0) (separation : Separation refs) (store : Store ctx) :
-    ((step refs store).1.read (writeInput refs.output)).toNat = 0 ∧
-      ((step refs store).1.read (writeInput refs.lessThan)).toBool = false := by
+    ((step (model := model) refs store).1.read (writeInput refs.output)).toNat = 0 ∧
+      ((step (model := model) refs store).1.read (writeInput refs.lessThan)).toBool = false := by
   have left : (store.read refs.left).toNat = 0 :=
     Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ (store.read refs.left).toNat_lt)
   have right : (store.read refs.right).toNat = 0 :=

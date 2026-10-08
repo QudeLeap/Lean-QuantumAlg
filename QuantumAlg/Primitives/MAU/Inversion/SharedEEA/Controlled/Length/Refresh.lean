@@ -104,24 +104,27 @@ theorem gates_retained (width : Nat) (state : Registers width) :
   split <;> exact ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- The physical program is precisely the emitted controlled native candidate lists. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact basis realization includes arbitrary incoming Ctrl, source values, and dirty Iter. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width)
       (fun state => if state.control then LengthRefresh.step state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- Every emitted candidate remains in the actual event trace, independently of its input. -/
 theorem program_eventTrace (width : Nat) :
-    (program width).eventTrace = (gates width).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width).eventTrace = (gates width).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 /-- Strict unit duration includes the actual four complete candidate schedules. -/
 theorem program_unitDepth (width : Nat) :
     (program width).evaluatedEventDepth (fun _ => 1) = (gates width).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

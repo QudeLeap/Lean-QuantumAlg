@@ -42,7 +42,7 @@ variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 def preMeasurement (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    Circuit (before p.size (2 * orderWidth problem))
+    Circuit (.quantum AlgorithmGate.model .empty) (before p.size (2 * orderWidth problem))
       (after p.size (2 * orderWidth problem)) :=
   ((beforeExponentPreparation p problem).seq
     (Encoding.convertedCircuit E points (List.finRange (2 * orderWidth problem))
@@ -55,7 +55,7 @@ def exponentPreparedDensity (problem : KnownOrderProblem E.GroupPoint) (Referenc
     DensityOperator (Register.prod (before p.size (2 * orderWidth problem)).register Reference) :=
   DensityOperator.applyUnitary
     (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) Reference) input
+      Reference) input
 
 /-- The full density includes real initialization, scalar target, and original readout. -/
 def preMeasurementDensity (fieldTail : Nat) (odd : Odd p)
@@ -66,8 +66,8 @@ def preMeasurementDensity (fieldTail : Nat) (odd : Odd p)
     DensityOperator (Register.prod (after p.size (2 * orderWidth problem)).register Reference) :=
   DensityOperator.applyUnitary
     (UnitaryOperator.prodTensor
-      (afterExponentProgram p (orderWidth problem) (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference))
+      (afterExponentProgram p (orderWidth problem)
+        (exponentReadoutCircuit problem)).matrix (1 : UnitaryOperator Reference))
     (Encoding.convertedResultDensity E points (List.finRange (2 * orderWidth problem))
       (Semantics.radixUnit p fieldTail.succ odd) Reference
       (exponentPreparedDensity E problem Reference input))
@@ -78,7 +78,8 @@ theorem preMeasurement_density (fieldTail : Nat) (sameWidth : fieldTail.succ = p
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (input : State (before p.size (2 * orderWidth problem)) Reference History)
+    (input : State (before p.size (2 * orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ basis,
       ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
         (exponentPreparedDensity E problem Reference input.quantumMarginal).matrix
@@ -87,7 +88,7 @@ theorem preMeasurement_density (fieldTail : Nat) (sameWidth : fieldTail.succ = p
       preMeasurementDensity E fieldTail odd problem points Reference input.quantumMarginal := by
   have prepared := beforeExponentCircuit_density p (orderWidth problem)
     (exponentPreparationCircuit problem)
-    (exponentPreparationCircuit_physical_idx problem) input
+    input
   have domain : ∀ basis,
       ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
         ((beforeExponentPreparation p problem).execute Reference input).quantumMarginal.matrix
@@ -123,10 +124,10 @@ theorem preMeasurement_budget (fieldTail : Nat) (odd : Odd p)
       (Semantics.radixUnit p fieldTail.succ odd)).resourcePool path.1.2 +
     (afterExponentReadout p problem).resourcePool path.2 ≤ _
   have prepared := beforeExponentCircuit_cost p (orderWidth problem)
-    (exponentPreparationCircuit problem) (exponentPreparationCircuit_physical_idx problem)
+    (exponentPreparationCircuit problem)
     path.1.1
   have readout := afterExponentCircuit_cost p (orderWidth problem)
-    (exponentReadoutCircuit problem) (exponentReadoutCircuit_physical_idx problem) path.2
+    (exponentReadoutCircuit problem) path.2
   exact ResourcePool.add_mono (ResourcePool.add_mono prepared.le
     (by
       simpa only [List.length_finRange] using Encoding.convertedCircuit_budget E points
@@ -140,7 +141,10 @@ theorem preMeasurement_depth (fieldTail : Nat) (odd : Odd p)
     (path : (preMeasurement E fieldTail odd problem points).Path) :
     (preMeasurement E fieldTail odd problem points).depth (fun _ => 1) path ≤
       (exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
-        (2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
+        (ResourcePool.weightedCount (fun _ => 1)
+          (ResourcePool.ofList (Allocation.initializationTrace p
+            (2 * orderWidth problem))) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
           (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size)) +
         (exponentReadoutCircuit problem).evaluatedEventDepth (fun _ => 1) := by
   change (beforeExponentPreparation p problem).depth (fun _ => 1) path.1.1 +
@@ -148,16 +152,17 @@ theorem preMeasurement_depth (fieldTail : Nat) (odd : Odd p)
       (Semantics.radixUnit p fieldTail.succ odd)).depth (fun _ => 1) path.1.2 +
     (afterExponentReadout p problem).depth (fun _ => 1) path.2 ≤ _
   have prepared := beforeExponentCircuit_depth p (orderWidth problem)
-    (exponentPreparationCircuit problem) (exponentPreparationCircuit_physical_idx problem)
+    (exponentPreparationCircuit problem)
     (fun _ => 1) path.1.1
   have readout := afterExponentCircuit_depth p (orderWidth problem)
-    (exponentReadoutCircuit problem) (exponentReadoutCircuit_physical_idx problem)
+    (exponentReadoutCircuit problem)
     (fun _ => 1) path.2
+  have scalar := Encoding.convertedCircuit_depth E points
+    (List.finRange (2 * orderWidth problem)) (Semantics.radixUnit p fieldTail.succ odd)
+    path.1.2
+  rw [List.length_finRange] at scalar
   exact Nat.add_le_add (Nat.add_le_add prepared.le
-    (by
-      simpa only [List.length_finRange] using Encoding.convertedCircuit_depth E points
-        (List.finRange (2 * orderWidth problem)) (Semantics.radixUnit p fieldTail.succ odd)
-        path.1.2)) readout.le
+    scalar) readout.le
 
 end
 

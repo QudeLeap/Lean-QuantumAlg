@@ -38,24 +38,26 @@ def conjunctionOp (flag : CInputRef ctx .bit) (accepted : CWriteRef ctx .bit) :
   .bit .and ctx (.product (.storage accepted.toCStorageRef) flag) accepted
 
 /-- Four original actual stages, retaining the same scalar and acceptance destinations. -/
-def verificationStage (spec : CurveSpec width)
+def verificationStage {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit) :
-    Fin 4 → Circuit ctx ctx := ![
+    Fin 4 → Circuit model ctx ctx := ![
       ScalarMul.Native.scalarInto spec (candidateBits candidate) base scalarResult,
       PointEquality.Native.compareInto (.storage scalarResult.toCStorageRef) target accepted,
-      .classical (conjunctionOp inverseSuccess accepted),
-      .classical (conjunctionOp reconstruction accepted)]
+      BitWord.instruction (execution := model) (conjunctionOp inverseSuccess accepted),
+      BitWord.instruction (execution := model) (conjunctionOp reconstruction accepted)]
 
 /-- The original scalar, target comparison and two success conjunctions all actually execute. -/
-def verifyInto (spec : CurveSpec width)
+def verifyInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   Circuit.forRange 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted)

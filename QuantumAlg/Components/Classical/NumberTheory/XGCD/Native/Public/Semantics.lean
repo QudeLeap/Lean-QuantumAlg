@@ -72,25 +72,28 @@ theorem xgcdNativePackedRawValue_finalState (outputs : RawOutputs ctx width)
 
 /-- The public entry writes the original result and preserves the complete remaining store. -/
 theorem xgcdNativePublicIntoResult_actualRecord
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) :
-    ∃ record : Store ctx → Store ctx × (publicIntoResult input result).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (publicIntoResult input result).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (publicIntoResult (model := model) input result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 = before.write result
-        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read input))).gcd,
-          ((PureXGCD.eval (GCD.decodeOperands (before.read input))).leftCoefficient,
-            (PureXGCD.eval (GCD.decodeOperands (before.read input))).rightCoefficient))) := by
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 = before.1.write result
+        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.1.read input))).gcd,
+          ((PureXGCD.eval (GCD.decodeOperands (before.1.read input))).leftCoefficient,
+            (PureXGCD.eval (GCD.decodeOperands (before.1.read input))).rightCoefficient))) := by
   let Post (before after : Store ctx) : Prop :=
     after = before.write result
       (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read input))).gcd,
         ((PureXGCD.eval (GCD.decodeOperands (before.read input))).leftCoefficient,
           (PureXGCD.eval (GCD.decodeOperands (before.read input))).rightCoefficient)))
   apply withCells_actualRecord_post ctx (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
       (publicRawOutputs cells) (transport.liftWrite result)) Post
   intro inner cells distinct transport separated
   let outputs := publicRawOutputs cells
@@ -100,28 +103,29 @@ theorem xgcdNativePublicIntoResult_actualRecord
     (xgcdNativePublicRawOutputs_distinct cells distinct)
   obtain ⟨packRecord, packEquation, packCorrect⟩ :=
     xgcdNativePackRawOutputs_actualRecord outputs target
-  let record := Circuit.sequenceRecord (rawEngine lifted outputs)
-    (packRawOutputs outputs target) rawRecord packRecord
+  let record := Circuit.sequenceRecord (rawEngine (model := model) lifted outputs)
+    (packRawOutputs (model := model) outputs target) rawRecord packRecord
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord (rawEngine lifted outputs)
-      (packRawOutputs outputs target) rawRecord packRecord rawEquation packEquation reference state
+    exact Circuit.execute_sequenceRecord (rawEngine (model := model) lifted outputs)
+      (packRawOutputs (model := model) outputs target) rawRecord packRecord rawEquation
+        packEquation reference state
   · intro source before reads
-    let rawAfter := (rawRecord before).1
-    let final := (record before).1
+    let rawAfter := (rawRecord before).1.1
+    let final := (record before).1.1
     let returned := transport.restrict final
     have returnedReads : transport.ReadsAs returned final :=
       transport.workspaceTransport_restrict_readsAs final
     have finalValue : final = rawAfter.write target
-        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read lifted))).gcd,
-          ((PureXGCD.eval (GCD.decodeOperands (before.read lifted))).leftCoefficient,
-            (PureXGCD.eval (GCD.decodeOperands (before.read lifted))).rightCoefficient))) := by
-      have packed := packCorrect rawAfter
+        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).gcd,
+          ((PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).leftCoefficient,
+            (PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).rightCoefficient))) := by
+      have packed := packCorrect (rawRecord before).1
       rw [xgcdNativePackedRawValue_finalState outputs rawAfter
-        (GCD.decodeOperands (before.read lifted)) (rawCorrect before).2] at packed
+        (GCD.decodeOperands (before.1.read lifted)) (rawCorrect before).2] at packed
       exact packed
     have rawFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
-        rawAfter.read (transport.liftInput other) = before.read (transport.liftInput other) := by
+        rawAfter.read (transport.liftInput other) = before.1.read (transport.liftInput other) := by
       intro shape other
       have free : outputs.gcd.key ∉ (transport.liftInput other).storageKeys ∧
           outputs.leftCoefficient.key ∉ (transport.liftInput other).storageKeys ∧
@@ -140,12 +144,13 @@ theorem xgcdNativePublicIntoResult_actualRecord
     · have resultRead : final.read (GCD.cellRead target) =
           returned.read (GCD.cellRead result) := returnedReads (GCD.cellRead result)
       have written := Store.read_write_same rawAfter target
-        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read lifted))).gcd,
-          ((PureXGCD.eval (GCD.decodeOperands (before.read lifted))).leftCoefficient,
-            (PureXGCD.eval (GCD.decodeOperands (before.read lifted))).rightCoefficient)))
+        (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).gcd,
+          ((PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).leftCoefficient,
+            (PureXGCD.eval (GCD.decodeOperands (before.1.read lifted))).rightCoefficient)))
       exact resultRead.symm.trans (by
         rw [finalValue]
-        exact written.trans (by rw [show before.read lifted = source.read input from reads input]))
+        exact written.trans (by rw [show before.1.read lifted = source.read input from reads
+          input]))
     · intro shape other resultFree
       let liftedOther := transport.liftInput (.storage other)
       have unchanged : final.read liftedOther = rawAfter.read liftedOther := by

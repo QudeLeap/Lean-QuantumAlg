@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Components.Classical.NumberTheory.IntegerSqrt.Layout
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual binary integer-square-root refinement round
@@ -56,80 +57,94 @@ def halfOp (refs : Refs ctx width) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .shiftRight width ctx (writeInput refs.half) refs.half
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Four native writes compute the candidate midpoint, square, comparison and selection flag. -/
 def roundPrefixInto (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (addOp refs))
-    (.seq (.classical (squareOp refs))
-      (.seq (.classical (compareOp input refs)) (.classical (takeOp refs))))
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (addOp refs))
+    (.seq (BitWord.instruction (execution := model) (squareOp refs))
+      (.seq (BitWord.instruction (execution := model) (compareOp input refs)) (BitWord.instruction
+        (execution := model) (takeOp refs))))
 
 /-- The chronological actual prefix store and its four native instruction paths. -/
 def roundPrefixStep (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (store : Store ctx) : Store ctx × (roundPrefixInto input refs).Path :=
-  ((((store.applyOp (addOp refs)).applyOp (squareOp refs)).applyOp
-    (compareOp input refs)).applyOp (takeOp refs), ((), ((), ((), ()))))
+    (refs : Refs ctx width) (store : Store ctx) : Store ctx × (roundPrefixInto (model := model)
+      input refs).Path :=
+  let added := BitWord.instructionStep (execution := model) (addOp refs) store
+  let squared := BitWord.instructionStep (execution := model) (squareOp refs) added.1
+  let compared := BitWord.instructionStep (execution := model) (compareOp input refs) squared.1
+  let taken := BitWord.instructionStep (execution := model) (takeOp refs) compared.1
+  (taken.1, (added.2, (squared.2, (compared.2, taken.2))))
 
 /-- The four original writes preserve every history and the full quantum-reference state. -/
 theorem roundPrefixInto_execute (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (roundPrefixInto input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((roundPrefixStep input refs entry.1).1,
-        (entry.2, (roundPrefixStep input refs entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (roundPrefixInto (model := model) input refs).execute Reference state = state.mapClassical
+      (fun entry =>
+      let actual := roundPrefixStep (model := model) input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [roundPrefixInto, roundPrefixStep, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual take-cell read dispatches the original root-copy instruction. -/
-def rootInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .branch (writeInput refs.take) fun value => .classical (rootOp refs value.toBool)
+def rootInto (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .branch (writeInput refs.take) fun value => BitWord.instruction (execution := model) (rootOp
+    refs value.toBool)
 
 /-- The root store and recorded flag come from the same actual incoming state. -/
-def rootStep (refs : Refs ctx width) (store : Store ctx) : Store ctx × (rootInto refs).Path :=
+def rootStep (refs : Refs ctx width) (store : Store ctx) : Store ctx × (rootInto (model := model)
+  refs).Path :=
   let flag := store.read (writeInput refs.take)
-  (store.applyOp (rootOp refs flag.toBool), ⟨flag, ()⟩)
+  let actual := BitWord.instructionStep (execution := model) (rootOp refs flag.toBool) store
+  (actual.1, ⟨flag, actual.2⟩)
 
 /-- The actual stored flag selects the executed copy and is retained in its path. -/
 theorem rootInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (rootInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((rootStep refs entry.1).1, (entry.2, (rootStep refs entry.1).2))) := by
-  exact Circuit.execute_branch_mapClassical (writeInput refs.take)
-    (fun value => .classical (rootOp refs value.toBool))
-    (fun value store => (store.applyOp (rootOp refs value.toBool), ()))
-    (by
-      intro value Reference history _ current
-      refine (Circuit.execute_classical_mapClassical (rootOp refs value.toBool)
-        Reference current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    Reference state
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (rootInto (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      let actual := rootStep (model := model) refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_branch_mapClassical (writeInput refs.take)
+    (fun value => BitWord.instruction (execution := model) (rootOp refs value.toBool))
+    (fun value before =>
+      let actual := BitWord.instructionStep (execution := model) (rootOp refs value.toBool) before.1
+      ((actual.1, before.2), actual.2))
+    (fun value _reference _history _ current =>
+      BitWord.bitWord_instruction_execute (rootOp refs value.toBool) current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The original four-write prefix, stored-flag root copy and native half shift. -/
 def roundInto (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (roundPrefixInto input refs) (.seq (rootInto refs) (.classical (halfOp refs)))
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (roundPrefixInto (model := model) input refs) (.seq (rootInto (model := model) refs)
+    (BitWord.instruction (execution := model) (halfOp refs)))
 
 /-- Complete actual final store and chronological path of the original refinement round. -/
 def roundStep (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (store : Store ctx) : Store ctx × (roundInto input refs).Path :=
-  let prefixResult := roundPrefixStep input refs store
-  let root := rootStep refs prefixResult.1
-  (root.1.applyOp (halfOp refs), (prefixResult.2, (root.2, ())))
+    (refs : Refs ctx width) (store : Store ctx) : Store ctx × (roundInto (model := model) input
+      refs).Path :=
+  let prefixResult := roundPrefixStep (model := model) input refs store
+  let root := rootStep (model := model) refs prefixResult.1
+  let shifted := BitWord.instructionStep (execution := model) (halfOp refs) root.1
+  (shifted.1, (prefixResult.2, (root.2, shifted.2)))
 
 /-- Complete real execution retains prior histories and all original quantum-reference blocks. -/
 theorem roundInto_execute (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (roundInto input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((roundStep input refs entry.1).1, (entry.2, (roundStep input refs entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (roundInto (model := model) input refs).execute Reference state = state.mapClassical (fun
+      entry =>
+      let actual := roundStep (model := model) input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [roundInto, roundStep, Circuit.execute_seq, roundPrefixInto_execute,
-    rootInto_execute, Circuit.execute_classical_mapClassical, State.mapHistory,
+    rootInto_execute, BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

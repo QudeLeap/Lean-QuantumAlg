@@ -203,19 +203,20 @@ theorem sourceWindow_phaseFour {width : Nat} (instruction : Instruction)
       (width + 3 - state.divisorLength.toNat - state.shift.toNat) (by omega)) else none) = _
   rw [dif_pos fits]
 
-private def identity (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  UnitaryCircuit.identity (Qubits (encoding width).width) (List.range (encoding width).width)
-    List.nodup_range
+private def identity (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
+  UnitaryCircuit.identity AlgorithmGate.model .empty (QubitLayout.canonical _).toQuantum
 
 private theorem identity_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (identity width) id :=
-  UnitaryCircuit.Realizes.identityAt (encoding width) (List.range (encoding width).width)
-    List.nodup_range
+  UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+    (encoding width) (QubitLayout.canonical _)
 
 /-- Execute the actual selector at a valid enabled static key, otherwise the actual identity. -/
 def program (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   if enabled instruction selected then
     match selectedWindow instruction selected with
     | some window => ArithmeticSelector.program window (operation instruction)

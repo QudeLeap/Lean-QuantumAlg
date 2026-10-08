@@ -162,7 +162,7 @@ namespace HilbertOperator
 noncomputable section
 
 /-- Tensor product of unrestricted Hilbert-space operators. -/
-def tensor (G : HilbertOperator (Qubits m)) (K : HilbertOperator (Qubits n)) :
+public def tensor (G : HilbertOperator (Qubits m)) (K : HilbertOperator (Qubits n)) :
     HilbertOperator (Qubits (m + n)) :=
   Matrix.reindex prodEquiv prodEquiv (G ⊗ₖ K)
 

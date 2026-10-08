@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Trace
 
@@ -26,6 +27,8 @@ open Execution
 noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
+
+section Descriptor
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
@@ -57,16 +60,6 @@ def remainderOp (division : CWriteRef ctx (divisionShape width))
     ClassicalOp (.unsignedWord (width + 1)) (.unsignedWord width) ctx ctx :=
   .wordResize (width + 1) width ctx (.second (wordRead division)) output
 
-/-- The literal full-product, division and remainder materialization program. -/
-def multiplyBody (left right : CInputRef ctx (.unsignedWord width))
-    (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + width)))
-    (division : CWriteRef ctx (divisionShape width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (productOp left right product))
-    (.seq (.classical (divisionOp product modulus division))
-      (.classical (remainderOp division output)))
-
 /-- The concrete store reached by those three actual operations. -/
 def multiplyStore (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -82,23 +75,6 @@ def multiplyValue (left right : CShape.Word width) (modulus : CShape.Word (width
   CShape.wordResize width
     (CShape.divRem (width + width) (width + 1)
       (.product (CShape.mulFull width width (.product left right)) modulus)).second
-
-/-- The actual three-instruction path preserves every complete quantum-reference block. -/
-theorem nativePowerMultiply_execute
-    (left right : CInputRef ctx (.unsignedWord width))
-    (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + width)))
-    (division : CWriteRef ctx (divisionShape width))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (multiplyBody left right modulus product division output).execute Reference state =
-      state.mapClassical (fun entry =>
-        (multiplyStore left right modulus product division output entry.1,
-          (entry.2, ((), ((), ()))))) := by
-  simp only [multiplyBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
 
 /-- Separated product storage yields exactly the original factors and modulus in the result. -/
 theorem nativePowerMultiply_result
@@ -150,11 +126,60 @@ theorem nativePowerMultiply_read_other
           (Store.read_applyOp_of_not_mem_storageKeys store
             (productOp left right product) other productFree))
 
+end Descriptor
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
+
+/-- The literal full-product, division and remainder materialization program. -/
+def multiplyBody (left right : CInputRef ctx (.unsignedWord width))
+    (modulus : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + width)))
+    (division : CWriteRef ctx (divisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (productOp left right product))
+    (.seq (BitWord.instruction (execution := model) (divisionOp product modulus division))
+      (BitWord.instruction (execution := model) (remainderOp division output)))
+
+/-- Native outputs are recorded at each actual intermediate store. -/
+def multiplyStep (left right : CInputRef ctx (.unsignedWord width))
+    (modulus : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + width)))
+    (division : CWriteRef ctx (divisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (multiplyBody (model := model) left right modulus product division output).Path :=
+  let first := BitWord.instructionStep (execution := model) (productOp left right product) store
+  let second := BitWord.instructionStep (execution := model)
+    (divisionOp product modulus division) first.1
+  let third := BitWord.instructionStep (execution := model) (remainderOp division output) second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+/-- The actual multiplication preserves shared service state and every reference correlation. -/
+theorem nativePowerMultiply_execute
+    (left right : CInputRef ctx (.unsignedWord width))
+    (modulus : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + width)))
+    (division : CWriteRef ctx (divisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (multiplyBody (model := model) left right modulus product division output).execute
+      Reference state = state.mapClassical (fun entry =>
+        let result := multiplyStep (model := model) left right modulus product division
+          output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [multiplyBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 /-- Independent native events for one full-product modular multiplication. -/
-def multiplyEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.mulFull width width),
-    .classicalOperation (.divRem (width + width) (width + 1)),
-    .classicalOperation (.wordResize (width + 1) width)]
+def multiplyEvents (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.mulFull width width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.divRem (width + width) (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (width + 1) width))]
 
 /-- Exactly these three dependent operations occur in the real trace. -/
 theorem nativePowerMultiply_eventTrace
@@ -163,9 +188,17 @@ theorem nativePowerMultiply_eventTrace
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (division : CWriteRef ctx (divisionShape width))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (multiplyBody left right modulus product division output).Path) :
-    (multiplyBody left right modulus product division output).eventTrace path =
-      multiplyEvents kind width := rfl
+    (path : (multiplyBody (model := model) left right modulus product division output).Path) :
+    (multiplyBody (model := model) left right modulus product division output).eventTrace path =
+      multiplyEvents model width := by
+  change (BitWord.instruction (execution := model) (productOp left right product)).eventTrace
+    path.1 ++ ((BitWord.instruction (execution := model)
+      (divisionOp product modulus division)).eventTrace path.2.1 ++
+      (BitWord.instruction (execution := model)
+        (remainderOp division output)).eventTrace path.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Full-product, division and remainder materialization take three actual sequential steps. -/
 theorem nativePowerMultiply_unitDepth
@@ -174,8 +207,9 @@ theorem nativePowerMultiply_unitDepth
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (division : CWriteRef ctx (divisionShape width))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (multiplyBody left right modulus product division output).Path) :
-    (multiplyBody left right modulus product division output).depth (fun _ => 1) path = 3 := rfl
+    (path : (multiplyBody (model := model) left right modulus product division output).Path) :
+    (multiplyBody (model := model) left right modulus product division output).depth
+      (fun _ => 1) path = 3 := rfl
 
 end
 

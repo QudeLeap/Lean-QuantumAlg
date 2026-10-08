@@ -48,7 +48,7 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : 
 theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (ParameterShape N).Value → previousShape.Value →
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
@@ -57,7 +57,8 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
           (entry.1.read (finalInput base noQuantum N previous))
           (entry.1.read (finalResults base noQuantum N)).get) leftRef rightRef =
       ExecutionState.referenceFiberSum
-        ((ShorStyle.Canonical.Sampler.Retained.circuit base N).execute Reference state)
+        ((ShorStyle.Canonical.Sampler.Retained.circuit
+          (model := RuntimeRound.model) base N).execute Reference state)
         (fun entry _ => conditionalMoment weight
           (entry.1.read (.storage
             (ShorStyle.Canonical.Sampler.Retained.parameterRef base N).toCStorageRef))
@@ -77,7 +78,8 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
       (nativeBatch_readyInput_product base noQuantum N parameterInput previous)
   have aligned := congrArg
     (fun observe : (Store (readyContext base noQuantum N) ×
-        (History × (initializeBank base noQuantum N).Path)) →
+        (RuntimeRound.model.HiddenState ×
+          (History × (initializeBank base noQuantum N).Path))) →
         (readyContext base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum ((initializeBank base noQuantum N).execute Reference state)
         observe leftRef rightRef)
@@ -94,7 +96,7 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
 /-- The actual batch's complete joint reference weight has one uniform source and sixteen draws. -/
 theorem nativeBatch_source_weighted_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value →
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
@@ -112,7 +114,8 @@ theorem nativeBatch_source_weighted_reference (input : Input N)
     (.storage (ShorStyle.Canonical.Sampler.Retained.sampleRef base N).toCStorageRef)
     state weight leftRef rightRef).trans
     (ShorStyle.Canonical.Sampler.Retained.samplerRetained_parameter_sample_reference
-      input.samplerInput state (conditionalMoment weight) leftRef rightRef)
+      (model := RuntimeRound.model) input.samplerInput state
+      (conditionalMoment weight) leftRef rightRef)
 
 end
 

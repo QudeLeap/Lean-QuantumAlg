@@ -83,14 +83,17 @@ theorem decisionComparison_read_other (shared : Proposal.SharedRefs ctx width)
           (.wordResize width (width + 1) ctx
             (FirstAccepted.cellRead shared.selector.selected) scratch.extended) other extendedFree)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The accepted store composes actual reduction, comparison, and stored branching. -/
 theorem decisionAccepted_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    (acceptedStep shared scratch gcdResult store).1 =
-      (resultStep shared scratch gcdResult
+    (acceptedStep (model := model) shared scratch gcdResult store).1 =
+      (resultStep (model := model) shared scratch gcdResult
         (comparisonStore shared scratch gcdResult
-          (reducedStore shared scratch gcdResult store))).1 := rfl
+          (reducedStore (model := model) shared scratch gcdResult store))).1 := rfl
 
 end
 

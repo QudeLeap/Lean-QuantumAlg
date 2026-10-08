@@ -24,7 +24,8 @@ noncomputable section
 
 /-- The fixed algorithm contains precisely the one original actual measured P-256 run. -/
 public def algorithm (I : P256.DomainParameters.PublicKeyInstance) :
-    Algorithm .quantum (P256.ActualRun.Pre I) (P256.ActualRun.Post I)
+    Algorithm (.quantum AlgorithmGate.model .empty BitWord.model)
+      (P256.ActualRun.Pre I) (P256.ActualRun.Post I)
       (P256.ActualRun.OutputShape I) where
   run := P256.ActualRun.run I
 
@@ -32,12 +33,13 @@ public def algorithm (I : P256.DomainParameters.PublicKeyInstance) :
 theorem algorithm_solves (I : P256.DomainParameters.PublicKeyInstance) :
     (algorithm I).Solves (problem I) := by
   let : Fact P256.DomainParameters.fieldModulus.Prime := ⟨I.curveCert.prime⟩
-  exact LogicalResources.main (P256.DomainParameters.curve I.curveCert) 255
+  rcases LogicalResources.main (P256.DomainParameters.curve I.curveCert) 255
     P256.Measured.fieldTail_sameWidth P256.Measured.fieldTail_fits
     (P256.Measured.fieldModulus_odd I.curveCert) (P256.Cascade.ecdlpInstance I)
     (P256.Cascade.addend I) (P256.Measured.fixedSeed I)
     (P256.Measured.addend_original_encoding I) 4714 ((1 : ℝ) / 100)
-    (P256.Measured.repetitionCondition I)
+    (P256.Measured.repetitionCondition I) with ⟨_cycles, correct, _coordinates, _wholeRun⟩
+  exact correct
 
 end
 

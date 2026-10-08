@@ -70,7 +70,8 @@ private theorem multiplication_columns (modulus : Nat) (prime : Nat.Prime modulu
 /-- Actual division gives the exact independent full joint target on the prepared support. -/
 theorem division_density (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context modulus.size) Reference History)
+    (state : State (context modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ basis : (Register.prod (context modulus.size).register Reference).Index,
       ¬InPlacePreparedSupport.admissible modulus basis.1 →
         state.quantumMarginal.matrix basis basis = 0) :
@@ -93,7 +94,8 @@ theorem division_density (modulus : Nat) (prime : Nat.Prime modulus)
 /-- Actual multiplication gives the same strong full-state result for its independent product. -/
 theorem multiplication_density (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context modulus.size) Reference History)
+    (state : State (context modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ basis : (Register.prod (context modulus.size).register Reference).Index,
       ¬InPlacePreparedSupport.admissible modulus basis.1 →
         state.quantumMarginal.matrix basis basis = 0) :

@@ -119,19 +119,22 @@ theorem reverse_step (width : Nat) (enough : 2 ≤ width.size) (state : Register
 
 /-- The compiled native circuit is precisely the same actual three-list predicate. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Exact complete-frame ket semantics retains every coordinate and relative amplitude. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough)
       (fun state => xorControl (condition state) state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width enough) (gates_step width enough)
 
 /-- Every actual elementary event of every conjunction appears in the real circuit trace. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).eventTrace = (gates width enough).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width enough).eventTrace =
+      (gates width enough).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 /-- The new conjunction's actual count has a linear bound, including both source masks. -/
 theorem clockDivisorGates_length_le (width : Nat) :
@@ -147,7 +150,7 @@ theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
 /-- Strict unit duration is the full actual list length, without a selector-time convention. -/
 theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

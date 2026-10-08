@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Basic
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Context
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Storage
+import all QuantumAlg.Components.Classical.Model.BitWord.Placement
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Measurement.Cells
 import all QuantumAlg.Core.Execution.Measurement.Sequence
@@ -30,29 +31,32 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-def preparationCode (t n : Nat) : Circuit pre (preparedContext t n) :=
-  .prepare pre ⟨0⟩ (runtimeLayout t n) preparationFresh
-    (preparationDisjoint t n) (inputPreparation t n)
+def preparationCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    Circuit (model E) pre (preparedContext t n) :=
+  .prepareZero pre ⟨0⟩ (runtimeLayout t n) preparationFresh (preparationDisjoint t n)
 
-def allocationCode (t n : Nat) : Circuit (preparedContext t n) (post t n) :=
-  .seq (.retain (preparedContext t n) ⟨1⟩ (.bits t) (resultFresh t n))
-    (MeasurementCells.allocate (resultContext t n) 2 t)
+def allocationCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    Circuit (model E) (preparedContext t n) (post t n) :=
+  .seq (.retain (model := model E) (preparedContext t n) ⟨1⟩ (.bits t) (resultFresh t n))
+    (MeasurementCells.allocate (model := model E) (resultContext t n) 2 t)
 
 def beforeMeasurement {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit pre (post t n) :=
-  .seq (preparationCode t n)
-    (.seq (.unitary (nativeProgram E t) (nativeProgram_placement E t)) (allocationCode t n))
+    Circuit (model E) pre (post t n) :=
+  .seq (preparationCode E t)
+    (.seq (.unitary (nativeProgram E t)) (allocationCode E t))
 
-def readoutCode (t n : Nat) : Circuit (post t n) (post t n) :=
-  .seq (Circuit.measurementSequence (readouts t n)) (.classical (packing t n))
+def readoutCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    Circuit (model E) (post t n) (post t n) :=
+  .seq (Circuit.measurementSequence (readouts t n)) (.classical (BitWord.application (packing t n)))
 
-/-- One native code value at every width. Width zero still charges preparation and packing. -/
-def code {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) : Circuit pre (post t n) :=
-  .seq (beforeMeasurement E t) (readoutCode t n)
+/-- The full actual word prepares existing qubits and performs explicit classical packing. -/
+def code {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    Circuit (model E) pre (post t n) :=
+  .seq (beforeMeasurement E t) (readoutCode E t)
 
 /-- The explicit complete manifest reads the actual packed phase bits. -/
 def run {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    AlgorithmRun pre (post t n) (.bits t) where
+    AlgorithmRun (model E) pre (post t n) (.bits t) where
   code := code E t
   output := Output.all (post t n) (.read (.storage (resultRef t n).toCStorageRef))
 

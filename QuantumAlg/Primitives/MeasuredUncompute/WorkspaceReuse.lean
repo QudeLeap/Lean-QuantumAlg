@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MeasuredUncompute.Product.Placement
-import all QuantumAlg.Components.Encoded.BitGates.PlacedBasis
+import all QuantumAlg.Components.Encoded.BitGates.FullPlacement
 
 /-!
 # Actual placement of shared arithmetic on the reset Y workspace

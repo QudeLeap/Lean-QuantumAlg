@@ -29,20 +29,39 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+variable {ctx : RuntimeCtx model.kind} {width : Nat}
+
+/-- Store and exact native outputs of the equality and option-pack sequence. -/
+def zeroBodyStep (candidate : CInputRef ctx (.unsignedWord width))
+    (tag : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
+    (before : Store ctx) : Store ctx × (zeroBody candidate tag output).Path :=
+  let tagged := BitWord.instructionStep (execution := model) (tagOp candidate tag) before
+  let packed := BitWord.instructionStep (execution := model) (packOp candidate tag output) tagged.1
+  (packed.1, (tagged.2, packed.2))
 
 /-- Both original native instructions preserve the full quantum reference and actual history. -/
 theorem zeroBody_execute (candidate : CInputRef ctx (.unsignedWord width))
     (tag : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (zeroBody candidate tag output).execute Reference state = state.mapClassical
-      (fun entry => (zeroBodyStore candidate tag output entry.1, (entry.2, ((), ())))) := by
-  simp only [zeroBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+      (fun entry =>
+        let result := zeroBodyStep candidate tag output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [zeroBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
+/-- The record's store is the deterministic update used by the value proof. -/
+theorem zeroBodyStep_store (candidate : CInputRef ctx (.unsignedWord width))
+    (tag : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
+    (before : Store ctx) :
+    (zeroBodyStep candidate tag output before).1 =
+      zeroBodyStore candidate tag output before := by
+  rfl
+
+omit [BitWord.Selected model] in
 /-- The same actual candidate determines both the true comparison and the packed word. -/
 theorem zeroBodyStore_eq (candidate : CInputRef ctx (.unsignedWord width))
     (tag : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
@@ -66,6 +85,7 @@ theorem zeroBodyStore_eq (candidate : CInputRef ctx (.unsignedWord width))
   rw [tagRead, candidateRead]
   rfl
 
+omit [BitWord.Selected model] in
 private theorem candidate_initialized (cells : Cells ctx (zeroShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) :
     store.read (.storage cells.tail.head.ref.toCStorageRef) = CShape.wordOfNat width 0 := by
@@ -77,6 +97,7 @@ private theorem candidate_initialized (cells : Cells ctx (zeroShapes width))
       change store.read (.storage candidate.ref.toCStorageRef) = CShape.wordOfNat width 0
       simpa [CShape.wordOfNat] using initialized.2.1
 
+omit [BitWord.Selected model] in
 private theorem tag_candidate_separate (cells : Cells ctx (zeroShapes width))
     (distinct : cells.Distinct) :
     cells.head.ref.key ∉ (CInputRef.storage cells.tail.head.ref.toCStorageRef).storageKeys := by
@@ -89,7 +110,8 @@ private theorem tag_candidate_separate (cells : Cells ctx (zeroShapes width))
       change tag.ref.key ∉ (CInputRef.storage candidate.ref.toCStorageRef).storageKeys
       simpa only [CInputRef.storageKeys, List.mem_singleton] using different
 
-private theorem tag_avoids {outer : RuntimeCtx kind} (cells : Cells ctx (zeroShapes width))
+omit [BitWord.Selected model] in
+private theorem tag_avoids {outer : RuntimeCtx model.kind} (cells : Cells ctx (zeroShapes width))
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     {shape : CShape} (input : CInputRef outer shape) :
     cells.head.ref.key ∉ (transport.liftInput input).storageKeys := by
@@ -98,33 +120,36 @@ private theorem tag_avoids {outer : RuntimeCtx kind} (cells : Cells ctx (zeroSha
 
 /-- Actual original allocation supplies the candidate and returns precisely one caller write. -/
 theorem zeroInto_actualRecord (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    ∃ record : Store ctx → Store ctx × (zeroInto output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (zeroInto output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (zeroInto output).execute Reference state = state.mapClassical
-          (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
-        before.write output (.optionSome (CShape.wordOfNat width 0)) := by
+          (fun entry =>
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
+        before.1.write output (.optionSome (CShape.wordOfNat width 0)) := by
   apply withCells_actualRecord_initialized_post ctx (zeroShapes width)
     (fun cells _ transport _ => zeroBody (.storage cells.tail.head.ref.toCStorageRef)
       cells.head.ref (transport.liftWrite output))
     (fun source target => target = source.write output (.optionSome (CShape.wordOfNat width 0)))
   intro inner cells distinct transport separated
-  refine ⟨fun store => (zeroBodyStore (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
-    (transport.liftWrite output) store, ((), ())), ?_, ?_⟩
+  refine ⟨fun before =>
+    let result := zeroBodyStep (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
+      (transport.liftWrite output) before.1
+    ((result.1, before.2), result.2), ?_, ?_⟩
   · intro reference history _ initial
-    refine (zeroBody_execute _ _ _ reference initial).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+    exact zeroBody_execute _ _ _ reference initial
   intro source before reads initialized
   refine ⟨source.write output (.optionSome (CShape.wordOfNat width 0)), rfl, ?_⟩
   have bodyResult := zeroBodyStore_eq (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref
-    (transport.liftWrite output) before (tag_candidate_separate cells distinct)
-  rw [candidate_initialized cells before initialized] at bodyResult
+    (transport.liftWrite output) before.1 (tag_candidate_separate cells distinct)
+  rw [candidate_initialized cells before.1 initialized] at bodyResult
   have afterTag : transport.ReadsAs source
-      (before.applyOp (tagOp (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref)) := by
+      (before.1.applyOp (tagOp (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref)) := by
     intro shape input
-    exact (Store.read_applyOp_of_not_mem_storageKeys before
+    exact (Store.read_applyOp_of_not_mem_storageKeys before.1
       (tagOp (.storage cells.tail.head.ref.toCStorageRef) cells.head.ref)
       (transport.liftInput input) (tag_avoids cells transport separated input)).trans (reads input)
   apply (congrArg (transport.ReadsAs
@@ -134,39 +159,46 @@ theorem zeroInto_actualRecord (output : CWriteRef ctx (.option (.unsignedWord wi
 
 /-- The actual zero routine has its certified Store and actual lexical execution path. -/
 def zeroIntoStep (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    Store ctx → Store ctx × (zeroInto output).Path :=
+    Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (zeroInto output).Path :=
   Classical.choose (zeroInto_actualRecord output)
 
 /-- Complete zero-routine execution follows the same actual record for every input state. -/
 theorem zeroInto_execute (output : CWriteRef ctx (.option (.unsignedWord width)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (zeroInto output).execute Reference state = state.mapClassical (fun entry =>
-      ((zeroIntoStep output entry.1).1, (entry.2, (zeroIntoStep output entry.1).2))) :=
+      let result := zeroIntoStep output (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (zeroInto_actualRecord output)).1 Reference state
 
 /-- The actual zero-routine return changes exactly the selected destination. -/
 theorem zeroIntoStep_store (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (before : Store ctx) :
-    (zeroIntoStep output before).1 = before.write output (.optionSome (CShape.wordOfNat width 0)) :=
+    (before : Store ctx × model.HiddenState) :
+    (zeroIntoStep output before).1.1 =
+      before.1.write output (.optionSome (CShape.wordOfNat width 0)) :=
   (Classical.choose_spec (zeroInto_actualRecord output)).2 before
 
 /-- The retained original endpoint preserves every caller entry and returns the actual some-zero. -/
-theorem zeroRetained_actualRecord (ctx : RuntimeCtx kind) (width : Nat)
+theorem zeroRetained_actualRecord (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    ∃ record : Store ctx → Store (ctx.addRetained key (.option (.unsignedWord width)) fresh) ×
-        (zeroRetained ctx width key fresh).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store (ctx.addRetained key (.option (.unsignedWord width)) fresh) × model.HiddenState) ×
+          (zeroRetained ctx width key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (zeroRetained ctx width key fresh).execute Reference state = state.mapClassical
-          (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
-        (before.pushRetained key (.option (.unsignedWord width)) fresh).write
+          (fun entry =>
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
+        (before.1.pushRetained key (.option (.unsignedWord width)) fresh).write
           (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh)
           (.optionSome (CShape.wordOfNat width 0)) := by
   let output := CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh
-  let record (before : Store ctx) :=
-    let final := zeroIntoStep output (before.pushRetained key (.option (.unsignedWord width)) fresh)
+  let record (before : Store ctx × model.HiddenState) :=
+    let final := zeroIntoStep output
+      (before.1.pushRetained key (.option (.unsignedWord width)) fresh, before.2)
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
@@ -175,29 +207,33 @@ theorem zeroRetained_actualRecord (ctx : RuntimeCtx kind) (width : Nat)
     congr 1
     exact Subsingleton.elim _ _
   · intro before
-    exact zeroIntoStep_store output (before.pushRetained key (.option (.unsignedWord width)) fresh)
+    exact zeroIntoStep_store output
+      (before.1.pushRetained key (.option (.unsignedWord width)) fresh, before.2)
 
 /-- The original retained endpoint has its certified actual Store and retained execution path. -/
-def zeroRetainedStep (ctx : RuntimeCtx kind) (width : Nat)
+def zeroRetainedStep (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    Store ctx → Store (ctx.addRetained key (.option (.unsignedWord width)) fresh) ×
-      (zeroRetained ctx width key fresh).Path :=
+    Store ctx × model.HiddenState →
+      (Store (ctx.addRetained key (.option (.unsignedWord width)) fresh) × model.HiddenState) ×
+        (zeroRetained ctx width key fresh).Path :=
   Classical.choose (zeroRetained_actualRecord ctx width key fresh)
 
 /-- The same actual retained record preserves every complete quantum-reference block. -/
-theorem zeroRetained_execute (ctx : RuntimeCtx kind) (width : Nat)
+theorem zeroRetained_execute (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (zeroRetained ctx width key fresh).execute Reference state = state.mapClassical (fun entry =>
-      ((zeroRetainedStep ctx width key fresh entry.1).1,
-        (entry.2, (zeroRetainedStep ctx width key fresh entry.1).2))) :=
+      let result := zeroRetainedStep ctx width key fresh (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (zeroRetained_actualRecord ctx width key fresh)).1 Reference state
 
 /-- Actual retention leaves the original caller Store and the single retained some-zero result. -/
-theorem zeroRetainedStep_store (ctx : RuntimeCtx kind) (width : Nat)
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (before : Store ctx) :
-    (zeroRetainedStep ctx width key fresh before).1 =
-      (before.pushRetained key (.option (.unsignedWord width)) fresh).write
+theorem zeroRetainedStep_store (ctx : RuntimeCtx model.kind) (width : Nat)
+    (key : StorageKey) (fresh : key ∉ ctx.keys)
+    (before : Store ctx × model.HiddenState) :
+    (zeroRetainedStep ctx width key fresh before).1.1 =
+      (before.1.pushRetained key (.option (.unsignedWord width)) fresh).write
         (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh)
         (.optionSome (CShape.wordOfNat width 0)) :=
   (Classical.choose_spec (zeroRetained_actualRecord ctx width key fresh)).2 before

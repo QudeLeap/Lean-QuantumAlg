@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.State
+import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.MarginalLaws
 import all QuantumAlg.Core.Execution.Local.Marginals
 
@@ -29,25 +30,27 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- The same instruction conjugates the complete joint input and its external reference. -/
-theorem unitary_jointDensity {ctx : RuntimeCtx .quantum}
-    (program : UnitaryCircuit ctx.register) (placement : program.physical_idx = ctx.physicalIdx)
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    ((Circuit.unitary program placement).execute Reference state).quantumMarginal =
+theorem unitary_jointDensity {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (services.HiddenState × H)) :
+    ((Circuit.unitary (operations := operations) (classicalOracles := services) program).execute
+      Reference state).quantumMarginal =
       DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
-        state.quantumMarginal :=
-  (ExecutionState.mapClassical_quantumMarginal
-    (state.applyUnitary fun _ =>
-      UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
-    (fun value => (value.1, (value.2, ())))).trans
-      (ExecutionState.fixedUnitary_quantumMarginal state
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)))
+        state.quantumMarginal := by
+  simp only [execute_unitary, ExecutionState.mapClassical_quantumMarginal]
+  exact ExecutionState.fixedUnitary_quantumMarginal state
+    (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
 
 /-- A placed unitary conjugates the actual incoming local quantum marginal. -/
-theorem unitary_localDensity {ctx : RuntimeCtx .quantum}
-    (program : UnitaryCircuit ctx.register) (placement : program.physical_idx = ctx.physicalIdx)
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    ((Circuit.unitary program placement).execute
+theorem unitary_localDensity {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (services.HiddenState × H)) :
+    ((Circuit.unitary (operations := operations) (classicalOracles := services) program).execute
       Reference state).quantumMarginal.marginalLeft =
         DensityOperator.applyUnitary program.matrix state.quantumMarginal.marginalLeft := by
   rw [unitary_jointDensity]

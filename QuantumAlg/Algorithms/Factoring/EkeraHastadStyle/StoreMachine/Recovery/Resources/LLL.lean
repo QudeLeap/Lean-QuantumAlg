@@ -33,8 +33,7 @@ private theorem savedTargetOperationBound_le (N : Nat) :
       nearestPlaneSavedTargetCardBound (shortLogBits N) (tradeoffBits N) := by
   have measurementEq :
       measurementBits N = shortLogBits N + 2 * tradeoffBits N := by
-    unfold measurementBits registerParameters
-    simp only [ShortDLP.CompiledMAU.registerParameters, ShortDLP.firstBits]
+    unfold measurementBits
     omega
   unfold LatticePairNearestPlaneSavedTarget.operationBound
     LatticeWideLllMachine.operationBound LatticeWideLllMachine.decodeTargetOperationBound
@@ -46,7 +45,8 @@ private theorem savedTargetOperationBound_le (N : Nat) :
   omega
 
 /-- Every actual saved-target path satisfies the original independent public-width event bound. -/
-theorem pairNearestSavedTarget_eventCount_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem pairNearestSavedTarget_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {N : Nat} (refs : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (path : (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).Path) :
     ((LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).eventTrace
@@ -55,7 +55,8 @@ theorem pairNearestSavedTarget_eventCount_le {kind : ProblemKind} {ctx : Runtime
     refs path).trans (savedTargetOperationBound_le N)
 
 /-- The complete actual dependency depth satisfies the same independent public-width bound. -/
-theorem pairNearestSavedTarget_depth_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem pairNearestSavedTarget_depth_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {N : Nat} (refs : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (path : (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).Path) :
     (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).depth

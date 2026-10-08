@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Resources
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.Native.Finite.Events
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit.Depth
 
 /-!
@@ -38,7 +38,7 @@ def recoveryDepthWidthBound (modulusWidth m ell coordinateWidth : Nat) : Nat :=
       (1 + (85 * 69 ^ 2) * (170 + 2 * modulusWidth + 6 * coordinateWidth)) +
       (14 * (coordinateWidth + 1) + 38))
 
-/-- Closed scalar ceiling charges one initial preparation and one final pack for positive counts. -/
+/-- The scalar ceiling includes initial preparation and loading within the round-width slack. -/
 def scalarDepthBound (N : Nat) : Nat → Nat
   | 0 => 0
   | count + 1 => (count + 1) *
@@ -112,8 +112,7 @@ private theorem nearest_depth_le (N : Nat) :
       8 * shortLogBits N + 12 * tradeoffBits N + 258 +
         264 * (12 * (tradeoffBits N + shortLogBits N) + 10) := by
   have measured : measurementBits N = shortLogBits N + 2 * tradeoffBits N := by
-    unfold measurementBits registerParameters
-    simp only [ShortDLP.CompiledMAU.registerParameters, ShortDLP.firstBits]
+    unfold measurementBits
     omega
   unfold LatticePairNearestPlaneSavedTarget.operationBound LatticeWideLllMachine.operationBound
     LatticeWideLllMachine.decodeTargetOperationBound LatticeWideInitializationPrefix.operationBound
@@ -155,8 +154,24 @@ theorem depthBound_le_scalarDepthBound (N totalRounds : Nat) :
   cases totalRounds with
   | zero => exact Nat.le_refl 0
   | succ count =>
-    have round := round_unitDepthBound_le_widthBound
+    have member := compiledCircuitEventUnitDepth_le_widthBound
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
+    have reload := seedReload_count_le_one
+      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
+    have bank := bank_qubits_ge_three N
+    have nonempty : ShortDLP.totalQubits
+        (ShortDLP.CompiledMAU.registerParameters
+          (shortLogBits N) (tradeoffBits N) (arithmeticBits N)) ≠ 0 := by
+      omega
+    have round :
+        RuntimeRound.unitDepthBound (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N + 1 ≤
+          roundDepthWidthBound (shortLogBits N) (tradeoffBits N) (arithmeticBits N) := by
+      rw [totalQubits_eq] at bank
+      unfold RuntimeRound.unitDepthBound roundDepthWidthBound
+      rw [totalQubits_eq]
+      change _ + ((tradeoffBits N + shortLogBits N + tradeoffBits N) +
+        (1 + (2 * (shortLogBits N + 2 * tradeoffBits N + 2 * arithmeticBits N) + _))) + 1 ≤ _
+      omega
     have recovery := recovery_depthBound_le_widthBound N
     have batch := Nat.add_le_add (Nat.mul_le_mul_left 16 round) recovery
     have repeated := Nat.mul_le_mul_left (count + 1) batch
@@ -164,6 +179,7 @@ theorem depthBound_le_scalarDepthBound (N totalRounds : Nat) :
       NativeRetryChain.suffixDepthBound NativeBatchRecovery.depthBound
       NativeBatchReuseRecovery.depthBound NativeBatch.unitDepthBound NativeBatchReuse.unitDepthBound
       scalarDepthBound
+    rw [if_neg nonempty]
     nlinarith
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}

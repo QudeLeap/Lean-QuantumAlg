@@ -36,21 +36,19 @@ def measurement (ctx : RuntimeCtx .quantum) (keys : StorageKey ↪ StorageKey)
     (positions_dimension ctx keys physical wire).symm) (writable keys physical output)
 
 /-- Rebuild the original local instructions with their prescribed physical and storage maps. -/
-def localCircuit : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) →
+def localCircuit : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
     (keys : StorageKey ↪ StorageKey) → (physical : Nat ↪ Nat) →
-    Circuit (pre.relabel keys physical) (post.relabel keys physical)
+    Circuit model (pre.relabel keys physical) (post.relabel keys physical)
   | _, _, _, .id ctx, _, keys, physical => .id (ctx.relabel keys physical)
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary (ctx := ctx) program placed, _, keys, physical =>
-      .unitary (unitaryProgram ctx keys physical program placed)
-        (unitaryProgram_physical ctx keys physical program placed)
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary (ctx := ctx) program, _, keys, physical =>
+      .unitary (unitaryProgram ctx keys physical program)
   | _, _, _, .measureZ (ctx := ctx) wire output, _, keys, physical =>
       .measureZ (positions ctx keys physical wire) (measurement ctx keys physical wire output)
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, keys, physical =>
       .seq (localCircuit first supported.1 keys physical)
         (localCircuit second supported.2 keys physical)
@@ -62,19 +60,18 @@ def localCircuit : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _ => False.elim supported
 
 /-- The actual finite paths retain every observed outcome and stored-value branch choice. -/
-def localPathEquiv : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) →
+def localPathEquiv : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
     (keys : StorageKey ↪ StorageKey) → (physical : Nat ↪ Nat) →
     code.Path ≃ (localCircuit code supported keys physical).Path
   | _, _, _, .id _, _, _, _ => Equiv.refl Unit
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary _ _, _, _, _ => Equiv.refl Unit
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary _, _, _, _ => Equiv.refl Unit
   | _, _, _, .measureZ (ctx := ctx) wire _, _, keys, physical =>
       finCongr (congrArg PNat.val (positions_dimension ctx keys physical wire).symm)
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, keys, physical =>
       Equiv.prodCongr (localPathEquiv first supported.1 keys physical)
         (localPathEquiv second supported.2 keys physical)
@@ -86,18 +83,17 @@ def localPathEquiv : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _ => False.elim supported
 
 /-- Rebuilt instructions remain in the same local fragment of the original interpreter. -/
-theorem localCircuit_isLocal : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) →
+theorem localCircuit_isLocal : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
     (keys : StorageKey ↪ StorageKey) → (physical : Nat ↪ Nat) →
     (localCircuit code supported keys physical).IsLocal
   | _, _, _, .id _, _, _, _ => trivial
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary _ _, _, _, _ => trivial
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary _, _, _, _ => trivial
   | _, _, _, .measureZ _ _, _, _, _ => trivial
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, keys, physical =>
       ⟨localCircuit_isLocal first supported.1 keys physical,
         localCircuit_isLocal second supported.2 keys physical⟩

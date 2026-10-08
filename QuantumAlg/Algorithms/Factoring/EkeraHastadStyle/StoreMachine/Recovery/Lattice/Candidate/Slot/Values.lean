@@ -53,8 +53,9 @@ theorem selectedOption_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind}
       simp [RSA.retainFirstShortLogCandidate]
 
 /-- An actual conjunction-selector outcome feeds the original three-check candidate option. -/
-theorem candidateSelectorOutcome_selectedOption {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} {width : Nat} (refs : LatticeCandidateSelector.Refs ctx width)
+theorem candidateSelectorOutcome_selectedOption {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} {width : Nat}
+    (refs : LatticeCandidateSelector.Refs ctx width)
     (before after : Store ctx) (holds : LatticeCandidateSelector.Outcome refs before after) :
     selectedOption refs.selection after =
       RSA.retainFirstShortLogCandidate (selectedOption refs.selection before)
@@ -71,8 +72,9 @@ theorem candidateSelectorOutcome_selectedOption {kind : ProblemKind}
       simp [RSA.retainFirstShortLogCandidate]
 
 /-- The actual executed selector retains exactly the first source-checked candidate. -/
-theorem candidateSelectorInto_selectedOption {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} {width : Nat} (refs : LatticeCandidateSelector.Refs ctx width)
+theorem candidateSelectorInto_selectedOption {model : ExecutionModel}
+    [BitWord.Selected model] {ctx : RuntimeCtx model.kind} {width : Nat}
+    (refs : LatticeCandidateSelector.Refs ctx width)
     (separation : LatticeCandidateSelector.Separation refs) (store : Store ctx) :
     selectedOption refs.selection (LatticeCandidateSelector.selectorStep refs store).1 =
       RSA.retainFirstShortLogCandidate (selectedOption refs.selection store)
@@ -117,8 +119,8 @@ theorem slotCheckedOption_eq_shortLogCandidateAtOffset {N : Nat} (m ell : Nat)
           simp_all [slotCheckedOption]
 
 /-- A range-accepted actual exponent outcome exposes the source integer's natural value. -/
-theorem candidateExponentOutcome_toNat_of_inRange {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} {width : Nat}
+theorem candidateExponentOutcome_toNat_of_inRange {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (refs : LatticeCandidateExponent.Refs ctx width) (exponentBits : Nat)
     (before after : Store ctx)
     (candidate : Int)

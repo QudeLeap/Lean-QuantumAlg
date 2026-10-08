@@ -25,7 +25,7 @@ noncomputable section
 def one {N : Nat} (source : Input N) (weight : SourceOutcome N → ℂ) : ℂ :=
   ∑ sample : Fin (2 ^ residueSamplingBits N),
     (((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ : ℂ) *
-      ∑ outcome : OrderFinding.Outcome (phaseBits N),
+      ∑ outcome : TerminalZMeasure.Outcome (phaseBits N),
         weight ⟨sample, outcome⟩ * ((sourceSampleOutcomePMF source sample outcome).toReal : ℂ)
 
 /-- The ordered finite product of exactly the same original source law. -/

@@ -89,7 +89,8 @@ theorem convertedCircuit_density_of_input_trajectory {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] {count : Nat}
     (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size count) Reference H)
+    (original : State (before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬convertedInputTrajectory E points order coefficient input.1 →
         original.quantumMarginal.matrix input input = 0) :

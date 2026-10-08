@@ -145,13 +145,16 @@ theorem reverse_step (width : Nat) (expected : Pattern width) (state : Registers
 
 /-- Compile exactly the equality list used in the full-register proof. -/
 def program (width : Nat) (expected : Pattern width) :
-    UnitaryCircuit (Qubits (encoding width).width) := GateSpec.programList (gates width expected)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width expected)
 
 /-- Exact all-label equality-predicate realization with no discarded relative phase. -/
 theorem program_realizes (width : Nat) (expected : Pattern width) :
     UnitaryCircuit.Realizes (encoding width) (program width expected)
       (fun state => xorControl (condition expected state) state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width expected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width expected) (gates_step width expected)
 
 /-- Exact count of every source mask and every native borrowed-work zero-test event. -/
 theorem gates_length (width : Nat) (expected : Pattern width) :

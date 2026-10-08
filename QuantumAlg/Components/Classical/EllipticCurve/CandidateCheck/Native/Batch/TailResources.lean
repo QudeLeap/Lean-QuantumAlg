@@ -25,13 +25,16 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- The same complete tail includes every actual attempt and its final option-pack event. -/
-def recoveryTailEnvelope (kind : ProblemKind) (curve : CurveSpec width)
-    (modulus : ModulusSpec scalarWidth) (count : Nat) : ResourcePool kind :=
-  repeatedAttemptsEnvelope kind curve modulus count +
-    ResourcePool.ofList [.classicalOperation (.nominalEncoding (.packOption scalarWidth))]
+def recoveryTailEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (count : Nat) : ResourcePool model :=
+  repeatedAttemptsEnvelope model curve modulus count +
+    ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.packOption scalarWidth)))]
 
 /-- The final optional result and the loop's lexical scratch occur in successive scopes. -/
 def recoveryTailScratchSpace (kind : ProblemKind) (width scalarWidth : Nat) : SpacePool kind :=
@@ -54,12 +57,12 @@ theorem recoveryBatch_eventTrace
 theorem recoveryBatch_pool_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).resourcePool path ≤
-      repeatedAttemptsEnvelope kind curve modulus count := by
+      repeatedAttemptsEnvelope model curve modulus count := by
   rw [Circuit.resourcePool, recoveryBatch_eventTrace]
   exact repeatedAttempts_pool_le curve modulus samples base target path.2
 
 /-- Real allocation adds no native duration to the original serial attempt loop. -/
-theorem recoveryBatch_depth_le (duration : Resource.Event kind → Nat)
+theorem recoveryBatch_depth_le (duration : Resource.Event model → Nat)
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration := by
@@ -71,7 +74,7 @@ theorem recoveryBatch_depth_le (duration : Resource.Event kind → Nat)
 theorem recoveryBatch_resident_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).peakResidentSpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · rw [retainPersistent_resident]
@@ -82,7 +85,7 @@ theorem recoveryBatch_resident_le
 theorem recoveryBatch_auxiliary_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).peakAuxiliarySpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · rw [retainPersistent_auxiliary]
@@ -93,18 +96,19 @@ theorem recoveryBatch_auxiliary_le
 theorem recoveryTail_pool_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).resourcePool path ≤
-      recoveryTailEnvelope kind curve modulus count := by
+      recoveryTailEnvelope model curve modulus count := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (recoveryBatch_pool_le curve modulus samples base target path.1)
     (packBatchResult_resourcePool ctx width scalarWidth path.2).le
 
 /-- The same complete tail keeps all attempt durations and the final pack dependency. -/
-theorem recoveryTail_depth_le (duration : Resource.Event kind → Nat)
+theorem recoveryTail_depth_le (duration : Resource.Event model → Nat)
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration +
-        duration (.classicalOperation (.nominalEncoding (.packOption scalarWidth))) :=
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.nominalEncoding (.packOption scalarWidth)))) :=
   Nat.add_le_add (recoveryBatch_depth_le curve modulus samples base target duration path.1)
     (packBatchResult_depth ctx width scalarWidth duration path.2).le
 
@@ -112,10 +116,11 @@ theorem recoveryTail_depth_le (duration : Resource.Event kind → Nat)
 theorem recoveryTail_resident_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).peakResidentSpace path ≤
-      recoveryTailScratchSpace kind width scalarWidth + persistentCellSpace kind width scalarWidth +
+      recoveryTailScratchSpace model.kind width scalarWidth +
+        persistentCellSpace model.kind width scalarWidth +
         ctx.residentSpace := by
   have bounded : (recoveryTail curve modulus samples base target).peakResidentSpace path ≤
-      recoveryTailScratchSpace kind width scalarWidth +
+      recoveryTailScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).residentSpace := by
     refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
     · exact (recoveryBatch_resident_le curve modulus samples base target path.1).trans
@@ -128,10 +133,11 @@ theorem recoveryTail_resident_le
 theorem recoveryTail_auxiliary_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).peakAuxiliarySpace path ≤
-      recoveryTailScratchSpace kind width scalarWidth + persistentCellSpace kind width scalarWidth +
+      recoveryTailScratchSpace model.kind width scalarWidth +
+        persistentCellSpace model.kind width scalarWidth +
         ctx.auxiliarySpace := by
   have bounded : (recoveryTail curve modulus samples base target).peakAuxiliarySpace path ≤
-      recoveryTailScratchSpace kind width scalarWidth +
+      recoveryTailScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by
     refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
     · exact (recoveryBatch_auxiliary_le curve modulus samples base target path.1).trans

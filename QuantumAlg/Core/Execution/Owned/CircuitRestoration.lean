@@ -7,7 +7,6 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Borrowed.Classical.Reference
-import all QuantumAlg.Core.Execution.Random.Borrowed
 import all QuantumAlg.Core.Execution.Preparation.Borrowed.General
 import all QuantumAlg.Core.Execution.Classical.Workspace
 import all QuantumAlg.Core.Execution.Classical.Iteration
@@ -161,25 +160,14 @@ namespace Circuit
 
 open Execution
 
-/-- A declared classical call writes only its intrinsically writable result cell. -/
-theorem borrowedRestored_declaredCall {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    {Reference : Register} {History : Type} [Fintype History] {input output : CShape}
-    (call : DeclaredClassicalCall ctx input output) (state : State ctx Reference History) :
-    (Circuit.declaredCall call).BorrowedRestored Reference state
-      ((Circuit.declaredCall call).execute Reference state) := by
-  rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_declaredCall]
-  apply ExecutionState.ext
-  intro value
-  simp only [observeBorrowed_block, State.declaredStep,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def,
-    Store.readBorrowedClassical_write]
-
 /-- Every actual finite iteration restores the same joint interface when its actual body does. -/
-theorem borrowedRestored_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (body : Circuit ctx ctx) (Reference : Register)
-    (restores : ∀ {History : Type} [Fintype History] (state : State ctx Reference History),
+theorem borrowedRestored_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (body : Circuit model ctx ctx) (Reference : Register)
+    (restores : ∀ {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
       body.BorrowedRestored Reference state (body.execute Reference state))
-    (count : Nat) {History : Type} [Fintype History] (state : State ctx Reference History) :
+    (count : Nat) {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.iterate count body).BorrowedRestored Reference state
       ((Circuit.iterate count body).execute Reference state) := by
   induction count generalizing History with
@@ -199,14 +187,15 @@ theorem borrowedRestored_iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
       exact later.trans first
 
 /-- Lexical push, restoring body and pop preserve the complete original borrowed interface. -/
-theorem borrowedRestored_workspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem borrowedRestored_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
-      (state : State (ctx.addWorkspace key shape fresh) Reference History),
+      (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
       body.BorrowedRestored Reference state (body.execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.workspace ctx key shape fresh body).BorrowedRestored Reference state
       ((Circuit.workspace ctx key shape fresh body).execute Reference state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_workspace]

@@ -24,7 +24,10 @@ namespace QuantumAlg.ClassicalRoutines.Modular.NativePower
 
 open ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width exponentWidth : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
 /-- Independent capacity for all simultaneously live power and multiplication scratch cells. -/
 def powerSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -35,18 +38,22 @@ theorem nativePower_into_visited (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (into spec base exponent output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (into spec base exponent output).visitedContexts path) :
+    (path : (into (model := model) spec base exponent output).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (into (model := model) spec base exponent output).visitedContexts path) :
     visited ∈ [ctx, modulusCtx ctx width, baseCtx ctx width, powerCtx ctx width,
       productCtx (powerCtx ctx width) width, divisionCtx (powerCtx ctx width) width] := by
   have member : visited ∈ [ctx, modulusCtx ctx width, baseCtx ctx width, powerCtx ctx width] ++
-      ((ConstantWord.circuit (modulusCell ctx width) spec.modulus).visitedContexts path.2.1 ++
+      ((ConstantWord.circuit (model := model) (modulusCell ctx width) spec.modulus).visitedContexts
+        path.2.1 ++
         ([powerCtx ctx width] ++
-          ((exponentCircuit (wordRead (baseCell ctx width)) (underPower exponent width)
+          ((exponentCircuit (model := model) (wordRead (baseCell ctx width))
+            (underPower exponent width)
             (wordRead (modulusCell ctx width)) (accumulatorCell ctx width)).visitedContexts
               path.2.2.2.1 ++
             [powerCtx ctx width, baseCtx ctx width, modulusCtx ctx width, ctx]))) := by
-    simpa only [into, powerBody, Circuit.visitedContexts, List.cons_append, List.append_assoc,
+    simpa only [into, powerBody, BitWord.instruction, Circuit.visitedContexts, List.cons_append,
+      List.append_assoc,
       List.nil_append] using present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false, or_assoc] at member
   rcases member with rfl | rfl | rfl | rfl | loaded | rfl | powered | rfl | rfl | rfl | rfl
@@ -74,17 +81,18 @@ theorem nativePower_into_resident_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (into spec base exponent output).Path) :
-    (into spec base exponent output).peakResidentSpace path ≤
-      ctx.residentSpace + powerSpace kind width := by
+    (path : (into (model := model) spec base exponent output).Path) :
+    (into (model := model) spec base exponent output).peakResidentSpace path ≤
+      ctx.residentSpace + powerSpace model.kind width := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   have member := nativePower_into_visited spec base exponent output path visited present
   simp only [List.mem_cons, List.not_mem_nil, or_false] at member
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
-    intro axis
-    cases axis <;> simp [powerSpace, modulusCtx, baseCtx, powerCtx, productCtx, divisionCtx,
+    cases model <;> intro axis
+    all_goals cases axis <;> simp [powerSpace, modulusCtx, baseCtx, powerCtx,
+      productCtx, divisionCtx,
       divisionShape, SpacePool.ofShape] <;> omega
 
 /-- The actual added bits are all auxiliary while every original storage role is retained. -/
@@ -92,17 +100,20 @@ theorem nativePower_into_auxiliary_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (into spec base exponent output).Path) :
-    (into spec base exponent output).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + powerSpace kind width := by
+    (path : (into (model := model) spec base exponent output).Path) :
+    (into (model := model) spec base exponent output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + powerSpace model.kind width := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   have member := nativePower_into_visited spec base exponent output path visited present
   simp only [List.mem_cons, List.not_mem_nil, or_false] at member
   rcases member with rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
-    intro axis
-    cases axis <;> simp [powerSpace, modulusCtx, baseCtx, powerCtx, productCtx, divisionCtx,
+    cases model <;> intro axis
+    all_goals cases axis <;> simp [powerSpace, modulusCtx, baseCtx, powerCtx,
+      productCtx, divisionCtx,
       divisionShape, SpacePool.ofShape] <;> omega
+
+end
 
 end QuantumAlg.ClassicalRoutines.Modular.NativePower

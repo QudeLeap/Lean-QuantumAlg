@@ -28,90 +28,124 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Reduce the second basis row and refresh its actual squared-norm cell. -/
-def reduceRefreshInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (LatticeArithmetic.pointReduce (writeInput refs.division.output)
+def reduceRefreshInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (LatticeArithmetic.pointReduce (model := model) (writeInput refs.division.output)
     refs.basis.first refs.basis.second refs.reduceProduct)
-    (LatticeNormRefresh.refreshInto refs.basis.second refs.refresh)
+    (LatticeNormRefresh.refreshInto (model := model) refs.basis.second refs.refresh)
 
 /-- Actual row reduction and norm refresh stores, with their eleven-operation path. -/
-def reduceRefreshStep (refs : Refs ctx width) (store : Store ctx) :
-    Store ctx × (reduceRefreshInto refs).Path :=
-  let reduced := LatticeArithmetic.pointStore (writeInput refs.division.output)
+def reduceRefreshStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (reduceRefreshInto (model := model) refs).Path :=
+  let reduced := LatticeArithmetic.pointStep (model := model) (writeInput refs.division.output)
     refs.basis.first refs.basis.second refs.reduceProduct store
-  (LatticeNormRefresh.refreshStore refs.basis.second refs.refresh reduced,
-    ((((), ()), (((), ()), ((), ()))), ((), (((), ()), ((), ())))))
+  let refreshed := LatticeDotRefresh.refreshStep (model := model)
+    refs.basis.second refs.basis.second
+    (LatticeNormRefresh.dotRefs refs.refresh) reduced.1
+  (refreshed.1, (reduced.2, refreshed.2))
 
 /-- The actual rounded quotient feeds the native row and norm updates. -/
-def reductionPrefixInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (RoundedDiv.body refs.division) (reduceRefreshInto refs)
+def reductionPrefixInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (RoundedDiv.body (model := model) refs.division)
+    (reduceRefreshInto (model := model) refs)
 
 /-- The actual division path and the following eleven native writes. -/
-def reductionPrefixStep (refs : Refs ctx width) (store : Store ctx) :
-    Store ctx × (reductionPrefixInto refs).Path :=
-  let divided := RoundedDiv.bodyStep refs.division store
-  let reduced := reduceRefreshStep refs divided.1
+def reductionPrefixStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (reductionPrefixInto (model := model) refs).Path :=
+  let divided := RoundedDiv.bodyStep (model := model) refs.division store
+  let reduced := reduceRefreshStep (model := model) refs divided.1
   (reduced.1, (divided.2, reduced.2))
 
 /-- Execute the complete original first-pair reduction and its actual Lovasz-selected branch. -/
-def firstPairInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (reductionPrefixInto refs) (lovaszBranchInto refs)
+def firstPairInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (reductionPrefixInto (model := model) refs) (lovaszBranchInto (model := model) refs)
 
 /-- Complete actual chronological stores and recorded branches of the first-pair transition. -/
-def firstPairStep (refs : Refs ctx width) (store : Store ctx) :
-    Store ctx × (firstPairInto refs).Path :=
-  let reduced := reductionPrefixStep refs store
-  let selected := lovaszBranchStep refs reduced.1
+def firstPairStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (firstPairInto (model := model) refs).Path :=
+  let reduced := reductionPrefixStep (model := model) refs store
+  let selected := lovaszBranchStep (model := model) refs reduced.1
   (selected.1, (reduced.2, selected.2))
 
-/-- The actual reduced row feeds the norm computation while full histories and blocks survive. -/
-theorem reduceRefreshInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (reduceRefreshInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((reduceRefreshStep refs entry.1).1, (entry.2, (reduceRefreshStep refs entry.1).2))) := by
+/-- The reduced row feeds the norm computation while histories and blocks survive. -/
+theorem reduceRefreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reduceRefreshInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := reduceRefreshStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (LatticeArithmetic.pointReduce (writeInput refs.division.output)
+    (LatticeArithmetic.pointReduce (model := model) (writeInput refs.division.output)
       refs.basis.first refs.basis.second refs.reduceProduct)
-    (LatticeNormRefresh.refreshInto refs.basis.second refs.refresh)
-    (fun store => (LatticeArithmetic.pointStore (writeInput refs.division.output)
-      refs.basis.first refs.basis.second refs.reduceProduct store,
-        (((), ()), (((), ()), ((), ())))))
-    (fun store => (LatticeNormRefresh.refreshStore refs.basis.second refs.refresh store,
-      ((), (((), ()), ((), ())))))
-    (by
-      intro Reference History _ state
-      refine (LatticeArithmetic.pointReduce_execute _ _ _ _ Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (by
-      intro Reference History _ state
-      refine (LatticeNormRefresh.refreshInto_execute _ _ Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (LatticeNormRefresh.refreshInto (model := model) refs.basis.second refs.refresh)
+    (fun before =>
+      let actual := LatticeArithmetic.pointStep (model := model)
+        (writeInput refs.division.output) refs.basis.first refs.basis.second
+        refs.reduceProduct before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeDotRefresh.refreshStep (model := model)
+        refs.basis.second refs.basis.second
+        (LatticeNormRefresh.dotRefs refs.refresh) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeArithmetic.pointReduce_execute _ _ _ _ reference current)
+    (fun reference _history _ current =>
+      LatticeNormRefresh.refreshInto_execute _ _ reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual prefix execution preserves history and quantum-reference correlations. -/
-theorem reductionPrefixInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (reductionPrefixInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((reductionPrefixStep refs entry.1).1, (entry.2, (reductionPrefixStep refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (RoundedDiv.body refs.division) (reduceRefreshInto refs)
-    (RoundedDiv.bodyStep refs.division) (reduceRefreshStep refs)
-    (RoundedDiv.body_execute refs.division) (reduceRefreshInto_execute refs)
+theorem reductionPrefixInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reductionPrefixInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := reductionPrefixStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (RoundedDiv.body (model := model) refs.division)
+    (reduceRefreshInto (model := model) refs)
+    (fun before =>
+      let actual := RoundedDiv.bodyStep (model := model) refs.division before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := reduceRefreshStep (model := model) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => RoundedDiv.body_execute refs.division reference current)
+    (fun reference _history _ current => reduceRefreshInto_execute refs reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Full actual first-pair execution uses the real division and comparison outcomes. -/
-theorem firstPairInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (firstPairInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((firstPairStep refs entry.1).1, (entry.2, (firstPairStep refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (reductionPrefixInto refs) (lovaszBranchInto refs)
-    (reductionPrefixStep refs) (lovaszBranchStep refs)
-    (reductionPrefixInto_execute refs) (lovaszBranchInto_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+theorem firstPairInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (firstPairInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := firstPairStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (reductionPrefixInto (model := model) refs) (lovaszBranchInto (model := model) refs)
+    (fun before =>
+      let actual := reductionPrefixStep (model := model) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := lovaszBranchStep (model := model) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => reductionPrefixInto_execute refs reference current)
+    (fun reference _history _ current => lovaszBranchInto_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

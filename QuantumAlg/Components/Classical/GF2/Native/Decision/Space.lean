@@ -21,13 +21,16 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem failure_resident (success : CWriteRef ctx .bit)
     (path : (markFailure success).Path) :
     (markFailure success).peakResidentSpace path = ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (.classical (pivotRejectedOp success))
-    (.classical (pivotClearOp success)) path).trans ?_
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (pivotRejectedOp success))
+    (BitWord.instruction (execution := model) (pivotClearOp success)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_classical, SpacePool.max_self]
 
 private theorem choice_resident (reject : Bool) (success : CWriteRef ctx .bit)
@@ -45,8 +48,11 @@ private theorem test_resident (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (path : (decisionTest reject left right success flag).Path) :
     (decisionTest reject left right success flag).peakResidentSpace path = ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (.classical (decisionEqualityOp left right flag))
-    (.branch (.storage flag.toCStorageRef) (decisionChoice reject success)) path).trans ?_
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (decisionEqualityOp left right flag))
+    (.branch (.storage flag.toCStorageRef)
+      (decisionChoice (model := model) reject success)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical]
   exact (congrArg (SpacePool.max ctx.residentSpace)
     (choice_resident reject success path.2.1 path.2.2)).trans (SpacePool.max_self _)
@@ -54,10 +60,12 @@ private theorem test_resident (reject : Bool)
 private theorem uniqueBody_resident (free zero work : CWriteRef ctx (.unsignedWord width))
     (success flag : CWriteRef ctx .bit) (path : (uniqueFreeBody free zero work success flag).Path) :
     (uniqueFreeBody free zero work success flag).peakResidentSpace path = ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (.classical (decisionDecrementOp free work))
-    (.seq (.classical (decisionMaskOp free work))
-      (.seq (decisionTest false work zero success flag)
-        (decisionTest true free zero success flag))) path).trans ?_
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (decisionDecrementOp free work))
+    (.seq (BitWord.instruction (execution := model) (decisionMaskOp free work))
+      (.seq (decisionTest (model := model) false work zero success flag)
+        (decisionTest (model := model) true free zero success flag))) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq,
     Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq]
   rw [test_resident, test_resident]
@@ -116,8 +124,10 @@ theorem gf2CandidateNonzero_resident (candidate zero : CWriteRef ctx (.unsignedW
 private theorem failure_auxiliary (success : CWriteRef ctx .bit)
     (path : (markFailure success).Path) :
     (markFailure success).peakAuxiliarySpace path = ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (pivotRejectedOp success))
-    (.classical (pivotClearOp success)) path).trans ?_
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (pivotRejectedOp success))
+    (BitWord.instruction (execution := model) (pivotClearOp success)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_classical,
     SpacePool.max_self]
 
@@ -136,8 +146,11 @@ private theorem test_auxiliary (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (path : (decisionTest reject left right success flag).Path) :
     (decisionTest reject left right success flag).peakAuxiliarySpace path = ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (decisionEqualityOp left right flag))
-    (.branch (.storage flag.toCStorageRef) (decisionChoice reject success)) path).trans ?_
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (decisionEqualityOp left right flag))
+    (.branch (.storage flag.toCStorageRef)
+      (decisionChoice (model := model) reject success)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical]
   exact (congrArg (SpacePool.max ctx.auxiliarySpace)
     (choice_auxiliary reject success path.2.1 path.2.2)).trans (SpacePool.max_self _)
@@ -145,10 +158,12 @@ private theorem test_auxiliary (reject : Bool)
 private theorem uniqueBody_auxiliary (free zero work : CWriteRef ctx (.unsignedWord width))
     (success flag : CWriteRef ctx .bit) (path : (uniqueFreeBody free zero work success flag).Path) :
     (uniqueFreeBody free zero work success flag).peakAuxiliarySpace path = ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (decisionDecrementOp free work))
-    (.seq (.classical (decisionMaskOp free work))
-      (.seq (decisionTest false work zero success flag)
-        (decisionTest true free zero success flag))) path).trans ?_
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (decisionDecrementOp free work))
+    (.seq (BitWord.instruction (execution := model) (decisionMaskOp free work))
+      (.seq (decisionTest (model := model) false work zero success flag)
+        (decisionTest (model := model) true free zero success flag))) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq,
     Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq]
   rw [test_auxiliary, test_auxiliary]

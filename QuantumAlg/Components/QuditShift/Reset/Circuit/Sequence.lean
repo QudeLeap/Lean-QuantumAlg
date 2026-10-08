@@ -13,8 +13,8 @@ import all QuantumAlg.Core.Execution.Classical.Composition.Range
 /-!
 # Actual finite reset and basis preparation on existing wires
 
-Every stage executes the stored-result reset and then a real cyclic shift
-to its prescribed basis value. The existing finite-sequence constructor
+Every stage measures once and executes the supplied shift from the stored
+outcome directly to its prescribed basis value. The existing finite-sequence constructor
 orders those stages. Cells are supplied by their actual writable references;
 dimension-compatible references may alias, since each result is consumed
 before the following stage. No allocation, release, or input-state promise
@@ -25,27 +25,37 @@ namespace QuantumAlg.QuditShift
 
 noncomputable section
 
-variable {ctx : RuntimeCtx .quantum}
+variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
 
-/-- Reset one actual wire and apply its charged shift to the prescribed basis value. -/
+private instance sequenceCorrectionDimensionNeZero (dimension : ℕ+) : NeZero (dimension : ℕ) :=
+  ⟨Nat.ne_of_gt dimension.property⟩
+
+/-- Measure once and correct directly from the stored result to the prescribed basis value. -/
 public def resetWireToBasis (wire : Fin ctx.systemCount)
+    (realizations : Realizations gates oracles ctx.quantumLayout wire)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (value : Fin (ctx.quantumLayout.wire wire).dimension) : Circuit ctx ctx :=
-  (resetCircuit wire output).seq (.unitary (program ctx.quantumLayout wire value)
-    ((program_physical_idx ctx.quantumLayout wire value).trans ctx.quantumLayout_identities))
+    (value : Fin (ctx.quantumLayout.wire wire).dimension) :
+    Circuit (.quantum gates oracles) ctx ctx :=
+  (Circuit.measureZ wire output).seq
+    (.branch (.storage output.toCStorageRef) (fun outcome =>
+      .unitary (realizations (value - outcome.toFin)).circuit))
 
 /-- Execute the actual stages in the supplied finite order, permitting repeated wires and cells. -/
-public def resetToBasisOn (count : Nat) (wires : Fin count → Fin ctx.systemCount)
+public def resetToBasisOn
+    (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
+    (count : Nat) (wires : Fin count → Fin ctx.systemCount)
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (label : ctx.quantumLayout.Basis) : Circuit ctx ctx :=
+    (label : ctx.quantumLayout.Basis) : Circuit (.quantum gates oracles) ctx ctx :=
   Circuit.forRange count (fun index =>
-    resetWireToBasis (wires index) (outputs (wires index)) (label (wires index)))
+    resetWireToBasis (wires index) (implementations (wires index))
+      (outputs (wires index)) (label (wires index)))
 
 /-- Reset and seed every existing physical system once, in its original finite-index order. -/
 public def resetToBasis
+    (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (label : ctx.quantumLayout.Basis) : Circuit ctx ctx :=
-  resetToBasisOn ctx.systemCount id outputs label
+    (label : ctx.quantumLayout.Basis) : Circuit (.quantum gates oracles) ctx ctx :=
+  resetToBasisOn implementations ctx.systemCount id outputs label
 
 end
 

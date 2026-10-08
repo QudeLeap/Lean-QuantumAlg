@@ -55,7 +55,8 @@ private theorem source_column (N : Nat) (generator target : (ZMod N)ˣ)
 theorem shortDLP_runtimeSelected_seed_store_entry {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (original : Store ctx) (left right : ctx.register.Index)
     (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical

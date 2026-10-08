@@ -7,11 +7,13 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Primitives.MAU.Multiplication.Gidney.Prepared.Layout
 public import QuantumAlg.Primitives.MAU.Multiplication.WordAction
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Core.Execution.Preparation.Borrowed
@@ -35,6 +37,9 @@ noncomputable section
 open Execution.OwnedQubits
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
+
+/-- Built-in elementary quantum gates, with no oracle access. -/
+public abbrev model : ExecutionModel := .quantum AlgorithmGate.model .empty
 
 private def canonicalInput (width : Nat) (modulus : Fin (2 ^ width + 1))
     (input : ExecutionState (Execution.Store (context width)) (context width).register) : Prop :=
@@ -60,18 +65,18 @@ operator, preserving all reference correlations and relative phases.
 
 **Resource budget.**
 
-- One declared zero-word preparation event, twice the independent
-MAC native pool, and 3*width native CNOT events for the literal word swap. Each MAC
-pool caps its six controlled primitive coordinates by width*B(width), where B is
-9 for widths at most two and 6*F(width+1)+12*F(width)+6*width+6 otherwise, with
-F(w)=w*(39*clog(2,w)+1). Resident and owned auxiliary peaks are the same 2*width
-dimension-two systems. Unit-duration depth is at most 1+2*width*B(width)+3*width.
+- Each fresh auxiliary qubit has one zero-preparation event. Two independent
+MAC native pools and 3*width literal CNOT swap events form the gate budget.
+Writing S(width)=9 for width at most two and 4*O(width) otherwise, where O is
+the registered modular-offset envelope, the complete serial-event bound is
+M(width)=2*width*S(width)+3*width. Resident and owned auxiliary peaks are the
+same 2*width qubits. Unit-duration depth is at most 1+M(width).
 
 **Success.**
 
 - The unit result has probability one. The complete reference-aware
-state promise holds for every admitted input. The empty-word case retains the
-actual empty preparation event in its budget and allocates zero physical systems.
+state promise holds for every admitted input. The empty-word case emits no
+fresh-system preparation event and allocates zero physical systems.
 
 **Source.**
 
@@ -82,8 +87,9 @@ the clean-auxiliary compute/uncompute specialization, and actual pivot-flip offs
 -/
 public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (_positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) :
-    Problem .quantum (context width) (preparedContext width) .unit where
+    Problem model (context width) (preparedContext width) .unit where
   valid := canonicalInput width modulus
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [preparedRequirement width modulus coefficient]
@@ -91,12 +97,16 @@ public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (_positive : 0 
     { events := preparedNativeBudget width
       resident := space (2 * width)
       auxiliary := space (2 * width) }
-  depth := .quantum (fun _ => 1) (1 + eventBound width)
+  depth :=
+    { duration := fun _ => 1
+      limit := 1 + eventBound width
+      classicalQuery_unit := fun coordinate => nomatch coordinate
+      quantumQuery_unit := fun coordinate => nomatch coordinate }
 
 /-- Prepare the auxiliary word, run the actual native multiplier, and retain every live entry. -/
 public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    Algorithm .quantum (context width) (preparedContext width) .unit where
+    Algorithm model (context width) (preparedContext width) .unit where
   run :=
     { code := preparedCode width modulus coefficient
       output := Output.all (preparedContext width) .unit }
@@ -120,23 +130,28 @@ public theorem gidneyUnitMultiplication_resident_budget (width : Nat)
 
 private theorem actual_borrowed (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) {Reference : Register} {H : Type} [Fintype H]
-    (state : Execution.State (context width) Reference H) :
+    (state : Execution.State (context width) Reference (model.HiddenState × H)) :
     (preparedCode width modulus coefficient).BorrowedRestored Reference state
       ((preparedCode width modulus coefficient).execute Reference state) := by
   let : Subsingleton (context width).borrowedClassicalShape.Value := by
     change Subsingleton (CShape.Value .unit)
     exact ⟨fun left right => by cases left; cases right; rfl⟩
-  let preparation := Circuit.prepare (context width) auxiliaryKey (auxiliaryLayout width)
-    (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width) (auxiliaryPreparation width)
+  let preparation : Circuit model (context width) (preparedContext width) :=
+    Circuit.prepareZero (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty)
+      (context width) auxiliaryKey (auxiliaryLayout width)
+      (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
   exact Circuit.borrowedRestored_seq preparation
-    (Circuit.unitary (preparedUnitary width modulus coefficient)
-      (gidneyPreparedUnitary_physical width modulus coefficient)) state
-    (Circuit.borrowedRestored_prepare_noBorrowedQuantum rfl state auxiliaryKey
-      (auxiliaryLayout width) (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
-      (auxiliaryPreparation width))
-    (Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
+    (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
+      (preparedUnitary width modulus coefficient)) state
+    (Circuit.borrowedRestored_prepareZero_noBorrowedQuantum
+      (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty) rfl state auxiliaryKey
+      (auxiliaryLayout width) (gidneyAuxiliary_fresh width)
+      (gidneyAuxiliary_disjoint width))
+    (Circuit.borrowedRestored_unitary_noBorrowed
+      (operations := .empty) (classicalOracles := .empty) rfl rfl
       (preparedUnitary width modulus coefficient)
-      (gidneyPreparedUnitary_physical width modulus coefficient)
       (preparation.execute Reference state))
 
 /-- The complete native execution satisfies the original unit domain and independent budgets. -/
@@ -145,28 +160,38 @@ public theorem main (width : Nat) (modulus : Fin (2 ^ width + 1)) (positive : 0 
     ∃ candidate, Algorithm.Solves candidate (problem width modulus positive coefficient) := by
   refine ⟨algorithm width modulus coefficient, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialization requirement present
     have same : requirement = preparedRequirement width modulus coefficient :=
       List.mem_singleton.mp present
     subst requirement
     exact gidneyPreparedRequirement_holds width modulus coefficient
       (Output.all (preparedContext width) .unit) input
-  · intro Reference input _valid
-    exact actual_borrowed width modulus coefficient
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initialization
+    change Execution.observeBorrowedAfter
+      (preparedCode width modulus coefficient) Reference
+        ((preparedCode width modulus coefficient).execute Reference
+          (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
+      Execution.observeBorrowed Reference input.state
+    refine (actual_borrowed width modulus coefficient
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
+    refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
+      (fun _ => rfl) _ _
+  · intro _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_native_bound width modulus coefficient path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_resident_bound width modulus coefficient path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_auxiliary_bound width modulus coefficient path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_depth_bound width modulus coefficient path
 
 end

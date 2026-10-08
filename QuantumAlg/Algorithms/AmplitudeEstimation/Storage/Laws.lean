@@ -32,6 +32,9 @@ noncomputable section
 
 open QuantumAlg.Execution
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 private theorem transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) :
     (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same) ref).key =
@@ -69,12 +72,15 @@ theorem readouts_keys_nodup (t n : Nat) :
 /-- The typed actual measurement writes the original finite value into its own retained cell. -/
 theorem measuredCell_value (t n : Nat) (store : Store (post t n))
     (basis : (post t n).register.Index) (index : Fin t) :
-    ((Circuit.writeMeasurementPath (readouts t n) store
+    ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) (readouts t n) store
       (Circuit.measurementBasisPath (readouts t n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext t n) 2 t index).toCStorageRef)).toFin.val =
       (basis (phaseWire t n index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (readouts t n) (readouts_keys_nodup t n)
+  have actual := Circuit.writeMeasurementBasis_read (gates := gates) (oracles := oracles)
+      (operations := operations) (services := classicalOracles) (readouts t n)
+    (readouts_keys_nodup t n)
     (phaseReadout t n index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
   rw [phaseReadout_read_value] at numeric
@@ -97,8 +103,8 @@ theorem phaseWire_value (t n : Nat) (basis : (post t n).register.Index) (index :
       (phaseWire t n index)).val = _ at cells
   rw [Equiv.apply_symm_apply] at cells
   change (basis (phaseWire t n index)).val =
-    ((qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv.symm
-      ((qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv
+    ((QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n))).symm
+      ((QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n)))
         ((preparedLayoutEquiv t n).symm oldBasis))
         (Fin.castAdd (Elementary.helperWidth t n + n) index)).val
   rw [Equiv.symm_apply_apply]
@@ -140,13 +146,15 @@ theorem phaseWire_bit (t n : Nat) (basis : (post t n).register.Index) (index : F
 the original phase readout. -/
 theorem packing_measured_value (t n : Nat) (store : Store (post t n))
     (basis : (post t n).register.Index) :
-    (packing t n).eval ((Circuit.writeMeasurementPath (readouts t n) store
+    (packing t n).eval ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) (readouts t n) store
       (Circuit.measurementBasisPath (readouts t n) basis)).read
         (MeasurementCells.input (resultContext t n) 2 t)) =
       CShape.Value.bits ((qpeMeasurement t (Elementary.helperWidth t n + n)).readout
         (outputBasisEquiv t n basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (readouts t n) store
+    (((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) (readouts t n) store
       (Circuit.measurementBasisPath (readouts t n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext t n) 2 t index).toCStorageRef)).toFin.val =

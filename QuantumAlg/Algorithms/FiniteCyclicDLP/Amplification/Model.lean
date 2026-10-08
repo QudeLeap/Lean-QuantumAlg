@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Util.FiniteCyclicDLP
 import all QuantumAlg.Algorithms.Factoring.Common
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Selected
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.PrimeOrderTailBound
@@ -209,7 +210,7 @@ theorem one_sub_selectedRawOutcomeFamilyLowerBound_eq_sourceFailure
 
 /-- Exact internal repeat count from the conservative public floor and the
 fixed one-third failure target. -/
-def retryCount (P : KnownOrderProblem G) : Nat :=
+public def retryCount (P : KnownOrderProblem G) : Nat :=
   FailureBudget.retryCountFor (publicFailureBudget P) FailureBudget.oneThird
 
 /-- Closed form displayed by the public finite-cyclic endpoint. -/

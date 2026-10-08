@@ -6,11 +6,14 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
-import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Recovery
-import all QuantumAlg.Algorithms.FiniteCyclicDLP.Readout.Outcome
-import Mathlib.Data.ZMod.Basic
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Recovery
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Readout.Outcome
+public import QuantumAlg.Util.FiniteCyclicDLP
+public import Mathlib.Data.ENNReal.Basic
+public import Mathlib.Data.Finset.Defs
+public import Mathlib.Data.Fintype.Card
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Selected finite-cyclic Fourier outcomes
@@ -33,24 +36,24 @@ universe u
 variable {G : Type u} [Group G]
 
 /-- Distinguished zero residue of the known-order group. -/
-def zeroResidue (P : KnownOrderProblem G) : Fin P.order :=
+@[expose] public def zeroResidue (P : KnownOrderProblem G) : Fin P.order :=
   ⟨0, P.order_pos⟩
 
 
 /-- Uniform numerical floor contributed by each group-element tail to a
 selected raw terminal outcome. -/
-def selectedTailPointwiseLowerBound
+@[expose] public def selectedTailPointwiseLowerBound
     (P : KnownOrderProblem G) : ENNReal :=
   ENNReal.ofReal (1 / (4 * (fourierModulus P : ℝ) ^ 2))
 
 /-- Uniform numerical floor for each selected raw terminal outcome, obtained
 by summing the `r` distinct group-element tails. -/
-def selectedRawOutcomePointwiseLowerBound
+@[expose] public def selectedRawOutcomePointwiseLowerBound
     (P : KnownOrderProblem G) : ENNReal :=
   P.order • selectedTailPointwiseLowerBound P
 
 /-- Finite family of raw outcomes selected by invertible residues. -/
-def selectedRawOutcomeFamily (P : KnownOrderProblem G)
+@[expose] public def selectedRawOutcomeFamily (P : KnownOrderProblem G)
     (input : SecretInput P) : Finset (BornBridge.Outcome P) :=
   letI : NeZero P.order := ⟨P.order_ne_zero⟩
   Finset.univ.image (selectedRawOutcome P input)
@@ -65,7 +68,7 @@ theorem selectedRawOutcomeFamily_card (P : KnownOrderProblem G)
 
 /-- Explicit one-attempt floor obtained by summing the pointwise bound over
 all invertible raw Fourier residues. -/
-def selectedRawOutcomeFamilyLowerBound (P : KnownOrderProblem G) : ENNReal :=
+@[expose] public def selectedRawOutcomeFamilyLowerBound (P : KnownOrderProblem G) : ENNReal :=
   letI : NeZero P.order := ⟨P.order_ne_zero⟩
   Fintype.card (ZMod P.order)ˣ • selectedRawOutcomePointwiseLowerBound P
 

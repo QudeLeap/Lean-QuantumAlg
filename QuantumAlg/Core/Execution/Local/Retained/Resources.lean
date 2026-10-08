@@ -24,8 +24,8 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
-  (code : Circuit ctx ctx) (supported : code.IsLocal)
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+  (code : Circuit model ctx ctx) (supported : code.IsLocal)
   (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
 
 /-- The actual ordered native event trace is identical along corresponding execution paths. -/
@@ -47,7 +47,7 @@ theorem underRetained_resourcePool (path : code.Path) :
   congrArg ResourcePool.ofList (underRetained_eventTrace code supported key shape fresh path)
 
 /-- Evaluated depth agrees for every assignment of native event durations. -/
-theorem underRetained_depth (duration : Resource.Event kind → Nat) (path : code.Path) :
+theorem underRetained_depth (duration : Resource.Event model → Nat) (path : code.Path) :
     (underRetained code supported key shape fresh).depth duration
         (underRetainedPathEquiv code supported key shape fresh path) = code.depth duration path :=
   (ContextPermutation.localCircuit_depth (retainedFramed code supported key shape fresh)
@@ -60,7 +60,7 @@ theorem underRetained_depth (duration : Resource.Event kind → Nat) (path : cod
 
 /-- Every actual visited context is the same complete context with the existing retained cell. -/
 theorem underRetained_visited (path : (underRetained code supported key shape fresh).Path)
-    (visited : RuntimeCtx kind)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈ (underRetained code supported key shape fresh).visitedContexts path) :
     visited = ctx.addRetained key shape fresh :=
   ContextPermutation.localCircuit_visited (retainedFramed code supported key shape fresh)

@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.PreparedFrame
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.RegisterFrame
 import all QuantumAlg.Components.Encoded.BitGates.FullPlacement
+import all QuantumAlg.Components.Encoded.BitGates.WirePlacement
 
 /-!
 # Actual Work2 coordinates for the little-endian output coefficient
@@ -120,14 +122,144 @@ private theorem physicalIndex_within (width : Nat) (index : Fin (encoding width)
   unfold physicalIndex
   split <;> omega
 
-/-- The shared placement engine receives the proved basis map and these same native coordinates. -/
-def placement (width : Nat) : EncodedBit.FullPlacement (encoding width) (encoding width) where
-  grouping := grouping width
-  basis := indexEquiv width
-  basis_encode := indexEquiv_encode width
-  physicalIndex := physicalIndex width
-  wire_injective := physicalIndex_injective width
-  wire_within := physicalIndex_within width
+private def wireMap (width : Nat) :
+    Fin (encoding width).width → Fin (encoding width).width := fun index =>
+  ⟨physicalIndex width index.val, physicalIndex_within width index⟩
+
+private theorem wireMap_injective (width : Nat) : Function.Injective (wireMap width) := by
+  intro left right same
+  exact physicalIndex_injective width (congrArg Fin.val same)
+
+/-- The Work2 reversal and all fixed wires form one physical bijection. -/
+def wireEquiv (width : Nat) :
+    Fin (encoding width).width ≃ Fin (encoding width).width :=
+  Equiv.ofBijective (wireMap width)
+    ⟨wireMap_injective width, Finite.surjective_of_injective (wireMap_injective width)⟩
+
+/-- The placement derives its semantic basis map from exactly the physical wire bijection. -/
+def placement (width : Nat) : EncodedBit.FullPlacement (encoding width) (encoding width) :=
+  EncodedBit.FullPlacement.ofWires (encoding width) (encoding width)
+    (encoding_surjective width) (encoding_surjective width) (wireEquiv width)
+
+private theorem placement_bit (width : Nat) (state : Registers width)
+    (index : Fin (encoding width).width) :
+    ((encoding width).encode ((placement width).grouping state)).val.testBit index.rev.val =
+      ((encoding width).encode state).val.testBit (wireEquiv width index).rev.val := by
+  have actual := EncodedBit.FullPlacement.wireBasis_bit
+    (encoding width) (encoding width) (wireEquiv width)
+    ((encoding width).encode ((placement width).grouping state)) index
+  have encoded := (placement width).basis_encode state
+  change EncodedBit.FullPlacement.wireBasis _ _ (wireEquiv width)
+    ((encoding width).encode ((placement width).grouping state)) = _ at encoded
+  rw [encoded] at actual
+  exact actual.symm
+
+private theorem bit_read (width : Nat) (bit : EncodedBit (encoding width))
+    (state : Registers width) :
+    bit.get state = ((encoding width).encode state).val.testBit bit.wire.rev.val := by
+  rw [← bit.get_eq]
+  apply congrArg (fun position => ((encoding width).encode state).val.testBit position)
+  dsimp only [WireAddress.bitIndex, Fin.rev]
+  omega
+
+private theorem placed_read (width : Nat) (state : Registers width)
+    (source target : EncodedBit (encoding width))
+    (same : wireEquiv width source.wire = target.wire) :
+    source.get ((placement width).grouping state) = target.get state := by
+  rw [bit_read, bit_read]
+  exact (placement_bit width state source.wire).trans
+    (congrArg (fun wire : Fin (encoding width).width =>
+      ((encoding width).encode state).val.testBit wire.rev.val) same)
+
+private theorem retained_read (width : Nat) (state : Registers width)
+    (bit : EncodedBit (encoding width))
+    (outside : bit.wire.val < width + 3 ∨ 2 * (width + 3) ≤ bit.wire.val) :
+    bit.get ((placement width).grouping state) = bit.get state := by
+  apply placed_read width state bit bit
+  apply Fin.ext
+  change physicalIndex width bit.wire.val = bit.wire.val
+  exact physicalIndex_outside width bit.wire.val outside
+
+/-- The field grouping induced by the physical wire permutation is exactly Work2 reversal. -/
+theorem placement_grouping (width : Nat) (state : Registers width) :
+    (placement width).grouping state = grouping width state := by
+  apply Registers.ext_fields
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin (width + 3) := ⟨index, within⟩
+    have actual := retained_read width state (firstWordBit width selected)
+      (Or.inl (by rw [firstWordBit_wire]; exact selected.isLt))
+    rw [firstWordBit_get, firstWordBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin (width + 3) := ⟨index, within⟩
+    have same : wireEquiv width (secondWordBit width selected).wire =
+        (secondWordBit width selected.rev).wire := by
+      apply Fin.ext
+      change physicalIndex width (secondWordBit width selected).wire.val =
+        (secondWordBit width selected.rev).wire.val
+      exact physicalIndex_word width selected
+    have actual := placed_read width state
+      (secondWordBit width selected) (secondWordBit width selected.rev) same
+    have expected := grouping_word_bit width selected state
+    rw [secondWordBit_get, secondWordBit_get] at actual
+    rw [secondWordBit_get, secondWordBit_get] at expected
+    exact actual.trans expected.symm
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := retained_read width state (coefficientLengthBit width selected)
+      (Or.inr (by rw [coefficientLengthBit_wire]; omega))
+    rw [coefficientLengthBit_get, coefficientLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := retained_read width state (quotientLengthBit width selected)
+      (Or.inr (by rw [quotientLengthBit_wire]; omega))
+    rw [quotientLengthBit_get, quotientLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := retained_read width state (divisorLengthBit width selected)
+      (Or.inr (by rw [divisorLengthBit_wire]; omega))
+    rw [divisorLengthBit_get, divisorLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := retained_read width state (shiftBit width selected)
+      (Or.inr (by rw [shiftBit_wire]; omega))
+    rw [shiftBit_get, shiftBit_get] at actual
+    exact actual
+  · have actual := retained_read width state (phase1Bit width)
+      (Or.inr (by rw [phase1Bit_wire]; omega))
+    rw [phase1Bit_get, phase1Bit_get] at actual
+    exact actual
+  · have actual := retained_read width state (phase2Bit width)
+      (Or.inr (by rw [phase2Bit_wire]; omega))
+    rw [phase2Bit_get, phase2Bit_get] at actual
+    exact actual
+  · have actual := retained_read width state (signBit width)
+      (Or.inr (by rw [signBit_wire]; omega))
+    rw [signBit_get, signBit_get] at actual
+    exact actual
+  · have actual := retained_read width state (iterationBit width)
+      (Or.inr (by rw [iterationBit_wire]; omega))
+    rw [iterationBit_get, iterationBit_get] at actual
+    exact actual
+  · have actual := retained_read width state (controlBit width)
+      (Or.inr (by rw [controlBit_wire]; omega))
+    rw [controlBit_get, controlBit_get] at actual
+    exact actual
+
+/-- The full physical placement has the same exact source-level regrouping equivalence. -/
+theorem placement_grouping_eq (width : Nat) :
+    (placement width).grouping = grouping width := by
+  apply Equiv.ext
+  exact placement_grouping width
 
 end
 

@@ -10,6 +10,8 @@ import all QuantumAlg.Algorithms.FiniteCyclicDLP.Concrete.Circuit.Exponents
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Trajectory.Branch
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.UnitaryCircuit.Placement.Entries
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Execution.Trace
 
 /-!
@@ -59,80 +61,103 @@ theorem exponentProgramBasis_physical_value (modulus exponentWidth : Nat)
   rw [exponentProgramBasis_branch]
   exact exponentInput_physical_value modulus (2 * exponentWidth) _ index
 
-/-- The physical map used to rewrite the original gates names the actual owned exponent systems. -/
-def exponentProgramPlacement (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    PhysicalLayout.Relabeling program.physical_idx
-      (exponents modulus.size (2 * exponentWidth)).physicalIdx where
-  toFun := fun index => InPlaceControlled.frameWidth modulus.size + index
-  map_layout := by
-    rw [physical, indexedContext_physical]
-    rw [show exponentWidth + exponentWidth = 2 * exponentWidth by omega]
-  old_nodup := program.physical_idx_nodup
-  new_nodup := (exponents modulus.size (2 * exponentWidth)).identitiesNodup
+/-- Every source qubit names the corresponding resident exponent wire. -/
+private def exponentPosition (modulus exponentWidth : Nat) :
+    Fin (exponentWidth + exponentWidth) ≃
+      Fin (exponents modulus.size (2 * exponentWidth)).systemCount :=
+  (finCongr (show exponentWidth + exponentWidth = 2 * exponentWidth by omega)).trans
+    ((finCongr List.length_range).symm.trans
+      (indexedPositions modulus.size (List.range (2 * exponentWidth)) List.nodup_range))
 
-/-- Gate placement uses precisely the wire whose value is read by the paired basis map. -/
-theorem exponentProgramPlacement_wire (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
-    (index : Fin (2 * exponentWidth)) :
-    (exponentProgramPlacement modulus exponentWidth program physical).toFun index.val =
-      ((exponents modulus.size (2 * exponentWidth)).quantumLayout.wire
-        (rangePosition modulus.size (2 * exponentWidth) index)).identity := by
-  rw [rangePosition_wire]
-  rfl
+private theorem exponentPosition_dimensions (modulus exponentWidth : Nat)
+    (index : Fin (exponentWidth + exponentWidth)) :
+    (((QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout).wire
+      index).dimension =
+    ((exponents modulus.size (2 * exponentWidth)).quantumLayout.wire
+      (exponentPosition modulus exponentWidth index)).dimension := by
+  change 2 = _
+  have same : exponentPosition modulus exponentWidth index =
+      rangePosition modulus.size (2 * exponentWidth)
+        (finCongr (show exponentWidth + exponentWidth = 2 * exponentWidth by omega) index) := rfl
+  rw [same, rangePosition_wire]
 
-/-- Rewrite every original gate placement and use the exact original paired logical values. -/
+/-- The placed native word uses the actual owned exponent wires in their original order. -/
 def placedExponentProgram (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    UnitaryCircuit (exponents modulus.size (2 * exponentWidth)).register :=
-  UnitaryCircuit.reindex (exponentProgramBasis modulus exponentWidth)
-    (program.relabel (exponentProgramPlacement modulus exponentWidth program physical))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (exponents modulus.size (2 * exponentWidth)).quantumLayout :=
+  UnitaryCircuit.placeAt _ _ (exponentPosition modulus exponentWidth).toEmbedding
+    (exponentPosition_dimensions modulus exponentWidth) program
 
-/-- The actual construction recursively rewrites gate addresses before its basis reindexing. -/
-theorem placedExponentProgram_sequence (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).sequence =
-      .reindex (exponentProgramBasis modulus exponentWidth)
-        (program.sequence.rewriteSystemIdx
-          (fun index => InPlaceControlled.frameWidth modulus.size + index)) := rfl
+private theorem bigEndian_cast {sourceWidth targetWidth : Nat}
+    (same : sourceWidth = targetWidth) (bits : Fin targetWidth → Fin 2)
+    (index : Fin sourceWidth) :
+    (BinaryBasis.bigEndianEquiv sourceWidth).symm
+      (Fin.cast (congrArg (fun width : Nat => 2 ^ width) same.symm)
+        (BinaryBasis.bigEndianEquiv targetWidth bits)) index =
+      bits (Fin.cast same index) := by
+  subst targetWidth
+  simp
 
-/-- The placed program occupies exactly the actual exponent context. -/
-theorem placedExponentProgram_physical (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).physical_idx =
-      (exponents modulus.size (2 * exponentWidth)).physicalIdx := rfl
+private theorem exponentProgramBasis_selected (modulus exponentWidth : Nat)
+    (basis : (exponents modulus.size (2 * exponentWidth)).register.Index) :
+    UnitaryCircuit.selectedInput
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout
+      (exponents modulus.size (2 * exponentWidth)).quantumLayout
+      (exponentPosition modulus exponentWidth).toEmbedding
+      (exponentPosition_dimensions modulus exponentWidth) basis =
+    (QuantumSignature.qubitsIndexEquiv (exponentWidth + exponentWidth)).symm
+      ((exponentProgramBasis modulus exponentWidth).symm basis) := by
+  funext index
+  apply Fin.ext
+  change (basis (exponentPosition modulus exponentWidth index)).val = _
+  rw [show exponentPosition modulus exponentWidth index =
+      rangePosition modulus.size (2 * exponentWidth)
+        (finCongr (show exponentWidth + exponentWidth = 2 * exponentWidth by omega)
+          index) from rfl, ← rangeBasis_value]
+  simp only [exponentProgramBasis, pairedExponentEquiv,
+    QuantumSignature.qubitsIndexEquiv, Equiv.symm_trans_apply,
+    Equiv.symm_symm, Equiv.apply_symm_apply]
+  exact congrArg Fin.val
+    (bigEndian_cast
+      (show exponentWidth + exponentWidth = 2 * exponentWidth by omega)
+      (rangeBasis modulus.size (2 * exponentWidth) basis) index).symm
 
 /-- Every matrix entry is the original program entry under the exact same exponent values. -/
 theorem placedExponentProgram_matrix (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (row column : (exponents modulus.size (2 * exponentWidth)).register.Index) :
-    (placedExponentProgram modulus exponentWidth program physical).matrix row column =
-      program.matrix ((exponentProgramBasis modulus exponentWidth).symm row)
+    (placedExponentProgram modulus exponentWidth program).matrix row column =
+      program.binaryMatrix ((exponentProgramBasis modulus exponentWidth).symm row)
         ((exponentProgramBasis modulus exponentWidth).symm column) := by
-  change (program.relabel (exponentProgramPlacement modulus exponentWidth program physical)).matrix
-    ((exponentProgramBasis modulus exponentWidth).symm row)
-    ((exponentProgramBasis modulus exponentWidth).symm column) = _
-  exact congrArg (fun matrix : HilbertOperator (Qubits (exponentWidth + exponentWidth)) =>
-    matrix ((exponentProgramBasis modulus exponentWidth).symm row)
-      ((exponentProgramBasis modulus exponentWidth).symm column))
-    (UnitaryCircuit.relabel_matrix program
-      (exponentProgramPlacement modulus exponentWidth program physical))
+  rw [placedExponentProgram, UnitaryCircuit.placeAt_matrix,
+    UnitaryCircuit.operatorAt_entry]
+  rw [exponentProgramBasis_selected, exponentProgramBasis_selected]
+  have complete :
+      (exponents modulus.size (2 * exponentWidth)).quantumLayout.restrictComplementBasis
+        (Finset.univ.map (exponentPosition modulus exponentWidth).toEmbedding) row =
+      (exponents modulus.size (2 * exponentWidth)).quantumLayout.restrictComplementBasis
+        (Finset.univ.map (exponentPosition modulus exponentWidth).toEmbedding) column := by
+    funext index
+    exact False.elim (Finset.mem_compl.mp index.property
+      (by
+        obtain ⟨source, same⟩ := (exponentPosition modulus exponentWidth).surjective index.val
+        rw [← same]
+        exact Finset.mem_map_of_mem _ (Finset.mem_univ source)))
+  rw [if_pos complete, mul_one]
+  rfl
 
 /-- Actual original paired input and output labels retain the original complex matrix entry. -/
 theorem placedExponentProgram_branch_matrix (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (row column : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).matrix
+    (placedExponentProgram modulus exponentWidth program).matrix
       (pairedExponentInput modulus exponentWidth row)
       (pairedExponentInput modulus exponentWidth column) =
-      program.matrix (prodEquiv row) (prodEquiv column) := by
+      program.binaryMatrix (prodEquiv row) (prodEquiv column) := by
   rw [← exponentProgramBasis_branch, ← exponentProgramBasis_branch,
     placedExponentProgram_matrix, Equiv.symm_apply_apply, Equiv.symm_apply_apply]
 
@@ -164,85 +189,87 @@ theorem exponentProgramState_ket (modulus exponentWidth : Nat)
 
 /-- The actual physically placed program has the exact original normalized state action. -/
 theorem placedExponentProgram_normalized (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (state : NormalizedVector (Qubits (exponentWidth + exponentWidth))) :
-    (placedExponentProgram modulus exponentWidth program physical).applyNormalized
+    (placedExponentProgram modulus exponentWidth program).applyNormalized
       (exponentProgramState modulus exponentWidth state) =
-      exponentProgramState modulus exponentWidth (program.applyNormalized state) := by
+      exponentProgramState modulus exponentWidth (program.binaryMatrix.apply state) := by
   apply NormalizedVector.ext
   intro row
   change (∑ column,
-    (placedExponentProgram modulus exponentWidth program physical).matrix row column *
+    (placedExponentProgram modulus exponentWidth program).matrix row column *
       state ((exponentProgramBasis modulus exponentWidth).symm column)) =
-    ∑ column, program.matrix ((exponentProgramBasis modulus exponentWidth).symm row) column *
+    ∑ column, program.binaryMatrix
+      ((exponentProgramBasis modulus exponentWidth).symm row) column *
       state column
   simp_rw [placedExponentProgram_matrix]
   exact (exponentProgramBasis modulus exponentWidth).symm.sum_comp
     (fun column : (Qubits (exponentWidth + exponentWidth)).Index =>
-      program.matrix ((exponentProgramBasis modulus exponentWidth).symm row) column * state column)
+      program.binaryMatrix
+        ((exponentProgramBasis modulus exponentWidth).symm row) column * state column)
 
 /-- Physical and logical placement preserve every original native event in order. -/
 theorem placedExponentProgram_trace (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).eventTrace =
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout) :
+    (placedExponentProgram modulus exponentWidth program).eventTrace =
       program.eventTrace := by
-  rw [placedExponentProgram, UnitaryCircuit.reindex_eventTrace, UnitaryCircuit.relabel_eventTrace]
+  exact UnitaryCircuit.placeAt_eventTrace _ _ _ _ program
 
 /-- Placement introduces no additional native event cost. -/
 theorem placedExponentProgram_cost (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).eventCost =
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout) :
+    (placedExponentProgram modulus exponentWidth program).eventCost =
       program.eventCost := by
-  rw [placedExponentProgram, UnitaryCircuit.reindex_eventCost, UnitaryCircuit.relabel_eventCost]
+  exact UnitaryCircuit.placeAt_eventCost _ _ _ _ program
 
 /-- Placement preserves the exact original dependency-depth expression. -/
 theorem placedExponentProgram_depth (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    (placedExponentProgram modulus exponentWidth program physical).eventDepth =
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout) :
+    (placedExponentProgram modulus exponentWidth program).eventDepth =
       program.eventDepth := by
-  rw [placedExponentProgram, UnitaryCircuit.reindex_eventDepth, UnitaryCircuit.relabel_eventDepth]
+  exact UnitaryCircuit.placeAt_eventDepth _ _ _ _ program
 
 /-- The placed original exponent program is an actual instruction on the owned exponent context. -/
 def placedExponentCircuit (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth)) :
-    Circuit (exponents modulus.size (2 * exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (exponents modulus.size (2 * exponentWidth))
       (exponents modulus.size (2 * exponentWidth)) :=
-  .unitary (placedExponentProgram modulus exponentWidth program physical)
-    (placedExponentProgram_physical modulus exponentWidth program physical)
+  .unitary (placedExponentProgram modulus exponentWidth program)
 
 /-- The actual instruction emits exactly the original native event trace. -/
 theorem placedExponentCircuit_trace (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
-    (path : (placedExponentCircuit modulus exponentWidth program physical).Path) :
-    (placedExponentCircuit modulus exponentWidth program physical).eventTrace path =
-      program.eventTrace := placedExponentProgram_trace modulus exponentWidth program physical
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
+    (path : (placedExponentCircuit modulus exponentWidth program).Path) :
+    (placedExponentCircuit modulus exponentWidth program).eventTrace path =
+      program.eventTrace := placedExponentProgram_trace modulus exponentWidth program
 
 /-- The resource pool comes from the exact same actual native trace. -/
 theorem placedExponentCircuit_cost (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
-    (path : (placedExponentCircuit modulus exponentWidth program physical).Path) :
-    (placedExponentCircuit modulus exponentWidth program physical).resourcePool path =
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
+    (path : (placedExponentCircuit modulus exponentWidth program).Path) :
+    (placedExponentCircuit modulus exponentWidth program).resourcePool path =
       program.eventCost := by
   rw [Circuit.resourcePool, placedExponentCircuit_trace]
   exact UnitaryCircuit.ofList_eventTrace_eq_eventCost program
 
 /-- The actual instruction retains the original dependency depth for every duration assignment. -/
 theorem placedExponentCircuit_depth (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
-    (duration : Resource.Event .quantum → Nat)
-    (path : (placedExponentCircuit modulus exponentWidth program physical).Path) :
-    (placedExponentCircuit modulus exponentWidth program physical).depth duration path =
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
+    (path : (placedExponentCircuit modulus exponentWidth program).Path) :
+    (placedExponentCircuit modulus exponentWidth program).depth duration path =
       program.evaluatedEventDepth duration := by
   change DepthExpr.depthEval duration
-    (placedExponentProgram modulus exponentWidth program physical).eventDepth = _
+    (placedExponentProgram modulus exponentWidth program).eventDepth = _
   rw [placedExponentProgram_depth]
   rfl
 
@@ -251,20 +278,20 @@ universe u
 /-- The unchanged original exact range preparation runs on the same owned exponent systems. -/
 def placedExponentPreparation {G : Type u} [Group G] (modulus : Nat)
     (problem : FiniteCyclicDLP.KnownOrderProblem G) :
-    Circuit (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem))
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem))
       (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem)) :=
   placedExponentCircuit modulus (FiniteCyclicDLP.orderWidth problem)
     (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx problem)
 
 /-- The unchanged original pair of inverse QFTs runs on those same owned exponent systems. -/
 def placedExponentReadout {G : Type u} [Group G] (modulus : Nat)
     (problem : FiniteCyclicDLP.KnownOrderProblem G) :
-    Circuit (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem))
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem))
       (exponents modulus.size (2 * FiniteCyclicDLP.orderWidth problem)) :=
   placedExponentCircuit modulus (FiniteCyclicDLP.orderWidth problem)
     (FiniteCyclicDLP.ConcreteCircuitAccess.exponentReadoutCircuit problem)
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentReadoutCircuit_physical_idx problem)
 
 end
 

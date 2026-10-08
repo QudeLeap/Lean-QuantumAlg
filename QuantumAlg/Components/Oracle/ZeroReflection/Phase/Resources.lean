@@ -33,18 +33,23 @@ noncomputable section
 open EncodedBit.Word.OneDirtyLayout
 
 /-- Native elementary multiplicities of the selected controlled source synthesis. -/
-def controlledElementaryEventPool : Nat → ResourcePool .quantum
+def controlledElementaryEventPool (oracles : OracleModel) (width : Nat)
+    (operations : ClassicalOpModel := .empty) (services : ClassicalOracleModel := .empty) :
+    ResourcePool (.quantum AlgorithmGate.model oracles operations services) :=
+  match width with
   | 0 => 0
-  | 1 => 2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      ResourcePool.singleton (.gate (.builtin "cnot"))
-  | 2 => 4 • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      ResourcePool.singleton (.gate (.builtin "toffoli")) +
-      ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z"))
-  | extra + 3 => (2 * (extra + 3)) • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      gateCount (extra + 3) • ResourcePool.singleton (.gate (.builtin "toffoli")) +
-      ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z"))
+  | 1 => 2 • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .cnot)
+  | 2 => 7 • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .toffoli)
+  | extra + 3 => (2 * (extra + 3) + 3) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .singleQubit) +
+      gateCount (extra + 3) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model oracles operations services) (.gate .toffoli)
 
 /-- Independent count and unit-event depth, including the exact controlled global minus. -/
 public def controlledElementaryGateCount : Nat → Nat
@@ -52,6 +57,25 @@ public def controlledElementaryGateCount : Nat → Nat
   | 1 => 3
   | 2 => 8
   | extra + 3 => 2 * (extra + 3) + gateCount (extra + 3) + 3
+
+/-- Independent single-qubit multiplicity of the controlled source reflection. -/
+public def controlledElementarySingleQubitCount : Nat → Nat
+  | 0 => 0
+  | 1 => 2
+  | 2 => 7
+  | extra + 3 => 2 * (extra + 3) + 3
+
+/-- Only a one-qubit source uses a CNOT in its controlled reflection. -/
+public def controlledElementaryCNOTCount : Nat → Nat
+  | 1 => 1
+  | _ => 0
+
+/-- Independent Toffoli multiplicity of the controlled source reflection. -/
+public def controlledElementaryToffoliCount : Nat → Nat
+  | 0 => 0
+  | 1 => 0
+  | 2 => 1
+  | extra + 3 => gateCount (extra + 3)
 
 /-- The empty controlled reflection is the identity and has no gate occurrences. -/
 @[simp] public theorem controlledElementaryGateCount_zero :
@@ -82,59 +106,79 @@ public theorem controlledElementaryGateCount_of_five_le {width : Nat} (large : 5
 
 namespace SmallPhase
 
-theorem program_eventCost (phases width : Nat) (small : width ≤ 2) (control : Fin phases) :
-    (program phases width small control).eventCost = controlledElementaryEventPool width := by
+theorem program_eventCost (oracles : OracleModel) (phases width : Nat)
+    (physical : QubitLayout (phases + width)) (small : width ≤ 2) (control : Fin phases) :
+    (program oracles phases width physical small control).eventCost =
+      controlledElementaryEventPool oracles width := by
   interval_cases width
   · rfl
-  · exact EncodedBit.controlledZ_eventCost _ _ _
-  · exact EncodedBit.controlledTwoWireZeroReflection_eventCost _ _ _ _ _ _
+  · exact (PhaseWorkspace.phaseBit phases 0 control).controlledZ_eventCost physical oracles
+      (PhaseWorkspace.sourceBit phases 0 0)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 0 control 0)
+  · exact (PhaseWorkspace.phaseBit phases 1 control).controlledTwoWireZeroReflection_eventCost
+      physical oracles (PhaseWorkspace.sourceBit phases 1 0)
+      (PhaseWorkspace.sourceBit phases 1 1)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 0)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 1) (source_two_ne phases)
 
-theorem program_unitDepth (phases width : Nat) (small : width ≤ 2) (control : Fin phases) :
-    (program phases width small control).evaluatedEventDepth (fun _ => 1) =
-      controlledElementaryGateCount width := by
+theorem program_unitDepth (oracles : OracleModel) (phases width : Nat)
+    (physical : QubitLayout (phases + width)) (small : width ≤ 2) (control : Fin phases) :
+    (program oracles phases width physical small control).evaluatedEventDepth
+        (fun _ => 1) = controlledElementaryGateCount width := by
   interval_cases width
   · rfl
-  · exact EncodedBit.controlledZ_unitDepth _ _ _
-  · exact EncodedBit.controlledTwoWireZeroReflection_unitDepth _ _ _ _ _ _
+  · exact (PhaseWorkspace.phaseBit phases 0 control).controlledZ_unitDepth physical oracles
+      (PhaseWorkspace.sourceBit phases 0 0)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 0 control 0)
+  · exact (PhaseWorkspace.phaseBit phases 1 control).controlledTwoWireZeroReflection_unitDepth
+      physical oracles (PhaseWorkspace.sourceBit phases 1 0)
+      (PhaseWorkspace.sourceBit phases 1 1)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 0)
+      (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 1) (source_two_ne phases)
 
 end SmallPhase
 
 namespace PhaseWorkspace
 
-theorem program_eventCost (phases controls : Nat) (large : 2 ≤ controls)
+theorem program_eventCost (oracles : OracleModel) (phases controls : Nat)
+    (physical : QubitLayout (phases + (controls + 1))) (large : 2 ≤ controls)
     (control work : Fin phases) (different : control ≠ work) :
-    (program phases controls control work different).eventCost =
-      controlledElementaryEventPool (controls + 1) := by
+    (program oracles phases controls physical control work different).eventCost =
+      controlledElementaryEventPool oracles (controls + 1) := by
   obtain ⟨extra, rfl⟩ : ∃ extra, controls = extra + 2 := ⟨controls - 2, by omega⟩
   have actual := (layout phases (extra + 2) work).controlledZeroReflectionProgram_eventCost
+    physical oracles
     (phaseBit phases (extra + 2) control)
     (control_source_ne phases (extra + 2) control work)
     (control_output_ne phases (extra + 2) control work)
     (control_work_ne phases (extra + 2) control work different)
-  change (program phases (extra + 2) control work different).eventCost = _ at actual
+  change (program oracles phases (extra + 2) physical control work different).eventCost =
+    _ at actual
   rw [gatePool, if_neg (by omega), if_neg (by omega)] at actual
   exact actual
 
-theorem program_unitDepth (phases controls : Nat) (large : 2 ≤ controls)
+theorem program_unitDepth (oracles : OracleModel) (phases controls : Nat)
+    (physical : QubitLayout (phases + (controls + 1))) (large : 2 ≤ controls)
     (control work : Fin phases) (different : control ≠ work) :
-    (program phases controls control work different).evaluatedEventDepth (fun _ => 1) =
-      controlledElementaryGateCount (controls + 1) := by
+    (program oracles phases controls physical control work different).evaluatedEventDepth
+        (fun _ => 1) = controlledElementaryGateCount (controls + 1) := by
   obtain ⟨extra, rfl⟩ : ∃ extra, controls = extra + 2 := ⟨controls - 2, by omega⟩
   have actual := (layout phases (extra + 2) work).controlledZeroReflectionProgram_unitDepth
+    physical oracles
     (phaseBit phases (extra + 2) control)
     (control_source_ne phases (extra + 2) control work)
     (control_output_ne phases (extra + 2) control work)
     (control_work_ne phases (extra + 2) control work different)
-  change (program phases (extra + 2) control work different).evaluatedEventDepth
+  change (program oracles phases (extra + 2) physical control work different).evaluatedEventDepth
     (fun _ => 1) = _ at actual
   exact actual
 
 end PhaseWorkspace
 
 /-- Every occurrence in the independent controlled-reflection pool is an elementary gate. -/
-theorem controlledElementaryEventPool_gateCount (width : Nat) :
+theorem controlledElementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) (controlledElementaryEventPool width) =
+      | .gate _ => 1 | _ => 0) (controlledElementaryEventPool oracles width) =
       controlledElementaryGateCount width := by
   match width with
   | 0 => rfl
@@ -147,9 +191,9 @@ theorem controlledElementaryEventPool_gateCount (width : Nat) :
       omega
 
 /-- The elementary controlled reflection invokes no opaque source query. -/
-theorem controlledElementaryEventPool_queryCount (width : Nat) :
+theorem controlledElementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .quantumSubroutine _ => 1 | _ => 0) (controlledElementaryEventPool width) = 0 := by
+      | .oracle _ => 1 | _ => 0) (controlledElementaryEventPool oracles width) = 0 := by
   match width with
   | 0 => rfl
   | 1 => rfl

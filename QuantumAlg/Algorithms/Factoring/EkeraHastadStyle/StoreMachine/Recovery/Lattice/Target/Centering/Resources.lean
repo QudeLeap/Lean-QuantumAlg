@@ -25,19 +25,30 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent native scratch initialization and comparison formula. -/
-def prepareTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .bitXor width),
-    .classicalOperation (.wordBinary .equal width),
-    .classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .shiftRight width),
-    .classicalOperation (.wordBinary .lessThan width)]
+def prepareTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .equal width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .shiftRight width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .lessThan width))]
 
 /-- Independent selected subtraction or complement/increment formula. -/
-def arithmeticTrace (width : Nat) (negates : Bool) : List (Resource.Event kind) :=
-  if negates then [.classicalOperation (.wordUnary .complement width),
-    .classicalOperation (.wordUnary .increment width)]
-  else [.classicalOperation (.wordBinary .sub width)]
+def arithmeticTrace (width : Nat) (negates : Bool) : List (Resource.Event model) :=
+  if negates then
+    [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .complement width)),
+      .classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordUnary .increment width))]
+  else [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordBinary .sub width))]
 
 /-- The actual branch path selects negation precisely in the nonzero below-half arm. -/
 def selectedNegation (refs : Refs ctx width) (path : (finishInto refs).Path) : Bool :=
@@ -46,8 +57,14 @@ def selectedNegation (refs : Refs ctx width) (path : (finishInto refs).Path) : B
   | ⟨.bit false, selected⟩ => selected.1.toBool
 
 /-- Independent native formula for the complete centered-target call. -/
-def centeredTrace (width : Nat) (negates : Bool) : List (Resource.Event kind) :=
+def centeredTrace (width : Nat) (negates : Bool) : List (Resource.Event model) :=
   prepareTrace width ++ arithmeticTrace width negates
+
+private theorem prepare_events (refs : Refs ctx width) (path : (prepareInto refs).Path) :
+    (prepareInto refs).eventTrace path = prepareTrace width := by
+  change _ ++ (_ ++ (_ ++ (_ ++ _))) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 private theorem finish_events (refs : Refs ctx width) (path : (finishInto refs).Path) :
     (finishInto refs).eventTrace path = arithmeticTrace width (selectedNegation refs path) := by
@@ -57,15 +74,30 @@ private theorem finish_events (refs : Refs ctx width) (path : (finishInto refs).
     cases flag
     · rcases path with ⟨flag, path⟩
       cases flag with
-      | bit flag => cases flag <;> rfl
-    · rfl
+      | bit flag =>
+        cases flag
+        · dsimp only [halfArm] at path ⊢
+          change (BitWord.instruction (execution := model)
+            (subOp refs refs.modulus refs.a)).eventTrace path = _
+          rw [BitWord.bitWord_instruction_eventTrace]
+          rfl
+        · change (negateInto refs).eventTrace path = _
+          change _ ++ _ = _
+          rw [BitWord.bitWord_instruction_eventTrace,
+            BitWord.bitWord_instruction_eventTrace]
+          rfl
+    · dsimp only [finishArm] at path ⊢
+      change (BitWord.instruction (execution := model)
+        (subOp refs refs.a refs.a)).eventTrace path = _
+      rw [BitWord.bitWord_instruction_eventTrace]
+      rfl
 
 /-- Every actual path emits the exact independent native centered-target formula. -/
 theorem centeredTargetInto_events (refs : Refs ctx width)
     (path : (centeredTargetInto refs).Path) :
     (centeredTargetInto refs).eventTrace path =
       centeredTrace width (selectedNegation refs path.2) :=
-  congrArg₂ List.append rfl (finish_events refs path.2)
+  congrArg₂ List.append (prepare_events refs path.1) (finish_events refs path.2)
 
 /-- Actual centered-target multiplicities equal the selected native formula. -/
 theorem centeredTargetInto_resourcePool (refs : Refs ctx width)
@@ -75,7 +107,7 @@ theorem centeredTargetInto_resourcePool (refs : Refs ctx width)
   congrArg ResourcePool.ofList (centeredTargetInto_events refs path)
 
 /-- Placement-independent coordinate envelope covering either selected arithmetic arm. -/
-def eventEnvelope (width : Nat) : ResourcePool kind :=
+def eventEnvelope (width : Nat) : ResourcePool model :=
   ResourcePool.ofList (prepareTrace width) +
     (ResourcePool.ofList (arithmeticTrace width false) +
       ResourcePool.ofList (arithmeticTrace width true))
@@ -123,7 +155,8 @@ theorem centeredTargetInto_depth_le (refs : Refs ctx width)
   omega
 
 private theorem prepare_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (prepareInto refs).BorrowedRestored Reference state
       ((prepareInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -134,7 +167,8 @@ private theorem prepare_borrowedRestored (refs : Refs ctx width) (Reference : Re
           (Circuit.borrowedRestored_classical _ _))))
 
 private theorem half_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (halfInto refs).BorrowedRestored Reference state
       ((halfInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_branch _ _ Reference _ state
@@ -147,7 +181,8 @@ private theorem half_borrowedRestored (refs : Refs ctx width) (Reference : Regis
         (Circuit.borrowedRestored_classical _ _) (Circuit.borrowedRestored_classical _ _)
 
 private theorem finish_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (finishInto refs).BorrowedRestored Reference state
       ((finishInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_branch _ _ Reference _ state
@@ -160,14 +195,16 @@ private theorem finish_borrowedRestored (refs : Refs ctx width) (Reference : Reg
 
 /-- Actual comparison and selected arithmetic restore every borrowed-reference correlation. -/
 theorem centeredTargetInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (centeredTargetInto refs).BorrowedRestored Reference state
       ((centeredTargetInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (prepare_borrowedRestored refs Reference state)
     (finish_borrowedRestored refs Reference _)
 
 private theorem finish_visited (refs : Refs ctx width) (path : (finishInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (finishInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (finishInto refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨flag, path⟩
   cases flag with
@@ -184,7 +221,7 @@ private theorem finish_visited (refs : Refs ctx width) (path : (finishInto refs)
 
 /-- Every selected native instruction retains the complete original supplied context. -/
 theorem centeredTargetInto_visited (refs : Refs ctx width)
-    (path : (centeredTargetInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (centeredTargetInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (centeredTargetInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ (_ ++ _) at present
   rcases List.mem_append.mp present with prepared | selected

@@ -32,9 +32,11 @@ def prefixOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (count : Nat)
 
 /-- Execute every selected first-input stage without allocating an additional system. -/
 def prefixProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (count : Nat) → count ≤ width → UnitaryCircuit (Qubits (encoding width).width)
-  | 0, _ => .identity (Qubits (encoding width).width) [] (by simp)
-  | index + 1, within => .seq (prefixProgram width modulus index (by omega))
+    (count : Nat) → count ≤ width → UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum
+  | 0, _ => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum
+  | index + 1, within => (prefixProgram width modulus index (by omega)).seq
       (stageProgram width modulus ⟨index, by omega⟩)
 
 /-- Every actual prefix realizes the exact three-word action on all basis labels. -/
@@ -44,7 +46,8 @@ theorem variableGidney_prefix_realizes (width : Nat) (modulus : Fin (2 ^ width +
       (prefixOutput modulus count) := by
   induction count with
   | zero =>
-      apply (UnitaryCircuit.Realizes.identity (encoding width)).congrStep
+      apply (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        (encoding width) (QubitLayout.canonical (encoding width).width)).congrStep
       rintro ⟨first, second, target⟩
       rfl
   | succ index inductionHypothesis =>
@@ -61,42 +64,23 @@ theorem variableGidney_prefix_realizes (width : Nat) (modulus : Fin (2 ^ width +
           else variableWordPrefix modulus first second target index)
       split_ifs <;> rfl
 
-theorem variableGidney_prefix_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (count : Nat) (within : count ≤ width) :
-    (prefixProgram width modulus count within).physical_idx ⊆
-      List.range (encoding width).width := by
-  induction count with
-  | zero => exact List.nil_subset _
-  | succ index inductionHypothesis =>
-      exact UnitaryCircuit.seq_physical_idx_subset _ _ (inductionHypothesis (by omega))
-        (variableGidney_stage_physical width modulus ⟨index, by omega⟩)
-
-/-- The complete literal program retains the entire three-word physical carrier. -/
+/-- The complete literal program retains the original three-word carrier. -/
 def program (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  .seq (prefixProgram width modulus width (Nat.le_refl width))
-    (.identity (Qubits (encoding width).width) (List.range (encoding width).width)
-      List.nodup_range)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  prefixProgram width modulus width (Nat.le_refl width)
 
 /-- Exact all-label coherent correctness of the actual complete three-word program. -/
 theorem variableGidney_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (encoding width) (program width modulus)
-      (prefixOutput modulus width) := by
-  apply ((variableGidney_prefix_realizes width modulus width (Nat.le_refl width)).seq
-    (UnitaryCircuit.Realizes.identityAt (encoding width) (List.range (encoding width).width)
-      List.nodup_range)).congrStep
-  intro state
-  rfl
+      (prefixOutput modulus width) :=
+  variableGidney_prefix_realizes width modulus width (Nat.le_refl width)
 
-/-- Every original quantum wire is retained, and there are exactly three input-sized words. -/
-theorem variableGidney_physical (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (program width modulus).physical_idx = List.range (3 * width) := by
-  have retained : (program width modulus).physical_idx = List.range (encoding width).width :=
-    (variableGidney_prefix_physical width modulus width (Nat.le_refl width)).union_eq_right
-  have count : (encoding width).width = 3 * width := by
-    change width + (width + width) = 3 * width
-    omega
-  exact retained.trans (congrArg List.range count)
+/-- Every original quantum wire is retained, with exactly three input-sized words. -/
+theorem variableGidney_interface (width : Nat) :
+    (encoding width).width = 3 * width ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (3 * width) :=
+  variableGidney_stage_interface width
 
 /-- Canonical accumulators receive the exact product while both quantum inputs are preserved. -/
 theorem variableGidney_valid (width : Nat) (modulus : Fin (2 ^ width + 1))

@@ -77,7 +77,8 @@ private theorem bit_iterate (width : Nat) (index : Fin (width.size + 2))
 
 /-- Fixed repetition of the existing real single-clock-bit decoder sweep. -/
 def bitProgram (width : Nat) (index : Fin (width.size + 2)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   UnitaryCircuit.iterate (ClockDecodeWeight.weight width index) (ClockDecodeBit.program width index)
 
 private theorem bit_realizes (width : Nat) (index : Fin (width.size + 2)) :
@@ -89,8 +90,9 @@ private theorem bit_realizes (width : Nat) (index : Fin (width.size + 2)) :
       (bit_iterate width index (ClockDecodeWeight.weight width index))
 
 private def sequence (width : Nat) : List (Fin (width.size + 2)) →
-    UnitaryCircuit (Qubits (encoding width).width)
-  | [] => GateSpec.programList []
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum
+  | [] => GateSpec.programList (QubitLayout.canonical _) .empty []
   | index :: rest => (bitProgram width index).seq (sequence width rest)
 
 private theorem sequence_realizes (width : Nat) (indices : List (Fin (width.size + 2))) :
@@ -101,7 +103,7 @@ private theorem sequence_realizes (width : Nat) (indices : List (Fin (width.size
             ClockDecodeWeight.weight width index).sum)) := by
   induction indices with
   | nil =>
-      exact (GateSpec.realizesList_congrStep [] (fun state =>
+      exact (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty [] (fun state =>
         (rotateFrame_zero state).symm))
   | cons index rest inductionHypothesis =>
       apply ((bit_realizes width index).seq inductionHypothesis).congrStep
@@ -120,7 +122,8 @@ private theorem sequence_realizes (width : Nat) (indices : List (Fin (width.size
       rfl
 
 /-- Execute the actual fixed weighted sweeps over all original high and low clock wires. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
   sequence width (List.finRange (width.size + 2))
 
 /-- Actual native execution decodes the complete physical clock and preserves every other bit. -/

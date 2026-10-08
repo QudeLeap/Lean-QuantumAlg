@@ -69,9 +69,11 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Forgetting path records before reading the output leaves every complete output block intact. -/
-theorem finalState_readout {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (program : AlgorithmRun pre post shape) (Reference : Register)
-    (state : ExecutionState (Store pre) (Register.prod pre.register Reference)) :
+theorem finalState_readout {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} {shape : CShape}
+    (program : AlgorithmRun model pre post shape) (Reference : Register)
+    (state : ExecutionState (Store pre × model.HiddenState)
+      (Register.prod pre.register Reference)) :
     (program.finalState Reference state).mapClassical program.output.eval =
       (program.execute Reference state).mapClassical
         (fun record => program.output.eval record.1) := by

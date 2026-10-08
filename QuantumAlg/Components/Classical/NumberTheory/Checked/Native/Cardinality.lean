@@ -23,20 +23,21 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.Native
 open ClassicalAlgorithms.Modular XGCD.Native SignedReduction.Native
 
 /-- The original real decision and signed branch require at most eighteen instructions. -/
-theorem checkedSelectionEnvelope_card_le (kind : ProblemKind) (width : Nat) :
-    (checkedSelectionEnvelope kind width).card ≤ 18 := by
-  have signed := signedReductionEnvelope_card_le kind width
+theorem checkedSelectionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
+  : Nat) :
+    (checkedSelectionEnvelope model width).card ≤ 18 := by
+  have signed := signedReductionEnvelope_card_le model width
   simpa only [checkedSelectionEnvelope, Multiset.card_add, ResourcePool.max,
     Multiset.union_zero, ResourcePool.ofList, checkedDecisionEvents, Multiset.coe_card,
     List.length_cons, List.length_nil] using Nat.add_le_add_left signed 2
 
 /-- The actual independent checked-inverse pool obeys the original width-linear ceiling. -/
 theorem checkedInverseEnvelope_card_le {width : Nat}
-    (kind : ProblemKind) (spec : ModulusSpec width) :
-    (checkedInverseEnvelope kind spec).card ≤ 30 * width + 72 := by
-  have loaded := ConstantWord.constantLoader_length_le kind (width + 1) spec.modulus
-  have raw := rawEnvelope_card kind (width + 1)
-  have selected := checkedSelectionEnvelope_card_le kind width
+    (model : ExecutionModel) [BitWord.Selected model] (spec : ModulusSpec width) :
+    (checkedInverseEnvelope model spec).card ≤ 30 * width + 72 := by
+  have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
+  have raw := rawEnvelope_card model (width + 1)
+  have selected := checkedSelectionEnvelope_card_le model width
   unfold checkedInverseEnvelope
   simp only [Multiset.card_add, ResourcePool.ofList, Multiset.coe_card,
     List.length_cons, List.length_nil]

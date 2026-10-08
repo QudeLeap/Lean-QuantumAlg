@@ -27,23 +27,28 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem public_actual_trace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) :
-    ∃ record : Store ctx → Store ctx × (publicIntoResult input result).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (publicIntoResult input result).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (publicIntoResult (model := model) input result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (publicIntoResult input result).eventTrace (record before).2 =
-        rawEvents kind (GCD.decodeOperands (before.read input)) ++ packingEvents kind width := by
-  let Trace (source : Store ctx) (events : List (Resource.Event kind)) : Prop :=
-    events = rawEvents kind (GCD.decodeOperands (source.read input)) ++ packingEvents kind width
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (publicIntoResult (model := model) input
+        result).eventTrace (record before).2 =
+        rawEvents model (GCD.decodeOperands (before.1.read input)) ++
+          packingEvents model width := by
+  let Trace (source : Store ctx) (events : List (Resource.Event model)) : Prop :=
+    events = rawEvents model (GCD.decodeOperands (source.read input)) ++ packingEvents model width
   apply withCells_actualRecord_initialized_trace ctx (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
       (publicRawOutputs cells) (transport.liftWrite result)) Trace
   intro inner cells distinct transport _separated
   let outputs := publicRawOutputs cells
@@ -53,32 +58,38 @@ private theorem public_actual_trace
   obtain ⟨rawRecord, rawEquation, _⟩ :=
     xgcdNativeRawEngine_actualRecord lifted outputs outputDistinct
   obtain ⟨packRecord, packEquation, _⟩ := xgcdNativePackRawOutputs_actualRecord outputs target
-  refine ⟨Circuit.sequenceRecord (rawEngine lifted outputs)
-    (packRawOutputs outputs target) rawRecord packRecord, ?_, ?_⟩
+  refine ⟨Circuit.sequenceRecord (rawEngine (model := model) lifted outputs)
+    (packRawOutputs (model := model) outputs target) rawRecord packRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord (rawEngine lifted outputs)
-      (packRawOutputs outputs target) rawRecord packRecord rawEquation packEquation reference state
+    exact Circuit.execute_sequenceRecord (rawEngine (model := model) lifted outputs)
+      (packRawOutputs (model := model) outputs target) rawRecord packRecord rawEquation
+        packEquation reference state
   · intro source before reads _initialized
-    change (rawEngine lifted outputs).eventTrace (rawRecord before).2 ++
-      (packRawOutputs outputs target).eventTrace (packRecord (rawRecord before).1).2 = _
+    change (rawEngine (model := model) lifted outputs).eventTrace (rawRecord before).2 ++
+      (packRawOutputs (model := model) outputs target).eventTrace (packRecord (rawRecord
+        before).1).2 = _
     rw [xgcdNativeRawEngine_record_eventTrace lifted outputs outputDistinct rawRecord rawEquation,
       xgcdNativePackRawOutputs_eventTrace]
-    exact congrArg (fun value => rawEvents kind (GCD.decodeOperands value) ++
-      packingEvents kind width) (reads input)
+    exact congrArg (fun value => rawEvents model (GCD.decodeOperands value) ++
+      packingEvents model width) (reads input)
 
 /-- Every certified actual public record has the original unpadded trace and five packing events. -/
 theorem xgcdNativePublicIntoResult_record_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (record : Store ctx → Store ctx × (publicIntoResult input result).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (publicIntoResult input result).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx) :
-    (publicIntoResult input result).eventTrace (record store).2 =
-      rawEvents kind (GCD.decodeOperands (store.read input)) ++ packingEvents kind width := by
+      (state : State ctx Reference (model.HiddenState × History)),
+      (publicIntoResult (model := model) input result).execute Reference state = state.mapClassical
+        (fun entry =>
+          let actual := record (entry.1, entry.2.1)
+          (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))))
+    (store : Store ctx × model.HiddenState) :
+    (publicIntoResult (model := model) input result).eventTrace (record store).2 =
+      rawEvents model (GCD.decodeOperands (store.1.read input)) ++ packingEvents model width := by
   obtain ⟨actual, actualEquation, traced⟩ := public_actual_trace input result
-  have same := Circuit.executionRecord_unique (publicIntoResult input result)
+  have same := Circuit.executionRecord_unique (publicIntoResult (model := model) input result)
     record actual equation actualEquation
   rw [same]
   exact traced store
@@ -86,25 +97,26 @@ theorem xgcdNativePublicIntoResult_record_eventTrace
 private theorem publicBody_duration_events
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
-    (duration : Resource.Event kind → Nat) (path : (publicBody input outputs result).Path) :
-    (publicBody input outputs result).depth duration path =
-      (((publicBody input outputs result).eventTrace path).map duration).sum := by
-  change (rawEngine input outputs).depth duration path.1 +
-    (packRawOutputs outputs result).depth duration path.2 =
-      (((rawEngine input outputs).eventTrace path.1 ++
-        (packRawOutputs outputs result).eventTrace path.2).map duration).sum
+    (duration : Resource.Event model → Nat) (path : (publicBody (model := model) input outputs
+      result).Path) :
+    (publicBody (model := model) input outputs result).depth duration path =
+      (((publicBody (model := model) input outputs result).eventTrace path).map duration).sum := by
+  change (rawEngine (model := model) input outputs).depth duration path.1 +
+    (packRawOutputs (model := model) outputs result).depth duration path.2 =
+      (((rawEngine (model := model) input outputs).eventTrace path.1 ++
+        (packRawOutputs (model := model) outputs result).eventTrace path.2).map duration).sum
   rw [List.map_append, List.sum_append, xgcdNativeRawEngine_duration_eventTrace,
     xgcdNativePackRawOutputs_depth, xgcdNativePackRawOutputs_eventTrace]
 
 /-- The actual public serial path charges exactly its own complete event trace. -/
 theorem xgcdNativePublicIntoResult_duration_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).depth duration path =
-      (((publicIntoResult input result).eventTrace path).map duration).sum := by
+    (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).depth duration path =
+      (((publicIntoResult (model := model) input result).eventTrace path).map duration).sum := by
   exact withCellsFrom_property (Transport.id ctx) (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
       (publicRawOutputs cells) (transport.liftWrite result))
     (fun _ code => ∀ selected, code.depth duration selected =
       ((code.eventTrace selected).map duration).sum)
@@ -115,19 +127,23 @@ theorem xgcdNativePublicIntoResult_duration_eventTrace
 theorem xgcdNativePublicIntoResult_record_duration
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (record : Store ctx → Store ctx × (publicIntoResult input result).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (publicIntoResult input result).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx)
-    (duration : Resource.Event kind → Nat) :
-    (publicIntoResult input result).depth duration (record store).2 =
-      ((initializationEvents kind width).map duration).sum +
+      (state : State ctx Reference (model.HiddenState × History)),
+      (publicIntoResult (model := model) input result).execute Reference state = state.mapClassical
+        (fun entry =>
+          let actual := record (entry.1, entry.2.1)
+          (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))))
+    (store : Store ctx × model.HiddenState)
+    (duration : Resource.Event model → Nat) :
+    (publicIntoResult (model := model) input result).depth duration (record store).2 =
+      ((initializationEvents model width).map duration).sum +
         (ClassicalAlgorithms.NumberTheory.XGCD.traceStepCount
-          (GCD.decodeOperands (store.read input)) *
-            ((activeEvents kind width).map duration).sum +
-          ((rawOutputEvents kind width).map duration).sum) +
-        ((packingEvents kind width).map duration).sum := by
+          (GCD.decodeOperands (store.1.read input)) *
+            ((activeEvents model width).map duration).sum +
+          ((rawOutputEvents model width).map duration).sum) +
+        ((packingEvents model width).map duration).sum := by
   rw [xgcdNativePublicIntoResult_duration_eventTrace,
     xgcdNativePublicIntoResult_record_eventTrace input result record equation,
     List.map_append, List.sum_append, xgcdNativeRawEvents_duration]
@@ -136,14 +152,18 @@ theorem xgcdNativePublicIntoResult_record_duration
 theorem xgcdNativePublicIntoResult_record_unitDepth
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (record : Store ctx → Store ctx × (publicIntoResult input result).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (publicIntoResult input result).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx) :
-    (publicIntoResult input result).depth (fun _ => 1) (record store).2 =
+      (state : State ctx Reference (model.HiddenState × History)),
+      (publicIntoResult (model := model) input result).execute Reference state = state.mapClassical
+        (fun entry =>
+          let actual := record (entry.1, entry.2.1)
+          (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))))
+    (store : Store ctx × model.HiddenState) :
+    (publicIntoResult (model := model) input result).depth (fun _ => 1) (record store).2 =
       14 * ClassicalAlgorithms.NumberTheory.XGCD.traceStepCount
-        (GCD.decodeOperands (store.read input)) + 14 := by
+        (GCD.decodeOperands (store.1.read input)) + 14 := by
   rw [xgcdNativePublicIntoResult_duration_eventTrace,
     xgcdNativePublicIntoResult_record_eventTrace input result record equation,
     List.map_append, List.sum_append, xgcdNativeRawEvents_unit_duration]
@@ -154,17 +174,22 @@ theorem xgcdNativePublicIntoResult_record_unitDepth
 theorem xgcdNativePublicIntoResult_record_resourcePool
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (record : Store ctx → Store ctx × (publicIntoResult input result).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (publicIntoResult input result).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx) :
-    (publicIntoResult input result).resourcePool (record store).2 =
-      ResourcePool.ofList (initializationEvents kind width) +
+      (state : State ctx Reference (model.HiddenState × History)),
+      (publicIntoResult (model := model) input result).execute Reference state = state.mapClassical
+        (fun entry =>
+          let actual := record (entry.1, entry.2.1)
+          (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))))
+    (store : Store ctx × model.HiddenState) :
+    (publicIntoResult (model := model) input result).resourcePool (record store).2 =
+      ResourcePool.ofList (initializationEvents model width) +
         (ResourcePool.scale (ClassicalAlgorithms.NumberTheory.XGCD.traceStepCount
-          (GCD.decodeOperands (store.read input))) (ResourcePool.ofList (activeEvents kind width)) +
-          ResourcePool.ofList (rawOutputEvents kind width)) +
-        ResourcePool.ofList (packingEvents kind width) := by
+          (GCD.decodeOperands (store.1.read input))) (ResourcePool.ofList (activeEvents model
+            width)) +
+          ResourcePool.ofList (rawOutputEvents model width)) +
+        ResourcePool.ofList (packingEvents model width) := by
   rw [Circuit.resourcePool,
     xgcdNativePublicIntoResult_record_eventTrace input result record equation,
     ResourcePool.ofList_append, xgcdNativeRawEvents_resourcePool]

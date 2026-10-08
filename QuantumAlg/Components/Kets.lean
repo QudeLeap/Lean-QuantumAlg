@@ -7,8 +7,8 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Core.Base.State.Normalized
 import all QuantumAlg.Core.Base.Marginal
 
 /-!
@@ -33,16 +33,21 @@ namespace NormalizedVector
 noncomputable section
 
 /-- `|0>`, the first one-qubit basis ket. -/
-public def ket0 : NormalizedVector (Qubits 1) := ket 0
+@[expose] public def ket0 : NormalizedVector (Qubits 1) := ket 0
 
 /-- `|1>`, the second one-qubit basis ket. -/
-public def ket1 : NormalizedVector (Qubits 1) := ket 1
+@[expose] public def ket1 : NormalizedVector (Qubits 1) := ket 1
+
+@[simp] public theorem ket0_apply (index : Fin 2) :
+    (ket0 : HilbertVector (Qubits 1)) index =
+      if index = 0 then 1 else 0 := by
+  exact ket_apply (R := Qubits 1) 0 index
 
 /-- `(sqrt 2)^-1 : ℂ`, the ubiquitous normalization scalar. -/
-def invSqrt2 : ℂ := (Real.sqrt 2 : ℂ)⁻¹
+@[expose] public def invSqrt2 : ℂ := (Real.sqrt 2 : ℂ)⁻¹
 
 @[simp]
-theorem invSqrt2_mul_self : invSqrt2 * invSqrt2 = (2 : ℂ)⁻¹ := by
+public theorem invSqrt2_mul_self : invSqrt2 * invSqrt2 = (2 : ℂ)⁻¹ := by
   rw [invSqrt2, ← mul_inv, ← Complex.ofReal_mul,
     Real.mul_self_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
   norm_num
@@ -60,7 +65,7 @@ theorem invSqrt2_mul_mul_invSqrt2 (z : ℂ) :
     _ = (2 : ℂ)⁻¹ * z := by ring
 
 @[simp]
-theorem star_invSqrt2 : star invSqrt2 = invSqrt2 := by
+public theorem star_invSqrt2 : star invSqrt2 = invSqrt2 := by
   rw [invSqrt2, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
 @[simp]
@@ -83,7 +88,7 @@ theorem norm_eq_two_terms (ψ : HilbertVector (Qubits 1)) :
   exact Fin.sum_univ_two (f := fun i : Fin (2 ^ 1) => ‖ψ i‖ ^ 2)
 
 /-- `|+> = (|0> + |1>)/sqrt 2`. -/
-def ketPlus : NormalizedVector (Qubits 1) :=
+public def ketPlus : NormalizedVector (Qubits 1) :=
   ofVector
     (invSqrt2 •
       ((ket0 : HilbertVector (Qubits 1)) + (ket1 : HilbertVector (Qubits 1))))
@@ -135,7 +140,7 @@ theorem ketMinus_coe :
   rfl
 
 @[simp]
-theorem ketPlus_apply (i : Fin (2 ^ 1)) : ketPlus i = invSqrt2 := by
+public theorem ketPlus_apply (i : Fin (2 ^ 1)) : ketPlus i = invSqrt2 := by
   fin_cases i <;>
     simp [ketPlus, ket0, ket1, PiLp.smul_apply, PiLp.add_apply, smul_eq_mul]
 

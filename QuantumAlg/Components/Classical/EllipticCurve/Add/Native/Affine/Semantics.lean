@@ -104,22 +104,28 @@ def affineOutputValue (spec : ModulusSpec width)
     CShape.Value (PointShape width) :=
   (affineValues spec leftX rightX leftY numerator denominator).point (.bit false)
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Real allocation and release leave exactly one caller write, with no workspace premise. -/
 theorem affineInto_completeRecord (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store ctx ×
-        (affineInto spec leftX rightX leftY numerator denominator output).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+        (affineInto (model := model) spec leftX rightX leftY numerator denominator output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (affineInto spec leftX rightX leftY numerator denominator output).execute Reference state =
-          state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ store : Store ctx, (record store).1 = store.write output
-        (affineOutputValue spec (store.read leftX) (store.read rightX) (store.read leftY)
-          (store.read numerator) (store.read denominator)) := by
+        (state : State ctx Reference (model.HiddenState × History)),
+        (affineInto (model := model) spec leftX rightX leftY numerator denominator output).execute
+          Reference state = state.mapClassical (fun entry =>
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 = before.1.write output
+        (affineOutputValue spec (before.1.read leftX) (before.1.read rightX)
+          (before.1.read leftY) (before.1.read numerator) (before.1.read denominator)) := by
   apply withCells_actualRecord_initialized_post ctx (affineShapes width)
-    (fun cells _ transport _ => affineBody spec (transport.liftInput leftX)
+    (fun cells _ transport _ => affineBody (model := model) spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
     (fun source target => target = source.write output
@@ -136,51 +142,58 @@ theorem affineInto_completeRecord (spec : ModulusSpec width)
   rw [affineBodyStep_store, affineBodyStore_values _ _ _ _ _ _ _ _
     (affineScratch_separation leftX rightX leftY numerator denominator cells distinct
       transport separated), reads leftX, reads rightX, reads leftY, reads numerator,
-    reads denominator, affineScratch_tag_initialized cells before initialized]
+    reads denominator, affineScratch_tag_initialized cells before.1 initialized]
   exact Transport.workspaceTransport_readsAs_write transport
-    (affineArithmeticStore_readsAs cells transport separated source before reads values)
+    (affineArithmeticStore_readsAs cells transport separated source before.1 reads values)
     output (values.point (.bit false))
 
 /-- The exact actual path and caller Store of the original total affine tail. -/
 def affineIntoStep (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) :
-    Store ctx → Store ctx ×
-      (affineInto spec leftX rightX leftY numerator denominator output).Path :=
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (affineInto (model := model) spec leftX rightX leftY numerator denominator output).Path :=
   Classical.choose (affineInto_completeRecord spec leftX rightX leftY numerator denominator output)
 
 /-- Complete quantum-reference blocks and history follow the same actual selected tail record. -/
 theorem affineInto_execute (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (affineInto spec leftX rightX leftY numerator denominator output).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (affineInto (model := model) spec leftX rightX leftY numerator denominator output).execute
+      Reference state =
       state.mapClassical (fun entry =>
-        ((affineIntoStep spec leftX rightX leftY numerator denominator output entry.1).1,
-          (entry.2, (affineIntoStep spec leftX rightX leftY numerator denominator output
-            entry.1).2))) :=
+        let result := affineIntoStep spec leftX rightX leftY numerator denominator output
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (affineInto_completeRecord spec leftX rightX leftY numerator denominator
     output)).1 Reference state
 
 /-- Every raw input gives exactly the original finite nominal point in the sole caller write. -/
 theorem affineIntoStep_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (PointShape width)) (store : Store ctx) :
-    (affineIntoStep spec leftX rightX leftY numerator denominator output store).1 =
+    (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
+    (hidden : model.HiddenState) :
+    (affineIntoStep spec leftX rightX leftY numerator denominator output
+      (store, hidden)).1.1 =
       store.write output (affineOutputValue spec (store.read leftX) (store.read rightX)
         (store.read leftY) (store.read numerator) (store.read denominator)) :=
   (Classical.choose_spec (affineInto_completeRecord spec leftX rightX leftY numerator denominator
-    output)).2 store
+    output)).2 (store, hidden)
 
 /-- Every structural read outside the caller result remains bitwise unchanged. -/
 theorem affineInto_preserves_read (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx) {shape : CShape}
-    (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys) :
-    (affineIntoStep spec leftX rightX leftY numerator denominator output store).1.read input =
-      store.read input := by
-  rw [affineIntoStep_store]
+    (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys)
+    (hidden : model.HiddenState) :
+    (affineIntoStep spec leftX rightX leftY numerator denominator output
+      (store, hidden)).1.1.read input = store.read input := by
+  rw [affineIntoStep_store spec leftX rightX leftY numerator denominator output store hidden]
   exact Store.read_write_of_not_mem_storageKeys store output _ input separate
+
+end
 
 end
 

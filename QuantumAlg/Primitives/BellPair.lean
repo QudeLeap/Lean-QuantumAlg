@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Primitives.BellPair.Construction
 public import QuantumAlg.Primitives.BellPair.Endpoint
+public import QuantumAlg.Primitives.BellPair.Measurement
 
 /-!
 # Bell pair construction and complete native execution

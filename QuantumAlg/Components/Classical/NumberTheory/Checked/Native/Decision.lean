@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Trace.Composition
 
 /-!
@@ -65,84 +66,90 @@ def unitGcdEqual (gcd : CInputRef ctx (.unsignedWord (width + 1)))
   .wordBinary .equal (width + 1) ctx (.product gcd (decisionRead one)) success
 
 /-- Actual original increment followed by gcd-equals-one comparison. -/
-def unitDecisionBody (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+def unitDecisionBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (one : CWriteRef ctx (.unsignedWord (width + 1))) (success : CWriteRef ctx .bit) :
-    Circuit ctx ctx :=
-  .seq (.classical (unitOneIncrement one)) (.classical (unitGcdEqual gcd one success))
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (unitOneIncrement one)) (BitWord.instruction
+      (execution := model) (unitGcdEqual gcd one success))
 
 /-- Literal chronological update and true native path. -/
-def unitDecisionBodyStep (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+def unitDecisionBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (one : CWriteRef ctx (.unsignedWord (width + 1))) (success : CWriteRef ctx .bit)
-    (store : Store ctx) : Store ctx × (unitDecisionBody gcd one success).Path :=
-  ((store.applyOp (unitOneIncrement one)).applyOp (unitGcdEqual gcd one success), ((), ()))
+    (store : Store ctx) : Store ctx × (unitDecisionBody (model := model) gcd one success).Path :=
+  let seeded := BitWord.instructionStep (execution := model) (unitOneIncrement one) store
+  let compared := BitWord.instructionStep (execution := model)
+    (unitGcdEqual gcd one success) seeded.1
+  (compared.1, (seeded.2, compared.2))
 
 /-- Actual placement uses the real fresh one word and original stored gcd/status cells. -/
-def unitDecisionPlaced (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+def unitDecisionPlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) :
-    Circuit (unitDecisionCtx ctx width) (unitDecisionCtx ctx width) :=
-  unitDecisionBody (underUnitDecision gcd width) (unitOneCell ctx width)
+    Circuit model (unitDecisionCtx ctx width) (unitDecisionCtx ctx width) :=
+  unitDecisionBody (model := model) (underUnitDecision gcd width) (unitOneCell ctx width)
     (writeUnderUnitDecision success width)
 
 /-- The original decision fully allocates and releases its one-word temporary. -/
-def withUnitDecision (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) : Circuit ctx ctx :=
+def withUnitDecision {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
-    (unitDecisionPlaced gcd success)
+    (unitDecisionPlaced (model := model) gcd success)
 
 /-- Actual caller-store result and native path after the one-word release. -/
-def withUnitDecisionStep (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+def withUnitDecisionStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (store : Store ctx) :
-    Store ctx × (withUnitDecision gcd success).Path :=
-  let result := unitDecisionBodyStep (underUnitDecision gcd width) (unitOneCell ctx width)
+    Store ctx × (withUnitDecision (model := model) gcd success).Path :=
+  let result := unitDecisionBodyStep (model := model) (underUnitDecision gcd width)
+      (unitOneCell ctx width)
     (writeUnderUnitDecision success width) (store.pushWorkspace ctx.canonicalFreshKey
       (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh)
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh result.1, result.2)
 
 /-- The two real instructions preserve every complete quantum-reference block and old history. -/
-theorem unitDecisionBody_execute (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+theorem unitDecisionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (one : CWriteRef ctx (.unsignedWord (width + 1))) (success : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (unitDecisionBody gcd one success).execute Reference state = state.mapClassical (fun entry =>
-      ((unitDecisionBodyStep gcd one success entry.1).1,
-        (entry.2, (unitDecisionBodyStep gcd one success entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (unitOneIncrement one))
-    (.classical (unitGcdEqual gcd one success))
-    (fun store => (store.applyOp (unitOneIncrement one), ()))
-    (fun store => (store.applyOp (unitGcdEqual gcd one success), ()))
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (unitOneIncrement one) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (unitGcdEqual gcd one success) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (unitDecisionBody (model := model) gcd one success).execute Reference state =
+        state.mapClassical (fun entry =>
+      let result := unitDecisionBodyStep (model := model) gcd one success entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [unitDecisionBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual allocation, decision and release retain the full reference-correlated execution state. -/
-theorem withUnitDecision_execute (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+theorem withUnitDecision_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (withUnitDecision gcd success).execute Reference state = state.mapClassical (fun entry =>
-      ((withUnitDecisionStep gcd success entry.1).1,
-        (entry.2, (withUnitDecisionStep gcd success entry.1).2))) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (withUnitDecision (model := model) gcd success).execute Reference state =
+        state.mapClassical (fun entry =>
+      let result := withUnitDecisionStep (model := model) gcd success entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord (width + 1))
-    ctx.canonicalFreshKey_fresh (unitDecisionPlaced gcd success)
-    (unitDecisionBodyStep (underUnitDecision gcd width) (unitOneCell ctx width)
-      (writeUnderUnitDecision success width))
-    (unitDecisionBody_execute (underUnitDecision gcd width) (unitOneCell ctx width)
-      (writeUnderUnitDecision success width)) Reference state).trans ?_
-  congr 1
+    ctx.canonicalFreshKey_fresh (unitDecisionPlaced (model := model) gcd success)
+    (fun before =>
+      let result := unitDecisionBodyStep (model := model) (underUnitDecision gcd width)
+        (unitOneCell ctx width) (writeUnderUnitDecision success width) before.1
+      ((result.1, before.2), result.2)) ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (unitDecisionBody_execute (underUnitDecision gcd width) (unitOneCell ctx width)
+      (writeUnderUnitDecision success width) reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Fresh initialization makes the stored decision exactly equality of the original gcd to one. -/
-theorem withUnitDecision_value (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+theorem withUnitDecision_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (store : Store ctx) :
-    (withUnitDecisionStep gcd success store).1.read (decisionRead success) =
+    (withUnitDecisionStep (model := model) gcd success store).1.read (decisionRead success) =
       .bit (decide ((store.read gcd).toNat = 1)) := by
   let entered := store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh
@@ -181,10 +188,11 @@ theorem withUnitDecision_value (gcd : CInputRef ctx (.unsignedWord (width + 1)))
   rw [result, oldGcd, oneValue]
 
 /-- Both real writes preserve every structural caller read outside the status output. -/
-theorem withUnitDecision_read_other (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+theorem withUnitDecision_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) {shape : CShape} (other : CInputRef ctx shape)
     (separate : success.key ∉ other.storageKeys) (store : Store ctx) :
-    (withUnitDecisionStep gcd success store).1.read other = store.read other := by
+    (withUnitDecisionStep (model := model) gcd success store).1.read other = store.read other := by
   have fresh : (unitOneCell ctx width).key ∉ (underUnitDecision other width).storageKeys := by
     rw [underUnitDecision, CInputRef.storageKeys_underWorkspace]
     exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
@@ -205,60 +213,88 @@ theorem withUnitDecision_read_other (gcd : CInputRef ctx (.unsignedWord (width +
   exact Store.read_pushWorkspace_underWorkspace _ _ _ _ other
 
 /-- The exact original increment-then-equality trace at the widened operand width. -/
-theorem withUnitDecision_eventTrace (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).eventTrace path =
-      [.classicalOperation (.wordUnary .increment (width + 1)),
-        .classicalOperation (.wordBinary .equal (width + 1))] := rfl
+theorem withUnitDecision_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary
+          .increment (width + 1))),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary
+            .equal (width + 1)))] := by
+  change (BitWord.instruction (execution := model) (unitOneIncrement (unitOneCell ctx
+      width))).eventTrace
+     path.1 ++
+      (BitWord.instruction (execution := model)
+        (unitGcdEqual (underUnitDecision gcd width) (unitOneCell ctx width)
+          (writeUnderUnitDecision success width))).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Actual native durations preserve both chronological dependencies. -/
-theorem withUnitDecision_durationDepth (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (duration : Resource.Event kind → Nat)
-    (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).depth duration path =
-      duration (.classicalOperation (.wordUnary .increment (width + 1))) +
-        duration (.classicalOperation (.wordBinary .equal (width + 1))) := rfl
+theorem withUnitDecision_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (duration : Resource.Event model → Nat)
+    (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).depth duration path =
+      duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordUnary .increment (width + 1)))) +
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.wordBinary .equal (width + 1)))) := by
+  change (BitWord.instruction (execution := model) (unitOneIncrement (unitOneCell ctx width))).depth
+    duration path.1 +
+      (BitWord.instruction (execution := model)
+        (unitGcdEqual (underUnitDecision gcd width) (unitOneCell ctx width)
+          (writeUnderUnitDecision success width))).depth duration path.2 = _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  rfl
 
 /-- Exactly two original native instructions execute. -/
-theorem withUnitDecision_depth (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).depth (fun _ => 1) path = 2 := rfl
+theorem withUnitDecision_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).depth (fun _ => 1) path = 2 := rfl
 
 
 /-- Exactly the original two event multiplicities, with no hidden coefficient computation. -/
-theorem withUnitDecision_resourcePool (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).resourcePool path = ResourcePool.ofList
-      [.classicalOperation (.wordUnary .increment (width + 1)),
-        .classicalOperation (.wordBinary .equal (width + 1))] := rfl
+theorem withUnitDecision_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).resourcePool path = ResourcePool.ofList
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary
+          .increment (width + 1))),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary
+            .equal (width + 1)))] :=
+  congrArg ResourcePool.ofList (withUnitDecision_eventTrace gcd success path)
 
 /-- Exact resident peak includes the actual widened one word and all original context entries. -/
-theorem withUnitDecision_resident (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).peakResidentSpace path =
+theorem withUnitDecision_resident {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).peakResidentSpace path =
       SpacePool.ofShape (.unsignedWord (width + 1)) + ctx.residentSpace := by
-  have bodyPeak : (unitDecisionPlaced gcd success).peakResidentSpace path =
+  have bodyPeak : (unitDecisionPlaced (model := model) gcd success).peakResidentSpace path =
       (unitDecisionCtx ctx width).residentSpace := by
     change SpacePool.max (unitDecisionCtx ctx width).residentSpace
       (SpacePool.max (unitDecisionCtx ctx width).residentSpace 0) = _
     simp only [SpacePool.max_zero, SpacePool.max_self]
   refine (Circuit.peakResidentSpace_workspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
-    ctx.canonicalFreshKey_fresh (unitDecisionPlaced gcd success) path).trans
+    ctx.canonicalFreshKey_fresh (unitDecisionPlaced (model := model) gcd success) path).trans
       ((congrArg (SpacePool.max ctx.residentSpace) bodyPeak).trans ?_)
   exact SpacePool.max_eq_right le_add_self
 
 /-- Exact auxiliary peak includes the actual widened one word and all original context entries. -/
-theorem withUnitDecision_auxiliary (gcd : CInputRef ctx (.unsignedWord (width + 1)))
-    (success : CWriteRef ctx .bit) (path : (withUnitDecision gcd success).Path) :
-    (withUnitDecision gcd success).peakAuxiliarySpace path =
+theorem withUnitDecision_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
+    (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
+    (withUnitDecision (model := model) gcd success).peakAuxiliarySpace path =
       SpacePool.ofShape (.unsignedWord (width + 1)) + ctx.auxiliarySpace := by
-  have bodyPeak : (unitDecisionPlaced gcd success).peakAuxiliarySpace path =
+  have bodyPeak : (unitDecisionPlaced (model := model) gcd success).peakAuxiliarySpace path =
       (unitDecisionCtx ctx width).auxiliarySpace := by
     change SpacePool.max (unitDecisionCtx ctx width).auxiliarySpace
       (SpacePool.max (unitDecisionCtx ctx width).auxiliarySpace 0) = _
     simp only [SpacePool.max_zero, SpacePool.max_self]
   refine (Circuit.peakAuxiliarySpace_workspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
-    ctx.canonicalFreshKey_fresh (unitDecisionPlaced gcd success) path).trans
+    ctx.canonicalFreshKey_fresh (unitDecisionPlaced (model := model) gcd success) path).trans
       ((congrArg (SpacePool.max ctx.auxiliarySpace) bodyPeak).trans ?_)
   exact SpacePool.max_eq_right le_add_self
 

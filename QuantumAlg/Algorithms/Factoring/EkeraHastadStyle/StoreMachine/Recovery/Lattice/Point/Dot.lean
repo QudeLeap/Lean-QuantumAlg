@@ -44,12 +44,16 @@ structure PointDotSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (LatticeState.coordinateInput right.third) accumulator product
 
 /-- Add the three actual coordinate products to the original accumulator. -/
-def pointDotAccumulate (left right : LatticeState.PointRefs ctx width)
-    (accumulator product : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (coordinateAccumulate (writeInput left.first) (writeInput right.first) accumulator product)
-    (.seq (coordinateAccumulate (writeInput left.second) (writeInput right.second)
+def pointDotAccumulate {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (coordinateAccumulate (model := model)
+      (writeInput left.first) (writeInput right.first) accumulator product)
+    (.seq (coordinateAccumulate (model := model)
+        (writeInput left.second) (writeInput right.second)
         accumulator product)
-      (coordinateAccumulate (writeInput left.third) (writeInput right.third) accumulator product))
+      (coordinateAccumulate (model := model)
+        (writeInput left.third) (writeInput right.third) accumulator product))
 
 /-- The six chronological native updates on the actual store. -/
 def pointStore (left right : LatticeState.PointRefs ctx width)
@@ -58,18 +62,39 @@ def pointStore (left right : LatticeState.PointRefs ctx width)
     (coordinateStore (writeInput left.second) (writeInput right.second) accumulator product
       (coordinateStore (writeInput left.first) (writeInput right.first) accumulator product store))
 
+/-- The actual three coordinate updates and their recorded selected paths. -/
+def pointStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (pointDotAccumulate (model := model) left right accumulator product).Path :=
+  let first := coordinateStep (model := model)
+    (writeInput left.first) (writeInput right.first) accumulator product store
+  let second := coordinateStep (model := model)
+    (writeInput left.second) (writeInput right.second) accumulator product first.1
+  let third := coordinateStep (model := model)
+    (writeInput left.third) (writeInput right.third) accumulator product second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (pointStep (model := model) left right accumulator product store).1 =
+      pointStore left right accumulator product store := rfl
+
 /-- The complete actual interpreter retains each incoming history and quantum-reference block. -/
-theorem pointDotAccumulate_execute (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pointDotAccumulate left right accumulator product).execute Reference state =
-      state.mapClassical (fun entry => (pointStore left right accumulator product entry.1,
-        (entry.2, (((), ()), (((), ()), ((), ())))))) := by
-  simp only [pointDotAccumulate, coordinateAccumulate, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical,
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointDotAccumulate (model := model) left right accumulator product).execute
+      Reference state = state.mapClassical (fun entry =>
+        let actual := pointStep (model := model) left right accumulator product entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [pointDotAccumulate, pointStep, Circuit.execute_seq,
+    coordinateAccumulate_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every caller read outside the two reused cells is unchanged. -/
 theorem pointDotAccumulate_callerFrame (left right : LatticeState.PointRefs ctx width)
@@ -182,11 +207,16 @@ theorem pointSquaredNorm_value_of_zero {pointValue : NumberTheory.IntegerPoint3}
     accumulatorZero pointRepresents pointRepresents
 
 /-- The actual dot circuit jointly restores all borrowed classical and quantum correlations. -/
-theorem pointDotAccumulate_borrowedRestored (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_borrowedRestored
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pointDotAccumulate left right accumulator product).BorrowedRestored Reference state
-      ((pointDotAccumulate left right accumulator product).execute Reference state) := by
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointDotAccumulate (model := model) left right accumulator product).BorrowedRestored
+      Reference state
+      ((pointDotAccumulate (model := model) left right accumulator product).execute
+        Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact coordinateAccumulate_borrowedRestored _ _ _ _ Reference state
   · exact Circuit.borrowedRestored_seq _ _ _
@@ -194,36 +224,50 @@ theorem pointDotAccumulate_borrowedRestored (left right : LatticeState.PointRefs
       (coordinateAccumulate_borrowedRestored _ _ _ _ Reference _)
 
 /-- Exact six native instructions in every actual dot-accumulation path. -/
-theorem pointDotAccumulate_events (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointDotAccumulate left right accumulator product).Path) :
-    (pointDotAccumulate left right accumulator product).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width)] :=
+    (path : (pointDotAccumulate (model := model) left right accumulator product).Path) :
+    (pointDotAccumulate (model := model) left right accumulator product).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width))] := by
+  change _ ++ (_ ++ _) = _
+  rw [coordinateAccumulate_events, coordinateAccumulate_events,
+    coordinateAccumulate_events]
   rfl
 
 /-- All six dependent native instructions contribute their unit duration. -/
-theorem pointDotAccumulate_depth (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointDotAccumulate left right accumulator product).Path) :
-    (pointDotAccumulate left right accumulator product).depth (fun _ => 1) path = 6 := rfl
+    (path : (pointDotAccumulate (model := model) left right accumulator product).Path) :
+    (pointDotAccumulate (model := model) left right accumulator product).depth
+      (fun _ => 1) path = 6 := rfl
 
 /-- Reusing both cells leaves the complete visited context unchanged. -/
-theorem pointDotAccumulate_visited (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_visited {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointDotAccumulate left right accumulator product).Path) :
-    (pointDotAccumulate left right accumulator product).visitedContexts path =
+    (path : (pointDotAccumulate (model := model) left right accumulator product).Path) :
+    (pointDotAccumulate (model := model) left right accumulator product).visitedContexts path =
       [ctx, ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- Resident space counts the two reused cells and all original quantum systems. -/
-theorem pointDotAccumulate_resident_le (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_resident_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointDotAccumulate left right accumulator product).Path) :
-    (pointDotAccumulate left right accumulator product).peakResidentSpace path ≤
+    (path : (pointDotAccumulate (model := model) left right accumulator product).Path) :
+    (pointDotAccumulate (model := model) left right accumulator product).peakResidentSpace path ≤
       ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
@@ -234,10 +278,11 @@ theorem pointDotAccumulate_resident_le (left right : LatticeState.PointRefs ctx 
   exact le_rfl
 
 /-- Auxiliary space counts the original roles without any additional workspace. -/
-theorem pointDotAccumulate_auxiliary_le (left right : LatticeState.PointRefs ctx width)
+theorem pointDotAccumulate_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointDotAccumulate left right accumulator product).Path) :
-    (pointDotAccumulate left right accumulator product).peakAuxiliarySpace path ≤
+    (path : (pointDotAccumulate (model := model) left right accumulator product).Path) :
+    (pointDotAccumulate (model := model) left right accumulator product).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

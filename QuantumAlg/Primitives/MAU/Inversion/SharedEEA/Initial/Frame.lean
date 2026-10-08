@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Fold.Program
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Fold.Program.Gates
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Initial.Length.Frame
 
 /-!
@@ -75,24 +75,28 @@ def result (modulus : Nat) (input : Fin (2 ^ modulus.size)) : Registers modulus.
   GateSpec.stepList (InitialLengthWrite.gates modulus.size) (folded modulus input)
 
 /-- One fixed actual native program folds Work2 before computing its current divisor length. -/
-def program (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  (FoldProgram.program modulus).seq (InitialLengthWrite.program modulus.size)
+def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
+  (FoldProgram.nativeProgram modulus).seq (InitialLengthWrite.program modulus.size)
 
 /-- Complete action on all frames, including arbitrary incoming fields outside the input domain. -/
 theorem program_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (program modulus)
       (fun state => GateSpec.stepList (InitialLengthWrite.gates modulus.size)
         (FoldProgram.step modulus state)) :=
-  (FoldProgram.program_realizes modulus).seq
-    (GateSpec.realizesList (InitialLengthWrite.gates modulus.size))
+  (FoldProgram.foldProgram_nativeProgram_realizes modulus).seq
+    (GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (InitialLengthWrite.gates modulus.size))
 
 /-- The encoded initial basis is sent to the actual two-stage result with exact amplitudes. -/
 theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (program modulus).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (result modulus input)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (result modulus input))) :=
   (program_realizes modulus).apply_encoded_ket (initial modulus input)
 
 /-- The actual fold produces both the mathematical folded value and its retained history bit. -/
@@ -189,7 +193,8 @@ theorem result_unfoldInput (modulus : Nat) (input : Fin (2 ^ modulus.size))
 theorem program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (FoldSourceProgram.program modulus).eventTrace ++
       (InitialLengthWrite.program modulus.size).eventTrace := by
-  rw [program, UnitaryCircuit.seq_eventTrace, FoldProgram.program_eventTrace]
+  rw [program, UnitaryCircuit.seq_eventTrace, FoldProgram.foldProgram_nativeProgram_trace,
+    FoldProgram.program_eventTrace]
 
 end
 

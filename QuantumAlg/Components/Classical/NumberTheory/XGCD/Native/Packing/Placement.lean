@@ -24,28 +24,32 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original scratch allocator returns the exact packed caller write on the same full state. -/
 theorem xgcdNativePackRawOutputs_actualRecord (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width)) :
-    ∃ record : Store ctx → Store ctx × (packRawOutputs outputs result).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (packRawOutputs
+      (model := model) outputs result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (packRawOutputs outputs result).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (packRawOutputs (model := model) outputs result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 = before.write result
-        (packedRawValue (before.read (GCD.cellRead outputs.gcd))
-          (before.read (GCD.cellRead outputs.leftCoefficient))
-          (before.read (GCD.cellRead outputs.rightCoefficient))) := by
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 = before.1.write result
+        (packedRawValue (before.1.read (GCD.cellRead outputs.gcd))
+          (before.1.read (GCD.cellRead outputs.leftCoefficient))
+          (before.1.read (GCD.cellRead outputs.rightCoefficient))) := by
   let Post (before after : Store ctx) : Prop :=
     after = before.write result
       (packedRawValue (before.read (GCD.cellRead outputs.gcd))
         (before.read (GCD.cellRead outputs.leftCoefficient))
         (before.read (GCD.cellRead outputs.rightCoefficient)))
   apply withCells_actualRecord_post ctx (packingShapes width)
-    (fun cells _ transport _ => packingBody (outputs.transport transport) cells.head.ref
+    (fun cells _ transport _ => packingBody (model := model) (outputs.transport transport)
+      cells.head.ref
       cells.tail.head.ref cells.tail.tail.head.ref (transport.liftWrite result)) Post
   intro inner cells distinct transport separated
   cases cells with
@@ -57,14 +61,16 @@ theorem xgcdNativePackRawOutputs_actualRecord (outputs : RawOutputs ctx width)
         cases rest
         let lifted := outputs.transport transport
         let target := transport.liftWrite result
-        refine ⟨fun store => (packingBodyStore lifted raw.ref left.ref right.ref target store,
-          ((), ((), ((), ((), ()))))), ?_, ?_⟩
+        refine ⟨fun before =>
+          let actual := packingBodyStep (model := model)
+            lifted raw.ref left.ref right.ref target before.1
+          ((actual.1, before.2), actual.2), ?_, ?_⟩
         · intro reference history historyFinite state
           refine (xgcdNativePackingBody_execute
             lifted raw.ref left.ref right.ref target reference state).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _
-        · intro source before reads
+          exact ExecutionState.executionState_mapClassical_congr _ rfl
+        · intro source entry reads
+          rcases entry with ⟨before, hidden⟩
           let final := packingBodyStore lifted raw.ref left.ref right.ref target before
           let returned := transport.restrict final
           have returnedReads : transport.ReadsAs returned final :=

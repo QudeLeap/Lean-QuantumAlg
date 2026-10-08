@@ -55,26 +55,28 @@ private theorem retained_fresh_union {ctx frame : RuntimeCtx kind}
     exact List.disjoint_left.mp keys List.mem_cons_self framed
 
 /-- Emit the same original retained allocations with the entire frame physically present. -/
-def allocateFramed (ctx frame : RuntimeCtx kind) (dimension : ℕ+) :
+def allocateFramed {model : ExecutionModel} (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+) :
     (count : Nat) → (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame) →
-      Circuit (ctx.disjointUnion frame (original_disjoint ctx frame dimension count separate))
+      Circuit model (ctx.disjointUnion frame
+        (original_disjoint ctx frame dimension count separate))
         ((context ctx dimension count).disjointUnion frame separate)
   | 0, separate => .id (ctx.disjointUnion frame separate)
   | count + 1, separate =>
       let middle := context ctx dimension count
       let prefixSeparate := retained_disjoint middle.canonicalFreshKey (.finite dimension)
         middle.canonicalFreshKey_fresh separate
-      .seq (allocateFramed ctx frame dimension count prefixSeparate)
+      .seq (allocateFramed (model := model) ctx frame dimension count prefixSeparate)
         (.retain (middle.disjointUnion frame prefixSeparate)
           middle.canonicalFreshKey (.finite dimension)
           (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
             middle.canonicalFreshKey_fresh separate))
 
 /-- Actual retained allocations emit no native event, while their cells remain resident. -/
-theorem allocateFramed_eventTrace (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+theorem allocateFramed_eventTrace {model : ExecutionModel}
+    (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (path : (allocateFramed ctx frame dimension count separate).Path) :
-    (allocateFramed ctx frame dimension count separate).eventTrace path = [] := by
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
+    (allocateFramed (model := model) ctx frame dimension count separate).eventTrace path = [] := by
   induction count with
   | zero => rfl
   | succ count ih =>
@@ -82,11 +84,13 @@ theorem allocateFramed_eventTrace (ctx frame : RuntimeCtx kind) (dimension : ℕ
       rw [ih, List.nil_append]
 
 /-- The same literal retained prefix has zero evaluated event depth for every duration map. -/
-theorem allocateFramed_depth (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+theorem allocateFramed_depth {model : ExecutionModel}
+    (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (duration : Resource.Event kind → Nat)
-    (path : (allocateFramed ctx frame dimension count separate).Path) :
-    (allocateFramed ctx frame dimension count separate).depth duration path = 0 := by
+    (duration : Resource.Event model → Nat)
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
+    (allocateFramed (model := model) ctx frame dimension count separate).depth
+      duration path = 0 := by
   induction count with
   | zero => rfl
   | succ count ih =>

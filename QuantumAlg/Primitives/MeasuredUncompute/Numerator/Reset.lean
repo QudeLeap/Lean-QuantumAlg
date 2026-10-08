@@ -9,6 +9,8 @@ module
 import all QuantumAlg.Primitives.MeasuredUncompute.Numerator.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.ResetMeasurement
 import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Gates.Hadamard.Layer.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Suffix.Matrix
 
 /-!
 # Actual numerator Hadamard, Z writes, and stored-result X reset
@@ -39,66 +41,76 @@ theorem outcome_bit {width : Nat} (value : CShape.Value (.fixedVector width (.fi
 
 /-- The chosen literal reset uses only the existing numerator after the complete source frame. -/
 def member (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2))) :
-    UnitaryCircuit (Qubits (OutputCopy.encoding width).width) :=
-  UnitaryCircuit.prodRight (m := (encoding width).width) (StoredWordReset.program (outcome value))
-
-private theorem member_within (width : Nat)
-    (value : CShape.Value (.fixedVector width (.finite 2))) :
-    (member width value).physical_idx ⊆ List.range (OutputCopy.encoding width).width :=
-  UnitaryCircuit.prodRight_physical_idx_subset_range (StoredWordReset.program (outcome value))
-    (by rw [StoredWordReset.storedWordReset_physical]; exact List.Subset.refl _)
+    UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width) :=
+  UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+    (StoredWordReset.program (QubitLayout.canonical width) (outcome value))
 
 /-- The same selected native sequence resets Y and preserves the entire remaining source label. -/
 theorem member_ket (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2)))
     (frame : Fin (2 ^ (encoding width).width)) :
-    (member width value).applyNormalized
+    (member width value).binaryMatrix.apply
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width)
         (prodEquiv (frame, outcome value))) =
       NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width)
-        (prodEquiv (frame, 0)) :=
-  UnitaryCircuit.Realizes.prodRight_applyNormalized_ket_of_eq
-    (StoredWordReset.program (outcome value)) frame (outcome value) 0
-    (StoredWordReset.storedWordReset_ket (outcome value))
+        (prodEquiv (frame, 0)) := by
+  rw [member]
+  change (UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+      (StoredWordReset.program (QubitLayout.canonical width) (outcome value))).binaryMatrix.apply
+        (NormalizedVector.ket (R := Qubits ((encoding width).width + width))
+          (prodEquiv (frame, outcome value))) =
+      NormalizedVector.ket (R := Qubits ((encoding width).width + width))
+        (prodEquiv (frame, 0))
+  rw [UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix,
+    ← NormalizedVector.tensor_ket, UnitaryOperator.tensor_apply_tensor,
+    UnitaryOperator.one_apply]
+  change (NormalizedVector.ket frame).tensor
+    ((StoredWordReset.binaryProgram (outcome value)).apply
+      (NormalizedVector.ket (outcome value))) = _
+  rw [StoredWordReset.storedWordReset_binary_ket, NormalizedVector.tensor_ket]
 
 /-- Read the actual finite outcomes and execute precisely their selected X sequence. -/
 def reset (width : Nat) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
-  NumeratorRuntime.selected width (member width) (member_within width)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context width)
+      (NumeratorMeasurement.context width) :=
+  NumeratorRuntime.selected width (member width)
 
 /-- The native Hadamard layer acts only on the original numerator word. -/
-def hadamardMember (width : Nat) : UnitaryCircuit (Qubits (OutputCopy.encoding width).width) :=
-  UnitaryCircuit.prodRight (m := (encoding width).width) (WalshHadamard.hadamardLayer width)
-
-private theorem hadamard_within (width : Nat) :
-    (hadamardMember width).physical_idx ⊆ List.range (OutputCopy.encoding width).width :=
-  UnitaryCircuit.prodRight_physical_idx_subset_range (WalshHadamard.hadamardLayer width)
-    (by rw [WalshHadamard.hadamardLayer_physical_idx]; exact List.Subset.refl _)
+def hadamardMember (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width) :=
+  UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+    (Gate.HadamardLayer.circuit .empty width)
 
 /-- Execute that same Hadamard layer in the actual shared runtime context. -/
 def hadamard (width : Nat) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
-  NumeratorRuntime.code width (hadamardMember width) (hadamard_within width)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context width)
+      (NumeratorMeasurement.context width) :=
+  NumeratorRuntime.code width (hadamardMember width)
 
 /-- Actual H gates, actual Z writes, then a branch reading those same stored finite results. -/
 def code (width : Nat) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context width)
+      (NumeratorMeasurement.context width) :=
   .seq (hadamard width) (.seq (NumeratorMeasurement.measure width) (reset width))
 
 /-- Each selected reset charges exactly its concrete X gate multiplicity. -/
 theorem reset_cost (width : Nat) (path : (reset width).Path) :
     (reset width).resourcePool path =
       EncodedBit.Word.BasisLoad.xCount (outcome path.1) •
-        ResourcePool.singleton (.gate (.builtin "x")) := by
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+          (.gate .singleQubit) := by
   change ResourcePool.ofList (NumeratorRuntime.program width (member width path.1)).eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, NumeratorRuntime.program_cost]
-  have same : (member width path.1).eventCost =
-      (StoredWordReset.program (outcome path.1)).eventCost :=
-    UnitaryCircuit.prodRight_eventCost _
-  exact same.trans (StoredWordReset.storedWordReset_events (outcome path.1))
+  change (UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+    (StoredWordReset.program (QubitLayout.canonical width) (outcome path.1))).eventCost = _
+  exact (UnitaryCircuit.onCanonicalBinarySuffix_eventCost (encoding width).width
+    (StoredWordReset.program (QubitLayout.canonical width) (outcome path.1))).trans
+      (StoredWordReset.storedWordReset_events (QubitLayout.canonical width) (outcome path.1))
 
 /-- Its independent allowance contains at most one X correction per existing numerator bit. -/
 theorem reset_budget (width : Nat) (path : (reset width).Path) :
-    (reset width).resourcePool path ≤ width • ResourcePool.singleton (.gate (.builtin "x")) := by
+    (reset width).resourcePool path ≤ width •
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) := by
   rw [reset_cost]
   apply ResourcePool.le_iff_count.mpr
   intro event

@@ -23,41 +23,49 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
-open Nat.FixedWidth
+open Nat.FixedWidth EncodedBit GateSpec
 
 /-- Independent all-label output with both borrowed bits returned. -/
 def modularOffsetOutput {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (state : Registers width) : Registers width :=
   (state.1, (modularWordOutput modulus constant state.2.1, state.2.2))
 
-/-- Three actual pivot circuits, sharing the same target and arbitrary borrowed bits. -/
-def modularOffsetProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (constant : Fin (modulus.val + 1)) : UnitaryCircuit (Qubits (encoding width).width) :=
-  ((pivotProgram width (offsetFirstPivot modulus constant)).seq
-    (pivotProgram width modulus)).seq (pivotProgram width (offsetLastPivot modulus constant))
+/-- The three literal pivot lists share the same two arbitrary borrowed bits. -/
+def modularOffsetGates (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (constant : Fin (modulus.val + 1)) : List (GateSpec (encoding width)) :=
+  (pivotGates width (offsetFirstPivot modulus constant) ++ pivotGates width modulus) ++
+    pivotGates width (offsetLastPivot modulus constant)
 
-/-- The actual three-pivot program realizes the independent finite modular-offset contract. -/
-theorem gidneyModularOffset_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (constant : Fin (modulus.val + 1)) :
-    UnitaryCircuit.Realizes (encoding width) (modularOffsetProgram width modulus constant)
-      (modularOffsetOutput modulus constant) := by
-  apply (((gidneyPivot_realizes width (offsetFirstPivot modulus constant)).seq
-    (gidneyPivot_realizes width modulus)).seq
-      (gidneyPivot_realizes width (offsetLastPivot modulus constant))).congrStep
-  rintro ⟨flag, input, helper⟩
+/-- The actual list realizes the independent finite modular-offset contract. -/
+theorem gidneyModularOffsetGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (constant : Fin (modulus.val + 1)) (state : Registers width) :
+    stepList (modularOffsetGates width modulus constant) state =
+      modularOffsetOutput modulus constant state := by
+  simp only [modularOffsetGates, stepList_append, gidneyPivotGates_step]
+  rcases state with ⟨flag, input, helper⟩
   exact congrArg (fun word => (flag, (word, helper)))
     (gidneyModularWord_three_pivots modulus constant input)
 
-/-- The same physical word and two borrowed bits serve every pivot. -/
-theorem gidneyModularOffset_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
+/-- Emit the three actual pivot expansions on the fixed word and two borrowed bits. -/
+def modularOffsetProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
-    (modularOffsetProgram width modulus constant).physical_idx = List.range (width + 2) := by
-  change (pivotProgram width (offsetFirstPivot modulus constant)).physical_idx ∪
-      (pivotProgram width modulus).physical_idx ∪
-        (pivotProgram width (offsetLastPivot modulus constant)).physical_idx = _
-  have hunion : List.range (width + 2) ∪ List.range (width + 2) = List.range (width + 2) :=
-    List.Subset.union_eq_right (fun _ h => h)
-  simp only [gidneyPivot_physical, hunion]
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (modularOffsetGates width modulus constant)
+
+/-- The actual three-pivot program realizes the independent all-label modular offset. -/
+theorem gidneyModularOffset_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (constant : Fin (modulus.val + 1)) :
+    UnitaryCircuit.Realizes (encoding width) (modularOffsetProgram width modulus constant)
+      (modularOffsetOutput modulus constant) :=
+  realizesList_congrStep _ _ _ (gidneyModularOffsetGates_step width modulus constant)
+
+/-- All three pivots use the same word and exactly two arbitrary borrowed bits. -/
+theorem gidneyModularOffset_interface (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (_constant : Fin (modulus.val + 1)) :
+    (encoding width).width = width + 2 ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (width + 2) :=
+  gidneyPivot_interface width modulus
 
 /-- The native ledger is the sum of the three actual pivot ledgers. -/
 theorem gidneyModularOffset_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -66,7 +74,8 @@ theorem gidneyModularOffset_eventCost (width : Nat) (modulus : Fin (2 ^ width + 
       (pivotProgram width (offsetFirstPivot modulus constant)).eventCost +
         (pivotProgram width modulus).eventCost +
           (pivotProgram width (offsetLastPivot modulus constant)).eventCost := by
-  simp only [modularOffsetProgram, UnitaryCircuit.seq_eventCost]
+  simp only [modularOffsetProgram, pivotProgram, programList_eventCost,
+    modularOffsetGates, List.map_append, ResourcePool.ofList_append]
 
 /-- On the original canonical domain, the accepted result is ordinary modular addition. -/
 theorem gidneyModularOffset_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
@@ -90,9 +99,11 @@ theorem gidneyModularOffset_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
-      (UnitaryCircuit.prodLeft (n := reference.width) (modularOffsetProgram width modulus constant))
+      (layout := QubitLayout.canonical ((encoding width).width + reference.width))
+      (UnitaryCircuit.onBinaryPrefix reference.width (modularOffsetProgram width modulus constant))
       (fun state => (modularOffsetOutput modulus constant state.1, state.2)) :=
-  (gidneyModularOffset_realizes width modulus constant).prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
+    (gidneyModularOffset_realizes width modulus constant)
 
 end
 

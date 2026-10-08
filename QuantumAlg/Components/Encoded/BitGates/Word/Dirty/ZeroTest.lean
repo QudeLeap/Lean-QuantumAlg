@@ -23,6 +23,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- An elementary conjunction gate for every width at least two, with arbitrary borrowed work. -/
 def borrowedAndGates : List (GateSpec encoding) :=
@@ -83,10 +84,12 @@ theorem borrowedZeroGates_step (state : Data) :
 
 /-- The actual complete elementary program realizes the zero predicate on every encoded label. -/
 theorem borrowedZeroGates_realizes :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList (borrowedZeroGates layout))
+    UnitaryCircuit.Realizes encoding
+      (GateSpec.programList physical oracles (borrowedZeroGates layout))
       (fun state => if ∀ index, (layout.source.bit index).get state = false
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep (borrowedZeroGates layout) (borrowedZeroGates_step layout)
+  GateSpec.realizesList_congrStep physical oracles
+    (borrowedZeroGates layout) (borrowedZeroGates_step layout)
 
 /-- Independent exact elementary gate count for the all-width borrowed-work construction. -/
 theorem borrowedZeroGates_length :

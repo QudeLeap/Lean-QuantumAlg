@@ -8,7 +8,7 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Layout
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Basic
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Mathematics
 
 /-!
 # A complete small-curve ECDLP certificate

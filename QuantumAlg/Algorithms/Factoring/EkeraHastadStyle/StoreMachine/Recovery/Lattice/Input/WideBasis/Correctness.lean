@@ -27,7 +27,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The complete actual prefix preserves every original first-sample decoder output. -/
-theorem decodeBasisInto_firstOutputs (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeBasisInto_firstOutputs {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (slot : BatchMachine.PairOutputSlot) :
     BatchMachine.outputNat refs.pair.first (decodeBasisStep refs store).1 slot =
       BatchMachine.sourceOutputNat N store (BatchMachine.terminalInput refs.pair.first) slot := by
@@ -47,7 +48,8 @@ theorem decodeBasisInto_firstOutputs (refs : Refs ctx N) (separation : Separatio
       refs.pair.first.k (by simp [decoderKeys]))).trans (decoded.first .k)
 
 /-- The complete actual prefix preserves every original second-sample decoder output. -/
-theorem decodeBasisInto_secondOutputs (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeBasisInto_secondOutputs {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (slot : BatchMachine.PairOutputSlot) :
     BatchMachine.outputNat refs.pair.second (decodeBasisStep refs store).1 slot =
       BatchMachine.sourceOutputNat N store (BatchMachine.terminalInput refs.pair.second) slot := by
@@ -67,7 +69,8 @@ theorem decodeBasisInto_secondOutputs (refs : Refs ctx N) (separation : Separati
       refs.pair.second.k (by simp [decoderKeys]))).trans (decoded.second .k)
 
 /-- Actual decoding and native loading construct the original nine-cell source basis. -/
-theorem decodeBasisInto_rawBasis (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeBasisInto_rawBasis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (zeros : BasisInitialZero store refs) :
     LatticeRepresentation.BasisRawRepresents (decodeBasisStep refs store).1 refs.raw
       (sourceBasis refs store) := by
@@ -108,7 +111,8 @@ structure DecodeBasisOutcome (refs : Refs ctx N) (before after : Store ctx) : Pr
     (∀ key ∈ writtenKeys refs, key ∉ other.storageKeys) → after.read other = before.read other
 
 /-- The actual wide prefix realizes its entire original source-basis boundary. -/
-theorem decodeBasisInto_correct (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeBasisInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (zeros : BasisInitialZero store refs) :
     DecodeBasisOutcome refs store (decodeBasisStep refs store).1 :=
   ⟨decodeBasisInto_firstOutputs refs separation store,
@@ -116,7 +120,8 @@ theorem decodeBasisInto_correct (refs : Refs ctx N) (separation : Separation ref
     decodeBasisInto_rawBasis refs separation store zeros, decodeBasisInto_callerFrame refs store⟩
 
 /-- The actual wide source basis has exactly the original mutable view required by Gram and LLL. -/
-theorem decodeBasisInto_metricBasis (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeBasisInto_metricBasis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (zeros : BasisInitialZero store refs) :
     LatticeMetricMachine.BasisRawRepresents (decodeBasisStep refs store).1
       (LatticeRepresentation.basisRefs refs.raw refs.roles) (sourceBasis refs store) :=

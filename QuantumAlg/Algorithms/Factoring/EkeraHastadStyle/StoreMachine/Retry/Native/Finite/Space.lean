@@ -49,6 +49,7 @@ private theorem first_classical (N : Nat) :
     LatticeBatchRecoveryWorkspace.batchAllocationSpace_eq_bits,
     ClassicalRoutines.Modular.NativePower.powerSpace, LatticeBatchRecoveryOutput.OutputShape,
     SpacePool.ofShape, SpacePool.ofQuantumLayout, binaryBits]
+  simp only [BatchMachine.JWidth, BatchMachine.KWidth]
   omega
 
 private theorem later_classical (N : Nat) :
@@ -159,7 +160,8 @@ theorem additionalSpace_qubits (N totalRounds : Nat) :
   | zero => rfl
   | succ count =>
       rw [additionalSpace_succ_quantum_layout]
-      simp only [runtimeLayout, QubitLayout.toQuantumLayout_dimensionCount, ↓reduceIte,
+      rw [shortDLP_runtimeLayout_eq_source]
+      simp only [QubitLayout.toQuantumLayout_dimensionCount, ↓reduceIte,
         totalQubits_eq, qubitBound]
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}

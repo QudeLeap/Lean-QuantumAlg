@@ -20,7 +20,8 @@ open ClassicalRoutines.Modular.NativePower
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width exponentWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
 /-- The original modular result, target predicate, modulus and full caller frame. -/
 structure Outcome (spec : ModulusSpec width) (refs : Refs ctx width exponentWidth)
@@ -43,6 +44,7 @@ theorem candidatePowerInto_callerFrame (spec : ModulusSpec width)
   exact nativePower_into_read_other spec refs.generator refs.exponent refs.power store
     other avoidsPower
 
+omit [BitWord.Selected model] in
 /-- Original canonical base representation supplies the shared actual power's exact input. -/
 theorem power_inputRepresents (spec : ModulusSpec width) (refs : Refs ctx width exponentWidth)
     (store : Store ctx) (input : Pow.Input spec exponentWidth) (target : Residue spec)

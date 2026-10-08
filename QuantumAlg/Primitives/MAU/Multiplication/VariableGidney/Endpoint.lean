@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Core.Execution.Owned.Qubits
 public import QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Semantics
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
@@ -17,6 +18,9 @@ import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Borrowed.Empty
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 import all QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Semantics
 import all QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Resources
 
@@ -37,38 +41,53 @@ open Execution.OwnedQubits
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private def wordBasisEquiv (width : Nat) :
-    (context (3 * width)).register.Index ≃ (Qubits (encoding width).width).Index :=
-  (basisEquiv (3 * width)).trans
-    (finCongr (congrArg (fun count : Nat => 2 ^ count) (by
-      change 3 * width = width + (width + width)
-      omega)))
+private theorem supplied_wires (width : Nat) :
+    (QubitLayout.canonical (encoding width).width).toQuantum.wires =
+      (context (3 * width)).quantumLayout.wires := by
+  rw [(variableGidney_interface width).1]
+  exact Execution.OwnedQubits.canonical_wires (3 * width)
 
 private def nativeOperator (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     UnitaryOperator (context (3 * width)).register :=
-  UnitaryOperator.reindex (wordBasisEquiv width).symm (wordVariableOperator width modulus)
+  UnitaryOperator.reindex
+    (Execution.basisOfEqualWires
+      (QubitLayout.canonical (encoding width).width).toQuantum
+      (context (3 * width)).quantumLayout (supplied_wires width))
+    (UnitaryOperator.reindex
+      (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+      (wordVariableOperator width modulus))
 
 private def nativeProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (context (3 * width)).register :=
-  UnitaryCircuit.reindex (wordBasisEquiv width).symm (program width modulus)
+    UnitaryCircuit AlgorithmGate.model .empty (context (3 * width)).quantumLayout :=
+  Execution.unitaryOfEqualWires
+    (QubitLayout.canonical (encoding width).width).toQuantum
+    (context (3 * width)).quantumLayout (supplied_wires width)
+      (program width modulus)
 
 private theorem native_matrix (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (nativeProgram width modulus).matrix = nativeOperator width modulus :=
-  (UnitaryCircuit.reindex_matrix (R := Qubits (encoding width).width)
-    (S := (context (3 * width)).register) (wordBasisEquiv width).symm
-    (program width modulus)).trans
-      (congrArg (fun operator : UnitaryOperator (Qubits (encoding width).width) =>
-        UnitaryOperator.reindex (wordBasisEquiv width).symm operator)
-        (variableGidney_matrix width modulus))
-
-private theorem placement (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (nativeProgram width modulus).physical_idx = (context (3 * width)).physicalIdx := by
-  change (program width modulus).physical_idx = (context (3 * width)).physicalIdx
-  rw [variableGidney_physical, ownedQubits_physicalIdx]
+    (nativeProgram width modulus).matrix = nativeOperator width modulus := by
+  unfold nativeOperator
+  have sourceMatrix : (program width modulus).matrix =
+      UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (wordVariableOperator width modulus) := by
+    have binary := congrArg
+      (UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm)
+      (variableGidney_matrix width modulus)
+    change UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (UnitaryOperator.reindex
+            (QubitLayout.canonical (encoding width).width).basisEquiv
+            (program width modulus).matrix) = _ at binary
+    rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
+    exact binary
+  rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
 
 private def code (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    Circuit (context (3 * width)) (context (3 * width)) :=
-  .unitary (nativeProgram width modulus) (placement width modulus)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (context (3 * width)) (context (3 * width)) :=
+  .unitary (nativeProgram width modulus)
 
 /-- Independent complete variable-product execution contract.
 
@@ -82,10 +101,10 @@ the exact arithmetic action is (x,y,z) to (x,y,(z+x*y) mod N). Noncanonical
 target labels are fixed. The full independent permutation acts jointly
 with the reference identity, preserving every relative phase.
 
-**Resource budget.** The native budget is width controlled MAC budgets,
-with an additional dimension-two control on each original MAC coordinate.
-The explicit total-event and unit-depth bound is
-width*(width*stageEventBound(width)). Resident and owned auxiliary pools
+**Resource budget.** Each default-model gate coordinate is bounded by
+width*stageEventBound(width), where the stage cap is four times the inner
+MAC gate bound. This charges every literal gate-local control expansion.
+Resident and owned auxiliary pools
 both contain the three supplied words, exactly 3*width dimension-two
 systems. The run allocates no other quantum or classical storage.
 
@@ -96,8 +115,10 @@ holds for every input. Width zero is the empty, zero-event instance.
 instantiated with exact pivot-flip offsets [G17, paper.tex:319-334].
 -/
 public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    Problem .quantum (context (3 * width)) (context (3 * width)) .unit where
+    Problem (.quantum AlgorithmGate.model .empty)
+      (context (3 * width)) (context (3 * width)) .unit where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [StateRequirement.unitary (nativeOperator width modulus)]
@@ -105,49 +126,86 @@ public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     { events := nativeBudget width
       resident := space (3 * width)
       auxiliary := space (3 * width) }
-  depth := .quantum (fun _ => 1) (eventBound width)
+  depth :=
+    { duration := fun _ => 1
+      limit := eventBound width
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute the actual three-word circuit and retain its complete output. -/
 public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    Algorithm .quantum (context (3 * width)) (context (3 * width)) .unit where
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (context (3 * width)) (context (3 * width)) .unit where
   run := { code := code width modulus, output := Output.all (context (3 * width)) .unit }
+
+private theorem actual_events (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (path : (code width modulus).Path) :
+    (code width modulus).resourcePool path ≤ nativeBudget width := by
+  change ResourcePool.ofList (nativeProgram width modulus).eventTrace ≤ nativeBudget width
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+  have cost : (nativeProgram width modulus).eventCost =
+      (program width modulus).eventCost :=
+    Execution.unitaryOfEqualWires_cost
+      (QubitLayout.canonical (encoding width).width).toQuantum
+      (context (3 * width)).quantumLayout (supplied_wires width)
+      (program width modulus) .empty .empty
+  rw [cost]
+  exact variableGidney_native_budget width modulus
+
+private theorem actual_resident (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (path : (code width modulus).Path) :
+    (code width modulus).peakResidentSpace path ≤ space (3 * width) := by
+  intro axis
+  change Nat.max ((context (3 * width)).residentSpace axis) 0 ≤ space (3 * width) axis
+  rw [ownedQubits_resident]
+  exact le_of_eq (Nat.max_zero _)
+
+private theorem actual_auxiliary (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (path : (code width modulus).Path) :
+    (code width modulus).peakAuxiliarySpace path ≤ space (3 * width) := by
+  intro axis
+  change Nat.max ((context (3 * width)).auxiliarySpace axis) 0 ≤ space (3 * width) axis
+  rw [ownedQubits_auxiliary]
+  exact le_of_eq (Nat.max_zero _)
+
+private theorem actual_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (path : (code width modulus).Path) :
+    (code width modulus).depth (fun _ => 1) path ≤ eventBound width := by
+  change DepthExpr.depthEval (fun _ => 1)
+    ((nativeProgram width modulus).eventDepth .empty .empty) ≤ _
+  rw [nativeProgram, Execution.unitaryOfEqualWires_depth]
+  exact variableGidney_unit_depth width modulus
 
 /-- The exact arithmetic, complete output and explicit budgets hold for the same actual run. -/
 public theorem main (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     ∃ candidate, Algorithm.Solves candidate (problem width modulus) := by
   refine ⟨algorithm width modulus, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (nativeOperator width modulus) :=
       List.mem_singleton.mp present
     subst requirement
     exact StateRequirement.unitary_holds (nativeOperator width modulus)
-      (nativeProgram width modulus) (placement width modulus) (native_matrix width modulus)
+      (nativeProgram width modulus) (native_matrix width modulus)
       (Output.all (context (3 * width)) .unit) input
-  · intro Reference input _valid
-    exact Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
-      (nativeProgram width modulus) (placement width modulus)
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
-    change ResourcePool.ofList (nativeProgram width modulus).eventTrace ≤ nativeBudget width
-    exact (UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram width modulus)).le.trans
-      (variableGidney_native_budget width modulus)
-  · intro _Reference _input _valid path _supported axis
-    change Nat.max ((context (3 * width)).residentSpace axis) 0 ≤ space (3 * width) axis
-    rw [ownedQubits_resident]
-    exact le_of_eq (Nat.max_zero _)
-  · intro _Reference _input _valid path _supported axis
-    change Nat.max ((context (3 * width)).auxiliarySpace axis) 0 ≤ space (3 * width) axis
-    rw [ownedQubits_auxiliary]
-    exact le_of_eq (Nat.max_zero _)
-  · intro _Reference _input _valid path _supported
-    exact variableGidney_unit_depth width modulus
+  · intro Reference input _valid _initialized
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+      (nativeProgram width modulus)
+      (Output.all (context (3 * width)) .unit) input
+  · intro _Reference _input _valid _initialized path _supported
+    exact actual_events width modulus path
+  · intro _Reference _input _valid _initialized path _supported
+    exact actual_resident width modulus path
+  · intro _Reference _input _valid _initialized path _supported
+    exact actual_auxiliary width modulus path
+  · intro _Reference _input _valid _initialized path _supported
+    exact actual_depth width modulus path
 
 end
 

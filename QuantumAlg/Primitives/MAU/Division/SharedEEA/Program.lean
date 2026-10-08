@@ -28,23 +28,15 @@ open Inversion.SharedEEA
 open Multiplication
 
 private def middleBody (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (sourceEncoding width).width) :=
-  UnitaryCircuit.prodLeft (n := historyWidth width) (VariableGidney.program width modulus)
-
-private theorem middleBody_within (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (middleBody width modulus).physical_idx ⊆ List.range (sourceEncoding width).width := by
-  apply UnitaryCircuit.prodLeft_physical_idx_subset_range
-  rw [VariableGidney.variableGidney_physical]
-  have count : (VariableGidney.encoding width).width = 3 * width := by
-    change width + (width + width) = 3 * width
-    omega
-  rw [count]
-  exact List.Subset.refl _
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (sourceEncoding width).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (historyWidth width) (VariableGidney.program width modulus)
 
 /-- Actual variable-product MAC at the inverse, numerator, and independent target ports. -/
 def middleProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (frameEncoding width).width) :=
-  (placement width).place (middleBody width modulus) (middleBody_within width modulus)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (frameEncoding width).width).toQuantum :=
+  (placement width).place (middleBody width modulus)
 
 /-- All-label arithmetic preserves every original shared-EEA field and numerator exactly. -/
 def middleStep (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) : Frame width :=
@@ -84,8 +76,8 @@ private theorem middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
 theorem divisionMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (frameEncoding width) (middleProgram width modulus)
       (middleStep width modulus) :=
-  ((placement width).place_realizes (middleBody_within width modulus)
-    (UnitaryCircuit.Realizes.prodLeft
+  ((placement width).place_realizes
+    (UnitaryCircuit.Realizes.onBinaryPrefix
       (right := BinaryLabelEncoding.finIdentity (historyWidth width))
       (VariableGidney.variableGidney_realizes width modulus))).congrStep
         (middle_grouping width modulus)
@@ -100,16 +92,19 @@ theorem divisionMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
 
 /-- The full corrected forward runs beside both independent live words. -/
 def forwardProgram (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (frameEncoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (frameEncoding modulus.size).width).toQuantum :=
   UnitaryCircuit.prodLeft (n := modulus.size + modulus.size)
     (CorrectedSchedule.program modulus nontrivial)
 
 /-- Execute the actual forward, actual modular accumulator, and the same complete adjoint. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (frameEncoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (frameEncoding modulus.size).width).toQuantum :=
   (forwardProgram modulus nontrivial).seq
     ((middleProgram modulus.size (Inversion.SharedEEA.Accumulate.fittedModulus modulus)).seq
-      (forwardProgram modulus nontrivial).dagger)
+      ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 end
 

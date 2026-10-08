@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Primitives.MAU.Exponentiation.WordAction
 import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Exponentiation.WordAction
 import all QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Oracle
 
@@ -24,24 +25,31 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+open Nat.FixedWidth
+
 theorem gidneyExponentOracle_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (oracleProgram exponentWidth width modulus base).matrix =
+    (oracleProgram exponentWidth width modulus base).binaryMatrix =
       wordExponentiationOperator exponentWidth width modulus base := by
   apply Subtype.ext
   ext output input
   obtain ⟨state, rfl⟩ := (wordExponentiationBasis exponentWidth width).surjective input
+  have circuitAction :=
+    UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (oracleProgram exponentWidth width modulus base)
+        ((oracleEncoding exponentWidth width).encode state)
+        ((oracleEncoding exponentWidth width).encode (unitPowerOracleOutput modulus base state))
+          ((gidneyExponentOracle_realizes exponentWidth width modulus base).apply_encoded_ket state)
   have circuit := congrArg
     (fun result : NormalizedVector (Qubits ((exponentWidth + (width + width)) + width)) =>
-      result output)
-    ((gidneyExponentOracle_realizes exponentWidth width modulus base).apply_encoded_ket state)
+      result output) circuitAction
   have semantic := congrArg
     (fun result : NormalizedVector (Qubits ((exponentWidth + (width + width)) + width)) =>
       result output)
     (wordExponentiationOperator_ket exponentWidth width modulus base state)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((oracleProgram exponentWidth width modulus base).matrix :
+      ((oracleProgram exponentWidth width modulus base).binaryMatrix :
         HilbertOperator (Qubits (oracleEncoding exponentWidth width).width))
       ((oracleEncoding exponentWidth width).encode state) output).symm.trans circuit
   have semanticColumn :=

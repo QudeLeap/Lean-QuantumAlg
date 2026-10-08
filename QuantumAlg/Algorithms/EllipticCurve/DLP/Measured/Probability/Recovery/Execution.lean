@@ -46,43 +46,47 @@ theorem preparationInput_rawRecoveryInput (problem : KnownOrderProblem E.GroupPo
       rawExponentInput problem (QubitReadouts.mask (store.read measured)) := rfl
 
 /-- Actual recovery reads measured values and writes the original optional shape. -/
-def rawRecoveryIntoResult (problem : KnownOrderProblem E.GroupPoint)
+def rawRecoveryIntoResult {model : ExecutionModel} [BitWord.Selected model]
+    {ctx' : RuntimeCtx model.kind} (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order)
-    (measured : CInputRef ctx (.fixedVector (2 * orderWidth problem) (.finite 2)))
-    (result : CWriteRef ctx
+    (measured : CInputRef ctx' (.fixedVector (2 * orderWidth problem) (.finite 2)))
+    (result : CWriteRef ctx'
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.OutputShape (orderWidth problem))) :
-    Circuit ctx ctx :=
-  singleIntoResult (recoveryModulusSpec problem nontrivial)
+    Circuit model ctx' ctx' :=
+  singleIntoResult (model := model) (recoveryModulusSpec problem nontrivial)
     (rawRecoveryInput problem measured) result
 
 /-- The same complete execution record stores the secret on every original selected measurement. -/
-theorem rawRecoveryIntoResult_selected_actualRecord (problem : KnownOrderProblem E.GroupPoint)
+theorem rawRecoveryIntoResult_selected_actualRecord
+    {model : ExecutionModel} [BitWord.Selected model] {ctx' : RuntimeCtx model.kind}
+    (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order) (input : SecretInput problem)
-    (measured : CInputRef ctx (.fixedVector (2 * orderWidth problem) (.finite 2)))
-    (result : CWriteRef ctx
+    (measured : CInputRef ctx' (.fixedVector (2 * orderWidth problem) (.finite 2)))
+    (result : CWriteRef ctx'
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.OutputShape (orderWidth problem))) :
-    ∃ record : Store ctx → Store ctx ×
+    ∃ record : Store ctx' × model.HiddenState → (Store ctx' × model.HiddenState) ×
         (rawRecoveryIntoResult problem nontrivial measured result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx' Reference (model.HiddenState × History)),
         (rawRecoveryIntoResult problem nontrivial measured result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
-        selectedExponentEvent problem input (QubitReadouts.mask (before.read measured)) = true →
-          (record before).1 = before.write result
+            let outcome := record (entry.1, entry.2.1)
+            (outcome.1.1, (outcome.1.2, (entry.2.2, outcome.2))))) ∧
+      ∀ before : Store ctx' × model.HiddenState,
+        selectedExponentEvent problem input (QubitReadouts.mask (before.1.read measured)) = true →
+          (record before).1.1 = before.1.write result
             (.optionSome (.product (CShape.wordOfNat (orderWidth problem) input.secret.val)
               (.bit true))) := by
-  obtain ⟨record, equation, correct⟩ := singleIntoResult_actualRecord
+  obtain ⟨record, equation, correct⟩ := singleIntoResult_actualRecord (model := model)
     (recoveryModulusSpec problem nontrivial) (rawRecoveryInput problem measured) result
   refine ⟨record, equation, ?_⟩
   intro before selected
   obtain ⟨output, recovered, candidate, verified⟩ :=
     outputOf_selectedExponentEvent_recovers problem input
-      (QubitReadouts.mask (before.read measured)) selected
+      (QubitReadouts.mask (before.1.read measured)) selected
       (recoveryModulusSpec problem nontrivial) rfl
   rw [correct before, preparationInput_rawRecoveryInput, recovered]
-  change before.write result
+  change before.1.write result
     (.optionSome (.product (CShape.wordOfNat (orderWidth problem) output.candidate.val)
       (.bit output.verified))) = _
   rw [candidate, verified]

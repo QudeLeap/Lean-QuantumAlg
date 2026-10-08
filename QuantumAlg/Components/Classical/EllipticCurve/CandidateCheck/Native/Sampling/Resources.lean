@@ -27,10 +27,12 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
-private theorem sampled_trace {source outer : RuntimeCtx kind}
-    (code : Circuit source source) (extended later : Circuit outer outer)
+omit [BitWord.Selected model] in
+private theorem sampled_trace {source outer : RuntimeCtx model.kind}
+    (code : Circuit model source source) (extended later : Circuit model outer outer)
     (paths : code.Path ≃ extended.Path) (same : PathResources code extended paths)
     (path : (extended.seq later).Path) :
     (extended.seq later).eventTrace path =
@@ -39,10 +41,11 @@ private theorem sampled_trace {source outer : RuntimeCtx kind}
   congr 1
   simpa only [Equiv.apply_symm_apply] using same.1 (paths.symm path.1)
 
-private theorem sampled_duration {source outer : RuntimeCtx kind}
-    (code : Circuit source source) (extended later : Circuit outer outer)
+omit [BitWord.Selected model] in
+private theorem sampled_duration {source outer : RuntimeCtx model.kind}
+    (code : Circuit model source source) (extended later : Circuit model outer outer)
     (paths : code.Path ≃ extended.Path) (same : PathResources code extended paths)
-    (duration : Resource.Event kind → Nat) (path : (extended.seq later).Path) :
+    (duration : Resource.Event model → Nat) (path : (extended.seq later).Path) :
     (extended.seq later).depth duration path =
       code.depth duration (paths.symm path.1) + later.depth duration path.2 := by
   change extended.depth duration path.1 + _ = _
@@ -50,12 +53,13 @@ private theorem sampled_duration {source outer : RuntimeCtx kind}
   simpa only [Equiv.apply_symm_apply] using same.2 duration (paths.symm path.1)
 
 /-- All rounds contribute their native sampling and checked-attempt allowances. -/
-def sampledAttemptsEnvelope (kind : ProblemKind) (sampleBudget : ResourcePool kind)
+def sampledAttemptsEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (sampleBudget : ResourcePool model)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth) (count : Nat) :
-    ResourcePool kind :=
-  ResourcePool.scale count (sampleBudget + attemptEnvelope kind curve modulus)
+    ResourcePool model :=
+  ResourcePool.scale count (sampleBudget + attemptEnvelope model curve modulus)
 
-variable (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal)
+variable (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -71,7 +75,7 @@ theorem sampledAttempt_eventTrace
     (underPersistent_pathResources sampleCode supported width scalarWidth) path
 
 /-- Sampling and checking preserve their exact actual dependency durations in sequence. -/
-theorem sampledAttempt_duration (duration : Resource.Event kind → Nat)
+theorem sampledAttempt_duration (duration : Resource.Event model → Nat)
     (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
     (sampledAttempt sampleCode supported curve modulus sample base target).depth duration path =
       sampleCode.depth duration
@@ -81,16 +85,16 @@ theorem sampledAttempt_duration (duration : Resource.Event kind → Nat)
     (underPersistent_pathResources sampleCode supported width scalarWidth) duration path
 
 /-- A round includes the actual sampler and every original native checking instruction. -/
-theorem sampledAttempt_pool_le (sampleBudget : ResourcePool kind)
+theorem sampledAttempt_pool_le (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
     (sampledAttempt sampleCode supported curve modulus sample base target).resourcePool path ≤
-      sampleBudget + attemptEnvelope kind curve modulus := by
+      sampleBudget + attemptEnvelope model curve modulus := by
   rw [Circuit.resourcePool, sampledAttempt_eventTrace, ResourcePool.ofList_append]
   exact add_le_add (sampleBound _) (attemptInto_pool_le curve modulus _ _ _ _ _ _ _ _ _ _ path.2)
 
 /-- Arbitrary durations retain the serial sampler and original checked-attempt allowance. -/
-theorem sampledAttempt_depth_le (duration : Resource.Event kind → Nat) (sampleDepth : Nat)
+theorem sampledAttempt_depth_le (duration : Resource.Event model → Nat) (sampleDepth : Nat)
     (sampleBound : ∀ path, sampleCode.depth duration path ≤ sampleDepth)
     (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
     (sampledAttempt sampleCode supported curve modulus sample base target).depth duration path ≤
@@ -103,7 +107,7 @@ theorem sampledAttempt_depth_le (duration : Resource.Event kind → Nat) (sample
 theorem sampledAttempt_resident_le
     (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
     (sampledAttempt sampleCode supported curve modulus sample base target).peakResidentSpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact ((underPersistent_space sampleCode supported width scalarWidth).1 path.1).le.trans
@@ -114,7 +118,7 @@ theorem sampledAttempt_resident_le
 theorem sampledAttempt_auxiliary_le
     (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
     (sampledAttempt sampleCode supported curve modulus sample base target).peakAuxiliarySpace path ≤
-      attemptScratchSpace kind width scalarWidth +
+      attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact ((underPersistent_space sampleCode supported width scalarWidth).2 path.1).le.trans
@@ -122,19 +126,19 @@ theorem sampledAttempt_auxiliary_le
   · exact attemptInto_auxiliary_le curve modulus _ _ _ _ _ _ _ _ _ _ path.2
 
 /-- The actual finite loop charges sampling and original checked recovery for every round. -/
-theorem sampledAttempts_pool_le (count : Nat) (sampleBudget : ResourcePool kind)
+theorem sampledAttempts_pool_le (count : Nat) (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path : (sampledAttempts sampleCode supported count curve modulus sample base target).Path) :
     (sampledAttempts sampleCode supported count curve modulus sample base target).resourcePool
       path ≤
-      sampledAttemptsEnvelope kind sampleBudget curve modulus count := by
+      sampledAttemptsEnvelope model sampleBudget curve modulus count := by
   exact Circuit.forRange_pool_le count
     (fun _ => sampledAttempt sampleCode supported curve modulus sample base target) _
     (fun _ iteration => sampledAttempt_pool_le sampleCode supported curve modulus sample base target
       sampleBudget sampleBound iteration) path
 
 /-- Arbitrary duration allowances add across the actual declared sampling rounds. -/
-theorem sampledAttempts_depth_le (count : Nat) (duration : Resource.Event kind → Nat)
+theorem sampledAttempts_depth_le (count : Nat) (duration : Resource.Event model → Nat)
     (sampleDepth : Nat) (sampleBound : ∀ path, sampleCode.depth duration path ≤ sampleDepth)
     (path : (sampledAttempts sampleCode supported count curve modulus sample base target).Path) :
     (sampledAttempts sampleCode supported count curve modulus sample base target).depth duration
@@ -153,7 +157,7 @@ theorem sampledAttempts_depth_le (count : Nat) (duration : Resource.Event kind �
 theorem sampledAttempts_resident_le (count : Nat)
     (path : (sampledAttempts sampleCode supported count curve modulus sample base target).Path) :
     (sampledAttempts sampleCode supported count curve modulus sample base target).peakResidentSpace
-      path ≤ attemptScratchSpace kind width scalarWidth +
+      path ≤ attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).residentSpace := by
   exact Circuit.forRange_resident_le count
     (fun _ => sampledAttempt sampleCode supported curve modulus sample base target) _
@@ -165,7 +169,7 @@ theorem sampledAttempts_resident_le (count : Nat)
 theorem sampledAttempts_auxiliary_le (count : Nat)
     (path : (sampledAttempts sampleCode supported count curve modulus sample base target).Path) :
     (sampledAttempts sampleCode supported count curve modulus sample base target).peakAuxiliarySpace
-      path ≤ attemptScratchSpace kind width scalarWidth +
+      path ≤ attemptScratchSpace model.kind width scalarWidth +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by
   exact Circuit.forRange_auxiliary_le count
     (fun _ => sampledAttempt sampleCode supported curve modulus sample base target) _

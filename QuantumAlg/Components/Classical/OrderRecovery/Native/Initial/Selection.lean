@@ -25,7 +25,8 @@ open Execution ClassicalAlgorithms.OrderRecovery
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- Genuine initialization and the actual finite scan produce the source selection. -/
 theorem nativeRecovery_scan_selection
@@ -35,19 +36,19 @@ theorem nativeRecovery_scan_selection
     (baseValue : store.read base = .canonicalResidue input.base)
     (sampleValue : store.read sample = .bits input.terminalBits) :
     observedCandidate (recoveryCells ctx modulusWidth (phaseBits + 1))
-      ((fun initial => (scanSlotStep spec.modulusSpec
+      ((fun initial => (scanSlotStep (model := model) spec.modulusSpec
         (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
         (recoveryCells ctx modulusWidth (phaseBits + 1)) initial).1)^[finiteCandidateFuel phaseBits]
-          (initializeScanStep ctx modulusWidth phaseBits sample
+          (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
             (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1) =
       selection spec input := by
-  have actual := nativeScan_finite_source_selection spec input
+  have actual := nativeScan_finite_source_selection (model := model) spec input
     (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
     (recoveryCells ctx modulusWidth (phaseBits + 1))
     (nativeRecovery_scan_separated modulusWidth (phaseBits + 1))
     (nativeRecovery_scan_input_separate modulusWidth (phaseBits + 1) base)
     (finiteCandidateFuel phaseBits)
-    (initializeScanStep ctx modulusWidth phaseBits sample
+    (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1
     (.initial (decodedIndex input).val (2 ^ phaseBits))
     (nativeRecovery_initialized_cursor spec input sample store sampleValue)

@@ -40,7 +40,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : 
 theorem nativeBatch_rounds_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (readyContext base noQuantum N) Reference History)
+    (state : State (readyContext base noQuantum N) Reference
+      (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatch_ready_wires base noQuantum N) N state)
     (weight : (ParameterShape N).Value → previousShape.Value →
@@ -75,7 +76,7 @@ theorem nativeBatch_rounds_weighted_reference {previousShape : CShape}
 theorem nativeBatch_complete_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (ParameterShape N).Value → previousShape.Value →
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :

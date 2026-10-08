@@ -27,40 +27,44 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual result retention and complete recovery have the exact original optional output. -/
 theorem retainedCircuit_actualRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    ∃ record : Store ctx →
-        Store (retainedCtx ctx width key fresh) × (retainedCircuit spec input key fresh).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store (retainedCtx ctx width key fresh) × model.HiddenState) × (retainedCircuit (model
+          := model) spec input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (retainedCircuit spec input key fresh).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (retainedCircuit (model := model) spec input key fresh).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
-        (before.pushRetained key (OutputShape width) fresh).write
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
+        (before.1.pushRetained key (OutputShape width) fresh).write
           (CWriteRef.retainedHead ctx key (OutputShape width) fresh)
           (encodedRawOutput spec
-            (RawRecovery.outputOf spec (preparationInput (before.read input)))) := by
+            (RawRecovery.outputOf spec (preparationInput (before.1.read input)))) := by
   let lifted := input.underRetained key (OutputShape width) fresh
   let output := CWriteRef.retainedHead ctx key (OutputShape width) fresh
-  obtain ⟨bodyRecord, bodyEquation, bodyCorrect⟩ := singleIntoResult_actualRecord spec lifted output
-  let record (before : Store ctx) :=
-    let final := bodyRecord (before.pushRetained key (OutputShape width) fresh)
+  obtain ⟨bodyRecord, bodyEquation, bodyCorrect⟩ := singleIntoResult_actualRecord (model :=
+    model) spec lifted output
+  let record (before : Store ctx × model.HiddenState) :=
+    let final := bodyRecord (before.1.pushRetained key (OutputShape width) fresh, before.2)
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
     refine (Circuit.execute_retain_seq_mapClassical ctx key (OutputShape width) fresh
-      (singleIntoResult spec lifted output) bodyRecord bodyEquation reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+      (singleIntoResult (model := model) spec lifted output) bodyRecord bodyEquation reference
+        state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro before
-    have actual := bodyCorrect (before.pushRetained key (OutputShape width) fresh)
-    rw [show (before.pushRetained key (OutputShape width) fresh).read lifted =
-      before.read input from Store.read_pushRetained_underRetained before key
+    have actual := bodyCorrect (before.1.pushRetained key (OutputShape width) fresh, before.2)
+    rw [show (before.1.pushRetained key (OutputShape width) fresh).read lifted =
+      before.1.read input from Store.read_pushRetained_underRetained before.1 key
         (OutputShape width) fresh input] at actual
     exact actual
 

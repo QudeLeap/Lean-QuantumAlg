@@ -8,6 +8,11 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.QSP.MultiQubit.QPP.Decomposition
+import all QuantumAlg.Components.Gates.PhaseOperator
+import all QuantumAlg.Components.Gates.PhaseOperator.Rotation
+import all QuantumAlg.Components.Kets.Decomposition
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.Gate.Unitary
 
 /-!
 # QPP signal support
@@ -34,8 +39,12 @@ private theorem phaseGateOp_applyVec (θ : ℝ)
       (ψ 0) • (ket0 : HilbertVector (Qubits 1)) +
         (Complex.exp ((θ : ℝ) * Complex.I) * ψ 1) •
           (ket1 : HilbertVector (Qubits 1)) := by
-  change (phaseGate θ).applyVec ψ = _
-  exact phaseGate_applyVec θ ψ
+  apply WithLp.ofLp_injective
+  funext i
+  fin_cases i <;>
+    simp [UnitaryOperator.applyVec, HilbertOperator.applyVec_apply,
+      phaseGateOp, NormalizedVector.ket0, NormalizedVector.ket1,
+      NormalizedVector.ket_apply, PiLp.add_apply, PiLp.smul_apply]
 
 private theorem phaseGateOnZeroOp_applyVec (θ : ℝ)
     (ψ : HilbertVector (Qubits 1)) :
@@ -43,18 +52,22 @@ private theorem phaseGateOnZeroOp_applyVec (θ : ℝ)
       (Complex.exp ((θ : ℝ) * Complex.I) * ψ 0) •
           (ket0 : HilbertVector (Qubits 1)) +
         (ψ 1) • (ket1 : HilbertVector (Qubits 1)) := by
-  change (phaseGateOnZero θ).applyVec ψ = _
-  exact phaseGateOnZero_applyVec θ ψ
+  apply WithLp.ofLp_injective
+  funext i
+  fin_cases i <;>
+    simp [UnitaryOperator.applyVec, HilbertOperator.applyVec_apply,
+      phaseGateOnZeroOp, NormalizedVector.ket0, NormalizedVector.ket1,
+      NormalizedVector.ket_apply, PiLp.add_apply, PiLp.smul_apply]
 
 private theorem phaseGateOp_applyVec_eq_smul_rotZStdOp (θ : ℝ)
     (ψ : HilbertVector (Qubits 1)) :
     (phaseGateOp θ).applyVec ψ =
       Complex.exp ((θ / 2 : ℝ) * Complex.I) •
         (rotZStdOp θ).applyVec ψ := by
-  change (phaseGate θ).applyVec ψ =
+  change HilbertOperator.applyVec (phaseGateOp θ : HilbertOperator (Qubits 1)) ψ =
     Complex.exp ((θ / 2 : ℝ) * Complex.I) •
-      (rotZStd θ).applyVec ψ
-  exact phaseGate_applyVec_eq_smul_rotZStd θ ψ
+      HilbertOperator.applyVec (rotZStdOp θ : HilbertOperator (Qubits 1)) ψ
+  rw [phaseGateOp_signal, HilbertOperator.smul_applyVec]
 
 /-! ### The controlled-phase action of `c-U` on an eigenstate -/
 

@@ -26,10 +26,10 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 noncomputable section
 
 /-- Every coordinate outside classical operations is absent from the independent allowance. -/
-theorem eventEnvelope_count_nonclassical {kind : ProblemKind}
-    (modulusWidth phaseBits : Nat) (event : Resource.Event kind)
+theorem eventEnvelope_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
+    (modulusWidth phaseBits : Nat) (event : Resource.Event model)
     (nonclassical : ∀ operation, Resource.Event.classicalOperation operation ≠ event) :
-    ResourcePool.count event (eventEnvelope kind modulusWidth phaseBits) = 0 := by
+    ResourcePool.count event (eventEnvelope model modulusWidth phaseBits) = 0 := by
   simp [eventEnvelope, initializationEnvelope, visitEnvelope, selectionEnvelope,
     candidateEvents, validationEvents, rejectionEvents, acceptanceEvents,
     TerminalDecode.envelope, TerminalDecode.bitEnvelope, TerminalDecode.shiftEvent,
@@ -40,14 +40,17 @@ theorem eventEnvelope_count_nonclassical {kind : ProblemKind}
     nonclassical]
 
 /-- The actual complete recovery adds no event outside its classical-operation coordinates. -/
-theorem nativeRecovery_into_count_nonclassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem nativeRecovery_into_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (into spec base sample output).Path) (event : Resource.Event kind)
+    (path : (into (model := model) spec base sample output).Path)
+    (event : Resource.Event model)
     (nonclassical : ∀ operation, Resource.Event.classicalOperation operation ≠ event) :
-    ResourcePool.count event ((into spec base sample output).resourcePool path) = 0 := by
+    ResourcePool.count event
+      ((into (model := model) spec base sample output).resourcePool path) = 0 := by
   have bound := ResourcePool.le_iff_count.mp
     (nativeRecovery_into_pool_le spec base sample output path) event
   rw [eventEnvelope_count_nonclassical modulusWidth phaseBits event nonclassical] at bound

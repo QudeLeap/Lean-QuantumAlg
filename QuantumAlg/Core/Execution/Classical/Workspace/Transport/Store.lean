@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Accounting.Kind
+public import QuantumAlg.Core.Base.Accounting.Context
+public import QuantumAlg.Core.Execution.Classical.Workspace.Transport
+public import QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Execution.Classical.Workspace.Transport.Write
 
 /-!
@@ -38,7 +42,7 @@ private noncomputable def storageRefOfMem {kind : ProblemKind} (ctx : RuntimeCtx
   slot := Classical.choice (entrySlot_nonempty_of_mem present)
 
 /-- Project transported classical values into the existing caller-shaped Store. -/
-noncomputable def restrict {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public noncomputable def restrict {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) (store : Store inner) : Store outer :=
   Store.ofValues outer fun key role shape present =>
     store.read (.storage (transport.liftStorage (storageRefOfMem outer key role shape present)))

@@ -28,12 +28,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual prefix supplies the original input domain of the final direction reduction. -/
-theorem post_initial (refs : Refs ctx width) (store : Store ctx)
+theorem post_initial {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     (basis : NumberTheory.IntegerBasis3) (initial : Initial refs store basis)
     (result : LatticeSecondPairMachine.Outcome refs.machine store
-      (LatticeSecondPairMachine.secondPairPrefixStep refs.machine store).1 basis) :
+      (LatticeSecondPairMachine.secondPairPrefixStep (model := model) refs.machine store).1
+      basis) :
     LatticeSecondPairPostReduction.Initial refs.post
-      (LatticeSecondPairMachine.secondPairPrefixStep refs.machine store).1
+      (LatticeSecondPairMachine.secondPairPrefixStep (model := model) refs.machine store).1
       (LatticeSecondPairMachine.secondPairPrefixResult basis) := by
   constructor
   · rw [refs.postMachine]
@@ -42,15 +44,17 @@ theorem post_initial (refs : Refs ctx width) (store : Store ctx)
     exact initial.firstNorm
 
 /-- Both actual rounded quotients survive together with the fully size-reduced basis. -/
-theorem sizeReduction_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem sizeReduction_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    LatticeMetricMachine.BasisRawRepresents (sizeReductionStep refs store).1 refs.machine.basis
+    LatticeMetricMachine.BasisRawRepresents
+      (sizeReductionStep (model := model) refs store).1 refs.machine.basis
         (secondPairReducedResult basis) ∧
-      RawSignedRepresents ((sizeReductionStep refs store).1.read
+      RawSignedRepresents ((sizeReductionStep (model := model) refs store).1.read
         (LatticeArithmetic.writeInput refs.machine.division32.output))
           basis.sizeReduceSecondPair.2.1 ∧
-      RawSignedRepresents ((sizeReductionStep refs store).1.read
+      RawSignedRepresents ((sizeReductionStep (model := model) refs store).1.read
         (LatticeArithmetic.writeInput refs.machine.division31.output))
           basis.sizeReduceSecondPair.2.2 := by
   have first := LatticeSecondPairMachine.secondPairPrefixInto_correct refs.machine
@@ -62,7 +66,8 @@ theorem sizeReduction_correct (refs : Refs ctx width) (separation : Separation r
     rw [refs.postMachine] at represented
     exact represented
   · change RawSignedRepresents ((LatticeSecondPairPostReduction.postReductionStep refs.post
-      (LatticeSecondPairMachine.secondPairPrefixStep refs.machine store).1).1.read
+      (LatticeSecondPairMachine.secondPairPrefixStep (model := model)
+        refs.machine store).1).1.read
         (LatticeArithmetic.writeInput refs.machine.division32.output)) _
     rw [post_frame refs _ _ (write_avoids refs separation refs.machine.division32.output
       (.transition (.division32 .output)) rfl postCells (by decide))]
@@ -129,11 +134,12 @@ structure AreaOutcome (refs : Refs ctx width) (after : Store ctx)
     basis.secondLovasz
 
 /-- Actual area computations and the selected branch realize all original suffix outputs. -/
-theorem areaBranch_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem areaBranch_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (fits : LatticeSecondLovaszBranch.Fits width basis) :
-    AreaOutcome refs (areaBranchStep refs store).1 basis := by
+    AreaOutcome refs (areaBranchStep (model := model) refs store).1 basis := by
   have initial := branch_initial refs separation store basis rep
   have selected := LatticeSecondLovaszBranch.branchInto_correct refs.branch separation.branch
     _ basis initial fits
@@ -141,14 +147,16 @@ theorem areaBranch_correct (refs : Refs ctx width) (separation : Separation refs
   · have represented := selected.basisRep
     rw [refs.branchBasis] at represented
     exact represented
-  · change RawSignedRepresents ((LatticeSecondLovaszBranch.branchStep refs.branch _).1.read
+  · change RawSignedRepresents
+      ((LatticeSecondLovaszBranch.branchStep (model := model) refs.branch _).1.read
       (LatticeArithmetic.writeInput refs.area12.area)) _
     rw [branch_frame refs _ _
       (write_avoids refs separation refs.area12.area .area12Result rfl branchCells (by decide))]
     have area := initial.area12
     rw [refs.branchArea12] at area
     exact area
-  · change RawSignedRepresents ((LatticeSecondLovaszBranch.branchStep refs.branch _).1.read
+  · change RawSignedRepresents
+      ((LatticeSecondLovaszBranch.branchStep (model := model) refs.branch _).1.read
       (LatticeArithmetic.writeInput refs.area13.area)) _
     rw [branch_frame refs _ _
       (write_avoids refs separation refs.area13.area .area13Result rfl branchCells (by decide))]
@@ -178,20 +186,25 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- The complete actual transition realizes every original output on the original input domain. -/
-theorem secondPairInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem secondPairInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    Outcome refs store (secondPairStep refs store).1 basis := by
+    Outcome refs store (secondPairStep (model := model) refs store).1 basis := by
   have reduced := sizeReduction_correct refs separation store basis initial fits
   have selected := areaBranch_correct refs separation _ _ reduced.1 fits.branch
   refine ⟨?_, ?_, selected.area12, selected.area13, selected.basisRep, selected.passes,
     secondPairInto_callerFrame refs store⟩
-  · change RawSignedRepresents ((areaBranchStep refs (sizeReductionStep refs store).1).1.read
+  · change RawSignedRepresents
+      ((areaBranchStep (model := model) refs
+        (sizeReductionStep (model := model) refs store).1).1.read
       (LatticeArithmetic.writeInput refs.machine.division32.output)) _
     rw [areaBranch_frame refs _ _ (write_avoids refs separation refs.machine.division32.output
       (.transition (.division32 .output)) rfl areaBranchCells (by decide))]
     exact reduced.2.1
-  · change RawSignedRepresents ((areaBranchStep refs (sizeReductionStep refs store).1).1.read
+  · change RawSignedRepresents
+      ((areaBranchStep (model := model) refs
+        (sizeReductionStep (model := model) refs store).1).1.read
       (LatticeArithmetic.writeInput refs.machine.division31.output)) _
     rw [areaBranch_frame refs _ _ (write_avoids refs separation refs.machine.division31.output
       (.transition (.division31 .output)) rfl areaBranchCells (by decide))]

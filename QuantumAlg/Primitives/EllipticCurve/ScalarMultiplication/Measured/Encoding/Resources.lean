@@ -31,14 +31,14 @@ theorem nativeProgram_eventTrace (width : Nat) (modulus : Fin (2 ^ width + 1))
     (nativeProgram width modulus coefficient coordinate).eventTrace =
       (MAU.Multiplication.Gidney.program width modulus coefficient).eventTrace := by
   rw [nativeProgram, EncodedBit.FullPlacement.place_eventTrace]
-  exact UnitaryCircuit.prodLeft_eventTrace _
+  exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace _ _
 
 private theorem runtime_trace (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
     (runtimeProgram width modulus coefficient coordinate).eventTrace =
       (MAU.Multiplication.Gidney.program width modulus coefficient).eventTrace := by
-  change (nativeProgram width modulus coefficient coordinate).eventTrace ++ [] = _
-  exact (List.append_nil _).trans (nativeProgram_eventTrace width modulus coefficient coordinate)
+  rw [runtimeProgram, UnitaryCircuit.placeAt_eventTrace]
+  exact nativeProgram_eventTrace width modulus coefficient coordinate
 
 /-- The actual runtime instruction keeps every native event in its original order. -/
 theorem coordinateCircuit_eventTrace (width count : Nat) (modulus : Fin (2 ^ width + 1))
@@ -75,7 +75,7 @@ theorem coordinateCircuit_budget (width count : Nat) (modulus : Fin (2 ^ width +
 /-- Every native event-duration assignment follows the same actual multiplier schedule. -/
 theorem coordinateCircuit_depth_exact (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (coordinateCircuit width count modulus coefficient coordinate).Path) :
     (coordinateCircuit width count modulus coefficient coordinate).depth duration path =
       (MAU.Multiplication.Gidney.program width modulus coefficient).evaluatedEventDepth
@@ -85,9 +85,10 @@ theorem coordinateCircuit_depth_exact (width count : Nat) (modulus : Fin (2 ^ wi
     (indexedContext width (List.range (count + 1)) List.nodup_range)
     (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)).surjective path
   refine (ContextUnion.frameLocal_depth _ _ _ _ duration original).trans ?_
-  change (nativeProgram width modulus coefficient coordinate).evaluatedEventDepth duration + 0 = _
-  rw [Nat.add_zero, nativeProgram, EncodedBit.FullPlacement.place_evaluatedEventDepth]
-  exact UnitaryCircuit.prodLeft_evaluatedEventDepth _ _
+  change (runtimeProgram width modulus coefficient coordinate).evaluatedEventDepth duration = _
+  rw [runtimeProgram, UnitaryCircuit.placeAt_evaluatedEventDepth,
+    nativeProgram, EncodedBit.FullPlacement.place_evaluatedEventDepth]
+  exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_evaluatedEventDepth _ _ _
 
 /-- The independent native event envelope also bounds unit-duration serial depth. -/
 theorem coordinateCircuit_depth (width count : Nat) (modulus : Fin (2 ^ width + 1))
@@ -135,7 +136,8 @@ theorem pairCircuit_depth (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coordinateCircuit_depth _ _ _ _ _ path.2)
 
 private theorem local_resident (width count : Nat)
-    (code : Circuit (readyContext width count) (readyContext width count))
+    (code : Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext width count) (readyContext width count))
     (supported : code.IsLocal) (path : code.Path) :
     code.peakResidentSpace path = readySpace width count := by
   have upper := code.peakResidentSpace_le_of_visited path (readySpace width count) (by
@@ -148,7 +150,8 @@ private theorem local_resident (width count : Nat)
   exact le_antisymm upper lower
 
 private theorem local_auxiliary (width count : Nat)
-    (code : Circuit (readyContext width count) (readyContext width count))
+    (code : Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext width count) (readyContext width count))
     (supported : code.IsLocal) (path : code.Path) :
     code.peakAuxiliarySpace path = readySpace width count := by
   have upper := code.peakAuxiliarySpace_le_of_visited path (readySpace width count) (by

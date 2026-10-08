@@ -133,9 +133,8 @@ theorem model_tradeoffBits_eq {N : Nat} (model : FixedWidthModel N) :
 /-- One terminal short-DLP measurement contains 2,051 bits. -/
 theorem model_measurementBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.measurementBits N = 2_051 := by
-  unfold Canonical.measurementBits Canonical.registerParameters
+  unfold Canonical.measurementBits
   rw [model_shortLogBits_eq model, model_tradeoffBits_eq model]
-  norm_num [ShortDLP.CompiledMAU.registerParameters, ShortDLP.firstBits]
 
 /-- The uniform signed-word width of the fixed RSA-2048 lattice recovery. -/
 theorem model_coordinateWidth_eq {N : Nat} (model : FixedWidthModel N) :

@@ -417,8 +417,10 @@ def program
     (hcapacity : fieldTail.succ ≤ 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 ≤ fieldTail.succ)
     (x2 y2 : Word fieldTail.succ) :
-    UnitaryCircuit (Qubits (Layout.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Layout.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (Schedule.gates fieldTail counterTail p hpPos hp hfit hcapacity hwidth
       x2 y2)
 
@@ -438,15 +440,19 @@ theorem program_applyNormalized_clean_ket
     (program fieldTail counterTail p hpPos hp hfit hcapacity hwidth
         data.x2 data.y2).applyNormalized
         (NormalizedVector.ket
+          ((QubitLayout.canonical
+              (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
+            ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
+              (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
+                data.control data.y1 0 ⟨p, hp⟩ data.x1 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+            (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
           ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
             (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
-              data.control data.y1 0 ⟨p, hp⟩ data.x1 0))) =
-      NormalizedVector.ket
-        ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
-          (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
-            data.control
-            (data.outputY counterTail p hpPos hp hfit) 0 ⟨p, hp⟩
-            (data.outputX counterTail p hpPos hp hfit) 0)) := by
+              data.control
+              (data.outputY counterTail p hpPos hp hfit) 0 ⟨p, hp⟩
+              (data.outputX counterTail p hpPos hp hfit) 0))) := by
   have semantic :=
     (Schedule.realizes fieldTail counterTail p hpPos hp hfit hcapacity hwidth
       data.x2 data.y2).apply_encoded_ket
@@ -464,7 +470,8 @@ theorem program_toffoli_count_le
     (hcapacity : fieldTail.succ ≤ 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 ≤ fieldTail.succ)
     (x2 y2 : Word fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (program fieldTail counterTail p hpPos hp hfit hcapacity hwidth
           x2 y2).eventCost ≤
       pointAdditionGateBound fieldTail.succ counterTail := by
@@ -494,20 +501,6 @@ theorem program_unitDepth_le
   rw [program, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit]
   exact gates_length_le fieldTail counterTail p hpPos hp hfit hcapacity hwidth
     x2 y2
-
-/-- The native schedule emits no opaque quantum-subroutine coordinate. -/
-theorem program_quantumSubroutine_count_zero
-    (fieldTail counterTail p : Nat)
-    (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
-    (hfit : counterTail.succ ≤ fieldTail.succ)
-    (hcapacity : fieldTail.succ ≤ 2 ^ (counterTail + 1))
-    (hwidth : counterTail + 2 ≤ fieldTail.succ)
-    (x2 y2 : Word fieldTail.succ)
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-        (program fieldTail counterTail p hpPos hp hfit hcapacity hwidth
-          x2 y2).eventCost = 0 :=
-  EncodedBit.GateSpec.programList_quantumSubroutine_count_zero _ label
 
 end
 end Resources

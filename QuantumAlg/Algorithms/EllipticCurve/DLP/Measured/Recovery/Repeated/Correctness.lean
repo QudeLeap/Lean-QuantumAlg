@@ -33,17 +33,80 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem four_stage_support {kind : ProblemKind}
-    {origin first second final result : RuntimeCtx kind}
-    (setup : Circuit origin first) (allocation : Circuit first second)
-    (body : Circuit second final) (packing : Circuit final result)
-    {Reference : Register} {H : Type} [Fintype H] (initial : State origin Reference H)
+private theorem storeSupported_execute_mapHistory {model : ExecutionModel}
+    {origin result : RuntimeCtx model.kind}
+    (code : Circuit model origin result) {Reference : Register}
+    {H K : Type} [Fintype H] [Fintype K]
+    (state : State origin Reference (model.HiddenState × H)) (update : H → K)
+    (predicate : Store result → Prop) :
+    storeSupported (code.execute Reference
+      (state.mapHistory (fun record => (record.1, update record.2)))) predicate ↔
+      storeSupported (code.execute Reference state) predicate := by
+  rw [Circuit.execute_mapHistory, storeSupported_mapHistory]
+
+private theorem retainPersistent_initialized_invariant {model : ExecutionModel}
+    {origin ctx : RuntimeCtx model.kind}
+    (setup : Circuit model origin ctx) (width scalarWidth order : Nat)
+    (positiveOrder : 0 < order)
+    (consequence : Store (persistentCtx ctx width scalarWidth) → Prop)
+    {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H)) :
+    storeSupported ((setup.seq (retainPersistent ctx width scalarWidth)).execute
+        Reference initial)
+      (fun store =>
+        (store.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
+          order ∧
+        ((store.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+          true → consequence store)) := by
+  apply (storeSupported_seq setup (retainPersistent ctx width scalarWidth) initial
+    (fun store =>
+      (store.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
+        order ∧
+      ((store.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+        true → consequence store))).mpr
+  intro entry present
+  have values := retainPersistent_latches_supported width scalarWidth
+    (setup.execute Reference initial) entry present
+  constructor
+  · rw [values.2]
+    change 0 % 2 ^ scalarWidth < order
+    rw [Nat.zero_mod]
+    exact positiveOrder
+  · intro accepted
+    rw [values.1] at accepted
+    cases accepted
+
+private theorem four_stage_support {model : ExecutionModel}
+    {origin first second final result : RuntimeCtx model.kind}
+    (setup : Circuit model origin first) (allocation : Circuit model first second)
+    (body : Circuit model second final) (packing : Circuit model final result)
+    {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H))
     (predicate : Store result → Prop) :
     storeSupported ((setup.seq ((allocation.seq body).seq packing)).execute Reference initial)
         predicate ↔
       storeSupported (packing.execute Reference
         (((setup.seq allocation).seq body).execute Reference initial)) predicate := by
-  simp only [Circuit.execute_seq, Circuit.execute_mapHistory, storeSupported_mapHistory]
+  simp only [Circuit.execute_seq, storeSupported_mapHistory]
+  rw [Circuit.execute_mapHistory body Reference
+    (allocation.execute Reference (setup.execute Reference initial))
+    (fun history => (history.1.1, (history.1.2, history.2)))]
+  simp only [State.mapHistory_comp, Function.comp_def]
+  let state : State final Reference
+      (model.HiddenState × (((H × setup.Path) × allocation.Path) × body.Path)) :=
+    body.execute Reference (allocation.execute Reference (setup.execute Reference initial))
+  let leftUpdate : (((H × setup.Path) × allocation.Path) × body.Path) →
+      (H × setup.Path) × (allocation.Path × body.Path) :=
+    fun history => (history.1.1, (history.1.2, history.2))
+  let rightUpdate : (((H × setup.Path) × allocation.Path) × body.Path) →
+      H × ((setup.Path × allocation.Path) × body.Path) :=
+    fun history => (history.1.1.1, ((history.1.1.2, history.1.2), history.2))
+  change storeSupported (packing.execute Reference
+      (state.mapHistory (fun record => (record.1, leftUpdate record.2)))) predicate ↔
+    storeSupported (packing.execute Reference
+      (state.mapHistory (fun record => (record.1, rightUpdate record.2)))) predicate
+  rw [storeSupported_execute_mapHistory packing state leftUpdate predicate,
+    storeSupported_execute_mapHistory packing state rightUpdate predicate]
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
@@ -60,7 +123,7 @@ theorem exponentRepeatedRun_supported_secret
       nontrivial count).Record)
     (positive : 0 < (((exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
       nontrivial count).execute Reference
-        (PublicInput.initialInput E (orderWidth problem) problem original).state).block
+        (repeatedOracleInput E problem original).state).block
           record).mass)
     (value : (CShape.unsignedWord (orderWidth problem)).Value)
     (output : (exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
@@ -76,15 +139,21 @@ theorem exponentRepeatedRun_supported_secret
   let target := PublicInput.terminalTargetRef E scalarWidth
   let curve := Canonical.Layout.curveSpec E
   let modulus := recoveryModulusSpec problem nontrivial
-  let sampleCode := samplingRound E fieldTail sameWidth fits odd problem points seed
-  let localSample := samplingRound_isLocal E fieldTail sameWidth fits odd problem points seed
-  let setup := (PublicInput.initializeWork E scalarWidth).seq
-    (PublicInput.allocateTerminal E scalarWidth)
-  let allocation := retainPersistent terminal width scalarWidth
+  let sourceSample := samplingRound E fieldTail sameWidth fits odd problem points seed
+  let sourceLocal := samplingRound_isLocal E fieldTail sameWidth fits odd problem points seed
+  let sampleCode := BitWord.selectForCircuit sourceSample
+  let localSample := BitWord.selectForCircuit_isLocal sourceSample sourceLocal
+  let setup := BitWord.selectForCircuit (exponentRepeatedInitial E problem)
+  let allocation : Circuit (.quantum AlgorithmGate.model .empty BitWord.model)
+      terminal (persistentCtx terminal width scalarWidth) :=
+    retainPersistent (model := .quantum AlgorithmGate.model .empty BitWord.model)
+      terminal width scalarWidth
   let body := sampledAttempts sampleCode localSample count curve modulus sample base target
-  let packing := packBatchResult terminal width scalarWidth
-  let initial := (PublicInput.initialInput E scalarWidth problem original).state.mapClassical
-    (fun store => (store, store))
+  let packing : Circuit (.quantum AlgorithmGate.model .empty BitWord.model)
+      (persistentCtx terminal width scalarWidth) (batchResultCtx terminal width scalarWidth) :=
+    packBatchResult (model := .quantum AlgorithmGate.model .empty BitWord.model)
+      terminal width scalarWidth
+  let initial := PublicInput.persistentInitialState E scalarWidth problem original
   let invariant := fun store : Store (persistentCtx terminal width scalarWidth) =>
     (store.read (.storage (persistentSelected terminal width scalarWidth).toCStorageRef)).toNat <
         problem.order ∧
@@ -96,18 +165,12 @@ theorem exponentRepeatedRun_supported_secret
           problem.generator.toMathlib = problem.target.toMathlib)
   have initialized : storeSupported ((setup.seq allocation).execute Reference initial)
       invariant := by
-    apply (storeSupported_seq setup allocation initial invariant).mpr
-    intro entry present
-    have values := retainPersistent_latches_supported width scalarWidth
-      (setup.execute Reference initial) entry present
-    constructor
-    · rw [values.2]
-      change 0 % 2 ^ scalarWidth < problem.order
-      rw [Nat.zero_mod]
-      exact lt_of_lt_of_le (by decide : 0 < 2) nontrivial
-    · intro accepted
-      rw [values.1] at accepted
-      cases accepted
+    exact retainPersistent_initialized_invariant setup width scalarWidth problem.order
+      (lt_of_lt_of_le (by decide : 0 < 2) nontrivial)
+      (fun store =>
+        (store.read
+          (.storage (persistentSelected terminal width scalarWidth).toCStorageRef)).toNat •
+          problem.generator.toMathlib = problem.target.toMathlib) initial
   have maintained : storeSupported (((setup.seq allocation).seq body).execute Reference initial)
       invariant := by
     exact sampledAttempts_supported_validity_on_prefix sampleCode localSample count curve modulus
@@ -125,6 +188,7 @@ theorem exponentRepeatedRun_supported_secret
         ⟨(maintained earlier positive).1, (maintained earlier positive).2 accepted⟩)
       entry present returned same
   have completed := (four_stage_support setup allocation body packing initial _).mpr packed
+  rw [repeatedRun_execute_persistentInitialState E problem original] at positive
   exact completed record positive value output
 
 /-- The actual output PMF assigns zero probability to every different returned word. -/
@@ -140,11 +204,11 @@ theorem exponentRepeatedRun_wrong_probability_zero
     (different : value ≠ CShape.wordOfNat (orderWidth problem) input.secret.val) :
     (exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
       nontrivial count).outputDistribution
-        (PublicInput.initialInput E (orderWidth problem) problem original)
+        (repeatedOracleInput E problem original)
           (.optionSome value) = 0 := by
   by_contra positive
   let run := exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed nontrivial count
-  let supplied := PublicInput.initialInput E (orderWidth problem) problem original
+  let supplied := repeatedOracleInput E problem original
   have supported : CShape.Value.optionSome value ∈ (run.outputDistribution supplied).support :=
     (PMF.mem_support_iff _ _).mpr positive
   obtain ⟨record, present, output⟩ := (PMF.mem_support_map_iff run.result

@@ -29,11 +29,13 @@ theorem shortDLP_runtimeRetainedRecord_seedBlocks {ctx : RuntimeCtx .quantum}
     (m ell width N : Nat)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
     {key : StorageKey} {shape : CShape} {fresh : key ∉ ctx.keys}
-    (code : Circuit ctx (ctx.addRetained key shape fresh))
-    (step : Store ctx → Store (ctx.addRetained key shape fresh) × code.Path)
+    (code : Circuit model ctx (ctx.addRetained key shape fresh))
+    (step : Store ctx × model.HiddenState →
+      (Store (ctx.addRetained key shape fresh) × model.HiddenState) × code.Path)
     (record : Circuit.RetainedRecord code step)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state) :
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state) :
     HasSeedBlocks m ell width
       ((RuntimeCtx.quantumWires_addRetained ctx key shape fresh).trans sameWires) N
       (code.execute Reference state) :=

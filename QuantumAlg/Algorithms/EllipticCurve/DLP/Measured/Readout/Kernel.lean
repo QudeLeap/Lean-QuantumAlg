@@ -63,8 +63,8 @@ def afterExponentReadoutEffect (modulus : Nat) (problem : KnownOrderProblem E.Gr
     Effect ((after modulus.size (2 * orderWidth problem)).register.prod Reference) :=
   Effect.pullbackUnitary
     (UnitaryOperator.prodTensor
-      (afterExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference))
+      (afterExponentProgram modulus (orderWidth problem)
+        (exponentReadoutCircuit problem)).matrix (1 : UnitaryOperator Reference))
     (QubitReadouts.eventEffect (afterExponentWires modulus (orderWidth problem)) event Reference)
 
 private theorem afterExponentReadoutEffect_matrix_sum (modulus : Nat)
@@ -75,18 +75,18 @@ private theorem afterExponentReadoutEffect_matrix_sum (modulus : Nat)
       ∑ output, if (event fun index => decide
         ((output.1 (afterExponentWires modulus (orderWidth problem) index)).val = 1)) = true then
           star ((UnitaryOperator.prodTensor
-            (afterExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-              (exponentReadoutCircuit_physical_idx problem)).matrix
+            (afterExponentProgram modulus (orderWidth problem)
+              (exponentReadoutCircuit problem)).matrix
             (1 : UnitaryOperator Reference)) output left) *
           (UnitaryOperator.prodTensor
-            (afterExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-              (exponentReadoutCircuit_physical_idx problem)).matrix
+            (afterExponentProgram modulus (orderWidth problem)
+              (exponentReadoutCircuit problem)).matrix
             (1 : UnitaryOperator Reference)) output right
         else 0 := by
   let R := (after modulus.size (2 * orderWidth problem)).register.prod Reference
   let operator : UnitaryOperator R := UnitaryOperator.prodTensor
-    (afterExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference)
+    (afterExponentProgram modulus (orderWidth problem)
+      (exponentReadoutCircuit problem)).matrix (1 : UnitaryOperator Reference)
   change (((operator : HilbertOperator R).conjTranspose *
     (QubitReadouts.eventEffect (afterExponentWires modulus (orderWidth problem))
       event Reference).matrix) * (operator : HilbertOperator R)) left right = _
@@ -137,9 +137,9 @@ private theorem afterExponentReadoutEffect_initialized_sum (modulus : Nat)
         (((initializedOutputEmbedding modulus (2 * orderWidth problem) Reference output).1
           (afterExponentWires modulus (orderWidth problem) index)).val = 1)) = true then
         star ((beforeExponentOperator modulus (orderWidth problem) (exponentReadoutCircuit problem)
-          (exponentReadoutCircuit_physical_idx problem) Reference) output left) *
+          Reference) output left) *
           (beforeExponentOperator modulus (orderWidth problem) (exponentReadoutCircuit problem)
-            (exponentReadoutCircuit_physical_idx problem) Reference) output right
+            Reference) output right
         else 0 := by
   rw [afterExponentReadoutEffect_matrix_sum]
   exact initialized_kernel_sum
@@ -149,15 +149,15 @@ private theorem afterExponentReadoutEffect_initialized_sum (modulus : Nat)
     (BasisPreparation.zero (indexedLayout modulus.size (2 * orderWidth problem))).value
     (InPlacePreparation.preparation modulus).value
     (fun output input => UnitaryOperator.prodTensor
-      (afterExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference)
+      (afterExponentProgram modulus (orderWidth problem)
+        (exponentReadoutCircuit problem)).matrix (1 : UnitaryOperator Reference)
           output (initializedOutputEmbedding modulus (2 * orderWidth problem) Reference input))
     (beforeExponentOperator modulus (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem) Reference)
+      Reference)
     (fun output => event fun index => decide
       ((output.1 (afterExponentWires modulus (orderWidth problem) index)).val = 1))
     (afterExponentOperator_initializedAssembly_entry modulus (orderWidth problem)
-      (exponentReadoutCircuit problem) (exponentReadoutCircuit_physical_idx problem) Reference)
+      (exponentReadoutCircuit problem) Reference)
     left right
 
 private def readoutInputBasis (modulus exponentWidth : Nat) (Reference : Register) :
@@ -229,16 +229,16 @@ private theorem beforeExponentOperator_readoutEntry (modulus : Nat)
     (branch column : Fin (2 ^ orderWidth problem) × Fin (2 ^ orderWidth problem))
     (reference retained : Reference.Index) :
     (beforeExponentOperator modulus (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem) Reference)
+      Reference)
       (readoutInputBasis modulus (orderWidth problem) Reference ((coordinates, branch), reference))
       (inputLabel modulus.size (2 * orderWidth problem)
         (pairedExponentInput modulus (orderWidth problem) column) prior.1 prior.2, retained) =
       ((if coordinates = prior then 1 else 0) *
-        (exponentReadoutCircuit problem).matrix (prodEquiv branch) (prodEquiv column)) *
+        (exponentReadoutCircuit problem).binaryMatrix (prodEquiv branch) (prodEquiv column)) *
           (if reference = retained then 1 else 0) := by
   rw [readoutInputBasis_apply]
-  change (beforeExponentProgram modulus (orderWidth problem) (exponentReadoutCircuit problem)
-    (exponentReadoutCircuit_physical_idx problem)).matrix
+  change (beforeExponentProgram modulus (orderWidth problem)
+    (exponentReadoutCircuit problem)).matrix
       (inputLabel modulus.size (2 * orderWidth problem)
         (pairedExponentInput modulus (orderWidth problem) branch) coordinates.1 coordinates.2)
       (inputLabel modulus.size (2 * orderWidth problem)
@@ -253,8 +253,8 @@ private theorem idealFourierEventKernel_paired_sum (problem : KnownOrderProblem 
       ∑ branch : Fin (2 ^ orderWidth problem) × Fin (2 ^ orderWidth problem),
         if event (ExceptionalOffsetAveraging.pairedBigEndianSelected (orderWidth problem) branch) =
             true then
-          star ((exponentReadoutCircuit problem).matrix (prodEquiv branch) (prodEquiv left)) *
-            (exponentReadoutCircuit problem).matrix (prodEquiv branch) (prodEquiv right)
+          star ((exponentReadoutCircuit problem).binaryMatrix (prodEquiv branch) (prodEquiv left)) *
+            (exponentReadoutCircuit problem).binaryMatrix (prodEquiv branch) (prodEquiv right)
           else 0 := by
   unfold idealFourierEventKernel
   exact ((prodEquiv (m := orderWidth problem) (n := orderWidth problem)).sum_comp _).symm.trans
@@ -288,9 +288,9 @@ theorem afterExponentReadoutEffect_initialized_matrix (modulus : Nat)
         (pairedExponentInput modulus (orderWidth problem) branch)
         coordinates.1 coordinates.2, reference))
     (beforeExponentOperator modulus (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem) Reference)
+      Reference)
     (fun output input =>
-      (exponentReadoutCircuit problem).matrix (prodEquiv output) (prodEquiv input))
+      (exponentReadoutCircuit problem).binaryMatrix (prodEquiv output) (prodEquiv input))
     (fun output => event fun index => decide
       (((initializedOutputEmbedding modulus (2 * orderWidth problem) Reference output).1
         (afterExponentWires modulus (orderWidth problem) index)).val = 1))

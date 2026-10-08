@@ -37,8 +37,10 @@ def complementGates (n : Nat) : List (EncodedBit.GateSpec (TTK.encoding n)) :=
   List.ofFn fun bit : Fin n => .x (TTK.leftBit n bit)
 
 /-- Compile the actual complement list on the two-word interface. -/
-def complementProgram (n : Nat) : UnitaryCircuit (Qubits (TTK.encoding n).width) :=
-  programList (complementGates n)
+def complementProgram (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (TTK.encoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (complementGates n)
 
 /-- Complemented representatives sum to one less than the modulus. -/
 theorem hrsComplementWord_sum (n : Nat) (word : Fin (2 ^ n)) :
@@ -106,23 +108,33 @@ theorem hrsComplement_step (n : Nat) (state : TTK.Registers n) :
 /-- Exact amplitudes, without a phase allowance or borrowed-word restriction. -/
 theorem hrsComplement_realizes (n : Nat) :
     UnitaryCircuit.Realizes (TTK.encoding n) (complementProgram n) complementOutput :=
-  realizesList_congrStep (complementGates n) (hrsComplement_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (complementGates n) (hrsComplement_step n)
 
 /-- Every native event coordinate follows from the actual list of X gates. -/
-theorem hrsComplement_native_count (n : Nat) (focus : Resource.Event .quantum) :
+theorem hrsComplement_native_count (n : Nat)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (complementProgram n).eventCost =
-      n * (if (.gate (.builtin "x") : Resource.Event .quantum) = focus then 1 else 0) := by
+      n * (if (.gate .singleQubit :
+        Resource.Event (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0) := by
   rw [complementProgram, programList_event_count_eq_sum_eventMultiplicity]
-  by_cases h : (.gate (.builtin "x") : Resource.Event .quantum) = focus
-  · simp [complementGates, eventMultiplicity, event, List.sum_ofFn, h]
-  · simp [complementGates, eventMultiplicity, event, List.sum_ofFn, h]
+  have nativeX (bit : Fin n) :
+      event .empty (.x (TTK.leftBit n bit)) =
+        (.gate .singleQubit :
+          Resource.Event (.quantum AlgorithmGate.model .empty)) := rfl
+  by_cases h : (.gate .singleQubit :
+      Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
+  · simp [complementGates, eventMultiplicity, nativeX, List.sum_ofFn, h]
+  · simp [complementGates, eventMultiplicity, nativeX, List.sum_ofFn, h]
 
 /-- The serial list contains exactly one gate per borrowed bit. -/
 theorem hrsComplement_serial_resources (n : Nat) :
     (complementProgram n).eventCost.card = n ∧
       (complementProgram n).evaluatedEventDepth (fun _ => 1) = n := by
-  change (programList (complementGates n)).eventCost.card = n ∧
-    (programList (complementGates n)).evaluatedEventDepth (fun _ => 1) = n
+  change (programList (QubitLayout.canonical _) .empty
+      (complementGates n)).eventCost.card = n ∧
+    (programList (QubitLayout.canonical _) .empty
+      (complementGates n)).evaluatedEventDepth (fun _ => 1) = n
   rw [programList_eventCost_card, programList_evaluatedEventDepth_unit]
   simp [complementGates]
 

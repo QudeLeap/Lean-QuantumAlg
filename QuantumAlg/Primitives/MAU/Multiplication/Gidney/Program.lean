@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Swap
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Program
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Gates
 import all QuantumAlg.Util.Nat.FixedWidth.Unit.Word.Multiplication
 
 /-!
@@ -29,78 +29,82 @@ namespace QuantumAlg.MAU.Multiplication.Gidney
 
 noncomputable section
 
-open Accumulate.Gidney Nat.FixedWidth
+open Accumulate.Gidney Nat.FixedWidth EncodedBit GateSpec
 
-private theorem accumulate_equiv (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : Nat) :
-    UnitaryCircuit.Realizes (encoding width)
-      (Accumulate.Gidney.program width modulus coefficient)
-      (accumulatePairEquiv modulus coefficient width) :=
-  (gidneyAccumulate_realizes width modulus coefficient).congrStep
-    (fun state => (accumulatePairEquiv_apply modulus coefficient width state).symm)
+private theorem accumulateGates_equiv (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (state : Registers width) :
+    stepList (Accumulate.Gidney.gates width modulus coefficient) state =
+      accumulatePairEquiv modulus coefficient width state :=
+  (gidneyAccumulateGates_step width modulus coefficient state).trans
+    (accumulatePairEquiv_apply modulus coefficient width state).symm
 
-private theorem inverse_accumulate_equiv (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : Nat) :
-    UnitaryCircuit.Realizes (encoding width)
-      (Accumulate.Gidney.program width modulus coefficient).dagger
-      (accumulatePairEquiv modulus coefficient width).symm :=
-  (accumulate_equiv width modulus coefficient).dagger_of_rightInverse
-    (Equiv.apply_symm_apply _)
+private theorem inverseAccumulateGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (state : Registers width) :
+    stepList (Accumulate.Gidney.gates width modulus coefficient).reverse state =
+      (accumulatePairEquiv modulus coefficient width).symm state := by
+  have inverse := stepList_reverse_stepList (Accumulate.Gidney.gates width modulus coefficient)
+    ((accumulatePairEquiv modulus coefficient width).symm state)
+  rw [accumulateGates_equiv, Equiv.apply_symm_apply] at inverse
+  exact inverse
 
-/-- Actual MAC, three-CNOT word swaps, then the adjoint of the inverse-coefficient MAC. -/
+/-- Actual MAC, three-CNOT word swaps, then reversed inverse-coefficient MAC instructions. -/
+def gates (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : (ZMod modulus.val)ˣ) : List (GateSpec (encoding width)) :=
+  (Accumulate.Gidney.gates width modulus (coefficient : ZMod modulus.val).val ++
+    wordSwapGates width) ++
+      (Accumulate.Gidney.gates width modulus
+        ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val).reverse
+
+/-- Every joint basis label follows the independent total multiplication permutation. -/
+theorem gidneyUnitMultiplicationGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : (ZMod modulus.val)ˣ) (state : Registers width) :
+    stepList (gates width modulus coefficient) state =
+      unitMultiplicationPairEquiv modulus coefficient state := by
+  simp only [gates, stepList_append, accumulateGates_equiv,
+    gidneyWordSwapGates_step, inverseAccumulateGates_step]
+  rfl
+
+/-- Emit the complete native instruction sequence on the original two words. -/
 def program (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) : UnitaryCircuit (Qubits (encoding width).width) :=
-  ((Accumulate.Gidney.program width modulus (coefficient : ZMod modulus.val).val).seq
-    (wordSwapProgram width)).seq
-      (Accumulate.Gidney.program width modulus
-        ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val).dagger
+    (coefficient : (ZMod modulus.val)ˣ) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (gates width modulus coefficient)
 
 /-- Exact action of the actual program on every two-word basis label, with no phase allowance. -/
 theorem gidneyUnitMultiplication_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient)
       (unitMultiplicationPairEquiv modulus coefficient) :=
-  ((accumulate_equiv width modulus (coefficient : ZMod modulus.val).val).seq
-    (gidneyWordSwap_realizes width)).seq
-      (inverse_accumulate_equiv width modulus
-        ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val)
+  realizesList_congrStep _ _ _ (gidneyUnitMultiplicationGates_step width modulus coefficient)
 
 /-- The canonical product is computed while the zero auxiliary word is restored exactly. -/
 theorem gidneyUnitMultiplication_clean (width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (valid : input.val < modulus.val) :
     (program width modulus coefficient).applyNormalized
-        (NormalizedVector.ket ((encoding width).encode (input, 0))) =
-      NormalizedVector.ket ((encoding width).encode
-        (unitProductWord modulus positive coefficient input, 0)) := by
+        (NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (input, 0)))) =
+      NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+        ((encoding width).encode (unitProductWord modulus positive coefficient input, 0))) := by
   rw [(gidneyUnitMultiplication_realizes width modulus coefficient).apply_encoded_ket,
     unitMultiplicationPairEquiv_clean modulus positive coefficient input valid]
 
-/-- The full physical footprint is precisely the two original words. -/
-theorem gidneyUnitMultiplication_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) :
-    (program width modulus coefficient).physical_idx = List.range (2 * width) := by
-  have first : (Accumulate.Gidney.program width modulus
-      (coefficient : ZMod modulus.val).val).physical_idx ⊆ List.range (2 * width) := by
-    intro wire present
-    rw [gidneyAccumulate_physical] at present
-    exact present
-  have before := UnitaryCircuit.seq_physical_idx_subset _ _ first (gidneyWordSwap_physical width)
-  change ((Accumulate.Gidney.program width modulus
-      (coefficient : ZMod modulus.val).val).seq (wordSwapProgram width)).physical_idx ∪
-    (Accumulate.Gidney.program width modulus
-      ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val).dagger.physical_idx = _
-  rw [UnitaryCircuit.dagger_physical_idx, gidneyAccumulate_physical]
-  exact before.union_eq_right
+/-- The complete multiplication layout is the original two words. -/
+theorem gidneyUnitMultiplication_interface (width : Nat) :
+    (encoding width).width = 2 * width ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
+  gidneyAccumulate_interface width
 
 /-- The exact total two-word action preserves an arbitrary external encoded reference jointly. -/
 theorem gidneyUnitMultiplication_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
-      (UnitaryCircuit.prodLeft (n := reference.width) (program width modulus coefficient))
+      (layout := QubitLayout.canonical ((encoding width).width + reference.width))
+      (UnitaryCircuit.onBinaryPrefix reference.width (program width modulus coefficient))
       (fun state => (unitMultiplicationPairEquiv modulus coefficient state.1, state.2)) :=
-  (gidneyUnitMultiplication_realizes width modulus coefficient).prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
+    (gidneyUnitMultiplication_realizes width modulus coefficient)
 
 end
 

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters.Source
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Batch.Values
 import all QuantumAlg.Components.Classical.TerminalDecode.FoldSemantics
 import all QuantumAlg.Components.Classical.TerminalDecode.Resources
@@ -30,11 +30,11 @@ noncomputable section
 
 /-- Width of the first short-log exponent register. -/
 abbrev JWidth (N : Nat) : Nat :=
-  ShortDLP.firstBits (registerParameters N)
+  tradeoffBits N + shortLogBits N
 
 /-- Width of the second short-log exponent register. -/
 abbrev KWidth (N : Nat) : Nat :=
-  (registerParameters N).ell
+  tradeoffBits N
 
 /-- The compiled terminal layout is exactly the concatenation of `j` and `k`. -/
 @[simp] theorem measurementBits_eq_jkWidth (N : Nat) :
@@ -101,8 +101,7 @@ theorem sourceSample_fst_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : N
     (sourceSample N before input).1.val =
       (BatchRecovery.decodeFullRegisterIndex (shortLogBits N) (tradeoffBits N)
         (sourceBits N before input)).val / 2 ^ KWidth N := by
-  simpa only [sourceSample, KWidth, registerParameters,
-    ShortDLP.CompiledMAU.registerParameters] using
+  simpa only [sourceSample, KWidth] using
     (BatchRecovery.decodeTerminalSample_fst_val (shortLogBits N) (tradeoffBits N)
       (sourceBits N before input))
 
@@ -113,8 +112,7 @@ theorem sourceSample_snd_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : N
     (sourceSample N before input).2.val =
       (BatchRecovery.decodeFullRegisterIndex (shortLogBits N) (tradeoffBits N)
         (sourceBits N before input)).val % 2 ^ KWidth N := by
-  simpa only [sourceSample, KWidth, registerParameters,
-    ShortDLP.CompiledMAU.registerParameters] using
+  simpa only [sourceSample, KWidth] using
     (BatchRecovery.decodeTerminalSample_snd_val (shortLogBits N) (tradeoffBits N)
       (sourceBits N before input))
 

@@ -104,21 +104,33 @@ theorem Separation.mutable_ne {inputs : Inputs ctx width} {refs : Refs ctx width
     mutableKey refs left ≠ mutableKey refs right :=
   fun equal => different (separation.mutableInjective equal)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Reuse the output for the first product in the shared actual arithmetic component. -/
 def productDifferenceInto (a b c d : CInputRef ctx (.unsignedWord width))
-    (output product : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  ProductDifference.computeInto a b c d output output product
+    (output product : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  ProductDifference.computeInto (model := model) a b c d output output product
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Actual chronological writes with the first product resident in the output word. -/
 def productDifferenceStore (a b c d : CInputRef ctx (.unsignedWord width))
     (output product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) : Store ctx :=
   ProductDifference.computedStore a b c d output output product store
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The two original Gram expressions, each using exactly three native operations. -/
 def secondReductionInputsInto (inputs : Inputs ctx width) (refs : Refs ctx width) :
-    Circuit ctx ctx :=
-  .seq (productDifferenceInto inputs.g11 inputs.g32 inputs.g31 inputs.g21 refs.nu32 refs.product)
-    (productDifferenceInto inputs.g11 inputs.g22 inputs.g21 inputs.g21 refs.d32 refs.product)
+    Circuit model ctx ctx :=
+  .seq (productDifferenceInto (model := model) inputs.g11 inputs.g32 inputs.g31 inputs.g21
+      refs.nu32 refs.product)
+    (productDifferenceInto (model := model) inputs.g11 inputs.g22 inputs.g21 inputs.g21 refs.d32
+      refs.product)
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Actual numerator writes followed by actual denominator writes. -/
 def secondReductionInputsStore (inputs : Inputs ctx width) (refs : Refs ctx width)
@@ -127,18 +139,44 @@ def secondReductionInputsStore (inputs : Inputs ctx width) (refs : Refs ctx widt
     (productDifferenceStore inputs.g11 inputs.g32 inputs.g31 inputs.g21
       refs.nu32 refs.product store)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- The two actual three-operation records on their chronological stores. -/
+def secondReductionInputsStep (inputs : Inputs ctx width) (refs : Refs ctx width)
+    (store : Store ctx) :
+    Store ctx × (secondReductionInputsInto (model := model) inputs refs).Path :=
+  let first := ProductDifference.computationStep (model := model)
+    inputs.g11 inputs.g32 inputs.g31 inputs.g21 refs.nu32 refs.nu32 refs.product store
+  let second := ProductDifference.computationStep (model := model)
+    inputs.g11 inputs.g22 inputs.g21 inputs.g21 refs.d32 refs.d32 refs.product first.1
+  (second.1, (first.2, second.2))
+
 /-- Complete actual execution preserves history and full quantum-reference correlations. -/
 theorem secondReductionInputsInto_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (secondReductionInputsInto inputs refs).execute Reference state = state.mapClassical
-      (fun entry => (secondReductionInputsStore inputs refs entry.1,
-        (entry.2, (((), ((), ())), ((), ((), ())))))) := by
-  simp only [secondReductionInputsInto, productDifferenceInto, ProductDifference.computeInto,
-    Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (secondReductionInputsInto (model := model) inputs refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := secondReductionInputsStep (model := model) inputs refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  unfold secondReductionInputsInto productDifferenceInto secondReductionInputsStep
+  refine (Circuit.execute_seq_mapClassical _ _
+    (fun before =>
+      let actual := ProductDifference.computationStep (model := model)
+        inputs.g11 inputs.g32 inputs.g31 inputs.g21 refs.nu32 refs.nu32 refs.product before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := ProductDifference.computationStep (model := model)
+        inputs.g11 inputs.g22 inputs.g21 inputs.g21 refs.d32 refs.d32 refs.product before.1
+      ((actual.1, before.2), actual.2)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ current
+    exact ProductDifference.computeInto_execute _ _ _ _ _ _ _ reference current
+  · intro reference history _ current
+    exact ProductDifference.computeInto_execute _ _ _ _ _ _ _ reference current
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Reads outside the two actual product-difference writes are preserved exactly. -/
 theorem productDifference_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))

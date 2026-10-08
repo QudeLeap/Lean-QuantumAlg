@@ -63,22 +63,26 @@ def additionSumOp (scratch : AddScratch ctx width) :
     (.product (Modular.Reduce.Native.reductionRead scratch.left)
       (Modular.Reduce.Native.reductionRead scratch.right)) scratch.sum
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The three original arithmetic operations precede all reduction preparation. -/
 def additionStage (left right : CInputRef ctx (.unsignedWord width))
-    (scratch : AddScratch ctx width) : Fin 3 → Circuit ctx ctx :=
-  ![.classical (additionLeftOp left scratch), .classical (additionRightOp right scratch),
-    .classical (additionSumOp scratch)]
+    (scratch : AddScratch ctx width) : Fin 3 → Circuit model ctx ctx :=
+  ![BitWord.instruction (execution := model) (additionLeftOp left scratch),
+    BitWord.instruction (execution := model) (additionRightOp right scratch),
+    BitWord.instruction (execution := model) (additionSumOp scratch)]
 
 /-- Native widening and sum are followed by actual loaded-modulus reduction. -/
 def additionBody (spec : ModulusSpec width) (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .seq (Circuit.forRange 3 (additionStage left right scratch))
     (reduceIntoWord spec (.first (Modular.Reduce.Native.reductionRead scratch.sum)) output)
 
 /-- Allocate exactly the original three arithmetic cells around their actual native program. -/
 def addIntoWord (spec : ModulusSpec width) (left right : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   withCells ctx (additionShapes width) fun cells _ transport _ =>
     additionBody spec (transport.liftInput left) (transport.liftInput right)
       (additionScratch cells) (transport.liftWrite output)
@@ -86,35 +90,36 @@ def addIntoWord (spec : ModulusSpec width) (left right : CInputRef ctx (.unsigne
 /-- Real chronological record of each original arithmetic operation. -/
 def additionStageRecord (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (index : Fin 3) :
-    Store ctx → Store ctx × (additionStage left right scratch index).Path := by
-  refine Fin.cases (fun store => (store.applyOp (additionLeftOp left scratch), ()))
+    Store ctx → Store ctx × (additionStage (model := model) left right scratch index).Path := by
+  refine Fin.cases (BitWord.instructionStep (execution := model) (additionLeftOp left scratch))
     (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (additionRightOp right scratch), ()))
+  refine Fin.cases (BitWord.instructionStep (execution := model) (additionRightOp right scratch))
     (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (additionSumOp scratch), ()))
+  refine Fin.cases (BitWord.instructionStep (execution := model) (additionSumOp scratch))
     (fun index => ?_) index
   exact Fin.elim0 index
 
 /-- Every original arithmetic operation retains the complete quantum-reference matrix block. -/
 theorem additionStage_execute (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (index : Fin 3) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (additionStage left right scratch index).execute Reference state = state.mapClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (additionStage (model := model) left right scratch index).execute Reference state =
+      state.mapClassical
       (fun entry => ((additionStageRecord left right scratch index entry.1).1,
-        (entry.2, (additionStageRecord left right scratch index entry.1).2))) := by
+        (entry.2.1, (entry.2.2,
+          (additionStageRecord left right scratch index entry.1).2)))) := by
   fin_cases index <;>
-    refine (Circuit.execute_classical_mapClassical _ Reference state).trans ?_
-  all_goals
-    congr 1
-    exact Subsingleton.elim _ _
+    exact BitWord.bitWord_instruction_execute (execution := model) _ state
 
 /-- The actual arithmetic and loaded reduction share their true intermediate store. -/
 def additionBodyStep (spec : ModulusSpec width) (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (additionBody spec left right scratch output).Path :=
-  Circuit.sequenceRecord (Circuit.forRange 3 (additionStage left right scratch))
+    Store ctx → Store ctx × (additionBody (model := model) spec left right scratch output).Path :=
+  Circuit.sequenceStoreRecord
+    (Circuit.forRange 3 (additionStage (model := model) left right scratch))
     (reduceIntoWord spec (.first (Modular.Reduce.Native.reductionRead scratch.sum)) output)
-    (Circuit.forRangeRecord 3 (additionStage left right scratch)
+    (Circuit.forRangeStoreRecord 3 (additionStage (model := model) left right scratch)
       (additionStageRecord left right scratch))
     (reduceIntoWordStep spec (.first (Modular.Reduce.Native.reductionRead scratch.sum)) output)
 
@@ -122,12 +127,16 @@ def additionBodyStep (spec : ModulusSpec width) (left right : CInputRef ctx (.un
 theorem additionBody_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (additionBody spec left right scratch output).execute Reference state = state.mapClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (additionBody (model := model) spec left right scratch output).execute Reference state =
+      state.mapClassical
       (fun entry => ((additionBodyStep spec left right scratch output entry.1).1,
-        (entry.2, (additionBodyStep spec left right scratch output entry.1).2))) := by
-  exact Circuit.execute_sequenceRecord _ _ _ _
-    (Circuit.execute_forRangeRecord 3 (additionStage left right scratch)
+        (entry.2.1, (entry.2.2,
+          (additionBodyStep spec left right scratch output entry.1).2)))) := by
+  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (Circuit.execute_forRangeStoreRecord (model := model) 3
+      (additionStage (model := model) left right scratch)
       (additionStageRecord left right scratch) (additionStage_execute left right scratch))
     (reduceIntoWord_execute _ _ _) Reference state
 

@@ -19,7 +19,7 @@ recovery workspaces. The complete output lists every surviving live entry.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuseRecovery
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
@@ -36,26 +36,30 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- Complete classical recovery writes the retained optional factor before releasing scratch. -/
-def body (input : Input N) : Circuit (context base N) (context base N) :=
-  LatticeFixedBatchRecoveryMachine.into (context base N) input
+def body (input : Input N) :
+    Circuit RuntimeRound.model (context base N) (context base N) :=
+  LatticeFixedBatchRecoveryMachine.into (model := RuntimeRound.model)
+    (context base N) input
     (sourceParameter base N) (terminals base N) (resultRef base N)
 
-private def bodyStep (input : Input N) :
-    Store (context base N) →
-      Store (context base N) × (body base input).Path :=
-  LatticeFixedBatchRecoveryMachine.step input (sourceParameter base N)
-    (terminals base N) (resultRef base N)
+private def bodyStep (input : Input N)
+    (before : Store (context base N) × RuntimeRound.model.HiddenState) :
+    (Store (context base N) × RuntimeRound.model.HiddenState) ×
+      (body base input).Path :=
+  let actual := LatticeFixedBatchRecoveryMachine.step (model := RuntimeRound.model)
+    input (sourceParameter base N) (terminals base N)
+      (resultRef base N) before.1
+  ((actual.1, before.2), actual.2)
 
 private theorem body_execute (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (context base N) Reference History) :
+    (state : State (context base N) Reference (RuntimeRound.model.HiddenState × History)) :
     (body base input).execute Reference state =
-      state.mapClassical
-        (D := Store (context base N) × (History × (body base input).Path))
-        (fun entry => ((bodyStep base input entry.1).1,
-          (entry.2, (bodyStep base input entry.1).2))) := by
+      state.mapClassical (fun entry =>
+        let actual := bodyStep base input (entry.1, entry.2.1)
+        (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
   unfold body bodyStep
-  refine (LatticeFixedBatchRecoveryMachine.into_execute input
+  refine (LatticeFixedBatchRecoveryMachine.into_execute (model := RuntimeRound.model) input
     (sourceParameter base N) (terminals base N)
     (resultRef base N) Reference state).trans ?_
   congr 1
@@ -65,26 +69,29 @@ attribute [local irreducible] body bodyStep
 
 /-- Actual output allocation precedes the actual classical recovery execution. -/
 def tail (input : Input N) :
-    Circuit (NativeBatchReuse.context base N) (context base N) :=
-  .seq (.retain (NativeBatchReuse.context base N) (resultKey base N)
+    Circuit RuntimeRound.model (NativeBatchReuse.context base N) (context base N) :=
+  .seq (.retain (model := RuntimeRound.model) (NativeBatchReuse.context base N) (resultKey base N)
     (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh) (body base input)
 
 /-- The actual deterministic record contains the real retained allocation and body path. -/
-def step (input : Input N) (before : Store (NativeBatchReuse.context base N)) :
-    Store (context base N) × (tail base input).Path :=
+def step (input : Input N)
+    (before : Store (NativeBatchReuse.context base N) × RuntimeRound.model.HiddenState) :
+    (Store (context base N) × RuntimeRound.model.HiddenState) ×
+      (tail base input).Path :=
   let record := bodyStep base input
-    (before.pushRetained (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
-      (NativeBatchReuse.context base N).canonicalFreshKey_fresh)
+    (before.1.pushRetained (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
+      (NativeBatchReuse.context base N).canonicalFreshKey_fresh, before.2)
   (record.1, ((), record.2))
 
 /-- Fresh sampling on the same original bank feeds the complete recovery tail. -/
-def code (input : Input N) : Circuit base (context base N) :=
+def code (input : Input N) : Circuit RuntimeRound.model base (context base N) :=
   .seq (NativeBatchReuse.code base N sameWires originalCells) (tail base input)
 
 /-- The optional factor is read from actual storage while every live entry remains manifested. -/
 def run (input : Input N) :
-    AlgorithmRun base (context base N) (LatticeBatchRecoveryOutput.OutputShape N) where
+    AlgorithmRun RuntimeRound.model base (context base N)
+      (LatticeBatchRecoveryOutput.OutputShape N) where
   code := code base sameWires originalCells input
   output := Output.all (context base N)
     (.read (.storage (resultRef base N).toCStorageRef))
@@ -93,7 +100,8 @@ def run (input : Input N) :
 theorem tail_execute (input : Input N) :
     Circuit.RetainedRecord (tail base input) (step base input) := by
   intro Reference History historyFinite state
-  have equation := Circuit.execute_retain_seq_mapClassical (NativeBatchReuse.context base N)
+  have equation := Circuit.execute_retain_seq_mapClassical (model := RuntimeRound.model)
+    (NativeBatchReuse.context base N)
     (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh (body base input)
     (bodyStep base input) (body_execute base input) Reference state

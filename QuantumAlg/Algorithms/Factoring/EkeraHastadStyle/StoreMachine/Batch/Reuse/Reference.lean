@@ -13,8 +13,8 @@ import all QuantumAlg.Core.Execution.Reference.Observation
 /-!
 # Actual retained recovery transports earlier reads and its factor jointly
 
-The deterministic tail maps every complete store and mathematical history,
-including the full quantum-reference blocks. Every earlier structural read
+The deterministic tail maps every complete store, hidden service state and
+mathematical history, including the full quantum-reference blocks. Every earlier structural read
 survives the real allocation and recovery. On the original source support,
 the actual factor is the canonical pure recovery of that same complete source
 output. The subsequent probability owner establishes this support internally.
@@ -33,22 +33,27 @@ attribute [local irreducible] NativeBatchReuse.context NativeBatchReuse.code bod
 
 private theorem retained_reference {ctx : RuntimeCtx .quantum}
     {key : StorageKey} {shape : CShape} {fresh : key ∉ ctx.keys}
-    (program : Circuit ctx (ctx.addRetained key shape fresh))
-    (update : Store ctx → Store (ctx.addRetained key shape fresh) × program.Path)
+    (program : Circuit RuntimeRound.model ctx (ctx.addRetained key shape fresh))
+    (update : Store ctx × RuntimeRound.model.HiddenState →
+      (Store (ctx.addRetained key shape fresh) × RuntimeRound.model.HiddenState) × program.Path)
     (record : Circuit.RetainedRecord program update)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (weight : Store (ctx.addRetained key shape fresh) → ℂ)
+    (state : State ctx Reference (RuntimeRound.model.HiddenState × History))
+    (weight : Store (ctx.addRetained key shape fresh) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum (program.execute Reference state)
         (fun entry _ => weight entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
-        (fun entry _ => weight (update entry.1).1) leftRef rightRef := by
+        (fun entry _ => weight (update (entry.1, entry.2.1)).1.1) leftRef rightRef := by
   have actual := congrArg
-    (fun result : State (ctx.addRetained key shape fresh) Reference (History × program.Path) =>
+    (fun result : State (ctx.addRetained key shape fresh) Reference
+        (RuntimeRound.model.HiddenState × (History × program.Path)) =>
       ExecutionState.referenceFiberSum result (fun entry _ => weight entry.1) leftRef rightRef)
     (record Reference state)
   exact actual.trans (ExecutionState.referenceFiberSum_mapClassical state
-    (fun entry => ((update entry.1).1, (entry.2, (update entry.1).2)))
+    (fun entry =>
+      let result := update (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2))))
     (fun entry _ => weight entry.1) leftRef rightRef)
 
 variable (base : RuntimeCtx .quantum) {N : Nat}
@@ -57,7 +62,8 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
 theorem tail_weighted_reference (input : Input N) {previousShape : CShape}
     (previous : CInputRef (NativeBatchReuse.context base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (NativeBatchReuse.context base N) Reference History)
+    (state : State (NativeBatchReuse.context base N) Reference
+      (RuntimeRound.model.HiddenState × History))
     (weight : previousShape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum ((tail base input).execute Reference state)
@@ -65,7 +71,8 @@ theorem tail_weighted_reference (input : Input N) {previousShape : CShape}
           (entry.1.read (.storage (resultRef base N).toCStorageRef))) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (entry.1.read previous)
-          ((step base input entry.1).1.read (.storage (resultRef base N).toCStorageRef)))
+          ((step base input (entry.1, entry.2.1)).1.1.read
+            (.storage (resultRef base N).toCStorageRef)))
         leftRef rightRef := by
   have transported := retained_reference (tail base input) (step base input)
     (tail_execute base input) state
@@ -73,12 +80,13 @@ theorem tail_weighted_reference (input : Input N) {previousShape : CShape}
       (store.read (.storage (resultRef base N).toCStorageRef))) leftRef rightRef
   refine transported.trans ?_
   exact congrArg
-    (fun observe : Store (NativeBatchReuse.context base N) → ℂ =>
-      ExecutionState.referenceFiberSum state (fun entry _ => observe entry.1) leftRef rightRef)
-    (funext fun store => congrArg
+    (fun observe : Store (NativeBatchReuse.context base N) × RuntimeRound.model.HiddenState → ℂ =>
+      ExecutionState.referenceFiberSum state
+        (fun entry _ => observe (entry.1, entry.2.1)) leftRef rightRef)
+    (funext fun before => congrArg
       (fun old => weight old
-        ((step base input store).1.read (.storage (resultRef base N).toCStorageRef)))
-      (tail_callerFrame base input store previous))
+        ((step base input before).1.1.read (.storage (resultRef base N).toCStorageRef)))
+      (tail_callerFrame base input before.1 before.2 previous))
 
 variable (sameWires : base.quantumWires =
     (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
@@ -112,9 +120,10 @@ private theorem sourceOutput_parameter_read (before : Store (NativeBatchReuse.co
 
 private theorem output_on_source_support (input : Input N)
     (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState)
     (supported : (NativeBatchReuse.run base N sameWires originalCells).output.eval before ∈
       (NativeBatch.sourceDistribution input).support) :
-    (step base input before).1.read (.storage (resultRef base N).toCStorageRef) =
+    (step base input (before, hidden)).1.1.read (.storage (resultRef base N).toCStorageRef) =
       NativeBatchRecovery.packedValue
         ((NativeBatchReuse.run base N sameWires originalCells).output.eval before) := by
   have parameterStored :=
@@ -122,7 +131,7 @@ private theorem output_on_source_support (input : Input N)
       (NativeBatchRecovery.sourceDistribution_parameter input _ supported)
   exact (tail_output base input
     (NativeBatchRecovery.decodeSource
-      ((NativeBatchReuse.run base N sameWires originalCells).output.eval before)) before
+      ((NativeBatchReuse.run base N sameWires originalCells).output.eval before)) before hidden
     parameterStored).trans (packedValue_sourceOutput base sameWires originalCells before).symm
 
 end

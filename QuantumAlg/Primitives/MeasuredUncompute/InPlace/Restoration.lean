@@ -38,7 +38,8 @@ private theorem noBorrowedQuantum (width : Nat) : (before width).borrowedQuantum
 /-- The same actual division code restores the complete borrowed-reference observation. -/
 theorem division_restored (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (before modulus.size) Reference H) :
+    (state : State (before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     (InPlaceDivision.code modulus prime).BorrowedRestored Reference state
       ((InPlaceDivision.code modulus prime).execute Reference state) :=
   Circuit.borrowedRestored_of_noBorrowedQuantum (InPlaceDivision.code modulus prime)
@@ -47,7 +48,8 @@ theorem division_restored (modulus : Nat) (prime : Nat.Prime modulus)
 /-- Actual multiplication likewise restores all borrowed-reference entries for arbitrary inputs. -/
 theorem multiplication_restored (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (before modulus.size) Reference H) :
+    (state : State (before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     (InPlaceMultiplication.code modulus prime).BorrowedRestored Reference state
       ((InPlaceMultiplication.code modulus prime).execute Reference state) :=
   Circuit.borrowedRestored_of_noBorrowedQuantum (InPlaceMultiplication.code modulus prime)

@@ -96,11 +96,15 @@ def input (width : Nat) : CInputRef (context width) (.fixedVector width (.finite
   QubitReadouts.input (cell width)
 
 /-- Allocation is the existing sequence of retained finite cells on the same quantum frame. -/
-def allocate (width : Nat) : Circuit (InversePreparation.after width) (context width) :=
-  MeasurementCells.allocate (InversePreparation.after width) 2 width
+def allocate (width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty) (InversePreparation.after width)
+      (context width) :=
+  MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+    (InversePreparation.after width) 2 width
 
 /-- Z measurement itself has no terminal variant and releases no live resource. -/
-def measure (width : Nat) : Circuit (context width) (context width) :=
+def measure (width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
   Circuit.measurementSequence (readouts width)
 
 theorem cells_distinct (width : Nat) :
@@ -110,11 +114,15 @@ theorem cells_distinct (width : Nat) :
 /-- Direct correction selection uses precisely the values that the actual measurements wrote. -/
 theorem stored_mask (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (index : Fin width) :
-    QubitReadouts.mask ((Circuit.writeMeasurementPath (readouts width) store
-      (Circuit.measurementBasisPath (readouts width) basis)).read (input width)) index =
+    QubitReadouts.mask ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+      (readouts width) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width) basis)).read (input width)) index =
         decide ((basis (wire width index)).val = 1) :=
-  QubitReadouts.written_mask (wire width) (wire_dimension width) (cell width)
-    (cells_distinct width) store basis index
+  QubitReadouts.written_mask (gates := AlgorithmGate.model) (oracles := .empty)
+    (wire width) (wire_dimension width) (cell width) (cells_distinct width) store basis index
 
 /-- The classical cells add no quantum wire or physical identity. -/
 theorem context_physical (width : Nat) :
@@ -123,7 +131,8 @@ theorem context_physical (width : Nat) :
 
 /-- Every requested numerator bit contributes one actual Z event. -/
 theorem measurement_resources (width : Nat) (path : (measure width).Path) :
-    (measure width).resourcePool path = width • ResourcePool.singleton (Circuit.zEvent 2) :=
+    (measure width).resourcePool path = width • ResourcePool.singleton
+      (Circuit.zEvent (gates := AlgorithmGate.model) (oracles := .empty) 2 .empty .empty) :=
   QubitReadouts.measurement_resources (wire width) (wire_dimension width) (cell width) path
 
 /-- Real retained result storage is included beside all existing inputs and EEA auxiliaries. -/

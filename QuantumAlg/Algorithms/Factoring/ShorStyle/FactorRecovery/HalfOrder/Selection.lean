@@ -57,35 +57,49 @@ def packOp (cells : Cells ctx N)
   .packOption ctx
     (.product (.storage cells.lower.toCStorageRef) (.storage cells.payload.toCStorageRef)) output
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Use the actual comparison bit as the option tag and the actual resized GCD as its payload. -/
 def pack (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (.classical (resizeOp cells)) (.classical (packOp cells output))
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeOp cells)) (BitWord.instruction (execution
+    := model) (packOp cells output))
 
 /-- The right GCD and its comparison are executed only after actual left rejection. -/
 def right (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (NativeHalfGCD.code (N := N) true halfPower cells.candidate)
-    (.seq (FactorRange.code (checkRefs cells)) (pack cells output))
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (NativeHalfGCD.code (model := model) (N := N) true halfPower cells.candidate)
+    (.seq (FactorRange.code (model := model) (checkRefs cells)) (pack (model := model) cells
+      output))
 
 /-- The stored left comparison chooses the physical left result or the real right computation. -/
 def choose (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
   .branch (.storage cells.lower.toCStorageRef)
-    (fun value => if value.toBool then pack cells output else right halfPower cells output)
+    (fun value => if value.toBool then pack (model := model) cells output else right (model :=
+      model) halfPower cells output)
 
 /-- Actual left GCD, actual comparison and strict source-prescribed left-priority selection. -/
 def code (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (NativeHalfGCD.code (N := N) false halfPower cells.candidate)
-    (.seq (FactorRange.code (checkRefs cells)) (choose halfPower cells output))
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (NativeHalfGCD.code (model := model) (N := N) false halfPower cells.candidate)
+    (.seq (FactorRange.code (model := model) (checkRefs cells)) (choose (model := model) halfPower
+      cells output))
 
 /-- Each actual packaging path contains both representation instructions. -/
 theorem pack_eventTrace (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (pack cells output).Path) :
-    (pack cells output).eventTrace path =
-      [Resource.Event.classicalOperation (.wordResize (modulusBits N + 1) (modulusBits N)),
-        Resource.Event.classicalOperation (.nominalEncoding (.packOption (modulusBits N)))] := rfl
+    (path : (pack (model := model) cells output).Path) :
+    (pack (model := model) cells output).eventTrace path =
+      [Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize (modulusBits N + 1) (modulusBits N))),
+        Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.nominalEncoding (.packOption (modulusBits N))))] := by
+  simp only [pack, Circuit.eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfFactor

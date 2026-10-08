@@ -23,17 +23,18 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeFactorSc
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- All actual order, power, GCD and output events survive placement under the real scope. -/
 theorem code_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase output).Path) :
-    (code source parameter phase output).resourcePool path ≤
-      NativeFactorTail.eventEnvelope kind N :=
-  NativeFactorTail.code_pool_le source (liftInput parameter) (liftInput phase)
+    (path : (code (model := model) source parameter phase output).Path) :
+    (code (model := model) source parameter phase output).resourcePool path ≤
+      NativeFactorTail.eventEnvelope model N :=
+  NativeFactorTail.code_pool_le (model := model) source (liftInput parameter) (liftInput phase)
     (cells ctx N) (liftWrite output) path
 
 /-- Every actual serial dependency remains counted beneath the same real lexical allocations. -/
@@ -41,9 +42,10 @@ theorem code_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase output).Path) :
-    (code source parameter phase output).depth (fun _ => 1) path ≤ NativeFactorTail.depthBound N :=
-  NativeFactorTail.code_unitDepth_le source (liftInput parameter) (liftInput phase)
+    (path : (code (model := model) source parameter phase output).Path) :
+    (code (model := model) source parameter phase output).depth (fun _ => 1) path ≤
+      NativeFactorTail.depthBound N :=
+  NativeFactorTail.code_unitDepth_le (model := model) source (liftInput parameter) (liftInput phase)
     (cells ctx N) (liftWrite output) path
 
 end

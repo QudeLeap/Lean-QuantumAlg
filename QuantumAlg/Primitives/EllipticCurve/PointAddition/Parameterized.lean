@@ -94,8 +94,9 @@ abbrev divisionGates : List (EncodedBit.GateSpec rawEncoding) :=
   Workspace.divisionGates
 
 /-- Circuit compiled from the literal direct physical division ledger. -/
-def divisionProgram : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList divisionGates
+def divisionProgram : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty divisionGates
 
 /-- Folded basis-state action of the literal direct division route. -/
 def divisionStep : RawRegisters → RawRegisters :=
@@ -104,7 +105,7 @@ def divisionStep : RawRegisters → RawRegisters :=
 /-- The compiled direct division program realizes its displayed gate ledger. -/
 theorem divisionProgram_realizes :
     UnitaryCircuit.Realizes rawEncoding divisionProgram divisionStep :=
-  EncodedBit.GateSpec.realizesList divisionGates
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty divisionGates
 
 /-- Exact primitive length of the direct division route. -/
 theorem divisionGates_length :

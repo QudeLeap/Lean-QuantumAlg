@@ -21,7 +21,7 @@ block, original caller history and both real circuit paths.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 open ClassicalRoutines.FirstAccepted.Direct
 
 noncomputable section
@@ -32,33 +32,42 @@ variable {source : RuntimeCtx .quantum} {N length : Nat}
 
 /-- The real optional allocator reads all original factors and packs the selected result. -/
 def body (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N)) :
-    Circuit (context source N) (context source N) :=
-  Optional.Allocation.into (fun index => liftInput source N (inputs index)) (resultRef source N)
+    Circuit RuntimeRound.model (context source N) (context source N) :=
+  Optional.Allocation.into (model := RuntimeRound.model)
+    (fun index => liftInput source N (inputs index)) (resultRef source N)
 
 /-- This record is supplied by the existing actual three-scope allocator. -/
-def bodyStep (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N)) :
-    Store (context source N) → Store (context source N) × (body inputs).Path :=
-  Optional.Allocation.step (fun index => liftInput source N (inputs index)) (resultRef source N)
+def bodyStep (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
+    (before : Store (context source N) × RuntimeRound.model.HiddenState) :
+    (Store (context source N) × RuntimeRound.model.HiddenState) × (body inputs).Path :=
+  Optional.Allocation.step (model := RuntimeRound.model)
+    (fun index => liftInput source N (inputs index)) (resultRef source N) before
 
 private theorem body_execute
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context source N) Reference History) :
+    (state : State (context source N) Reference (RuntimeRound.model.HiddenState × History)) :
     (body inputs).execute Reference state = state.mapClassical (fun entry =>
-      ((bodyStep inputs entry.1).1, (entry.2, (bodyStep inputs entry.1).2))) :=
-  Optional.Allocation.into_execute _ _ Reference state
+      let actual := bodyStep inputs (entry.1, entry.2.1)
+      (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
+  unfold body bodyStep
+  refine (Optional.Allocation.into_execute (model := RuntimeRound.model)
+    _ _ Reference state).trans ?_
+  congr 1
 
 /-- Retain the selected result before the complete actual optional-selection allocator. -/
 def tail (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N)) :
-    Circuit source (context source N) :=
-  .seq (.retain source (resultKey source) (LatticeBatchRecoveryOutput.OutputShape N)
+    Circuit RuntimeRound.model source (context source N) :=
+  .seq (.retain (model := RuntimeRound.model) source (resultKey source)
+    (LatticeBatchRecoveryOutput.OutputShape N)
     source.canonicalFreshKey_fresh) (body inputs)
 
 /-- The complete tail record includes actual retained allocation and every selection path. -/
 def step (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
-    (before : Store source) : Store (context source N) × (tail inputs).Path :=
-  let record := bodyStep inputs (before.pushRetained (resultKey source)
-    (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh)
+    (before : Store source × RuntimeRound.model.HiddenState) :
+    (Store (context source N) × RuntimeRound.model.HiddenState) × (tail inputs).Path :=
+  let record := bodyStep inputs (before.1.pushRetained (resultKey source)
+    (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh, before.2)
   (record.1, ((), record.2))
 
 /-- Real allocation and selection map complete store/history/reference blocks. -/
@@ -66,7 +75,8 @@ theorem tail_execute
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N)) :
     Circuit.RetainedRecord (tail inputs) (step inputs) := by
   intro Reference History historyFinite state
-  have equation := Circuit.execute_retain_seq_mapClassical source (resultKey source)
+  have equation := Circuit.execute_retain_seq_mapClassical (model := RuntimeRound.model)
+    source (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
     (body inputs) (bodyStep inputs) (body_execute inputs) Reference state
   unfold tail step
@@ -78,13 +88,14 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The original complete batch chain precedes selection of its actual chronological factors. -/
 def code (input : Input N) (count : Nat) :
-    Circuit base (context (NativeRetryChain.context base noQuantum N count) N) :=
+    Circuit RuntimeRound.model base (context (NativeRetryChain.context base noQuantum N count) N) :=
   .seq (NativeRetryChain.code base noQuantum input count)
     (tail (NativeRetryChain.resultRefs base noQuantum N count))
 
 /-- Output reads the selected physical cell and manifests every surviving live entry. -/
 def run (input : Input N) (count : Nat) :
-    AlgorithmRun base (context (NativeRetryChain.context base noQuantum N count) N)
+    AlgorithmRun RuntimeRound.model base
+      (context (NativeRetryChain.context base noQuantum N count) N)
       (LatticeBatchRecoveryOutput.OutputShape N) where
   code := code base noQuantum input count
   output := Output.all (context (NativeRetryChain.context base noQuantum N count) N)
@@ -99,8 +110,9 @@ theorem output_listing (input : Input N) (count : Nat) :
 def selectionRecord (input : Input N) (count : Nat)
     (record : (NativeRetryChain.run base noQuantum input count).Record) :
     (run base noQuantum input count).Record :=
-  let selected := step (NativeRetryChain.resultRefs base noQuantum N count) record.1
-  (selected.1, (record.2.1, (record.2.2, selected.2)))
+  let selected := step (NativeRetryChain.resultRefs base noQuantum N count)
+    (record.1, record.2.1)
+  (selected.1.1, (selected.1.2, (record.2.2.1, (record.2.2.2, selected.2))))
 
 /-- The same original chain execution feeds the complete actual selection tail. -/
 theorem code_execute (input : Input N) (count : Nat) :

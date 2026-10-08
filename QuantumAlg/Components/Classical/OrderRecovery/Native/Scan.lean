@@ -40,64 +40,68 @@ structure ScanCells (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat) 
   positive : CWriteRef ctx .bit
   valid : CWriteRef ctx .bit
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The two actual update bodies selected by the stored validation result. -/
 def selectionChoice (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth))
-    (value : CShape.Value .bit) : Circuit ctx ctx :=
+    (value : CShape.Value .bit) : Circuit model ctx ctx :=
   if value.toBool then
-    acceptCursor (cellRead cells.cursor.candidate) (cellRead cells.valid)
+    acceptCursor (model := model) (cellRead cells.cursor.candidate) (cellRead cells.valid)
       cells.selected cells.accepted cells.cursor.active
   else
-    advanceCursor cells.cursor remainder cells.zero
+    advanceCursor (model := model) cells.cursor remainder cells.zero
 
 /-- The concrete store and branch-local path of the chosen update. -/
 def selectionChoiceStep (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth))
     (value : CShape.Value .bit) (store : Store ctx) :
-    Store ctx × (selectionChoice cells remainder value).Path :=
+    Store ctx × (selectionChoice (model := model) cells remainder value).Path :=
   match value with
   | .bit false =>
-      (advanceCursorStore cells.cursor remainder cells.zero store, ((), ((), ((), ((), ())))))
+      advanceCursorStep (model := model) cells.cursor remainder cells.zero store
   | .bit true =>
-      (acceptCursorStore (cellRead cells.cursor.candidate) (cellRead cells.valid)
-        cells.selected cells.accepted cells.cursor.active store, ((), ((), ())))
+      acceptCursorStep (model := model) (cellRead cells.cursor.candidate) (cellRead cells.valid)
+        cells.selected cells.accepted cells.cursor.active store
 
 private theorem selectionChoice_execute (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth))
     (value : CShape.Value .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (selectionChoice cells remainder value).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (selectionChoice (model := model) cells remainder value).execute Reference state =
       state.mapClassical (fun entry =>
-        ((selectionChoiceStep cells remainder value entry.1).1,
-          (entry.2, (selectionChoiceStep cells remainder value entry.1).2))) := by
+        ((selectionChoiceStep (model := model) cells remainder value entry.1).1,
+          (entry.2.1, (entry.2.2,
+            (selectionChoiceStep (model := model) cells remainder value entry.1).2)))) := by
   cases value with
   | bit value =>
       cases value
       · refine (nativeCursor_advance_execute cells.cursor remainder cells.zero
           Reference state).trans ?_
         congr 1
-        exact Subsingleton.elim _ _
       · refine (nativeCursor_accept_execute (cellRead cells.cursor.candidate) (cellRead cells.valid)
           cells.selected cells.accepted cells.cursor.active Reference state).trans ?_
         congr 1
-        exact Subsingleton.elim _ _
 
 /-- The actual validation-bit read chooses the acceptance or Euclidean-advance body. -/
 def selectCandidate (cells : ScanCells ctx modulusWidth candidateWidth)
-    (remainder : CInputRef ctx (.unsignedWord candidateWidth)) : Circuit ctx ctx :=
-  .branch (cellRead cells.valid) (selectionChoice cells remainder)
+    (remainder : CInputRef ctx (.unsignedWord candidateWidth)) : Circuit model ctx ctx :=
+  .branch (cellRead cells.valid) (selectionChoice (model := model) cells remainder)
 
 /-- The full active visit uses one stored division pair and its real quotient and remainder. -/
 def visitWithDivision (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (division : CWriteRef ctx
-      (.product (.unsignedWord candidateWidth) (.unsignedWord candidateWidth))) : Circuit ctx ctx :=
-  .seq (candidatePrefix (cellRead cells.cursor.numerator) (cellRead cells.cursor.denominator)
+      (.product (.unsignedWord candidateWidth) (.unsignedWord candidateWidth))) :
+    Circuit model ctx ctx :=
+  .seq (candidatePrefix (model := model) (cellRead cells.cursor.numerator)
+    (cellRead cells.cursor.denominator)
     (cellRead cells.cursor.previous) (cellRead cells.cursor.older) division cells.cursor.candidate)
-    (.seq (validate spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+    (.seq (validate (model := model) spec base (cellRead cells.cursor.candidate)
+      cells.zero cells.one
       cells.power cells.positive cells.valid)
-      (selectCandidate cells (.second (cellRead division))))
+      (selectCandidate (model := model) cells (.second (cellRead division))))
 
 /-- The actual prefix, validation and selected branch determine a complete visit record. -/
 def visitWithDivisionStep (spec : ModulusSpec modulusWidth)
@@ -106,14 +110,16 @@ def visitWithDivisionStep (spec : ModulusSpec modulusWidth)
     (division : CWriteRef ctx
       (.product (.unsignedWord candidateWidth) (.unsignedWord candidateWidth)))
     (store : Store ctx) :
-    Store ctx × (visitWithDivision spec base cells division).Path :=
-  let materialized := candidatePrefixStep (cellRead cells.cursor.numerator)
+    Store ctx × (visitWithDivision (model := model) spec base cells division).Path :=
+  let materialized := candidatePrefixStep (model := model) (cellRead cells.cursor.numerator)
     (cellRead cells.cursor.denominator) (cellRead cells.cursor.previous)
     (cellRead cells.cursor.older) division cells.cursor.candidate store
-  let validated := validateStep spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+  let validated := validateStep (model := model) spec base (cellRead cells.cursor.candidate)
+    cells.zero cells.one
     cells.power cells.positive cells.valid materialized.1
   let value := validated.1.read (cellRead cells.valid)
-  let selected := selectionChoiceStep cells (.second (cellRead division)) value validated.1
+  let selected := selectionChoiceStep (model := model) cells (.second (cellRead division))
+    value validated.1
   (selected.1, (materialized.2, (validated.2, ⟨value, selected.2⟩)))
 
 /-- The actual visit composes its two deterministic prefixes and same-store classical selection. -/
@@ -123,22 +129,27 @@ theorem nativeScan_visitWithDivision_execute (spec : ModulusSpec modulusWidth)
     (division : CWriteRef ctx
       (.product (.unsignedWord candidateWidth) (.unsignedWord candidateWidth)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (visitWithDivision spec base cells division).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (visitWithDivision (model := model) spec base cells division).execute Reference state =
       state.mapClassical (fun entry =>
-        ((visitWithDivisionStep spec base cells division entry.1).1,
-          (entry.2, (visitWithDivisionStep spec base cells division entry.1).2))) := by
+        ((visitWithDivisionStep (model := model) spec base cells division entry.1).1,
+          (entry.2.1, (entry.2.2,
+            (visitWithDivisionStep (model := model) spec base cells division entry.1).2)))) := by
   have selectedExecute {H : Type} [Fintype H] (reference : Register)
-      (initial : State ctx reference H) :
-      (selectCandidate cells (.second (cellRead division))).execute reference initial =
+      (initial : State ctx reference (model.HiddenState × H)) :
+      (selectCandidate (model := model) cells (.second (cellRead division))).execute
+        reference initial =
         initial.mapClassical (fun entry =>
-          ((selectionChoiceStep cells (.second (cellRead division))
+          ((selectionChoiceStep (model := model) cells (.second (cellRead division))
             (entry.1.read (cellRead cells.valid)) entry.1).1,
-            (entry.2, ⟨entry.1.read (cellRead cells.valid),
-              (selectionChoiceStep cells (.second (cellRead division))
-                (entry.1.read (cellRead cells.valid)) entry.1).2⟩))) :=
+            (entry.2.1, (entry.2.2, ⟨entry.1.read (cellRead cells.valid),
+              (selectionChoiceStep (model := model) cells (.second (cellRead division))
+                (entry.1.read (cellRead cells.valid)) entry.1).2⟩)))) :=
     Circuit.execute_branch_mapClassical (cellRead cells.valid) _
-      (selectionChoiceStep cells (.second (cellRead division)))
+      (fun value entry =>
+        let next := selectionChoiceStep (model := model) cells (.second (cellRead division))
+          value entry.1
+        ((next.1, entry.2), next.2))
       (selectionChoice_execute cells (.second (cellRead division))) reference initial
   simp only [visitWithDivision, Circuit.execute_seq, nativeCandidatePrefix_execute,
     nativeValidation_execute, selectedExecute, State.mapHistory,

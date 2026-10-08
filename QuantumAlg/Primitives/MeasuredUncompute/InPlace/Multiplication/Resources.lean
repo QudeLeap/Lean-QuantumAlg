@@ -32,17 +32,22 @@ noncomputable section
 open Execution MAU.Inversion.SharedEEA MAU.Multiplication InPlaceMultiplication
 
 /-- Independent component allowances in the actual multiplication execution order. -/
-def bodyBudget (width : Nat) : ResourcePool .quantum :=
+def bodyBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   VariableGidney.nativeBudget width +
     (NumeratorReset.budget width +
       (NativeBudget.inPlace width +
         (NativeProductCorrection.nativeBudget width +
           (NativeBudget.inPlace width +
-            (3 * width) • ResourcePool.singleton (.gate (.builtin "cnot"))))))
+            (3 * width) • ResourcePool.singleton
+              (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)))))
 
-/-- Fixed A=0 preparation and the full native multiplication body are both charged. -/
-def events (modulus : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (InPlacePreparation.preparation modulus).event +
+/-- Per-wire zero preparation, fixed-seed X loading and multiplication are charged. -/
+def events (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) +
+    (EncodedBit.Word.BasisLoad.xCount (InPlacePreparation.loadConstant modulus) •
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit)) +
     bodyBudget modulus.size
 
 /-- All serial dependencies of the actual six-block multiplication body remain in the bound. -/
@@ -53,8 +58,9 @@ def bodyDepth (width : Nat) : Nat :=
         ((NativeProductCorrection.nativeBudget width).card +
           ((NativeBudget.inPlace width).card + 3 * width))))
 
-/-- Preparation precedes the actual body; finite-cell allocation contributes live capacity. -/
-def depthBound (width : Nat) : Nat := 1 + bodyDepth width
+/-- Zero preparation and fixed X loading precede the measured native body. -/
+def depthBound (width : Nat) : Nat :=
+  1 + InputPreparation.auxiliaryWidth width + bodyDepth width
 
 private theorem product_budget (modulus : Nat) (path : (product modulus).Path) :
     (product modulus).resourcePool path ≤ VariableGidney.nativeBudget modulus.size :=
@@ -64,9 +70,7 @@ private theorem forward_budget (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (forward modulus prime).Path) :
     (forward modulus prime).resourcePool path ≤ NativeBudget.inPlace modulus.size := by
   have pool := InPlaceDivisionResources.native_pool modulus.size
-    (NativeReusedEEA.forward modulus prime)
-    (InPlaceMultiplication.full_within modulus.size _
-      (NativeReusedEEA.forward_physical modulus prime)) path
+    (NativeReusedEEA.forward modulus prime) path
   have cost : (NativeReusedEEA.forward modulus prime).eventCost =
       (InPlaceForward.program modulus prime.one_lt).eventCost :=
     (NativeReusedEEA.forward_cost modulus prime).trans
@@ -80,7 +84,8 @@ private theorem backward_budget (modulus : Nat) (prime : Nat.Prime modulus)
 
 private theorem swap_budget (width : Nat) (path : (swap width).Path) :
     (swap width).resourcePool path ≤
-      (3 * width) • ResourcePool.singleton (.gate (.builtin "cnot")) :=
+      (3 * width) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model .empty) (.gate .cnot) :=
   InPlaceDivisionResources.swap_budget width path
 
 /-- Every literal multiplication path fits the independently specified native coordinates. -/
@@ -102,23 +107,42 @@ theorem body_budget (modulus : Nat) (prime : Nat.Prime modulus)
           (add_le_add (backward_budget modulus prime path.2.2.2.2.1)
             (swap_budget modulus.size path.2.2.2.2.2)))))
 
-/-- Real finite-cell allocation preserves the preparation event before the exact body trace. -/
+/-- Finite-cell allocation retains all actual zero-preparation and seed X events. -/
 theorem eventTrace (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
-    (code modulus prime).eventTrace path = (InPlacePreparation.preparation modulus).event ::
+    (code modulus prime).eventTrace path =
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout modulus.size) ++
+      (InPlacePreparation.loadProgram modulus).eventTrace .empty .empty ++
       (body modulus prime).eventTrace path.2.2 := by
-  change [_] ++ ((NumeratorMeasurement.allocate modulus.size).eventTrace path.2.1 ++ _) = _
+  change (InPlacePreparation.circuit modulus).eventTrace path.1 ++
+    ((NumeratorMeasurement.allocate modulus.size).eventTrace path.2.1 ++ _) = _
   have allocation : (NumeratorMeasurement.allocate modulus.size).eventTrace path.2.1 = [] :=
     MeasurementCells.allocate_eventTrace _ _ _ _
-  rw [allocation]
-  rfl
+  rw [InPlacePreparation.circuit_eventTrace, allocation, List.nil_append, List.append_assoc]
 
 /-- The actual full circuit satisfies its independent native-event budget on every path. -/
 theorem event_budget (modulus : Nat) (prime : Nat.Prime modulus)
-    (path : (code modulus prime).Path) :
+  (path : (code modulus prime).Path) :
     (code modulus prime).resourcePool path ≤ events modulus := by
   change ResourcePool.ofList ((code modulus prime).eventTrace path) ≤ _
-  rw [eventTrace, ResourcePool.ofList_cons]
+  rw [eventTrace, ResourcePool.ofList_append, ResourcePool.ofList_append]
+  change ZeroPreparation.eventCost AlgorithmGate.model .empty
+    (InputPreparation.auxiliaryLayout modulus.size) +
+      ResourcePool.ofList (InPlacePreparation.loadProgram modulus).eventTrace +
+      (body modulus prime).resourcePool path.2.2 ≤ _
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, InPlaceDivisionResources.load_pool]
+  change (ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) +
+      EncodedBit.Word.BasisLoad.xCount (InPlacePreparation.loadConstant modulus) •
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+          (.gate .singleQubit)) +
+      (body modulus prime).resourcePool path.2.2 ≤
+    (ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) +
+      EncodedBit.Word.BasisLoad.xCount (InPlacePreparation.loadConstant modulus) •
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+          (.gate .singleQubit)) + bodyBudget modulus.size
   exact add_le_add le_rfl (body_budget modulus prime path.2.2)
 
 private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
@@ -126,21 +150,18 @@ private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
     (body modulus prime).depth (fun _ => 1) path ≤ bodyDepth modulus.size := by
   have productBound := (InPlaceDivisionResources.native_depth modulus.size
     (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus))
-    (ReusedProduct.original_within modulus.size (InPlaceArithmetic.modulusWord modulus))
     path.1).trans (Multiset.card_le_card (product_budget modulus path.1))
   change (product modulus).depth (fun _ => 1) path.1 ≤
     (VariableGidney.nativeBudget modulus.size).card at productBound
   have forwardBound := (InPlaceDivisionResources.native_depth modulus.size
     (NativeReusedEEA.forward modulus prime)
-    (InPlaceMultiplication.full_within modulus.size _
-      (NativeReusedEEA.forward_physical modulus prime)) path.2.2.1).trans
+    path.2.2.1).trans
         (Multiset.card_le_card (forward_budget modulus prime path.2.2.1))
   change (forward modulus prime).depth (fun _ => 1) path.2.2.1 ≤
     (NativeBudget.inPlace modulus.size).card at forwardBound
   have backwardBound := (InPlaceDivisionResources.native_depth modulus.size
     (NativeEEAFrame.backward modulus prime)
-    (InPlaceMultiplication.full_within modulus.size _
-      (NativeEEAFrame.backward_physical modulus prime)) path.2.2.2.2.1).trans
+    path.2.2.2.2.1).trans
         (Multiset.card_le_card (backward_budget modulus prime path.2.2.2.2.1))
   change (backward modulus prime).depth (fun _ => 1) path.2.2.2.2.1 ≤
     (NativeBudget.inPlace modulus.size).card at backwardBound
@@ -167,12 +188,22 @@ private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
 theorem depth (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
     (code modulus prime).depth (fun _ => 1) path ≤ depthBound modulus.size := by
-  change 1 + ((NumeratorMeasurement.allocate modulus.size).depth (fun _ => 1) path.2.1 +
-    (body modulus prime).depth (fun _ => 1) path.2.2) ≤ _
+  change DepthExpr.depthEval (fun _ => 1)
+      (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout modulus.size)) +
+    (InPlacePreparation.loadProgram modulus).evaluatedEventDepth (fun _ => 1) +
+    ((NumeratorMeasurement.allocate modulus.size).depth (fun _ => 1) path.2.1 +
+      (body modulus prime).depth (fun _ => 1) path.2.2) ≤ _
   have allocation : (NumeratorMeasurement.allocate modulus.size).depth
       (fun _ => 1) path.2.1 = 0 := MeasurementCells.allocate_depth _ _ _ _ _
-  rw [allocation, Nat.zero_add]
-  exact Nat.add_le_add_left (body_depth modulus prime path.2.2) 1
+  rw [ZeroPreparation.zeroPreparation_unit_depth, allocation, Nat.zero_add]
+  have zeroBound :
+      (if InputPreparation.auxiliaryWidth modulus.size = 0 then 0 else 1) ≤ 1 := by
+    split_ifs <;> omega
+  have loaded := InPlaceDivisionResources.load_depth modulus
+  have bodyBound := body_depth modulus prime path.2.2
+  unfold depthBound
+  omega
 
 private theorem body_visited (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (body modulus prime).Path) (frame : RuntimeCtx .quantum)

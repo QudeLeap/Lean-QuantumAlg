@@ -33,44 +33,39 @@ def exponentiationEncoding (bits width : Nat) :
 
 /-- The actual selected-power program, with a same-carrier total invalid-parameter extension. -/
 def exponentiationProgram (bits width N : Nat) (unit : (ZMod N)ˣ) :
-    UnitaryCircuit (Qubits (bits + workspaceBits width)) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (bits + workspaceBits width)).toQuantum :=
   if _positive : 0 < N then
     if fitted : N ≤ 2 ^ width then
       MAU.Exponentiation.Gidney.program bits width ⟨N, Nat.lt_succ_of_le fitted⟩ unit
-    else UnitaryCircuit.identity (Qubits (bits + workspaceBits width)) [] List.nodup_nil
-  else UnitaryCircuit.identity (Qubits (bits + workspaceBits width)) [] List.nodup_nil
+    else UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (bits + workspaceBits width)).toQuantum
+  else UnitaryCircuit.identity AlgorithmGate.model .empty
+    (QubitLayout.canonical (bits + workspaceBits width)).toQuantum
 
 /-- Valid compilation parameters select the literal gate program at its declared carrier. -/
 theorem exponentiationProgram_valid (bits width N : Nat) (positive : 0 < N)
     (fitted : N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
       MAU.Exponentiation.Gidney.program bits width ⟨N, Nat.lt_succ_of_le fitted⟩ unit := by
-  change (if _positive : 0 < N then
-    if fit : N ≤ 2 ^ width then
-      (MAU.Exponentiation.Gidney.program bits width ⟨N, Nat.lt_succ_of_le fit⟩ unit :
-        UnitaryCircuit (Qubits (bits + workspaceBits width)))
-    else UnitaryCircuit.identity _ [] List.nodup_nil
-    else UnitaryCircuit.identity _ [] List.nodup_nil) = _
+  unfold exponentiationProgram
   exact (dif_pos positive).trans (dif_pos fitted)
 
 /-- An oversized modulus selects the literal zero-event identity program. -/
 theorem exponentiationProgram_unfitted (bits width N : Nat) (positive : 0 < N)
     (unfitted : ¬ N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
-      UnitaryCircuit.identity (Qubits (bits + workspaceBits width)) [] List.nodup_nil := by
-  change (if _positive : 0 < N then
-    if fit : N ≤ 2 ^ width then
-      (MAU.Exponentiation.Gidney.program bits width ⟨N, Nat.lt_succ_of_le fit⟩ unit :
-        UnitaryCircuit (Qubits (bits + workspaceBits width)))
-    else UnitaryCircuit.identity _ [] List.nodup_nil
-    else UnitaryCircuit.identity _ [] List.nodup_nil) = _
+      UnitaryCircuit.identity AlgorithmGate.model .empty
+        (QubitLayout.canonical (bits + workspaceBits width)).toQuantum := by
+  unfold exponentiationProgram
   exact (dif_pos positive).trans (dif_neg unfitted)
 
 /-- A nonpositive modulus selects the literal zero-event identity program. -/
 theorem exponentiationProgram_nonpositive (bits width N : Nat) (nonpositive : ¬ 0 < N)
     (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
-      UnitaryCircuit.identity (Qubits (bits + workspaceBits width)) [] List.nodup_nil :=
+      UnitaryCircuit.identity AlgorithmGate.model .empty
+        (QubitLayout.canonical (bits + workspaceBits width)).toQuantum :=
   dif_neg nonpositive
 
 /-- Total finite selected-unit arithmetic on the same three fields. -/
@@ -118,19 +113,25 @@ theorem exponentiationRaw_realizes (bits width N : Nat) (unit : (ZMod N)ˣ) :
         ⟨N, Nat.lt_succ_of_le fitted⟩ unit
     · rw [exponentiationProgram_unfitted bits width N positive fitted unit,
         exponentiationRawStep_unfitted bits width N positive fitted unit]
-      exact UnitaryCircuit.Realizes.identity (exponentiationEncoding bits width)
+      exact UnitaryCircuit.Realizes.identity AlgorithmGate.model .empty
+        (exponentiationEncoding bits width)
   · rw [exponentiationProgram_nonpositive bits width N positive unit,
       exponentiationRawStep_nonpositive bits width N positive unit]
-    exact UnitaryCircuit.Realizes.identity (exponentiationEncoding bits width)
+    exact UnitaryCircuit.Realizes.identity AlgorithmGate.model .empty
+      (exponentiationEncoding bits width)
 
 /-- Any canonical unit seed is multiplied exactly and the same shared auxiliary is returned. -/
 theorem exponentiationProgram_seeded (bits width N : Nat) (positive : 0 < N)
     (fitted : N ≤ 2 ^ width) (unit seed : (ZMod N)ˣ) (exponent : Fin (2 ^ bits)) :
     (exponentiationProgram bits width N unit).applyNormalized
-        (NormalizedVector.ket ((exponentiationEncoding bits width).encode
-          (exponent, cleanWorkspace width N seed))) =
-      NormalizedVector.ket ((exponentiationEncoding bits width).encode
-        (exponent, cleanWorkspace width N (unit ^ exponent.val * seed))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (bits + workspaceBits width)).basisEquiv.symm
+            ((exponentiationEncoding bits width).encode
+              (exponent, cleanWorkspace width N seed)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (bits + workspaceBits width)).basisEquiv.symm
+          ((exponentiationEncoding bits width).encode
+            (exponent, cleanWorkspace width N (unit ^ exponent.val * seed)))) := by
   rw [exponentiationProgram_valid bits width N positive fitted unit]
   simp only [cleanWorkspace_valid width N positive fitted]
   exact MAU.Exponentiation.Gidney.gidneyExponent_seeded bits width
@@ -147,22 +148,8 @@ theorem exponentiationRawStep_cleanEndpoint (bits width N : Nat) (unit seed : (Z
     (Nat.zero_lt_of_lt nontrivial) (Nat.le_of_lt fits) unit seed exponent
   have same := actual.symm.trans canonical
   exact (exponentiationEncoding bits width).encode_injective
-    (NormalizedVector.ket_injective same)
-
-/-- The actual member uses only the declared exponent and two arithmetic words. -/
-theorem exponentiationProgram_physical_idx_subset_range (bits width N : Nat)
-    (unit : (ZMod N)ˣ) :
-    (exponentiationProgram bits width N unit).physical_idx ⊆
-      List.range (bits + workspaceBits width) := by
-  by_cases positive : 0 < N
-  · by_cases fitted : N ≤ 2 ^ width
-    · rw [exponentiationProgram_valid bits width N positive fitted unit]
-      rw [MAU.Exponentiation.Gidney.gidneyExponent_physical, workspaceBits_eq]
-      exact List.Subset.refl _
-    · rw [exponentiationProgram_unfitted bits width N positive fitted unit]
-      exact List.nil_subset _
-  · rw [exponentiationProgram_nonpositive bits width N positive unit]
-    exact List.nil_subset _
+    ((QubitLayout.canonical (bits + workspaceBits width)).basisEquiv.symm.injective
+      (NormalizedVector.ket_injective same))
 
 end
 

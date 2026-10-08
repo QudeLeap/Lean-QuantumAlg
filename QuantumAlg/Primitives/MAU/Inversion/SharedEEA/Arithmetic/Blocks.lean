@@ -31,7 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticBlocks
 noncomputable section
 
 /-- The actual remainder signed subtraction, Sign complement, and selected add-back. -/
-def remainderProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def remainderProgram (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
   (ArithmeticSchedule.program width .remainderSubtract).seq
     ((ArithmeticSign.remainderProgram width).seq
       (ArithmeticSchedule.program width .remainderAddback))
@@ -86,7 +87,8 @@ theorem remainderStep_eq_source (width : Nat) (state : Registers width)
     ArithmeticSchedule.step_eq_source width .remainderAddback _ afterSign]
 
 /-- The actual coefficient low subtraction, Sign complement, and signed addition. -/
-def coefficientProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def coefficientProgram (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
   (ArithmeticSchedule.program width .coefficientSubtract).seq
     ((ArithmeticSign.coefficientProgram width).seq
       (ArithmeticSchedule.program width .coefficientAdd))

@@ -109,7 +109,7 @@ def ModulusSpec.maximum (width : Nat) (widthPositive : 0 < width) :
   rfl
 
 /-- An intrinsically canonical representative for one proved modulus. -/
-abbrev Residue {width : Nat} (spec : ModulusSpec width) := Fin spec.modulus
+public abbrev Residue {width : Nat} (spec : ModulusSpec width) := Fin spec.modulus
 
 namespace Residue
 

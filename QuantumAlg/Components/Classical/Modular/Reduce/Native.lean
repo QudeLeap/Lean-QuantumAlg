@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual native unsigned modular reduction
@@ -71,44 +72,52 @@ def reductionResizeOp (division : CWriteRef ctx (divisionShape sourceWidth width
   .wordResize (width + 1) width ctx (.second (reductionRead division)) output
 
 /-- The two original native instructions execute in their original dependency order. -/
-def reductionBody (numerator : CInputRef ctx (.unsignedWord sourceWidth))
+def reductionBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (division : CWriteRef ctx (divisionShape sourceWidth width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (reductionDivideOp numerator modulus division))
-    (.classical (reductionResizeOp division output))
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (reductionDivideOp numerator modulus division))
+    (BitWord.instruction (execution := model) (reductionResizeOp division output))
 
 /-- Literal actual two-operation store and history record. -/
-def reductionBodyStep (numerator : CInputRef ctx (.unsignedWord sourceWidth))
+def reductionBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (division : CWriteRef ctx (divisionShape sourceWidth width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (reductionBody numerator modulus division output).Path :=
-  ((store.applyOp (reductionDivideOp numerator modulus division)).applyOp
-    (reductionResizeOp division output), ((), ()))
+    Store ctx × (reductionBody (model := model) numerator modulus division output).Path :=
+  let first := BitWord.instructionStep (execution := model)
+    (reductionDivideOp numerator modulus division) store
+  let second := BitWord.instructionStep (execution := model) (reductionResizeOp division output)
+    first.1
+  (second.1, (first.2, second.2))
 
 /-- Actual lexical placement of the original two operations. -/
-def reductionPlaced (numerator : CInputRef ctx (.unsignedWord sourceWidth))
+def reductionPlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (reductionCtx ctx sourceWidth width) (reductionCtx ctx sourceWidth width) :=
-  reductionBody (underReduction numerator sourceWidth width)
+    Circuit model (reductionCtx ctx sourceWidth width) (reductionCtx ctx sourceWidth width) :=
+  reductionBody (model := model) (underReduction numerator sourceWidth width)
     (underReduction modulus sourceWidth width) (divisionCell ctx sourceWidth width)
     (writeUnderReduction output sourceWidth width)
 
 /-- Actual reduction with its complete division-pair allocation and release. -/
-def reduceWord (numerator : CInputRef ctx (.unsignedWord sourceWidth))
+def reduceWord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (divisionShape sourceWidth width)
-    ctx.canonicalFreshKey_fresh (reductionPlaced numerator modulus output)
+    ctx.canonicalFreshKey_fresh (reductionPlaced (model := model) numerator modulus output)
 
 /-- Complete actual caller-store update and path after releasing the division pair. -/
-def reduceWordStep (numerator : CInputRef ctx (.unsignedWord sourceWidth))
+def reduceWordStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (reduceWord numerator modulus output).Path :=
-  let result := reductionBodyStep (underReduction numerator sourceWidth width)
+    Store ctx × (reduceWord (model := model) numerator modulus output).Path :=
+  let result := reductionBodyStep (model := model) (underReduction numerator sourceWidth width)
     (underReduction modulus sourceWidth width) (divisionCell ctx sourceWidth width)
     (writeUnderReduction output sourceWidth width) (store.pushWorkspace ctx.canonicalFreshKey
       (divisionShape sourceWidth width) ctx.canonicalFreshKey_fresh)

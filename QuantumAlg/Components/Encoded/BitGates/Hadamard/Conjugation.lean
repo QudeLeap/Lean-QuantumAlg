@@ -8,9 +8,8 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.Hadamard
 import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Gates
 import all QuantumAlg.Components.Kets
-import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Vector
 import Mathlib.Tactic.Ring
 
 /-!
@@ -30,29 +29,36 @@ open NormalizedVector
 noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
+  (layout : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- The literal addressed H, actual program, addressed H sequence. -/
 def conjugateHadamard (target : EncodedBit encoding)
-    (program : UnitaryCircuit (Qubits encoding.width)) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  (target.hadamard.seq program).seq target.hadamard
+    (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum) :
+    UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
+  ((target.hadamard layout oracles).seq program).seq (target.hadamard layout oracles)
 
 /-- Conjugating an actual conditional target flip gives its exact conditional phase. -/
 theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
-    (program : UnitaryCircuit (Qubits encoding.width))
+    (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum)
     (predicate : Data → Prop) [DecidablePred predicate]
     (unchanged : ∀ state, predicate (target.flip state) ↔ predicate state)
     (actual : ∀ state, program.applyVec
-        (ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+        (ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec =
       if predicate state then
-        (ket (R := Qubits encoding.width) (encoding.encode (target.flip state))).vec
-      else (ket (R := Qubits encoding.width) (encoding.encode state)).vec)
+        (ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode (target.flip state)))).vec
+      else (ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec)
     (state : Data) :
-    (target.conjugateHadamard program).applyVec
-        (ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (target.conjugateHadamard layout oracles program).applyVec
+        (ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec =
       if predicate state ∧ target.get state = true then
-        -(ket (R := Qubits encoding.width) (encoding.encode state)).vec
-      else (ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+        -(ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec
+      else (ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec := by
   simp only [conjugateHadamard, UnitaryCircuit.applyVec_seq]
   rw [hadamard_applyVec_encoded_ket]
   simp only [UnitaryCircuit.applyVec_smul, UnitaryCircuit.applyVec_add]
@@ -61,8 +67,8 @@ theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
   by_cases active : predicate state
   <;> simp only [active, if_true, if_false, true_and, false_and, flip_flip]
   all_goals
-    rw [hadamard_applyVec_encoded_ket target state,
-      hadamard_applyVec_encoded_ket target (target.flip state)]
+    rw [hadamard_applyVec_encoded_ket target layout oracles state,
+      hadamard_applyVec_encoded_ket target layout oracles (target.flip state)]
     simp only [get_flip_self, flip_flip]
     cases target.get state
     <;> simp only [Bool.not, Bool.false_eq_true, if_true, if_false]
@@ -73,10 +79,10 @@ theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
 
 /-- The same literal construction adds exactly its two existing Hadamard occurrences. -/
 theorem conjugateHadamard_eventTrace (target : EncodedBit encoding)
-    (program : UnitaryCircuit (Qubits encoding.width)) :
-    (target.conjugateHadamard program).eventTrace =
-      [Gate.atomicEvent (.builtin "hadamard")] ++ program.eventTrace ++
-        [Gate.atomicEvent (.builtin "hadamard")] := by
+    (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum) :
+    (target.conjugateHadamard layout oracles program).eventTrace =
+      [.gate .singleQubit] ++ program.eventTrace ++
+        [.gate .singleQubit] := by
   simp only [conjugateHadamard, UnitaryCircuit.seq_eventTrace, hadamard_eventTrace]
 
 end

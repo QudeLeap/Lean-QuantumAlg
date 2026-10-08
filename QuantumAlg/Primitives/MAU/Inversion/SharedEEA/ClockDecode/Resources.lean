@@ -64,8 +64,10 @@ private theorem bit_count (width : Nat) (index : Fin (width.size + 2)) :
 private theorem bit_depth (width : Nat) (index : Fin (width.size + 2)) :
     (ClockDecode.bitProgram width index).evaluatedEventDepth (fun _ => 1) =
       ClockDecodeWeight.weight width index * (3 * (width + 2)) := by
-  rw [ClockDecode.bitProgram, UnitaryCircuit.evaluatedEventDepth_iterate,
-    ClockDecodeBit.program_unitDepth]
+  rw [ClockDecode.bitProgram, UnitaryCircuit.evaluatedEventDepth,
+    UnitaryCircuit.iterate_eventDepth, DepthExpr.depthEval_iterate]
+  change _ * (ClockDecodeBit.program width index).evaluatedEventDepth (fun _ => 1) = _
+  rw [ClockDecodeBit.program_unitDepth]
 
 private theorem sequence_count (width : Nat) (indices : List (Fin (width.size + 2))) :
     (ClockDecode.sequence width indices).eventCost.card =
@@ -74,7 +76,8 @@ private theorem sequence_count (width : Nat) (indices : List (Fin (width.size + 
   | nil =>
     simpa only [ClockDecode.sequence, List.map_nil, List.sum_nil,
       List.length_nil, Nat.zero_mul] using
-        GateSpec.programList_eventCost_card ([] : List (GateSpec (encoding width)))
+        GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty
+          ([] : List (GateSpec (encoding width)))
   | cons index rest inductionHypothesis =>
     rw [ClockDecode.sequence, UnitaryCircuit.seq_eventCost, Multiset.card_add,
       bit_count, inductionHypothesis, List.map_cons, List.sum_cons, Nat.add_mul]
@@ -86,7 +89,8 @@ private theorem sequence_depth (width : Nat) (indices : List (Fin (width.size + 
   | nil =>
     simpa only [ClockDecode.sequence, List.map_nil, List.sum_nil,
       List.length_nil, Nat.zero_mul] using
-        GateSpec.programList_evaluatedEventDepth_unit ([] : List (GateSpec (encoding width)))
+        GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty
+          ([] : List (GateSpec (encoding width)))
   | cons index rest inductionHypothesis =>
     rw [ClockDecode.sequence, UnitaryCircuit.evaluatedEventDepth_seq, bit_depth,
       inductionHypothesis, List.map_cons, List.sum_cons, Nat.add_mul]

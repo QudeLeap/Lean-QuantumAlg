@@ -9,7 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Order.Input
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Order.Execution
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Dispatch.Result
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 
 /-!
 # The actual non-exceptional factor tail returns the original recovered-order selector
@@ -26,16 +26,18 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem recovered_store (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    (recoveredStep source parameter phase cells output store).1 =
-      (dispatchStep source parameter cells output
-        (recoveredInputStore source parameter phase cells store)).1 := by
-  dsimp only [recoveredStep, recoveryTailStep, unpackedDispatchStep, recoveredInputStore]
+    (recoveredStep (model := model) source parameter phase cells output store).1 =
+      (dispatchStep (model := model) source parameter cells output
+        (recoveredInputStore (model := model) source parameter phase cells store)).1 := by
+  dsimp only [recoveredStep, recoveryTailStep, unpackedDispatchStep, recoveredInputStore,
+    BitWord.instructionStep]
 
 /-- The actual stored-base prefix and selected factor branch return the original source result. -/
 theorem recovered_result (source : Input N)
@@ -55,29 +57,29 @@ theorem recovered_result (source : Input N)
     (expandedParameter : cells.expanded.key ∉ parameter.storageKeys)
     (baseValue : (store.read parameter).first.toNat = semantic.base.val)
     (phaseValue : store.read phase = .bits semantic.terminalBits) :
-    (recoveredStep source parameter phase cells output store).1.read
+    (recoveredStep (model := model) source parameter phase cells output store).1.read
       (.storage output.toCStorageRef) =
       encodeOutput (N := N) (outputOfRecoveredResidue (store.read parameter)
         (ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
           (recoverySpec source) semantic)) := by
-  let incoming := recoveredInputStore source parameter phase cells store
+  let incoming := recoveredInputStore (model := model) source parameter phase cells store
   have parameterSame : incoming.read parameter = store.read parameter :=
-    recoveredInput_parameter source parameter phase cells store
+    recoveredInput_parameter (model := model) source parameter phase cells store
       baseParameter orderParameter expandedParameter
   have baseWord : semantic.baseResidue.toWord = semantic.base := by
     apply Fin.ext
     rfl
   have baseRead : incoming.read (.storage cells.base.toCStorageRef) =
       .canonicalResidue semantic.baseResidue.toWord :=
-    (recoveredInput_base source semantic parameter phase cells store
+    (recoveredInput_base (model := model) source semantic parameter phase cells store
       orderBase expandedBase baseValue).trans
       (congrArg CShape.Value.canonicalResidue baseWord.symm)
   have baseProjection : semantic.baseResidue.val = (incoming.read parameter).first.toNat :=
     baseValue.symm.trans (congrArg (fun value => value.first.toNat) parameterSame.symm)
-  have expanded := recoveredInput_order source semantic parameter phase cells store
+  have expanded := recoveredInput_order (model := model) source semantic parameter phase cells store
     basePhase baseValue phaseValue
   refine (congrArg (fun final : Store ctx => final.read (.storage output.toCStorageRef))
-    (recovered_store source parameter phase cells output store)).trans ?_
+    (recovered_store (model := model) source parameter phase cells output store)).trans ?_
   cases recovered : ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
       (recoverySpec source) semantic with
   | none =>
@@ -94,7 +96,8 @@ theorem recovered_result (source : Input N)
         .product (.bit false) (.unsignedWord zeroOrder) :=
       expandedZero.trans (congrArg (fun word : CShape.Value (.unsignedWord (phaseBits N + 1)) =>
         CShape.Value.product (.bit false) word) zeroEncoding)
-    refine (dispatch_result source parameter cells output incoming ordinary separate
+    refine (dispatch_result (model := model) source parameter cells output incoming ordinary
+      separate
       zeroBase activeBase positiveBase semantic.baseResidue zeroOrder false baseRead
       baseProjection expandedNone).trans ?_
     rw [parameterSame]
@@ -103,7 +106,8 @@ theorem recovered_result (source : Input N)
     have expandedSome : incoming.read (expandedRead cells) =
         .product (.bit true) (.unsignedWord order) := by
       simpa only [recovered] using expanded
-    refine (dispatch_result source parameter cells output incoming ordinary separate
+    refine (dispatch_result (model := model) source parameter cells output incoming ordinary
+      separate
       zeroBase activeBase positiveBase semantic.baseResidue order true baseRead
       baseProjection expandedSome).trans ?_
     rw [parameterSame]

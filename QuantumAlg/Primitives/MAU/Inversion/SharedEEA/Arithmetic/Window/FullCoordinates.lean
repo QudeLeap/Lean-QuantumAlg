@@ -131,6 +131,37 @@ theorem physicalIndex_within {width : Nat} (window : Window width)
   unfold physicalIndex ArithmeticWindowCoordinates.physicalIndex complementPhysicalIndex
   split_ifs <;> omega
 
+/-- The complete address map, with each source and target coordinate in its native frame. -/
+def wireMap {width : Nat} (window : Window width) :
+    Fin (groupedEncoding window).width → Fin (encoding width).width :=
+  fun index => ⟨physicalIndex window index.val, physicalIndex_within window index⟩
+
+theorem wireMap_injective {width : Nat} (window : Window width) :
+    Function.Injective (wireMap window) := by
+  intro left right same
+  exact physicalIndex_injective window (congrArg Fin.val same)
+
+/-- Equal complete-frame widths make the verified injective address map onto. -/
+theorem wireMap_surjective {width : Nat} (window : Window width) :
+    Function.Surjective (wireMap window) := by
+  let sameWidth := groupedEncoding_width window
+  let endomap := fun index : Fin (groupedEncoding window).width =>
+    Fin.cast sameWidth.symm (wireMap window index)
+  have injective : Function.Injective endomap := by
+    intro left right same
+    apply wireMap_injective window
+    exact Fin.cast_injective sameWidth.symm same
+  intro target
+  obtain ⟨source, same⟩ :=
+    Finite.surjective_of_injective injective (Fin.cast sameWidth.symm target)
+  exact ⟨source, Fin.cast_injective sameWidth.symm same⟩
+
+/-- Every native grouped wire has exactly one original address, and every address is used. -/
+def wireEquiv {width : Nat} (window : Window width) :
+    Fin (groupedEncoding window).width ≃ Fin (encoding width).width :=
+  Equiv.ofBijective (wireMap window)
+    ⟨wireMap_injective window, wireMap_surjective window⟩
+
 private theorem control_wire {width : Nat} (window : Window width) :
     (ArithmeticWindowEncoding.controlBit window).wire.val = 2 * window.length + 1 +
       (2 * (window.above + window.below) + 4 * width.size + 3) := by

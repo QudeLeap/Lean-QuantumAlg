@@ -6,457 +6,391 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
-import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
-import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
-import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
-import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
+public import QuantumAlg.Components.Encoded.Circuit
+public import QuantumAlg.Core.Base.Layout.Qubit
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary.Suffix.Matrix
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary.Middle.Matrix
+import all QuantumAlg.Components.Encoded.Circuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Suffix.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Middle.Matrix
 
 /-!
-# Semantic lifting for actual encoded circuits
+# Semantic lifting on canonical binary layouts
 
-The lemmas in this module transport proof-only `UnitaryCircuit.Realizes` facts across
-semantic relabeling and product-register circuit constructors.  They never
-package or recover a circuit from a semantic gate description.
+These lemmas lift actual model-relative circuits across canonical product
+registers. The constructions preserve the original native events and oracle
+permissions; the proofs transport only their encoded computational-basis
+semantics.
 -/
 
-section
-
-namespace QuantumAlg
+namespace QuantumAlg.UnitaryCircuit.Realizes
 
 noncomputable section
 
-namespace UnitaryCircuit.Realizes
+variable {gates : GateModel} {oracles : OracleModel}
 
-/-- A logical basis reindexing transports a basis-to-basis circuit action. -/
-theorem applyNormalized_reindex_ket_of_eq {R S : Register}
-    (equiv : R.Index ≃ S.Index) (program : UnitaryCircuit R) (input output : R.Index)
-    (h : program.applyNormalized (NormalizedVector.ket input) =
+public theorem applyNormalized_encoded_ket_of_binaryMatrix_eq {width : Nat}
+    (program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical width).toQuantum)
+    (input output : Fin (2 ^ width))
+    (h : program.binaryMatrix.apply (NormalizedVector.ket input) =
       NormalizedVector.ket output) :
-    (UnitaryCircuit.reindex equiv program).applyNormalized
-        (NormalizedVector.ket (equiv input)) =
-      NormalizedVector.ket (equiv output) := by
+    program.applyNormalized
+        (NormalizedVector.ket ((QubitLayout.canonical width).basisEquiv.symm input)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical width).basisEquiv.symm output) := by
   apply NormalizedVector.ext
-  intro index
+  intro physicalIndex
   have hindex := congrArg
-    (fun state : NormalizedVector R => state (equiv.symm index)) h
+    (fun state : NormalizedVector (Qubits width) =>
+      state ((QubitLayout.canonical width).basisEquiv physicalIndex)) h
+  change program.binaryMatrix.applyVec
+      (NormalizedVector.ket input).vec
+        ((QubitLayout.canonical width).basisEquiv physicalIndex) =
+    NormalizedVector.ket output
+      ((QubitLayout.canonical width).basisEquiv physicalIndex) at hindex
+  rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at hindex
   change program.applyVec
-      (NormalizedVector.ket input : HilbertVector R) (equiv.symm index) =
-    NormalizedVector.ket output (equiv.symm index) at hindex
+      (NormalizedVector.ket
+        ((QubitLayout.canonical width).basisEquiv.symm input)).vec
+        physicalIndex =
+    NormalizedVector.ket
+      ((QubitLayout.canonical width).basisEquiv.symm output) physicalIndex
   rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
-    HilbertOperator.applyVec_ket,
-    NormalizedVector.ket_apply] at hindex
-  change (UnitaryCircuit.reindex equiv program).applyVec
-      (NormalizedVector.ket (equiv input) : HilbertVector S) index =
-    NormalizedVector.ket (equiv output) index
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
-    HilbertOperator.applyVec_ket,
-    UnitaryCircuit.reindex_matrix, UnitaryOperator.coe_reindex,
-    Matrix.reindex_apply, Matrix.submatrix_apply,
-    NormalizedVector.ket_apply]
-  rw [equiv.symm_apply_apply, hindex]
-  by_cases heq : equiv.symm index = output
-  · have : index = equiv output := by
-      rw [← heq, equiv.apply_symm_apply]
-    simp [this]
-  · have : index ≠ equiv output := by
-      intro hindexOutput
-      apply heq
-      exact equiv.injective (by simpa using hindexOutput)
-    simp [heq, this]
+    HilbertOperator.applyVec_ket]
+  convert hindex using 1 <;>
+    simp [UnitaryCircuit.binaryMatrix, UnitaryOperator.coe_reindex,
+      Matrix.reindex_apply, Matrix.submatrix_apply,
+      NormalizedVector.ket_apply, QubitLayout.basisEquiv,
+      Equiv.eq_symm_apply]
+  all_goals rfl
 
-/-- Physical relabeling does not alter normalized-state semantics. -/
-theorem applyNormalized_relabel {R : Register} (program : UnitaryCircuit R)
-    {newPhysicalIdx : List Nat}
-    (relabeling : PhysicalLayout.Relabeling program.physical_idx newPhysicalIdx)
-    (state : NormalizedVector R) :
-    (UnitaryCircuit.relabel program relabeling).applyNormalized state =
-      program.applyNormalized state := by
+public theorem binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+    {width : Nat}
+    (program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical width).toQuantum)
+    (input output : Fin (2 ^ width))
+    (h : program.applyNormalized
+        (NormalizedVector.ket ((QubitLayout.canonical width).basisEquiv.symm input)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical width).basisEquiv.symm output)) :
+    program.binaryMatrix.apply (NormalizedVector.ket input) =
+      NormalizedVector.ket output := by
   apply NormalizedVector.ext
-  intro index
-  exact congrArg (fun vector : HilbertVector R => vector index)
-    (UnitaryCircuit.relabel_applyVec program relabeling state)
+  intro binaryIndex
+  have hindex := congrArg
+    (fun state : NormalizedVector
+        (QubitLayout.canonical width).toQuantum.register =>
+      state ((QubitLayout.canonical width).basisEquiv.symm binaryIndex)) h
+  change program.applyVec
+      (NormalizedVector.ket
+        ((QubitLayout.canonical width).basisEquiv.symm input)).vec
+        ((QubitLayout.canonical width).basisEquiv.symm binaryIndex) =
+    NormalizedVector.ket
+      ((QubitLayout.canonical width).basisEquiv.symm output)
+        ((QubitLayout.canonical width).basisEquiv.symm binaryIndex) at hindex
+  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
+    HilbertOperator.applyVec_ket] at hindex
+  change program.binaryMatrix.applyVec
+      (NormalizedVector.ket input).vec binaryIndex =
+    NormalizedVector.ket output binaryIndex
+  rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]
+  convert hindex using 1 <;>
+    simp [UnitaryCircuit.binaryMatrix, UnitaryOperator.coe_reindex,
+      Matrix.reindex_apply, Matrix.submatrix_apply,
+      NormalizedVector.ket_apply, QubitLayout.basisEquiv]
+  all_goals rfl
 
-/-- Transport only the semantic carrier of a realization proof. -/
+/-- Transport only the semantic labels of an actual-circuit realization. -/
 theorem relabel {Data Other : Type} {encoding : BinaryLabelEncoding Data}
-    {program : UnitaryCircuit (Qubits encoding.width)} {step : Data → Data}
-    (layout : Other ≃ Data) (h : UnitaryCircuit.Realizes encoding program step) :
-    UnitaryCircuit.Realizes (encoding.relabel layout) program
-      (fun x => layout.symm (step (layout x))) where
+    {layout : QubitLayout encoding.width}
+    {program : UnitaryCircuit gates oracles layout.toQuantum}
+    {step : Data → Data} (equivalence : Other ≃ Data)
+    (h : UnitaryCircuit.Realizes encoding program step) :
+    UnitaryCircuit.Realizes (encoding.relabel equivalence) program
+      (fun x => equivalence.symm (step (equivalence x))) where
   apply_encoded_ket := by
     intro x
-    simpa [BinaryLabelEncoding.relabel] using h.apply_encoded_ket (layout x)
+    convert h.apply_encoded_ket (equivalence x) using 1 <;>
+      simp [BinaryLabelEncoding.relabel] <;> rfl
 
-/-- Lift a realized program on the left component of a product encoding. -/
-theorem prodLeft {Left Right : Type}
+/-- Execute a realized program on the left binary field while preserving the
+complete existing right field. -/
+theorem onBinaryPrefix {Left Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
-    {program : UnitaryCircuit (Qubits left.width)} {step : Left → Left}
+    {program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical left.width).toQuantum} {step : Left → Left}
     (h : UnitaryCircuit.Realizes left program step) :
-    UnitaryCircuit.Realizes (BinaryLabelEncoding.prod left right)
-      (UnitaryCircuit.prodLeft (n := right.width) program)
+    UnitaryCircuit.Realizes
+      (layout := QubitLayout.canonical (left.width + right.width))
+      (BinaryLabelEncoding.prod left right)
+      (UnitaryCircuit.onBinaryPrefix right.width program)
       (fun x : Left × Right => (step x.1, x.2)) where
   apply_encoded_ket := by
     intro x
+    apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     rcases x with ⟨l, r⟩
     change
-      (UnitaryCircuit.prodLeft (n := right.width) program).applyNormalized
+      (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix.apply
           (NormalizedVector.ket (prodEquiv (left.encode l, right.encode r))) =
         NormalizedVector.ket
           (prodEquiv (left.encode (step l), right.encode r))
-    rw [← NormalizedVector.tensor_ket]
-    change
-      ((UnitaryCircuit.prodLeft (n := right.width) program).matrix).apply
-          ((NormalizedVector.ket (left.encode l)).tensor
-            (NormalizedVector.ket (right.encode r))) = _
-    rw [UnitaryCircuit.prodLeft, UnitaryCircuit.tensorQubits_matrix,
+    rw [← NormalizedVector.tensor_ket,
+      show (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix =
+        program.binaryMatrix.tensor (1 : UnitaryOperator (Qubits right.width)) from
+        UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program,
       UnitaryOperator.tensor_apply_tensor]
-    change
-      (program.applyNormalized (NormalizedVector.ket (left.encode l))).tensor
-          ((UnitaryCircuit.identity (Qubits right.width) [] _).applyNormalized
-            (NormalizedVector.ket (right.encode r))) = _
-    rw [h.apply_encoded_ket,
-      (UnitaryCircuit.Realizes.identity right).apply_encoded_ket r,
-      NormalizedVector.tensor_ket]
+    have hleft := h.apply_encoded_ket l
+    have hleft := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      program (left.encode l) (left.encode (step l)) hleft
+    rw [hleft]
+    apply NormalizedVector.ext
+    intro index
+    rw [← NormalizedVector.tensor_ket]
+    change HilbertVector.tensor _
+      ((1 : UnitaryOperator (Qubits right.width)).applyVec
+        (NormalizedVector.ket (right.encode r)).vec) index = _
+    rw [UnitaryOperator.one_applyVec]
     rfl
 
-/-- Lift one proved left-register basis endpoint across an untouched encoded
-right register, without requiring a total semantic step. -/
-theorem prodLeft_applyNormalized_encoded_ket_of_eq {Left Right : Type}
+/-- Lift one proved left-field basis endpoint while preserving a selected
+encoded value in the complete existing right field. -/
+theorem onBinaryPrefix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
-    (program : UnitaryCircuit (Qubits left.width))
+    (program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical left.width).toQuantum)
     (input output : Left) (rightValue : Right)
     (h : program.applyNormalized
-        (NormalizedVector.ket (left.encode input)) =
-      NormalizedVector.ket (left.encode output)) :
-    (UnitaryCircuit.prodLeft (n := right.width) program).applyNormalized
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod left right).encode (input, rightValue))) =
+          ((QubitLayout.canonical left.width).basisEquiv.symm
+            (left.encode input))) =
       NormalizedVector.ket
-        ((BinaryLabelEncoding.prod left right).encode
-          (output, rightValue)) := by
-  change
-    (UnitaryCircuit.prodLeft (n := right.width) program).applyNormalized
+        ((QubitLayout.canonical left.width).basisEquiv.symm
+          (left.encode output))) :
+    (UnitaryCircuit.onBinaryPrefix right.width program).applyNormalized
         (NormalizedVector.ket
-          (prodEquiv (left.encode input, right.encode rightValue))) =
+          ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
+            ((BinaryLabelEncoding.prod left right).encode (input, rightValue)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
+          ((BinaryLabelEncoding.prod left right).encode (output, rightValue))) := by
+  apply applyNormalized_encoded_ket_of_binaryMatrix_eq
+  change
+    (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix.apply
+        (NormalizedVector.ket (prodEquiv (left.encode input, right.encode rightValue))) =
       NormalizedVector.ket
         (prodEquiv (left.encode output, right.encode rightValue))
-  rw [← NormalizedVector.tensor_ket]
-  change
-    ((UnitaryCircuit.prodLeft (n := right.width) program).matrix).apply
-        ((NormalizedVector.ket (left.encode input)).tensor
-          (NormalizedVector.ket (right.encode rightValue))) = _
-  rw [UnitaryCircuit.prodLeft, UnitaryCircuit.tensorQubits_matrix,
+  rw [← NormalizedVector.tensor_ket,
+    show (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix =
+      program.binaryMatrix.tensor (1 : UnitaryOperator (Qubits right.width)) from
+      UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program,
     UnitaryOperator.tensor_apply_tensor]
-  change
-    (program.applyNormalized
-        (NormalizedVector.ket (left.encode input))).tensor
-      ((UnitaryCircuit.identity (Qubits right.width) [] _).applyNormalized
-        (NormalizedVector.ket (right.encode rightValue))) = _
-  rw [h, (UnitaryCircuit.Realizes.identity right).apply_encoded_ket rightValue,
-    NormalizedVector.tensor_ket]
+  have hleft := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+    program (left.encode input) (left.encode output) h
+  rw [hleft]
+  apply NormalizedVector.ext
+  intro index
+  rw [← NormalizedVector.tensor_ket]
+  change HilbertVector.tensor _
+    ((1 : UnitaryOperator (Qubits right.width)).applyVec
+      (NormalizedVector.ket (right.encode rightValue)).vec) index = _
+  rw [UnitaryOperator.one_applyVec]
   rfl
 
-/-- Lift a realized program on the right component of a product encoding. -/
-theorem prodRight {Left Right : Type}
+/-- Execute a realized program on the right binary field while preserving the
+complete existing left field. -/
+theorem onBinarySuffix {Left Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
-    {program : UnitaryCircuit (Qubits right.width)} {step : Right → Right}
+    {program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical right.width).toQuantum} {step : Right → Right}
     (h : UnitaryCircuit.Realizes right program step) :
-    UnitaryCircuit.Realizes (BinaryLabelEncoding.prod left right)
-      (UnitaryCircuit.prodRight (m := left.width) program)
+    UnitaryCircuit.Realizes
+      (layout := QubitLayout.canonical (left.width + right.width))
+      (BinaryLabelEncoding.prod left right)
+      (UnitaryCircuit.onCanonicalBinarySuffix left.width program)
       (fun x : Left × Right => (x.1, step x.2)) where
   apply_encoded_ket := by
     intro x
+    apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     rcases x with ⟨l, r⟩
     change
-      (UnitaryCircuit.prodRight (m := left.width) program).applyNormalized
+      (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix.apply
           (NormalizedVector.ket (prodEquiv (left.encode l, right.encode r))) =
         NormalizedVector.ket
           (prodEquiv (left.encode l, right.encode (step r)))
+    rw [← NormalizedVector.tensor_ket,
+      show (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix =
+        (1 : UnitaryOperator (Qubits left.width)).tensor program.binaryMatrix from
+        UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program,
+      UnitaryOperator.tensor_apply_tensor]
+    have hright := h.apply_encoded_ket r
+    have hright := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      program (right.encode r) (right.encode (step r)) hright
+    rw [hright]
+    apply NormalizedVector.ext
+    intro index
     rw [← NormalizedVector.tensor_ket]
-    change
-      ((UnitaryCircuit.prodRight (m := left.width) program).matrix).apply
-          ((NormalizedVector.ket (left.encode l)).tensor
-            (NormalizedVector.ket (right.encode r))) = _
-    rw [UnitaryCircuit.prodRight, UnitaryCircuit.tensorQubits_matrix,
-      UnitaryCircuit.shiftPhysicalIdx_matrix, UnitaryOperator.tensor_apply_tensor]
-    change
-      ((UnitaryCircuit.identity (Qubits left.width) [] _).applyNormalized
-          (NormalizedVector.ket (left.encode l))).tensor
-        (program.applyNormalized (NormalizedVector.ket (right.encode r))) = _
-    rw [(UnitaryCircuit.Realizes.identity left).apply_encoded_ket l,
-      h.apply_encoded_ket, NormalizedVector.tensor_ket]
+    change HilbertVector.tensor
+      ((1 : UnitaryOperator (Qubits left.width)).applyVec
+        (NormalizedVector.ket (left.encode l)).vec) _ index = _
+    rw [UnitaryOperator.one_applyVec]
     rfl
 
-/-- Lift one proved right-register basis endpoint across an untouched encoded
-left register, without requiring a total semantic step. -/
-theorem prodRight_applyNormalized_encoded_ket_of_eq {Left Right : Type}
+/-- Lift one proved right-field basis endpoint while preserving a selected
+encoded value in the complete existing left field. -/
+theorem onBinarySuffix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
-    (program : UnitaryCircuit (Qubits right.width))
+    (program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical right.width).toQuantum)
     (leftValue : Left) (input output : Right)
     (h : program.applyNormalized
-        (NormalizedVector.ket (right.encode input)) =
-      NormalizedVector.ket (right.encode output)) :
-    (UnitaryCircuit.prodRight (m := left.width) program).applyNormalized
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod left right).encode (leftValue, input))) =
+          ((QubitLayout.canonical right.width).basisEquiv.symm
+            (right.encode input))) =
       NormalizedVector.ket
-        ((BinaryLabelEncoding.prod left right).encode (leftValue, output)) := by
-  change
-    (UnitaryCircuit.prodRight (m := left.width) program).applyNormalized
+        ((QubitLayout.canonical right.width).basisEquiv.symm
+          (right.encode output))) :
+    (UnitaryCircuit.onCanonicalBinarySuffix left.width program).applyNormalized
         (NormalizedVector.ket
-          (prodEquiv (left.encode leftValue, right.encode input))) =
+          ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
+            ((BinaryLabelEncoding.prod left right).encode (leftValue, input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
+          ((BinaryLabelEncoding.prod left right).encode (leftValue, output))) := by
+  apply applyNormalized_encoded_ket_of_binaryMatrix_eq
+  change
+    (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix.apply
+        (NormalizedVector.ket (prodEquiv (left.encode leftValue, right.encode input))) =
       NormalizedVector.ket
         (prodEquiv (left.encode leftValue, right.encode output))
+  rw [← NormalizedVector.tensor_ket,
+    show (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix =
+      (1 : UnitaryOperator (Qubits left.width)).tensor program.binaryMatrix from
+      UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program,
+    UnitaryOperator.tensor_apply_tensor]
+  have hright := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+    program (right.encode input) (right.encode output) h
+  rw [hright]
+  apply NormalizedVector.ext
+  intro index
   rw [← NormalizedVector.tensor_ket]
-  change
-    ((UnitaryCircuit.prodRight (m := left.width) program).matrix).apply
-        ((NormalizedVector.ket (left.encode leftValue)).tensor
-          (NormalizedVector.ket (right.encode input))) = _
-  rw [UnitaryCircuit.prodRight, UnitaryCircuit.tensorQubits_matrix,
-    UnitaryCircuit.shiftPhysicalIdx_matrix, UnitaryOperator.tensor_apply_tensor]
-  change
-    ((UnitaryCircuit.identity (Qubits left.width) [] _).applyNormalized
-        (NormalizedVector.ket (left.encode leftValue))).tensor
-      (program.applyNormalized
-        (NormalizedVector.ket (right.encode input))) = _
-  rw [(UnitaryCircuit.Realizes.identity left).apply_encoded_ket leftValue, h,
-    NormalizedVector.tensor_ket]
+  change HilbertVector.tensor
+    ((1 : UnitaryOperator (Qubits left.width)).applyVec
+      (NormalizedVector.ket (left.encode leftValue)).vec) _ index = _
+  rw [UnitaryOperator.one_applyVec]
   rfl
 
-/-- Lift a realized update of an existing left/right pair across an untouched
-middle component. -/
-theorem insertMiddle {Left Middle Right : Type}
+/-- Execute a realized update of the existing outer binary fields while
+preserving the complete middle field. -/
+theorem onBinaryMiddle {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left}
     {middle : BinaryLabelEncoding Middle}
     {right : BinaryLabelEncoding Right}
-    {program : UnitaryCircuit (Qubits (left.width + right.width))}
+    {program : UnitaryCircuit gates oracles
+      (QubitLayout.canonical (left.width + right.width)).toQuantum}
     {step : Left × Right → Left × Right}
-    (h : UnitaryCircuit.Realizes (BinaryLabelEncoding.prod left right) program step) :
+    (h : UnitaryCircuit.Realizes (BinaryLabelEncoding.prod left right)
+      program step) :
     UnitaryCircuit.Realizes
+      (layout := QubitLayout.canonical
+        (left.width + middle.width + right.width))
       (BinaryLabelEncoding.prod (BinaryLabelEncoding.prod left middle) right)
-      (UnitaryCircuit.insertMiddle
-        (leftWidth := left.width) (middleWidth := middle.width)
-        (rightWidth := right.width) program)
+      (UnitaryCircuit.onBinaryMiddle middle.width program)
       (fun x : (Left × Middle) × Right =>
         let y := step (x.1.1, x.2)
         ((y.1, x.1.2), y.2)) where
   apply_encoded_ket := by
     intro x
-    rcases x with ⟨⟨l, m⟩, r⟩
-    let y := step (l, r)
-    have hextended :=
-      (UnitaryCircuit.Realizes.prodLeft (right := middle) h).apply_encoded_ket
-        ((l, r), m)
-    have hreindexed := applyNormalized_reindex_ket_of_eq
-      (R := Qubits ((left.width + right.width) + middle.width))
-      (S := Qubits ((left.width + middle.width) + right.width))
-      (UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width)
-      (UnitaryCircuit.prodLeft (n := middle.width) program)
-      ((BinaryLabelEncoding.prod
-        (BinaryLabelEncoding.prod left right) middle).encode ((l, r), m))
-      ((BinaryLabelEncoding.prod
-        (BinaryLabelEncoding.prod left right) middle).encode (y, m))
-      (by simpa [y] using hextended)
-    have hinput :
-        UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width
-            ((BinaryLabelEncoding.prod
-              (BinaryLabelEncoding.prod left right) middle).encode ((l, r), m)) =
-          (BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left middle) right).encode ((l, m), r) := by
-      simp [UnitaryCircuit.insertMiddleIndexEquiv, BinaryLabelEncoding.prod]
-    have houtput :
-        UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width
-            ((BinaryLabelEncoding.prod
-              (BinaryLabelEncoding.prod left right) middle).encode (y, m)) =
-          (BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left middle) right).encode
-              ((y.1, m), y.2) := by
-      rcases y with ⟨yl, yr⟩
-      simp [UnitaryCircuit.insertMiddleIndexEquiv, BinaryLabelEncoding.prod]
+    rcases x with ⟨⟨leftValue, middleValue⟩, rightValue⟩
+    rcases outputEquation : step (leftValue, rightValue) with
+      ⟨outputLeft, outputRight⟩
+    apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     change
-      (UnitaryCircuit.insertMiddle
-          (leftWidth := left.width) (middleWidth := middle.width)
-          (rightWidth := right.width) program).applyNormalized
+      (UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix.apply
           (NormalizedVector.ket
-            ((BinaryLabelEncoding.prod
-              (BinaryLabelEncoding.prod left middle) right).encode ((l, m), r))) =
+            (prodEquiv
+              (prodEquiv (left.encode leftValue, middle.encode middleValue),
+                right.encode rightValue))) =
         NormalizedVector.ket
-          ((BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left middle) right).encode
-              ((y.1, m), y.2))
-    unfold UnitaryCircuit.insertMiddle
-    rw [applyNormalized_relabel]
-    rw [← hinput, ← houtput]
-    exact hreindexed
-
-/-- Lift one proved left/right basis endpoint across an untouched encoded
-middle component, without requiring a total semantic step. -/
-theorem insertMiddle_applyNormalized_encoded_ket_of_eq
-    {Left Middle Right : Type}
-    (left : BinaryLabelEncoding Left)
-    (middle : BinaryLabelEncoding Middle)
-    (right : BinaryLabelEncoding Right)
-    (program : UnitaryCircuit (Qubits (left.width + right.width)))
-    (leftValue : Left) (middleValue : Middle) (input output : Right)
-    (h : program.applyNormalized
+          (prodEquiv
+            (prodEquiv (left.encode outputLeft, middle.encode middleValue),
+              right.encode outputRight))
+    apply NormalizedVector.ext
+    intro row
+    rcases (prodEquiv (m := left.width + middle.width)
+      (n := right.width)).surjective row with ⟨⟨rowLeftMiddle, rowRight⟩, rfl⟩
+    rcases (prodEquiv (m := left.width) (n := middle.width)).surjective
+      rowLeftMiddle with ⟨⟨rowLeft, rowMiddle⟩, rfl⟩
+    change
+      HilbertOperator.applyVec
+          ((UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix :
+            HilbertOperator (Qubits (left.width + middle.width + right.width)))
+          ((NormalizedVector.ket
+              (prodEquiv
+                (prodEquiv (left.encode leftValue, middle.encode middleValue),
+                  right.encode rightValue)) :
+              NormalizedVector
+                (Qubits (left.width + middle.width + right.width))) :
+            HilbertVector (Qubits (left.width + middle.width + right.width)))
+          (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
+        =
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod left right).encode (leftValue, input))) =
-      NormalizedVector.ket
-        ((BinaryLabelEncoding.prod left right).encode (leftValue, output))) :
-    (UnitaryCircuit.insertMiddle
-        (leftWidth := left.width) (middleWidth := middle.width)
-        (rightWidth := right.width) program).applyNormalized
-        (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left middle) right).encode
-            ((leftValue, middleValue), input))) =
-      NormalizedVector.ket
-        ((BinaryLabelEncoding.prod
-          (BinaryLabelEncoding.prod left middle) right).encode
-          ((leftValue, middleValue), output)) := by
-  have hextended :=
-    prodLeft_applyNormalized_encoded_ket_of_eq
-      (BinaryLabelEncoding.prod left right) middle program
-      (leftValue, input) (leftValue, output) middleValue h
-  have hreindexed := applyNormalized_reindex_ket_of_eq
-    (R := Qubits ((left.width + right.width) + middle.width))
-    (S := Qubits ((left.width + middle.width) + right.width))
-    (UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width)
-    (UnitaryCircuit.prodLeft (n := middle.width) program)
-    ((BinaryLabelEncoding.prod
-      (BinaryLabelEncoding.prod left right) middle).encode
-      ((leftValue, input), middleValue))
-    ((BinaryLabelEncoding.prod
-      (BinaryLabelEncoding.prod left right) middle).encode
-      ((leftValue, output), middleValue))
-    hextended
-  have hinput :
-      UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width
-          ((BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left right) middle).encode
-            ((leftValue, input), middleValue)) =
-        (BinaryLabelEncoding.prod
-          (BinaryLabelEncoding.prod left middle) right).encode
-          ((leftValue, middleValue), input) := by
-    simp [UnitaryCircuit.insertMiddleIndexEquiv, BinaryLabelEncoding.prod]
-  have houtput :
-      UnitaryCircuit.insertMiddleIndexEquiv left.width middle.width right.width
-          ((BinaryLabelEncoding.prod
-            (BinaryLabelEncoding.prod left right) middle).encode
-            ((leftValue, output), middleValue)) =
-        (BinaryLabelEncoding.prod
-          (BinaryLabelEncoding.prod left middle) right).encode
-          ((leftValue, middleValue), output) := by
-    simp [UnitaryCircuit.insertMiddleIndexEquiv, BinaryLabelEncoding.prod]
-  unfold UnitaryCircuit.insertMiddle
-  rw [applyNormalized_relabel]
-  rw [← hinput, ← houtput]
-  exact hreindexed
-
-private theorem prodLeft_applyNormalized_ket_of_eq_aux
-    {leftWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits leftWidth))
-    (input output : Fin (2 ^ leftWidth))
-    (rightLabel : Fin (2 ^ rightWidth))
-    (h : program.applyNormalized (NormalizedVector.ket input) =
-      NormalizedVector.ket output) :
-    (UnitaryCircuit.prodLeft (n := rightWidth) program).applyNormalized
-        (NormalizedVector.ket (prodEquiv (input, rightLabel))) =
-      NormalizedVector.ket (prodEquiv (output, rightLabel)) := by
-  rw [← NormalizedVector.tensor_ket]
-  change
-    ((UnitaryCircuit.prodLeft (n := rightWidth) program).matrix).apply
-        ((NormalizedVector.ket input).tensor
-          (NormalizedVector.ket rightLabel)) = _
-  rw [UnitaryCircuit.prodLeft, UnitaryCircuit.tensorQubits_matrix,
-    UnitaryOperator.tensor_apply_tensor]
-  change
-    (program.applyNormalized (NormalizedVector.ket input)).tensor
-        ((UnitaryCircuit.identity (Qubits rightWidth) [] _).applyNormalized
-          (NormalizedVector.ket rightLabel)) = _
-  rw [h, UnitaryCircuit.applyNormalized_identity,
-    NormalizedVector.tensor_ket]
-
-/-- Lift one raw basis endpoint across an untouched flat left register. -/
-theorem prodRight_applyNormalized_ket_of_eq
-    {leftWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits rightWidth))
-    (leftLabel : Fin (2 ^ leftWidth))
-    (input output : Fin (2 ^ rightWidth))
-    (h : program.applyNormalized (NormalizedVector.ket input) =
-      NormalizedVector.ket output) :
-    (UnitaryCircuit.prodRight (m := leftWidth) program).applyNormalized
-        (NormalizedVector.ket (prodEquiv (leftLabel, input))) =
-      NormalizedVector.ket (prodEquiv (leftLabel, output)) := by
-  rw [← NormalizedVector.tensor_ket]
-  change
-    ((UnitaryCircuit.prodRight (m := leftWidth) program).matrix).apply
-        ((NormalizedVector.ket leftLabel).tensor
-          (NormalizedVector.ket input)) = _
-  rw [UnitaryCircuit.prodRight, UnitaryCircuit.tensorQubits_matrix,
-    UnitaryCircuit.shiftPhysicalIdx_matrix, UnitaryOperator.tensor_apply_tensor]
-  change
-    ((UnitaryCircuit.identity (Qubits leftWidth) [] _).applyNormalized
-        (NormalizedVector.ket leftLabel)).tensor
-      (program.applyNormalized (NormalizedVector.ket input)) = _
-  rw [UnitaryCircuit.applyNormalized_identity, h, NormalizedVector.tensor_ket]
-
-/-- Lift one raw left/right basis endpoint across an untouched flat middle
-register. -/
-theorem insertMiddle_applyNormalized_ket_of_eq
-    {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth)))
-    (leftLabel : Fin (2 ^ leftWidth))
-    (middleLabel : Fin (2 ^ middleWidth))
-    (input output : Fin (2 ^ rightWidth))
-    (h : program.applyNormalized
-        (NormalizedVector.ket (prodEquiv (leftLabel, input))) =
-      NormalizedVector.ket (prodEquiv (leftLabel, output))) :
-    (UnitaryCircuit.insertMiddle
-        (leftWidth := leftWidth) (middleWidth := middleWidth)
-        (rightWidth := rightWidth) program).applyNormalized
-        (NormalizedVector.ket
-          (prodEquiv (prodEquiv (leftLabel, middleLabel), input))) =
-      NormalizedVector.ket
-        (prodEquiv (prodEquiv (leftLabel, middleLabel), output)) := by
-  have hextended := prodLeft_applyNormalized_ket_of_eq_aux
-    program (prodEquiv (leftLabel, input))
-    (prodEquiv (leftLabel, output)) middleLabel h
-  have hreindexed := applyNormalized_reindex_ket_of_eq
-    (R := Qubits ((leftWidth + rightWidth) + middleWidth))
-    (S := Qubits ((leftWidth + middleWidth) + rightWidth))
-    (UnitaryCircuit.insertMiddleIndexEquiv leftWidth middleWidth rightWidth)
-    (UnitaryCircuit.prodLeft (n := middleWidth) program)
-    (prodEquiv (prodEquiv (leftLabel, input), middleLabel))
-    (prodEquiv (prodEquiv (leftLabel, output), middleLabel))
-    hextended
-  have hinput :
-      UnitaryCircuit.insertMiddleIndexEquiv leftWidth middleWidth rightWidth
-          (prodEquiv (prodEquiv (leftLabel, input), middleLabel)) =
-        prodEquiv (prodEquiv (leftLabel, middleLabel), input) := by
-    simp [UnitaryCircuit.insertMiddleIndexEquiv]
-  have houtput :
-      UnitaryCircuit.insertMiddleIndexEquiv leftWidth middleWidth rightWidth
-          (prodEquiv (prodEquiv (leftLabel, output), middleLabel)) =
-        prodEquiv (prodEquiv (leftLabel, middleLabel), output) := by
-    simp [UnitaryCircuit.insertMiddleIndexEquiv]
-  unfold UnitaryCircuit.insertMiddle
-  rw [applyNormalized_relabel]
-  rw [← hinput, ← houtput]
-  exact hreindexed
-
-end UnitaryCircuit.Realizes
+          (prodEquiv
+            (prodEquiv (left.encode outputLeft, middle.encode middleValue),
+              right.encode outputRight)) :
+          NormalizedVector (Qubits (left.width + middle.width + right.width)))
+          (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
+    rw [HilbertOperator.applyVec_ket]
+    have middleEntry :
+        (UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix
+            (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
+            (prodEquiv
+              (prodEquiv (left.encode leftValue, middle.encode middleValue),
+                right.encode rightValue)) =
+          program.binaryMatrix
+              (prodEquiv (rowLeft, rowRight))
+              (prodEquiv (left.encode leftValue, right.encode rightValue)) *
+            (if rowMiddle = middle.encode middleValue then 1 else 0) := by
+      exact unitaryCircuit_onBinaryMiddle_binaryMatrix_entry program
+        rowLeft (left.encode leftValue) rowMiddle (middle.encode middleValue)
+        rowRight (right.encode rightValue)
+    rw [middleEntry]
+    have outerAction := h.apply_encoded_ket (leftValue, rightValue)
+    rw [outputEquation] at outerAction
+    have outerBinary := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      program
+      (prodEquiv (left.encode leftValue, right.encode rightValue))
+      (prodEquiv (left.encode outputLeft, right.encode outputRight))
+      outerAction
+    have outerEntry :
+        program.binaryMatrix (prodEquiv (rowLeft, rowRight))
+            (prodEquiv (left.encode leftValue, right.encode rightValue)) =
+          (NormalizedVector.ket
+            (prodEquiv (left.encode outputLeft, right.encode outputRight)) :
+            NormalizedVector (Qubits (left.width + right.width)))
+            (prodEquiv (rowLeft, rowRight)) := by
+      have point := congrArg
+        (fun state : NormalizedVector (Qubits (left.width + right.width)) =>
+          state (prodEquiv (rowLeft, rowRight))) outerBinary
+      change
+        HilbertOperator.applyVec
+            (program.binaryMatrix :
+              HilbertOperator (Qubits (left.width + right.width)))
+            ((NormalizedVector.ket
+                (prodEquiv (left.encode leftValue, right.encode rightValue)) :
+                NormalizedVector (Qubits (left.width + right.width))) :
+              HilbertVector (Qubits (left.width + right.width)))
+            (prodEquiv (rowLeft, rowRight)) = _ at point
+      simpa only [HilbertOperator.applyVec_ket] using point
+    rw [outerEntry]
+    simp only [NormalizedVector.ket_apply]
+    by_cases leftSame : rowLeft = left.encode outputLeft <;>
+      by_cases middleSame : rowMiddle = middle.encode middleValue <;>
+        by_cases rightSame : rowRight = right.encode outputRight <;>
+          simp [leftSame, middleSame, rightSame]
 
 end
 
-end QuantumAlg
-
-end
+end QuantumAlg.UnitaryCircuit.Realizes

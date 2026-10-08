@@ -30,17 +30,21 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem write_read (store : Store ctx) {shape : CShape} (output : CWriteRef ctx shape) :
     store.write output (store.read (.storage output.toCStorageRef)) = store :=
   (Store.store_eq_write_of_read_frame store store output _ rfl (fun _ _ => rfl)).symm
 
+omit [BitWord.Selected model] in
 private theorem rejected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
     store.applyOp (pivotRejectedOp sink) = store := by
   change store.write sink (store.read (.storage sink.toCStorageRef)) = store
   exact write_read store sink
 
+omit [BitWord.Selected model] in
 private theorem selected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
     store.applyOp (pivotSelectedOp sink) = store := by
   have selfAnd (value : CShape.Value .bit) :
@@ -53,6 +57,7 @@ private theorem selected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
   rw [evaluated]
   exact write_read store sink
 
+omit [BitWord.Selected model] in
 private theorem word_avoids_bit {size : Nat} (word : CWriteRef ctx (.unsignedWord size))
     (bit : CWriteRef ctx .bit) :
     word.key ∉ (CInputRef.storage bit.toCStorageRef).storageKeys := by
@@ -62,6 +67,7 @@ private theorem word_avoids_bit {size : Nat} (word : CWriteRef ctx (.unsignedWor
     bit.toCStorageRef same
   cases impossible
 
+omit [BitWord.Selected model] in
 private theorem vector_avoids_bit {count : Nat} {shape : CShape}
     (vector : CWriteRef ctx (.fixedVector count shape)) (bit : CWriteRef ctx .bit) :
     vector.key ∉ (CInputRef.storage bit.toCStorageRef).storageKeys := by
@@ -156,14 +162,15 @@ private theorem probe_store (row : Fin rowCount) (column : Fin width) (store : S
 private theorem scan_found (count : Nat) (indices : Fin count → Fin rowCount)
     (column : Fin width) (store : Store ctx)
     (already : store.read (.storage found.toCStorageRef) = .bit true) :
-    (Circuit.forRangeRecord count
-      (fun index => pivotProbeRow matrix used rows columns found sink (indices index) column)
+    (Circuit.forRangeStoreRecord count
+      (fun index => pivotProbeRow (model := model)
+        matrix used rows columns found sink (indices index) column)
       (fun index => pivotProbeRowStep matrix used rows columns found sink (indices index) column)
       store).1 = store := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (pivotProbeRowStep matrix used rows columns found sink (indices 0) column store).1).1 = _
       rw [probe_store, already]
       exact ih (fun index => indices index.succ) store already
@@ -171,8 +178,9 @@ private theorem scan_found (count : Nat) (indices : Fin count → Fin rowCount)
 private theorem scan_first (count : Nat) (indices : Fin count → Fin rowCount)
     (column : Fin width) (store : Store ctx)
     (unfound : store.read (.storage found.toCStorageRef) = .bit false) :
-    (Circuit.forRangeRecord count
-      (fun index => pivotProbeRow matrix used rows columns found sink (indices index) column)
+    (Circuit.forRangeStoreRecord count
+      (fun index => pivotProbeRow (model := model)
+        matrix used rows columns found sink (indices index) column)
       (fun index => pivotProbeRowStep matrix used rows columns found sink (indices index) column)
       store).1 =
         match Fin.find? (fun index => eligible matrix used (indices index) column store) with
@@ -183,7 +191,7 @@ private theorem scan_first (count : Nat) (indices : Fin count → Fin rowCount)
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (pivotProbeRowStep matrix used rows columns found sink (indices 0) column store).1).1 = _
       rw [probe_store, unfound, Fin.find?_succ]
       by_cases active : eligible matrix used (indices 0) column store = true
@@ -197,6 +205,7 @@ private theorem scan_first (count : Nat) (indices : Fin count → Fin rowCount)
         cases Fin.find? (fun index => eligible matrix used (indices index.succ) column store) <;>
           rfl
 
+omit [BitWord.Selected model] in
 private theorem cleared_found (store : Store ctx) :
     (store.applyOp (pivotClearOp found)).read (.storage found.toCStorageRef) = .bit false := by
   refine (Store.read_applyOp_output store (pivotClearOp found)).trans ?_
@@ -206,6 +215,7 @@ private theorem cleared_found (store : Store ctx) :
     | bit value => cases value <;> rfl
   exact selfXor _
 
+omit [BitWord.Selected model] in
 private theorem cleared_eligible (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
     eligible matrix used row column (store.applyOp (pivotClearOp found)) =
       eligible matrix used row column store := by
@@ -238,8 +248,8 @@ theorem gf2ReduceColumnBody_store (column : Fin width) (store : Store ctx) :
     exact cleared_eligible matrix used found row column store
   rw [predicate] at scan
   change (pivotAbsentChoiceStep sink
-    ((Circuit.forRangeRecord rowCount _ _ cleared).1.read (.storage found.toCStorageRef))
-    (Circuit.forRangeRecord rowCount _ _ cleared).1).1 = _
+    ((Circuit.forRangeStoreRecord rowCount _ _ cleared).1.read (.storage found.toCStorageRef))
+    (Circuit.forRangeStoreRecord rowCount _ _ cleared).1).1 = _
   rw [scan]
   change _ = match Fin.find? (fun row => eligible matrix used row column store) with
     | none => cleared.applyOp (pivotClearOp sink)

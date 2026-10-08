@@ -22,36 +22,41 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual point subtraction precedes a self-dot refresh that overwrites the old accumulator. -/
-def squaredDistanceInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def squaredDistanceInto [BitWord.Selected model] (refs : Refs ctx width) :
+    Circuit model ctx ctx :=
   .seq (LatticePointDifferenceMachine.pointDifferenceInto refs.difference)
     (LatticeDotRefresh.refreshInto refs.difference.difference refs.difference.difference
       (dotRefs refs))
 
 /-- Actual chronological subtraction and self-dot stores, including every native path. -/
-def distanceStep (refs : Refs ctx width) (store : Store ctx) :
+def distanceStep [BitWord.Selected model] (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (squaredDistanceInto refs).Path :=
-  (LatticeDotRefresh.refreshStore refs.difference.difference refs.difference.difference
-    (dotRefs refs)
-    (LatticePointDifferenceMachine.differenceStore refs.difference store),
-    (((), ((), ())), ((), (((), ()), ((), ())))))
+  let difference := LatticePointDifferenceMachine.differenceStep (model := model)
+    refs.difference store
+  let squared := LatticeDotRefresh.refreshStep (model := model) refs.difference.difference
+    refs.difference.difference (dotRefs refs) difference.1
+  (squared.1, (difference.2, squared.2))
 
 /-- All eight actual instructions preserve the complete incoming history and reference blocks. -/
-theorem squaredDistanceInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem squaredDistanceInto_execute [BitWord.Selected model]
+    (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (squaredDistanceInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((distanceStep refs entry.1).1, (entry.2, (distanceStep refs entry.1).2))) := by
-  simp only [squaredDistanceInto, LatticePointDifferenceMachine.pointDifferenceInto,
-    LatticeDotRefresh.refreshInto, LatticeDot.coordinateAccumulate, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+      let actual := distanceStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [squaredDistanceInto, Circuit.execute_seq,
+    LatticePointDifferenceMachine.pointDifferenceInto_execute,
+    LatticeDotRefresh.refreshInto_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual distance circuit retains every read outside its five original output cells. -/
-theorem squaredDistanceInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+theorem squaredDistanceInto_callerFrame [BitWord.Selected model]
+    (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (distanceStep refs store).1 := by
   intro shape other first second third squared product
   change (LatticeDotRefresh.refreshStore _ _ _
@@ -74,7 +79,8 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- Explicit native initialization computes squared distance from arbitrary original scratch. -/
-theorem squaredDistanceInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem squaredDistanceInto_correct [BitWord.Selected model]
+    (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (pointValue targetValue : NumberTheory.IntegerPoint3)
     (initial : InitialConditions store refs pointValue targetValue) :
     Outcome refs store (distanceStep refs store).1 pointValue targetValue := by

@@ -217,10 +217,11 @@ theorem firstOneGates_step (width : Nat) (index : Fin width) (output : Fin width
 /-- The leading-bit predicate is realized by those same elementary native gates. -/
 theorem firstOneGates_realizes (width : Nat) (index : Fin width) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
-      (GateSpec.programList (firstOneGates width index output))
+      (GateSpec.programList (QubitLayout.canonical _) .empty
+        (firstOneGates width index output))
       (fun state => if firstOne width index state
         then (divisorLengthBit width output).flip state else state) :=
-  GateSpec.realizesList_congrStep (firstOneGates width index output)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
     (firstOneGates_step width index output)
 
 end

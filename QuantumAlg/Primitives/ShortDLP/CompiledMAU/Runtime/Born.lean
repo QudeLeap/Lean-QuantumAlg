@@ -12,7 +12,7 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed
 # Exact source amplitudes of the actual runtime member
 
 The placed compiled member acts on the same source seed established by the
-single preparation and by each actual reset/reload. Its amplitudes agree
+zero preparation and literal loading, and by each actual reset/reload. Its amplitudes agree
 exactly with the existing short-DLP evolved state through the proved physical
 basis correspondence. The original Born analysis therefore applies without
 a substituted oracle or an independently prescribed probability kernel.
@@ -38,7 +38,7 @@ theorem shortDLP_runtimeMember_seed_amplitude (N : Nat) (generator target : (ZMo
       HilbertOperator ctx.register)
     ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N)) row
   have sourceColumn := HilbertOperator.applyVec_ket
-    ((compiledCircuit m ell width N generator target).matrix :
+    ((compiledCircuit m ell width N generator target).binaryMatrix :
       HilbertOperator (Qubits (totalQubits (registerParameters m ell width))))
     (CompiledMAU.reloadLabel m ell width N) (basisEquiv m ell width sameWires row)
   have actualEntry := shortDLP_runtimeMember_matrix_entry m ell width sameWires N
@@ -46,7 +46,7 @@ theorem shortDLP_runtimeMember_seed_amplitude (N : Nat) (generator target : (ZMo
     ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N))
   have sourceEntry := congrArg
     (fun column : Fin (2 ^ totalQubits (registerParameters m ell width)) =>
-      (compiledCircuit m ell width N generator target).matrix
+      (compiledCircuit m ell width N generator target).binaryMatrix
         (basisEquiv m ell width sameWires row) column)
     ((basisEquiv m ell width sameWires).apply_symm_apply (CompiledMAU.reloadLabel m ell width N))
   exact actualColumn.trans (actualEntry.trans (sourceEntry.trans sourceColumn.symm))

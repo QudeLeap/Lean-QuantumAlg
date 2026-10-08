@@ -75,20 +75,28 @@ private theorem doublingArithmeticStore_readsAs {outer : RuntimeCtx kind}
   exact Cells.workspaceCells_transportSeparated_avoids_of_mem cells transport separated
     (List.mem_reverse.mp member) input
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual complete original doubling arm returns exactly one caller point write. -/
 theorem doublingInto_completeRecord (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store ctx × (doublingInto spec point output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (doublingInto (model := model) spec point output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (doublingInto spec point output).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (doublingInto (model := model) spec point output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ store : Store ctx, (record store).1 = store.write output
-        (doublingOutputValue spec (store.read point)) := by
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = before.1.write output
+          (doublingOutputValue spec (before.1.read point)) := by
   apply withCells_actualRecord_initialized_post ctx (doublingShapes width)
-    (fun cells _ transport _ => doublingBody spec
+    (fun cells _ transport _ => doublingBody (model := model) spec
       (transport.liftInput (.first (.second point)))
       (transport.liftInput (.second (.second point))) (doublingScratch cells)
       (transport.liftWrite output))
@@ -105,42 +113,49 @@ theorem doublingInto_completeRecord (spec : CurveSpec width)
       cells distinct transport separated), reads (.first (.second point)),
     reads (.second (.second point))]
   exact Transport.workspaceTransport_readsAs_write transport
-    (doublingArithmeticStore_readsAs cells transport separated source before reads values)
+    (doublingArithmeticStore_readsAs cells transport separated source before.1 reads values)
     output (doublingOutputValue spec (source.read point))
 
 /-- The actual original doubling path and complete returned caller Store. -/
 def doublingIntoStep (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) :
-    Store ctx → Store ctx × (doublingInto spec point output).Path :=
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (doublingInto (model := model) spec point output).Path :=
   Classical.choose (doublingInto_completeRecord spec point output)
 
 /-- Actual doubling retains every complete quantum-reference block and original history. -/
 theorem doublingInto_execute (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (doublingInto spec point output).execute Reference state = state.mapClassical (fun entry =>
-      ((doublingIntoStep spec point output entry.1).1,
-        (entry.2, (doublingIntoStep spec point output entry.1).2))) :=
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (doublingInto (model := model) spec point output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := doublingIntoStep spec point output (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (doublingInto_completeRecord spec point output)).1 Reference state
 
 /-- Every raw snapshot yields exactly the original finite nominal result in the destination. -/
 theorem doublingIntoStep_store (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
-    (output : CWriteRef ctx (PointShape width)) (store : Store ctx) :
-    (doublingIntoStep spec point output store).1 =
+    (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
+    (hidden : model.HiddenState) :
+    (doublingIntoStep spec point output (store, hidden)).1.1 =
       store.write output (doublingOutputValue spec (store.read point)) :=
-  (Classical.choose_spec (doublingInto_completeRecord spec point output)).2 store
+  (Classical.choose_spec (doublingInto_completeRecord spec point output)).2 (store, hidden)
 
 /-- All actual structural reads outside the caller destination remain unchanged. -/
 theorem doublingInto_preserves_read (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
-    (output : CWriteRef ctx (PointShape width)) (store : Store ctx) {shape : CShape}
+    (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
+    (hidden : model.HiddenState) {shape : CShape}
     (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys) :
-    (doublingIntoStep spec point output store).1.read input = store.read input := by
+    (doublingIntoStep spec point output (store, hidden)).1.1.read input = store.read input := by
   rw [doublingIntoStep_store]
   exact Store.read_write_of_not_mem_storageKeys store output _ input separate
+
+end
 
 end
 

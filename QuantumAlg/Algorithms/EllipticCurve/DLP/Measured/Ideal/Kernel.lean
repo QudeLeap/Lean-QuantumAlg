@@ -34,8 +34,8 @@ def idealFourierEventKernel (problem : KnownOrderProblem E.GroupPoint)
   ∑ output : (Qubits (orderWidth problem + orderWidth problem)).Index,
     if event (ExceptionalOffsetAveraging.pairedBigEndianSelected (orderWidth problem)
         (prodEquiv.symm output)) = true then
-      star ((exponentReadoutCircuit problem).matrix output (prodEquiv left)) *
-        (exponentReadoutCircuit problem).matrix output (prodEquiv right)
+      star ((exponentReadoutCircuit problem).binaryMatrix output (prodEquiv left)) *
+        (exponentReadoutCircuit problem).binaryMatrix output (prodEquiv right)
     else 0
 
 /-- Left translation by the same supplied seed preserves exactly the original oracle fibers. -/
@@ -91,10 +91,10 @@ theorem idealBranchEffect_matrix (problem : KnownOrderProblem E.GroupPoint)
       (idealGroupRegister problem seed).Index) × Reference.Index),
     if event (ExceptionalOffsetAveraging.pairedBigEndianSelected (orderWidth problem)
         (prodEquiv.symm output.1.1)) = true then
-      star ((exponentReadoutCircuit problem).matrix output.1.1 (prodEquiv left.1) *
+      star ((exponentReadoutCircuit problem).binaryMatrix output.1.1 (prodEquiv left.1) *
         (if output.1.2 = idealGroupLabel problem seed left.1 then 1 else 0) *
         (if output.2 = left.2 then 1 else 0)) *
-      ((exponentReadoutCircuit problem).matrix output.1.1 (prodEquiv right.1) *
+      ((exponentReadoutCircuit problem).binaryMatrix output.1.1 (prodEquiv right.1) *
         (if output.1.2 = idealGroupLabel problem seed right.1 then 1 else 0) *
         (if output.2 = right.2 then 1 else 0)) else 0) = _
   simp only [Fintype.sum_prod_type]

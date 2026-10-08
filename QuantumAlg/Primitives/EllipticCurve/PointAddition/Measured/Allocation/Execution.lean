@@ -8,8 +8,16 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Correctness
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
+import all QuantumAlg.Core.Algorithm.Borrowed
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 import all QuantumAlg.Core.Execution.Input
+import all QuantumAlg.Core.Execution.Input.Oracle
+import all QuantumAlg.Core.Execution.Borrowed.Preservation
+
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Support
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Density
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Preparation
 
 /-!
 # One complete allocating measured point-addition run
@@ -47,7 +55,8 @@ theorem valid_joint_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : Af
 
 /-- The single run combines the actual allocating circuit and complete actual result-cell output. -/
 def run {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E) :
-    AlgorithmRun (before p.size) (after p.size) (.fixedVector p.size (.finite 2)) :=
+    AlgorithmRun (.quantum AlgorithmGate.model .empty)
+      (before p.size) (after p.size) (.fixedVector p.size (.finite 2)) :=
   { code := circuit E Q, output := output p.size }
 
 /-- The same actual output enumerates every still-live quantum system and classical cell. -/
@@ -57,14 +66,17 @@ theorem run_output_listing {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.
 
 /-- The complete run state has the independent quantum-reference target on the original domain. -/
 theorem run_finalState {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) {Reference : Register} (input : Input (before p.size) Reference)
-    (allowed : valid E Q input.localState) :
+    (Q : AffinePoint E) {Reference : Register}
+    (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference)
+    (allowed : valid E Q input.caller.localState) :
     ((run E Q).finalState Reference input.state).quantumMarginal =
       resultDensity E Q Reference input.state.quantumMarginal := by
-  let copied : State (before p.size) Reference (Store (before p.size)) :=
-    input.state.mapClassical (fun stored => (stored, stored))
+  let copied : State (before p.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × Store (before p.size)) :=
+    input.state.mapClassical (fun stored => (stored.1, (stored.2, stored.1)))
   have copiedMarginal : copied.quantumMarginal = input.state.quantumMarginal :=
-    ExecutionState.mapClassical_quantumMarginal input.state (fun stored => (stored, stored))
+    ExecutionState.mapClassical_quantumMarginal input.state
+      (fun stored => (stored.1, (stored.2, stored.1)))
   have copiedSupport :
       ∀ basis : (Register.prod (before p.size).register Reference).Index,
         ¬inputAdmissible E Q basis.1 → copied.quantumMarginal.matrix basis basis = 0 := by
@@ -72,7 +84,10 @@ theorem run_finalState {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
     exact (congrArg (fun density :
       DensityOperator (Register.prod (before p.size).register Reference) =>
         density.matrix basis basis) copiedMarginal).trans
-      (valid_joint_support E Q input allowed basis outside)
+      ((congrArg (fun density :
+        DensityOperator (Register.prod (before p.size).register Reference) =>
+          density.matrix basis basis) input.oracleInput_caller_quantumMarginal).symm.trans
+            (valid_joint_support E Q input.caller allowed basis outside))
   have history : ((run E Q).finalState Reference input.state).quantumMarginal =
       ((circuit E Q).execute Reference copied).quantumMarginal :=
     ExecutionState.mapClassical_quantumMarginal _ Prod.fst
@@ -84,10 +99,12 @@ private theorem before_noBorrowedQuantum (width : Nat) :
 
 /-- Actual execution restores the complete borrowed-reference observation for every input. -/
 theorem run_restoresBorrowed {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) {Reference : Register} (input : Input (before p.size) Reference) :
+    (Q : AffinePoint E) {Reference : Register}
+    (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference) :
     (run E Q).RestoresBorrowed input :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (circuit E Q) (before_noBorrowedQuantum p.size)
-    Reference (input.state.mapClassical (fun stored => (stored, stored)))
+  AlgorithmRun.restoresBorrowed_of_circuit (run E Q)
+    (fun reference {_} _ state => Circuit.borrowedRestored_of_noBorrowedQuantum
+      (circuit E Q) (before_noBorrowedQuantum p.size) reference state) input
 
 end
 

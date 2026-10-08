@@ -25,14 +25,15 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- The actual modulus load and complete scan leave every original caller read unchanged. -/
 theorem samplerScan_read_original (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     {shape : CShape} (other : CInputRef ctx shape)
     (store : Store (Layout.context ctx (modulusBits N))) :
-    (Scan.step N sample store).1.read (Layout.underRead other (modulusBits N)) =
+    (Scan.step (model := model) N sample store).1.read (Layout.underRead other (modulusBits N)) =
       store.read (Layout.underRead other (modulusBits N)) := by
   have separate : ∀ key ∈ Proposal.slotKeys (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)),
@@ -58,11 +59,14 @@ theorem samplerScan_read_original (N : Nat)
     · exact Layout.samplerLayout_original_free other 0
     · exact Layout.samplerLayout_original_free other 3
     · exact Layout.samplerLayout_original_free other 2
-  exact (Proposal.proposalFold_read_other (Layout.underRead sample (modulusBits N))
+  exact (Proposal.proposalFold_read_other (model := model)
+    (Layout.underRead sample (modulusBits N))
     (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))
     (List.ofFn (fun proposal : Fin residueProposalCount => proposal))
-    (Layout.underRead other (modulusBits N)) separate (Scan.loaderStep N store).1).trans
-      (ConstantWord.constantWord_fold_read_other (Layout.modulusCell ctx (modulusBits N))
+    (Layout.underRead other (modulusBits N)) separate (Scan.loaderStep (model := model)
+      N store).1).trans
+      (ConstantWord.constantWord_fold_read_other (model := model)
+    (Layout.modulusCell ctx (modulusBits N))
         (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N))
         (Layout.underRead other (modulusBits N)) (Layout.samplerLayout_original_free other 10)
         store)
@@ -74,20 +78,22 @@ theorem samplerInner_read_other (N : Nat)
     {shape : CShape} (other : CInputRef ctx shape)
     (outputFree : output.key ∉ other.storageKeys)
     (store : Store (Layout.context ctx (modulusBits N))) :
-    (innerStep N sample output store).1.read (Layout.underRead other (modulusBits N)) =
+    (innerStep (model := model)
+      N sample output store).1.read (Layout.underRead other (modulusBits N)) =
       store.read (Layout.underRead other (modulusBits N)) := by
   have outputFree' : (Layout.underWrite output (modulusBits N)).key ∉
       (Layout.underRead other (modulusBits N)).storageKeys := by
     rw [Layout.samplerLayout_underRead_keys]
     exact outputFree
-  exact (Decision.decision_read_other (Layout.shared ctx (modulusBits N))
+  exact (Decision.decision_read_other (model := model)
+    (Layout.shared ctx (modulusBits N))
     (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
     (Layout.underWrite output (modulusBits N)) (Layout.underRead other (modulusBits N))
     (Layout.samplerLayout_original_free other 8) (Layout.samplerLayout_original_free other 2)
     (Layout.samplerLayout_original_free other 4) (Layout.samplerLayout_original_free other 7)
     (Layout.samplerLayout_original_free other 6) (Layout.samplerLayout_original_free other 9)
-    outputFree' (Scan.step N sample store).1).trans
-      (samplerScan_read_original N sample other store)
+    outputFree' (Scan.step (model := model) N sample store).1).trans
+      (samplerScan_read_original (model := model) N sample other store)
 
 /-- Actual scope release preserves every complete original read outside the parameter cell. -/
 theorem samplerProgram_read_other (N : Nat)
@@ -95,10 +101,10 @@ theorem samplerProgram_read_other (N : Nat)
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     {shape : CShape} (other : CInputRef ctx shape)
     (outputFree : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step N sample output store).1.read other = store.read other := by
+    (step (model := model) N sample output store).1.read other = store.read other := by
   exact (Layout.samplerLayout_pop_read other (modulusBits N)
-    (innerStep N sample output (Layout.pushStore (modulusBits N) store)).1).trans
-      ((samplerInner_read_other N sample output other outputFree
+    (innerStep (model := model) N sample output (Layout.pushStore (modulusBits N) store)).1).trans
+      ((samplerInner_read_other (model := model) N sample output other outputFree
         (Layout.pushStore (modulusBits N) store)).trans
         (Layout.samplerLayout_push_read other (modulusBits N) store))
 

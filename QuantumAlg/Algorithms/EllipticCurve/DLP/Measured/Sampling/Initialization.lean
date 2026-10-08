@@ -48,25 +48,25 @@ private theorem prependPrepared_applyUnitary {R S : Register}
     Matrix.one_mul, Matrix.mul_one]
 
 private theorem afterExponentOperator_assembly (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (Reference : Register) :
     UnitaryOperator.prodTensor
-        (afterExponentProgram modulus exponentWidth program physical).matrix
+        (afterExponentProgram modulus exponentWidth program).matrix
         (1 : UnitaryOperator Reference) =
       UnitaryOperator.reindex (initializedJointAssembly modulus (2 * exponentWidth) Reference)
         (UnitaryOperator.prodTensor
           (1 : UnitaryOperator (indexedLayout modulus.size (2 * exponentWidth)).register)
           (UnitaryOperator.prodTensor
             (1 : UnitaryOperator (InputPreparation.auxiliaryLayout modulus.size).register)
-            (beforeExponentOperator modulus exponentWidth program physical Reference))) := by
+            (beforeExponentOperator modulus exponentWidth program Reference))) := by
   apply Subtype.ext
   ext row column
   obtain ⟨⟨selectorRow, auxiliaryRow, originalRow⟩, rfl⟩ :=
     (initializedJointAssembly modulus (2 * exponentWidth) Reference).surjective row
   obtain ⟨⟨selectorColumn, auxiliaryColumn, originalColumn⟩, rfl⟩ :=
     (initializedJointAssembly modulus (2 * exponentWidth) Reference).surjective column
-  change (afterExponentProgram modulus exponentWidth program physical).matrix
+  change (afterExponentProgram modulus exponentWidth program).matrix
       (initializedAssembly modulus (2 * exponentWidth)
         (selectorRow, auxiliaryRow, originalRow.1))
       (initializedAssembly modulus (2 * exponentWidth)
@@ -81,19 +81,19 @@ private theorem afterExponentOperator_assembly (modulus exponentWidth : Nat)
 
 /-- Both fixed preparations commute with the exact original full-reference exponent density. -/
 theorem afterExponentOperator_initializedDensity (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (Reference : Register)
     (input : DensityOperator
       (Register.prod (before modulus.size (2 * exponentWidth)).register Reference)) :
     DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor
-          (afterExponentProgram modulus exponentWidth program physical).matrix
+          (afterExponentProgram modulus exponentWidth program).matrix
           (1 : UnitaryOperator Reference))
         (initializedDensity modulus (2 * exponentWidth) Reference input) =
       initializedDensity modulus (2 * exponentWidth) Reference
         (DensityOperator.applyUnitary
-          (beforeExponentOperator modulus exponentWidth program physical Reference) input) := by
+          (beforeExponentOperator modulus exponentWidth program Reference) input) := by
   rw [afterExponentOperator_assembly, initializedDensity,
     ← DensityOperator.applyUnitary_reindex, prependPrepared_applyUnitary,
     prependPrepared_applyUnitary]

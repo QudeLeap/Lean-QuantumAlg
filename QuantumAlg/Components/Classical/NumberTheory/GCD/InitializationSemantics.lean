@@ -37,20 +37,36 @@ def initializationStore (input : CInputRef ctx (operandShape width))
     (.wordUnary .copy width ctx (.second input) second)).applyOp
       (testActiveOp first zero active)).applyOp (negateActiveOp active)
 
+/-- Actual native outputs record both copies, comparison and negation in chronological order. -/
+def initializationStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (operandShape width))
+    (first second : CWriteRef ctx (.unsignedWord width))
+    (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
+    (before : Store ctx) :
+    Store ctx × (initializationBody (model := model) input first second zero active).Path :=
+  let copiedLeft := BitWord.instructionStep (execution := model)
+    (.wordUnary .copy width ctx (.first input) first) before
+  let copiedRight := BitWord.instructionStep (execution := model)
+    (.wordUnary .copy width ctx (.second input) second) copiedLeft.1
+  let tested := BitWord.instructionStep (execution := model)
+    (testActiveOp first zero active) copiedRight.1
+  let negated := BitWord.instructionStep (execution := model) (negateActiveOp active) tested.1
+  (negated.1, (copiedLeft.2, (copiedRight.2, (tested.2, negated.2))))
+
 /-- Initialization preserves complete quantum-reference blocks and records its four real steps. -/
-theorem gcdInitialization_execute (input : CInputRef ctx (operandShape width))
+theorem gcdInitialization_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (initializationBody input first second zero active).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (initializationBody (model := model) input first second zero active).execute Reference state =
       state.mapClassical (fun entry =>
-        (initializationStore input first second zero active entry.1,
-          (entry.2, ((), ((), ((), ())))))) := by
-  simp only [initializationBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let result := initializationStep (model := model) input first second zero active entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [initializationBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- No initialization operation changes a structural read outside the three written cells. -/
 theorem gcdInitialization_read_other (input : CInputRef ctx (operandShape width))

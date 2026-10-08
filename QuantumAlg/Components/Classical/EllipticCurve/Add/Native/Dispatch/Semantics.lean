@@ -24,64 +24,80 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private def classifierBranchBodyRecord (whenTrue whenFalse : Circuit ctx ctx)
-    (trueRecord : Store ctx → Store ctx × whenTrue.Path)
-    (falseRecord : Store ctx → Store ctx × whenFalse.Path)
+private def classifierBranchBodyRecord (whenTrue whenFalse : Circuit model ctx ctx)
+    (trueRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenTrue.Path)
+    (falseRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenFalse.Path)
     (value : CShape.Value .bit) :
-    Store ctx → Store ctx × (if value.toBool then whenTrue else whenFalse).Path :=
+    Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (if value.toBool then whenTrue else whenFalse).Path :=
   match value with
   | .bit true => trueRecord
   | .bit false => falseRecord
 
 private def classifierBranchRecord (input : CInputRef ctx .bit)
-    (whenTrue whenFalse : Circuit ctx ctx)
-    (trueRecord : Store ctx → Store ctx × whenTrue.Path)
-    (falseRecord : Store ctx → Store ctx × whenFalse.Path) (store : Store ctx) :
-    Store ctx × (classifierBranch input whenTrue whenFalse).Path :=
-  let value := store.read input
-  let result := classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord value store
+    (whenTrue whenFalse : Circuit model ctx ctx)
+    (trueRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenTrue.Path)
+    (falseRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenFalse.Path)
+    (entry : Store ctx × model.HiddenState) :
+    (Store ctx × model.HiddenState) ×
+      (classifierBranch (model := model) input whenTrue whenFalse).Path :=
+  let value := entry.1.read input
+  let result := classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord value entry
   (result.1, ⟨value, result.2⟩)
 
-private theorem classifierBranchBodyRecord_store (whenTrue whenFalse : Circuit ctx ctx)
-    (trueRecord : Store ctx → Store ctx × whenTrue.Path)
-    (falseRecord : Store ctx → Store ctx × whenFalse.Path)
-    (value : CShape.Value .bit) (store : Store ctx) :
-    (classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord value store).1 =
-      if value.toBool then (trueRecord store).1 else (falseRecord store).1 := by
+private theorem classifierBranchBodyRecord_store (whenTrue whenFalse : Circuit model ctx ctx)
+    (trueRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenTrue.Path)
+    (falseRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenFalse.Path)
+    (value : CShape.Value .bit) (entry : Store ctx × model.HiddenState) :
+    (classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord value entry).1.1 =
+      if value.toBool then (trueRecord entry).1.1 else (falseRecord entry).1.1 := by
   cases value with
   | bit flag => cases flag <;> rfl
 
 private theorem classifierBranchRecord_store (input : CInputRef ctx .bit)
-    (whenTrue whenFalse : Circuit ctx ctx)
-    (trueRecord : Store ctx → Store ctx × whenTrue.Path)
-    (falseRecord : Store ctx → Store ctx × whenFalse.Path) (store : Store ctx) :
-    (classifierBranchRecord input whenTrue whenFalse trueRecord falseRecord store).1 =
-      if (store.read input).toBool then (trueRecord store).1 else (falseRecord store).1 := by
+    (whenTrue whenFalse : Circuit model ctx ctx)
+    (trueRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenTrue.Path)
+    (falseRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenFalse.Path)
+    (entry : Store ctx × model.HiddenState) :
+    (classifierBranchRecord input whenTrue whenFalse trueRecord falseRecord entry).1.1 =
+      if (entry.1.read input).toBool then (trueRecord entry).1.1
+      else (falseRecord entry).1.1 := by
   exact classifierBranchBodyRecord_store whenTrue whenFalse trueRecord falseRecord
-    (store.read input) store
+    (entry.1.read input) entry
 
 private theorem classifierBranchRecord_execute (input : CInputRef ctx .bit)
-    (whenTrue whenFalse : Circuit ctx ctx)
-    (trueRecord : Store ctx → Store ctx × whenTrue.Path)
-    (falseRecord : Store ctx → Store ctx × whenFalse.Path)
+    (whenTrue whenFalse : Circuit model ctx ctx)
+    (trueRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenTrue.Path)
+    (falseRecord : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × whenFalse.Path)
     (trueEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       whenTrue.execute Reference state = state.mapClassical (fun entry =>
-        ((trueRecord entry.1).1, (entry.2, (trueRecord entry.1).2))))
+        let result := trueRecord (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (falseEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       whenFalse.execute Reference state = state.mapClassical (fun entry =>
-        ((falseRecord entry.1).1, (entry.2, (falseRecord entry.1).2))))
+        let result := falseRecord (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (classifierBranch input whenTrue whenFalse).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (classifierBranch (model := model) input whenTrue whenFalse).execute Reference state =
       state.mapClassical (fun entry =>
-        ((classifierBranchRecord input whenTrue whenFalse trueRecord falseRecord entry.1).1,
-          (entry.2,
-            (classifierBranchRecord input whenTrue whenFalse
-              trueRecord falseRecord entry.1).2))) := by
+        let result := classifierBranchRecord input whenTrue whenFalse
+          trueRecord falseRecord (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   apply Circuit.execute_branch_mapClassical input
     (fun value => if value.toBool then whenTrue else whenFalse)
     (classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord)
@@ -93,9 +109,11 @@ private theorem classifierBranchRecord_execute (input : CInputRef ctx .bit)
     · exact trueEquation reference initial
 
 /-- The actual nested branches record their real selected arm and every real predicate value. -/
-def dispatchRecord (classifier : Classifier ctx width) (arms : Case → Circuit ctx ctx)
-    (records : ∀ selected, Store ctx → Store ctx × (arms selected).Path) :
-    Store ctx → Store ctx × (dispatch classifier arms).Path :=
+def dispatchRecord (classifier : Classifier ctx width) (arms : Case → Circuit model ctx ctx)
+    (records : ∀ selected, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (arms selected).Path) :
+    Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (dispatch classifier arms).Path :=
   classifierBranchRecord (.first (classifierRead classifier.leftRaw)) (arms .leftInfinity) _
     (records .leftInfinity)
     (classifierBranchRecord (.first (classifierRead classifier.rightRaw)) (arms .rightInfinity) _
@@ -107,17 +125,21 @@ def dispatchRecord (classifier : Classifier ctx width) (arms : Case → Circuit 
           (records .vertical)) (records .generic)))
 
 /-- Actual full-state arm equations give the complete actual branch-tree execution. -/
-theorem dispatch_execute (classifier : Classifier ctx width) (arms : Case → Circuit ctx ctx)
-    (records : ∀ selected, Store ctx → Store ctx × (arms selected).Path)
+theorem dispatch_execute (classifier : Classifier ctx width)
+    (arms : Case → Circuit model ctx ctx)
+    (records : ∀ selected, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (arms selected).Path)
     (equations : ∀ selected (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (arms selected).execute Reference state = state.mapClassical (fun entry =>
-        ((records selected entry.1).1, (entry.2, (records selected entry.1).2))))
+        let result := records selected (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (dispatch classifier arms).execute Reference state = state.mapClassical (fun entry =>
-      ((dispatchRecord classifier arms records entry.1).1,
-        (entry.2, (dispatchRecord classifier arms records entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (dispatch (model := model) classifier arms).execute Reference state =
+      state.mapClassical (fun entry =>
+      let result := dispatchRecord classifier arms records (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   unfold dispatch dispatchRecord
   apply classifierBranchRecord_execute
   · exact equations .leftInfinity
@@ -152,21 +174,26 @@ private theorem completeSelector_store (selectedStore : Case → Store ctx)
     cases yZero <;> rfl
 
 /-- The final store is exactly the chosen actual arm's result on the incoming store. -/
-theorem dispatchRecord_store (classifier : Classifier ctx width) (arms : Case → Circuit ctx ctx)
-    (records : ∀ selected, Store ctx → Store ctx × (arms selected).Path) (store : Store ctx) :
-    (dispatchRecord classifier arms records store).1 =
-      (records (classifyStored classifier store) store).1 := by
+theorem dispatchRecord_store (classifier : Classifier ctx width)
+    (arms : Case → Circuit model ctx ctx)
+    (records : ∀ selected, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (arms selected).Path)
+    (entry : Store ctx × model.HiddenState) :
+    (dispatchRecord classifier arms records entry).1.1 =
+      (records (classifyStored classifier entry.1) entry).1.1 := by
   simp only [dispatchRecord, classifierBranchRecord_store]
-  exact completeSelector_store (fun selected => (records selected store).1) _ _ _ _ _
+  exact completeSelector_store (fun selected => (records selected entry).1.1) _ _ _ _ _
 
 /-- Actual classification supplies the original complete case without a caller branch promise. -/
 theorem dispatchRecord_ready_store (classifier : Classifier ctx width)
-    (arms : Case → Circuit ctx ctx)
-    (records : ∀ selected, Store ctx → Store ctx × (arms selected).Path) (store : Store ctx)
-    (left right : CShape.Value (PointShape width)) (ready : classifier.Ready store left right) :
-    (dispatchRecord classifier arms records store).1 =
-      (records (classifyValues left right) store).1 := by
-  rw [dispatchRecord_store, classifyStored_eq_classifyValues classifier store left right ready]
+    (arms : Case → Circuit model ctx ctx)
+    (records : ∀ selected, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (arms selected).Path)
+    (entry : Store ctx × model.HiddenState)
+    (left right : CShape.Value (PointShape width)) (ready : classifier.Ready entry.1 left right) :
+    (dispatchRecord classifier arms records entry).1.1 =
+      (records (classifyValues left right) entry).1.1 := by
+  rw [dispatchRecord_store, classifyStored_eq_classifyValues classifier entry.1 left right ready]
 
 end
 

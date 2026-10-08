@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.CanonicalStage
+import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Registers
 import all QuantumAlg.Util.FinPow.WirePermutation
 
 /-!
@@ -24,12 +25,6 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 noncomputable section
 
 open Nat.FixedWidth
-
-abbrev Registers (width : Nat) := Fin (2 ^ width) × Fin (2 ^ width)
-
-def encoding (width : Nat) : BinaryLabelEncoding (Registers width) :=
-  BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity width)
-    (BinaryLabelEncoding.finIdentity width)
 
 /-- All source fields, separated only to expose the internally borrowed coordinates. -/
 abbrev SourceParts (extra : Nat) := Bool × (Fin (2 ^ extra) × (Bool × Bool))

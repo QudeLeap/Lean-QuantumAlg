@@ -151,23 +151,26 @@ theorem reverse_after_forward (width : Nat) (enough : 2 ≤ width.size)
 
 /-- The unitary is precisely the same actual elementary list on the original full frame. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- The exact full-input action preserves every relative amplitude and arbitrary correlation. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width enough) (gates_step width enough)
 
 /-- Every predicate, swap, refresh, parity, and inverse-predicate event is present. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).eventTrace = (gates width enough).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width enough).eventTrace =
+      (gates width enough).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 /-- Exact unit-duration depth includes the full emitted list on all control branches. -/
 theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

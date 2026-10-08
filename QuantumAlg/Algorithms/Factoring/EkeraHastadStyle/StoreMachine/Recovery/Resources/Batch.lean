@@ -46,7 +46,8 @@ def fixedBatchRecoveryCardBound (modulusWidth m ell coordinateWidth : Nat) : Nat
   modularSetupCardBound modulusWidth + 11 +
     120 * reusablePairCardBound modulusWidth m ell coordinateWidth
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The complete actual pair-candidate path satisfies its independent public-width count bound. -/
 theorem pairCandidate_eventCount_le (input : Input N)
@@ -118,7 +119,7 @@ theorem earlyFactorSeed_eventCount_le (parameter : CInputRef ctx (ParameterShape
     (path : (LatticeEarlyFactorSeed.into parameter refs).Path) :
     ((LatticeEarlyFactorSeed.into parameter refs).eventTrace path).length ≤ 5 := by
   have bound := Multiset.card_le_card (LatticeEarlyFactorSeed.into_pool_le parameter refs path)
-  have envelopeCard : (LatticeEarlyFactorSeed.eventEnvelope (kind := kind) N).card = 5 := rfl
+  have envelopeCard : (LatticeEarlyFactorSeed.eventEnvelope (model := model) N).card = 5 := rfl
   rw [envelopeCard] at bound
   exact bound
 
@@ -156,7 +157,7 @@ theorem batchEndpoint_eventCount_le (input : Input N)
     (LatticeBatchRecoveryOutput.into_eventCount refs.output path.2).le
 
 /-- The same actual deepest body meets the independent full fixed-batch polynomial. -/
-theorem batchBody_eventCount_le {root topCtx : RuntimeCtx kind} (input : Input N)
+theorem batchBody_eventCount_le {root topCtx : RuntimeCtx model.kind} (input : Input N)
     (refs : LatticeBatchRecoveryWorkspaceBody.Refs root topCtx ctx N)
     (path : (LatticeBatchRecoveryWorkspaceBody.into input refs).Path) :
     ((LatticeBatchRecoveryWorkspaceBody.into input refs).eventTrace path).length ≤

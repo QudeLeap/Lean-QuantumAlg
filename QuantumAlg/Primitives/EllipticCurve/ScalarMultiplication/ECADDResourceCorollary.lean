@@ -38,12 +38,13 @@ controlled-ECADD programs. -/
 def ecaddCascadeProgram (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (t : Nat)
     (addend : Fin (2 * t) -> AffinePoint E) :
-    UnitaryCircuit (Qubits
-      GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width) :=
-  UnitaryCircuit.indexedProductNamed "ecadd-cascade" (2 * t)
-    (UnitaryCircuit.identity
-      (Qubits GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width)
-      [] (by simp))
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width).toQuantum :=
+  UnitaryCircuit.indexedProduct "ecadd-cascade" (2 * t)
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width).toQuantum)
     (fun i => ControlledPointAddition.program E (addend i))
 
 /-- The common carrier has the exact width of one ECADD block; sequentially
@@ -55,7 +56,7 @@ theorem ecaddCascadeProgram_width_exact :
 
 omit params in
 private theorem resourcePool_count_finset_sum
-    {kind : ProblemKind} {Index : Type} [Fintype Index]
+    {kind : ExecutionModel} {Index : Type} [Fintype Index]
     (focus : Resource.Event kind) (pool : Index -> ResourcePool kind) :
     ResourcePool.count focus (∑ index, pool index) =
       ∑ index, ResourcePool.count focus (pool index) := by
@@ -76,14 +77,17 @@ theorem ecaddCascadeProgram_toffoli_count_le
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (t : Nat)
     (addend : Fin (2 * t) -> AffinePoint E) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (ecaddCascadeProgram E t addend).eventCost ≤
       (2 * t) * ControlledPointAddition.toffoliCountBound params.width := by
-  simp only [ecaddCascadeProgram, UnitaryCircuit.indexedProductNamed_eventCost,
+  simp only [ecaddCascadeProgram, UnitaryCircuit.indexedProduct_eventCost,
     UnitaryCircuit.identity_eventCost, zero_add]
   rw [resourcePool_count_finset_sum]
   calc
-    (∑ i : Fin (2 * t), ResourcePool.count (.gate (.builtin "toffoli"))
+    (∑ i : Fin (2 * t),
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate AlgorithmGate.Coordinate.toffoli)
         (ControlledPointAddition.program E (addend i)).eventCost) ≤
         ∑ _i : Fin (2 * t), ControlledPointAddition.toffoliCountBound params.width :=
       Finset.sum_le_sum fun i _ =>
@@ -100,12 +104,13 @@ theorem ecaddCascadeProgram_unitDepth_le
     (ecaddCascadeProgram E t addend).evaluatedEventDepth (fun _ => 1) ≤
       (2 * t) * ControlledPointAddition.circuitDepthBound params.width := by
   simp only [ecaddCascadeProgram,
-    UnitaryCircuit.evaluatedEventDepth, UnitaryCircuit.indexedProductNamed_eventDepth,
+    UnitaryCircuit.evaluatedEventDepth, UnitaryCircuit.indexedProduct_eventDepth,
     DepthExpr.depthEval_indexedProduct, UnitaryCircuit.identity_eventDepth,
     DepthExpr.depthEval_id, zero_add]
   calc
     (∑ i : Fin (2 * t),
-        DepthExpr.depthEval (fun _ : Resource.Event .quantum => 1)
+        DepthExpr.depthEval
+          (fun _ : Resource.Event (.quantum AlgorithmGate.model .empty) => 1)
           (ControlledPointAddition.program E (addend i)).eventDepth) ≤
         ∑ _i : Fin (2 * t), ControlledPointAddition.circuitDepthBound params.width :=
       Finset.sum_le_sum fun i _ => by
@@ -113,29 +118,6 @@ theorem ecaddCascadeProgram_unitDepth_le
           ControlledPointAddition.program_unitDepth_le E (addend i)
     _ = (2 * t) * ControlledPointAddition.circuitDepthBound params.width := by
       simp
-
-/-- Every actual cascade block uses the same exact ECADD carrier. -/
-theorem ecaddCascadeProgram_physical_idx_subset_range
-    (E : PrimeFieldShortWeierstrass params.modulus.val)
-    [Fact params.modulus.val.Prime] (t : Nat)
-    (addend : Fin (2 * t) -> AffinePoint E) :
-    (ecaddCascadeProgram E t addend).physical_idx ⊆
-      List.range (ControlledPointAddition.logicalQubitCount params.width) := by
-  unfold ecaddCascadeProgram UnitaryCircuit.indexedProductNamed
-  apply UnitaryCircuit.foldl_unionPhysicalIdx_subset
-  · simp [UnitaryCircuit.identity]
-  · intro footprint hfootprint
-    obtain ⟨i, rfl⟩ := List.mem_ofFn.mp hfootprint
-    have hwidth :
-        Arithmetic.ModularInversion.physicalWidthFor params.width +
-            20 * params.width + 13 =
-          ControlledPointAddition.logicalQubitCount params.width :=
-      GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding_width_exact.symm.trans
-        ControlledPointAddition.program_width_exact
-    rw [← hwidth]
-    simpa only [ControlledPointAddition.program] using
-      (GenericPointAddition.ExceptionalCleanup.translationProgram_physical_idx_subset_range
-        (E := E) (Q := addend i))
 
 end
 

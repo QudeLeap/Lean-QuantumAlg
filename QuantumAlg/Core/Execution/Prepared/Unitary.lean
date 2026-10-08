@@ -18,9 +18,9 @@ import all QuantumAlg.Core.Execution.Unitary.Local
 /-!
 # Exact joint state after preparation and unitary execution
 
-The mathematical target first tensors the prescribed fresh basis state with
-the entire incoming context and reference, then applies the independently
-specified unitary. The actual prepare/execute sequence has exactly that
+The mathematical target tensors a fresh pure state with the entire incoming
+context and reference, then applies the specified unitary. The actual
+zero-preparation/unitary sequence realizes its corresponding canonical-zero
 joint density operator. The allocation bridge uses the new physical wire
 records, and no caller initialization or factorization premise is needed.
 
@@ -54,7 +54,8 @@ theorem preparedDensity_mass (key : StorageKey) (layout : QuantumLayout systemCo
     (preparedDensity key layout fresh disjoint prepared Reference input).mass = input.mass := by
   rw [preparedDensity, DensityOperator.reindex_mass, Execution.prependPrepared_mass]
 
-private theorem prepareContext_quantumMarginal_eq_preparedDensity
+/-- The actual preparation context has the independent complete joint density. -/
+theorem prepareContext_quantumMarginal_eq_preparedDensity
     {C : Type} [Fintype C] {Reference : Register}
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount)
@@ -73,27 +74,32 @@ private theorem prepareContext_quantumMarginal_eq_preparedDensity
   simp only [Equiv.symm_apply_apply]
   rfl
 
-/-- The actual complete prepare/execute run gives the independent joint tensor/unitary target. -/
-theorem preparedUnitary_finalState_quantumMarginal (key : StorageKey)
+/-- The actual zero-preparation/unitary run gives the independent joint tensor/unitary target. -/
+theorem preparedUnitary_finalState_quantumMarginal
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel} (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout)
-    (body : UnitaryCircuit (ctx.addOwnedLayout key layout fresh disjoint).register)
-    (placement : body.physical_idx = (ctx.addOwnedLayout key layout fresh disjoint).physicalIdx)
+    (body : UnitaryCircuit gates oracles
+      (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
     {shape : CShape} (output : Output (ctx.addOwnedLayout key layout fresh disjoint) shape)
     (Reference : Register)
-    (input : ExecutionState (Execution.Store ctx) (Register.prod ctx.register Reference)) :
-    (({ code := (Circuit.prepare ctx key layout fresh disjoint preparation).seq
-          (Circuit.unitary body placement), output := output } :
-        AlgorithmRun ctx (ctx.addOwnedLayout key layout fresh disjoint) shape).finalState
+    (input : ExecutionState (Execution.Store ctx × services.HiddenState)
+      (Register.prod ctx.register Reference)) :
+    (({ code := (Circuit.prepareZero (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := services)
+          ctx key layout fresh disjoint).seq (Circuit.unitary body), output := output } :
+        AlgorithmRun (.quantum gates oracles operations services) ctx
+          (ctx.addOwnedLayout key layout fresh disjoint) shape).finalState
           Reference input).quantumMarginal =
       DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor body.matrix (1 : UnitaryOperator Reference))
-        (preparedDensity key layout fresh disjoint preparation.normalized
+        (preparedDensity key layout fresh disjoint (BasisPreparation.zero layout).normalized
           Reference input.quantumMarginal) := by
   rw [AlgorithmRun.finalState, ExecutionState.mapClassical_quantumMarginal,
     AlgorithmRun.execute, Circuit.execute_seq, State.mapHistory_quantumMarginal,
-    Circuit.unitary_jointDensity, Circuit.execute_prepare, State.prepare_quantumMarginal,
+    Circuit.unitary_jointDensity, Circuit.execute_prepareZero, State.mapHistory_quantumMarginal,
+    State.prepare_quantumMarginal,
     prepareContext_quantumMarginal_eq_preparedDensity, ExecutionState.mapClassical_quantumMarginal]
 
 end

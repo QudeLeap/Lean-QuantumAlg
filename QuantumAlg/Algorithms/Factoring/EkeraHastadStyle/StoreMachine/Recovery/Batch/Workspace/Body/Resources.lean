@@ -25,10 +25,11 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {root topCtx inner : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {root topCtx inner : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent native budgets of initialization and the complete seeded batch endpoint. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   LatticeSharedQuadraticInitialization.eventEnvelope N +
     LatticeBatchRecoveryEndpoint.eventEnvelope N
 
@@ -36,8 +37,9 @@ def eventEnvelope (N : Nat) : ResourcePool kind :=
 def depthBound (N : Nat) : Nat :=
   LatticeSharedQuadraticInitialization.depthBound N + LatticeBatchRecoveryEndpoint.depthBound N
 
-private theorem sequence_pool_le (first second : Circuit inner inner)
-    (firstBound secondBound : ResourcePool kind)
+omit [BitWord.Selected model] in
+private theorem sequence_pool_le (first second : Circuit model inner inner)
+    (firstBound secondBound : ResourcePool model)
     (firstLe : ∀ path, first.resourcePool path ≤ firstBound)
     (secondLe : ∀ path, second.resourcePool path ≤ secondBound)
     (path : (Circuit.seq first second).Path) :
@@ -69,7 +71,7 @@ theorem into_depth_le (input : Input N) (refs : Refs root topCtx inner N)
 theorem into_resident_le (input : Input N) (refs : Refs root topCtx inner N)
     (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
-      inner.residentSpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      inner.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans ?_
   exact SpacePool.max_le
     (LatticeSharedQuadraticInitialization.into_resident_le input (initializationRefs refs) path.1)
@@ -79,7 +81,7 @@ theorem into_resident_le (input : Input N) (refs : Refs root topCtx inner N)
 theorem into_auxiliary_le (input : Input N) (refs : Refs root topCtx inner N)
     (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
-      inner.auxiliarySpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      inner.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans ?_
   exact SpacePool.max_le
     (LatticeSharedQuadraticInitialization.into_auxiliary_le input (initializationRefs refs) path.1)
@@ -88,7 +90,7 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs root topCtx inner N)
 /-- Joint borrowed-reference restoration composes over both actual phases. -/
 theorem into_borrowedRestored (input : Input N) (refs : Refs root topCtx inner N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State inner Reference History) :
+    (state : State inner Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state

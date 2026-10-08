@@ -26,14 +26,16 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The structural avoidance package frames the complete actual centered-coordinate call. -/
-theorem centered_callerFrame (refs : LatticeTarget.Refs ctx width) (store : Store ctx)
+theorem centered_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : LatticeTarget.Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : AvoidsTargetWrites other refs) :
     (LatticeTarget.centeredTargetStep refs store).1.read other = store.read other :=
   LatticeTarget.centeredTargetInto_callerFrame refs store other
     avoids.1 avoids.2.1 avoids.2.2.1 avoids.2.2.2
 
 /-- Every actual read outside both original coordinate write sets retains its exact value. -/
-theorem loadTargetPointInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem loadTargetPointInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (first : AvoidsTargetWrites other refs.first) (second : AvoidsTargetWrites other refs.second) :
     (targetPointStep refs store).1.read other = store.read other :=
@@ -49,7 +51,8 @@ def sourcePoint (refs : Refs ctx width) (store : Store ctx) :
       (store.read refs.second.modulus).toNat, 0)
 
 /-- Actual coordinate outputs represent the original source point with the preserved third zero. -/
-theorem loadTargetPointInto_represents (refs : Refs ctx width) (separation : Separation refs)
+theorem loadTargetPointInto_represents {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx)
     (thirdZero : RawSignedRepresents
       (store.read (LatticeState.coordinateInput refs.point.third)) 0) :
@@ -90,7 +93,8 @@ structure TargetPointOutcome (refs : Refs ctx width) (before after : Store ctx) 
       after.read other = before.read other
 
 /-- The actual two-coordinate call meets the original contract without initial scratch zeros. -/
-theorem loadTargetPointInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem loadTargetPointInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx)
     (thirdZero : RawSignedRepresents
       (store.read (LatticeState.coordinateInput refs.point.third)) 0) :

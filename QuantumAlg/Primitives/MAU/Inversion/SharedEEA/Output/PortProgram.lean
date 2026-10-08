@@ -105,8 +105,9 @@ def gates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
   orientationGates modulus.size ++ unloadGates modulus
 
 /-- Only original Work1 and Work2 wires occur in this emitted program. -/
-def program (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  GateSpec.programList (gates modulus)
+def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates modulus)
 
 /-- The complete physical frame action, defined without a reached-state restriction. -/
 def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.size :=
@@ -123,7 +124,8 @@ theorem gates_step (modulus : Nat) (state : Registers modulus.size) :
 /-- The real native program realizes the complete action, including every retained history bit. -/
 theorem program_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) (step modulus) :=
-  GateSpec.realizesList_congrStep _ (gates_step modulus)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (gates_step modulus)
 
 /-- Literal gate count, including the real symmetric swaps and set-bit constant unload. -/
 theorem gates_length (modulus : Nat) :
@@ -141,11 +143,6 @@ theorem program_resources (modulus : Nat) :
   rw [program, GateSpec.programList_eventCost_card,
     GateSpec.programList_evaluatedEventDepth_unit, gates_length]
   constructor <;> omega
-
-/-- Every physical port operation stays within the same original shared frame. -/
-theorem program_physical_range (modulus : Nat) :
-    (program modulus).physical_idx ⊆ List.range (encoding modulus.size).width :=
-  GateSpec.programList_physical_idx_subset_range _
 
 end
 

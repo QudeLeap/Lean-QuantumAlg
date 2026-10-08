@@ -29,7 +29,8 @@ open Execution ClassicalWorkspace
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Original big-endian row decoding and optional polynomial recovery encoding. -/
 def gf2RecoveryValue (values : CShape.Value (.fixedVector rowCount (.bits width))) :
@@ -44,14 +45,16 @@ def gf2RecoveryValue (values : CShape.Value (.fixedVector rowCount (.bits width)
 theorem gf2WithState_actualRecord_correct
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    ∃ record : Store ctx → Store ctx × (withState input output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (withState input output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withState input output).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withState (model := model) input output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
-        (record before).1 = before.write output (gf2RecoveryValue (before.read input)) := by
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = before.1.write output (gf2RecoveryValue (before.1.read input)) := by
   apply withCells_actualRecord_initialized_post ctx (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
     (fun before after => after = before.write output (gf2RecoveryValue (before.read input)))
@@ -60,13 +63,14 @@ theorem gf2WithState_actualRecord_correct
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.head.ref cells.tail.tail.head.ref cells.tail.head.ref cells.head.ref
     (transport.liftWrite output)
-  refine ⟨step, ?_, ?_⟩
-  · exact gf2Into_execute (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
+  refine ⟨Circuit.preserveHiddenRecord (model := model) step, ?_, ?_⟩
+  · exact gf2Into_execute (model := model) (transport.liftInput input)
+      cells.tail.tail.tail.tail.tail.head.ref
       cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
       cells.tail.tail.tail.head.ref cells.tail.tail.head.ref cells.tail.head.ref cells.head.ref
       (transport.liftWrite output)
   · intro source before reads initialized
-    let after := (step before).1
+    let after := (step before.1).1
     let target := transport.restrict after
     have projected : transport.ReadsAs target after :=
       transport.workspaceTransport_restrict_readsAs after
@@ -75,7 +79,8 @@ theorem gf2WithState_actualRecord_correct
       (gf2RecoveryValue (source.read input))
     · have written : after.read (.storage (transport.liftWrite output).toCStorageRef) =
           gf2RecoveryValue (source.read input) := by
-        apply gf2Into_cellOutput input output cells distinct transport separated before initialized
+        apply gf2Into_cellOutput input output cells distinct transport separated before.1
+          initialized
           (fun row => ClassicalAlgorithms.TerminalDecode.eval
             (TerminalDecode.decodeInput .bigEndian ((source.read input).get row)))
         intro row
@@ -91,7 +96,7 @@ theorem gf2WithState_actualRecord_correct
       have free : output.key ∉ (CInputRef.storage other).storageKeys := by
         simpa only [CInputRef.storageKeys, List.mem_singleton] using different
       exact (projected (.storage other)).symm.trans
-        ((gf2Into_cellFrame input output cells transport separated before
+        ((gf2Into_cellFrame input output cells transport separated before.1
           (.storage other) free).trans (reads (.storage other)))
 
 end

@@ -7,13 +7,14 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Algorithm.AlgorithmRun.Effect
+import all QuantumAlg.Core.Execution.Circuit.Support
 import all QuantumAlg.Core.Base.Gate.Effect.Support
 
 /-!
 # Actual algorithm event comparison on a coherent good input
 
-Two actual runs start from the same classical Store and normalized complete
-quantum-reference vector. Agreement concerns their complete event weights on
+Two actual runs start from the same complete caller and persistent-service input, with a normalized
+complete quantum-reference vector. Agreement concerns their complete event weights on
 the same subnormalized good density, including every coherent cross term.
 Their true output probabilities then differ by at most four times the omitted
 vector norm. The real Output and retained initial Store determine each event.
@@ -25,43 +26,42 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {pre post : RuntimeCtx kind} {outputShape : CShape}
+variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {outputShape : CShape}
 
-/-- The existing definite-Store pure density supplies one normalized complete input. -/
-def pureInput {Reference : Register} (stored : Execution.Store pre)
+/-- A definite caller and explicit service state supply one normalized pure quantum input. -/
+def pureInput {Reference : Register} (stored : Execution.Store pre × model.HiddenState)
     (vector : NormalizedVector (Register.prod pre.register Reference)) :
-    Execution.Input pre Reference where
+    Execution.OracleInput model.classicalOracles pre Reference where
   state := ExecutionState.ofValue stored (DensityOperator.ofPure vector)
   normalized := (ExecutionState.ofValue_mass stored (DensityOperator.ofPure vector)).trans
     (DensityOperator.ofPure_normalized vector)
 
 /-- An event is tested against each complete actual execution record. -/
-def recordEventEffects (run : AlgorithmRun pre post outputShape) (Reference : Register)
+def recordEventEffects (run : AlgorithmRun model pre post outputShape) (Reference : Register)
     (event : run.Record → Bool) : run.Record → Effect (Register.prod post.register Reference) :=
   fun record => if event record = true then Effect.one (Register.prod post.register Reference)
     else Effect.zero (Register.prod post.register Reference)
 
 private theorem execution_event_eq_pure_effectWeight
-    (run : AlgorithmRun pre post outputShape) {Reference : Register}
-    (stored : Execution.Store pre)
+    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+    (stored : Execution.Store pre × model.HiddenState)
     (vector : NormalizedVector (Register.prod pre.register Reference))
     (event : run.Record → Bool) :
-    (run.executionDistribution (pureInput stored vector)).map event true =
+    (run.executionDistribution (pureInput (model := model) stored vector)).map event true =
       ENNReal.ofReal ((run.effectPullback Reference
         (run.recordEventEffects Reference event) stored).weight
           (DensityOperator.ofPure vector)) := by
   rw [executionDistribution_map_eq_input_effectWeight]
-  exact congrArg ENNReal.ofReal (ExecutionState.effectWeight_ofValue stored
-    (DensityOperator.ofPure vector)
-    (run.effectPullback Reference (run.recordEventEffects Reference event)))
+  simp only [pureInput, ExecutionState.effectWeight_ofValue_decision]
+  rfl
 
-variable {actualPost idealPost : RuntimeCtx kind} {actualShape idealShape : CShape}
+variable {actualPost idealPost : RuntimeCtx model.kind} {actualShape idealShape : CShape}
 
 /-- Coherent good-density agreement bounds the true event probabilities of two actual runs. -/
 theorem execution_event_le_add_four_mul_omitted_norm
-    (actual : AlgorithmRun pre actualPost actualShape)
-    (ideal : AlgorithmRun pre idealPost idealShape) {Reference : Register}
-    (stored : Execution.Store pre)
+    (actual : AlgorithmRun model pre actualPost actualShape)
+    (ideal : AlgorithmRun model pre idealPost idealShape) {Reference : Register}
+    (stored : Execution.Store pre × model.HiddenState)
     (vector : NormalizedVector (Register.prod pre.register Reference))
     (good : HilbertVector (Register.prod pre.register Reference)) (bounded : ‖good‖ ≤ 1)
     (actualEvent : actual.Record → Bool) (idealEvent : ideal.Record → Bool)
@@ -72,8 +72,9 @@ theorem execution_event_le_add_four_mul_omitted_norm
       (ideal.execute Reference (ExecutionState.ofValue stored
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight
           (ideal.recordEventEffects Reference idealEvent)) :
-    (ideal.executionDistribution (pureInput stored vector)).map idealEvent true ≤
-      (actual.executionDistribution (pureInput stored vector)).map actualEvent true +
+    (ideal.executionDistribution (pureInput (model := model) stored vector)).map idealEvent true ≤
+      (actual.executionDistribution (pureInput (model := model) stored vector)).map
+          actualEvent true +
         ENNReal.ofReal (4 * ‖vector.vec - good‖) := by
   have actualGood := actual.effectWeight_execute Reference
     (ExecutionState.ofValue stored (DensityOperator.ofSubnormalizedVector good bounded))
@@ -81,7 +82,7 @@ theorem execution_event_le_add_four_mul_omitted_norm
   have idealGood := ideal.effectWeight_execute Reference
     (ExecutionState.ofValue stored (DensityOperator.ofSubnormalizedVector good bounded))
     (ideal.recordEventEffects Reference idealEvent)
-  rw [ExecutionState.effectWeight_ofValue] at actualGood idealGood
+  simp only [ExecutionState.effectWeight_ofValue_decision] at actualGood idealGood
   have comparison := Effect.weight_le_add_four_mul_omitted_norm
     (actual.effectPullback Reference (actual.recordEventEffects Reference actualEvent) stored)
     (ideal.effectPullback Reference (ideal.recordEventEffects Reference idealEvent) stored)
@@ -91,9 +92,9 @@ theorem execution_event_le_add_four_mul_omitted_norm
 
 /-- The same four-times-omitted-norm bound applies directly to real shaped output events. -/
 theorem output_event_le_add_four_mul_omitted_norm
-    (actual : AlgorithmRun pre actualPost actualShape)
-    (ideal : AlgorithmRun pre idealPost idealShape) {Reference : Register}
-    (stored : Execution.Store pre)
+    (actual : AlgorithmRun model pre actualPost actualShape)
+    (ideal : AlgorithmRun model pre idealPost idealShape) {Reference : Register}
+    (stored : Execution.Store pre × model.HiddenState)
     (vector : NormalizedVector (Register.prod pre.register Reference))
     (good : HilbertVector (Register.prod pre.register Reference)) (bounded : ‖good‖ ≤ 1)
     (actualEvent : actualShape.Value → Bool) (idealEvent : idealShape.Value → Bool)
@@ -104,8 +105,9 @@ theorem output_event_le_add_four_mul_omitted_norm
       (ideal.execute Reference (ExecutionState.ofValue stored
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight
           (ideal.recordEventEffects Reference (idealEvent ∘ ideal.result))) :
-    (ideal.outputDistribution (pureInput stored vector)).map idealEvent true ≤
-      (actual.outputDistribution (pureInput stored vector)).map actualEvent true +
+    (ideal.outputDistribution (pureInput (model := model) stored vector)).map idealEvent true ≤
+      (actual.outputDistribution (pureInput (model := model) stored vector)).map
+          actualEvent true +
         ENNReal.ofReal (4 * ‖vector.vec - good‖) := by
   rw [outputDistribution, outputDistribution, PMF.map_comp, PMF.map_comp]
   exact execution_event_le_add_four_mul_omitted_norm actual ideal stored vector good bounded
@@ -113,9 +115,9 @@ theorem output_event_le_add_four_mul_omitted_norm
 
 /-- Relational output events retain their actual initial Store in the same coherent comparison. -/
 theorem relational_event_le_add_four_mul_omitted_norm
-    (actual : AlgorithmRun pre actualPost actualShape)
-    (ideal : AlgorithmRun pre idealPost idealShape) {Reference : Register}
-    (stored : Execution.Store pre)
+    (actual : AlgorithmRun model pre actualPost actualShape)
+    (ideal : AlgorithmRun model pre idealPost idealShape) {Reference : Register}
+    (stored : Execution.Store pre × model.HiddenState)
     (vector : NormalizedVector (Register.prod pre.register Reference))
     (good : HilbertVector (Register.prod pre.register Reference)) (bounded : ‖good‖ ≤ 1)
     (actualEvent : Execution.Store pre × actualShape.Value → Bool)
@@ -124,18 +126,19 @@ theorem relational_event_le_add_four_mul_omitted_norm
       (actual.execute Reference (ExecutionState.ofValue stored
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight
           (actual.recordEventEffects Reference
-            (fun record => actualEvent (record.2.1, actual.result record))) =
+            (fun record => actualEvent (record.2.2.1, actual.result record))) =
       (ideal.execute Reference (ExecutionState.ofValue stored
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight
           (ideal.recordEventEffects Reference
-            (fun record => idealEvent (record.2.1, ideal.result record)))) :
-    (ideal.relationalDistribution (pureInput stored vector)).map idealEvent true ≤
-      (actual.relationalDistribution (pureInput stored vector)).map actualEvent true +
+            (fun record => idealEvent (record.2.2.1, ideal.result record)))) :
+    (ideal.relationalDistribution (pureInput (model := model) stored vector)).map idealEvent true ≤
+      (actual.relationalDistribution (pureInput (model := model) stored vector)).map
+          actualEvent true +
         ENNReal.ofReal (4 * ‖vector.vec - good‖) := by
   rw [relationalDistribution, relationalDistribution, PMF.map_comp, PMF.map_comp]
   exact execution_event_le_add_four_mul_omitted_norm actual ideal stored vector good bounded
-    (fun record => actualEvent (record.2.1, actual.result record))
-    (fun record => idealEvent (record.2.1, ideal.result record)) goodAgreement
+    (fun record => actualEvent (record.2.2.1, actual.result record))
+    (fun record => idealEvent (record.2.2.1, ideal.result record)) goodAgreement
 
 end
 

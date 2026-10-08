@@ -24,8 +24,11 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent native formula of the two selected centered-coordinate calls. -/
-def pointTrace (width : Nat) (firstNegates secondNegates : Bool) : List (Resource.Event kind) :=
+def pointTrace (width : Nat) (firstNegates secondNegates : Bool) : List (Resource.Event model) :=
   LatticeTarget.centeredTrace width firstNegates ++ LatticeTarget.centeredTrace width secondNegates
 
 /-- Every actual two-coordinate path emits the exact independent native formula. -/
@@ -46,7 +49,7 @@ theorem loadTargetPointInto_resourcePool (refs : Refs ctx width)
   congrArg ResourcePool.ofList (loadTargetPointInto_events refs path)
 
 /-- Placement-independent coordinate envelope of both actual centered calls. -/
-def eventEnvelope (width : Nat) : ResourcePool kind :=
+def eventEnvelope (width : Nat) : ResourcePool model :=
   LatticeTarget.eventEnvelope width + LatticeTarget.eventEnvelope width
 
 /-- Every actual target-point pool lies in the independent two-coordinate envelope. -/
@@ -80,7 +83,8 @@ theorem loadTargetPointInto_depth_le (refs : Refs ctx width)
 
 /-- Both actual coordinate calls preserve every original borrowed-reference correlation. -/
 theorem loadTargetPointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetPointInto refs).BorrowedRestored Reference state
       ((loadTargetPointInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -89,7 +93,7 @@ theorem loadTargetPointInto_borrowedRestored (refs : Refs ctx width) (Reference 
 
 /-- Both actual coordinate calls retain exactly the original complete context. -/
 theorem loadTargetPointInto_visited (refs : Refs ctx width)
-    (path : (loadTargetPointInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (loadTargetPointInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadTargetPointInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim

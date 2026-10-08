@@ -23,20 +23,20 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
 /-- Actual local sampling preserves every supported property of the retained selection pair. -/
 theorem underPersistent_latches_property
-    (code : Circuit ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
     (property : Bool × (CShape.unsignedWord scalarWidth).Value → Prop)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass →
       property ((entry.1.read
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool,
           entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)))
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (underPersistent code supported width scalarWidth).Path))
+      (model.HiddenState × (H × (underPersistent code supported width scalarWidth).Path)))
     (positive : 0 < (((underPersistent code supported width scalarWidth).execute
       Reference state).block result).mass) :
     property ((result.1.read
@@ -44,10 +44,11 @@ theorem underPersistent_latches_property
         result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)) := by
   classical
   have kept := retained_observation_supported (persistentCoordinates ctx width scalarWidth)
-    (persistentStores ctx width scalarWidth) (@persistentStores_mass kind ctx width scalarWidth)
+    (persistentStores ctx width scalarWidth)
+    (@persistentStores_mass model.kind ctx width scalarWidth)
     code (underPersistent code supported width scalarWidth)
     (underPersistentPathEquiv code supported width scalarWidth)
-    (@persistentCoordinates_execute kind ctx code supported width scalarWidth)
+    (@persistentCoordinates_execute model ctx code supported width scalarWidth)
     (fun history => decide (property (savedLatches width scalarWidth history))) true state
     (fun original positive => by
       apply decide_eq_true
@@ -55,6 +56,25 @@ theorem underPersistent_latches_property
         (holds original positive)) result positive
   have valid := of_decide_eq_true kept
   exact (congrArg property (persistentStores_latches width scalarWidth result.1)).mp valid
+
+/-- Local sampling preserves any supported predicate of the retained selected
+word, without requiring an identical word across input branches. -/
+theorem underPersistent_selected_property
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat)
+    (property : (CShape.unsignedWord scalarWidth).Value → Prop)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
+    (holds : ∀ entry, 0 < (state.block entry).mass →
+      property (entry.1.read
+        (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)))
+    (result : Store (persistentCtx ctx width scalarWidth) ×
+      (model.HiddenState × (H × (underPersistent code supported width scalarWidth).Path)))
+    (positive : 0 < (((underPersistent code supported width scalarWidth).execute
+      Reference state).block result).mass) :
+    property (result.1.read
+      (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)) := by
+  exact underPersistent_latches_property code supported width scalarWidth
+    (fun pair => property pair.2) state holds result positive
 
 end
 

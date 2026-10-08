@@ -38,7 +38,7 @@ private theorem readBorrowedCells_join_of_empty {kind : ProblemKind}
           cases role with
           | borrowedInput => simp [RuntimeEntry.borrowedClassicalCells] at parts
           | workspace | retained | finalOutput => exact ih first.2 parts.2
-      | borrowedLayout | ownedLayout | ownedCopies => exact ih first.2 parts.2
+      | borrowedLayout | suppliedLayout | ownedLayout | ownedCopies => exact ih first.2 parts.2
 
 variable {kind : ProblemKind} {left right : RuntimeCtx kind}
 

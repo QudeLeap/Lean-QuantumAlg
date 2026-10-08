@@ -27,70 +27,87 @@ open Execution ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual denominator seeding contains one increment and the original width-many left shifts. -/
-def preparationSeedEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordUnary .increment (width + 1))] ++
-    Word.PowerOfTwo.shiftTrace (width + 1) width
+def preparationSeedEvents (model : ExecutionModel) [BitWord.Selected model]
+    (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .increment (width + 1)))] ++
+    Word.PowerOfTwo.shiftTrace (model := model) (width + 1) width
 
 /-- The original seed is not repeated by either frequency scaling. -/
 theorem preparationSeed_eventTrace (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
-    (path : (scaleSeed denominator).Path) :
-    (scaleSeed denominator).eventTrace path = preparationSeedEvents kind width :=
-  congrArg (fun trace : List (Resource.Event kind) =>
-    ([.classicalOperation (.wordUnary .increment (width + 1))] :
-      List (Resource.Event kind)) ++ trace)
-    (Word.PowerOfTwo.shiftInto_events width denominator path.2)
+    (path : (scaleSeed (model := model) denominator).Path) :
+    (scaleSeed (model := model) denominator).eventTrace path = preparationSeedEvents model
+      width := by
+  change (BitWord.instruction (execution := model)
+    (Word.PowerOfTwo.incrementOp denominator)).eventTrace path.1 ++
+    (Word.PowerOfTwo.shiftInto (model := model) width denominator).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace, Word.PowerOfTwo.shiftInto_events]
+  rfl
 
 /-- The three final instructions include only the actually selected copy or subtraction. -/
 theorem preparationFinalize_eventTrace (refs : PreparationRefs ctx width)
-    (path : (preparationFinalize refs).Path) :
-    (preparationFinalize refs).eventTrace path =
-      [.classicalOperation (.wordResize (width + 1) width)] ++
-        negateEvents kind width path.2.2.1.toBool := by
-  rcases path with ⟨resizePath, testPath, value, branchPath⟩
-  cases value with
-  | bit bit => cases bit <;> rfl
+    (path : (preparationFinalize (model := model) refs).Path) :
+    (preparationFinalize (model := model) refs).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (width + 1) width))] ++
+        negateEvents model width path.2.2.1.toBool := by
+  change (BitWord.instruction (execution := model) refs.narrowOp).eventTrace path.1 ++
+    (negateBody (model := model) (scaleRead refs.modulus) (scaleRead refs.right)
+      (scaleRead refs.zero) refs.negationFlag refs.negatedRight).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace, negateBody_eventTrace]
+  rfl
 
 /-- Every actual preparation path has its original chronological component trace. -/
 theorem preparationBody_eventTrace (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
-    (refs : PreparationRefs ctx width) (path : (preparationBody spec input refs).Path) :
-    (preparationBody spec input refs).eventTrace path =
-      (((measuredDecodeInto input refs.decoded).eventTrace path.1.1.1 ++
-          Word.Split.splitTrace width width) ++
-        ((ConstantWord.circuit refs.modulusWide spec.modulus).eventTrace path.1.2.1 ++
-          preparationSeedEvents kind width)) ++
-        ((scaleBodyEvents kind width ++ scaleBodyEvents kind width) ++
-          ([.classicalOperation (.wordResize (width + 1) width)] ++
-            negateEvents kind width path.2.2.2.2.1.toBool)) := by
-  change (((measuredDecodeInto input refs.decoded).eventTrace path.1.1.1 ++
-      (Word.Split.splitInto refs.split).eventTrace path.1.1.2) ++
-    ((ConstantWord.circuit refs.modulusWide spec.modulus).eventTrace path.1.2.1 ++
-      (scaleSeed refs.denominator).eventTrace path.1.2.2)) ++
-    ((preparationScale refs).eventTrace path.2.1 ++
-      (preparationFinalize refs).eventTrace path.2.2) = _
-  rw [Word.Split.splitInto_events, preparationSeed_eventTrace, preparationFinalize_eventTrace]
-  rfl
+    (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
+      refs).Path) :
+    (preparationBody (model := model) spec input refs).eventTrace path =
+      (((measuredDecodeInto (model := model) input refs.decoded).eventTrace path.1.1.1 ++
+          Word.Split.splitTrace (model := model) width width) ++
+        ((ConstantWord.circuit (model := model) refs.modulusWide spec.modulus).eventTrace
+          path.1.2.1 ++
+          preparationSeedEvents model width)) ++
+        ((scaleBodyEvents (model := model) width ++ scaleBodyEvents (model := model) width) ++
+          ([.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (width + 1) width))] ++
+            negateEvents model width path.2.2.2.2.1.toBool)) := by
+  change (((measuredDecodeInto (model := model) input refs.decoded).eventTrace path.1.1.1 ++
+      (Word.Split.splitInto (model := model) refs.split).eventTrace path.1.1.2) ++
+    ((ConstantWord.circuit (model := model) refs.modulusWide spec.modulus).eventTrace path.1.2.1 ++
+      (scaleSeed (model := model) refs.denominator).eventTrace path.1.2.2)) ++
+    ((preparationScale (model := model) refs).eventTrace path.2.1 ++
+      (preparationFinalize (model := model) refs).eventTrace path.2.2) = _
+  have scaled : (preparationScale (model := model) refs).eventTrace path.2.1 =
+      scaleBodyEvents (model := model) width ++ scaleBodyEvents (model := model) width :=
+    scalePairBody_eventTrace (model := model) (scaleRead refs.rawLeft) (scaleRead refs.rawRight)
+      (scaleRead refs.modulusWide) (scaleRead refs.denominator)
+      refs.product refs.division refs.left refs.right path.2.1
+  rw [Word.Split.splitInto_events, preparationSeed_eventTrace, preparationFinalize_eventTrace,
+    scaled]
 
 /-- Seeding depends serially on its increment and each of the original left shifts. -/
 theorem preparationSeed_unitDepth (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
-    (path : (scaleSeed denominator).Path) :
-    (scaleSeed denominator).depth (fun _ => 1) path = width + 1 := by
-  change 1 + (Word.PowerOfTwo.shiftInto width denominator).depth (fun _ => 1) path.2 = _
+    (path : (scaleSeed (model := model) denominator).Path) :
+    (scaleSeed (model := model) denominator).depth (fun _ => 1) path = width + 1 := by
+  change 1 + (Word.PowerOfTwo.shiftInto (model := model) width denominator).depth (fun _ => 1)
+    path.2 = _
   rw [Word.PowerOfTwo.shiftInto_depth]
   omega
 
 /-- Exactly six dependent native operations execute across the original two scalings. -/
 theorem preparationScale_unitDepth (refs : PreparationRefs ctx width)
-    (path : (preparationScale refs).Path) :
-    (preparationScale refs).depth (fun _ => 1) path = 6 := rfl
+    (path : (preparationScale (model := model) refs).Path) :
+    (preparationScale (model := model) refs).depth (fun _ => 1) path = 6 := rfl
 
 /-- Either actual final branch has one resize, one equality and one arithmetic operation. -/
 theorem preparationFinalize_unitDepth (refs : PreparationRefs ctx width)
-    (path : (preparationFinalize refs).Path) :
-    (preparationFinalize refs).depth (fun _ => 1) path = 3 := by
+    (path : (preparationFinalize (model := model) refs).Path) :
+    (preparationFinalize (model := model) refs).depth (fun _ => 1) path = 3 := by
   rcases path with ⟨resizePath, testPath, value, branchPath⟩
   cases value with
   | bit bit => cases bit <;> rfl
@@ -98,17 +115,20 @@ theorem preparationFinalize_unitDepth (refs : PreparationRefs ctx width)
 /-- The original preparation bound includes the one actual finite-measurement packing operation. -/
 theorem preparationBody_unitDepth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
-    (refs : PreparationRefs ctx width) (path : (preparationBody spec input refs).Path) :
-    (preparationBody spec input refs).depth (fun _ => 1) path ≤ 8 * width + 15 := by
+    (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
+      refs).Path) :
+    (preparationBody (model := model) spec input refs).depth (fun _ => 1) path ≤ 8 * width + 15
+      := by
   have decoder := measuredDecodeInto_depth_le input refs.decoded (fun _ => 1) path.1.1.1
-  have loader := ConstantWord.constantWord_depth_le refs.modulusWide spec.modulus
+  have loader := ConstantWord.constantWord_depth_le (model := model) refs.modulusWide spec.modulus
     (fun _ => 1) path.1.2.1
-  change (((measuredDecodeInto input refs.decoded).depth (fun _ => 1) path.1.1.1 +
-      (Word.Split.splitInto refs.split).depth (fun _ => 1) path.1.1.2) +
-    ((ConstantWord.circuit refs.modulusWide spec.modulus).depth (fun _ => 1) path.1.2.1 +
-      (scaleSeed refs.denominator).depth (fun _ => 1) path.1.2.2)) +
-    ((preparationScale refs).depth (fun _ => 1) path.2.1 +
-      (preparationFinalize refs).depth (fun _ => 1) path.2.2) ≤ _
+  change (((measuredDecodeInto (model := model) input refs.decoded).depth (fun _ => 1) path.1.1.1 +
+      (Word.Split.splitInto (model := model) refs.split).depth (fun _ => 1) path.1.1.2) +
+    ((ConstantWord.circuit (model := model) refs.modulusWide spec.modulus).depth (fun _ => 1)
+      path.1.2.1 +
+      (scaleSeed (model := model) refs.denominator).depth (fun _ => 1) path.1.2.2)) +
+    ((preparationScale (model := model) refs).depth (fun _ => 1) path.2.1 +
+      (preparationFinalize (model := model) refs).depth (fun _ => 1) path.2.2) ≤ _
   rw [Word.Split.splitInto_depth, preparationSeed_unitDepth, preparationScale_unitDepth,
     preparationFinalize_unitDepth]
   omega

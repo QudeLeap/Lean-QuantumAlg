@@ -7,17 +7,17 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Division.SharedEEA.Program
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.InPlace.Placement
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Native.Budget
 import all QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Resources
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint.Resources
 
 /-!
 # Independent resources of actual shared-EEA division accumulation
 
 The width-only envelope charges both complete corrected EEA passes and
 all stages of the actual variable-product Gidney accumulator. Its entire
-shared frame, numerator, and target remain live. This word-only native core
-excludes fixed preparation and any supplied flag; runtime composition
+shared frame, numerator, and independent target remain live. This word-only native
+core excludes fixed preparation and any supplied flag; runtime composition
 must charge those actual additional retained systems and preparation event.
 -/
 
@@ -29,7 +29,7 @@ open Inversion.SharedEEA
 open Multiplication
 
 /-- Independent native-coordinate envelope for both EEA passes and the modular accumulator. -/
-def nativeBudget (width : Nat) : ResourcePool .quantum :=
+def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   NativeBudget.corrected width + (VariableGidney.nativeBudget width + NativeBudget.corrected width)
 
 /-- Independent count/depth cap without projecting the circuit under verification. -/
@@ -41,12 +41,7 @@ theorem divisionMiddle_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (middleProgram width modulus).eventTrace =
       (VariableGidney.program width modulus).eventTrace := by
   rw [middleProgram, EncodedBit.FullPlacement.place_eventTrace]
-  exact UnitaryCircuit.prodLeft_eventTrace _
-
-/-- The actual placed middle contains every frame, numerator, and target wire, with no addition. -/
-theorem divisionMiddle_physical (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (middleProgram width modulus).physical_idx = List.range (frameEncoding width).width := by
-  rw [middleProgram, EncodedBit.FullPlacement.place_physical]
+  exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace _ _
 
 /-- The placed middle has precisely the existing native accumulator's event pool. -/
 theorem divisionMiddle_cost (width : Nat) (modulus : Fin (2 ^ width + 1)) :
@@ -64,21 +59,38 @@ private theorem forward_cost (modulus : Nat) (nontrivial : 1 < modulus) :
       (CorrectedSchedule.program modulus nontrivial).eventCost :=
   UnitaryCircuit.prodLeft_eventCost (n := modulus.size + modulus.size) _
 
+private theorem oracleFreePool_empty
+    (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
+    AlgorithmGate.oracleFreePool .empty pool = pool := by
+  have identity : AlgorithmGate.oracleFreeEvent .empty = id := by
+    funext event
+    cases event with
+    | classicalOperation coordinate => cases coordinate
+    | classicalQuery coordinate => cases coordinate
+    | gate coordinate => rfl
+    | oracle coordinate => cases coordinate
+    | preparation dimension => rfl
+    | measurement dimension => rfl
+  change Multiset.map (AlgorithmGate.oracleFreeEvent .empty) pool = pool
+  rw [identity, Multiset.map_id]
+
 /-- The full actual event trace includes the same corrected forward and its complete reversal. -/
 theorem divisionProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace ++
         ((VariableGidney.program modulus.size
           (Inversion.SharedEEA.Accumulate.fittedModulus modulus)).eventTrace ++
-          (CorrectedSchedule.program modulus nontrivial).eventTrace.reverse) := by
+          ((forwardProgram modulus nontrivial).dagger
+            (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace) := by
   rw [program, UnitaryCircuit.seq_eventTrace, UnitaryCircuit.seq_eventTrace,
-    UnitaryCircuit.dagger_eventTrace, divisionMiddle_trace, forward_trace]
+    divisionMiddle_trace, forward_trace]
 
 /-- Coordinatewise native multiplicities account for the same full compute and uncompute. -/
 theorem divisionProgram_native_budget (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventCost ≤ nativeBudget modulus.size := by
   rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
-    UnitaryCircuit.dagger_eventCost, divisionMiddle_cost, forward_cost]
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
+    oracleFreePool_empty, divisionMiddle_cost, forward_cost]
   exact add_le_add (NativeBudget.corrected_bound modulus nontrivial)
     (add_le_add (VariableGidney.variableGidney_native_budget modulus.size
       (Inversion.SharedEEA.Accumulate.fittedModulus modulus))
@@ -88,7 +100,8 @@ theorem divisionProgram_native_budget (modulus : Nat) (nontrivial : 1 < modulus)
 theorem divisionProgram_event_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventCost.card ≤ eventBound modulus.size := by
   rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
-    UnitaryCircuit.dagger_eventCost, divisionMiddle_cost, forward_cost,
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
+    oracleFreePool_empty, divisionMiddle_cost, forward_cost,
     Multiset.card_add, Multiset.card_add]
   have forward := ForwardResources.corrected_count modulus nontrivial
   have middle := VariableGidney.variableGidney_event_count modulus.size
@@ -101,51 +114,11 @@ theorem divisionProgram_depth (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).evaluatedEventDepth (fun _ => 1) ≤ eventBound modulus.size :=
   (ShiftResources.unitDepth_le_count _).trans (divisionProgram_event_count modulus nontrivial)
 
-private theorem forward_within (modulus : Nat) (nontrivial : 1 < modulus) :
-    (forwardProgram modulus nontrivial).physical_idx ⊆
-      List.range (frameEncoding modulus.size).width :=
-  UnitaryCircuit.prodLeft_physical_idx_subset_range _
-    (InPlacePlacement.corrected_within modulus nontrivial)
-
-/-- Every frame, numerator, and target coordinate is present; no outside coordinate is addressed. -/
-theorem divisionProgram_physical (modulus : Nat) (nontrivial : 1 < modulus) (wire : Nat) :
-    wire ∈ (program modulus nontrivial).physical_idx ↔
-      wire < (frameEncoding modulus.size).width := by
-  have forward := forward_within modulus nontrivial
-  have backward := UnitaryCircuit.dagger_physical_idx_subset _ forward
-  constructor
-  · intro present
-    change wire ∈ (forwardProgram modulus nontrivial).physical_idx ∪
-      ((middleProgram modulus.size
-        (Inversion.SharedEEA.Accumulate.fittedModulus modulus)).physical_idx ∪
-        (forwardProgram modulus nontrivial).dagger.physical_idx) at present
-    rcases List.mem_union_iff.mp present with first | later
-    · exact List.mem_range.mp (forward first)
-    · rcases List.mem_union_iff.mp later with middle | last
-      · rw [divisionMiddle_physical] at middle
-        exact List.mem_range.mp middle
-      · exact List.mem_range.mp (backward last)
-  · intro within
-    change wire ∈ (forwardProgram modulus nontrivial).physical_idx ∪
-      ((middleProgram modulus.size
-        (Inversion.SharedEEA.Accumulate.fittedModulus modulus)).physical_idx ∪
-        (forwardProgram modulus nontrivial).dagger.physical_idx)
-    apply List.mem_union_right
-    apply List.mem_union_left
-    rw [divisionMiddle_physical]
-    exact List.mem_range.mpr within
-
-/-- Declared physical systems are exactly the complete shared frame, numerator, and target. -/
-theorem divisionProgram_qubit_count (modulus : Nat) (nontrivial : 1 < modulus) :
-    (program modulus nontrivial).physical_idx.length =
-      4 * modulus.size + 11 + 4 * modulus.size.size := by
-  have same : (program modulus nontrivial).physical_idx.Perm
-      (List.range (frameEncoding modulus.size).width) :=
-    (List.perm_ext_iff_of_nodup (program modulus nontrivial).physical_idx_nodup
-      List.nodup_range).mpr (fun wire =>
-        (divisionProgram_physical modulus nontrivial wire).trans List.mem_range.symm)
-  exact same.length_eq.trans
-    (List.length_range.trans (divisionFrame_width modulus.size))
+/-- The native circuit occupies the full declared frame and independent target layout. -/
+theorem divisionProgram_qubit_count (modulus : Nat) :
+    (frameEncoding modulus.size).width =
+      4 * modulus.size + 11 + 4 * modulus.size.size :=
+  divisionFrame_width modulus.size
 
 end
 

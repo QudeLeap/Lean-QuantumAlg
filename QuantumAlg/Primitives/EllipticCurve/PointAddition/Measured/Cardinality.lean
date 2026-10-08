@@ -24,50 +24,40 @@ noncomputable section
 
 open MAU.Inversion.SharedEEA MeasuredUncompute
 
-private theorem controlled_card (dimension : Nat) (pool : ResourcePool .quantum) :
-    (ResourcePool.controlForDimension dimension pool).card = pool.card :=
-  Multiset.card_map _ _
+private theorem controlled_card (control : OffsetControl) (count : Nat) :
+    (controlledBudget control count).card =
+      match control with | .supplied => 5 * count | .exceptional => 16 * count + 2 := by
+  cases control <;>
+    simp only [controlledBudget, cnotBudget, Multiset.card_add, Multiset.card_nsmul,
+      ResourcePool.singleton, Multiset.card_replicate] <;> ring
 
-private theorem offset_card : MAU.Addition.Gidney.offsetAlphabet.card = 6 := by
-  rw [MAU.Addition.Gidney.offsetAlphabet, Multiset.card_add, controlled_card]
-  rfl
-
-private theorem primitive_card : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
-
-private theorem variable_card (width : Nat) :
-    (MAU.Multiplication.VariableGidney.nativeBudget width).card =
-      6 * MAU.Multiplication.VariableGidney.eventBound width := by
-  simp only [MAU.Multiplication.VariableGidney.nativeBudget,
-    MAU.Multiplication.VariableGidney.stageBudget, Multiset.card_nsmul, controlled_card,
-    MAU.Multiplication.Accumulate.Gidney.nativeBudget,
-    MAU.Multiplication.Accumulate.Gidney.nativeAlphabet, offset_card,
-    MAU.Multiplication.VariableGidney.eventBound]
-  ring
-
-/-- The original five-stage independent event allowance has this scalar cardinality. -/
+/-- The scalar allowance includes every literal control expansion and exceptional toggle. -/
 theorem measuredPointAddition_budget_card (width : Nat) :
-    (events width).card = 24 * ForwardResources.inPlaceBound width +
-      42 * MAU.Multiplication.VariableGidney.eventBound width +
-      36 * MAU.Addition.Gidney.modularOffsetEventBound width +
-      6 * MAU.Addition.Gidney.pivotEventBound width +
-      6 * MAU.Addition.Gidney.comparisonEventBound width + 20 * width + 8 := by
+    (events width).card = 20 * ForwardResources.inPlaceBound width +
+      27 * MAU.Multiplication.VariableGidney.eventBound width +
+      41 * MAU.Addition.Gidney.modularOffsetEventBound width +
+      5 * MAU.Addition.Gidney.pivotEventBound width +
+      10 * MAU.Addition.Gidney.comparisonEventBound width + 28 * width + 18 := by
   simp only [events, Multiset.card_add,
     InPlaceControlled.controlledMeasuredArithmetic_budget_card]
   simp only [beforeBudget, middleBudget, afterBudget, offsetBudget, squareBudget,
-    selectorBudget, comparisonBudget, pivotBudget, cnotBudget, Multiset.card_add,
-    Multiset.card_nsmul, controlled_card, variable_card,
-    MAU.Addition.Gidney.modularOffsetNativeBudget, offset_card, primitive_card,
+    selectorBudget, comparisonBudget, pivotBudget, Multiset.card_add,
+    Multiset.card_nsmul, controlled_card, cnotBudget,
     ResourcePool.singleton, Multiset.card_replicate]
   ring
 
-/-- The same serial depth allowance retains the parallel Hadamards inside each measured call. -/
+/-- Accepted measured depths retain their parallel Hadamards; all native stages are serial. -/
 theorem measuredPointAddition_depthBound_eq (width : Nat) :
-    depthBound width = 24 * ForwardResources.inPlaceBound width +
-      37 * MAU.Multiplication.VariableGidney.eventBound width +
-      6 * MAU.Addition.Gidney.modularOffsetEventBound width +
-      MAU.Addition.Gidney.pivotEventBound width +
-      2 * MAU.Addition.Gidney.comparisonEventBound width + 18 * width + 10 := by
-  simp only [depthBound, InPlaceControlled.controlledMeasuredArithmetic_depthBound_eq]
+    depthBound width = 20 * ForwardResources.inPlaceBound width +
+      27 * MAU.Multiplication.VariableGidney.eventBound width +
+      41 * MAU.Addition.Gidney.modularOffsetEventBound width +
+      5 * MAU.Addition.Gidney.pivotEventBound width +
+      10 * MAU.Addition.Gidney.comparisonEventBound width + 26 * width + 20 := by
+  simp only [depthBound, InPlaceControlled.controlledMeasuredArithmetic_depthBound_eq,
+    beforeBudget, middleBudget, afterBudget, offsetBudget, squareBudget,
+    selectorBudget, comparisonBudget, pivotBudget, Multiset.card_add,
+    Multiset.card_nsmul, controlled_card, cnotBudget,
+    ResourcePool.singleton, Multiset.card_replicate]
   ring
 
 end

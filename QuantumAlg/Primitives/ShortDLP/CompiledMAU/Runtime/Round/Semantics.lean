@@ -35,8 +35,9 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
 private theorem seq_store_marginal {ctx : RuntimeCtx .quantum}
-    (first second : Circuit ctx ctx) {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx) :
+    (first second : Circuit model ctx ctx)
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx) :
     (ExecutionState.filterClassical ((Circuit.seq first second).execute Reference state)
       (fun entry => entry.1 = original)).quantumMarginal =
       (ExecutionState.filterClassical
@@ -44,16 +45,17 @@ private theorem seq_store_marginal {ctx : RuntimeCtx .quantum}
         (fun entry => entry.1 = original)).quantumMarginal := by
   let predicate := fun store : Store ctx => store = original
   let nested := second.execute Reference (first.execute Reference state)
-  let reassociate := fun history : (History × first.Path) × second.Path =>
-    (history.1.1, (history.1.2, history.2))
+  let reassociate := fun history : model.HiddenState × ((History × first.Path) × second.Path) =>
+    (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))
   have executed := congrArg
-    (fun output : State ctx Reference (History × (Circuit.seq first second).Path) =>
+    (fun output : State ctx Reference
+      (model.HiddenState × (History × (Circuit.seq first second).Path)) =>
       (output.filterClassical (fun entry => predicate entry.1)).quantumMarginal)
     (Circuit.execute_seq first second state)
   have filtered := congrArg ExecutionState.quantumMarginal
     (ZReset.filter_mapHistory (ctx := ctx) (Reference := Reference)
-      (History := (History × first.Path) × second.Path)
-      (Later := History × (first.Path × second.Path))
+      (History := model.HiddenState × ((History × first.Path) × second.Path))
+      (Later := model.HiddenState × (History × (first.Path × second.Path)))
       nested reassociate predicate)
   exact executed.trans (filtered.trans
     (State.mapHistory_quantumMarginal
@@ -87,7 +89,7 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx)
+    (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
       ((code m ell width sameWires parameter N generator target cells result).execute
@@ -105,8 +107,9 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
           ((RuntimePlacement.basisEquiv m ell width sameWires).symm
             (CompiledMAU.reloadLabel m ell width N)) right) := by
   let member := selected m ell width sameWires parameter N generator target
-  let measurement := Circuit.measurementSequence (readouts m ell width sameWires cells)
-  let pack := Circuit.classical (packing m ell width cells result)
+  let measurement : Circuit model ctx ctx :=
+    Circuit.measurementSequence (readouts m ell width sameWires cells)
+  let pack := BitWord.instruction (execution := model) (packing m ell width cells result)
   let finish := resetReload m ell width sameWires N
   let evolved := member.execute Reference state
   let measured := measurement.execute Reference evolved
@@ -129,7 +132,7 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
           (CompiledMAU.reloadLabel m ell width N)) right))
   have grouped := seq_store_marginal
     (Circuit.measurementSequence (readouts m ell width sameWires cells))
-    (.classical (packing m ell width cells result)) evolved original
+    (BitWord.instruction (packing m ell width cells result)) evolved original
   have entries := congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       ∑ basis : ctx.register.Index, density.matrix (basis, leftRef) (basis, rightRef)) grouped

@@ -72,10 +72,11 @@ attribute [local irreducible] NativeBatch.context NativeBatch.code
 
 private theorem first_output_on_source_support (input : Input N)
     (store : Store (NativeBatch.context base noQuantum N))
+    (hidden : RuntimeRound.model.HiddenState)
     (supported : (NativeBatch.run base noQuantum N).output.eval store ∈
       (NativeBatch.sourceDistribution input).support) :
     (NativeBatchRecovery.run base noQuantum input).output.eval
-        (NativeBatchRecovery.step base noQuantum input store).1 =
+        (NativeBatchRecovery.step base noQuantum input (store, hidden)).1.1 =
       NativeBatchRecovery.packedValue ((NativeBatch.run base noQuantum N).output.eval store) := by
   have readParameter : ((NativeBatch.run base noQuantum N).output.eval store).second.first =
       store.read (NativeBatch.finalParameter base noQuantum N) := by
@@ -87,13 +88,13 @@ private theorem first_output_on_source_support (input : Input N)
     (NativeBatchRecovery.sourceDistribution_parameter input _ supported)
   exact (NativeBatchRecovery.run_output base noQuantum input
     (NativeBatchRecovery.decodeSource ((NativeBatch.run base noQuantum N).output.eval store))
-    store parameterStored).trans
+    store hidden parameterStored).trans
     (NativeBatchRecovery.packedValue_sourceOutput base noQuantum store).symm
 
 /-- The actual first recovered factor has its full original reference kernel for any history. -/
 theorem first_weighted_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
@@ -107,7 +108,7 @@ theorem first_weighted_reference (input : Input N)
             factor).toReal : ℂ) * weight factor) leftRef rightRef := by
   let sourceState := (NativeBatch.code base noQuantum N).execute Reference state
   have supported (entry : Store (NativeBatch.context base noQuantum N) ×
-      (History × (NativeBatch.code base noQuantum N).Path))
+      (RuntimeRound.model.HiddenState × (History × (NativeBatch.code base noQuantum N).Path)))
       (positive : 0 < (sourceState.block entry).mass) :
       (NativeBatch.run base noQuantum N).output.eval entry.1 ∈
         (NativeBatch.sourceDistribution input).support :=
@@ -124,11 +125,12 @@ theorem first_weighted_reference (input : Input N)
     leftRef rightRef
   have recovered := NativeBatchReuseRecovery.reference_eq_on_support sourceState
     (fun entry _ => weight ((NativeBatchRecovery.run base noQuantum input).output.eval
-      (NativeBatchRecovery.step base noQuantum input entry.1).1))
+      (NativeBatchRecovery.step base noQuantum input (entry.1, entry.2.1)).1.1))
     (fun entry _ => weight (NativeBatchRecovery.packedValue
       ((NativeBatch.run base noQuantum N).output.eval entry.1)))
     (fun entry positive _ => congrArg weight
-      (first_output_on_source_support base noQuantum input entry.1 (supported entry positive)))
+      (first_output_on_source_support base noQuantum input entry.1 entry.2.1
+        (supported entry positive)))
     leftRef rightRef
   have sourceLaw := NativeBatch.nativeBatch_output_weighted_reference base noQuantum input state
     (fun output => weight (NativeBatchRecovery.packedValue output)) leftRef rightRef
@@ -145,7 +147,7 @@ theorem first_weighted_reference (input : Input N)
 /-- All actual chronological factors have the original vector kernel in every reference entry. -/
 theorem code_weighted_reference (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (CShape.fixedVector (count + 1)
       (LatticeBatchRecoveryOutput.OutputShape N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
@@ -199,20 +201,17 @@ theorem code_weighted_reference (input : Input N) (count : Nat)
 
 /-- The actual complete run reads exactly the independent chronological typed factor vector. -/
 theorem run_outputDistribution (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification count).outputDistribution input =
       (PMF.independentReplicateVector
         ((sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue)
         (count + 1)).map (fun values => CShape.Value.fixedVector values.get) := by
   let program := run base noQuantum specification count
-  let entered : State base Reference (Store base) :=
-    input.state.mapClassical (fun store => (store, store))
+  let entered : State base Reference (RuntimeRound.model.HiddenState × Store base) :=
+    input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have enter : program.execute Reference input.state =
-      (code base noQuantum specification count).execute Reference entered := by
-    unfold AlgorithmRun.execute
-    apply congrArg (fun state : State base Reference (Store base) =>
-      (code base noQuantum specification count).execute Reference state)
-    congr 1
+      (code base noQuantum specification count).execute Reference entered := rfl
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum input.state
     (program.execute Reference input.state) input.normalized (program.execute_normalized input)
     program.result _
@@ -234,7 +233,7 @@ theorem run_outputDistribution (specification : Input N) (count : Nat)
         (count + 1)).map (fun values => CShape.Value.fixedVector values.get)) selected)
   exact actual.trans (observed.trans (collapsed.trans
     (ExecutionState.referenceFiberSum_mapClassical input.state
-      (fun store => (store, store)) (fun _ _ => _) leftRef rightRef)))
+      (fun entry => (entry.1, (entry.2, entry.1))) (fun _ _ => _) leftRef rightRef)))
 
 end
 

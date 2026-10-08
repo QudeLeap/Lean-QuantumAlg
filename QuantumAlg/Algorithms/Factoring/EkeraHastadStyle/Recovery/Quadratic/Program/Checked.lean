@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width resultWidth : Nat}
 
 /-- The actual checked pair runs before the actual converted persistent selection. -/
 def checkedBodyStep (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
@@ -46,31 +47,14 @@ theorem nativeQuadratic_checkedBody_execute
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (LocalLayout.context ctx width) Reference History) :
+    (state : State (LocalLayout.context ctx width) Reference (model.HiddenState × History)) :
     (checkedBody modulus original).execute Reference state = state.mapClassical (fun entry =>
       ((checkedBodyStep modulus original entry.1).1,
-        (entry.2, (checkedBodyStep modulus original entry.1).2))) := by
-  let pair := LocalLayout.pairRefs modulus
-  let eligible := FirstAccepted.cellRead pair.selection.accepted
-  let candidate := FirstAccepted.cellRead pair.selection.selected
-  let persistent := LocalLayout.persistentRefs original width
-  refine (Circuit.execute_seq_mapClassical (Pair.code pair)
-    (NarrowSelection.code eligible candidate persistent) (Pair.step pair)
-    (NarrowSelection.step eligible candidate persistent)
-    (Pair.nativeQuadratic_pair_execute pair)
-    (NarrowSelection.nativeQuadratic_narrow_execute eligible candidate persistent)
-    Reference state).trans ?_
-  dsimp only [checkedBodyStep]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (LocalLayout.context ctx width) × History)
-    (D := Store (LocalLayout.context ctx width) ×
-      (History × (checkedBody modulus original).Path))
-    (R := Register.prod (LocalLayout.context ctx width).register Reference) _ state _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (LocalLayout.context ctx width) × History)
-    (D := Store (LocalLayout.context ctx width) ×
-      (History × (checkedBody modulus original).Path))
-    (R := Register.prod (LocalLayout.context ctx width).register Reference) _ state _).symm
+        (entry.2.1, (entry.2.2, (checkedBodyStep modulus original entry.1).2)))) := by
+  simp only [checkedBody, Circuit.execute_seq, Pair.nativeQuadratic_pair_execute,
+    NarrowSelection.nativeQuadratic_narrow_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

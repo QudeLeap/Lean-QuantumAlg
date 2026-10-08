@@ -24,9 +24,12 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent native source-basis and selected target instruction formula. -/
 def decodeTargetTrace (N : Nat) (bits : List Bool × List Bool) (negates : Bool × Bool) :
-    List (Resource.Event kind) :=
+    List (Resource.Event model) :=
   LatticeWideInitializationPrefix.decodeBasisTrace N bits.1 bits.2 ++
     LatticeWideTargetMachine.targetTrace (shortLogBits N) (tradeoffBits N) (Width N)
       negates.1 negates.2
@@ -51,7 +54,7 @@ theorem decodeTargetInto_events (refs : Refs ctx N) (path : (decodeTargetInto re
 
 /-- Independent initialization formula after original source and target loading. -/
 def initializeTrace (N : Nat) (bits : List Bool × List Bool) (negates : Bool × Bool) :
-    List (Resource.Event kind) :=
+    List (Resource.Event model) :=
   decodeTargetTrace N bits negates ++ LatticeFixedFuelMachine.refreshResetTrace (Width N)
 
 /-- Actual source-to-LLL initialization emits its independent complete native formula. -/
@@ -64,7 +67,7 @@ theorem initializeWideInto_events (refs : Refs ctx N) (path : (initializeWideInt
 /-- Independent complete formula at the original prescribed public recovery fuel. -/
 def pairToLllTrace (N : Nat) (bits : List Bool × List Bool) (negates : Bool × Bool)
     (decisions : Fin (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) →
-      LatticeFixedFuelMachine.StepDecisions) : List (Resource.Event kind) :=
+      LatticeFixedFuelMachine.StepDecisions) : List (Resource.Event model) :=
   decodeTargetTrace N bits negates ++ (LatticeFixedFuelMachine.refreshResetTrace (Width N) ++
     LatticeFixedFuelMachine.fixedFuelTrace
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) (Width N) decisions)
@@ -134,7 +137,8 @@ theorem pairToLllInto_depth_le (refs : Refs ctx N) (path : (pairToLllInto refs).
 
 /-- Actual source and target loading preserve every original borrowed-reference correlation. -/
 theorem decodeTargetInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodeTargetInto refs).BorrowedRestored Reference state
       ((decodeTargetInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -144,7 +148,8 @@ theorem decodeTargetInto_borrowedRestored (refs : Refs ctx N) (Reference : Regis
 
 /-- The actual complete source-to-LLL run restores the full borrowed-reference joint state. -/
 theorem pairToLllInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairToLllInto refs).BorrowedRestored Reference state
       ((pairToLllInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (decodeTargetInto_borrowedRestored refs Reference state)
@@ -154,7 +159,8 @@ theorem pairToLllInto_borrowedRestored (refs : Refs ctx N) (Reference : Register
 
 /-- Every actual source and target instruction retains the complete original supplied context. -/
 theorem decodeTargetInto_visited (refs : Refs ctx N) (path : (decodeTargetInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (decodeTargetInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (decodeTargetInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim
@@ -163,7 +169,8 @@ theorem decodeTargetInto_visited (refs : Refs ctx N) (path : (decodeTargetInto r
 
 /-- Every actual instruction in the complete source-to-LLL run retains the original full context. -/
 theorem pairToLllInto_visited (refs : Refs ctx N) (path : (pairToLllInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (pairToLllInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (pairToLllInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim (decodeTargetInto_visited refs path.1 visited)

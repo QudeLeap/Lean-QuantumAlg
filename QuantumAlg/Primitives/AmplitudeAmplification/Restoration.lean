@@ -34,20 +34,27 @@ private instance pre_borrowedSubsingleton : Subsingleton pre.borrowedClassicalSh
     cases right
     rfl
 
-theorem preparationCode_borrowedRestored (n k : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H) :
-    (preparationCode n k).BorrowedRestored Reference state
-      ((preparationCode n k).execute Reference state) :=
-  Circuit.borrowedRestored_prepare_noBorrowedQuantum rfl state ⟨0⟩ (runtimeLayout n k)
-    preparationFresh (preparationDisjoint n k) (inputPreparation n k)
+theorem preparationCode_borrowedRestored {n : Nat}
+    (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
+    (preparationCode M k).BorrowedRestored Reference state
+      ((preparationCode M k).execute Reference state) :=
+  Circuit.borrowedRestored_prepareZero_noBorrowedQuantum rfl state ⟨0⟩ (runtimeLayout n k)
+    preparationFresh (preparationDisjoint n k)
 
 /-- Every actual complete run preserves the same external reference. -/
 theorem code_borrowedRestored {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H) :
-    (code M k).BorrowedRestored Reference state ((code M k).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (preparationCode_borrowedRestored n k state)
-    (Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
-      (nativeProgram M k) (nativeProgram_placement M k) _)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
+    (code M k).BorrowedRestored Reference state ((code M k).execute Reference state) := by
+  have unitaryRestores := Circuit.borrowedRestored_unitary_noBorrowed
+    (operations := .empty) (classicalOracles := .empty)
+    (ctx := post n k) rfl rfl (nativeProgram M k)
+    ((preparationCode M k).execute Reference state)
+  exact Circuit.borrowedRestored_seq (model := model M) (preparationCode M k)
+    (.unitary (nativeProgram M k)) state (preparationCode_borrowedRestored M k state)
+    unitaryRestores
 
 end
 

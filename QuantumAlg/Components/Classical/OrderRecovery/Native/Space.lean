@@ -23,7 +23,9 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 
 open ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth width phaseBits : Nat}
+noncomputable section
+
+variable {kind : ProblemKind} {modulusWidth width phaseBits : Nat}
 
 private def Fits (outer inner : RuntimeCtx kind) (bits : Nat) : Prop :=
   inner.residentSpace ≤ outer.residentSpace + SpacePool.ofShape (.bits bits) ∧
@@ -60,21 +62,26 @@ private theorem fits_workspace (ctx : RuntimeCtx kind) (key : StorageKey) (shape
     Fits ctx (ctx.addWorkspace key shape fresh) shape.bitWidth := by
   constructor <;> intro axis <;> cases axis <;> simp [SpacePool.ofShape] <;> omega
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem candidate_visited_fit
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
-    (path : (candidatePrefix numerator denominator previous older division candidate).Path)
-    (visited : RuntimeCtx kind)
+    (path : (candidatePrefix (model := model) numerator denominator previous older division
+      candidate).Path)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈
-      (candidatePrefix numerator denominator previous older division candidate).visitedContexts
+      (candidatePrefix (model := model) numerator denominator previous older division
+        candidate).visitedContexts
         path) :
     Fits ctx visited width := by
   have member : visited ∈ [ctx, ctx,
       ctx.addWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh,
       ctx.addWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh,
       ctx] := by
-    simpa only [candidatePrefix, scopedContinuant, continuantBody, Circuit.visitedContexts,
+    simpa only [candidatePrefix, scopedContinuant, continuantBody, BitWord.instruction,
+      Circuit.visitedContexts,
       List.cons_append, List.nil_append] using present
   simp only [List.mem_cons, List.not_mem_nil, or_false] at member
   rcases member with rfl | rfl | rfl | rfl | rfl
@@ -85,14 +92,16 @@ private theorem validation_visited_fit (spec : ModulusSpec modulusWidth)
     (candidate zero : CInputRef ctx (.unsignedWord width))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
     (power : CWriteRef ctx (.unsignedWord modulusWidth)) (positive valid : CWriteRef ctx .bit)
-    (path : (validate spec base candidate zero one power positive valid).Path)
-    (visited : RuntimeCtx kind)
+    (path : (validate (model := model) spec base candidate zero one power positive valid).Path)
+    (visited : RuntimeCtx model.kind)
     (present : visited ∈
-      (validate spec base candidate zero one power positive valid).visitedContexts
+      (validate (model := model) spec base candidate zero one power positive valid).visitedContexts
       path) : Fits ctx visited (8 * modulusWidth + 2) := by
-  have member : visited ∈ (Modular.NativePower.into spec base candidate power).visitedContexts
+  have member : visited ∈ (Modular.NativePower.into (model := model) spec base candidate
+    power).visitedContexts
       path.1 ++ [ctx, ctx, ctx] := by
-    simpa only [validate, validationChecks, Circuit.visitedContexts, List.cons_append,
+    simpa only [validate, validationChecks, BitWord.instruction,
+      Circuit.visitedContexts, List.cons_append,
       List.nil_append] using present
   rcases List.mem_append.mp member with powered | unchanged
   · have choices := Modular.NativePower.nativePower_into_visited spec base candidate power
@@ -100,7 +109,7 @@ private theorem validation_visited_fit (spec : ModulusSpec modulusWidth)
     simp only [List.mem_cons, List.not_mem_nil, or_false] at choices
     rcases choices with rfl | rfl | rfl | rfl | rfl | rfl
     all_goals
-      constructor <;> intro axis <;> cases axis <;>
+      constructor <;> intro axis <;> cases model <;> cases axis <;>
         simp [Modular.NativePower.modulusCtx, Modular.NativePower.baseCtx,
           Modular.NativePower.powerCtx, Modular.NativePower.productCtx,
           Modular.NativePower.divisionCtx, Modular.NativePower.divisionShape,
@@ -111,8 +120,9 @@ private theorem validation_visited_fit (spec : ModulusSpec modulusWidth)
 
 private theorem selection_visited_same (cells : ScanCells ctx modulusWidth width)
     (remainder : CInputRef ctx (.unsignedWord width))
-    (path : (selectCandidate cells remainder).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (selectCandidate cells remainder).visitedContexts path) :
+    (path : (selectCandidate (model := model) cells remainder).Path) (visited : RuntimeCtx
+      model.kind)
+    (present : visited ∈ (selectCandidate (model := model) cells remainder).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -127,16 +137,21 @@ private theorem visit_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (path : (visitWithDivision spec base cells division).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (visitWithDivision spec base cells division).visitedContexts path) :
+    (path : (visitWithDivision (model := model) spec base cells division).Path) (visited :
+      RuntimeCtx model.kind)
+    (present : visited ∈ (visitWithDivision (model := model) spec base cells
+      division).visitedContexts path) :
     Fits ctx visited (max width (8 * modulusWidth + 2)) := by
   change visited ∈
-    (candidatePrefix (cellRead cells.cursor.numerator) (cellRead cells.cursor.denominator)
+    (candidatePrefix (model := model) (cellRead cells.cursor.numerator) (cellRead
+      cells.cursor.denominator)
       (cellRead cells.cursor.previous) (cellRead cells.cursor.older) division
       cells.cursor.candidate).visitedContexts path.1 ++
-    ((validate spec base (cellRead cells.cursor.candidate) cells.zero cells.one cells.power
+    ((validate (model := model) spec base (cellRead cells.cursor.candidate) cells.zero cells.one
+      cells.power
       cells.positive cells.valid).visitedContexts path.2.1 ++
-      (selectCandidate cells (.second (cellRead division))).visitedContexts path.2.2) at present
+      (selectCandidate (model := model) cells (.second (cellRead division))).visitedContexts
+        path.2.2) at present
   rcases List.mem_append.mp present with first | rest
   · exact fits_mono (candidate_visited_fit _ _ _ _ _ _ path.1 visited first) (Nat.le_max_left _ _)
   · rcases List.mem_append.mp rest with validated | selected
@@ -147,11 +162,13 @@ private theorem visit_visited_fit (spec : ModulusSpec modulusWidth)
 
 private theorem active_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth width) (path : (activeVisit spec base cells).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (activeVisit spec base cells).visitedContexts path) :
+    (cells : ScanCells ctx modulusWidth width) (path : (activeVisit (model := model) spec base
+      cells).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (activeVisit (model := model) spec base cells).visitedContexts path) :
     Fits ctx visited (2 * width + max width (8 * modulusWidth + 2)) := by
-  change visited ∈ ctx :: ((placedVisit spec base cells).visitedContexts path ++ [ctx]) at present
+  change visited ∈ ctx :: ((placedVisit (model := model) spec base cells).visitedContexts path ++
+    [ctx]) at present
   rcases List.mem_cons.mp present with rfl | later
   · exact fits_self _ _
   · rcases List.mem_append.mp later with inner | released
@@ -166,9 +183,10 @@ private theorem active_visited_fit (spec : ModulusSpec modulusWidth)
 
 private theorem slot_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth width) (path : (scanSlot spec base cells).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (scanSlot spec base cells).visitedContexts path) :
+    (cells : ScanCells ctx modulusWidth width) (path : (scanSlot (model := model) spec base
+      cells).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (scanSlot (model := model) spec base cells).visitedContexts path) :
     Fits ctx visited (2 * width + max width (8 * modulusWidth + 2)) := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -182,11 +200,11 @@ private theorem slot_visited_fit (spec : ModulusSpec modulusWidth)
 private theorem scan_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (count : Nat)
-    (path : (scan spec base cells count).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (scan spec base cells count).visitedContexts path) :
+    (path : (scan (model := model) spec base cells count).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (scan (model := model) spec base cells count).visitedContexts path) :
     Fits ctx visited (2 * width + max width (8 * modulusWidth + 2)) := by
   change visited ∈ ctx :: (List.ofFn (fun index : Fin count =>
-    (scanSlot spec base cells).visitedContexts (path index))).flatten at present
+    (scanSlot (model := model) spec base cells).visitedContexts (path index))).flatten at present
   rcases List.mem_cons.mp present with rfl | repeated
   · exact fits_self _ _
   · rcases List.mem_flatten.mp repeated with ⟨contexts, member, contains⟩
@@ -194,17 +212,22 @@ private theorem scan_visited_fit (spec : ModulusSpec modulusWidth)
     exact slot_visited_fit spec base cells (path index) visited contains
 
 private theorem initialization_visited_same (sample : CInputRef ctx (.bits phaseBits))
-    (path : (initializeScan ctx modulusWidth phaseBits sample).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (initializeScan ctx modulusWidth phaseBits sample).visitedContexts path) :
+    (path : (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path) (visited :
+      RuntimeCtx model.kind)
+    (present : visited ∈ (initializeScan (model := model) ctx modulusWidth phaseBits
+      sample).visitedContexts path) :
     visited = recoveryContext ctx modulusWidth (phaseBits + 1) := by
-  have member : visited ∈ (decodeInitialNumerator ctx modulusWidth phaseBits sample).visitedContexts
+  have member : visited ∈ (decodeInitialNumerator (model := model) ctx modulusWidth phaseBits
+    sample).visitedContexts
       path.1 ++
-      ((ConstantWord.circuit (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
+      ((ConstantWord.circuit (model := model) (recoveryCells ctx modulusWidth (phaseBits +
+        1)).cursor.denominator
         (2 ^ phaseBits)).visitedContexts path.2.1 ++
         [recoveryContext ctx modulusWidth (phaseBits + 1),
           recoveryContext ctx modulusWidth (phaseBits + 1),
           recoveryContext ctx modulusWidth (phaseBits + 1)]) := by
-    simpa only [initializeScan, Circuit.visitedContexts, List.cons_append, List.nil_append]
+    simpa only [initializeScan, BitWord.instruction, Circuit.visitedContexts,
+      List.cons_append, List.nil_append]
       using present
   rcases List.mem_append.mp member with decoded | later
   · exact TerminalDecode.terminalDecode_fold_visited
@@ -222,12 +245,15 @@ private theorem body_visited_fit
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (recoveryBody spec base sample output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (recoveryBody spec base sample output).visitedContexts path) :
+    (path : (recoveryBody (model := model) spec base sample output).Path) (visited : RuntimeCtx
+      model.kind)
+    (present : visited ∈ (recoveryBody (model := model) spec base sample output).visitedContexts
+      path) :
     Fits (recoveryContext ctx modulusWidth (phaseBits + 1)) visited
       (2 * (phaseBits + 1) + max (phaseBits + 1) (8 * modulusWidth + 2)) := by
-  change visited ∈ (initializeScan ctx modulusWidth phaseBits sample).visitedContexts path.1 ++
-    ((scan spec.modulusSpec
+  change visited ∈ (initializeScan (model := model) ctx modulusWidth phaseBits
+    sample).visitedContexts path.1 ++
+    ((scan (model := model) spec.modulusSpec
       (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
       (recoveryCells ctx modulusWidth (phaseBits + 1))
       (ClassicalAlgorithms.OrderRecovery.finiteCandidateFuel phaseBits)).visitedContexts
@@ -243,16 +269,18 @@ private theorem body_visited_fit
 private def fieldBits (modulusWidth width : Nat) (fields : List RecoveryField) : Nat :=
   (fields.map (fun field => (recoveryFieldShape modulusWidth width field).bitWidth)).sum
 
-private theorem scope_visited_fit (ctx : RuntimeCtx kind) (modulusWidth width : Nat)
+omit [BitWord.Selected model] in
+private theorem scope_visited_fit (ctx : RuntimeCtx model.kind) (modulusWidth width : Nat)
     (fields : List RecoveryField)
-    (body : Circuit (fieldsContext ctx modulusWidth width fields)
+    (body : Circuit model (fieldsContext ctx modulusWidth width fields)
       (fieldsContext ctx modulusWidth width fields)) (extra : Nat)
-    (bounded : ∀ (path : body.Path) (visited : RuntimeCtx kind),
+    (bounded : ∀ (path : body.Path) (visited : RuntimeCtx model.kind),
       visited ∈ body.visitedContexts path →
         Fits (fieldsContext ctx modulusWidth width fields) visited extra)
-    (path : (scopeRecoveryFields ctx modulusWidth width fields body).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (scopeRecoveryFields ctx modulusWidth width fields body).visitedContexts
+    (path : (scopeRecoveryFields (model := model) ctx modulusWidth width fields body).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (scopeRecoveryFields (model := model) ctx modulusWidth width fields
+      body).visitedContexts
       path) : Fits ctx visited (fieldBits modulusWidth width fields + extra) := by
   induction fields generalizing ctx with
   | nil =>
@@ -282,14 +310,14 @@ theorem nativeRecovery_into_visited_space_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (into spec base sample output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (into spec base sample output).visitedContexts path) :
+    (path : (into (model := model) spec base sample output).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (into (model := model) spec base sample output).visitedContexts path) :
     visited.residentSpace ≤ ctx.residentSpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) ∧
       visited.auxiliarySpace ≤ ctx.auxiliarySpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) := by
   have actual := scope_visited_fit ctx modulusWidth (phaseBits + 1) recoveryFields
-    (recoveryBody spec base sample output)
+    (recoveryBody (model := model) spec base sample output)
     (2 * (phaseBits + 1) + max (phaseBits + 1) (8 * modulusWidth + 2))
     (body_visited_fit spec base sample output) path visited present
   have budgetEq : fieldBits modulusWidth (phaseBits + 1) recoveryFields +
@@ -305,8 +333,8 @@ theorem nativeRecovery_into_resident_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (into spec base sample output).Path) :
-    (into spec base sample output).peakResidentSpace path ≤
+    (path : (into (model := model) spec base sample output).Path) :
+    (into (model := model) spec base sample output).peakResidentSpace path ≤
       ctx.residentSpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -318,12 +346,14 @@ theorem nativeRecovery_into_auxiliary_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (into spec base sample output).Path) :
-    (into spec base sample output).peakAuxiliarySpace path ≤
+    (path : (into (model := model) spec base sample output).Path) :
+    (into (model := model) spec base sample output).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace +
         SpacePool.ofShape (.bits (extraClassicalBits modulusWidth phaseBits)) := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   exact (nativeRecovery_into_visited_space_le spec base sample output path visited present).2
+
+end
 
 end QuantumAlg.ClassicalRoutines.OrderRecovery.Native

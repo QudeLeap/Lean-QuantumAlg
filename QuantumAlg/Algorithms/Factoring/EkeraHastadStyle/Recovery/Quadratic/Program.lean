@@ -24,12 +24,15 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width resultWidth : Nat}
 
 /-- Both complete checks and local selection precede the actual persistent result update. -/
 def checkedBody (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) :
-    Circuit (LocalLayout.context ctx width) (LocalLayout.context ctx width) :=
+    Circuit model (LocalLayout.context ctx width) (LocalLayout.context ctx width) :=
   let pair := LocalLayout.pairRefs modulus
   .seq (Pair.code pair)
     (NarrowSelection.code (FirstAccepted.cellRead pair.selection.accepted)
@@ -39,7 +42,8 @@ def checkedBody (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth 
 def candidateBody (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) :
-    Circuit (LocalLayout.candidateContext ctx width) (LocalLayout.candidateContext ctx width) :=
+    Circuit model (LocalLayout.candidateContext ctx width)
+      (LocalLayout.candidateContext ctx width) :=
   .seq (Initialized.code (LocalLayout.arithmeticRead input width)
     (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width))
     (CheckLayout.scopes (LocalLayout.candidateContext ctx width) (RSA.quadraticWordWidth width)
@@ -49,9 +53,11 @@ def candidateBody (input : CInputRef ctx (.unsignedWord width))
 -/
 def program (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
-    (original : FirstAccepted.Refs ctx resultWidth) : Circuit ctx ctx :=
+    (original : FirstAccepted.Refs ctx resultWidth) : Circuit model ctx ctx :=
   SelectionLayout.scopes ctx (RSA.quadraticWordWidth width)
     (Layout.scopes (LocalLayout.selectionContext ctx width) width
       (candidateBody input modulus original))
+
+end
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic

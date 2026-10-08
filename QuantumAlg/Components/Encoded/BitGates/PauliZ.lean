@@ -8,19 +8,19 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.Hadamard.Coordinates
 import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.Circuit
-import all QuantumAlg.Components.Gates
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import Batteries.Data.List.Lemmas
+import all QuantumAlg.Components.Gates.SingleQubit.Diagonal
+import all QuantumAlg.Components.Gates.Construction
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.Layout.Qubit
+import all QuantumAlg.Util.FinPow.BinaryBasis
 
 /-!
-# Addressed Pauli Z and its exact global-minus commutator
+# Native Pauli Z and exact global phase
 
-The existing Pauli-Z leaf acts on one original coordinate, with identity on
-the remaining wires. The literal X, Z, X, Z sequence has full operator phase
-minus one on every encoded input; this phase is retained before quantum
-control, rather than discarded as a projective-state equivalence.
+Both operations use the default model's arbitrary one-qubit declaration at
+the original encoded wire. The exact minus-identity operator is one native
+instruction. No projective equivalence discards its phase before control.
 -/
 
 namespace QuantumAlg.EncodedBit
@@ -29,104 +29,78 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 
-/-- The standard Pauli-Z leaf addressed to one encoded physical coordinate. -/
-def pauliZ (target : EncodedBit encoding) : UnitaryCircuit (Qubits encoding.width) :=
-  let localGate := UnitaryCircuit.ofLeaf (Gate.pauliZLeafAt [target.wire.val]) (by
-    change [target.wire.val].Nodup
-    simp)
-  UnitaryCircuit.reindex target.targetBasisEquiv.symm
-    (UnitaryCircuit.tensor localGate
-      (UnitaryCircuit.identity target.RemainingRegister [] List.nodup_nil)
-      { left_nodup := localGate.physical_idx_nodup
-        right_nodup := List.nodup_nil
-        disjoint := List.disjoint_nil_right _ })
+/-- The native one-qubit Z operator on the supplied physical encoded wire. -/
+def pauliZ (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
+  Gate.singleQubitAt layout.toQuantum oracles Gate.ZOp target.wire rfl
 
-/-- A Pauli-Z occurrence touches exactly the original target wire. -/
-theorem pauliZ_physical_idx (target : EncodedBit encoding) :
-    target.pauliZ.physical_idx = [target.wire.val] := rfl
+/-- Pauli Z contributes one default-model single-qubit event. -/
+theorem pauliZ_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) :
+    (target.pauliZ layout oracles).eventTrace = [.gate .singleQubit] := rfl
 
-/-- Pauli Z retains its existing native declaration coordinate. -/
-theorem pauliZ_eventTrace (target : EncodedBit encoding) :
-    target.pauliZ.eventTrace =
-      [Gate.atomicEvent (.declared "QuantumAlg.Components.Gate" "pauli-z")] := rfl
+private theorem z_diagonal (row column : Fin 2) :
+    Gate.ZOp row column =
+      if row = column then (if column = 1 then (-1 : ℂ) else 1) else 0 := by
+  fin_cases row <;> fin_cases column <;> rfl
 
-private theorem pauliZ_entry (target : EncodedBit encoding)
-    (row column : (Qubits encoding.width).Index) :
-    target.pauliZ.matrix row column =
-      Gate.ZOp (target.targetBasisEquiv row).1 (target.targetBasisEquiv column).1 *
-        if (target.targetBasisEquiv row).2 = (target.targetBasisEquiv column).2
-          then 1 else 0 := by
-  unfold pauliZ
-  rw [UnitaryCircuit.reindex_matrix, UnitaryOperator.coe_reindex,
-    Matrix.reindex_apply, Matrix.submatrix_apply]
-  rfl
+private theorem encoded_bit (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (state : Data) :
+    layout.basisEquiv.symm (encoding.encode state) target.wire =
+      finTwoEquiv.symm (target.get state) :=
+  target.targetBasisEquiv_first state
 
-private theorem pauliZ_diagonal (value : Bool) :
-    Gate.ZOp (finTwoEquiv.symm value) (finTwoEquiv.symm value) =
-      if value then -1 else 1 := by
-  cases value <;> rfl
-
-private theorem pauliZ_offDiagonal (value : Bool) :
-    Gate.ZOp (finTwoEquiv.symm (!value)) (finTwoEquiv.symm value) = 0 := by
-  cases value <;> rfl
-
-private theorem encoded_flip_ne (target : EncodedBit encoding) (state : Data) :
-    encoding.encode (target.flip state) ≠ encoding.encode state := by
-  intro same
-  have bitSame := congrArg target.get (encoding.encode_injective same)
-  rw [get_flip_self] at bitSame
-  cases value : target.get state <;> simp [value] at bitSame
-
-/-- Exact sign on each complete encoded basis label. -/
-theorem pauliZ_applyVec_encoded_ket (target : EncodedBit encoding) (state : Data) :
-    target.pauliZ.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+/-- Exact phase on every full physical ket of the original semantic encoding. -/
+theorem pauliZ_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
+    (target.pauliZ layout oracles).applyVec
+        (NormalizedVector.ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec =
       (if target.get state then (-1 : ℂ) else 1) •
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
-  ext label
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
-    HilbertOperator.applyVec_ket, pauliZ_entry]
-  by_cases same : (target.targetBasisEquiv label).2 =
-      (target.targetBasisEquiv (encoding.encode state)).2
-  · rcases target.targetBasisEquiv_fiber state label same with original | flipped
-    · subst label
-      rw [targetBasisEquiv_first, pauliZ_diagonal]
-      cases target.get state <;> simp [NormalizedVector.ket_apply]
-    · subst label
-      rw [targetBasisEquiv_flip, targetBasisEquiv_first, pauliZ_offDiagonal]
-      cases target.get state <;>
-        simp [NormalizedVector.ket_apply, encoded_flip_ne target state]
-  · have original : label ≠ encoding.encode state := by
-      intro equal
-      exact same (congrArg (fun index => (target.targetBasisEquiv index).2) equal)
-    cases target.get state <;> simp [same, NormalizedVector.ket_apply, original]
+        (NormalizedVector.ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec := by
+  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles Gate.ZOp
+    (fun value => if value = 1 then (-1 : ℂ) else 1) z_diagonal target.wire
+    (layout.basisEquiv.symm (encoding.encode state))
+  rw [encoded_bit] at actual
+  unfold pauliZ UnitaryCircuit.applyVec
+  cases value : target.get state <;> simpa [value, finTwoEquiv] using actual
 
-private theorem x_applyVec_encoded_ket (target : EncodedBit encoding) (state : Data) :
-    (GateSpec.x target).program.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (target.flip state))).vec := by
-  exact congrArg NormalizedVector.vec ((GateSpec.x target).realizes.apply_encoded_ket state)
+private def globalMinusOperator : UnitaryOperator (Qubits 1) :=
+  UnitaryOperator.ofMatrix
+    (!![(-1 : ℂ), 0; 0, -1] : HilbertOperator (Qubits 1)) (by
+      rw [Matrix.mem_unitaryGroup_iff]
+      ext row column
+      fin_cases row <;> fin_cases column <;>
+        simp [Matrix.mul_apply, Matrix.star_apply])
 
-/-- Four existing elementary gates implement the exact global phase minus one. -/
-def globalMinus (target : EncodedBit encoding) : UnitaryCircuit (Qubits encoding.width) :=
-  (((GateSpec.x target).program.seq target.pauliZ).seq
-    (GateSpec.x target).program).seq target.pauliZ
+private theorem globalMinus_diagonal (row column : Fin 2) :
+    globalMinusOperator row column = if row = column then (-1 : ℂ) else 0 := by
+  fin_cases row <;> fin_cases column <;> rfl
 
-/-- The complete input label is restored, with exact global phase minus one. -/
-theorem globalMinus_applyVec_encoded_ket (target : EncodedBit encoding) (state : Data) :
-    target.globalMinus.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
-      -(NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
-  simp only [globalMinus, UnitaryCircuit.applyVec_seq]
-  rw [x_applyVec_encoded_ket, pauliZ_applyVec_encoded_ket]
-  simp only [UnitaryCircuit.applyVec_smul]
-  rw [x_applyVec_encoded_ket, flip_flip, pauliZ_applyVec_encoded_ket, get_flip_self]
-  cases target.get state <;> simp
+/-- The default model executes the exact one-qubit minus identity as one native gate. -/
+def globalMinus (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
+  Gate.singleQubitAt layout.toQuantum oracles globalMinusOperator target.wire rfl
 
-/-- The phase correction contains exactly four actual gate events. -/
-theorem globalMinus_eventTrace_length (target : EncodedBit encoding) :
-    target.globalMinus.eventTrace.length = 4 := rfl
+/-- The complete encoded input is restored with exact phase minus one. -/
+theorem globalMinus_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
+    (target.globalMinus layout oracles).applyVec
+        (NormalizedVector.ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec =
+      -(NormalizedVector.ket (R := layout.toQuantum.register)
+        (layout.basisEquiv.symm (encoding.encode state))).vec := by
+  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles globalMinusOperator
+    (fun _ => (-1 : ℂ)) globalMinus_diagonal target.wire
+    (layout.basisEquiv.symm (encoding.encode state))
+  unfold globalMinus UnitaryCircuit.applyVec
+  simpa only [neg_one_smul] using actual
+
+/-- The exact phase correction executes one native single-qubit gate. -/
+theorem globalMinus_eventTrace_length (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) :
+    (target.globalMinus layout oracles).eventTrace.length = 1 := rfl
 
 end
 

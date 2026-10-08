@@ -31,6 +31,7 @@ namespace QuantumAlg.Execution
 private def CellValue {kind : ProblemKind} : RuntimeEntry kind → Type
   | .storage _key _role shape => CShape.Value shape
   | .borrowedLayout _key _layout => Unit
+  | .suppliedLayout _key _layout => Unit
   | .ownedLayout _key _layout => Unit
   | .ownedCopies _key _bank => Unit
 
@@ -141,6 +142,7 @@ private def initializedCell {kind : ProblemKind} {entries : List (RuntimeEntry k
     (entry : RuntimeEntry kind) → entry ∈ entries → CellValue entry
   | .storage key role shape, present => values key role shape present
   | .borrowedLayout _key _layout, _present => ()
+  | .suppliedLayout _key _layout, _present => ()
   | .ownedLayout _key _layout, _present => ()
   | .ownedCopies _key _bank, _present => ()
 
@@ -196,12 +198,12 @@ public theorem read_write_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Cells.read_write_other store.cells output.toCStorageRef.slot input.slot value different
 
 /-- Execute one atomic classical instruction by reading and writing its actual references. -/
-def applyOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {input output : CShape}
+public def applyOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {input output : CShape}
     (store : Store ctx) (op : ClassicalOp input output ctx ctx) : Store ctx :=
   store.write op.outputRef (op.eval (store.read op.inputRef))
 
 /-- The output cell contains precisely the result computed from the pre-step store. -/
-theorem read_applyOp_output {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem read_applyOp_output {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output : CShape} (store : Store ctx) (op : ClassicalOp input output ctx ctx) :
     (store.applyOp op).read (.storage op.outputRef.toCStorageRef) =
       op.eval (store.read op.inputRef) :=

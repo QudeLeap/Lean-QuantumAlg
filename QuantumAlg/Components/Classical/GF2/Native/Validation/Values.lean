@@ -27,13 +27,16 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
+omit [BitWord.Selected model] in
 private theorem bit_word_ne (bit : CWriteRef ctx .bit)
     (word : CWriteRef ctx (.unsignedWord width)) : bit.key ≠ word.key := by
   intro same
@@ -103,14 +106,15 @@ theorem gf2ValidationColumns_read_other
     {shape : CShape} (other : CInputRef ctx shape)
     (parityFree : parity.key ∉ other.storageKeys)
     (productFree : product.key ∉ other.storageKeys) :
-    (Circuit.forRangeRecord count
-      (fun index => validationColumn input candidate parity product row (indices index))
+    (Circuit.forRangeStoreRecord count
+      (fun index => validationColumn (model := model) input candidate parity product row
+        (indices index))
       (fun index => validationColumnStep input candidate parity product row (indices index))
       store).1.read other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (validationColumnStep input candidate parity product row (indices 0) store).1).1.read
           other = _
       exact (ih (fun index => indices index.succ) _).trans
@@ -148,8 +152,9 @@ private theorem columns_parity
       .bits (ClassicalAlgorithms.GF2.testBit rowWord))
     (candidateValue : store.read (.storage candidate.toCStorageRef) =
       .unsignedWord candidateWord) :
-    ((Circuit.forRangeRecord count
-      (fun index => validationColumn input candidate parity product row (indices index))
+    ((Circuit.forRangeStoreRecord count
+      (fun index => validationColumn (model := model) input candidate parity product row
+        (indices index))
       (fun index => validationColumnStep input candidate parity product row (indices index))
       store).1.read (.storage parity.toCStorageRef)).toBool =
       (List.ofFn indices).foldl (fun current column => current ^^
@@ -172,7 +177,7 @@ private theorem columns_parity
       have firstSample : (first.read input).get row =
           .bits (ClassicalAlgorithms.GF2.testBit rowWord) :=
         (congrArg (fun value => value.get row) firstInput).trans sampleValue
-      change ((Circuit.forRangeRecord count _ _ first).1.read _).toBool = _
+      change ((Circuit.forRangeStoreRecord count _ _ first).1.read _).toBool = _
       rw [ih (fun index => indices index.succ) first firstSample firstCandidate,
         column_parity input candidate parity product row (indices 0) store separate
           rowWord candidateWord sampleValue candidateValue, List.ofFn_succ, List.foldl_cons]
@@ -188,7 +193,8 @@ theorem gf2ValidationColumns_parity
       .bits (ClassicalAlgorithms.GF2.testBit rowWord))
     (candidateValue : store.read (.storage candidate.toCStorageRef) =
       .unsignedWord candidateWord) :
-    ((Circuit.forRangeRecord width (validationColumn input candidate parity product row)
+    ((Circuit.forRangeStoreRecord width
+      (validationColumn (model := model) input candidate parity product row)
       (validationColumnStep input candidate parity product row) store).1.read
         (.storage parity.toCStorageRef)).toBool =
       (List.finRange width).foldl (fun current column => current ^^
@@ -210,7 +216,8 @@ theorem gf2ValidationColumns_zero_iff
     (candidateValue : store.read (.storage candidate.toCStorageRef) =
       .unsignedWord candidateWord)
     (cleared : store.read (.storage parity.toCStorageRef) = .bit false) :
-    ((Circuit.forRangeRecord width (validationColumn input candidate parity product row)
+    ((Circuit.forRangeStoreRecord width
+      (validationColumn (model := model) input candidate parity product row)
       (validationColumnStep input candidate parity product row) store).1.read
         (.storage parity.toCStorageRef)).toBool = false ↔
       ClassicalAlgorithms.GF2.dot rowWord candidateWord = 0 := by
@@ -219,6 +226,7 @@ theorem gf2ValidationColumns_zero_iff
     cleared, CShape.Value.toBool]
   exact ClassicalAlgorithms.GF2.logicalParity_eq_false_iff_dot_eq_zero rowWord candidateWord
 
+omit [BitWord.Selected model] in
 /-- The original decoder and the original word-bit read use the same ordered sample bits. -/
 theorem gf2ValidationDecodedBits (value : CShape.Value (.bits width)) :
     value = .bits (ClassicalAlgorithms.GF2.testBit (ClassicalAlgorithms.TerminalDecode.eval

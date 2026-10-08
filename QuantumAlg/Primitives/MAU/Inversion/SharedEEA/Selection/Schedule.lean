@@ -171,24 +171,25 @@ theorem step_eq_sourceStep (width : Nat) (state : Registers width) (clean : stat
   simp only [SelectionSwap.selectedStep, clean, Bool.false_xor, own_condition]
 
 /-- Compile the same complete native schedule whose full frame fold was proved above. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) (step width) :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- The actual native program implements the source-selected exchange with its relative phases. -/
 theorem program_apply_prepared (width : Nat) (state : Registers width)
     (clean : state.control = false) :
-    (program width).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep width state)) := by
+    (program width).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep width state))) := by
   rw [(program_realizes width).apply_encoded_ket, step_eq_sourceStep width state clean]
-
-/-- Actual gate placement is confined to the original full frame for the entire enumeration. -/
-theorem program_physical_idx_subset (width : Nat) :
-    (program width).physical_idx ⊆ List.range (encoding width).width :=
-  GateSpec.programList_physical_idx_subset_range _
 
 end
 

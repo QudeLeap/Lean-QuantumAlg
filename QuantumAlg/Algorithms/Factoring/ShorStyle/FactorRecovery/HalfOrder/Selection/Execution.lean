@@ -28,119 +28,101 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The real comparison record is followed by actual option packaging. -/
 def checkedPackStep (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (Circuit.seq (FactorRange.code (checkRefs cells)) (pack cells output)).Path :=
-  let next := packStep cells output (FactorRange.storeStep (checkRefs cells) store)
-  (next.1, (((), ((), ())), next.2))
+    Store ctx × (Circuit.seq (FactorRange.code (model := model) (checkRefs cells)) (pack (model :=
+        model) cells output)).Path :=
+  let checked := FactorRange.executionStep (model := model) (checkRefs cells) store
+  let next := packStep (model := model) cells output checked.1
+  (next.1, (checked.2, next.2))
 
 /-- The right arm records its real GCD, actual comparisons and actual final writes. -/
 def rightStep (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (right halfPower cells output).Path :=
-  let reduced := NativeHalfGCD.step true halfPower cells.candidate store
-  let next := checkedPackStep cells output reduced.1
+    Store ctx × (right (model := model) halfPower cells output).Path :=
+  let reduced := NativeHalfGCD.step (model := model) true halfPower cells.candidate store
+  let next := checkedPackStep (model := model) cells output reduced.1
   (next.1, (reduced.2, next.2))
 
 /-- The selected branch records only the instructions that really execute. -/
 def chooseArmStep (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
     (value : CShape.Value .bit) → Store ctx → Store ctx ×
-      (if value.toBool then pack cells output else right halfPower cells output).Path
-  | .bit false, store => rightStep halfPower cells output store
-  | .bit true, store => packStep cells output store
+      (if value.toBool then pack (model := model) cells output else right (model := model)
+          halfPower cells output).Path
+  | .bit false, store => rightStep (model := model) halfPower cells output store
+  | .bit true, store => packStep (model := model) cells output store
 
 /-- Read the real left decision and retain the selected path in the actual branch record. -/
 def chooseStep (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (choose halfPower cells output).Path :=
+    Store ctx × (choose (model := model) halfPower cells output).Path :=
   let value := store.read (.storage cells.lower.toCStorageRef)
-  let next := chooseArmStep halfPower cells output value store
+  let next := chooseArmStep (model := model) halfPower cells output value store
   (next.1, ⟨value, next.2⟩)
 
 /-- The actual first comparison feeds its real stored bit into the left-priority branch. -/
 def checkedChooseStep (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store ctx) : Store ctx ×
-      (Circuit.seq (FactorRange.code (checkRefs cells))
-        (choose halfPower cells output)).Path :=
-  let next := chooseStep halfPower cells output
-    (FactorRange.storeStep (checkRefs cells) store)
-  (next.1, (((), ((), ())), next.2))
+      (Circuit.seq (FactorRange.code (model := model) (checkRefs cells))
+        (choose (model := model) halfPower cells output)).Path :=
+  let checked := FactorRange.executionStep (model := model) (checkRefs cells) store
+  let next := chooseStep (model := model) halfPower cells output checked.1
+  (next.1, (checked.2, next.2))
 
 /-- The complete factor-selection record begins with its actual left GCD call. -/
 def step (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (code halfPower cells output).Path :=
-  let reduced := NativeHalfGCD.step false halfPower cells.candidate store
-  let next := checkedChooseStep halfPower cells output reduced.1
+    Store ctx × (code (model := model) halfPower cells output).Path :=
+  let reduced := NativeHalfGCD.step (model := model) false halfPower cells.candidate store
+  let next := checkedChooseStep (model := model) halfPower cells output reduced.1
   (next.1, (reduced.2, next.2))
-
-private theorem check_execute (cells : Cells ctx N)
-    (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (FactorRange.code (checkRefs cells)).execute Reference state =
-      state.mapClassical (fun entry =>
-        (FactorRange.storeStep (checkRefs cells) entry.1,
-          ((entry.2, ((), ((), ()))) :
-            History × (FactorRange.code (checkRefs cells)).Path))) := by
-  refine (FactorRange.code_execute (checkRefs cells) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq
-        (Store ctx × (History × (FactorRange.code (checkRefs cells)).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => (FactorRange.storeStep (checkRefs cells) entry.1,
-          (entry.2, ((), ((), ())))))) (Subsingleton.elim _ _)
 
 private theorem checkedPack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (FactorRange.code (checkRefs cells)) (pack cells output)).execute
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (FactorRange.code (model := model) (checkRefs cells)) (pack (model := model)
+        cells output)).execute
         Reference state =
-      state.mapClassical (fun entry => ((checkedPackStep cells output entry.1).1,
-        (entry.2, (checkedPackStep cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (FactorRange.code (checkRefs cells))
-    (pack cells output) (fun store => (FactorRange.storeStep (checkRefs cells) store,
-      ((), ((), ())))) (packStep cells output)
-    (check_execute cells) (pack_execute cells output)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History ×
-        (Circuit.seq (FactorRange.code (checkRefs cells)) (pack cells output)).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((checkedPackStep cells output entry.1).1,
-          (entry.2, (checkedPackStep cells output entry.1).2)))) (Subsingleton.elim _ _)
+      state.mapClassical (fun entry => ((checkedPackStep (model := model) cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (checkedPackStep (model := model) cells output entry.1).2)))) := by
+  rw [Circuit.execute_seq, pack_execute, FactorRange.code_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem right_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (right halfPower cells output).execute Reference state =
-      state.mapClassical (fun entry => ((rightStep halfPower cells output entry.1).1,
-        (entry.2, (rightStep halfPower cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (NativeHalfGCD.code true halfPower cells.candidate)
-    (.seq (FactorRange.code (checkRefs cells)) (pack cells output))
-    (NativeHalfGCD.step true halfPower cells.candidate) (checkedPackStep cells output)
-    (NativeHalfGCD.code_execute true halfPower cells.candidate) (checkedPack_execute cells output)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (right halfPower cells output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((rightStep halfPower cells output entry.1).1,
-          (entry.2, (rightStep halfPower cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (right (model := model) halfPower cells output).execute Reference state =
+      state.mapClassical (fun entry => ((rightStep (model := model) halfPower cells output
+          entry.1).1,
+        (entry.2.1, (entry.2.2, (rightStep (model := model) halfPower cells output entry.1).2))))
+            := by
+  unfold right
+  rw [Circuit.execute_seq, checkedPack_execute, NativeHalfGCD.code_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem chooseArm_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (if value.toBool then pack cells output else right halfPower cells output).execute
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (if value.toBool then pack (model := model) cells output else right (model := model) halfPower
+        cells output).execute
         Reference state =
-      state.mapClassical (fun entry => ((chooseArmStep halfPower cells output value entry.1).1,
-        (entry.2, (chooseArmStep halfPower cells output value entry.1).2))) := by
+      state.mapClassical (fun entry => ((chooseArmStep (model := model) halfPower cells output
+          value entry.1).1,
+        (entry.2.1, (entry.2.2, (chooseArmStep (model := model) halfPower cells output value
+            entry.1).2)))) := by
   cases value with
   | bit value =>
       cases value
@@ -150,61 +132,50 @@ private theorem chooseArm_execute (halfPower : CInputRef ctx (.unsignedWord (mod
 private theorem choose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (choose halfPower cells output).execute Reference state =
-      state.mapClassical (fun entry => ((chooseStep halfPower cells output entry.1).1,
-        (entry.2, (chooseStep halfPower cells output entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (choose (model := model) halfPower cells output).execute Reference state =
+      state.mapClassical (fun entry => ((chooseStep (model := model) halfPower cells output
+          entry.1).1,
+        (entry.2.1, (entry.2.2, (chooseStep (model := model) halfPower cells output entry.1).2))))
+            := by
   refine (Circuit.execute_branch_mapClassical (.storage cells.lower.toCStorageRef)
-    (fun value => if value.toBool then pack cells output else right halfPower cells output)
-    (chooseArmStep halfPower cells output) (chooseArm_execute halfPower cells output)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (choose halfPower cells output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((chooseStep halfPower cells output entry.1).1,
-          (entry.2, (chooseStep halfPower cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (fun value => if value.toBool then pack (model := model) cells output
+      else right (model := model) halfPower cells output)
+    (fun value entry =>
+      let actual := chooseArmStep (model := model) halfPower cells output value entry.1
+      ((actual.1, entry.2), actual.2))
+    (chooseArm_execute (model := model) halfPower cells output) Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem checkedChoose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (FactorRange.code (checkRefs cells))
-        (choose halfPower cells output)).execute
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (FactorRange.code (model := model) (checkRefs cells))
+        (choose (model := model) halfPower cells output)).execute
         Reference state =
-      state.mapClassical (fun entry => ((checkedChooseStep halfPower cells output entry.1).1,
-        (entry.2, (checkedChooseStep halfPower cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (FactorRange.code (checkRefs cells))
-    (choose halfPower cells output)
-    (fun store => (FactorRange.storeStep (checkRefs cells) store, ((), ((), ()))))
-    (chooseStep halfPower cells output)
-    (check_execute cells) (choose_execute halfPower cells output)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (Circuit.seq
-        (FactorRange.code (checkRefs cells)) (choose halfPower cells output)).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((checkedChooseStep halfPower cells output entry.1).1,
-          (entry.2, (checkedChooseStep halfPower cells output entry.1).2))))
-    (Subsingleton.elim _ _)
+      state.mapClassical (fun entry => ((checkedChooseStep (model := model) halfPower cells output
+          entry.1).1,
+        (entry.2.1, (entry.2.2, (checkedChooseStep (model := model) halfPower cells output
+            entry.1).2)))) := by
+  rw [Circuit.execute_seq, choose_execute, FactorRange.code_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The real left-priority circuit executes exactly its actual store and path on full CQ blocks. -/
 theorem code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code halfPower cells output).execute Reference state =
-      state.mapClassical (fun entry => ((step halfPower cells output entry.1).1,
-        (entry.2, (step halfPower cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (NativeHalfGCD.code false halfPower cells.candidate)
-    (.seq (FactorRange.code (checkRefs cells)) (choose halfPower cells output))
-    (NativeHalfGCD.step false halfPower cells.candidate) (checkedChooseStep halfPower cells output)
-    (NativeHalfGCD.code_execute false halfPower cells.candidate)
-    (checkedChoose_execute halfPower cells output) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (code halfPower cells output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((step halfPower cells output entry.1).1,
-          (entry.2, (step halfPower cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) halfPower cells output).execute Reference state =
+      state.mapClassical (fun entry => ((step (model := model) halfPower cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (step (model := model) halfPower cells output entry.1).2)))) := by
+  unfold code
+  rw [Circuit.execute_seq, checkedChoose_execute, NativeHalfGCD.code_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

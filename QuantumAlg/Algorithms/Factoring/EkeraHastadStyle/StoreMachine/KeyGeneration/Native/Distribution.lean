@@ -23,14 +23,15 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeKeyGeneration
 
 noncomputable section
 
-open Execution ClassicalRoutines.FirstAccepted.Direct
+open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (bitWidth : Nat) (nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth))
     (totalRounds : Nat) {Reference : Register}
-    (inputs : RSA.RSAKeyPairBits bitWidth → Execution.Input base Reference)
+    (inputs : RSA.RSAKeyPairBits bitWidth →
+      Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
 
 /-- Theorem-side key averaging observes each actual modulus-only finite run.
 The arbitrary input family permits correlations between keys and initial states. -/

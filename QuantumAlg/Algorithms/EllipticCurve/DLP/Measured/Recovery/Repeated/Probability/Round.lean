@@ -41,6 +41,36 @@ def samplingSelectedEffects (problem : KnownOrderProblem E.GroupPoint) (input : 
       Effect.one ((PublicInput.terminal E (orderWidth problem)).register.prod Reference)
     else Effect.zero ((PublicInput.terminal E (orderWidth problem)).register.prod Reference)
 
+/-- The original selected-frequency floor also holds for a reused readout
+whose actual input already has the prescribed sampling-basis support. No
+additional reset is inserted into this circuit or its event count. -/
+theorem selectedSamplingReadout_weight_bound
+    (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
+    (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
+    (problem : KnownOrderProblem E.GroupPoint)
+    (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
+    (addends : (fun index => (points index).toGroupPoint) =
+      ExceptionalOffsetAveraging.pairedBigEndianAddend (orderWidth problem)
+        problem.generator problem.target)
+    (input : SecretInput problem) {Reference : Register} {H : Type} [Fintype H]
+    (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
+    (supported : ∀ basis, basis.1 ≠
+      samplingResetLabel E (orderWidth problem) fieldTail sameWidth fits seed →
+        state.quantumMarginal.matrix basis basis = 0) :
+    state.mass * ((problem.order : ℝ) * Nat.totient problem.order /
+        (4 * (fourierModulus problem : ℝ) ^ 2) -
+          4 * Real.sqrt (preparedExceptionalMass problem points seed)) ≤
+      ((samplingReadout E fieldTail odd problem points).execute Reference state).effectWeight
+        (samplingSelectedEffects E problem input Reference) := by
+  have mixed := selectedSamplingPrefix_mixed_weight_bound E fieldTail sameWidth fits odd problem
+    points seed addends input (samplingReadoutSplitState E (orderWidth problem) state)
+    (samplingReadoutSplit_supported E fieldTail (orderWidth problem) sameWidth fits seed
+      state supported)
+  rw [samplingReadoutSplitState_mass] at mixed
+  exact mixed.trans_eq (samplingReadout_eventWeight_split E fieldTail odd problem points
+    state (selectedExponentEvent problem input)).symm
+
 /-- Every complete actual round retains the original floor for arbitrary mixed input and history. -/
 theorem selectedSamplingRound_weight_bound
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
@@ -51,7 +81,8 @@ theorem selectedSamplingRound_weight_bound
       ExceptionalOffsetAveraging.pairedBigEndianAddend (orderWidth problem)
         problem.generator problem.target)
     (input : SecretInput problem) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (PublicInput.terminal E (orderWidth problem)) Reference H) :
+    (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     state.mass * ((problem.order : ℝ) * Nat.totient problem.order /
         (4 * (fourierModulus problem : ℝ) ^ 2) -
           4 * Real.sqrt (preparedExceptionalMass problem points seed)) ≤
@@ -82,7 +113,8 @@ theorem exists_fixedOffset_selectedSamplingRound_bound
     ∃ seed : AffinePoint E,
       seed.toGroupPoint ∈ Subgroup.zpowers problem.generator ∧ seed.toGroupPoint ≠ 1 ∧
         ∀ (input : SecretInput problem) (Reference : Register) (H : Type) [Fintype H]
-          (state : State (PublicInput.terminal E (orderWidth problem)) Reference H),
+          (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+            (ClassicalOracleModel.empty.HiddenState × H)),
           state.mass * ((problem.order : ℝ) * Nat.totient problem.order /
               (4 * (fourierModulus problem : ℝ) ^ 2) -
                 4 * Real.sqrt

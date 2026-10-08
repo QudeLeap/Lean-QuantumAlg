@@ -24,7 +24,8 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Proposal
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- The real decoder returns the exact source proposal carried by the stored random outcome. -/
 theorem proposalDecoded_read_source
@@ -33,10 +34,11 @@ theorem proposalDecoded_read_source
     (value : Fin (2 ^ (count * width)))
     (separate : scratch.candidate.key ∉ sample.storageKeys)
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
-    ((decodedStep sample proposal scratch store).1.read
+    ((decodedStep (model := model) sample proposal scratch store).1.read
       (FirstAccepted.cellRead scratch.candidate)).toNat =
         (RSA.decodeFixedWidthWords width count value proposal).val := by
-  have decoded := TerminalDecode.terminalDecode_intoFromBitRefs_read_output .littleEndian
+  have decoded := TerminalDecode.terminalDecode_intoFromBitRefs_read_output
+    (model := model) .littleEndian
     (PackedSample.proposalRefs sample proposal) scratch.candidate store (fun _ => separate)
   have sourceBits :
       (fun bit : Fin width => (store.read (PackedSample.proposalRefs sample proposal bit)).toBool) =
@@ -44,7 +46,7 @@ theorem proposalDecoded_read_source
     funext bit
     exact PackedSample.packedSample_proposalRefs_read store sample value sampled proposal bit
   calc
-    ((decodedStep sample proposal scratch store).1.read
+    ((decodedStep (model := model) sample proposal scratch store).1.read
         (FirstAccepted.cellRead scratch.candidate)).toNat =
         (ClassicalAlgorithms.TerminalDecode.eval
           (TerminalDecode.decodeInputFromBitRefs .littleEndian store

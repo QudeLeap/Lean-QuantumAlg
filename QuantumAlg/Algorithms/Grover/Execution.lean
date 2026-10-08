@@ -10,6 +10,7 @@ import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
 
 import all QuantumAlg.Algorithms.Grover.Context
 import all QuantumAlg.Algorithms.Grover.Storage
+import all QuantumAlg.Components.Classical.Model.BitWord.Placement
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Measurement.Cells
 import all QuantumAlg.Core.Execution.Measurement.Sequence
@@ -35,33 +36,39 @@ open QuantumAlg.ZeroReflection.Workspace
 
 open QuantumAlg.Execution
 
-/-- Prepare the owned search register through the real preparation instruction. -/
-def preparationCode (n : Nat) : Circuit pre (preparedContext n) :=
-  .prepare pre ⟨1⟩ (runtimeLayout n) preparationFresh
-    (preparationDisjoint n) (inputPreparation n)
+/-- Zero preparation charges every actually allocated source and helper system. -/
+def preparationCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    Circuit (model marked) pre (preparedContext (totalQubits n k)) :=
+  .prepareZero pre ⟨1⟩ (runtimeLayout (totalQubits n k)) preparationFresh
+    (preparationDisjoint (totalQubits n k))
 
-/-- Retain the final bit string and every independently writable measured-result cell. -/
-def allocationCode (n k : Nat) :
-    Circuit (preparedContext (totalQubits n k)) (post n k) :=
-  .seq (.retain (preparedContext (totalQubits n k)) ⟨2⟩ (.bits n) (resultFresh n k))
-    (MeasurementCells.allocate (resultContext n k) 2 n)
+/-- Retain the packed result and all independently written binary measurement cells. -/
+def allocationCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    Circuit (model marked) (preparedContext (totalQubits n k)) (post n k) :=
+  .seq (.retain (model := model marked) (preparedContext (totalQubits n k))
+    ⟨2⟩ (.bits n) (resultFresh n k))
+    (MeasurementCells.allocate (model := model marked) (resultContext n k) 2 n)
 
-/-- The actual state immediately before the first search-wire measurement. -/
-def beforeMeasurement {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) : Circuit pre (post n k) :=
-  .seq (preparationCode (totalQubits n k))
-    (.seq (.unitary (program marked k) (program_placement marked k)) (allocationCode n k))
+/-- Execute the actual native search word before any result measurement. -/
+def beforeMeasurement {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    Circuit (model marked) pre (post n k) :=
+  .seq (preparationCode marked k)
+    (.seq (.unitary (program marked k)) (allocationCode marked k))
 
-/-- Record every measured search bit, then pack those actual finite values into the final result. -/
-def readoutCode (n k : Nat) : Circuit (post n k) (post n k) :=
-  .seq (Circuit.measurementSequence (readouts n k)) (.classical (packing n k))
+/-- Record all source Z outcomes, then pack those actual values with a declared native operation. -/
+def readoutCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    Circuit (model marked) (post n k) (post n k) :=
+  .seq (Circuit.measurementSequence (readouts n k))
+    (.classical (BitWord.application (packing n k)))
 
-/-- One native program for every width, including the empty query register. -/
-def code {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) : Circuit pre (post n k) :=
-  .seq (beforeMeasurement marked k) (readoutCode n k)
+/-- One native complete program at every width and iteration count. -/
+def code {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    Circuit (model marked) pre (post n k) :=
+  .seq (beforeMeasurement marked k) (readoutCode marked k)
 
-/-- The explicit complete manifest observes the actual packed result cell. -/
+/-- Output retains every live cell and wire and observes the actual packed result. -/
 def run {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    AlgorithmRun pre (post n k) (.bits n) where
+    AlgorithmRun (model marked) pre (post n k) (.bits n) where
   code := code marked k
   output := Output.all (post n k) (.read (.storage (resultRef n k).toCStorageRef))
 

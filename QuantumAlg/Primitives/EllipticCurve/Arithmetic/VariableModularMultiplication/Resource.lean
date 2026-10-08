@@ -40,9 +40,9 @@ theorem encoding_width_exact : encoding.width = physicalWidthFor params.width :=
   omega
 
 private theorem rawArithmeticGates_events_eq_source :
-    rawArithmeticGates.map EncodedBit.GateSpec.event =
+    rawArithmeticGates.map (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates
-        params.width params.modulus.val).map EncodedBit.GateSpec.event := by
+        params.width params.modulus.val).map (EncodedBit.GateSpec.event .empty) := by
   unfold rawArithmeticGates inPlaceArithmeticGates
   calc
     (((((MAU.Addition.VBECircuit.modularAddGates
@@ -52,29 +52,29 @@ private theorem rawArithmeticGates_events_eq_source :
         (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       ((((MAU.Addition.VBECircuit.modularAddGates
           params.width params.modulus.val).map
         (MAU.Multiplication.Accumulate.VBECircuit.liftArithmeticGate
           params.width)).map
         (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
-        EncodedBit.GateSpec.event :=
+        (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodRight wordEncoding _
     _ = (((MAU.Addition.VBECircuit.modularAddGates
           params.width params.modulus.val).map
         (MAU.Multiplication.Accumulate.VBECircuit.liftArithmeticGate
           params.width)).map
         (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
-        EncodedBit.GateSpec.event :=
+        (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodRight wordEncoding _
     _ = ((MAU.Addition.VBECircuit.modularAddGates
           params.width params.modulus.val).map
         (MAU.Multiplication.Accumulate.VBECircuit.liftArithmeticGate
-          params.width)).map EncodedBit.GateSpec.event :=
+          params.width)).map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft BinaryLabelEncoding.bool _
     _ = (MAU.Addition.VBECircuit.modularAddGates
-          params.width params.modulus.val).map EncodedBit.GateSpec.event := by
+          params.width params.modulus.val).map (EncodedBit.GateSpec.event .empty) := by
       simp only [List.map_map]
       apply List.map_congr_left
       intro gate _
@@ -82,27 +82,27 @@ private theorem rawArithmeticGates_events_eq_source :
 
 theorem liftInPlaceGates_events_eq_source
     (gates : List (EncodedBit.GateSpec inPlaceEncoding)) :
-    (liftInPlaceGates gates).map EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+    (liftInPlaceGates gates).map (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   change
     (((gates.map (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
-      EncodedBit.GateSpec.event =
-    gates.map EncodedBit.GateSpec.event
+      (EncodedBit.GateSpec.event .empty) =
+    gates.map (EncodedBit.GateSpec.event .empty)
   calc
     (((gates.map (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       ((gates.map (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
         (EncodedBit.GateSpec.prodRight wordEncoding)).map
-        EncodedBit.GateSpec.event :=
+        (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodRight wordEncoding _
     _ = (gates.map (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
-        EncodedBit.GateSpec.event :=
+        (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodRight wordEncoding _
-    _ = gates.map EncodedBit.GateSpec.event :=
+    _ = gates.map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft BinaryLabelEncoding.bool _
 
 theorem liftInPlaceGates_length
@@ -115,8 +115,8 @@ omit params in
 private theorem controlledEventExpansion_toffoli_count
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical}
     (gate : EncodedBit.GateSpec physicalEncoding) :
-    (EncodedBit.GateSpec.controlledEventExpansion gate).count
-        (.gate (.builtin "toffoli")) =
+    (EncodedBit.GateSpec.controlledEventExpansion .empty gate).count
+        (.gate .toffoli) =
       EncodedBit.GateSpec.cnotMultiplicity gate +
         3 * EncodedBit.GateSpec.toffoliMultiplicity gate := by
   cases gate <;> rfl
@@ -125,8 +125,8 @@ omit params in
 private theorem flatMap_controlledEventExpansion_toffoli_count
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical} :
     ∀ gates : List (EncodedBit.GateSpec physicalEncoding),
-      (gates.flatMap EncodedBit.GateSpec.controlledEventExpansion).count
-          (.gate (.builtin "toffoli")) =
+      (gates.flatMap (EncodedBit.GateSpec.controlledEventExpansion .empty)).count
+          (.gate .toffoli) =
         (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum +
           3 * (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum
   | [] => rfl
@@ -140,7 +140,7 @@ omit params in
 private theorem controlledEventExpansion_length
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical}
     (gate : EncodedBit.GateSpec physicalEncoding) :
-    (EncodedBit.GateSpec.controlledEventExpansion gate).length =
+    (EncodedBit.GateSpec.controlledEventExpansion .empty gate).length =
       EncodedBit.GateSpec.xMultiplicity gate +
         EncodedBit.GateSpec.cnotMultiplicity gate +
           3 * EncodedBit.GateSpec.toffoliMultiplicity gate := by
@@ -150,7 +150,7 @@ omit params in
 private theorem flatMap_controlledEventExpansion_length
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical} :
     ∀ gates : List (EncodedBit.GateSpec physicalEncoding),
-      (gates.flatMap EncodedBit.GateSpec.controlledEventExpansion).length =
+      (gates.flatMap (EncodedBit.GateSpec.controlledEventExpansion .empty)).length =
         (gates.map EncodedBit.GateSpec.xMultiplicity).sum +
           (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum +
             3 * (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum
@@ -163,7 +163,7 @@ private theorem flatMap_controlledEventExpansion_length
 
 /-- One controlled modular-add stage uses at most `108f+14` Toffoli gates. -/
 theorem stageCircuit_toffoli_count_le (bit : Fin params.width) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (stageCircuit bit).eventCost ≤ 108 * params.width + 14 := by
   have hsourceC :=
     MAU.Addition.VBECircuit.modularAddGates_cnotMultiplicity_sum_le
@@ -171,15 +171,16 @@ theorem stageCircuit_toffoli_count_le (bit : Fin params.width) :
   have hsourceT :=
     MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum
       params.width params.modulus.val
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList (rawStageGates bit)).eventCost ≤ _
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+        (rawStageGates bit)).eventCost ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
   unfold rawStageGates
-  rw [EncodedBit.GateSpec.map_event_controlledListWithWorkGates,
+  rw [EncodedBit.GateSpec.map_event_controlledListWithWorkGates (oracles := .empty),
     flatMap_controlledEventExpansion_toffoli_count]
-  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
-  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
   rw [hc, ht, hsourceT]
   omega
@@ -191,7 +192,7 @@ theorem rawStageGates_cnotMultiplicity_sum (bit : Fin params.width) :
         EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
   unfold rawStageGates
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_cnotMultiplicity_sum]
-  have hx := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  have hx := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
   rw [hx,
     MAU.Addition.VBECircuit.modularAddGates_xMultiplicity_sum]
@@ -209,19 +210,21 @@ theorem stageCircuit_eventCount_le (bit : Fin params.width) :
     MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum
       params.width params.modulus.val
   rw [show (stageCircuit bit).eventCost.card = (rawStageGates bit).length by
-    exact EncodedBit.GateSpec.programList_eventCost_card _]
+    exact EncodedBit.GateSpec.programList_eventCost_card
+      (layout := QubitLayout.canonical _) (oracles := .empty) _]
   have hevents := EncodedBit.GateSpec.map_event_controlledListWithWorkGates
+    (oracles := .empty)
     (rawMultiplierBit bit) rawWorkBit rawArithmeticGates
     (rawMultiplierDisjoint bit) rawWorkDisjoint (rawMultiplierWork_ne bit)
   have hlength := congrArg List.length hevents
   simp only [List.length_map] at hlength
   unfold rawStageGates
   rw [hlength, flatMap_controlledEventExpansion_length]
-  have hx := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  have hx := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
-  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hc := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
-  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have ht := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
   rw [hx, hc, ht, hsourceX, hsourceT]
   omega
@@ -254,7 +257,7 @@ private theorem sourceCopyGates_cnotMultiplicity_sum :
       rawInPlaceMultiplicand_activeSource_ne
 
 private theorem accumulatorSwapCircuit_toffoli_count_zero :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       accumulatorSwapCircuit.eventCost = 0 := by
   unfold accumulatorSwapCircuit accumulatorSwapGates
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
@@ -263,7 +266,7 @@ private theorem accumulatorSwapCircuit_toffoli_count_zero :
       rawAccumulator_inPlaceAccumulator_ne
 
 private theorem sourceCopyCircuit_toffoli_count_zero :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       sourceCopyCircuit.eventCost = 0 := by
   unfold sourceCopyCircuit sourceCopyGates
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
@@ -271,44 +274,30 @@ private theorem sourceCopyCircuit_toffoli_count_zero :
     rawInPlaceMultiplicandWord rawInPlaceActiveSourceWord
       rawInPlaceMultiplicand_activeSource_ne
 
-set_option exponentiation.threshold 2048 in
-/-- Product-register lifting preserves the strict event pool. -/
-theorem liftInPlaceProgram_eventCost
-    (program : UnitaryCircuit (Qubits inPlaceEncoding.width)) :
-    (liftInPlaceProgram program).eventCost = program.eventCost := by
-  unfold liftInPlaceProgram
-  exact Eq.trans
-    (UnitaryCircuit.prodRight_eventCost
-      (UnitaryCircuit.prodRight (m := wordEncoding.width)
-        (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width) program)))
-    (Eq.trans
-      (UnitaryCircuit.prodRight_eventCost
-        (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width) program))
-      (UnitaryCircuit.prodLeft_eventCost program))
-
 /-- Accumulator routing does not change the Toffoli coordinate. -/
 theorem selectedAddCircuit_toffoli_count_le (bit : Fin params.width) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (selectedAddCircuit bit).eventCost ≤ 108 * params.width + 14 := by
   have hswap :
-      (accumulatorSwapGates.map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) = 0 := by
+      (accumulatorSwapGates.map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) = 0 := by
     simpa only [accumulatorSwapCircuit,
       EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
       using accumulatorSwapCircuit_toffoli_count_zero
   have hcopy :
-      (sourceCopyGates.map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) = 0 := by
+      (sourceCopyGates.map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) = 0 := by
     simpa only [sourceCopyCircuit,
       EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
       using sourceCopyCircuit_toffoli_count_zero
   have hstage :
-      ((rawStageGates bit).map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) ≤ 108 * params.width + 14 := by
+      ((rawStageGates bit).map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) ≤ 108 * params.width + 14 := by
     simpa only [stageCircuit, EncodedBit.GateSpec.programList_eventCost,
       ResourcePool.count_ofList] using stageCircuit_toffoli_count_le bit
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList (selectedAddGates bit)).eventCost ≤ _
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+        (selectedAddGates bit)).eventCost ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
   unfold selectedAddGates sourceUnloadGates
   simp only [List.map_append, List.count_append, hswap, hcopy,
@@ -339,7 +328,8 @@ theorem selectedAddCircuit_eventCount_le (bit : Fin params.width) :
     simpa only [sourceCopyCircuit,
       EncodedBit.GateSpec.programList_eventCost_card]
       using sourceCopyCircuit_eventCount
-  change (EncodedBit.GateSpec.programList (selectedAddGates bit)).eventCost.card ≤ _
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (selectedAddGates bit)).eventCost.card ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   have hstageLength : (rawStageGates bit).length ≤ 108 * params.width + 15 := by
     simpa only [stageCircuit,
@@ -436,12 +426,12 @@ private theorem doublingShiftGates_length :
 
 /-- The shift/reduce doubling block has exactly `30f` Toffoli gates. -/
 theorem doublingCircuit_toffoli_count_eq :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         doublingCircuit.eventCost = 30 * params.width := by
-  have hraw := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hraw := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList doublingGates).eventCost = _
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty doublingGates).eventCost = _
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   simp only [doublingGates, List.map_append, List.sum_append,
     doublingSwapGates_toffoliMultiplicity_sum,
@@ -456,7 +446,7 @@ theorem doublingCircuit_toffoli_count_eq :
 theorem doublingGates_cnotMultiplicity_sum_le :
     (doublingGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       27 * params.width + 21 := by
-  have hraw := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hraw := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     rawArithmeticGates_events_eq_source
   have harithmetic :=
     MAU.Addition.VBECircuit.modularAddGates_cnotMultiplicity_sum_le
@@ -481,7 +471,8 @@ theorem doublingCircuit_eventCount_le :
         params.width params.modulus.val).length := by
     simpa only [List.length_map] using
       congrArg List.length rawArithmeticGates_events_eq_source
-  change (EncodedBit.GateSpec.programList doublingGates).eventCost.card ≤ _
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    doublingGates).eventCost.card ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   simp only [doublingGates, List.length_append,
     doublingSwapGates_length, doublingShiftGates_length,
@@ -490,23 +481,24 @@ theorem doublingCircuit_eventCount_le :
 
 /-- Toffoli bound for one selected-add/doubling round. -/
 theorem roundCircuit_toffoli_count_le (bit : Fin params.width) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (roundCircuit bit).eventCost ≤
       (108 * params.width + 14) + 30 * params.width := by
   have hselected :
-      ((selectedAddGates bit).map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) ≤ 108 * params.width + 14 := by
+      ((selectedAddGates bit).map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) ≤ 108 * params.width + 14 := by
     simpa only [selectedAddCircuit,
       EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
       using selectedAddCircuit_toffoli_count_le bit
   have hdoubling :
-      (doublingGates.map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) = 30 * params.width := by
+      (doublingGates.map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) = 30 * params.width := by
     simpa only [doublingCircuit,
       EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
       using doublingCircuit_toffoli_count_eq
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList (roundGates bit)).eventCost ≤ _
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+        (roundGates bit)).eventCost ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
   unfold roundGates
   simp only [List.map_append, List.count_append]
@@ -536,7 +528,8 @@ theorem roundCircuit_eventCount_le (bit : Fin params.width) :
     simpa only [doublingCircuit,
       EncodedBit.GateSpec.programList_eventCost_card]
       using doublingCircuit_eventCount_le
-  change (EncodedBit.GateSpec.programList (roundGates bit)).eventCost.card ≤ _
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (roundGates bit)).eventCost.card ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   unfold roundGates
   rw [List.length_append]
@@ -597,8 +590,9 @@ set_option exponentiation.threshold 2048 in
 theorem inverseDoublingCircuit_eventCost :
     inverseDoublingCircuit.eventCost =
       VariableModularMul.doublingCircuit.eventCost := by
-  change (EncodedBit.GateSpec.programList inverseDoublingGates).eventCost =
-    (EncodedBit.GateSpec.programList
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    inverseDoublingGates).eventCost =
+    (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
       VariableModularMul.doublingGates).eventCost
   rw [EncodedBit.GateSpec.programList_eventCost,
     EncodedBit.GateSpec.programList_eventCost, inverseDoublingGates,
@@ -607,7 +601,7 @@ theorem inverseDoublingCircuit_eventCost :
 
 /-- Each inverse doubling has exactly the same Toffoli count as a forward one. -/
 theorem inverseDoublingCircuit_toffoli_count_eq :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         inverseDoublingCircuit.eventCost = 30 * params.width := by
   rw [inverseDoublingCircuit_eventCost]
   exact VariableModularMul.doublingCircuit_toffoli_count_eq
@@ -625,7 +619,8 @@ theorem inverseDoublingGates_cnotMultiplicity_sum_le :
 theorem inverseDoublingCircuit_eventCount_le :
     inverseDoublingCircuit.eventCost.card ≤
       57 * params.width + 52 := by
-  change (EncodedBit.GateSpec.programList inverseDoublingGates).eventCost.card ≤ _
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    inverseDoublingGates).eventCost.card ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   rw [inverseDoublingGates, List.length_reverse]
   simpa only [VariableModularMul.doublingCircuit,
@@ -635,7 +630,7 @@ theorem inverseDoublingCircuit_eventCount_le :
 /-- Toffoli count of an explicit forward prefix is linear in its round count. -/
 theorem forwardProgram_toffoli_count_le :
     ∀ roundBits : List (Fin params.width),
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (forwardProgram roundBits).eventCost ≤
         roundBits.length *
           ((108 * params.width + 14) + 30 * params.width)
@@ -675,7 +670,7 @@ theorem forwardProgram_eventCount_le :
 /-- Toffoli count of the restoration suffix is linear in its round count. -/
 theorem restoreProgram_toffoli_count_le :
     ∀ rounds : Nat,
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (restoreProgram rounds).eventCost ≤
         rounds * (30 * params.width)
   | 0 => by simp [restoreProgram]
@@ -705,16 +700,16 @@ theorem restoreProgram_eventCount_le :
 
 private theorem forwardGates_toffoli_count_le :
     ∀ roundBits : List (Fin params.width),
-      ((forwardGates roundBits).map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) ≤
+      ((forwardGates roundBits).map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) ≤
         roundBits.length *
           ((108 * params.width + 14) + 30 * params.width)
   | [] => by simp [forwardGates]
   | bit :: rest => by
       have hround :
           ((VariableModularMul.roundGates bit).map
-            EncodedBit.GateSpec.event).count
-            (.gate (.builtin "toffoli")) ≤
+            (EncodedBit.GateSpec.event .empty)).count
+            (.gate .toffoli) ≤
             (108 * params.width + 14) + 30 * params.width := by
         simpa only [VariableModularMul.roundCircuit,
           EncodedBit.GateSpec.programList_eventCost,
@@ -774,14 +769,14 @@ private theorem forwardGates_eventCount_le :
 
 private theorem restoreGates_toffoli_count_le :
     ∀ rounds : Nat,
-      ((restoreGates rounds).map EncodedBit.GateSpec.event).count
-          (.gate (.builtin "toffoli")) ≤
+      ((restoreGates rounds).map (EncodedBit.GateSpec.event .empty)).count
+          (.gate .toffoli) ≤
         rounds * (30 * params.width)
   | 0 => by simp [restoreGates]
   | rounds + 1 => by
       have hinverse :
-          (inverseDoublingGates.map EncodedBit.GateSpec.event).count
-              (.gate (.builtin "toffoli")) = 30 * params.width := by
+          (inverseDoublingGates.map (EncodedBit.GateSpec.event .empty)).count
+              (.gate .toffoli) = 30 * params.width := by
         simpa only [inverseDoublingCircuit,
           EncodedBit.GateSpec.programList_eventCost,
           ResourcePool.count_ofList] using inverseDoublingCircuit_toffoli_count_eq
@@ -826,13 +821,13 @@ private theorem prefix_length :
 
 /-- The complete actual variable-multiplication circuit obeys `toffoliBound`. -/
 theorem circuit_toffoli_count_le :
-    ResourcePool.count (.gate (.builtin "toffoli")) circuit.eventCost ≤
-      toffoliBound := by
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) circuit.eventCost ≤ toffoliBound := by
   have hforward :=
     forwardGates_toffoli_count_le (bits.take (params.width - 1))
   have hselected :
       ((VariableModularMul.selectedAddGates lastBit).map
-          EncodedBit.GateSpec.event).count (.gate (.builtin "toffoli")) ≤
+          (EncodedBit.GateSpec.event .empty)).count (.gate .toffoli) ≤
         108 * params.width + 14 := by
     simpa only [VariableModularMul.selectedAddCircuit,
       EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
@@ -841,8 +836,8 @@ theorem circuit_toffoli_count_le :
   rw [prefix_length] at hforward
   have htotal :=
     Nat.add_le_add hforward (Nat.add_le_add hselected hrestore)
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList gates).eventCost ≤ _
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates).eventCost ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost, ResourcePool.count_ofList]
   unfold gates toffoliBound toffoliBoundFor
   simp only [List.map_append, List.count_append, Nat.add_assoc]
@@ -906,7 +901,7 @@ theorem circuit_eventCount_le : circuit.eventCost.card ≤ eventCountBound := by
   rw [prefix_length] at hforward
   have htotal :=
     Nat.add_le_add hforward (Nat.add_le_add hselected hrestore)
-  change (EncodedBit.GateSpec.programList gates).eventCost.card ≤ _
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates).eventCost.card ≤ _
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   unfold gates eventCountBound eventCountBoundFor
   simp only [List.length_append, Nat.add_assoc]
@@ -944,7 +939,8 @@ theorem gates_xMultiplicity_sum_le :
 /-- Circuit-only unit depth of the same schedule is bounded by its event bound. -/
 theorem circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
-  change (EncodedBit.GateSpec.programList gates).evaluatedEventDepth
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    gates).evaluatedEventDepth
       (fun _ => 1) ≤ _
   rw [EncodedBit.GateSpec.programList_evaluatedEventDepth_unit]
   simpa only [unitDepthBound, unitDepthBoundFor, eventCountBound] using

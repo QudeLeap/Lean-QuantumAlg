@@ -32,10 +32,12 @@ private def framedAllocationRecord (ctx frame : RuntimeCtx .quantum) (dimension 
     (History : Type) : (count : Nat) →
     (separate : RuntimeCtx.StorageDisjoint (MeasurementCells.context ctx dimension count) frame) →
     Store (ctx.disjointUnion frame (original_disjoint ctx frame dimension count separate)) ×
-      History →
+      (ClassicalOracleModel.empty.HiddenState × History) →
     Store ((MeasurementCells.context ctx dimension count).disjointUnion frame separate) ×
-      (History × (allocateFramed ctx frame dimension count separate).Path)
-  | 0, _, record => (record.1, (record.2, ()))
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (allocateFramed (model := .quantum AlgorithmGate.model .empty)
+          ctx frame dimension count separate).Path))
+  | 0, _, record => (record.1, (record.2.1, (record.2.2, ())))
   | count + 1, separate, record =>
       let middle := MeasurementCells.context ctx dimension count
       let earlierSeparate := retained_disjoint middle.canonicalFreshKey (.finite dimension)
@@ -43,7 +45,8 @@ private def framedAllocationRecord (ctx frame : RuntimeCtx .quantum) (dimension 
       let earlier := framedAllocationRecord ctx frame dimension History count earlierSeparate record
       (earlier.1.pushRetained middle.canonicalFreshKey (.finite dimension)
         (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
-          middle.canonicalFreshKey_fresh separate), (earlier.2.1, (earlier.2.2, ())))
+          middle.canonicalFreshKey_fresh separate),
+          (earlier.2.1, (earlier.2.2.1, (earlier.2.2.2, ()))))
 
 private theorem framedAllocation_execute (ctx frame : RuntimeCtx .quantum)
     (dimension : ℕ+) (count : Nat)
@@ -51,8 +54,9 @@ private theorem framedAllocation_execute (ctx frame : RuntimeCtx .quantum)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State
       (ctx.disjointUnion frame (original_disjoint ctx frame dimension count separate))
-      Reference History) :
-    (allocateFramed ctx frame dimension count separate).execute Reference state =
+      Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    (allocateFramed (model := .quantum AlgorithmGate.model .empty)
+      ctx frame dimension count separate).execute Reference state =
       (state.reindex
         (S := Register.prod
           ((MeasurementCells.context ctx dimension count).disjointUnion frame separate).register
@@ -64,27 +68,42 @@ private theorem framedAllocation_execute (ctx frame : RuntimeCtx .quantum)
       have basis : framedJointBasisEquiv ctx frame dimension 0 separate Reference =
           Equiv.refl _ := rfl
       rw [basis, ExecutionState.reindex_refl]
-      exact State.mapClassical_decision _ _ _ _
+      change (Circuit.id (model := .quantum AlgorithmGate.model .empty)
+        (ctx.disjointUnion frame separate)).execute Reference state = _
+      rw [Circuit.execute_id]
+      exact ExecutionState.executionState_mapClassical_congr state rfl
   | succ count induction =>
       let middle := MeasurementCells.context ctx dimension count
       let earlierSeparate := retained_disjoint middle.canonicalFreshKey (.finite dimension)
         middle.canonicalFreshKey_fresh separate
-      change (State.retain
-        ((allocateFramed ctx frame dimension count earlierSeparate).execute Reference state)
-        middle.canonicalFreshKey (.finite dimension)
-        (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
-          middle.canonicalFreshKey_fresh separate)).mapHistory
-            (fun record => (record.1.1, (record.1.2, record.2))) = _
-      rw [induction earlierSeparate state]
-      simp only [State.retain, State.mapHistory,
-        ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-      exact State.mapClassical_decision _ _ _ _
+      change (Circuit.seq
+        (allocateFramed (model := .quantum AlgorithmGate.model .empty)
+          ctx frame dimension count earlierSeparate)
+        (.retain (model := .quantum AlgorithmGate.model .empty)
+          (middle.disjointUnion frame earlierSeparate)
+          middle.canonicalFreshKey (.finite dimension)
+          (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
+            middle.canonicalFreshKey_fresh separate))).execute Reference state = _
+      rw [Circuit.execute_seq, Circuit.execute_retain, induction earlierSeparate state]
+      simp only [State.mapHistory,
+        ExecutionState.executionState_mapClassical_comp_instances, Function.comp_def]
+      have sameBasis :
+          framedJointBasisEquiv ctx frame dimension count earlierSeparate Reference =
+            framedJointBasisEquiv ctx frame dimension (count + 1) separate Reference := rfl
+      rw [sameBasis]
+      exact ExecutionState.executionState_mapClassical_congr
+        (state.reindex
+          (framedJointBasisEquiv ctx frame dimension (count + 1) separate Reference))
+        (by funext record; rfl)
 
 /-- The actual retained-cell record includes all previous values and its complete unique path. -/
 def scalarCellsRecord (width count : Nat) (History : Type) :
     Store ((InversePreparation.after width).disjointUnion (exponents width count)
-      (auxiliary_disjoint width count)) × History →
-      Store (withCells width count) × (History × (allocateCells width count).Path) :=
+      (auxiliary_disjoint width count)) ×
+        (ClassicalOracleModel.empty.HiddenState × History) →
+      Store (withCells width count) ×
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (allocateCells width count).Path)) :=
   framedAllocationRecord (InversePreparation.after width) (exponents width count) 2 History
     width (complete_disjoint width count)
 
@@ -92,7 +111,8 @@ def scalarCellsRecord (width count : Nat) (History : Type) :
 theorem allocateCells_execution (width count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ((InversePreparation.after width).disjointUnion (exponents width count)
-      (auxiliary_disjoint width count)) Reference History) :
+      (auxiliary_disjoint width count)) Reference
+        (ClassicalOracleModel.empty.HiddenState × History)) :
     (allocateCells width count).execute Reference state =
       (state.reindex (S := Register.prod (withCells width count).register Reference)
         (MeasurementCells.framedJointBasisEquiv (InversePreparation.after width)

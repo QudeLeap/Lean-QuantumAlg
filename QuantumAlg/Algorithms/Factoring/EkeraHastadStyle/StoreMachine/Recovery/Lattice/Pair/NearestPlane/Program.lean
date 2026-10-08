@@ -54,7 +54,8 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   target : LatticeWideLllTargetPreservation.TargetPreservationSeparation refs.wide
   nearest : LatticeNearestPlaneThree.Separation (nearestRefs refs)
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Only the original unmodified source-basis and target-zero conditions remain at entry. -/
 abbrev InitialConditions (store : Store ctx) (refs : Refs ctx N) : Prop :=
@@ -67,44 +68,58 @@ structure CallerSeparated (refs : Refs ctx N) {shape : CShape} (other : CInputRe
   nearest : LatticeNearestPlaneThree.FrameAvoids (nearestRefs refs) other
 
 /-- Original source-to-LLL execution precedes actual three-coordinate nearest-plane reduction. -/
-def pairToNearestPlaneInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def pairToNearestPlaneInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (LatticeWideLllMachine.pairToLllInto refs.wide)
     (LatticeNearestPlaneThree.threeInto (nearestRefs refs))
 
-/-- The actual reduced basis and retained target store feed the actual nearest-plane suffix. -/
+/-- Final store after the original wide reduction and nearest-plane suffix. -/
+def pairToNearestPlaneStore (refs : Refs ctx N) (store : Store ctx) : Store ctx :=
+  (LatticeNearestPlaneThree.threeStep (nearestRefs refs)
+    (LatticeWideLllMachine.pairToLllStep refs.wide store).1).1
+
+/-- Actual final store and both chronological path records. -/
 def pairToNearestPlaneStep (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (pairToNearestPlaneInto refs).Path :=
   let wide := LatticeWideLllMachine.pairToLllStep refs.wide store
   let nearest := LatticeNearestPlaneThree.threeStep (nearestRefs refs) wide.1
-  (nearest.1, (wide.2, nearest.2))
+  (pairToNearestPlaneStore refs store, (wide.2, nearest.2))
 
 /-- The complete actual composition retains every incoming state block and original history. -/
 theorem pairToNearestPlaneInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairToNearestPlaneInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((pairToNearestPlaneStep refs entry.1).1,
-        (entry.2, (pairToNearestPlaneStep refs entry.1).2))) := by
+      let actual := pairToNearestPlaneStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (LatticeWideLllMachine.pairToLllInto refs.wide)
     (LatticeNearestPlaneThree.threeInto (nearestRefs refs))
-    (LatticeWideLllMachine.pairToLllStep refs.wide)
-    (LatticeNearestPlaneThree.threeStep (nearestRefs refs))
-    (LatticeWideLllMachine.pairToLllInto_execute refs.wide)
-    (LatticeNearestPlaneThree.threeInto_execute (nearestRefs refs)) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeWideLllMachine.pairToLllStep (model := model) refs.wide before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeNearestPlaneThree.threeStep (model := model)
+        (nearestRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeWideLllMachine.pairToLllInto_execute refs.wide reference current)
+    (fun reference _history _ current =>
+      LatticeNearestPlaneThree.threeInto_execute (nearestRefs refs) reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual read outside the suffix writes survives the nearest-plane call. -/
 theorem pairToNearestPlaneInto_suffixFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : LatticeNearestPlaneThree.FrameAvoids (nearestRefs refs) other) :
-    (pairToNearestPlaneStep refs store).1.read other =
-      (LatticeWideLllMachine.pairToLllStep refs.wide store).1.read other :=
-  LatticeNearestPlaneThree.threeInto_callerFrame (nearestRefs refs) _ other separate
+    (pairToNearestPlaneStore (model := model) refs store).read other =
+      (LatticeWideLllMachine.pairToLllStep (model := model) refs.wide store).1.read other :=
+  LatticeNearestPlaneThree.threeInto_callerFrame (model := model)
+    (nearestRefs refs) _ other separate
 
 /-- Every actual read outside both original component write sets survives the full run. -/
 theorem pairToNearestPlaneInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (pairToNearestPlaneStep refs store).1.read other = store.read other :=
+    (pairToNearestPlaneStore (model := model) refs store).read other = store.read other :=
   (pairToNearestPlaneInto_suffixFrame refs store other separate.nearest).trans
     (LatticeWideLllMachine.pairToLllInto_callerFrame refs.wide store other separate.wide)
 

@@ -179,11 +179,14 @@ theorem caller_avoids_metric (refs : Refs ctx width) {shape : CShape}
       refs.firstMetric, LatticeMetricMachine.metricCellKey,
       LatticeMetricMachine.metricCellRef] using frame
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Either actual first latch arm preserves the original complete caller frame. -/
 theorem firstAdvanceArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : CallerSeparated refs other) :
-    (firstAdvanceArmStep refs flag store).1.read other = store.read other := by
+    (firstAdvanceArmStep (model := model) refs flag store).1.read other = store.read other := by
   cases flag with
   | bit flag =>
     cases flag
@@ -194,23 +197,24 @@ theorem firstAdvanceArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit)
 /-- The actually selected first latch update preserves every separated caller read. -/
 theorem firstAdvance_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (firstAdvanceStep refs store).1.read other = store.read other :=
+    (firstAdvanceStep (model := model) refs store).1.read other = store.read other :=
   firstAdvanceArm_frame refs _ store other separate
 
 /-- Actual first latch update and Gram refresh preserve the caller's original read frame. -/
 theorem firstTail_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (firstTailStep refs store).1.read other = store.read other := by
+    (firstTailStep (model := model) refs store).1.read other = store.read other := by
   change (LatticeMetricMachine.refreshStore refs.machine.basis refs.metric
-    (firstAdvanceStep refs store).1).read other = _
+    (firstAdvanceStep (model := model) refs store).1).read other = _
   rw [LatticeMetricMachine.refreshInto_callerFrame _ _ _ other
     (caller_avoids_metric refs other separate), firstAdvance_frame refs store other separate]
 
 /-- The complete actual first driver arm preserves every original separated caller read. -/
 theorem firstStep_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (firstStep refs store).1.read other = store.read other := by
-  change (firstTailStep refs (LatticeFirstPairMachine.firstPairStep refs.first store).1).1.read
+    (firstStep (model := model) refs store).1.read other = store.read other := by
+  change (firstTailStep (model := model) refs
+    (LatticeFirstPairMachine.firstPairStep (model := model) refs.first store).1).1.read
     other = _
   rw [firstTail_frame refs _ other separate]
   exact LatticeFirstPairMachine.firstPairInto_callerFrame refs.first store other
@@ -220,7 +224,7 @@ theorem firstStep_frame (refs : Refs ctx width) (store : Store ctx)
 theorem secondAdvanceArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : CallerSeparated refs other) :
-    (secondAdvanceArmStep refs flag store).1.read other = store.read other := by
+    (secondAdvanceArmStep (model := model) refs flag store).1.read other = store.read other := by
   cases flag with
   | bit flag =>
     cases flag
@@ -232,24 +236,25 @@ theorem secondAdvanceArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit
 /-- The actually selected second latch update preserves every separated caller read. -/
 theorem secondAdvance_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (secondAdvanceStep refs store).1.read other = store.read other :=
+    (secondAdvanceStep (model := model) refs store).1.read other = store.read other :=
   secondAdvanceArm_frame refs _ store other separate
 
 /-- Actual second latch update and Gram refresh preserve the caller's original read frame. -/
 theorem secondTail_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (secondTailStep refs store).1.read other = store.read other := by
+    (secondTailStep (model := model) refs store).1.read other = store.read other := by
   change (LatticeMetricMachine.refreshStore refs.machine.basis refs.metric
-    (secondAdvanceStep refs store).1).read other = _
+    (secondAdvanceStep (model := model) refs store).1).read other = _
   rw [LatticeMetricMachine.refreshInto_callerFrame _ _ _ other
     (caller_avoids_metric refs other separate), secondAdvance_frame refs store other separate]
 
 /-- The complete actual second driver arm preserves every original separated caller read. -/
 theorem secondStep_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (secondStep refs store).1.read other = store.read other := by
-  change (secondTailStep refs (LatticeSecondPairFullMachine.secondPairStep refs.second
-    store).1).1.read other = _
+    (secondStep (model := model) refs store).1.read other = store.read other := by
+  change (secondTailStep (model := model) refs
+    (LatticeSecondPairFullMachine.secondPairStep (model := model) refs.second store).1).1.read
+    other = _
   rw [secondTail_frame refs _ other separate]
   exact LatticeSecondPairFullMachine.secondPairInto_callerFrame refs.second store other
     (fun cell _ => separate.second cell)
@@ -257,8 +262,9 @@ theorem secondStep_frame (refs : Refs ctx width) (store : Store ctx)
 /-- The actual phase-selected pair retains the complete original caller frame. -/
 theorem nonDoneStep_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (nonDoneStep refs store).1.read other = store.read other := by
-  change (nonDoneArmStep refs (store.read (phaseInput refs.machine.secondPhase)) store).1.read
+    (nonDoneStep (model := model) refs store).1.read other = store.read other := by
+  change (nonDoneArmStep (model := model) refs
+    (store.read (phaseInput refs.machine.secondPhase)) store).1.read
     other = _
   cases store.read (phaseInput refs.machine.secondPhase) with
   | bit flag =>
@@ -269,8 +275,9 @@ theorem nonDoneStep_frame (refs : Refs ctx width) (store : Store ctx)
 /-- Terminal identity or the actual nonterminal step preserves the same complete caller frame. -/
 theorem step_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (step refs store).1.read other = store.read other := by
-  change (stepArmStep refs (store.read (phaseInput refs.machine.done)) store).1.read other = _
+    (step (model := model) refs store).1.read other = store.read other := by
+  change (stepArmStep (model := model) refs
+    (store.read (phaseInput refs.machine.done)) store).1.read other = _
   cases store.read (phaseInput refs.machine.done) with
   | bit flag =>
     cases flag
@@ -280,8 +287,8 @@ theorem step_frame (refs : Refs ctx width) (store : Store ctx)
 /-- Every finite number of actual LLL iterations retains every original separated caller read. -/
 theorem fixedFuelInto_callerFrame (fuel : Nat) (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
-    (fixedFuelStep fuel refs store).1.read other = store.read other := by
-  change ((fun current => (step refs current).1)^[fuel] store).read other = _
+    (fixedFuelStep (model := model) fuel refs store).1.read other = store.read other := by
+  change ((fun current => (step (model := model) refs current).1)^[fuel] store).read other = _
   induction fuel generalizing store with
   | zero => rfl
   | succ fuel ih =>

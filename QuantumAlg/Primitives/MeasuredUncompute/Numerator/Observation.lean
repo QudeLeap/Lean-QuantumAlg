@@ -90,8 +90,12 @@ theorem measurement_agrees (width : Nat) (left right : (context width).register.
 /-- The actual stored finite results index precisely the native word measured on that branch. -/
 theorem stored_outcome (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) :
-    NumeratorReset.outcome ((Circuit.writeMeasurementPath (readouts width) store
-      (Circuit.measurementBasisPath (readouts width) basis)).read (input width)) =
+    NumeratorReset.outcome ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+      (readouts width) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width) basis)).read (input width)) =
         word width basis := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro index

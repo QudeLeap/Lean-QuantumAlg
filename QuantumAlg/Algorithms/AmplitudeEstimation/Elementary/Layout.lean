@@ -53,7 +53,7 @@ def controlWire {t : Nat} (n : Nat) (stage : Fin t) : Fin (phaseWidth t n) :=
   Fin.castAdd (helperWidth t n) (PhaseWorkspace.controlWire stage)
 
 theorem controlWire_val {t : Nat} (n : Nat) (stage : Fin t) :
-    (controlWire n stage).val = qpeStagePrefixWidth stage := rfl
+    (controlWire n stage).val = stage.rev.val := rfl
 
 /-- Even the exceptional one-phase total-definition branch has one distinct work position. -/
 theorem phaseWidth_atLeastTwo {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) :
@@ -82,8 +82,8 @@ def extendedStage {t : Nat} (n : Nat) (stage : Fin t) : Fin (phaseWidth t n) :=
   ⟨stage.val + helperWidth t n, by change _ < t + helperWidth t n; omega⟩
 
 theorem extendedStage_prefix {t : Nat} (n : Nat) (stage : Fin t) :
-    qpeStagePrefixWidth (extendedStage n stage) = qpeStagePrefixWidth stage := by
-  dsimp only [extendedStage, qpeStagePrefixWidth, phaseWidth]
+    (extendedStage n stage).rev.val = stage.rev.val := by
+  dsimp only [extendedStage, Fin.rev, phaseWidth]
   omega
 
 /-- Reassociate the actual coordinates as original phase/source values and the selected work.

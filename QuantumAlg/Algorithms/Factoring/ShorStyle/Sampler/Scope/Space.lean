@@ -20,16 +20,16 @@ The composition adds no event and omits no intermediate storage stage.
 
 namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-private def ResidentBound {ctx : RuntimeCtx kind} (body : Circuit ctx ctx)
-    (path : body.Path) (budget : SpacePool kind) : Prop :=
+private def ResidentBound {ctx : RuntimeCtx model.kind} (body : Circuit model ctx ctx)
+    (path : body.Path) (budget : SpacePool model.kind) : Prop :=
   body.peakResidentSpace path ≤ budget
 
 private theorem workspace_resident_le (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
-    (path : body.Path) (budget : SpacePool kind) (parentBound : ctx.residentSpace ≤ budget)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (path : body.Path) (budget : SpacePool model.kind) (parentBound : ctx.residentSpace ≤ budget)
     (bodyBound : ResidentBound body path budget) :
     ResidentBound (Circuit.workspace ctx key shape fresh body) path budget :=
   (Circuit.peakResidentSpace_workspace key shape fresh body path).le.trans
@@ -37,8 +37,8 @@ private theorem workspace_resident_le (key : StorageKey) (shape : CShape)
 
 /-- Actual lexical entry and release retain the complete inner resident bound. -/
 theorem samplerScopes_resident_le (width : Nat)
-    (body : Circuit (Layout.context ctx width) (Layout.context ctx width))
-    (path : body.Path) (budget : SpacePool kind)
+    (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
+    (path : body.Path) (budget : SpacePool model.kind)
     (contextBound : (Layout.context ctx width).residentSpace ≤ budget)
     (bodyBound : body.peakResidentSpace path ≤ budget) :
     (scopes ctx width body).peakResidentSpace path ≤ budget := by
@@ -124,14 +124,14 @@ theorem samplerScopes_resident_le (width : Nat)
       ctx.canonicalFreshKey_fresh stage1 path budget (stageBound 0) bound1
   exact bound0
 
-private def AuxiliaryBound {ctx : RuntimeCtx kind} (body : Circuit ctx ctx)
-    (path : body.Path) (budget : SpacePool kind) : Prop :=
+private def AuxiliaryBound {ctx : RuntimeCtx model.kind} (body : Circuit model ctx ctx)
+    (path : body.Path) (budget : SpacePool model.kind) : Prop :=
   body.peakAuxiliarySpace path ≤ budget
 
 private theorem workspace_auxiliary_le (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
-    (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
-    (path : body.Path) (budget : SpacePool kind) (parentBound : ctx.auxiliarySpace ≤ budget)
+    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (path : body.Path) (budget : SpacePool model.kind) (parentBound : ctx.auxiliarySpace ≤ budget)
     (bodyBound : AuxiliaryBound body path budget) :
     AuxiliaryBound (Circuit.workspace ctx key shape fresh body) path budget :=
   (Circuit.peakAuxiliarySpace_workspace key shape fresh body path).le.trans
@@ -139,8 +139,8 @@ private theorem workspace_auxiliary_le (key : StorageKey) (shape : CShape)
 
 /-- Actual lexical entry and release retain the complete inner auxiliary bound. -/
 theorem samplerScopes_auxiliary_le (width : Nat)
-    (body : Circuit (Layout.context ctx width) (Layout.context ctx width))
-    (path : body.Path) (budget : SpacePool kind)
+    (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
+    (path : body.Path) (budget : SpacePool model.kind)
     (contextBound : (Layout.context ctx width).auxiliarySpace ≤ budget)
     (bodyBound : body.peakAuxiliarySpace path ≤ budget) :
     (scopes ctx width body).peakAuxiliarySpace path ≤ budget := by

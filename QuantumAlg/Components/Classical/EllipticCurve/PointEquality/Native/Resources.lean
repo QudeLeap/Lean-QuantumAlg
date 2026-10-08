@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Components.Classical.EllipticCurve.PointEquality.Native
 import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate.Resources
 import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate.Space
+import all QuantumAlg.Core.Execution.Classical.Composition.Range.Resources
 import all QuantumAlg.Core.Execution.Trace.Boundary
 
 /-!
@@ -25,91 +26,109 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual native core emits exactly the original eight classical events. -/
 theorem core_eventTrace (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit)
-    (path : (core left right scratch output).Path) :
-    (core left right scratch output).eventTrace path = coreTrace width := by
-  simp [core, Circuit.forRange, stage, Circuit.eventTrace, ClassicalOp.eventTrace,
+    (path : (core (model := model) left right scratch output).Path) :
+    (core (model := model) left right scratch output).eventTrace path = coreTrace model width := by
+  simp [core, Circuit.forRange, stage, Circuit.eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
     unpackLeft, unpackRight, tagXor, tagNot, equalX, equalY, coordinateAnd, outputAnd,
-    coreTrace, ClassicalOp.event, ClassicalOp.label]
+    coreTrace, ClassicalOp.label]
 
 /-- Internal lexical allocation and release preserve that exact chronological event list. -/
 theorem compareInto_eventTrace (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    (compareInto left right output).eventTrace path = coreTrace width := by
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).eventTrace path = coreTrace model width := by
   exact withCellsFrom_property (Transport.id ctx) (scratchShapes width)
     (fun cells _ transport _ => core (transport.liftInput left) (transport.liftInput right)
       (scratchOfCells cells) (transport.liftWrite output))
-    (fun _ code => ∀ selected, code.eventTrace selected = coreTrace width)
+    (fun _ code => ∀ selected, code.eventTrace selected = coreTrace model width)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => core_eventTrace _ _ _ _ selected) path
 
 /-- The exact original event multiplicities belong to the actual allocated circuit. -/
 theorem compareInto_resourcePool (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    (compareInto left right output).resourcePool path = coreEnvelope width := by
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).resourcePool path =
+      coreEnvelope model width := by
   exact congrArg ResourcePool.ofList (compareInto_eventTrace left right output path)
 
 /-- Every actual path contains exactly eight classical instructions. -/
 theorem compareInto_eventCount (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    ((compareInto left right output).eventTrace path).length = 8 := by
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    ((compareInto (model := model) left right output).eventTrace path).length = 8 := by
   rw [compareInto_eventTrace]
   rfl
 
 private theorem core_depth (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (path : (core left right scratch output).Path) :
-    (core left right scratch output).depth duration path =
-      ((coreTrace width).map duration).sum := by
-  simp [core, Circuit.forRange, stage, Circuit.depth, Circuit.eventDepth, DepthExpr.depthEval,
-    unpackLeft, unpackRight, tagXor, tagNot, equalX, equalY, coordinateAnd, outputAnd,
-    coreTrace, ClassicalOp.event, ClassicalOp.label]
+    (duration : Resource.Event model → Nat)
+    (path : (core (model := model) left right scratch output).Path) :
+    (core (model := model) left right scratch output).depth duration path =
+      ((coreTrace model width).map duration).sum := by
+  rw [← core_eventTrace left right scratch output path]
+  apply Circuit.forRange_duration_eventTrace
+  intro index selected
+  fin_cases index
+  all_goals change (BitWord.instruction (execution := model) _).Path at selected
+  all_goals change (BitWord.instruction (execution := model) _).depth duration selected =
+    ((((BitWord.instruction (execution := model) _).eventTrace selected).map duration).sum)
+  all_goals
+    rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+  all_goals simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- The actual serial dependency depth includes each original native event duration. -/
 theorem compareInto_depth (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (duration : Resource.Event kind → Nat)
-    (path : (compareInto left right output).Path) :
-    (compareInto left right output).depth duration path =
-      ((coreTrace width).map duration).sum := by
+    (output : CWriteRef ctx .bit) (duration : Resource.Event model → Nat)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).depth duration path =
+      ((coreTrace model width).map duration).sum := by
   exact withCellsFrom_property (Transport.id ctx) (scratchShapes width)
     (fun cells _ transport _ => core (transport.liftInput left) (transport.liftInput right)
       (scratchOfCells cells) (transport.liftWrite output))
     (fun _ code => ∀ selected, code.depth duration selected =
-      ((coreTrace width).map duration).sum)
+      ((coreTrace model width).map duration).sum)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => core_depth _ _ _ _ duration selected) path
 
 /-- Unit native durations give the original eight sequential comparison steps. -/
 theorem compareInto_unitDepth (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    (compareInto left right output).depth (fun _ => 1) path = 8 := by
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).depth (fun _ => 1) path = 8 := by
   rw [compareInto_depth]
   rfl
 
 private theorem core_resident (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit)
-    (path : (core left right scratch output).Path) :
-    (core left right scratch output).peakResidentSpace path ≤ ctx.residentSpace := by
+    (path : (core (model := model) left right scratch output).Path) :
+    (core (model := model) left right scratch output).peakResidentSpace path ≤
+      ctx.residentSpace := by
   apply Circuit.forRange_resident_le 8 _ _ le_rfl _ path
   intro index selected
   fin_cases index <;> exact (Circuit.peakResidentSpace_classical _ selected).le
 
 private theorem core_auxiliary (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit)
-    (path : (core left right scratch output).Path) :
-    (core left right scratch output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+    (path : (core (model := model) left right scratch output).Path) :
+    (core (model := model) left right scratch output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace := by
   apply Circuit.forRange_auxiliary_le 8 _ _ le_rfl _ path
   intro index selected
   fin_cases index <;> exact (Circuit.peakAuxiliarySpace_classical _ selected).le
 
 /-- The original five complete scratch shapes bound the actual resident peak. -/
 theorem compareInto_resident (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    (compareInto left right output).peakResidentSpace path ≤
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).peakResidentSpace path ≤
       ((scratchShapes width).map SpacePool.ofShape).sum + ctx.residentSpace := by
   simpa only [add_zero, compareInto, withCells] using
     withCellsFrom_resident_le (Transport.id ctx) (scratchShapes width)
@@ -123,8 +142,9 @@ theorem compareInto_resident (left right : CInputRef ctx (PointShape width))
 
 /-- Every internally allocated point and intermediate bit is charged as actual auxiliary space. -/
 theorem compareInto_auxiliary (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) (path : (compareInto left right output).Path) :
-    (compareInto left right output).peakAuxiliarySpace path ≤
+    (output : CWriteRef ctx .bit)
+    (path : (compareInto (model := model) left right output).Path) :
+    (compareInto (model := model) left right output).peakAuxiliarySpace path ≤
       ((scratchShapes width).map SpacePool.ofShape).sum + ctx.auxiliarySpace := by
   simpa only [add_zero, compareInto, withCells] using
     withCellsFrom_auxiliary_le (Transport.id ctx) (scratchShapes width)
@@ -136,9 +156,10 @@ theorem compareInto_auxiliary (left right : CInputRef ctx (PointShape width))
         (transport.liftInput left) (transport.liftInput right)
         (scratchOfCells cells) (transport.liftWrite output) selected) path
 
+omit [BitWord.Selected model] in
 /-- Two complete raw points and three bits occupy exactly the original scratch bit allowance. -/
 theorem scratchShapes_classicalBits :
-    (((scratchShapes width).map (SpacePool.ofShape (kind := kind))).sum) .classicalBits =
+    (((scratchShapes width).map (SpacePool.ofShape (kind := model.kind))).sum) .classicalBits =
       4 * width + 5 := by
   simp [scratchShapes, RawPointShape, SpacePool.ofShape, CShape.bitWidth]
   omega

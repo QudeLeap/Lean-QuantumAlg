@@ -26,7 +26,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {width resultWidth : Nat}
 
 private theorem latch_replace
     {accepted eligible sourceAccepted sourceEligible : Bool}
@@ -51,14 +51,18 @@ private theorem latch_order (accepted firstValid secondValid : Bool) (first seco
       else if secondValid then CShape.wordOfNat resultWidth second else old := by
   cases accepted <;> cases firstValid <;> cases secondValid <;> rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 private theorem checked_store_projection
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (store : Store (context ctx width)) :
-    (checkedBodyStep (ctx := ctx) (width := width) modulus original store).1 =
-      (NarrowSelection.step
+    (checkedBodyStep (model := model) (ctx := ctx) (width := width) modulus original store).1 =
+      (NarrowSelection.step (model := model)
         (FirstAccepted.cellRead (pairRefs modulus).selection.accepted)
         (FirstAccepted.cellRead (pairRefs modulus).selection.selected)
-        (persistentRefs original width) (Pair.step (pairRefs modulus) store).1).1 := rfl
+        (persistentRefs original width)
+        (Pair.step (model := model) (pairRefs modulus) store).1).1 := rfl
 
 set_option maxHeartbeats 800000 in -- Instantiate source and read laws for thirteen actual cells.
 /-- Actual checking and narrowing implement source priority in the same original persistent cells.
@@ -74,9 +78,9 @@ theorem nativeQuadratic_persistent_checked_values
       (store.read modulus).toNat % source.1 = 0)
     let secondValid := decide (1 < source.2 ∧ source.2 < (store.read modulus).toNat ∧
       (store.read modulus).toNat % source.2 = 0)
-    let final := (checkedBodyStep modulus original
+    let final := (checkedBodyStep (model := model) modulus original
       (CheckLayout.pushStore (RSA.quadraticWordWidth width)
-        (initializedStore input modulus store))).1
+        (initializedStore (model := model) input modulus store))).1
     (final.read (FirstAccepted.cellRead (persistentRefs original width).accepted)).toBool =
         ((store.read (FirstAccepted.cellRead original.accepted)).toBool ||
           (firstValid || secondValid)) ∧
@@ -87,15 +91,17 @@ theorem nativeQuadratic_persistent_checked_values
         else if secondValid then CShape.wordOfNat resultWidth source.2
         else store.read (FirstAccepted.cellRead original.selected) := by
   let entered : Store (context ctx width) :=
-    CheckLayout.pushStore (RSA.quadraticWordWidth width) (initializedStore input modulus store)
-  let paired : Store (context ctx width) := (Pair.step (pairRefs modulus) entered).1
-  have localValues := nativeQuadratic_local_pair_values input modulus store
+    CheckLayout.pushStore (RSA.quadraticWordWidth width)
+      (initializedStore (model := model) input modulus store)
+  let paired : Store (context ctx width) :=
+    (Pair.step (model := model) (pairRefs modulus) entered).1
+  have localValues := nativeQuadratic_local_pair_values (model := model) input modulus store
   have acceptedRead : paired.read
       (FirstAccepted.cellRead (persistentRefs original width).accepted) =
         store.read (FirstAccepted.cellRead original.accepted) :=
     (congrArg (fun ref : CInputRef (context ctx width) .bit => paired.read ref)
       (nativeQuadratic_persistent_underWrite_read original.accepted width)).trans
-      (nativeQuadratic_persistent_checked_entry_read input modulus
+      (nativeQuadratic_persistent_checked_entry_read (model := model) input modulus
         (FirstAccepted.cellRead original.accepted) store)
   have selectedRead : paired.read
       (FirstAccepted.cellRead (persistentRefs original width).selected) =
@@ -103,14 +109,14 @@ theorem nativeQuadratic_persistent_checked_values
     (congrArg (fun ref : CInputRef (context ctx width) (.unsignedWord resultWidth) =>
       paired.read ref)
       (nativeQuadratic_persistent_underWrite_read original.selected width)).trans
-      (nativeQuadratic_persistent_checked_entry_read input modulus
+      (nativeQuadratic_persistent_checked_entry_read (model := model) input modulus
         (FirstAccepted.cellRead original.selected) store)
-  have actual := NarrowSelection.nativeQuadratic_narrow_latches
+  have actual := NarrowSelection.nativeQuadratic_narrow_latches (model := model)
     (FirstAccepted.cellRead (pairRefs modulus).selection.accepted)
     (FirstAccepted.cellRead (pairRefs modulus).selection.selected)
     (persistentRefs original width) (nativeQuadratic_persistent_narrow_separated
       modulus original unique) paired
-  have finalStore := checked_store_projection modulus original entered
+  have finalStore := checked_store_projection (model := model) modulus original entered
   have acceptedAfter := congrArg (fun current : Store (context ctx width) =>
     (current.read (FirstAccepted.cellRead (persistentRefs original width).accepted)).toBool)
     finalStore

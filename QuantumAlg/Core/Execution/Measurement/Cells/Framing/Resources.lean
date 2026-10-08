@@ -20,13 +20,15 @@ resident and auxiliary capacities are the exact actual peaks.
 
 namespace QuantumAlg.Execution.MeasurementCells
 
-variable {kind : ProblemKind}
+variable {model : ExecutionModel}
 
 /-- Actual visited contexts contain the complete frame beside an original allocation prefix. -/
-theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (path : (allocateFramed ctx frame dimension count separate).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (allocateFramed ctx frame dimension count separate).visitedContexts path) :
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈
+      (allocateFramed (model := model) ctx frame dimension count separate).visitedContexts path) :
     ∃ used, used ≤ count ∧
       ∃ prefixSeparate : RuntimeCtx.StorageDisjoint (context ctx dimension used) frame,
         visited = (context ctx dimension used).disjointUnion frame prefixSeparate := by
@@ -36,8 +38,8 @@ theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx kind) (dimension 
       let middle := context ctx dimension count
       let prefixSeparate := retained_disjoint middle.canonicalFreshKey (.finite dimension)
         middle.canonicalFreshKey_fresh separate
-      change visited ∈ (allocateFramed ctx frame dimension count prefixSeparate).visitedContexts
-        path.1 ++ [middle.disjointUnion frame prefixSeparate,
+      change visited ∈ (allocateFramed (model := model) ctx frame dimension count
+        prefixSeparate).visitedContexts path.1 ++ [middle.disjointUnion frame prefixSeparate,
           (context ctx dimension (count + 1)).disjointUnion frame separate] at present
       rcases List.mem_append.mp present with earlier | current
       · obtain ⟨used, bounded, prefixProof, equal⟩ := ih prefixSeparate path.1 earlier
@@ -46,23 +48,24 @@ theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx kind) (dimension 
         · exact ⟨count, Nat.le_succ count, prefixSeparate, equal⟩
         · exact ⟨count + 1, le_rfl, separate, List.mem_singleton.mp last⟩
 
-private theorem final_visited (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+private theorem final_visited (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (path : (allocateFramed ctx frame dimension count separate).Path) :
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
     (context ctx dimension count).disjointUnion frame separate ∈
-      (allocateFramed ctx frame dimension count separate).visitedContexts path := by
+      (allocateFramed (model := model) ctx frame dimension count separate).visitedContexts
+        path := by
   cases count with
   | zero => exact List.mem_singleton_self _
   | succ count =>
       exact List.mem_append_right _ (List.mem_cons_of_mem _ (List.mem_singleton_self _))
 
 /-- All retained cells and the entire supplied frame contribute to the exact resident peak. -/
-theorem allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+theorem allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (path : (allocateFramed ctx frame dimension count separate).Path) :
-    (allocateFramed ctx frame dimension count separate).peakResidentSpace path =
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
+    (allocateFramed (model := model) ctx frame dimension count separate).peakResidentSpace path =
       (context ctx dimension count).residentSpace + frame.residentSpace := by
-  let code := allocateFramed ctx frame dimension count separate
+  let code := allocateFramed (model := model) ctx frame dimension count separate
   have upper := code.peakResidentSpace_le_of_visited path
     ((context ctx dimension count).residentSpace + frame.residentSpace) (by
       intro visited present
@@ -77,12 +80,12 @@ theorem allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx kind) (dimensio
   exact le_antisymm upper lower
 
 /-- Fixed storage roles give the same exact auxiliary peak on every actual allocation path. -/
-theorem allocateFramed_peakAuxiliarySpace (ctx frame : RuntimeCtx kind) (dimension : ℕ+)
+theorem allocateFramed_peakAuxiliarySpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
-    (path : (allocateFramed ctx frame dimension count separate).Path) :
-    (allocateFramed ctx frame dimension count separate).peakAuxiliarySpace path =
+    (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
+    (allocateFramed (model := model) ctx frame dimension count separate).peakAuxiliarySpace path =
       (context ctx dimension count).auxiliarySpace + frame.auxiliarySpace := by
-  let code := allocateFramed ctx frame dimension count separate
+  let code := allocateFramed (model := model) ctx frame dimension count separate
   have upper := code.peakAuxiliarySpace_le_of_visited path
     ((context ctx dimension count).auxiliarySpace + frame.auxiliarySpace) (by
       intro visited present

@@ -30,7 +30,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 noncomputable section
 
 private def alignedIncrement (low high extra : Nat) (same : extra + high = low) :
-    UnitaryCircuit (Qubits (bridgeEncoding low high).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (bridgeEncoding low high).width).toQuantum :=
   same ▸ placedIncrementProgram extra high
 
 private theorem alignedIncrement_realizes (low high extra : Nat) (same : extra + high = low) :
@@ -40,7 +41,7 @@ private theorem alignedIncrement_realizes (low high extra : Nat) (same : extra +
   exact hrsPlacedIncrement_realizes extra high
 
 private theorem alignedIncrement_resources (low high extra : Nat) (same : extra + high = low)
-    (assign : Resource.Event .quantum → Nat) :
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (alignedIncrement low high extra same).eventCost =
         (controlledBorrowedIncrementProgram high).eventCost ∧
       (alignedIncrement low high extra same).evaluatedEventDepth assign =
@@ -48,13 +49,9 @@ private theorem alignedIncrement_resources (low high extra : Nat) (same : extra 
   subst low
   exact hrsPlacedIncrement_resources extra high assign
 
-private theorem alignedIncrement_range (low high extra : Nat) (same : extra + high = low) :
-    (alignedIncrement low high extra same).physical_idx ⊆ List.range (low + high + 1) := by
-  subst low
-  exact hrsPlacedIncrement_physical_range extra high
-
 private def alignedCarry (low high extra : Nat) (same : (low - 2) + extra = high)
-    (constant : Fin (2 ^ low)) : UnitaryCircuit (Qubits (bridgeEncoding low high).width) :=
+    (constant : Fin (2 ^ low)) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (bridgeEncoding low high).width).toQuantum :=
   same ▸ placedCarryProgram low extra constant
 
 private theorem alignedCarry_realizes (low high extra : Nat) (same : (low - 2) + extra = high)
@@ -65,18 +62,13 @@ private theorem alignedCarry_realizes (low high extra : Nat) (same : (low - 2) +
   exact hrsPlacedCarry_realizes low extra constant
 
 private theorem alignedCarry_resources (low high extra : Nat) (same : (low - 2) + extra = high)
-    (constant : Fin (2 ^ low)) (assign : Resource.Event .quantum → Nat) :
+    (constant : Fin (2 ^ low))
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (alignedCarry low high extra same constant).eventCost = (carryProgram low constant).eventCost ∧
       (alignedCarry low high extra same constant).evaluatedEventDepth assign =
         (carryProgram low constant).evaluatedEventDepth assign := by
   subst high
   exact hrsPlacedCarry_resources low extra constant assign
-
-private theorem alignedCarry_range (low high extra : Nat) (same : (low - 2) + extra = high)
-    (constant : Fin (2 ^ low)) :
-    (alignedCarry low high extra same constant).physical_idx ⊆ List.range (low + high + 1) := by
-  subst high
-  exact hrsPlacedCarry_physical_range low extra constant
 
 private theorem increment_capacity (width : Nat) :
     (lowWidth width - highWidth width) + highWidth width = lowWidth width :=
@@ -89,7 +81,9 @@ private theorem carry_capacity (width : Nat) :
 
 /-- Execute the six real blocks on the existing low/high/dirty carrier. -/
 def recursiveBridgeProgram (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
-    UnitaryCircuit (Qubits (bridgeEncoding (lowWidth width) (highWidth width)).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (bridgeEncoding (lowWidth width) (highWidth width)).width).toQuantum :=
   let increment := alignedIncrement (lowWidth width) (highWidth width)
     (lowWidth width - highWidth width) (increment_capacity width)
   let complement := controlledComplementProgram (lowWidth width) (highWidth width)
@@ -110,36 +104,26 @@ theorem hrsRecursiveBridge_realizes (width : Nat) (constant : Fin (2 ^ lowWidth 
   exact (((((hi.seq hj).seq hc).seq hi).seq hc).seq hj).congrStep
     (hrsCarryBridge_steps (highWidth width) _)
 
-/-- Every actual bridge operation stays in the original word and one dirty bit. -/
-theorem hrsRecursiveBridge_interface (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+/-- The bridge uses the exact canonical carrier of the original word and one dirty bit. -/
+theorem hrsRecursiveBridge_interface (width : Nat) (_constant : Fin (2 ^ lowWidth width)) :
     (bridgeEncoding (lowWidth width) (highWidth width)).width = width + 1 ∧
-      (recursiveBridgeProgram width constant).physical_idx ⊆ List.range (width + 1) := by
+      (QubitLayout.canonical
+        (bridgeEncoding (lowWidth width) (highWidth width)).width).systemIdx =
+          List.range (width + 1) := by
   constructor
   · rw [hrsBridgeEncoding_width, hrsSplit_width_sum]
-  · have hi := alignedIncrement_range (lowWidth width) (highWidth width)
-      (lowWidth width - highWidth width) (increment_capacity width)
-    have hj : (controlledComplementProgram (lowWidth width) (highWidth width)).physical_idx ⊆
-        List.range (lowWidth width + highWidth width + 1) :=
-      EncodedBit.GateSpec.programList_physical_idx_subset_range
-        (controlledComplementGates (lowWidth width) (highWidth width))
-    have hc := alignedCarry_range (lowWidth width) (highWidth width)
-      (highWidth width - (lowWidth width - 2)) (carry_capacity width) constant
-    have h := UnitaryCircuit.seq_physical_idx_subset _ _
-      (UnitaryCircuit.seq_physical_idx_subset _ _
-        (UnitaryCircuit.seq_physical_idx_subset _ _
-          (UnitaryCircuit.seq_physical_idx_subset _ _
-            (UnitaryCircuit.seq_physical_idx_subset _ _ hi hj) hc) hi) hc) hj
-    unfold recursiveBridgeProgram
-    simpa only [hrsSplit_width_sum] using h
+  · rw [hrsBridgeEncoding_width, hrsSplit_width_sum]
+    exact QubitLayout.canonical_systemIdx (width + 1)
 
 /-- Each native coordinate counts the three actual component programs twice. -/
 theorem hrsRecursiveBridge_native_count (width : Nat) (constant : Fin (2 ^ lowWidth width))
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (recursiveBridgeProgram width constant).eventCost =
       2 * (ResourcePool.count focus
           (controlledBorrowedIncrementProgram (highWidth width)).eventCost +
         highWidth width *
-          (if (.gate (.builtin "cnot") : Resource.Event .quantum) = focus then 1 else 0) +
+          (if (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
+            then 1 else 0) +
         ResourcePool.count focus (carryProgram (lowWidth width) constant).eventCost) := by
   simp only [recursiveBridgeProgram, UnitaryCircuit.seq_eventCost, ResourcePool.count_add]
   simp only [(alignedIncrement_resources _ _ _ (increment_capacity width) (fun _ => 1)).1,
@@ -169,6 +153,81 @@ theorem hrsRecursiveBridge_serial_depth (width : Nat) (constant : Fin (2 ^ lowWi
     (alignedCarry_resources _ _ _ (carry_capacity width) constant (fun _ => 1)).2,
     (hrsControlledComplement_serial_resources (lowWidth width) (highWidth width)).2]
   omega
+
+private def alignedIncrementGates (low high extra : Nat) (same : extra + high = low) :
+    List (EncodedBit.GateSpec (bridgeEncoding low high)) :=
+  same ▸ placedIncrementGates extra high
+
+private theorem alignedIncrementGates_step (low high extra : Nat) (same : extra + high = low)
+    (state : BridgeRegisters (Fin (2 ^ low)) high) :
+    EncodedBit.GateSpec.stepList (alignedIncrementGates low high extra same) state =
+      bridgeIncrementStep state := by
+  subst low
+  exact hrsPlacedIncrementGates_step extra high state
+
+private theorem alignedIncrementGates_events (low high extra : Nat) (same : extra + high = low) :
+    (alignedIncrementGates low high extra same).map (EncodedBit.GateSpec.event .empty) =
+      (alignedIncrement low high extra same).eventTrace := by
+  subst low
+  exact (EncodedBit.GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty
+    (placedIncrementGates extra high)).symm
+
+private def alignedCarryGates (low high extra : Nat) (same : (low - 2) + extra = high)
+    (constant : Fin (2 ^ low)) : List (EncodedBit.GateSpec (bridgeEncoding low high)) :=
+  same ▸ placedCarryGates low extra constant
+
+private theorem alignedCarryGates_step (low high extra : Nat) (same : (low - 2) + extra = high)
+    (constant : Fin (2 ^ low)) (state : BridgeRegisters (Fin (2 ^ low)) high) :
+    EncodedBit.GateSpec.stepList (alignedCarryGates low high extra same constant) state =
+      bridgeCarryStep (fun input => decide (2 ^ low ≤ input.val + constant.val)) state := by
+  subst high
+  exact hrsPlacedCarryGates_step low extra constant state
+
+private theorem alignedCarryGates_events (low high extra : Nat)
+    (same : (low - 2) + extra = high) (constant : Fin (2 ^ low)) :
+    (alignedCarryGates low high extra same constant).map (EncodedBit.GateSpec.event .empty) =
+      (alignedCarry low high extra same constant).eventTrace := by
+  subst high
+  exact (EncodedBit.GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty
+    (placedCarryGates low extra constant)).symm
+
+/-- The exact six bridge blocks retained as native instructions for further control lowering. -/
+def recursiveBridgeGates (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+    List (EncodedBit.GateSpec (bridgeEncoding (lowWidth width) (highWidth width))) :=
+  carryBridgeGates
+    (alignedIncrementGates (lowWidth width) (highWidth width)
+      (lowWidth width - highWidth width) (increment_capacity width))
+    (controlledComplementGates (lowWidth width) (highWidth width))
+    (alignedCarryGates (lowWidth width) (highWidth width)
+      (highWidth width - (lowWidth width - 2)) (carry_capacity width) constant)
+
+/-- The explicit shared-layout bridge list has the same exact arithmetic action. -/
+theorem hrsRecursiveBridgeGates_step (width : Nat) (constant : Fin (2 ^ lowWidth width))
+    (state : BridgeRegisters (Fin (2 ^ lowWidth width)) (highWidth width)) :
+    EncodedBit.GateSpec.stepList (recursiveBridgeGates width constant) state =
+      bridgeOutput (fun input => decide (2 ^ lowWidth width ≤ input.val + constant.val)) state :=
+  hrsCarryBridge_step _ _ _ _
+    (alignedIncrementGates_step (lowWidth width) (highWidth width)
+      (lowWidth width - highWidth width) (increment_capacity width))
+    (hrsControlledComplement_step (lowWidth width) (highWidth width))
+    (alignedCarryGates_step (lowWidth width) (highWidth width)
+      (highWidth width - (lowWidth width - 2)) (carry_capacity width) constant) state
+
+/-- Every source gate remains in its original order, with no relabelled or omitted native event. -/
+theorem hrsRecursiveBridgeGates_events (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+    (recursiveBridgeGates width constant).map (EncodedBit.GateSpec.event .empty) =
+      (recursiveBridgeProgram width constant).eventTrace := by
+  simp only [recursiveBridgeGates, carryBridgeGates, List.map_append,
+    alignedIncrementGates_events, alignedCarryGates_events,
+    recursiveBridgeProgram, UnitaryCircuit.seq_eventTrace,
+    controlledComplementProgram, EncodedBit.GateSpec.programList_eventTrace, List.append_assoc]
+
+/-- The literal list has the already proved native event cardinality of the source construction. -/
+theorem hrsRecursiveBridgeGates_length (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+    (recursiveBridgeGates width constant).length =
+      (recursiveBridgeProgram width constant).eventCost.card := by
+  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, ← hrsRecursiveBridgeGates_events]
+  simp [ResourcePool.ofList]
 
 end
 

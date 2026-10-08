@@ -75,24 +75,29 @@ def subtractionDifferenceOp (scratch : SubScratch ctx width) :
     (.product (.first (reductionRead scratch.augmented))
       (reductionRead scratch.right)) scratch.difference
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual modulus loading occurs between both widenings and both arithmetic operations. -/
 def subtractionStage (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width) :
-    Fin 5 → Circuit ctx ctx :=
-  ![.classical (subtractionLeftOp left scratch), .classical (subtractionRightOp right scratch),
-    ConstantWord.circuit scratch.modulus spec.modulus, .classical (subtractionAugmentOp scratch),
-    .classical (subtractionDifferenceOp scratch)]
+    Fin 5 → Circuit model ctx ctx :=
+  ![BitWord.instruction (execution := model) (subtractionLeftOp left scratch),
+    BitWord.instruction (execution := model) (subtractionRightOp right scratch),
+    ConstantWord.circuit scratch.modulus spec.modulus,
+    BitWord.instruction (execution := model) (subtractionAugmentOp scratch),
+    BitWord.instruction (execution := model) (subtractionDifferenceOp scratch)]
 
 /-- A separately loaded reduction follows the complete original subtraction prefix. -/
 def subtractionBody (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .seq (Circuit.forRange 5 (subtractionStage spec left right scratch))
     (reduceIntoWord spec (.first (reductionRead scratch.difference)) output)
 
 /-- Actual allocation and release surround the original complete raw subtraction instructions. -/
 def subIntoWord (spec : ModulusSpec width) (left right : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   withCells ctx (subtractionShapes width) fun cells _ transport _ =>
     subtractionBody spec (transport.liftInput left) (transport.liftInput right)
       (subtractionScratch cells) (transport.liftWrite output)
@@ -101,16 +106,21 @@ def subIntoWord (spec : ModulusSpec width) (left right : CInputRef ctx (.unsigne
 def subtractionStageRecord (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (index : Fin 5) :
-    Store ctx → Store ctx × (subtractionStage spec left right scratch index).Path := by
-  refine Fin.cases (fun store => (store.applyOp (subtractionLeftOp left scratch), ()))
+    Store ctx → Store ctx ×
+      (subtractionStage (model := model) spec left right scratch index).Path := by
+  refine Fin.cases
+    (BitWord.instructionStep (execution := model) (subtractionLeftOp left scratch))
     (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (subtractionRightOp right scratch), ()))
+  refine Fin.cases
+    (BitWord.instructionStep (execution := model) (subtractionRightOp right scratch))
     (fun index => ?_) index
   refine Fin.cases (ConstantWord.foldStep scratch.modulus
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))) (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (subtractionAugmentOp scratch), ()))
+  refine Fin.cases
+    (BitWord.instructionStep (execution := model) (subtractionAugmentOp scratch))
     (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (subtractionDifferenceOp scratch), ()))
+  refine Fin.cases
+    (BitWord.instructionStep (execution := model) (subtractionDifferenceOp scratch))
     (fun index => ?_) index
   exact Fin.elim0 index
 
@@ -118,26 +128,27 @@ def subtractionStageRecord (spec : ModulusSpec width)
 theorem subtractionStage_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (index : Fin 5) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (subtractionStage spec left right scratch index).execute Reference state = state.mapClassical
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (subtractionStage (model := model) spec left right scratch index).execute Reference state =
+      state.mapClassical
       (fun entry => ((subtractionStageRecord spec left right scratch index entry.1).1,
-        (entry.2, (subtractionStageRecord spec left right scratch index entry.1).2))) := by
+        (entry.2.1, (entry.2.2,
+          (subtractionStageRecord spec left right scratch index entry.1).2)))) := by
   fin_cases index
   all_goals first
     | exact ConstantWord.constantWord_fold_execute scratch.modulus _ Reference state
-    | refine (Circuit.execute_classical_mapClassical _ Reference state).trans ?_
-  all_goals
-    congr 1
-    exact Subsingleton.elim _ _
+    | exact BitWord.bitWord_instruction_execute (execution := model) _ state
 
 /-- The true arithmetic and separately loaded reduction share their actual intermediate store. -/
 def subtractionBodyStep (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Store ctx → Store ctx × (subtractionBody spec left right scratch output).Path :=
-  Circuit.sequenceRecord (Circuit.forRange 5 (subtractionStage spec left right scratch))
+    Store ctx → Store ctx ×
+      (subtractionBody (model := model) spec left right scratch output).Path :=
+  Circuit.sequenceStoreRecord
+    (Circuit.forRange 5 (subtractionStage (model := model) spec left right scratch))
     (reduceIntoWord spec (.first (reductionRead scratch.difference)) output)
-    (Circuit.forRangeRecord 5 (subtractionStage spec left right scratch)
+    (Circuit.forRangeStoreRecord 5 (subtractionStage (model := model) spec left right scratch)
       (subtractionStageRecord spec left right scratch))
     (reduceIntoWordStep spec (.first (reductionRead scratch.difference)) output)
 
@@ -145,12 +156,16 @@ def subtractionBodyStep (spec : ModulusSpec width)
 theorem subtractionBody_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (subtractionBody spec left right scratch output).execute Reference state = state.mapClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (subtractionBody (model := model) spec left right scratch output).execute Reference state =
+      state.mapClassical
       (fun entry => ((subtractionBodyStep spec left right scratch output entry.1).1,
-        (entry.2, (subtractionBodyStep spec left right scratch output entry.1).2))) := by
-  exact Circuit.execute_sequenceRecord _ _ _ _
-    (Circuit.execute_forRangeRecord 5 (subtractionStage spec left right scratch)
+        (entry.2.1, (entry.2.2,
+          (subtractionBodyStep spec left right scratch output entry.1).2)))) := by
+  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (Circuit.execute_forRangeStoreRecord (model := model) 5
+      (subtractionStage (model := model) spec left right scratch)
       (subtractionStageRecord spec left right scratch)
       (subtractionStage_execute spec left right scratch))
     (reduceIntoWord_execute _ _ _) Reference state

@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Domain
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Correctness
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.InPlace.Mathematics
@@ -47,88 +48,80 @@ theorem canonical_width {p : Nat} (prime : Nat.Prime p) (characteristic : 3 < p)
   · exact Nat.size_le.mpr (by omega)
   · exact Nat.clog_le_of_le_pow (Nat.le_of_lt (Nat.lt_size_self p))
 
-private theorem prefixControl_matrix {bodyWidth : Nat} (count : Nat)
-    (active : Fin (2 ^ count)) (program : UnitaryCircuit (Qubits bodyWidth))
-    (rowControl columnControl : Fin (2 ^ count)) (row column : Fin (2 ^ bodyWidth)) :
-    (prefixControl count active program).matrix
-      (prodEquiv (rowControl, row)) (prodEquiv (columnControl, column)) =
-      if rowControl = columnControl then
-        if rowControl = active then program.matrix row column
-        else if row = column then 1 else 0
-      else 0 := by
-  rw [prefixControl, UnitaryCircuit.reindex_matrix, UnitaryCircuit.controlAt_matrix]
-  change UnitaryOperator.controlled (Qubits count) active
-    (UnitaryCircuit.shiftPhysicalIdx count program).matrix
-      ((prodEquiv (m := count) (n := bodyWidth)).symm (prodEquiv (rowControl, row)))
-      ((prodEquiv (m := count) (n := bodyWidth)).symm (prodEquiv (columnControl, column))) = _
-  rw [Equiv.symm_apply_apply, Equiv.symm_apply_apply, UnitaryCircuit.shiftPhysicalIdx_matrix]
-  exact UnitaryOperator.controlled_apply _ _ _ _ _
+private theorem nativeList_step {width : Nat}
+    (gates : List (EncodedBit.GateSpec (encoding width))) (action : Raw width → Raw width)
+    (realized : UnitaryCircuit.Realizes (encoding width)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty gates) action)
+    (state : Raw width) : EncodedBit.GateSpec.stepList gates state = action state := by
+  have literal := EncodedBit.GateSpec.realizesList (nativeLayout width) .empty gates
+  have actual := literal.apply_encoded_ket state
+  exact (encoding width).encode_injective ((nativeLayout width).basisEquiv.symm.injective
+    (NormalizedVector.ket_injective (actual.symm.trans (realized.apply_encoded_ket state))))
 
-/-- Complete native control columns retain amplitudes in both sectors without measurement. -/
-private theorem prefixControl_ket {bodyWidth : Nat} (count : Nat)
-    (active control : Fin (2 ^ count)) (program : UnitaryCircuit (Qubits bodyWidth))
-    (input output : Fin (2 ^ bodyWidth))
-    (run : program.applyNormalized (NormalizedVector.ket input) = NormalizedVector.ket output) :
-    (prefixControl count active program).applyNormalized
-      (NormalizedVector.ket (prodEquiv (control, input))) =
-      NormalizedVector.ket (prodEquiv (control, if control = active then output else input)) := by
+private theorem nativeList_append_realizes {width : Nat}
+    (first second : List (EncodedBit.GateSpec (encoding width)))
+    (firstStep secondStep : Raw width → Raw width)
+    (left : UnitaryCircuit.Realizes (encoding width)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty first) firstStep)
+    (right : UnitaryCircuit.Realizes (encoding width)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second) secondStep) :
+    UnitaryCircuit.Realizes (encoding width)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second))
+      (secondStep ∘ firstStep) := by
+  apply EncodedBit.GateSpec.realizesList_congrStep
+  intro state
+  rw [EncodedBit.GateSpec.stepList_append,
+    nativeList_step first firstStep left, nativeList_step second secondStep right]
+  rfl
+
+private theorem nativeRealizes_ket {width : Nat}
+    (program : NativeCircuit width) (action : Raw width → Raw width)
+    (realized : UnitaryCircuit.Realizes (encoding width) program action) (state : Raw width) :
+    program.binaryMatrix.apply (NormalizedVector.ket ((encoding width).encode state)) =
+      NormalizedVector.ket ((encoding width).encode (action state)) :=
+  UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+    program _ _ (realized.apply_encoded_ket state)
+
+private theorem nativeList_matrix_append {width : Nat}
+    (first second : List (EncodedBit.GateSpec (encoding width))) :
+    (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).matrix =
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second).matrix *
+        (EncodedBit.GateSpec.programList (nativeLayout width) .empty first).matrix := by
+  induction first with
+  | nil => simp only [List.nil_append, EncodedBit.GateSpec.programList,
+      UnitaryCircuit.identity_matrix, mul_one]
+  | cons gate rest ih =>
+      simp only [List.cons_append, EncodedBit.GateSpec.programList, UnitaryCircuit.seq_matrix]
+      rw [ih, mul_assoc]
+
+private theorem nativeList_binary_append {width : Nat}
+    (first second : List (EncodedBit.GateSpec (encoding width))) :
+    (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).binaryMatrix =
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second).binaryMatrix *
+        (EncodedBit.GateSpec.programList (nativeLayout width) .empty first).binaryMatrix := by
+  unfold UnitaryCircuit.binaryMatrix
+  erw [nativeList_matrix_append, UnitaryOperator.unitaryOperator_reindex_mul]
+  rfl
+
+private theorem binary_apply_mul {R : Register} (first second : UnitaryOperator R)
+    (state : NormalizedVector R) :
+    (second * first).apply state = second.apply (first.apply state) := by
   apply NormalizedVector.ext
-  intro label
-  obtain ⟨⟨rowControl, row⟩, rfl⟩ :=
-    (prodEquiv (m := count) (n := bodyWidth)).surjective label
-  have column := congrArg (fun vector : NormalizedVector (Qubits bodyWidth) => vector row) run
-  change program.applyVec
-    (NormalizedVector.ket (R := Qubits bodyWidth) input : HilbertVector (Qubits bodyWidth)) row =
-    NormalizedVector.ket (R := Qubits bodyWidth) output row at column
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
-    NormalizedVector.ket_apply] at column
-  change (prefixControl count active program).applyVec
-    (NormalizedVector.ket (R := Qubits (count + bodyWidth))
-      (prodEquiv (control, input))) (prodEquiv (rowControl, row)) = _
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
-    prefixControl_matrix, NormalizedVector.ket_apply]
-  by_cases same : rowControl = control
-  · subst rowControl
-    by_cases activated : control = active
-    · simp only [if_pos activated, Equiv.apply_eq_iff_eq, Prod.mk.injEq,
-        true_and, column, if_true]
-    · simp only [if_neg activated, Equiv.apply_eq_iff_eq, Prod.mk.injEq, true_and, if_true]
-  · simp only [Equiv.apply_eq_iff_eq, Prod.mk.injEq, same, false_and, if_false]
+  intro row
+  exact congrArg (fun vector => vector row) (UnitaryOperator.mul_applyVec second first state.vec)
 
-private theorem prefixControl_realizes {Data : Type} (data : BinaryLabelEncoding Data)
-    (count : Nat) (active : Fin (2 ^ count)) (program : UnitaryCircuit (Qubits data.width))
-    (step : Data → Data) (realizes : UnitaryCircuit.Realizes data program step) :
-    UnitaryCircuit.Realizes
-      (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity count) data)
-      (prefixControl count active program)
-      (fun state => (state.1, if state.1 = active then step state.2 else state.2)) where
-  apply_encoded_ket := by
-    rintro ⟨control, input⟩
-    have actual := prefixControl_ket count active control program (data.encode input)
-      (data.encode (step input)) (realizes.apply_encoded_ket input)
-    change (prefixControl count active program).applyNormalized
-      (NormalizedVector.ket (prodEquiv (control, data.encode input))) =
-      NormalizedVector.ket
-        (prodEquiv (control, data.encode (if control = active then step input else input)))
-    by_cases activated : control = active
-    · simpa only [if_pos activated] using actual
-    · simpa only [if_neg activated] using actual
-
-/-- Independent all-label arithmetic placement preserves the complete other fields and controls. -/
+/-- The actual controlled list retains the complete source step and every borrowed coordinate. -/
 private theorem placedArithmetic_realizes (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate)
-    (program : UnitaryCircuit (Qubits (MAU.Addition.Gidney.encoding width).width))
-    (within : program.physical_idx ⊆ List.range (MAU.Addition.Gidney.encoding width).width)
+    (source : List (EncodedBit.GateSpec (MAU.Addition.Gidney.encoding width)))
     (step : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
-    (realizes : UnitaryCircuit.Realizes (MAU.Addition.Gidney.encoding width) program step) :
+    (runs : ∀ state, EncodedBit.GateSpec.stepList source state = step state) :
     UnitaryCircuit.Realizes (encoding width)
-      (placedArithmetic width control coordinate program within)
+      (placedArithmetic width control coordinate source)
       ((offsetPlacement width control coordinate).step
         (fun state => (state.1, if state.1 = activeValue control then
-          (step state.2.1, state.2.2) else state.2))) := by
-  apply EncodedBit.FullPlacement.place_realizes
-  exact prefixControl_realizes _ _ _ _ _
-    (realizes.prodLeft (right := BinaryLabelEncoding.finIdentity (retainedWidth width control)))
+          (step state.2.1, state.2.2) else state.2))) :=
+  pointPlacedArithmetic_realizes width control coordinate source step runs
 
 private theorem frame_count (width : Nat) :
     InPlaceControlled.frameWidth width = 3 * width + 4 * width.size + 11 := by
@@ -413,8 +406,8 @@ private theorem offset_realizes (modulus : Nat) (control : OffsetControl) (coord
     (constant : Fin (modulus + 1)) :
     UnitaryCircuit.Realizes (encoding modulus.size) (offset modulus control coordinate constant)
       (offsetStep modulus control coordinate constant) :=
-  placedArithmetic_realizes modulus.size control coordinate _ _ _
-    (MAU.Addition.Gidney.gidneyModularOffset_realizes modulus.size
+  placedArithmetic_realizes modulus.size control coordinate _ _
+    (MAU.Addition.Gidney.gidneyModularOffsetGates_step modulus.size
       (InPlaceArithmetic.modulusWord modulus) constant)
 
 /-- The native offset leaves the complete source grouping outside its selected word intact. -/
@@ -914,8 +907,8 @@ private def reflectStep (modulus : Nat) (state : Raw modulus.size) : Raw modulus
 
 private theorem reflect_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (reflect modulus) (reflectStep modulus) :=
-  placedArithmetic_realizes modulus.size .supplied .x _ _ _
-    (MAU.Addition.Gidney.gidneyPivot_realizes modulus.size
+  placedArithmetic_realizes modulus.size .supplied .x _ _
+    (MAU.Addition.Gidney.gidneyPivotGates_step modulus.size
       (InPlaceArithmetic.modulusWord modulus))
 
 private theorem reflectStep_grouping_active (modulus : Nat) (state : Raw modulus.size)
@@ -1190,7 +1183,8 @@ private def squareCopyStep (width : Nat) (state : Raw width) : Raw width :=
 
 private theorem squareCopy_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (squareCopy width) (squareCopyStep width) := by
-  apply (EncodedBit.Word.xorInto_realizes (frameWord width (FramePorts.numerator width))
+  apply (EncodedBit.Word.xorInto_realizes (nativeLayout width) .empty
+    (frameWord width (FramePorts.numerator width))
     (frameWord width (FramePorts.accumulator width)) (copy_separate width)).congrStep
   intro state
   have gates : EncodedBit.Word.xorIntoGates (frameWord width (FramePorts.numerator width))
@@ -1254,15 +1248,19 @@ private theorem productPermutation_apply (width : Nat) (modulus : Fin (2 ^ width
     Nat.FixedWidth.variableTripleEquiv_apply]
   rfl
 
-/-- The actual product adjoint has the inverse finite arithmetic action on complete basis frames. -/
-private theorem product_inverse_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (ProductPlacement.frameEncoding width)
-      (NativeProductFrame.program width modulus).dagger
-        (productPermutation width modulus).symm := by
-  apply (NativeProductFrame.nativeProductFrame_realizes width modulus).dagger_of_rightInverse
-  intro state
-  rw [← productPermutation_apply]
-  exact (productPermutation width modulus).apply_symm_apply state
+/-- Reversing the actual product list inverts the complete finite frame permutation. -/
+private theorem product_inverse_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (state : ProductPlacement.Frame width) :
+    EncodedBit.GateSpec.stepList (NativeProductFrame.gates width modulus).reverse state =
+      (productPermutation width modulus).symm state := by
+  have forward : EncodedBit.GateSpec.stepList (NativeProductFrame.gates width modulus)
+      ((productPermutation width modulus).symm state) = state := by
+    rw [NativeProductFrame.nativeProductFrame_gates_step, ← productPermutation_apply]
+    exact (productPermutation width modulus).apply_symm_apply state
+  have backward := congrArg
+    (EncodedBit.GateSpec.stepList (NativeProductFrame.gates width modulus).reverse) forward
+  rw [EncodedBit.GateSpec.stepList_reverse_stepList] at backward
+  exact backward.symm
 
 private def squareStep (modulus : Nat) : Raw modulus.size → Raw modulus.size :=
   (squarePlacement modulus.size).step fun grouped =>
@@ -1274,10 +1272,13 @@ private def squareStep (modulus : Nat) : Raw modulus.size → Raw modulus.size :
 private theorem squareSubtract_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (squareSubtract modulus)
       (squareStep modulus) := by
-  apply EncodedBit.FullPlacement.place_realizes
-  exact prefixControl_realizes _ 1 1 _ _
-    ((product_inverse_realizes modulus.size (InPlaceArithmetic.modulusWord modulus)).prodLeft
-      (right := BinaryLabelEncoding.bool))
+  apply EncodedBit.GateSpec.realizesList_congrStep
+  intro state
+  rw [squareSubtractGates, EncodedBit.FullPlacement.placeGates_step]
+  unfold EncodedBit.FullPlacement.step squareStep
+  apply congrArg (squarePlacement modulus.size).grouping.symm
+  rw [pointPrefixControlGates_step]
+  simp only [EncodedBit.GateSpec.stepList_prodLeft, product_inverse_step, activeValue]
 
 private theorem squareStep_inactive (modulus : Nat) (state : Raw modulus.size)
     (inactive : state.1.2 = false) : squareStep modulus state = state := by
@@ -1297,15 +1298,18 @@ private theorem squareStep_inactive (modulus : Nat) (state : Raw modulus.size)
 private theorem subtractSquare_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (encoding modulus.size) (subtractSquare modulus)
       (squareCopyStep modulus.size ∘ squareStep modulus ∘ squareCopyStep modulus.size) :=
-  (squareCopy_realizes modulus.size).seq
-    ((squareSubtract_realizes modulus).seq (squareCopy_realizes modulus.size))
+  nativeList_append_realizes _ _ _ _
+    (nativeList_append_realizes _ _ _ _
+      (squareCopy_realizes modulus.size) (squareSubtract_realizes modulus))
+    (squareCopy_realizes modulus.size)
 
 /-- Inactive square subtraction fixes every binary label, including arbitrary entangled work. -/
 private theorem subtractSquare_inactive (modulus : Nat) (state : Raw modulus.size)
     (inactive : state.1.2 = false) :
-    (subtractSquare modulus).applyNormalized (NormalizedVector.ket ((encoding modulus.size).encode
-      state)) = NormalizedVector.ket ((encoding modulus.size).encode state) := by
-  have actual := (subtractSquare_realizes modulus).apply_encoded_ket state
+    (subtractSquare modulus).binaryMatrix.apply
+      (NormalizedVector.ket ((encoding modulus.size).encode state)) =
+        NormalizedVector.ket ((encoding modulus.size).encode state) := by
+  have actual := nativeRealizes_ket _ _ (subtractSquare_realizes modulus) state
   have copied : (squareCopyStep modulus.size state).1.2 = false := inactive
   simpa only [Function.comp_apply, squareStep_inactive modulus _ copied,
     squareCopyStep_involutive] using actual
@@ -1440,12 +1444,12 @@ private theorem squareStep_copied_prepared (modulus : Nat) (selector : Bool)
 private theorem subtractSquare_prepared (modulus : Nat) (selector : Bool)
     (x y difference : Fin (2 ^ modulus.size)) (valid : difference.val < modulus)
     (arithmetic : (difference.val + y.val * y.val) % modulus = x.val) :
-    (subtractSquare modulus).applyNormalized
+    (subtractSquare modulus).binaryMatrix.apply
       (NormalizedVector.ket ((encoding modulus.size).encode
         (preparedRaw modulus true selector x y))) =
       NormalizedVector.ket ((encoding modulus.size).encode
         (preparedRaw modulus true selector difference y)) := by
-  have actual := (subtractSquare_realizes modulus).apply_encoded_ket
+  have actual := nativeRealizes_ket _ _ (subtractSquare_realizes modulus)
     (preparedRaw modulus true selector x y)
   simpa only [Function.comp_apply, squareStep_copied_prepared modulus selector x y difference
     valid arithmetic, squareCopyStep_involutive] using actual
@@ -1669,19 +1673,13 @@ private theorem comparisonAction_inactive (width : Nat) (state : Raw width)
 /-- The actual comparison toggles precisely N on C=true and X=0, retaining every other bit. -/
 private theorem compareZero_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (compareZero width) (compareZeroStep width) := by
-  have member := (MAU.Addition.Gidney.gidneyComparison_realizes width
-    ⟨1, by have := Nat.two_pow_pos width; omega⟩).prodLeft
-      (right := BinaryLabelEncoding.finIdentity (retainedWidth width .supplied))
-  have controlled := prefixControl_realizes _ 1 1 _ _ member
-  have placed := (comparisonPlacement width).place_realizes
-    (prefixControl_within _ _ _ (UnitaryCircuit.prodLeft_physical_idx_subset_range _
-      (by rw [MAU.Addition.Gidney.gidneyComparison_physical]
-          change List.range (width + 2) ⊆ List.range (1 + (width + 1))
-          have same : width + 2 = 1 + (width + 1) := by omega
-          rw [same]
-          exact List.Subset.refl _))) controlled
-  apply placed.congrStep
+  apply EncodedBit.GateSpec.realizesList_congrStep
   intro state
+  rw [compareZeroGates, EncodedBit.FullPlacement.placeGates_step]
+  unfold EncodedBit.FullPlacement.step
+  rw [arithmeticControlGates, pointPrefixControlGates_step]
+  simp only [EncodedBit.GateSpec.stepList_prodLeft,
+    MAU.Addition.Gidney.gidneyComparisonGates_step, activeValue]
   change (comparisonPlacement width).grouping.symm
     (comparisonAction width ((comparisonPlacement width).grouping state)) =
       compareZeroStep width state
@@ -1703,9 +1701,9 @@ private def selectNormalStep (width : Nat) (state : Raw width) : Raw width :=
 /-- The actual selector circuit changes only N by C and the nonzero test on X. -/
 private theorem selectNormal_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (selectNormal width) (selectNormalStep width) := by
-  have first := EncodedBit.GateSpec.realizes
-    (.cnot (controlBit width) (selectorBit width) (controls_separate width))
-  apply (first.seq (compareZero_realizes width)).congrStep
+  have first := EncodedBit.GateSpec.realizesList (nativeLayout width) .empty
+    [.cnot (controlBit width) (selectorBit width) (controls_separate width)]
+  apply (nativeList_append_realizes _ _ _ _ first (compareZero_realizes width)).congrStep
   rintro ⟨⟨frame, control⟩, selector⟩
   change compareZeroStep width
     (EncodedBit.cnotStep (controlBit width) (selectorBit width) ((frame, control), selector)) = _
@@ -1723,9 +1721,19 @@ private theorem selectNormalStep_involutive (width : Nat) :
 
 /-- Uncomputing the real selector restores exactly the original bit and full frame. -/
 private theorem selectNormal_dagger_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (selectNormal width).dagger
-      (selectNormalStep width) :=
-  (selectNormal_realizes width).dagger_of_rightInverse (selectNormalStep_involutive width)
+    UnitaryCircuit.Realizes (encoding width)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty
+        (selectNormalGates width).reverse)
+      (selectNormalStep width) := by
+  apply EncodedBit.GateSpec.realizesList_congrStep
+  intro state
+  have forward : EncodedBit.GateSpec.stepList (selectNormalGates width)
+      (selectNormalStep width state) = state :=
+    (nativeList_step _ _ (selectNormal_realizes width) _).trans
+      (selectNormalStep_involutive width state)
+  have backward := congrArg (EncodedBit.GateSpec.stepList (selectNormalGates width).reverse) forward
+  rw [EncodedBit.GateSpec.stepList_reverse_stepList] at backward
+  exact backward.symm
 
 private def exchangeControlsStep (width : Nat) (state : Raw width) : Raw width :=
   ((state.1.1, state.2), state.1.2)
@@ -1734,7 +1742,7 @@ private def exchangeControlsStep (width : Nat) (state : Raw width) : Raw width :
 private theorem exchangeControls_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (exchangeControls width)
       (exchangeControlsStep width) := by
-  apply (EncodedBit.swap_realizes (controlBit width) (selectorBit width)
+  apply (EncodedBit.swap_realizes (nativeLayout width) .empty (controlBit width) (selectorBit width)
     (controls_separate width)).congrStep
   rintro ⟨⟨frame, control⟩, selector⟩
   cases control <;> cases selector <;>
@@ -1759,36 +1767,69 @@ private theorem beforeMultiplication_inactive {p : Nat}
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) (state : Raw p.size)
     (inactive : state.1.2 = false) (clean : state.2 = false) :
-    (beforeMultiplication Q).applyNormalized
+    (beforeMultiplication Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  unfold beforeMultiplication
-  have actual := ((offset_realizes p .supplied .x (constantWord (3 * Q.x))).seq
-    ((subtractSquare_realizes p).seq
-      ((selectNormal_realizes p.size).seq (exchangeControls_realizes p.size)))).apply_encoded_ket
-        state
+  have realized := nativeList_append_realizes _ _ _ _
+    (nativeList_append_realizes _ _ _ _
+      (nativeList_append_realizes _ _ _ _
+        (offset_realizes p .supplied .x (constantWord (3 * Q.x)))
+        (subtractSquare_realizes p))
+      (selectNormal_realizes p.size))
+    (exchangeControls_realizes p.size)
+  have actual := nativeRealizes_ket _ _ realized state
   have copied : (squareCopyStep p.size state).1.2 = false := inactive
-  simpa only [Function.comp_apply, offsetStep_inactive p .x _ state inactive,
+  simpa only [beforeMultiplication, beforeMultiplicationGates, Function.comp_apply,
+    offsetStep_inactive p .x _ state inactive,
     squareStep_inactive p _ copied, squareCopyStep_involutive,
     selectNormalStep_inactive p.size state inactive,
     exchangeControlsStep_both_false p.size state inactive clean] using actual
+
+private def afterMultiplicationStep {p : Nat} (E : PrimeFieldShortWeierstrass p)
+    [Fact p.Prime] (Q : AffinePoint E) : Raw p.size → Raw p.size :=
+  offsetStep p .supplied .y (constantWord (-Q.y)) ∘
+    offsetStep p .supplied .x (constantWord (Q.x + 1)) ∘ reflectStep p ∘
+      selectNormalStep p.size ∘
+        offsetStep p .exceptional .y (constantWord (-exceptionalSlope E Q)) ∘
+          exchangeControlsStep p.size
+
+private theorem afterMultiplication_realizes {p : Nat} (E : PrimeFieldShortWeierstrass p)
+    [Fact p.Prime] (Q : AffinePoint E) :
+    UnitaryCircuit.Realizes (encoding p.size) (afterMultiplication E Q)
+      (afterMultiplicationStep E Q) :=
+  nativeList_append_realizes _ _ _ _
+    (nativeList_append_realizes _ _ _ _
+      (nativeList_append_realizes _ _ _ _
+        (nativeList_append_realizes _ _ _ _
+          (nativeList_append_realizes _ _ _ _
+            (exchangeControls_realizes p.size)
+            (offset_realizes p .exceptional .y (constantWord (-exceptionalSlope E Q))))
+          (selectNormal_dagger_realizes p.size))
+        (reflect_realizes p))
+      (offset_realizes p .supplied .x (constantWord (Q.x + 1))))
+    (offset_realizes p .supplied .y (constantWord (-Q.y)))
 
 /-- The real exceptional cleanup and all final offsets fix the complete inactive frame. -/
 private theorem afterMultiplication_inactive {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (state : Raw p.size)
     (inactive : state.1.2 = false) (clean : state.2 = false) :
-    (afterMultiplication E Q).applyNormalized
+    (afterMultiplication E Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  unfold afterMultiplication
-  have actual := ((exchangeControls_realizes p.size).seq
-    ((offset_realizes p .exceptional .y (constantWord (-exceptionalSlope E Q))).seq
-      ((selectNormal_dagger_realizes p.size).seq
-        ((reflect_realizes p).seq
-          ((offset_realizes p .supplied .x (constantWord (Q.x + 1))).seq
-            (offset_realizes p .supplied .y (constantWord (-Q.y)))))))).apply_encoded_ket state
-  simpa only [Function.comp_apply,
+  have realized := nativeList_append_realizes _ _ _ _
+    (nativeList_append_realizes _ _ _ _
+      (nativeList_append_realizes _ _ _ _
+        (nativeList_append_realizes _ _ _ _
+          (nativeList_append_realizes _ _ _ _
+            (exchangeControls_realizes p.size)
+            (offset_realizes p .exceptional .y (constantWord (-exceptionalSlope E Q))))
+          (selectNormal_dagger_realizes p.size))
+        (reflect_realizes p))
+      (offset_realizes p .supplied .x (constantWord (Q.x + 1))))
+    (offset_realizes p .supplied .y (constantWord (-Q.y)))
+  have actual := nativeRealizes_ket _ _ realized state
+  simpa only [afterMultiplication, afterMultiplicationGates, Function.comp_apply,
     exchangeControlsStep_both_false p.size state inactive clean,
     offsetStep_exceptional_inactive p .y _ state (Or.inl inactive),
     selectNormalStep_inactive p.size state inactive, reflectStep_inactive p state inactive,
@@ -1799,7 +1840,7 @@ private theorem afterMultiplication_inactive {p : Nat}
 private theorem beforeMultiplication_prepared_inactive {p : Nat}
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) (x y : Fin (2 ^ p.size)) :
-    (beforeMultiplication Q).applyNormalized
+    (beforeMultiplication Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y))) =
       NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y)) :=
   beforeMultiplication_inactive Q (preparedRaw p false false x y) rfl rfl
@@ -1808,7 +1849,7 @@ private theorem beforeMultiplication_prepared_inactive {p : Nat}
 private theorem afterMultiplication_prepared_inactive {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (x y : Fin (2 ^ p.size)) :
-    (afterMultiplication E Q).applyNormalized
+    (afterMultiplication E Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y))) =
       NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y)) :=
   afterMultiplication_inactive E Q (preparedRaw p false false x y) rfl rfl
@@ -1819,13 +1860,14 @@ private theorem beforeDivision_realizes {p : Nat} {E : PrimeFieldShortWeierstras
     UnitaryCircuit.Realizes (encoding p.size) (beforeDivision Q)
       ((offsetStep p .supplied .y (constantWord (-Q.y))) ∘
         (offsetStep p .supplied .x (constantWord (-Q.x)))) :=
-  (offset_realizes p .supplied .x (constantWord (-Q.x))).seq
+  nativeList_append_realizes _ _ _ _
+    (offset_realizes p .supplied .x (constantWord (-Q.x)))
     (offset_realizes p .supplied .y (constantWord (-Q.y)))
 
 /-- Real coordinate subtraction retains the complete prepared frame on the active input sector. -/
 private theorem beforeDivision_prepared {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (selector : Bool) (x y : Fin (2 ^ p.size)) :
-    (beforeDivision Q).applyNormalized
+    (beforeDivision Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p true selector x y))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true selector
@@ -1833,23 +1875,25 @@ private theorem beforeDivision_prepared {p : Nat} {E : PrimeFieldShortWeierstras
             (constantWord (p := p) (-Q.x)) x)
           (Nat.FixedWidth.modularWordOutput (InPlaceArithmetic.modulusWord p)
             (constantWord (p := p) (-Q.y)) y))) := by
-  have actual := (beforeDivision_realizes Q).apply_encoded_ket (preparedRaw p true selector x y)
+  have actual := nativeRealizes_ket _ _ (beforeDivision_realizes Q)
+    (preparedRaw p true selector x y)
   simpa only [Function.comp_apply, offsetStep_prepared_x, offsetStep_prepared_y] using actual
 
 /-- The complete first stage fixes arbitrary data and arbitrary history on the inactive sector. -/
 private theorem beforeDivision_inactive {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (state : Raw p.size) (inactive : state.1.2 = false) :
-    (beforeDivision Q).applyNormalized (NormalizedVector.ket ((encoding p.size).encode state)) =
+    (beforeDivision Q).binaryMatrix.apply (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  have actual := (beforeDivision_realizes Q).apply_encoded_ket state
-  simpa only [Function.comp_apply, offsetStep_inactive p .x _ state inactive,
+  have actual := nativeRealizes_ket _ _ (beforeDivision_realizes Q) state
+  simpa only [beforeMultiplication, beforeMultiplicationGates, Function.comp_apply,
+    offsetStep_inactive p .x _ state inactive,
     offsetStep_inactive p .y _ state inactive] using actual
 
 /-- Actual runtime coordinates retain the exact normalized action of every native frame program. -/
 private theorem runtimeProgram_ket (width : Nat)
-    (program : UnitaryCircuit (Qubits (encoding width).width))
+    (program : NativeCircuit width)
     (input output : Raw width)
-    (actual : program.applyNormalized (NormalizedVector.ket ((encoding width).encode input)) =
+    (actual : program.binaryMatrix.apply (NormalizedVector.ket ((encoding width).encode input)) =
       NormalizedVector.ket ((encoding width).encode output)) :
     (runtimeProgram width program).applyNormalized
       (NormalizedVector.ket ((basis width).symm ((encoding width).encode input))) =
@@ -1858,14 +1902,14 @@ private theorem runtimeProgram_ket (width : Nat)
   intro row
   have column := congrArg (fun vector : NormalizedVector (Qubits (encoding width).width) =>
     vector (basis width row)) actual
-  change program.applyVec (NormalizedVector.ket ((encoding width).encode input)).vec
+  change program.binaryMatrix.applyVec (NormalizedVector.ket ((encoding width).encode input)).vec
     (basis width row) = _ at column
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
+  rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
     NormalizedVector.ket_apply] at column
   change (runtimeProgram width program).applyVec
     (NormalizedVector.ket ((basis width).symm ((encoding width).encode input))).vec row = _
   rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
-    runtimeProgram_matrix, Equiv.apply_symm_apply, column, NormalizedVector.ket_apply]
+    runtimeProgram_binary_matrix, Equiv.apply_symm_apply, column, NormalizedVector.ket_apply]
   have same : basis width row = (encoding width).encode output ↔
       row = (basis width).symm ((encoding width).encode output) := by
     constructor
@@ -1877,19 +1921,16 @@ private theorem runtimeProgram_ket (width : Nat)
 
 /-- The native instruction acts on the complete joint reference register. -/
 private def nativeJoint (width : Nat) (Reference : Register)
-    (program : UnitaryCircuit (Qubits (encoding width).width)) :
+    (program : NativeCircuit width) :
     UnitaryOperator (Register.prod (context width).register Reference) :=
   UnitaryOperator.prodTensor (runtimeProgram width program).matrix (1 : UnitaryOperator Reference)
 
-private theorem nativeCode_density (width : Nat)
-    (program : UnitaryCircuit (Qubits (encoding width).width))
-    (within : program.physical_idx ⊆ List.range (encoding width).width)
+private theorem nativeCode_density (width : Nat) (program : NativeCircuit width)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) :
-    ((nativeCode width program within).execute Reference state).quantumMarginal =
+    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    ((nativeCode width program).execute Reference state).quantumMarginal =
       DensityOperator.applyUnitary (nativeJoint width Reference program) state.quantumMarginal :=
-  Circuit.unitary_jointDensity (runtimeProgram width program)
-    (runtimeProgram_physical width program within) state
+  Circuit.unitary_jointDensity (runtimeProgram width program) state
 
 private theorem reindex_marginal {Classical : Type} [Fintype Classical] {R S : Register}
     (state : ExecutionState Classical R) (coordinates : R.Index ≃ S.Index) :
@@ -1909,6 +1950,16 @@ private theorem split_marginal (width : Nat) {Reference : Register} {History : T
           (selector_disjoint width) Reference) := by
   rw [splitState, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
 
+private theorem splitService_marginal (width : Nat) {Reference : Register}
+    {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (context width) Reference (Hidden × History)) :
+    (splitServiceState (InPlaceControlled.context width) (selectorContext width)
+      (selector_disjoint width) state).quantumMarginal =
+      state.quantumMarginal.reindex
+        (referenceBasis (InPlaceControlled.context width) (selectorContext width)
+          (selector_disjoint width) Reference) := by
+  rw [splitServiceState, State.mapHistory_quantumMarginal, split_marginal]
+
 /-- Mathematical arithmetic retains the physical selector through the exact union basis. -/
 private def arithmeticTarget (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register) :
@@ -1922,7 +1973,8 @@ private def arithmeticTarget (operation : InPlaceTarget.Operation) (modulus : Na
 /-- The actual framed measured call preserves all mixed control/selector/reference coherences. -/
 private theorem arithmetic_density (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context modulus.size) Reference History)
+    (state : State (context modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ original : (Register.prod (context modulus.size).register Reference).Index,
       ¬InPlaceControlled.admissible modulus
         ((unionBasisEquiv (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
@@ -1937,10 +1989,10 @@ private theorem arithmetic_density (operation : InPlaceTarget.Operation) (modulu
       (Register.prod (InPlaceControlled.context modulus.size).register
         (Register.prod (selectorContext modulus.size).register Reference)).Index,
       ¬InPlaceControlled.admissible modulus original.1 →
-        (splitState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
+        (splitServiceState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
           (selector_disjoint modulus.size) state).quantumMarginal.matrix original original = 0 := by
     intro original absent
-    rw [split_marginal, DensityOperator.reindex_entry]
+    rw [splitService_marginal, DensityOperator.reindex_entry]
     apply support
     have projection :
         (unionBasisEquiv (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
@@ -1957,9 +2009,9 @@ private theorem arithmetic_density (operation : InPlaceTarget.Operation) (modulu
   have averaged := congrArg (fun output => output.quantumMarginal) natural
   rw [State.mapHistory_quantumMarginal] at averaged
   have originalRun := InPlaceControlled.body_density operation modulus prime
-    (splitState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
+    (splitServiceState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
       (selector_disjoint modulus.size) state) localSupport
-  rw [split_marginal, originalRun, split_marginal] at averaged
+  rw [splitService_marginal, originalRun, splitService_marginal] at averaged
   change (((arithmetic operation modulus prime).execute Reference state).quantumMarginal).reindex
     coordinates = DensityOperator.applyUnitary
       (InPlaceControlled.target operation modulus prime
@@ -2313,11 +2365,11 @@ private theorem pivot_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
 private def controlLabel (control : Bool) : Fin 2 := BinaryLabelEncoding.bool.encode control
 
 private theorem nativeJoint_prepared_ket {p : Nat}
-    (program : UnitaryCircuit (Qubits (encoding p.size).width))
+    (program : NativeCircuit p.size)
     (control selector nextControl nextSelector : Bool)
     (x y nextX nextY : Fin (2 ^ p.size))
     {Reference : Register} (reference : Reference.Index)
-    (actual : program.applyNormalized
+    (actual : program.binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p control selector x y))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p nextControl nextSelector nextX nextY))) :
@@ -2385,7 +2437,7 @@ private theorem exchangeControlsStep_prepared (modulus : Nat) (control selector 
 
 private theorem beforeDivision_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (beforeDivision Q).applyNormalized
+    (beforeDivision Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
@@ -2393,76 +2445,63 @@ private theorem beforeDivision_fieldWords {p : Nat} {E : PrimeFieldShortWeierstr
   have actual := beforeDivision_prepared Q false (fieldWord x) (fieldWord y)
   simpa only [modularOutput_fieldWord, sub_eq_add_neg] using actual
 
+-- Keep instruction lists opaque while rewriting their already proved all-label actions.
+attribute [local irreducible] offsetGates subtractSquareGates selectNormalGates
+  exchangeControlGates reflectGates
+
 private theorem beforeMultiplication_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (beforeMultiplication Q).applyNormalized
+    (beforeMultiplication Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p (decide (x + 3 * Q.x - y ^ 2 ≠ 0)) true
           (fieldWord (x + 3 * Q.x - y ^ 2)) (fieldWord y))) := by
-  rw [beforeMultiplication, UnitaryCircuit.applyNormalized_seq,
-    (offset_realizes p .supplied .x (constantWord (3 * Q.x))).apply_encoded_ket,
+  simp only [beforeMultiplication, beforeMultiplicationGates,
+    nativeList_binary_append, binary_apply_mul]
+  erw [nativeRealizes_ket _ _ (offset_realizes p .supplied .x (constantWord (3 * Q.x))),
     offsetStep_prepared_x, modularOutput_fieldWord,
-    UnitaryCircuit.applyNormalized_seq,
     subtractSquare_prepared p false (fieldWord (x + 3 * Q.x)) (fieldWord y)
       (fieldWord (x + 3 * Q.x - y ^ 2)) (ZMod.val_lt _)
       (square_subtraction_residue (x + 3 * Q.x) y),
-    UnitaryCircuit.applyNormalized_seq,
-    (selectNormal_realizes p.size).apply_encoded_ket, selectNormalStep_fieldWords,
-    (exchangeControls_realizes p.size).apply_encoded_ket, exchangeControlsStep_prepared]
+    nativeRealizes_ket _ _ (selectNormal_realizes p.size), selectNormalStep_fieldWords,
+    nativeRealizes_ket _ _ (exchangeControls_realizes p.size), exchangeControlsStep_prepared]
   simp only [Bool.true_and, Bool.false_xor]
 
 private theorem afterMultiplication_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (afterMultiplication E Q).applyNormalized
+    (afterMultiplication E Q).binaryMatrix.apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p (decide (x ≠ 0)) true (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord (Q.x - x))
           (fieldWord ((if x = 0 then y - exceptionalSlope E Q else y) - Q.y)))) := by
-  rw [afterMultiplication, UnitaryCircuit.applyNormalized_seq,
-    (exchangeControls_realizes p.size).apply_encoded_ket, exchangeControlsStep_prepared,
-    UnitaryCircuit.applyNormalized_seq,
-    (offset_realizes p .exceptional .y (constantWord (-exceptionalSlope E Q))).apply_encoded_ket]
+  rw [nativeRealizes_ket _ _ (afterMultiplication_realizes E Q)]
+  apply congrArg (fun state : Raw p.size =>
+    NormalizedVector.ket (R := Qubits (encoding p.size).width) ((encoding p.size).encode state))
+  dsimp only [afterMultiplicationStep, Function.comp_apply]
+  rw [exchangeControlsStep_prepared]
   by_cases zero : x = 0
   · have inactive : decide (x ≠ 0) = false := by simp only [zero, ne_eq, not_true_eq_false,
       decide_false]
     rw [inactive, offsetStep_exceptional_prepared, modularOutput_fieldWord,
-      UnitaryCircuit.applyNormalized_seq,
-      (selectNormal_dagger_realizes p.size).apply_encoded_ket, selectNormalStep_fieldWords]
+      selectNormalStep_fieldWords]
     rw [inactive]
-    change ((reflect p).seq ((offset p .supplied .x (constantWord (Q.x + 1))).seq
-      (offset p .supplied .y (constantWord (-Q.y))))).applyNormalized
-        (NormalizedVector.ket ((encoding p.size).encode
-          (preparedRaw p true false (fieldWord x) (fieldWord (y + -exceptionalSlope E Q))))) = _
-    rw [UnitaryCircuit.applyNormalized_seq, (reflect_realizes p).apply_encoded_ket,
-      reflectStep_prepared, pivotOutput_fieldWord, UnitaryCircuit.applyNormalized_seq,
-      (offset_realizes p .supplied .x (constantWord (Q.x + 1))).apply_encoded_ket,
+    rw [reflectStep_prepared, pivotOutput_fieldWord,
       offsetStep_prepared_x, modularOutput_fieldWord,
-      (offset_realizes p .supplied .y (constantWord (-Q.y))).apply_encoded_ket,
       offsetStep_prepared_y, modularOutput_fieldWord, if_pos zero]
     have restored : -x - 1 + (Q.x + 1) = Q.x - x := by ring
     rw [restored]
-    simp only [sub_eq_add_neg]
+    simp only [sub_eq_add_neg, Bool.true_and, Bool.xor_self]
   · have active : decide (x ≠ 0) = true := decide_eq_true zero
-    rw [active, offsetStep_exceptional_inactive p .y _ _ (Or.inr rfl),
-      UnitaryCircuit.applyNormalized_seq,
-      (selectNormal_dagger_realizes p.size).apply_encoded_ket, selectNormalStep_fieldWords,
+    rw [active, offsetStep_exceptional_inactive p .y _ _ (Or.inr rfl), selectNormalStep_fieldWords,
       active]
-    change ((reflect p).seq ((offset p .supplied .x (constantWord (Q.x + 1))).seq
-      (offset p .supplied .y (constantWord (-Q.y))))).applyNormalized
-        (NormalizedVector.ket ((encoding p.size).encode
-          (preparedRaw p true false (fieldWord x) (fieldWord y)))) = _
-    rw [UnitaryCircuit.applyNormalized_seq, (reflect_realizes p).apply_encoded_ket,
-      reflectStep_prepared, pivotOutput_fieldWord, UnitaryCircuit.applyNormalized_seq,
-      (offset_realizes p .supplied .x (constantWord (Q.x + 1))).apply_encoded_ket,
+    rw [reflectStep_prepared, pivotOutput_fieldWord,
       offsetStep_prepared_x, modularOutput_fieldWord,
-      (offset_realizes p .supplied .y (constantWord (-Q.y))).apply_encoded_ket,
       offsetStep_prepared_y, modularOutput_fieldWord, if_neg zero]
     have restored : -x - 1 + (Q.x + 1) = Q.x - x := by ring
     rw [restored]
-    simp only [sub_eq_add_neg]
+    simp only [sub_eq_add_neg, Bool.true_and, Bool.xor_self]
 
 /-- Independent finite-word arithmetic agrees with the field formula on its original domain. -/
 private theorem translationWords_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
@@ -2571,14 +2610,6 @@ def target {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     UnitaryOperator (Register.prod (context p.size).register Reference) :=
   UnitaryOperator.prodTensor (UnitaryOperator.ofPerm (targetPermutation E Q).symm)
     (1 : UnitaryOperator Reference)
-
-/-- Prepared support is internal: only active affine inputs carry the original point exclusions. -/
-def admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
-    (Q : AffinePoint E) (original : (context p.size).register.Index) : Prop :=
-  ∃ (control : Fin 2) (x y : Fin (2 ^ p.size)),
-    original = label p.size control 0 (InPlaceTarget.preparedBasis p x y) ∧
-      (control = 1 → ∃ P : AffinePoint E,
-        x.val = P.x.val ∧ y.val = P.y.val ∧ P ≠ Q ∧ P ≠ AffinePoint.negate Q)
 
 private theorem operator_three_kets {R : Register} {first second third : UnitaryOperator R}
     {input one two output : R.Index}
@@ -2901,23 +2932,17 @@ private theorem second_arithmetic_reachable {p : Nat}
       exact operator_three_kets first divided middle
 
 private theorem execute_pair_marginal {ctx : RuntimeCtx .quantum}
-    (first second : Circuit ctx ctx)
+    (first second : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     ((first.seq second).execute Reference state).quantumMarginal =
       (second.execute Reference (first.execute Reference state)).quantumMarginal := by
-  have executed := congrArg
-    (fun output : State ctx Reference (History × (first.seq second).Path) =>
-      output.quantumMarginal)
-    (Circuit.execute_seq first second state)
-  exact executed.trans (State.mapHistory_quantumMarginal
-    (second.execute Reference (first.execute Reference state))
-    (fun history => (history.1.1, (history.1.2, history.2))))
+  rw [Circuit.execute_seq, State.mapHistory_quantumMarginal]
 
 private theorem execute_five_marginal {ctx : RuntimeCtx .quantum}
-    (first second third fourth fifth : Circuit ctx ctx)
+    (first second third fourth fifth : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     ((first.seq (second.seq (third.seq (fourth.seq fifth)))).execute
       Reference state).quantumMarginal =
       (fifth.execute Reference
@@ -2950,7 +2975,8 @@ private theorem execute_five_marginal {ctx : RuntimeCtx .quantum}
 private theorem body_density_of_columns {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context p.size) Reference History)
+    (state : State (context p.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ input : (Register.prod (context p.size).register Reference).Index,
       ¬admissible E Q input.1 → state.quantumMarginal.matrix input input = 0)
     (firstReachable : ∀ input : (Register.prod (context p.size).register Reference).Index,
@@ -2982,9 +3008,9 @@ private theorem body_density_of_columns {p : Nat}
           target E Q Reference row input) :
     ((body E Q).execute Reference state).quantumMarginal =
       DensityOperator.applyUnitary (target E Q Reference) state.quantumMarginal := by
-  let firstCode := nativeCode p.size (beforeDivision Q) (beforeDivision_within Q)
-  let middleCode := nativeCode p.size (beforeMultiplication Q) (beforeMultiplication_within Q)
-  let lastCode := nativeCode p.size (afterMultiplication E Q) (afterMultiplication_within E Q)
+  let firstCode := nativeCode p.size (beforeDivision Q)
+  let middleCode := nativeCode p.size (beforeMultiplication Q)
+  let lastCode := nativeCode p.size (afterMultiplication E Q)
   let firstState := firstCode.execute Reference state
   let secondState := (arithmetic .division p Fact.out).execute Reference firstState
   let thirdState := middleCode.execute Reference secondState
@@ -2997,7 +3023,7 @@ private theorem body_density_of_columns {p : Nat}
   have firstDensity : firstState.quantumMarginal =
       DensityOperator.applyUnitary (nativeJoint p.size Reference (beforeDivision Q))
         state.quantumMarginal :=
-    nativeCode_density p.size (beforeDivision Q) (beforeDivision_within Q) state
+    nativeCode_density p.size (beforeDivision Q) state
   have firstSupport : ∀ input, ¬arithmeticAllowed input →
       firstState.quantumMarginal.matrix input input = 0 := by
     rw [firstDensity]
@@ -3006,7 +3032,7 @@ private theorem body_density_of_columns {p : Nat}
       (fun input => admissible E Q input.1) arithmeticAllowed support firstReachable
   have secondDensity := arithmetic_density .division p Fact.out firstState firstSupport
   have thirdDensity := nativeCode_density p.size (beforeMultiplication Q)
-    (beforeMultiplication_within Q) secondState
+    secondState
   have thirdCombined : thirdState.quantumMarginal =
       DensityOperator.applyUnitary
         (nativeJoint p.size Reference (beforeMultiplication Q) *
@@ -3029,7 +3055,7 @@ private theorem body_density_of_columns {p : Nat}
       (fun input => admissible E Q input.1) arithmeticAllowed support secondReachable
   have fourthDensity := arithmetic_density .multiplication p Fact.out thirdState secondSupport
   have fifthDensity := nativeCode_density p.size (afterMultiplication E Q)
-    (afterMultiplication_within E Q) fourthState
+    fourthState
   have complete : ((body E Q).execute Reference state).quantumMarginal =
       DensityOperator.applyUnitary
         (nativeJoint p.size Reference (afterMultiplication E Q) *
@@ -3059,7 +3085,8 @@ private theorem body_density_of_columns {p : Nat}
 /-- The complete actual body preserves arbitrary reference entanglement and control coherence. -/
 theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context p.size) Reference History)
+    (state : State (context p.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ input : (Register.prod (context p.size).register Reference).Index,
       ¬admissible E Q input.1 → state.quantumMarginal.matrix input input = 0) :
     ((body E Q).execute Reference state).quantumMarginal =

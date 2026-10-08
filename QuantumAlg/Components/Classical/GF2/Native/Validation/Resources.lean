@@ -25,11 +25,17 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
+
+/-- The selected coordinate of a validation operation. -/
+def validationOperationEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
 
 /-- The original product and accumulation events retain their chronological order. -/
-def validationColumnEvents (kind : ProblemKind) : List (Resource.Event kind) :=
-  [.classicalOperation (.bit .and), .classicalOperation (.bit .xor)]
+def validationColumnEvents : List (Resource.Event model) :=
+  [validationOperationEvent (model := model) (.bit .and),
+    validationOperationEvent (model := model) (.bit .xor)]
 
 /-- The actual column emits both original native bit instructions. -/
 theorem gf2ValidationColumn_events
@@ -38,45 +44,71 @@ theorem gf2ValidationColumn_events
     (row : Fin rowCount) (column : Fin width)
     (path : (validationColumn input candidate parity product row column).Path) :
     (validationColumn input candidate parity product row column).eventTrace path =
-      validationColumnEvents kind := rfl
+      validationColumnEvents (model := model) := by
+  change (Circuit.seq (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column))
+    (BitWord.instruction (execution := model)
+      (validationParityOp parity product))).Path at path
+  change (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column)).eventTrace path.1 ++
+    (BitWord.instruction (execution := model)
+      (validationParityOp parity product)).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- The exact actual column duration equals the sum of its two emitted event durations. -/
 theorem gf2ValidationColumn_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (row : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (validationColumn input candidate parity product row column).Path) :
     (validationColumn input candidate parity product row column).depth duration path =
       (((validationColumn input candidate parity product row column).eventTrace path).map
         duration).sum := by
-  change duration (.classicalOperation (.bit .and)) +
-    duration (.classicalOperation (.bit .xor)) =
-      duration (.classicalOperation (.bit .and)) +
-        (duration (.classicalOperation (.bit .xor)) + 0)
+  change (Circuit.seq (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column))
+    (BitWord.instruction (execution := model)
+      (validationParityOp parity product))).Path at path
+  change (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column)).depth duration path.1 +
+    (BitWord.instruction (execution := model)
+      (validationParityOp parity product)).depth duration path.2 =
+    (((BitWord.instruction (execution := model)
+        (validationProductOp input candidate product row column)).eventTrace path.1 ++
+      (BitWord.instruction (execution := model)
+        (validationParityOp parity product)).eventTrace path.2).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change duration (validationOperationEvent (model := model) (.bit .and)) +
+    duration (validationOperationEvent (model := model) (.bit .xor)) =
+      duration (validationOperationEvent (model := model) (.bit .and)) +
+        (duration (validationOperationEvent (model := model) (.bit .xor)) + 0)
   omega
 
 /-- One actual parity clear precedes all columns and the possible two failure markers. -/
-def validationRowEnvelope (kind : ProblemKind) (width : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.bit .xor)) +
-    (ResourcePool.scale width (ResourcePool.ofList (validationColumnEvents kind)) +
-      ResourcePool.ofList (decisionFailureEvents kind))
+def validationRowEnvelope (width : Nat) : ResourcePool model :=
+  ResourcePool.singleton (validationOperationEvent (model := model) (.bit .xor)) +
+    (ResourcePool.scale width (ResourcePool.ofList (validationColumnEvents (model := model))) +
+      ResourcePool.ofList (decisionFailureEvents (model := model)))
 
 /-- The original full row traversal is followed by its unconditional actual self-AND. -/
-def validationEnvelope (kind : ProblemKind) (rowCount width : Nat) : ResourcePool kind :=
-  ResourcePool.scale rowCount (validationRowEnvelope kind width) +
-    ResourcePool.singleton (.classicalOperation (.bit .and))
+def validationEnvelope (rowCount width : Nat) : ResourcePool model :=
+  ResourcePool.scale rowCount (validationRowEnvelope (model := model) width) +
+    ResourcePool.singleton (validationOperationEvent (model := model) (.bit .and))
 
 /-- Every original row stage retains the arbitrary durations of its real bit events. -/
-def validationRowDepthLimit (width : Nat) (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.bit .xor)) +
-    ((∑ _column : Fin width, (duration (.classicalOperation (.bit .and)) +
-      duration (.classicalOperation (.bit .xor)))) +
-        (duration (.classicalOperation (.bit .copy)) + duration (.classicalOperation (.bit .xor))))
+def validationRowDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : Nat :=
+  duration (validationOperationEvent (model := model) (.bit .xor)) +
+    ((∑ _column : Fin width,
+      (duration (validationOperationEvent (model := model) (.bit .and)) +
+        duration (validationOperationEvent (model := model) (.bit .xor)))) +
+      (duration (validationOperationEvent (model := model) (.bit .copy)) +
+        duration (validationOperationEvent (model := model) (.bit .xor))))
 
 /-- Original rows and the final success marker retain their serial duration allowance. -/
-def validationDepthLimit (rowCount width : Nat) (duration : Resource.Event kind → Nat) : Nat :=
+def validationDepthLimit (rowCount width : Nat) (duration : Resource.Event model → Nat) : Nat :=
   (∑ _row : Fin rowCount, validationRowDepthLimit width duration) +
-    duration (.classicalOperation (.bit .and))
+    duration (validationOperationEvent (model := model) (.bit .and))
 
 private theorem rowBody_pool_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
@@ -84,41 +116,90 @@ private theorem rowBody_pool_le
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
     (path : (validationRowBody input candidate success parity product row).Path) :
     (validationRowBody input candidate success parity product row).resourcePool path ≤
-      validationRowEnvelope kind width := by
+      validationRowEnvelope (model := model) width := by
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp parity))
+    (Circuit.seq (Circuit.forRange width
+      (validationColumn (model := model) input candidate parity product row))
+      (Circuit.branch (.storage parity.toCStorageRef)
+        (decisionChoice (model := model) true success)))).Path at path
   change ResourcePool.ofList
-    (([.classicalOperation (.bit .xor)] : List (Resource.Event kind)) ++
+    ((BitWord.instruction (execution := model) (pivotClearOp parity)).eventTrace path.1 ++
+      ((Circuit.forRange width
+        (validationColumn input candidate parity product row)).eventTrace path.2.1 ++
+        (decisionChoice true success path.2.2.1).eventTrace path.2.2.2)) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace]
+  change ResourcePool.ofList
+    (([validationOperationEvent (model := model) (.bit .xor)] : List (Resource.Event model)) ++
       ((Circuit.forRange width (validationColumn input candidate parity product row)).eventTrace
         path.2.1 ++ (decisionChoice true success path.2.2.1).eventTrace path.2.2.2)) ≤ _
   simp only [ResourcePool.ofList_append]
   exact add_le_add le_rfl (add_le_add
-    (Circuit.forRange_pool_le width _ _ (fun _column _path => le_rfl) path.2.1)
+    (Circuit.forRange_pool_le width _ _ (fun column current => by
+      change ResourcePool.ofList
+        ((validationColumn input candidate parity product row column).eventTrace current) ≤ _
+      rw [gf2ValidationColumn_events]) path.2.1)
     (choice_pool_le true success path.2.2.1 path.2.2.2))
 
 private theorem rowBody_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (validationRowBody input candidate success parity product row).Path) :
     (validationRowBody input candidate success parity product row).depth duration path ≤
-      validationRowDepthLimit width duration :=
-  Nat.add_le_add_left (Nat.add_le_add
-    (Circuit.forRange_depth_le_sum width _ duration _ (fun _column _path => le_rfl) path.2.1)
+      validationRowDepthLimit width duration := by
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp parity))
+    (Circuit.seq (Circuit.forRange width
+      (validationColumn (model := model) input candidate parity product row))
+      (Circuit.branch (.storage parity.toCStorageRef)
+        (decisionChoice (model := model) true success)))).Path at path
+  change (BitWord.instruction (execution := model) (pivotClearOp parity)).depth
+      duration path.1 +
+    ((Circuit.forRange width
+      (validationColumn input candidate parity product row)).depth duration path.2.1 +
+      (decisionChoice true success path.2.2.1).depth duration path.2.2.2) ≤ _
+  rw [BitWord.bitWord_instruction_depth]
+  change duration (validationOperationEvent (model := model) (.bit .xor)) +
+    ((Circuit.forRange width
+      (validationColumn input candidate parity product row)).depth duration path.2.1 +
+      (decisionChoice true success path.2.2.1).depth duration path.2.2.2) ≤ _
+  exact Nat.add_le_add_left (Nat.add_le_add
+    (Circuit.forRange_depth_le_sum width _ duration _ (fun column current => by
+      rw [gf2ValidationColumn_duration_eventTrace, gf2ValidationColumn_events]
+      simp only [validationColumnEvents, List.map_cons, List.map_nil, List.sum_cons,
+        List.sum_nil, Nat.add_zero]
+      exact le_rfl) path.2.1)
     (choice_depth_le true success path.2.2.1 duration path.2.2.2)) _
 
 private theorem rowBody_duration
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (validationRowBody input candidate success parity product row).Path) :
     (validationRowBody input candidate success parity product row).depth duration path =
       (((validationRowBody input candidate success parity product row).eventTrace path).map
         duration).sum := by
-  change duration (.classicalOperation (.bit .xor)) +
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp parity))
+    (Circuit.seq (Circuit.forRange width
+      (validationColumn (model := model) input candidate parity product row))
+      (Circuit.branch (.storage parity.toCStorageRef)
+        (decisionChoice (model := model) true success)))).Path at path
+  change (BitWord.instruction (execution := model) (pivotClearOp parity)).depth
+      duration path.1 +
+    ((Circuit.forRange width
+      (validationColumn input candidate parity product row)).depth duration path.2.1 +
+      (decisionChoice true success path.2.2.1).depth duration path.2.2.2) =
+    (((BitWord.instruction (execution := model)
+        (pivotClearOp parity)).eventTrace path.1 ++
+      ((Circuit.forRange width
+        (validationColumn input candidate parity product row)).eventTrace path.2.1 ++
+        (decisionChoice true success path.2.2.1).eventTrace path.2.2.2)).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+  change duration (validationOperationEvent (model := model) (.bit .xor)) +
     ((Circuit.forRange width (validationColumn input candidate parity product row)).depth
       duration path.2.1 + (decisionChoice true success path.2.2.1).depth duration path.2.2.2) =
-    ((([.classicalOperation (.bit .xor)] : List (Resource.Event kind)) ++
+    ((([validationOperationEvent (model := model) (.bit .xor)] : List (Resource.Event model)) ++
       ((Circuit.forRange width (validationColumn input candidate parity product row)).eventTrace
         path.2.1 ++ (decisionChoice true success path.2.2.1).eventTrace path.2.2.2)).map
           duration).sum
@@ -134,14 +215,14 @@ theorem gf2ValidationRow_pool_le
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validateRow input candidate success row).Path) :
     (validateRow input candidate success row).resourcePool path ≤
-      validationRowEnvelope kind width :=
+      validationRowEnvelope (model := model) width :=
   rowBody_pool_le _ _ _ _ _ row path
 
 /-- Both actual row scopes preserve all original arbitrary event durations. -/
 theorem gf2ValidationRow_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) (duration : Resource.Event kind → Nat)
+    (row : Fin rowCount) (duration : Resource.Event model → Nat)
     (path : (validateRow input candidate success row).Path) :
     (validateRow input candidate success row).depth duration path ≤
       validationRowDepthLimit width duration :=
@@ -151,7 +232,7 @@ theorem gf2ValidationRow_depth_le
 theorem gf2ValidationRow_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) (duration : Resource.Event kind → Nat)
+    (row : Fin rowCount) (duration : Resource.Event model → Nat)
     (path : (validateRow input candidate success row).Path) :
     (validateRow input candidate success row).depth duration path =
       (((validateRow input candidate success row).eventTrace path).map duration).sum :=
@@ -163,12 +244,12 @@ theorem gf2ValidationSample_pool_le
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validationSample input candidate success row).Path) :
     (validationSample input candidate success row).resourcePool path ≤
-      validationRowEnvelope kind width := by
+      validationRowEnvelope (model := model) width := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
       cases value
-      · change (0 : ResourcePool kind) ≤ _
+      · change (0 : ResourcePool model) ≤ _
         exact zero_le
       · exact gf2ValidationRow_pool_le input candidate success row path
 
@@ -176,7 +257,7 @@ theorem gf2ValidationSample_pool_le
 theorem gf2ValidationSample_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) (duration : Resource.Event kind → Nat)
+    (row : Fin rowCount) (duration : Resource.Event model → Nat)
     (path : (validationSample input candidate success row).Path) :
     (validationSample input candidate success row).depth duration path ≤
       validationRowDepthLimit width duration := by
@@ -191,7 +272,7 @@ theorem gf2ValidationSample_depth_le
 theorem gf2ValidationSample_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (row : Fin rowCount) (duration : Resource.Event kind → Nat)
+    (row : Fin rowCount) (duration : Resource.Event model → Nat)
     (path : (validationSample input candidate success row).Path) :
     (validationSample input candidate success row).depth duration path =
       (((validationSample input candidate success row).eventTrace path).map duration).sum := by
@@ -208,10 +289,20 @@ theorem gf2ValidationSamples_pool_le
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (path : (validateSamples input candidate success).Path) :
     (validateSamples input candidate success).resourcePool path ≤
-      validationEnvelope kind rowCount width := by
+      validationEnvelope (model := model) rowCount width := by
+  change (Circuit.seq
+    (Circuit.forRange rowCount
+      (validationSample (model := model) input candidate success))
+    (BitWord.instruction (execution := model) (pivotSelectedOp success))).Path at path
+  change ResourcePool.ofList
+    ((Circuit.forRange rowCount
+      (validationSample input candidate success)).eventTrace path.1 ++
+      (BitWord.instruction (execution := model)
+        (pivotSelectedOp success)).eventTrace path.2) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace]
   change ResourcePool.ofList
     ((Circuit.forRange rowCount (validationSample input candidate success)).eventTrace path.1 ++
-      [.classicalOperation (.bit .and)]) ≤ _
+      [validationOperationEvent (model := model) (.bit .and)]) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (Circuit.forRange_pool_le rowCount _ _
     (gf2ValidationSample_pool_le input candidate success) path.1) le_rfl
@@ -220,23 +311,52 @@ theorem gf2ValidationSamples_pool_le
 theorem gf2ValidationSamples_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (path : (validateSamples input candidate success).Path) :
+    (duration : Resource.Event model → Nat)
+    (path : (validateSamples input candidate success).Path) :
     (validateSamples input candidate success).depth duration path ≤
-      validationDepthLimit rowCount width duration :=
-  Nat.add_le_add_right (Circuit.forRange_depth_le_sum rowCount _ duration _
+      validationDepthLimit rowCount width duration := by
+  change (Circuit.seq
+    (Circuit.forRange rowCount
+      (validationSample (model := model) input candidate success))
+    (BitWord.instruction (execution := model) (pivotSelectedOp success))).Path at path
+  change (Circuit.forRange rowCount
+      (validationSample input candidate success)).depth duration path.1 +
+    (BitWord.instruction (execution := model) (pivotSelectedOp success)).depth
+      duration path.2 ≤ _
+  rw [BitWord.bitWord_instruction_depth]
+  change (Circuit.forRange rowCount
+      (validationSample input candidate success)).depth duration path.1 +
+    duration (validationOperationEvent (model := model) (.bit .and)) ≤ _
+  exact Nat.add_le_add_right (Circuit.forRange_depth_le_sum rowCount _ duration _
     (gf2ValidationSample_depth_le input candidate success · duration) path.1) _
 
 /-- The same full actual validation path determines both serial duration and emitted events. -/
 theorem gf2ValidationSamples_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (path : (validateSamples input candidate success).Path) :
+    (duration : Resource.Event model → Nat)
+    (path : (validateSamples input candidate success).Path) :
     (validateSamples input candidate success).depth duration path =
       (((validateSamples input candidate success).eventTrace path).map duration).sum := by
+  change (Circuit.seq
+    (Circuit.forRange rowCount
+      (validationSample (model := model) input candidate success))
+    (BitWord.instruction (execution := model) (pivotSelectedOp success))).Path at path
+  change (Circuit.forRange rowCount
+      (validationSample input candidate success)).depth duration path.1 +
+    (BitWord.instruction (execution := model) (pivotSelectedOp success)).depth
+      duration path.2 =
+    (((Circuit.forRange rowCount
+        (validationSample input candidate success)).eventTrace path.1 ++
+      (BitWord.instruction (execution := model)
+        (pivotSelectedOp success)).eventTrace path.2).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
   change (Circuit.forRange rowCount (validationSample input candidate success)).depth
-    duration path.1 + duration (.classicalOperation (.bit .and)) =
-    (((Circuit.forRange rowCount (validationSample input candidate success)).eventTrace path.1 ++
-      ([.classicalOperation (.bit .and)] : List (Resource.Event kind))).map duration).sum
+    duration path.1 + duration (validationOperationEvent (model := model) (.bit .and)) =
+    (((Circuit.forRange rowCount
+      (validationSample input candidate success)).eventTrace path.1 ++
+      ([validationOperationEvent (model := model) (.bit .and)] :
+        List (Resource.Event model))).map duration).sum
   rw [Circuit.forRange_duration_eventTrace rowCount _ duration
     (gf2ValidationSample_duration_eventTrace input candidate success · duration)]
   simp only [List.map_append, List.sum_append, List.map_cons, List.map_nil,

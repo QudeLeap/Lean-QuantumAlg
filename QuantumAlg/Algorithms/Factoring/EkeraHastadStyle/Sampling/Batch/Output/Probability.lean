@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -30,7 +30,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 theorem nativeBatch_output_toPMF (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) {N : Nat} (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (normalized : state.IsNormalized) :
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (normalized : state.IsNormalized) :
     ((((code base noQuantum N).execute Reference state).toPMF
       (((code base noQuantum N).execute_mass Reference state).trans normalized)).map
         (fun record => (run base noQuantum N).output.eval record.1)) =

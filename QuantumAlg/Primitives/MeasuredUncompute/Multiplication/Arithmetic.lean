@@ -76,11 +76,13 @@ theorem forward_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     (NativeReusedEEA.forward modulus prime).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-          ((frameEncoding modulus.size).encode (resetFrame modulus value numerator))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-        ((frameEncoding modulus.size).encode
-          (inverseFrame modulus value numerator positive bounded)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (resetFrame modulus value numerator)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+          ((frameEncoding modulus.size).encode
+            (inverseFrame modulus value numerator positive bounded))) :=
   NativeReusedEEA.forward_initial modulus prime value (saved modulus value numerator)
     positive bounded
 

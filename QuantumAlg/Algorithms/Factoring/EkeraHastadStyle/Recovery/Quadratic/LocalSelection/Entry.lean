@@ -31,13 +31,6 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 def entryStore (width : Nat) (store : Store ctx) : Store (candidateContext ctx width) :=
   Layout.pushStore width (SelectionLayout.pushStore (RSA.quadraticWordWidth width) store)
 
-/-- The same actual initialized candidate program runs on that actual allocated store. -/
-noncomputable def initializedStore (input : CInputRef ctx (.unsignedWord width))
-    (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
-    (store : Store ctx) : Store (candidateContext ctx width) :=
-  (Initialized.step (arithmeticRead input width) (arithmeticRead modulus width)
-    (arithmeticRefs ctx width) (entryStore width store)).1
-
 /-- Actual entry preserves every complete original structural source value. -/
 theorem nativeQuadratic_local_entry_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
@@ -57,16 +50,27 @@ private theorem writes_free {shape : CShape} (input : CInputRef ctx shape) (widt
   rcases present with rfl | rfl | rfl | rfl
   all_goals exact nativeQuadratic_underRead_free input _ (by simp [Layout.internalKeys])
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- The same actual initialized candidate program runs on that actual allocated store. -/
+noncomputable def initializedStore (input : CInputRef ctx (.unsignedWord width))
+    (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
+    (store : Store ctx) : Store (candidateContext ctx width) :=
+  (Initialized.step (model := model) (arithmeticRead input width) (arithmeticRead modulus width)
+    (arithmeticRefs ctx width) (entryStore width store)).1
+
 /-- The real initialized candidates equal the original source pair, and the real constant is one.
 -/
 theorem nativeQuadratic_local_initialized_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
-    let final := initializedStore input modulus store
+    let final := initializedStore (model := model) input modulus store
     ((final.read (.storage (arithmeticRefs ctx width).first.toCStorageRef)).toNat,
         (final.read (.storage (arithmeticRefs ctx width).second.toCStorageRef)).toNat) =
         RSA.quadraticFactorCandidates (store.read modulus).toNat (store.read input).toNat ∧
       (final.read (.storage (arithmeticRefs ctx width).center.toCStorageRef)).toNat = 1 := by
-  have actual := Initialized.nativeQuadratic_initialized_values (arithmeticRead input width)
+  have actual := Initialized.nativeQuadratic_initialized_values (model := model)
+    (arithmeticRead input width)
     (arithmeticRead modulus width) (arithmeticRefs ctx width)
     (nativeQuadratic_layout_separated
       (SelectionLayout.underRead modulus (RSA.quadraticWordWidth width))) (entryStore width store)
@@ -77,11 +81,12 @@ theorem nativeQuadratic_local_initialized_values (input : CInputRef ctx (.unsign
 /-- Actual arithmetic leaves the freshly allocated local acceptance flag false. -/
 theorem nativeQuadratic_local_initialized_accepted (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
-    (initializedStore input modulus store).read
+    (initializedStore (model := model) input modulus store).read
         (FirstAccepted.cellRead (localRefs ctx width).accepted) = CShape.Value.bit false := by
   let oldRead := FirstAccepted.cellRead
     (SelectionLayout.accepted ctx (RSA.quadraticWordWidth width))
-  have preserved := nativeQuadratic_initialized_read_other (arithmeticRead input width)
+  have preserved := nativeQuadratic_initialized_read_other (model := model)
+    (arithmeticRead input width)
     (arithmeticRead modulus width) (arithmeticRefs ctx width) (Layout.underRead oldRead width)
     (writes_free oldRead width) (entryStore width store)
   exact preserved.trans ((Layout.nativeQuadratic_layout_push_read oldRead width
@@ -92,12 +97,13 @@ theorem nativeQuadratic_local_initialized_accepted (input : CInputRef ctx (.unsi
 -/
 theorem nativeQuadratic_local_initialized_selected (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
-    (initializedStore input modulus store).read
+    (initializedStore (model := model) input modulus store).read
         (FirstAccepted.cellRead (localRefs ctx width).selected) =
       CShape.wordOfNat (RSA.quadraticWordWidth width) 0 := by
   let oldRead := FirstAccepted.cellRead
     (SelectionLayout.selected ctx (RSA.quadraticWordWidth width))
-  have preserved := nativeQuadratic_initialized_read_other (arithmeticRead input width)
+  have preserved := nativeQuadratic_initialized_read_other (model := model)
+    (arithmeticRead input width)
     (arithmeticRead modulus width) (arithmeticRefs ctx width) (Layout.underRead oldRead width)
     (writes_free oldRead width) (entryStore width store)
   exact preserved.trans ((Layout.nativeQuadratic_layout_push_read oldRead width

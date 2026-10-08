@@ -9,7 +9,9 @@ module
 public import QuantumAlg.Primitives.AmplitudeAmplification.Model
 import all QuantumAlg.Primitives.AmplitudeAmplification.Model
 import all QuantumAlg.Components.Oracle.Reflection
-import all QuantumAlg.Core.Base
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.State.Normalized
 
 /-!
 # Exact amplitude-amplification source mathematics

@@ -71,17 +71,18 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Na
   setup : ∀ cell, LatticeCandidateModularSetup.mutableKey refs.setup cell ∉ other.storageKeys
   quadratic : QuadraticScratchInitialization.CallerFrameAvoids refs.quadratic other
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Execute actual shared target powering and then initialize all persistent quadratic constants. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (LatticeCandidateModularSetup.setupInto input refs.setup)
     (QuadraticScratchInitialization.into (modulusSource refs) refs.quadratic)
 
 /-- Record the actual intermediate store and both chronological paths of the shared prefix. -/
 def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
-  Circuit.sequenceRecord (LatticeCandidateModularSetup.setupInto input refs.setup)
+  Circuit.sequenceStoreRecord (LatticeCandidateModularSetup.setupInto input refs.setup)
     (QuadraticScratchInitialization.into (modulusSource refs) refs.quadratic)
     (LatticeCandidateModularSetup.setupStep input refs.setup)
     (QuadraticScratchInitialization.step (modulusSource refs) refs.quadratic) store
@@ -91,14 +92,16 @@ theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 =
       (QuadraticScratchInitialization.step (modulusSource refs) refs.quadratic
         (LatticeCandidateModularSetup.setupStep input refs.setup store).1).1 :=
-  Circuit.sequenceRecord_store _ _ _ _ store
+  rfl
 
 /-- Complete shared-prefix execution preserves actual quantum-reference blocks and history. -/
 theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input refs entry.1).1, (entry.2, (step input refs entry.1).2))) :=
-  Circuit.execute_sequenceRecord _ _ _ _
+      let actual := step input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord _ _ _ _
     (LatticeCandidateModularSetup.setupInto_execute input refs.setup)
     (QuadraticScratchInitialization.into_execute (modulusSource refs) refs.quadratic)
     Reference state
@@ -113,7 +116,8 @@ theorem into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ct
       (LatticeCandidateModularSetup.setupInto_callerFrame input refs.setup store other avoids.setup)
 
 /-- All shared outputs, the retained parameter domain, quadratic constants and caller frame. -/
-structure Relation (input : Input N) (refs : Refs ctx N) (before after : Store ctx) : Prop where
+structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (input : Input N) (refs : Refs ctx N) (before after : Store ctx) : Prop where
   initial : InitialConditions input after refs
   generator : after.read (LatticeCandidateModularSetup.writeInput refs.setup.generator) =
     CShape.packCanonicalResidue (modulusBits N)
@@ -172,7 +176,8 @@ theorem into_correct (input : Input N) (refs : Refs ctx N) (separation : Separat
     exact ⟨initialized.modulus, initialized.one, initialized.zero⟩
 
 /-- Initialized physical constants establish guarded recovery for both canonical selector types. -/
-theorem guardedInitialConditions_of_relation (input : Input N) (refs : Refs ctx N)
+theorem guardedInitialConditions_of_relation {kind : ProblemKind}
+    {ctx : RuntimeCtx kind} {N : Nat} (input : Input N) (refs : Refs ctx N)
     (shortLogSelection : FirstAccepted.Direct.Refs ctx (QuadraticScratchLayout.ShortWidth N))
     (factorSelection : FirstAccepted.Refs ctx (QuadraticScratchLayout.CandidateWidth N))
     (before after : Store ctx) (holds : Relation input refs before after) :
@@ -183,8 +188,8 @@ theorem guardedInitialConditions_of_relation (input : Input N) (refs : Refs ctx 
     holds.quadratic.modulus holds.quadratic.one holds.quadratic.zero
 
 /-- Independent original setup allowance plus the four literal quadratic initialization events. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
-  LatticeCandidateModularSetup.setupEventEnvelope kind (modulusBits N) +
+def eventEnvelope (N : Nat) : ResourcePool model :=
+  LatticeCandidateModularSetup.setupEventEnvelope model (modulusBits N) +
     QuadraticScratchInitialization.eventEnvelope N
 
 /-- Independent dependency depth includes both target powering and the four constant operations. -/
@@ -216,7 +221,7 @@ theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input 
 /-- Actual resident space includes all caller cells and the real native-power temporary scope. -/
 theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
-      ctx.residentSpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticeCandidateModularSetup.setupInto input refs.setup)
     (QuadraticScratchInitialization.into (modulusSource refs) refs.quadratic) path).le.trans ?_
   exact SpacePool.max_le
@@ -228,7 +233,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
 /-- Actual auxiliary space counts the same live native-power scratch and all existing roles. -/
 theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticeCandidateModularSetup.setupInto input refs.setup)
     (QuadraticScratchInitialization.into (modulusSource refs) refs.quadratic) path).le.trans ?_
   exact SpacePool.max_le
@@ -239,7 +244,8 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
 
 /-- The complete shared prefix restores every borrowed correlation with arbitrary references. -/
 theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state

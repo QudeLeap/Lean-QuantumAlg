@@ -24,7 +24,8 @@ open Execution ClassicalAlgorithms.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The retained public result remains live beside every actual public-body scratch cell. -/
 def retainedAdditionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -34,8 +35,9 @@ def retainedAdditionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind 
 theorem xgcdNativeRetained_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).resourcePool path ≤ publicEnvelope kind width := by
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).resourcePool path ≤ publicEnvelope model
+      width := by
   exact xgcdNativePublicIntoResult_pool_le
     (input.underRetained key (XGCDOutputShape width) fresh)
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) path.2
@@ -43,11 +45,11 @@ theorem xgcdNativeRetained_pool_le
 /-- Every original serial dependency retains its arbitrary native duration charge. -/
 theorem xgcdNativeRetained_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (duration : Resource.Event kind → Nat)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).depth duration path ≤
-      rawDepthLimit width duration + ((packingEvents kind width).map duration).sum := by
-  change 0 + (publicIntoResult
+    (key : StorageKey) (fresh : key ∉ ctx.keys) (duration : Resource.Event model → Nat)
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).depth duration path ≤
+      rawDepthLimit width duration + ((packingEvents model width).map duration).sum := by
+  change 0 + (publicIntoResult (model := model)
     (input.underRetained key (XGCDOutputShape width) fresh)
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh)).depth duration path.2 ≤ _
   simpa only [zero_add] using xgcdNativePublicIntoResult_depth_le
@@ -58,9 +60,10 @@ theorem xgcdNativeRetained_depth_le
 theorem xgcdNativeRetained_unitDepth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).depth (fun _ => 1) path ≤ 28 * width + 28 := by
-  change 0 + (publicIntoResult
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).depth (fun _ => 1) path ≤ 28 * width + 28 :=
+      by
+  change 0 + (publicIntoResult (model := model)
     (input.underRetained key (XGCDOutputShape width) fresh)
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh)).depth (fun _ => 1) path.2 ≤ _
   simpa only [zero_add] using xgcdNativePublicIntoResult_unitDepth_le
@@ -71,11 +74,11 @@ theorem xgcdNativeRetained_unitDepth_le
 theorem xgcdNativeRetained_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).peakResidentSpace path ≤
-      retainedAdditionalSpace kind width + ctx.residentSpace := by
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).peakResidentSpace path ≤
+      retainedAdditionalSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq (.retain ctx key (XGCDOutputShape width) fresh)
-    (publicIntoResult (input.underRetained key (XGCDOutputShape width) fresh)
+    (publicIntoResult (model := model) (input.underRetained key (XGCDOutputShape width) fresh)
       (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh)) path).le.trans ?_
   apply SpacePool.max_le
   · change SpacePool.max ctx.residentSpace
@@ -84,7 +87,7 @@ theorem xgcdNativeRetained_resident_le
     apply SpacePool.max_le
     · exact le_add_of_nonneg_left zero_le
     · exact add_le_add (show SpacePool.ofShape (XGCDOutputShape width) ≤
-        retainedAdditionalSpace kind width from le_add_of_nonneg_right zero_le) le_rfl
+        retainedAdditionalSpace model.kind width from le_add_of_nonneg_right zero_le) le_rfl
   · simpa only [retainedAdditionalSpace, RuntimeCtx.residentSpace_addRetained,
       add_assoc, add_comm, add_left_comm] using xgcdNativePublicIntoResult_resident_le
       (input.underRetained key (XGCDOutputShape width) fresh)
@@ -94,11 +97,11 @@ theorem xgcdNativeRetained_resident_le
 theorem xgcdNativeRetained_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).peakAuxiliarySpace path ≤
-      retainedAdditionalSpace kind width + ctx.auxiliarySpace := by
+    (path : (retainedCircuit (model := model) input key fresh).Path) :
+    (retainedCircuit (model := model) input key fresh).peakAuxiliarySpace path ≤
+      retainedAdditionalSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq (.retain ctx key (XGCDOutputShape width) fresh)
-    (publicIntoResult (input.underRetained key (XGCDOutputShape width) fresh)
+    (publicIntoResult (model := model) (input.underRetained key (XGCDOutputShape width) fresh)
       (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh)) path).le.trans ?_
   apply SpacePool.max_le
   · change SpacePool.max ctx.auxiliarySpace
@@ -107,7 +110,7 @@ theorem xgcdNativeRetained_auxiliary_le
     apply SpacePool.max_le
     · exact le_add_of_nonneg_left zero_le
     · exact add_le_add (show SpacePool.ofShape (XGCDOutputShape width) ≤
-        retainedAdditionalSpace kind width from le_add_of_nonneg_right zero_le) le_rfl
+        retainedAdditionalSpace model.kind width from le_add_of_nonneg_right zero_le) le_rfl
   · simpa only [retainedAdditionalSpace, RuntimeCtx.auxiliarySpace_addRetained,
       add_assoc, add_comm, add_left_comm] using xgcdNativePublicIntoResult_auxiliary_le
       (input.underRetained key (XGCDOutputShape width) fresh)

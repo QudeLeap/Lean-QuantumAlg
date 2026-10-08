@@ -53,6 +53,17 @@ private def persistentBaseCtx (ctx : RuntimeCtx kind) (scalarWidth : Nat) : Runt
 def persistentCtx (ctx : RuntimeCtx kind) (width scalarWidth : Nat) : RuntimeCtx kind :=
   retainedCtx (persistentBaseCtx ctx scalarWidth) width
 
+/-- Persistent classical cells leave the complete quantum carrier unchanged. -/
+theorem persistentCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+    (persistentCtx ctx width scalarWidth).register = ctx.register := by
+  rfl
+
+/-- The seven classical cells do not change which physical wires are borrowed. -/
+theorem persistentCtx_borrowedQuantumWires (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+    (persistentCtx ctx width scalarWidth).borrowedQuantumWires =
+      ctx.borrowedQuantumWires := by
+  rfl
+
 /-- The original accepted destination remains live under all later allocations. -/
 def persistentAccepted (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     CWriteRef (persistentCtx ctx width scalarWidth) .bit :=
@@ -156,8 +167,9 @@ def persistentInput (width scalarWidth : Nat) {shape : CShape} (input : CInputRe
     (persistentCandidateCtx ctx scalarWidth).canonicalFreshKey .bit
     (persistentCandidateCtx ctx scalarWidth).canonicalFreshKey_fresh)
 
-private def retainPersistentPrefix (ctx : RuntimeCtx kind) (scalarWidth : Nat) :
-    Circuit ctx (persistentBaseCtx ctx scalarWidth) :=
+private def retainPersistentPrefix {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (scalarWidth : Nat) :
+    Circuit model ctx (persistentBaseCtx ctx scalarWidth) :=
   .seq (.retain ctx ctx.canonicalFreshKey .bit
       ctx.canonicalFreshKey_fresh)
     (.seq (.retain (persistentLatchCtx ctx) (persistentLatchCtx ctx).canonicalFreshKey
@@ -174,8 +186,9 @@ private def retainPersistentPrefix (ctx : RuntimeCtx kind) (scalarWidth : Nat) :
       (persistentCandidateCtx ctx scalarWidth).canonicalFreshKey_fresh))))
 
 /-- Allocate all seven persistent cells exactly once, before the repeated attempt sequence. -/
-def retainPersistent (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
-    Circuit ctx (persistentCtx ctx width scalarWidth) :=
+def retainPersistent {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat) :
+    Circuit model ctx (persistentCtx ctx width scalarWidth) :=
   .seq (retainPersistentPrefix ctx scalarWidth)
     (retainOutputs (persistentBaseCtx ctx scalarWidth) width)
 

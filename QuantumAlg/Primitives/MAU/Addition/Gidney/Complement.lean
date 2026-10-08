@@ -60,8 +60,10 @@ def complementGates (width : Nat) : List (EncodedBit.GateSpec (finIdentity width
   List.ofFn fun bit : Fin width => .x (complementBit width bit)
 
 /-- Compile the real X schedule without an auxiliary register. -/
-def complementProgram (width : Nat) : UnitaryCircuit (Qubits width) :=
-  programList (complementGates width)
+def complementProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical width).toQuantum :=
+  programList (QubitLayout.canonical width) .empty (complementGates width)
 
 private theorem complementGates_eq_xorConstant (width : Nat) :
     complementGates width =
@@ -88,16 +90,30 @@ theorem gidneyComplement_step (width : Nat) (input : Fin (2 ^ width)) :
   simpa only [HRS.hrsComplementWord_testBit, Bool.xor_true] using h
 
 theorem gidneyComplement_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (finIdentity width) (complementProgram width) HRS.complementWord :=
-  realizesList_congrStep (complementGates width) (gidneyComplement_step width)
+    UnitaryCircuit.Realizes (finIdentity width) (complementProgram width) HRS.complementWord := by
+  unfold complementProgram
+  exact realizesList_congrStep (QubitLayout.canonical width) .empty
+    (complementGates width) (gidneyComplement_step width)
 
 /-- Every event is an actual X, one for each target bit. -/
 theorem gidneyComplement_eventCost (width : Nat) :
     (complementProgram width).eventCost = ResourcePool.ofList
-      (List.replicate width (.gate (.builtin "x"))) := by
+      (List.replicate width
+        (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) .singleQubit)) := by
   rw [complementProgram, programList_eventCost]
   congr 1
-  simp [complementGates, Function.comp_def, event]
+  have nativeX (bit : Fin width) :
+      event .empty (.x (complementBit width bit)) =
+        (.gate .singleQubit :
+          Resource.Event (.quantum AlgorithmGate.model .empty)) := rfl
+  rw [complementGates, List.map_ofFn]
+  change List.ofFn (event .empty ∘ fun bit => .x (complementBit width bit)) = _
+  rw [show (event .empty ∘ fun bit => .x (complementBit width bit)) =
+      (fun _ : Fin width =>
+        (.gate .singleQubit : Resource.Event (.quantum AlgorithmGate.model .empty))) by
+    funext bit
+    exact nativeX bit]
+  exact List.ofFn_const width _
 
 theorem gidneyComplement_depth (width : Nat) :
     (complementProgram width).evaluatedEventDepth (fun _ => 1) = width := by

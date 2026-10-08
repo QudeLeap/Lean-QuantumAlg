@@ -25,7 +25,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- Actual loading, Gram refresh and phase reset establish the complete original LLL invariant. -/
-theorem initializeWideInto_correct (refs : Refs ctx N) (separation : Separation refs)
+theorem initializeWideInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeFixedFuelMachine.StoreInvariant refs.initialization.driver (sourceBasis refs store)
       (initializeWideStep refs store).1 (initialState refs store) :=
@@ -35,14 +36,16 @@ theorem initializeWideInto_correct (refs : Refs ctx N) (separation : Separation 
     (sourceBasis_fullRank refs store) (initialState_capacity refs store)
 
 /-- Actual initialization retains the complete caller frame independently of initial values. -/
-theorem initializeWideInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+theorem initializeWideInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (initializeWideStep refs store).1.read other = store.read other :=
   (LatticeFixedFuelMachine.refreshResetInto_callerFrame refs.initialization.driver _ other
     separate.fixedFuel).trans (decodeTargetInto_callerFrame refs store other separate.decodeTarget)
 
 /-- The actual source-to-LLL run realizes the original mathematical result at its original fuel. -/
-theorem pairToLllInto_correct (refs : Refs ctx N) (separation : Separation refs)
+theorem pairToLllInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeFixedFuelMachine.StoreInvariant refs.initialization.driver (sourceBasis refs store)
       (pairToLllStep refs store).1 (finalState refs store) :=
@@ -53,7 +56,8 @@ theorem pairToLllInto_correct (refs : Refs ctx N) (separation : Separation refs)
     (sourceBasis_fullRank refs store) (initialState_capacity refs store)
 
 /-- Reads outside the original source-loader and LLL writes survive the complete actual run. -/
-theorem pairToLllInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+theorem pairToLllInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (pairToLllStep refs store).1.read other = store.read other :=
   (LatticeFixedFuelMachine.initializedInto_callerFrame

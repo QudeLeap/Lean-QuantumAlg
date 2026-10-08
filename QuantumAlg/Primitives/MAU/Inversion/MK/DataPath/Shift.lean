@@ -46,8 +46,10 @@ def coeffWorkUDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the `u` `/2` cyclic qubit-shift scaffold. -/
 def coeffWorkUDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.adjacentShiftLeftProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.adjacentShiftLeftProgram (QubitLayout.canonical _) .empty
     (coeffAdderUWord n counterWidth)
     (fun i j hij =>
       coeffAdderUWordBit_coeffAdderUWordBit_wire_ne n counterWidth i j hij)
@@ -57,7 +59,7 @@ theorem coeffWorkUDiv2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkUDiv2CyclicShiftStep n counterWidth) :=
-  EncodedBit.Word.adjacentShiftLeftWitness
+  EncodedBit.Word.adjacentShiftLeftWitness (QubitLayout.canonical _) .empty
     (coeffAdderUWord n counterWidth)
     (fun i j hij =>
       coeffAdderUWordBit_coeffAdderUWordBit_wire_ne n counterWidth i j hij)
@@ -74,8 +76,10 @@ def coeffWorkVDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the `v` `/2` cyclic qubit-shift scaffold. -/
 def coeffWorkVDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.adjacentShiftLeftProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.adjacentShiftLeftProgram (QubitLayout.canonical _) .empty
     (coeffAdderVWord n counterWidth)
     (fun i j hij =>
       coeffAdderVWordBit_coeffAdderVWordBit_wire_ne n counterWidth i j hij)
@@ -85,7 +89,7 @@ theorem coeffWorkVDiv2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkVDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkVDiv2CyclicShiftStep n counterWidth) :=
-  EncodedBit.Word.adjacentShiftLeftWitness
+  EncodedBit.Word.adjacentShiftLeftWitness (QubitLayout.canonical _) .empty
     (coeffAdderVWord n counterWidth)
     (fun i j hij =>
       coeffAdderVWordBit_coeffAdderVWordBit_wire_ne n counterWidth i j hij)
@@ -105,8 +109,10 @@ def coeffWorkSMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the `s` `·2` cyclic qubit-shift scaffold. -/
 def coeffWorkSMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.adjacentShiftRightProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.adjacentShiftRightProgram (QubitLayout.canonical _) .empty
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i j hij =>
       coeffAdderSCoeffValueWordBit_coeffAdderSCoeffValueWordBit_wire_ne n
@@ -117,7 +123,7 @@ theorem coeffWorkSMul2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkSMul2CyclicShiftProgram n counterWidth)
       (coeffWorkSMul2CyclicShiftStep n counterWidth) :=
-  EncodedBit.Word.adjacentShiftRightWitness
+  EncodedBit.Word.adjacentShiftRightWitness (QubitLayout.canonical _) .empty
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i j hij =>
       coeffAdderSCoeffValueWordBit_coeffAdderSCoeffValueWordBit_wire_ne n
@@ -136,8 +142,10 @@ def coeffWorkRMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the `r` `·2` cyclic qubit-shift scaffold. -/
 def coeffWorkRMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.adjacentShiftRightProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.adjacentShiftRightProgram (QubitLayout.canonical _) .empty
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i j hij =>
       coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne n
@@ -148,7 +156,7 @@ theorem coeffWorkRMul2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkRMul2CyclicShiftProgram n counterWidth)
       (coeffWorkRMul2CyclicShiftStep n counterWidth) :=
-  EncodedBit.Word.adjacentShiftRightWitness
+  EncodedBit.Word.adjacentShiftRightWitness (QubitLayout.canonical _) .empty
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i j hij =>
       coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne n
@@ -826,8 +834,11 @@ def coeffWorkActiveUDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `u` `/2` cyclic-shift scaffold. -/
 def coeffWorkActiveUDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftLeftProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderUWord n counterWidth)
     (fun i => coeffAdderActiveBit_coeffAdderUWordBit_wire_ne n counterWidth i)
@@ -840,6 +851,7 @@ theorem coeffWorkActiveUDiv2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkActiveUDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkActiveUDiv2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftLeftWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderUWord n counterWidth)
     (fun i => coeffAdderActiveBit_coeffAdderUWordBit_wire_ne n counterWidth i)
@@ -860,8 +872,11 @@ def coeffWorkActiveVDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `v` `/2` cyclic-shift scaffold. -/
 def coeffWorkActiveVDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftLeftProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderVWord n counterWidth)
     (fun i => coeffAdderActiveBit_coeffAdderVWordBit_wire_ne n counterWidth i)
@@ -874,6 +889,7 @@ theorem coeffWorkActiveVDiv2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkActiveVDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkActiveVDiv2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftLeftWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderVWord n counterWidth)
     (fun i => coeffAdderActiveBit_coeffAdderVWordBit_wire_ne n counterWidth i)
@@ -896,8 +912,11 @@ def coeffWorkActiveSMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `s` `·2` cyclic-shift scaffold. -/
 def coeffWorkActiveSMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftRightProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i =>
@@ -912,6 +931,7 @@ theorem coeffWorkActiveSMul2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkActiveSMul2CyclicShiftProgram n counterWidth)
       (coeffWorkActiveSMul2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftRightWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i =>
@@ -936,8 +956,11 @@ def coeffWorkActiveRMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `r` `·2` cyclic-shift scaffold. -/
 def coeffWorkActiveRMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftRightProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i =>
@@ -952,6 +975,7 @@ theorem coeffWorkActiveRMul2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkActiveRMul2CyclicShiftProgram n counterWidth)
       (coeffWorkActiveRMul2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftRightWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderActiveBit n counterWidth)
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i =>
@@ -978,8 +1002,11 @@ def coeffWorkAuxUDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `u` `/2` cyclic-shift scaffold. -/
 def coeffWorkAuxUDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftLeftProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderUWord n counterWidth)
     (fun i => coeffAdderScratchABit_coeffAdderUWordBit_wire_ne n counterWidth i)
@@ -992,6 +1019,7 @@ theorem coeffWorkAuxUDiv2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkAuxUDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkAuxUDiv2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftLeftWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderUWord n counterWidth)
     (fun i => coeffAdderScratchABit_coeffAdderUWordBit_wire_ne n counterWidth i)
@@ -1012,8 +1040,11 @@ def coeffWorkAuxVDiv2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `v` `/2` cyclic-shift scaffold. -/
 def coeffWorkAuxVDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftLeftProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderVWord n counterWidth)
     (fun i => coeffAdderScratchABit_coeffAdderVWordBit_wire_ne n counterWidth i)
@@ -1026,6 +1057,7 @@ theorem coeffWorkAuxVDiv2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkAuxVDiv2CyclicShiftProgram n counterWidth)
       (coeffWorkAuxVDiv2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftLeftWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderVWord n counterWidth)
     (fun i => coeffAdderScratchABit_coeffAdderVWordBit_wire_ne n counterWidth i)
@@ -1049,8 +1081,11 @@ def coeffWorkAuxSMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `s` `·2` cyclic-shift scaffold. -/
 def coeffWorkAuxSMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftRightProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i =>
@@ -1066,6 +1101,7 @@ theorem coeffWorkAuxSMul2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkAuxSMul2CyclicShiftProgram n counterWidth)
       (coeffWorkAuxSMul2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftRightWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderSCoeffValueWord n counterWidth)
     (fun i =>
@@ -1092,8 +1128,11 @@ def coeffWorkAuxRMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `r` `·2` cyclic-shift scaffold. -/
 def coeffWorkAuxRMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   EncodedBit.Word.controlledAdjacentShiftRightProgram
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i =>
@@ -1109,6 +1148,7 @@ theorem coeffWorkAuxRMul2CyclicShift_realizes (n counterWidth : Nat) :
       (coeffWorkAuxRMul2CyclicShiftProgram n counterWidth)
       (coeffWorkAuxRMul2CyclicShiftStep n counterWidth) :=
   EncodedBit.Word.controlledAdjacentShiftRightWitness
+    (QubitLayout.canonical _) .empty
     (coeffAdderScratchABit n counterWidth)
     (coeffAdderRCoeffValueWord n counterWidth)
     (fun i =>
@@ -1131,7 +1171,9 @@ def coeffWorkUDiv2ThenSMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the paired `u / 2`, `s * 2` cyclic-shift scaffold. -/
 def coeffWorkUDiv2ThenSMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkSMul2CyclicShiftProgram n counterWidth)
@@ -1159,7 +1201,9 @@ def coeffWorkVDiv2ThenRMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the paired `v / 2`, `r * 2` cyclic-shift scaffold. -/
 def coeffWorkVDiv2ThenRMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkRMul2CyclicShiftProgram n counterWidth)
@@ -1757,7 +1801,9 @@ def coeffWorkActiveUDiv2ThenSMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `u / 2`, `s * 2` scaffold. -/
 def coeffWorkActiveUDiv2ThenSMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkActiveUDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkActiveSMul2CyclicShiftProgram n counterWidth)
@@ -1788,7 +1834,9 @@ def coeffWorkActiveVDiv2ThenRMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the active-controlled `v / 2`, `r * 2` scaffold. -/
 def coeffWorkActiveVDiv2ThenRMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkActiveVDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkActiveRMul2CyclicShiftProgram n counterWidth)
@@ -1820,7 +1868,9 @@ def coeffWorkAuxUDiv2ThenSMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `u / 2`, `s * 2` scaffold. -/
 def coeffWorkAuxUDiv2ThenSMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkAuxUDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkAuxSMul2CyclicShiftProgram n counterWidth)
@@ -1851,7 +1901,9 @@ def coeffWorkAuxVDiv2ThenRMul2Step (n counterWidth : Nat) :
 
 /-- Circuit for the scratchA-controlled `v / 2`, `r * 2` scaffold. -/
 def coeffWorkAuxVDiv2ThenRMul2Program (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkAuxVDiv2CyclicShiftProgram n counterWidth)
     (coeffWorkAuxRMul2CyclicShiftProgram n counterWidth)
@@ -1898,9 +1950,12 @@ def coeffWorkAuxVDiv2ThenRMul2InverseShiftStep (n counterWidth : Nat) :
 /-- Circuit for the scratchA-controlled inverse `v/r` shift group. -/
 def coeffWorkAuxVDiv2ThenRMul2InverseShiftProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (EncodedBit.Word.controlledAdjacentShiftLeftProgram
+      (QubitLayout.canonical _) .empty
       (coeffAdderScratchABit n counterWidth)
       (coeffAdderRCoeffValueWord n counterWidth)
       (fun i =>
@@ -1910,6 +1965,7 @@ def coeffWorkAuxVDiv2ThenRMul2InverseShiftProgram
         coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne n
           counterWidth i j hij))
     (EncodedBit.Word.controlledAdjacentShiftRightProgram
+      (QubitLayout.canonical _) .empty
       (coeffAdderScratchABit n counterWidth)
       (coeffAdderVWord n counterWidth)
       (fun i =>
@@ -1946,6 +2002,7 @@ theorem coeffWorkAuxVDiv2ThenRMul2InverseShift_realizes
           coeffAdderVWordBit_coeffAdderVWordBit_wire_ne n counterWidth i j
             hij))
     (EncodedBit.Word.controlledAdjacentShiftLeftWitness
+      (QubitLayout.canonical _) .empty
       (coeffAdderScratchABit n counterWidth)
       (coeffAdderRCoeffValueWord n counterWidth)
       (fun i =>
@@ -1955,6 +2012,7 @@ theorem coeffWorkAuxVDiv2ThenRMul2InverseShift_realizes
         coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne n
           counterWidth i j hij))
     (EncodedBit.Word.controlledAdjacentShiftRightWitness
+      (QubitLayout.canonical _) .empty
       (coeffAdderScratchABit n counterWidth)
       (coeffAdderVWord n counterWidth)
       (fun i =>
@@ -2075,7 +2133,9 @@ def coeffWorkAuxActiveShiftDispatchPrefixStep (n counterWidth : Nat) :
 
 /-- Circuit for the auxiliary-bit shift-dispatch prefix. -/
 def coeffWorkAuxActiveShiftDispatchPrefixProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkAuxUDiv2ThenSMul2Program n counterWidth)
     (coeffWorkActiveVDiv2ThenRMul2Program n counterWidth)
@@ -2161,8 +2221,10 @@ def coeffWorkAuxActiveShiftDispatchGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the auxiliary-bit shift dispatch scaffold. -/
 def coeffWorkAuxActiveShiftDispatchProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkAuxActiveShiftDispatchGates n counterWidth)
 
 /-- The explicit auxiliary-bit shift dispatch gate list has the existing
@@ -2192,6 +2254,7 @@ theorem coeffWorkAuxActiveShiftDispatch_realizes (n counterWidth : Nat) :
       (coeffWorkAuxActiveShiftDispatchProgram n counterWidth)
       (coeffWorkAuxActiveShiftDispatchStep n counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkAuxActiveShiftDispatchGates n counterWidth)
     (coeffWorkAuxActiveShiftDispatchStep_eq_gateList n counterWidth)
 
@@ -3962,47 +4025,63 @@ def rMul2CyclicShiftStep (n counterWidth : Nat) :
 
 /-- Physical compact `u / 2` cyclic-shift program. -/
 def uDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (uDiv2CyclicShiftGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (uDiv2CyclicShiftGates n counterWidth)
 
 /-- Physical compact `v / 2` cyclic-shift program. -/
 def vDiv2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (vDiv2CyclicShiftGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (vDiv2CyclicShiftGates n counterWidth)
 
 /-- Physical compact `s * 2` cyclic-shift program. -/
 def sMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (sMul2CyclicShiftGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (sMul2CyclicShiftGates n counterWidth)
 
 /-- Physical compact `r * 2` cyclic-shift program. -/
 def rMul2CyclicShiftProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (rMul2CyclicShiftGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (rMul2CyclicShiftGates n counterWidth)
 
 theorem uDiv2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (uDiv2CyclicShiftProgram n counterWidth)
       (uDiv2CyclicShiftStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (uDiv2CyclicShiftGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (uDiv2CyclicShiftGates n counterWidth)
 
 theorem vDiv2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (vDiv2CyclicShiftProgram n counterWidth)
       (vDiv2CyclicShiftStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (vDiv2CyclicShiftGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (vDiv2CyclicShiftGates n counterWidth)
 
 theorem sMul2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (sMul2CyclicShiftProgram n counterWidth)
       (sMul2CyclicShiftStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (sMul2CyclicShiftGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (sMul2CyclicShiftGates n counterWidth)
 
 theorem rMul2CyclicShift_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (rMul2CyclicShiftProgram n counterWidth)
       (rMul2CyclicShiftStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (rMul2CyclicShiftGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (rMul2CyclicShiftGates n counterWidth)
 
 /-- The compact `u / 2` atom exposes the exact cyclic source permutation. -/
 theorem uDiv2CyclicShiftStep_get_uBit_source
@@ -5198,8 +5277,10 @@ def auxActiveShiftDispatchStep (n counterWidth : Nat) :
         (auxUDiv2ThenSMul2Step n counterWidth x))
 
 def auxActiveShiftDispatchProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (auxActiveShiftDispatchGates n counterWidth)
 
 theorem auxActiveShiftDispatchStep_eq_gateList
@@ -5218,6 +5299,7 @@ theorem auxActiveShiftDispatch_realizes (n counterWidth : Nat) :
       (auxActiveShiftDispatchProgram n counterWidth)
       (auxActiveShiftDispatchStep n counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (auxActiveShiftDispatchGates n counterWidth)
     (auxActiveShiftDispatchStep_eq_gateList n counterWidth)
 

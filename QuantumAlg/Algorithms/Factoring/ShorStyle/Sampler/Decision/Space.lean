@@ -23,13 +23,16 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Decision
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem result_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
-    (path : (chooseResult shared scratch gcdResult).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (chooseResult shared scratch gcdResult).visitedContexts path) :
+    (path : (chooseResult (model := model)
+      shared scratch gcdResult).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (chooseResult (model := model)
+      shared scratch gcdResult).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨value, selected⟩
   cases value with
@@ -42,21 +45,23 @@ private theorem result_visited (shared : Proposal.SharedRefs ctx width)
 private theorem accepted_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
-    (property : RuntimeCtx kind → Prop) (base : property ctx)
-    (reduced : ∀ (path : (NumberTheory.GCD.lexicalBody
+    (property : RuntimeCtx model.kind → Prop) (base : property ctx)
+    (reduced : ∀ (path : (NumberTheory.GCD.lexicalBody (model := model)
         (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult).Path)
-        (visited : RuntimeCtx kind),
-      visited ∈ (NumberTheory.GCD.lexicalBody
+        (visited : RuntimeCtx model.kind),
+      visited ∈ (NumberTheory.GCD.lexicalBody (model := model)
         (.product (FirstAccepted.cellRead scratch.extended) shared.modulus)
         gcdResult).visitedContexts path → property visited)
-    (path : (acceptedBody shared scratch gcdResult).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (acceptedBody shared scratch gcdResult).visitedContexts path) :
+    (path : (acceptedBody (model := model)
+      shared scratch gcdResult).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (acceptedBody (model := model)
+      shared scratch gcdResult).visitedContexts path) :
     property visited := by
   change visited ∈ [ctx] ++
-    ((NumberTheory.GCD.lexicalBody
+    ((NumberTheory.GCD.lexicalBody (model := model)
       (.product (FirstAccepted.cellRead scratch.extended) shared.modulus)
       gcdResult).visitedContexts path.2.1 ++
-      ([ctx] ++ ([ctx] ++ (chooseResult shared scratch gcdResult).visitedContexts
+      ([ctx] ++ ([ctx] ++ (chooseResult (model := model) shared scratch gcdResult).visitedContexts
         path.2.2.2.2))) at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at present
   rcases present with same | inner | same | same | selected
@@ -64,36 +69,42 @@ private theorem accepted_visited (shared : Proposal.SharedRefs ctx width)
   · exact reduced path.2.1 visited inner
   · exact same.symm ▸ base
   · exact same.symm ▸ base
-  · exact (result_visited shared scratch gcdResult path.2.2.2.2 visited selected).symm ▸ base
+  · exact (result_visited (model := model)
+      shared scratch gcdResult path.2.2.2.2 visited selected).symm ▸ base
 
 private theorem decision_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
-    (property : RuntimeCtx kind → Prop) (base : property ctx)
-    (reduced : ∀ (path : (NumberTheory.GCD.lexicalBody
+    (property : RuntimeCtx model.kind → Prop) (base : property ctx)
+    (reduced : ∀ (path : (NumberTheory.GCD.lexicalBody (model := model)
         (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult).Path)
-        (visited : RuntimeCtx kind),
-      visited ∈ (NumberTheory.GCD.lexicalBody
+        (visited : RuntimeCtx model.kind),
+      visited ∈ (NumberTheory.GCD.lexicalBody (model := model)
         (.product (FirstAccepted.cellRead scratch.extended) shared.modulus)
         gcdResult).visitedContexts path → property visited)
-    (path : (circuit shared scratch gcdResult output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (circuit shared scratch gcdResult output).visitedContexts path) :
+    (path : (circuit (model := model)
+      shared scratch gcdResult output).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (circuit (model := model)
+      shared scratch gcdResult output).visitedContexts path) :
     property visited := by
   change visited ∈ [ctx, ctx, ctx, ctx] ++
-    ((chooseAccepted shared scratch gcdResult).visitedContexts path.2.1 ++ [ctx]) at present
+    ((chooseAccepted (model := model)
+      shared scratch gcdResult).visitedContexts path.2.1 ++ [ctx]) at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false, or_self] at present
   rcases present with same | selected | same
   · exact same.symm ▸ base
-  · have branchProperty : ∀ (selectedPath : (chooseAccepted shared scratch gcdResult).Path),
-        visited ∈ (chooseAccepted shared scratch gcdResult).visitedContexts selectedPath →
+  · have branchProperty : ∀ (selectedPath : (chooseAccepted (model := model)
+      shared scratch gcdResult).Path),
+        visited ∈ (chooseAccepted (model := model)
+          shared scratch gcdResult).visitedContexts selectedPath →
           property visited := by
       rintro ⟨value, selectedPath⟩ member
       cases value with
       | bit value =>
           cases value
           · exact (List.mem_singleton.mp member).symm ▸ base
-          · exact accepted_visited shared scratch gcdResult property base reduced
+          · exact accepted_visited (model := model) shared scratch gcdResult property base reduced
               selectedPath visited member
     exact branchProperty path.2.1 selected
   · exact same.symm ▸ base
@@ -103,11 +114,11 @@ theorem decision_resident_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
-    (path : (circuit shared scratch gcdResult output).Path) :
-    (circuit shared scratch gcdResult output).peakResidentSpace path ≤
-      ctx.residentSpace + NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) := by
+    (path : (circuit (model := model) shared scratch gcdResult output).Path) :
+    (circuit (model := model) shared scratch gcdResult output).peakResidentSpace path ≤
+      ctx.residentSpace + NumberTheory.GCD.lexicalAdditionalSpace model.kind (width + 1) := by
   apply Circuit.peakResidentSpace_le_of_visited
-  apply decision_visited shared scratch gcdResult output
+  apply decision_visited (model := model) shared scratch gcdResult output
   · intro axis
     exact Nat.le_add_right _ _
   · intro reduced visited present
@@ -120,11 +131,11 @@ theorem decision_auxiliary_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
-    (path : (circuit shared scratch gcdResult output).Path) :
-    (circuit shared scratch gcdResult output).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) := by
+    (path : (circuit (model := model) shared scratch gcdResult output).Path) :
+    (circuit (model := model) shared scratch gcdResult output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + NumberTheory.GCD.lexicalAdditionalSpace model.kind (width + 1) := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
-  apply decision_visited shared scratch gcdResult output
+  apply decision_visited (model := model) shared scratch gcdResult output
   · intro axis
     exact Nat.le_add_right _ _
   · intro reduced visited present

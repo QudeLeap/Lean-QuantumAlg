@@ -26,46 +26,55 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 private theorem fold_preserves_first
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : List (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
-    (already : (before.read
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
+    (already : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true) :
     let after := samples.foldl (fun current sample =>
-      persistentAttemptStore curve modulus sample base target current) before
-    (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
+      persistentAttemptState curve modulus sample base target current) before
+    (after.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
-      after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
-        before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+      after.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
+        before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
   induction samples generalizing before with
   | nil => exact ⟨already, rfl⟩
   | cons sample rest ih =>
-      let next := persistentAttemptStore curve modulus sample base target before
+      let next := persistentAttemptState curve modulus sample base target before
       have nextBase : PointRepresents curve
-          (next.read (persistentInput width scalarWidth base)) basePoint := by
+          (next.1.read (persistentInput width scalarWidth base)) basePoint := by
+        change PointRepresents curve
+          ((persistentAttemptStore curve modulus sample base target before).read
+            (persistentInput width scalarWidth base)) basePoint
         rw [persistentAttemptStore_preserves_read]
         exact baseRep
       have nextTarget : PointRepresents curve
-          (next.read (persistentInput width scalarWidth target)) targetPoint := by
+          (next.1.read (persistentInput width scalarWidth target)) targetPoint := by
+        change PointRepresents curve
+          ((persistentAttemptStore curve modulus sample base target before).read
+            (persistentInput width scalarWidth target)) targetPoint
         rw [persistentAttemptStore_preserves_read]
         exact targetRep
       have latches := persistentAttemptStore_latches curve modulus sample base target before
         basePoint targetPoint baseRep targetRep
-      have nextAccepted : (next.read
+      have nextAccepted : (next.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true :=
         latches.1.mpr (Or.inl already)
-      have nextSelected : next.read
+      have nextSelected : next.1.read
           (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
-          before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+          before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+        change (persistentAttemptStore curve modulus sample base target before).read
+          (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = _
         rw [latches.2, if_pos already]
       have restResult := ih next nextBase nextTarget nextAccepted
       exact ⟨restResult.1, restResult.2.trans nextSelected⟩
@@ -75,19 +84,19 @@ theorem repeatedAttemptsStore_preserves_first
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
-    (already : (before.read
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
+    (already : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true) :
     let after := repeatedAttemptsStore curve modulus samples base target before
     (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
       after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
-        before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+        before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
   rw [repeatedAttemptsStore_fold]
   exact fold_preserves_first curve modulus (List.ofFn samples) base target before
     basePoint targetPoint baseRep targetRep already
@@ -97,41 +106,41 @@ theorem repeatedAttemptsStore_selected_first
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
     (baseRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth base)) basePoint)
+      (before.1.read (persistentInput width scalarWidth base)) basePoint)
     (targetRep : PointRepresents curve
-      (before.read (persistentInput width scalarWidth target)) targetPoint)
+      (before.1.read (persistentInput width scalarWidth target)) targetPoint)
     (earlierSamples suffix : List
       (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (chosen : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (order : List.ofFn samples = earlierSamples ++ chosen :: suffix)
-    (initial : (before.read
+    (initial : (before.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false)
     (rejected : ∀ sample ∈ earlierSamples, ¬SampleAccepted curve modulus basePoint targetPoint
-      (before.read (persistentInput width scalarWidth sample)))
+      (before.1.read (persistentInput width scalarWidth sample)))
     (eligible : SampleAccepted curve modulus basePoint targetPoint
-      (before.read (persistentInput width scalarWidth chosen))) :
+      (before.1.read (persistentInput width scalarWidth chosen))) :
     let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
       (FiniteCyclicDLP.RawRecovery.Native.preparationInput
-        (before.read (persistentInput width scalarWidth chosen)))
+        (before.1.read (persistentInput width scalarWidth chosen)))
     let after := repeatedAttemptsStore curve modulus samples base target before
     after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         raw.second.first ∧
       (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true := by
   let preceding := earlierSamples.foldl (fun current sample =>
-    persistentAttemptStore curve modulus sample base target current) before
+    persistentAttemptState curve modulus sample base target current) before
   have precedingBase : PointRepresents curve
-      (preceding.read (persistentInput width scalarWidth base)) basePoint := by
+      (preceding.1.read (persistentInput width scalarWidth base)) basePoint := by
     rw [fold_preserves_read]
     exact baseRep
   have precedingTarget : PointRepresents curve
-      (preceding.read (persistentInput width scalarWidth target)) targetPoint := by
+      (preceding.1.read (persistentInput width scalarWidth target)) targetPoint := by
     rw [fold_preserves_read]
     exact targetRep
-  have precedingAccepted : (preceding.read
+  have precedingAccepted : (preceding.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false := by
     apply Bool.eq_false_iff.mpr
     intro accepted
@@ -139,32 +148,40 @@ theorem repeatedAttemptsStore_selected_first
       baseRep targetRep).mp accepted with prior | ⟨sample, member, valid⟩
     · simp [initial] at prior
     · exact rejected sample member valid
-  have chosenRead : preceding.read (persistentInput width scalarWidth chosen) =
-      before.read (persistentInput width scalarWidth chosen) :=
+  have chosenRead : preceding.1.read (persistentInput width scalarWidth chosen) =
+      before.1.read (persistentInput width scalarWidth chosen) :=
     fold_preserves_read curve modulus earlierSamples base target before chosen
   have chosenEligible : SampleAccepted curve modulus basePoint targetPoint
-      (preceding.read (persistentInput width scalarWidth chosen)) := by
+      (preceding.1.read (persistentInput width scalarWidth chosen)) := by
     rw [chosenRead]
     exact eligible
-  let following := persistentAttemptStore curve modulus chosen base target preceding
+  let following := persistentAttemptState curve modulus chosen base target preceding
   have latches := persistentAttemptStore_latches curve modulus chosen base target preceding
     basePoint targetPoint precedingBase precedingTarget
-  have followingAccepted : (following.read
+  have followingAccepted : (following.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true :=
     latches.1.mpr (Or.inr chosenEligible)
-  have followingSelected : following.read
+  have followingSelected : following.1.read
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
       (FiniteCyclicDLP.RawRecovery.outputCells modulus
         (FiniteCyclicDLP.RawRecovery.Native.preparationInput
-          (before.read (persistentInput width scalarWidth chosen)))).second.first := by
+          (before.1.read (persistentInput width scalarWidth chosen)))).second.first := by
+    change (persistentAttemptStore curve modulus chosen base target preceding).read
+      (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = _
     rw [latches.2]
     simp only [precedingAccepted, Bool.false_eq_true, ite_false, if_pos chosenEligible, chosenRead]
   have followingBase : PointRepresents curve
-      (following.read (persistentInput width scalarWidth base)) basePoint := by
+      (following.1.read (persistentInput width scalarWidth base)) basePoint := by
+    change PointRepresents curve
+      ((persistentAttemptStore curve modulus chosen base target preceding).read
+        (persistentInput width scalarWidth base)) basePoint
     rw [persistentAttemptStore_preserves_read]
     exact precedingBase
   have followingTarget : PointRepresents curve
-      (following.read (persistentInput width scalarWidth target)) targetPoint := by
+      (following.1.read (persistentInput width scalarWidth target)) targetPoint := by
+    change PointRepresents curve
+      ((persistentAttemptStore curve modulus chosen base target preceding).read
+        (persistentInput width scalarWidth target)) targetPoint
     rw [persistentAttemptStore_preserves_read]
     exact precedingTarget
   have suffixResult := fold_preserves_first curve modulus suffix base target following
@@ -176,32 +193,32 @@ theorem repeatedAttemptsStore_selected_first
 theorem repeatedAttemptsStore_initial_selected_first
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width)) (before : Store ctx)
+    (base target : CInputRef ctx (PointShape width)) (before : Store ctx × model.HiddenState)
     (basePoint targetPoint : Pure.Point curve)
-    (baseRep : PointRepresents curve (before.read base) basePoint)
-    (targetRep : PointRepresents curve (before.read target) targetPoint)
+    (baseRep : PointRepresents curve (before.1.read base) basePoint)
+    (targetRep : PointRepresents curve (before.1.read target) targetPoint)
     (earlierSamples suffix : List
       (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (chosen : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (order : List.ofFn samples = earlierSamples ++ chosen :: suffix)
     (rejected : ∀ sample ∈ earlierSamples, ¬SampleAccepted curve modulus basePoint targetPoint
-      (before.read sample))
-    (eligible : SampleAccepted curve modulus basePoint targetPoint (before.read chosen)) :
+      (before.1.read sample))
+    (eligible : SampleAccepted curve modulus basePoint targetPoint (before.1.read chosen)) :
     let raw := FiniteCyclicDLP.RawRecovery.outputCells modulus
-      (FiniteCyclicDLP.RawRecovery.Native.preparationInput (before.read chosen))
+      (FiniteCyclicDLP.RawRecovery.Native.preparationInput (before.1.read chosen))
     let after := repeatedAttemptsStore curve modulus samples base target
-      (persistentInitialStore width scalarWidth before)
+      (persistentInitialStore width scalarWidth before.1, before.2)
     after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         raw.second.first ∧
       (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true := by
   have result := repeatedAttemptsStore_selected_first curve modulus samples base target
-    (persistentInitialStore width scalarWidth before) basePoint targetPoint
+    (persistentInitialStore width scalarWidth before.1, before.2) basePoint targetPoint
     (by rw [persistentInitialStore_read]; exact baseRep)
     (by rw [persistentInitialStore_read]; exact targetRep)
     earlierSamples suffix chosen order
     (by
-      have initial := persistentInitialStore_accepted width scalarWidth before
+      have initial := persistentInitialStore_accepted width scalarWidth before.1
       exact congrArg CShape.Value.toBool initial)
     (by intro sample member; rw [persistentInitialStore_read]; exact rejected sample member)
     (by rw [persistentInitialStore_read]; exact eligible)

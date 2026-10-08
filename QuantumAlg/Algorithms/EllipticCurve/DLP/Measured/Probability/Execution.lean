@@ -50,7 +50,7 @@ theorem selectedExponentRun_probability_bound
     ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
       (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
       ((exponentRun E fieldTail odd problem points).outputDistribution
-        (AlgorithmRun.pureInput stored
+        (AlgorithmRun.pureInput (stored, ())
           (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))).map
             (fun value => selectedExponentEvent problem input (QubitReadouts.mask value)) true +
         ENNReal.ofReal (4 * Real.sqrt (preparedExceptionalMass problem points seed)) := by
@@ -82,7 +82,7 @@ theorem exists_fixedOffset_selectedExponentRun_bound
           ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
           (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
           ((exponentRun E fieldTail odd problem points).outputDistribution
-            (AlgorithmRun.pureInput stored
+            (AlgorithmRun.pureInput (stored, ())
               (originalMontgomeryInputVector problem fieldTail sameWidth fits
                 seed reference))).map
                   (fun value => selectedExponentEvent problem input

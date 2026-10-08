@@ -7,11 +7,10 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -61,9 +60,10 @@ def compareControlledUVSwapBitGates
 /-- Base-gate program for one comparison-controlled `u`/`v` bit swap. -/
 def compareControlledUVSwapBitProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.controlledSwapProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.controlledSwapProgram (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUBit n counterWidth uIndex)
     (liftedVBit n counterWidth vIndex)
@@ -91,7 +91,7 @@ theorem compareControlledUVSwapBit_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (compareControlledUVSwapBitProgram n counterWidth uIndex vIndex)
       (compareControlledUVSwapBitStep n counterWidth uIndex vIndex) :=
-  EncodedBit.controlledSwap_realizes
+  EncodedBit.controlledSwap_realizes (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUBit n counterWidth uIndex)
     (liftedVBit n counterWidth vIndex)
@@ -214,9 +214,10 @@ def compareControlledUVSwapGates
 /-- Base-gate program for the comparison-controlled `u`/`v` word swap. -/
 def compareControlledUVSwapProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.controlledSwapProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.controlledSwapProgram (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUWord n counterWidth)
     (liftedVWord n counterWidth)
@@ -244,7 +245,7 @@ theorem compareControlledUVSwap_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (compareControlledUVSwapProgram n counterWidth)
       (compareControlledUVSwapStep n counterWidth) :=
-  EncodedBit.Word.controlledSwap_realizes
+  EncodedBit.Word.controlledSwap_realizes (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUWord n counterWidth)
     (liftedVWord n counterWidth)
@@ -562,9 +563,10 @@ def compareControlledRSSwapGates
 swap. -/
 def compareControlledRSSwapProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  EncodedBit.Word.controlledSwapProgram
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.Word.controlledSwapProgram (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedRCoeffWord n counterWidth)
     (liftedSCoeffWord n counterWidth)
@@ -595,7 +597,7 @@ theorem compareControlledRSSwap_realizes
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
       (compareControlledRSSwapProgram n counterWidth)
       (compareControlledRSSwapStep n counterWidth) :=
-  EncodedBit.Word.controlledSwap_realizes
+  EncodedBit.Word.controlledSwap_realizes (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedRCoeffWord n counterWidth)
     (liftedSCoeffWord n counterWidth)
@@ -905,8 +907,9 @@ and `r`/`s` swaps.  This packages the swap-based Kaliski round data-path slice
 as one circuit object before the later arithmetic-update gates are sequenced
 around it [HJN+20, modular-arithmetic.tex:176-195]. -/
 def compareControlledUVRSSwapProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (compareControlledUVSwapProgram n counterWidth)
     (compareControlledRSSwapProgram n counterWidth)

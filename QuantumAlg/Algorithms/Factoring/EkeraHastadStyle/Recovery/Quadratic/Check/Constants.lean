@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Borrowed.Preservation
 
@@ -37,10 +38,6 @@ def clearOp (one : CWriteRef ctx (.unsignedWord width)) :
 def incrementOp (one : CWriteRef ctx (.unsignedWord width)) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .increment width ctx (.storage one.toCStorageRef) one
-
-/-- Actual two-instruction initialization, independent of the word's previous value. -/
-def code (one : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (clearOp one)) (.classical (incrementOp one))
 
 /-- The two actual native writes to the same physical cell. -/
 def storeStep (one : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) : Store ctx :=
@@ -81,29 +78,40 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Actual two-instruction initialization, independent of the word's previous value. -/
+def code (one : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearOp one))
+    (BitWord.instruction (execution := model) (incrementOp one))
+
+/-- The actual returned values of both native writes, with the unchanged pure store update. -/
+def step (one : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (code (model := model) one).Path :=
+  let cleared := BitWord.instructionStep (execution := model) (clearOp one) store
+  let incremented := BitWord.instructionStep (execution := model) (incrementOp one) cleared.1
+  (incremented.1, (cleared.2, incremented.2))
+
 /-- The two real writes preserve the incoming complete quantum-reference matrix blocks. -/
 theorem nativeQuadratic_check_one_execute (one : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code one).execute Reference state = state.mapClassical (fun entry =>
-      (storeStep one entry.1, (entry.2, ((), ())))) := by
-  simp only [code, Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) one).execute Reference state = state.mapClassical (fun entry =>
+      ((step (model := model) one entry.1).1,
+        (entry.2.1, (entry.2.2, (step (model := model) one entry.1).2)))) := by
+  simp only [code, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (code one).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => (storeStep one entry.1, (entry.2, ((), ())))))
-    (Subsingleton.elim _ _)
-
-end
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both intrinsically writable native operations restore every borrowed joint state. -/
 theorem nativeQuadratic_check_one_borrowedRestored
     (one : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (code one).BorrowedRestored Reference state ((code one).execute Reference state) :=
-  Circuit.borrowedRestored_seq (.classical (clearOp one)) (.classical (incrementOp one)) state
-    (Circuit.borrowedRestored_classical (clearOp one) state)
-    (Circuit.borrowedRestored_classical (incrementOp one) _)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) one).BorrowedRestored Reference state
+      ((code (model := model) one).execute Reference state) :=
+  Circuit.borrowedRestored_seq _ _ state
+    (Circuit.borrowedRestored_classical _ state) (Circuit.borrowedRestored_classical _ _)
+
+end
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic.CheckConstants

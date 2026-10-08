@@ -18,10 +18,12 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent original signed native formulas in first, second and third coordinate order. -/
-def offsetTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) : List (Resource.Event kind) :=
+def offsetTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) :
+    List (Resource.Event model) :=
   ClassicalRoutines.ConstantWord.Signed.nativeTrace width offset.1 ++
     (ClassicalRoutines.ConstantWord.Signed.nativeTrace width offset.2.1 ++
       ClassicalRoutines.ConstantWord.Signed.nativeTrace width offset.2.2)
@@ -76,7 +78,7 @@ theorem setOffsetInto_depth (offset : NumberTheory.IntegerPoint3) (refs : Refs c
 /-- Actual second and third coordinate loading restore all borrowed-reference correlations. -/
 theorem suffixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (suffixInto offset refs).BorrowedRestored Reference state
       ((suffixInto offset refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -88,7 +90,7 @@ theorem suffixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs 
 /-- Complete actual offset loading restores the full borrowed-reference joint state. -/
 theorem setOffsetInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (setOffsetInto offset refs).BorrowedRestored Reference state
       ((setOffsetInto offset refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -98,7 +100,7 @@ theorem setOffsetInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (re
 
 /-- Every actual initialization, unit step and loop boundary retains the original context. -/
 theorem setOffsetInto_visited (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
-    (path : (setOffsetInto offset refs).Path) (visited : RuntimeCtx kind)
+    (path : (setOffsetInto offset refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (setOffsetInto offset refs).visitedContexts path) : visited = ctx := by
   change visited ∈
     (ClassicalRoutines.ConstantWord.Signed.into offset.1 refs.offset.first).visitedContexts

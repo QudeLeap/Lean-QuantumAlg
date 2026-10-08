@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
 noncomputable section
 
-open Execution ClassicalRoutines.FirstAccepted.Direct
+open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -30,7 +30,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- Every natural total count has the original chronological first-success distribution. -/
 theorem run_outputDistribution (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification totalRounds).outputDistribution input =
       Optional.Distribution.selectedDistribution
         ((sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue)
@@ -46,7 +47,8 @@ theorem run_outputDistribution (specification : Input N) (totalRounds : Nat)
 
 /-- Actual empty-output probability is the original batch failure probability to the total count. -/
 theorem run_none (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification totalRounds).outputDistribution input
         CShape.Value.optionNone =
       sampledBatchOutputPMF specification none ^ totalRounds := by
@@ -55,7 +57,8 @@ theorem run_none (specification : Input N) (totalRounds : Nat)
 
 /-- The actual populated-output event has the exact complementary finite success probability. -/
 theorem run_successProbability (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum specification totalRounds).outputDistribution input).toOuterMeasure
         {value | value ≠ CShape.Value.optionNone} =
       1 - sampledBatchOutputPMF specification none ^ totalRounds := by
@@ -68,7 +71,8 @@ theorem run_successProbability (specification : Input N) (totalRounds : Nat)
 
 /-- Mathematical natural decoding preserves the actual empty-output event for every total count. -/
 theorem run_decoded_none (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum specification totalRounds).outputDistribution input).map
         NativeRetrySelection.decodeFactor none =
       sampledBatchOutputPMF specification none ^ totalRounds := by
@@ -84,7 +88,8 @@ theorem run_decoded_none (specification : Input N) (totalRounds : Nat)
 
 /-- Every supported populated actual word decodes to a nontrivial divisor of the modulus. -/
 theorem run_some_sound (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈
       ((run base noQuantum specification totalRounds).outputDistribution input).support) :
@@ -95,7 +100,9 @@ theorem run_some_sound (specification : Input N) (totalRounds : Nat)
 
 /-- Every supported populated natural observation is the same checked nontrivial divisor. -/
 theorem run_decoded_some_sound (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) (factor : Nat)
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
+    (factor : Nat)
     (supported : some factor ∈
       (((run base noQuantum specification totalRounds).outputDistribution input).map
         NativeRetrySelection.decodeFactor).support) :

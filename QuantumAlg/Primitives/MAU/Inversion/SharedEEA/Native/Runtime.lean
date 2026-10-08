@@ -6,167 +6,154 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.PreparedFrame
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Native.Control
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Native.Placement
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Reference.Unitary
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 
 /-!
-# Execute the actual shared-EEA phase kernel on its prepared runtime frame
+# Execute the physically placed shared-EEA control kernel
 
-The physical source order and runtime preparation order are connected by
-the previously verified per-wire basis correspondence. This owner reindexes
-the actual native phase program through that correspondence and executes it
-with the single `Circuit.unitary` constructor. A trailing identity includes
-every live system in the footprint and contributes no native event.
-
-The resulting matrix is characterized entry by entry on the complete source
-register labels. Actual classical blocks evolve by this same matrix tensored
-with the identity on the full external reference. The source phase assignments
-are [LYL+26, sec_EEA/sub_regshare.tex:303-305]; their coherent unitary action is
-interpreted as in [dW19, qcnotes.tex:5405]. No additional semantic executor,
-event declaration, or caller cleanliness premise is introduced.
+The source orders Ctrl after the four work groups; the actual preparation
+prepends Ctrl. NativePlacement maps every source gate to that physical runtime
+wire. The one circuit interpreter executes the placed gate sequence after the
+real Ctrl-zero allocation. Matrix and event accounting observe that same
+sequence, including arbitrary prior joint state and external references.
 -/
 
 namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeRuntime
 
 noncomputable section
 
-open Execution ControlPreparation PreparedFrame
+open Execution ControlPreparation NativePlacement
 
-private theorem after_physical (width : Nat) :
-    (after width).physicalIdx = bodyWidth width :: List.range (bodyWidth width) := by
-  change ((controlLayout width).wires ++ (before width).quantumWires).map QuantumWire.identity = _
-  rw [List.map_append, ← layout_identities_eq_map_wires, control_identities]
-  change [bodyWidth width] ++ (OwnedQubits.context (bodyWidth width)).physicalIdx = _
-  rw [OwnedQubits.ownedQubits_physicalIdx]
-  rfl
+/-- The source-register coordinate selected by the actual placed physical wires. -/
+def nativeFrame (width : Nat) (basis : (after width).register.Index) : Registers width :=
+  (PreparedFrame.registerLabelEquiv width).symm
+    ((QubitLayout.canonical (encoding width).width).basisEquiv
+      (UnitaryCircuit.basisAt
+        (QubitLayout.canonical (encoding width).width).toQuantum
+        (after width).quantumLayout (position width) (position_dimensions width) basis))
 
-private theorem range_contained (width : Nat) :
-    List.range (encoding width).width ⊆ (after width).physicalIdx := by
-  intro wire present
-  have bound := List.mem_range.mp present
-  have complete := complete_width width
-  rw [after_physical]
-  by_cases final : wire = bodyWidth width
-  · exact List.mem_cons.mpr (Or.inl final)
-  · exact List.mem_cons.mpr (Or.inr (List.mem_range.mpr (by omega)))
+private theorem position_surjective (width : Nat) :
+    Function.Surjective (position width) := by
+  have sameWidth : (encoding width).width = (after width).systemCount := by
+    rw [after_count]
+    have complete := complete_width width
+    omega
+  let endomap := fun index : Fin (encoding width).width =>
+    Fin.cast sameWidth.symm (position width index)
+  have injective : Function.Injective endomap := by
+    intro left right same
+    apply (position width).injective
+    exact Fin.cast_injective sameWidth.symm same
+  intro target
+  obtain ⟨source, same⟩ :=
+    Finite.surjective_of_injective injective (Fin.cast sameWidth.symm target)
+  exact ⟨source, Fin.cast_injective sameWidth.symm same⟩
 
-/-- The original native gates on exactly the post-preparation register coordinates. -/
-def program (width : Nat) (enough : 2 ≤ width.size) : UnitaryCircuit (after width).register :=
-  UnitaryCircuit.seq
-    (UnitaryCircuit.reindex (basisEquiv width).symm (NativeControl.program width enough))
-    (UnitaryCircuit.identity (after width).register (after width).physicalIdx
-      (after width).identitiesNodup)
+/-- One placed native unitary acts on exactly the post-preparation runtime layout. -/
+def program (width : Nat) (enough : 2 ≤ width.size) :
+    UnitaryCircuit AlgorithmGate.model .empty (after width).quantumLayout :=
+  NativePlacement.program width enough
 
-/-- Every live physical system is present; the primitive targets retain their source identities. -/
-theorem program_placement (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).physical_idx = (after width).physicalIdx := by
-  change UnitaryCircuit.unionPhysicalIdx (NativeControl.program width enough).physical_idx
-    (after width).physicalIdx = (after width).physicalIdx
-  apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-  intro wire present
-  exact range_contained width
-    (EncodedBit.GateSpec.programList_physical_idx_subset_range
-      (NativeControl.gates width enough) present)
-
-/-- The unitary matrix follows the exact prepared-frame basis correspondence, entry by entry. -/
+/-- Each runtime matrix coordinate reads precisely the corresponding source gate coordinates. -/
 theorem program_matrix_entry (width : Nat) (enough : 2 ≤ width.size)
     (row column : (after width).register.Index) :
     (program width enough).matrix row column =
       (NativeControl.program width enough).matrix
-        (basisEquiv width row) (basisEquiv width column) := by
-  have matrix : ((program width enough).matrix : HilbertOperator (after width).register) =
-      Matrix.reindex (basisEquiv width).symm (basisEquiv width).symm
-        ((NativeControl.program width enough).matrix :
-          HilbertOperator (Qubits (encoding width).width)) := by
-    change (1 : HilbertOperator (after width).register) * _ = _
-    exact Matrix.one_mul _
-  rw [matrix]
-  rfl
+        (UnitaryCircuit.basisAt
+          (QubitLayout.canonical (encoding width).width).toQuantum
+          (after width).quantumLayout (position width) (position_dimensions width) row)
+        (UnitaryCircuit.basisAt
+          (QubitLayout.canonical (encoding width).width).toQuantum
+          (after width).quantumLayout (position width) (position_dimensions width) column) := by
+  rw [program, NativePlacement.program, UnitaryCircuit.placeAt_matrix]
+  exact UnitaryCircuit.operatorAt_entry_of_surjective _ _ _ _
+    (position_surjective width) _ row column
 
-private theorem realized_entry {Data : Type} [DecidableEq Data]
-    (label : BinaryLabelEncoding Data) (body : UnitaryCircuit (Qubits label.width))
-    (step : Data → Data) (realizes : UnitaryCircuit.Realizes label body step) (row column : Data) :
-    body.matrix (label.encode row) (label.encode column) =
-      if row = step column then 1 else 0 := by
-  have columnAction := congrArg
-    (fun vector : NormalizedVector (Qubits label.width) => vector (label.encode row))
-    (realizes.apply_encoded_ket column)
-  change body.applyVec (NormalizedVector.ket (R := Qubits label.width) (label.encode column))
-      (label.encode row) =
-    NormalizedVector.ket (R := Qubits label.width) (label.encode (step column))
-      (label.encode row) at columnAction
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
-    HilbertOperator.applyVec_ket, NormalizedVector.ket_apply] at columnAction
-  simpa only [label.encode_injective.eq_iff] using columnAction
-
-/-- The runtime matrix implements the full native register update without a relative-phase gap. -/
+/-- The native phase-control step uses source labels decoded from the placed wires. -/
 theorem program_source_entry (width : Nat) (enough : 2 ≤ width.size)
     (row column : (after width).register.Index) :
     (program width enough).matrix row column =
-      if frameEquiv width row = NativeControl.step (frameEquiv width column) then 1 else 0 := by
-  rw [program_matrix_entry, ← encode_frameEquiv, ← encode_frameEquiv]
-  exact realized_entry (encoding width) (NativeControl.program width enough)
-    NativeControl.step (NativeControl.program_realizes width enough) _ _
+      if nativeFrame width row = NativeControl.step (nativeFrame width column) then 1 else 0 := by
+  rw [program_matrix_entry]
+  have sourceBasis (basis : (after width).register.Index) :
+      UnitaryCircuit.basisAt
+        (QubitLayout.canonical (encoding width).width).toQuantum
+        (after width).quantumLayout (position width) (position_dimensions width) basis =
+      (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+        ((encoding width).encode (nativeFrame width basis)) := by
+    rw [← PreparedFrame.registerLabelEquiv_encode]
+    change _ = (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+      (PreparedFrame.registerLabelEquiv width
+        ((PreparedFrame.registerLabelEquiv width).symm _))
+    rw [Equiv.apply_symm_apply, Equiv.symm_apply_apply]
+  rw [sourceBasis row, sourceBasis column]
+  have action := congrArg
+    (fun vector : NormalizedVector
+      (QubitLayout.canonical (encoding width).width).toQuantum.register =>
+      vector ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+        ((encoding width).encode (nativeFrame width row))))
+    ((NativeControl.program_realizes width enough).apply_encoded_ket
+      (nativeFrame width column))
+  change (NativeControl.program width enough).applyVec
+      (NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+        ((encoding width).encode (nativeFrame width column))))
+      ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
+        ((encoding width).encode (nativeFrame width row))) = _ at action
+  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
+    HilbertOperator.applyVec_ket, NormalizedVector.ket_apply] at action
+  have basisIff :
+      (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (nativeFrame width row)) =
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          ((encoding width).encode (NativeControl.step (nativeFrame width column))) ↔
+      nativeFrame width row = NativeControl.step (nativeFrame width column) :=
+    ((QubitLayout.canonical (encoding width).width).basisEquiv.symm.injective.eq_iff).trans
+      (encoding width).encode_injective.eq_iff
+  simpa only [basisIff] using action
 
-/-- The actual state update is one native unitary instruction on the complete live context. -/
-def circuit (width : Nat) (enough : 2 ≤ width.size) : Circuit (after width) (after width) :=
-  .unitary (program width enough) (program_placement width enough)
+/-- Execute the same placed native gates through the selected model interpreter. -/
+def circuit (width : Nat) (enough : 2 ≤ width.size) :
+    Circuit (.quantum AlgorithmGate.model .empty) (after width) (after width) :=
+  .unitary (program width enough)
 
-/-- Internally allocate Ctrl zero, then execute the phase predicate and its inverse cleanup. -/
+/-- Allocate Ctrl in zero and then run the native phase-control kernel. -/
 def initializeThenControl (width : Nat) (enough : 2 ≤ width.size) :
-    Circuit (before width) (after width) :=
+    Circuit (.quantum AlgorithmGate.model .empty) (before width) (after width) :=
   .seq (ControlPreparation.circuit width) (circuit width enough)
 
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).eventTrace = (NativeControl.program width enough).eventTrace := by
-  have empty : (UnitaryCircuit.identity (after width).register (after width).physicalIdx
-      (after width).identitiesNodup).eventTrace = [] := rfl
-  rw [program, UnitaryCircuit.seq_eventTrace, UnitaryCircuit.reindex_eventTrace,
-    empty, List.append_nil]
+    (program width enough).eventTrace = (NativeControl.program width enough).eventTrace :=
+  NativePlacement.program_eventTrace width enough
 
 theorem program_eventCost (width : Nat) (enough : 2 ≤ width.size) :
-    (program width enough).eventCost = (NativeControl.program width enough).eventCost := by
-  have empty : (UnitaryCircuit.identity (after width).register (after width).physicalIdx
-      (after width).identitiesNodup).eventCost = 0 := rfl
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.reindex_eventCost, empty, add_zero]
+    (program width enough).eventCost = (NativeControl.program width enough).eventCost :=
+  NativePlacement.program_eventCost width enough
 
-/-- The actual initialization event and both predicate passes stay in the same execution trace. -/
+/-- The allocation event and both predicate passes remain on one executed path. -/
 theorem initializeThenControl_trace (width : Nat) (enough : 2 ≤ width.size)
     (path : (initializeThenControl width enough).Path) :
     (initializeThenControl width enough).eventTrace path =
-      (preparation width).event :: (NativeControl.program width enough).eventTrace := by
-  change [(preparation width).event] ++ (program width enough).eventTrace = _
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty (controlLayout width) ++
+        (NativeControl.program width enough).eventTrace := by
+  change ZeroPreparation.eventTrace AlgorithmGate.model .empty (controlLayout width) ++
+    (program width enough).eventTrace = _
   rw [program_eventTrace]
-  rfl
 
 variable {Reference : Register} {H : Type} [Fintype H]
 
-/-- Actual execution conjugates each complete classical block by this local matrix and IRef. -/
-theorem execute_block_matrix (width : Nat) (enough : 2 ≤ width.size)
-    (state : State (after width) Reference H) (store : Store (after width)) (history : H) :
-    (((circuit width enough).execute Reference state).block (store, (history, ()))).matrix =
-      let operator := UnitaryOperator.prodTensor (program width enough).matrix
-        (1 : UnitaryOperator Reference)
-      (operator : HilbertOperator (Register.prod (after width).register Reference)) *
-        (state.block (store, history)).matrix *
-          (operator : HilbertOperator
-            (Register.prod (after width).register Reference)).conjTranspose :=
-  Circuit.execute_unitary_block_matrix state (program width enough)
-    (program_placement width enough) store history
-
-/-- Every external-reference matrix entry is preserved on arbitrary correlated input states. -/
+/-- Actual execution preserves every external-reference matrix entry. -/
 theorem execute_reference_entry (width : Nat) (enough : 2 ≤ width.size)
-    (state : State (after width) Reference H) (left right : Reference.Index) :
+    (state : State (after width) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (left right : Reference.Index) :
     (∑ basis : (after width).register.Index,
       ((circuit width enough).execute Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (after width).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) :=
-  Circuit.unitary_reference_entry (program width enough) (program_placement width enough)
-    state left right
+  Circuit.unitary_reference_entry (operations := .empty) (classicalOracles := .empty)
+    (program width enough) state left right
 
 end
 

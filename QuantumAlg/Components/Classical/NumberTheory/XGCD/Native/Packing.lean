@@ -35,19 +35,24 @@ def packingShapes (width : Nat) : List CShape :=
     SignedShape (coefficientWidth width), SignedShape (coefficientWidth width)]
 
 /-- The original five actual instructions, including both signed nominal boundaries. -/
-def packingBody (outputs : RawOutputs ctx width)
+def packingBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
-    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit ctx ctx :=
-  .seq (.classical (.wordResize (PureXGCD.executionCoefficientWidth width)
+    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (.wordResize (PureXGCD.executionCoefficientWidth
+    width)
     (coefficientWidth width) ctx (GCD.cellRead outputs.leftCoefficient) raw))
-    (.seq (.classical (.packBoundedSignedWord (coefficientWidth width) ctx
+    (.seq (BitWord.instruction (execution := model) (.packBoundedSignedWord (coefficientWidth
+      width) ctx
       (GCD.cellRead raw) left))
-      (.seq (.classical (.wordResize (PureXGCD.executionCoefficientWidth width)
+      (.seq (BitWord.instruction (execution := model) (.wordResize
+        (PureXGCD.executionCoefficientWidth width)
         (coefficientWidth width) ctx (GCD.cellRead outputs.rightCoefficient) raw))
-        (.seq (.classical (.packBoundedSignedWord (coefficientWidth width) ctx
+        (.seq (BitWord.instruction (execution := model) (.packBoundedSignedWord (coefficientWidth
+          width) ctx
           (GCD.cellRead raw) right))
-          (.classical (.packProduct ctx
+          (BitWord.instruction (execution := model) (.packProduct ctx
             (.product (GCD.cellRead outputs.gcd)
               (.product (GCD.cellRead left) (GCD.cellRead right))) result)))))
 
@@ -65,46 +70,103 @@ def packingBodyStore (outputs : RawOutputs ctx width)
       (.packProduct ctx (.product (GCD.cellRead outputs.gcd)
         (.product (GCD.cellRead left) (GCD.cellRead right))) result)
 
+/-- Actual chronological outputs of the original five packing instructions. -/
+def packingBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (outputs : RawOutputs ctx width)
+    (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
+    (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
+    (result : CWriteRef ctx (XGCDOutputShape width)) (before : Store ctx) :
+    Store ctx × (packingBody (model := model) outputs raw left right result).Path :=
+  let first := BitWord.instructionStep (execution := model)
+    (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)
+      ctx (GCD.cellRead outputs.leftCoefficient) raw) before
+  let second := BitWord.instructionStep (execution := model)
+    (.packBoundedSignedWord (coefficientWidth width) ctx (GCD.cellRead raw) left) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)
+      ctx (GCD.cellRead outputs.rightCoefficient) raw) second.1
+  let fourth := BitWord.instructionStep (execution := model)
+    (.packBoundedSignedWord (coefficientWidth width) ctx (GCD.cellRead raw) right) third.1
+  let fifth := BitWord.instructionStep (execution := model)
+    (.packProduct ctx (.product (GCD.cellRead outputs.gcd)
+      (.product (GCD.cellRead left) (GCD.cellRead right))) result) fourth.1
+  (fifth.1, (first.2, (second.2, (third.2, (fourth.2, fifth.2)))))
+
+/-- The actual native result record has the original five-operation store projection. -/
+theorem xgcdNativePackingBody_step_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (outputs : RawOutputs ctx width)
+    (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
+    (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
+    (result : CWriteRef ctx (XGCDOutputShape width)) (before : Store ctx) :
+    (packingBodyStep (model := model) outputs raw left right result before).1 =
+      packingBodyStore outputs raw left right result before := rfl
+
 /-- Every full quantum-reference block retains the actual store and all five instruction paths. -/
-theorem xgcdNativePackingBody_execute (outputs : RawOutputs ctx width)
+theorem xgcdNativePackingBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (packingBody outputs raw left right result).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (packingBody (model := model) outputs raw left right result).execute Reference state =
       state.mapClassical (fun entry =>
-        (packingBodyStore outputs raw left right result entry.1,
-          (entry.2, ((), ((), ((), ((), ()))))))) := by
-  simp only [packingBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let actual := packingBodyStep (model := model) outputs raw left right result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [packingBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Allocate the original three packing cells and return the actual public result destination. -/
-def packRawOutputs (outputs : RawOutputs ctx width)
-    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit ctx ctx :=
+def packRawOutputs {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (outputs : RawOutputs ctx width)
+    (result : CWriteRef ctx (XGCDOutputShape width)) : Circuit model ctx ctx :=
   withCells ctx (packingShapes width) fun cells _ transport _ =>
-    packingBody (outputs.transport transport) cells.head.ref cells.tail.head.ref
+    packingBody (model := model) (outputs.transport transport) cells.head.ref cells.tail.head.ref
       cells.tail.tail.head.ref (transport.liftWrite result)
 
 /-- The original two resizes, two signed packs and one right-nested product pack. -/
-def packingEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation
-      (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)),
-    .classicalOperation (.nominalEncoding (.packBoundedSignedWord (coefficientWidth width))),
-    .classicalOperation
-      (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)),
-    .classicalOperation (.nominalEncoding (.packBoundedSignedWord (coefficientWidth width))),
-    .classicalOperation (.nominalEncoding
-      (.packProduct width (coefficientWidth width + coefficientWidth width)))]
+def packingEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat) : List
+  (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordResize
+    (PureXGCD.executionCoefficientWidth width) (coefficientWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
+      (.packBoundedSignedWord (coefficientWidth width)))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordResize
+      (PureXGCD.executionCoefficientWidth width) (coefficientWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
+      (.packBoundedSignedWord (coefficientWidth width)))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
+      (.packProduct width (coefficientWidth width + coefficientWidth width))))]
 
 /-- Original actual event list before the scratch scopes are released. -/
-theorem xgcdNativePackingBody_eventTrace (outputs : RawOutputs ctx width)
+theorem xgcdNativePackingBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (packingBody outputs raw left right result).Path) :
-    (packingBody outputs raw left right result).eventTrace path = packingEvents kind width := rfl
+    (path : (packingBody (model := model) outputs raw left right result).Path) :
+    (packingBody (model := model) outputs raw left right result).eventTrace path = packingEvents
+      model width := by
+  change (BitWord.instruction (execution := model)
+    (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)
+      ctx (GCD.cellRead outputs.leftCoefficient) raw)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model)
+      (.packBoundedSignedWord (coefficientWidth width) ctx (GCD.cellRead raw) left)).eventTrace
+        path.2.1 ++
+      ((BitWord.instruction (execution := model)
+        (.wordResize (PureXGCD.executionCoefficientWidth width) (coefficientWidth width)
+          ctx (GCD.cellRead outputs.rightCoefficient) raw)).eventTrace path.2.2.1 ++
+        ((BitWord.instruction (execution := model)
+          (.packBoundedSignedWord (coefficientWidth width) ctx (GCD.cellRead raw) right)).eventTrace
+            path.2.2.2.1 ++
+          (BitWord.instruction (execution := model)
+            (.packProduct ctx (.product (GCD.cellRead outputs.gcd)
+              (.product (GCD.cellRead left) (GCD.cellRead right))) result)).eventTrace
+                path.2.2.2.2))) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 end
 

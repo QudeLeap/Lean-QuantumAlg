@@ -32,16 +32,16 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeBudget
 
 noncomputable section
 
-/-- Independent cap on each of the six actual forward event coordinates. -/
-def corrected (width : Nat) : ResourcePool .quantum :=
+/-- Independent cap on each actual forward event coordinate. -/
+def corrected (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   ForwardResources.correctedBound width • Addition.Gidney.offsetAlphabet
 
 /-- Independent cap for the in-place forward, including its real load and output-port gates. -/
-def inPlace (width : Nat) : ResourcePool .quantum :=
+def inPlace (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   ForwardResources.inPlaceBound width • Addition.Gidney.offsetAlphabet
 
 /-- Independent cap for the separate XOR-output interface and all inverse-history cleanup. -/
-def xor (width : Nat) : ResourcePool .quantum :=
+def xor (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   ForwardResources.xorBound width • Addition.Gidney.offsetAlphabet
 
 /-- Actual corrected-forward multiplicities meet the independent cap at every native coordinate. -/
@@ -59,9 +59,11 @@ theorem inPlace_bound (modulus : Nat) (nontrivial : 1 < modulus) :
 
 /-- The same dagger has the same coordinatewise budget, including complete history reversal. -/
 theorem inPlace_dagger_bound (modulus : Nat) (nontrivial : 1 < modulus) :
-    (InPlaceForward.program modulus nontrivial).dagger.eventCost ≤ inPlace modulus.size := by
-  rw [UnitaryCircuit.dagger_eventCost]
-  exact inPlace_bound modulus nontrivial
+    ((InPlaceForward.program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).eventCost ≤ inPlace modulus.size :=
+  ResourcePool.le_scaled_of_support_card_le _ _ _
+    (NativeSupport.inPlace_dagger modulus nontrivial)
+    (ForwardResources.inPlace_dagger_count modulus nontrivial)
 
 /-- The separate XOR interface counts both full passes and its actual native copy at every label. -/
 theorem xor_bound (modulus : Nat) (nontrivial : 1 < modulus) :

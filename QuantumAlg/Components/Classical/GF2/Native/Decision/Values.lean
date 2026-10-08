@@ -25,13 +25,16 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
+omit [BitWord.Selected model] in
 private theorem shapes_ne {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) : output.key ≠ other.key := by
   intro same
@@ -79,6 +82,7 @@ private theorem choice_read (reject : Bool) (success : CWriteRef ctx .bit)
     · rfl
     · exact gf2MarkFailure_read_other success store other separate
 
+omit [BitWord.Selected model] in
 private theorem equality_read (left right : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (decisionEqualityOp left right flag)).read (.storage flag.toCStorageRef) =

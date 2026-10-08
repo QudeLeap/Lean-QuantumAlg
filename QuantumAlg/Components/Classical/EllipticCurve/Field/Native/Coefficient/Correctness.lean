@@ -25,7 +25,8 @@ open NumberTheory.Checked.SignedReduction
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual total residue is the original deterministic pure engine coefficient. -/
 theorem coefficientResidue_eq_inverseCoefficient (spec : ModulusSpec width)
@@ -47,8 +48,9 @@ theorem coefficientResidue_eq_inverseCoefficient (spec : ModulusSpec width)
 theorem fieldCoefficient_output_eq_original (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
+    (hidden : model.HiddenState)
     (semantic : Residue spec) (represented : (store.read denominator).toNat = semantic.val) :
-    ((coefficientIntoWordStep spec denominator output store).1.read
+    ((coefficientIntoWordStep spec denominator output (store, hidden)).1.1.read
       (coefficientRead output)).toNat =
         (NumberTheory.Checked.Engine.inverseCoefficient spec semantic).val := by
   rw [coefficientIntoWord_toNat,
@@ -73,9 +75,10 @@ theorem coefficientResidue_cast_eq_inv (spec : ModulusSpec width)
 theorem fieldCoefficient_output_inverse (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
+    (hidden : model.HiddenState)
     (value : ZMod spec.modulus) (represented : (store.read denominator).toNat = value.val)
     (unit : IsUnit value) :
-    (((coefficientIntoWordStep spec denominator output store).1.read
+    (((coefficientIntoWordStep spec denominator output (store, hidden)).1.1.read
       (coefficientRead output)).toNat : ZMod spec.modulus) = value⁻¹ := by
   rw [coefficientIntoWord_toNat]
   exact coefficientResidue_cast_eq_inv spec (store.read denominator) value represented unit

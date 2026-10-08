@@ -6,9 +6,13 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Storage
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Execution
+import all QuantumAlg.Primitives.WalshHadamard.Readout.Program
+import all QuantumAlg.Primitives.WalshHadamard.Initialization.Matrix
 import all QuantumAlg.Primitives.WalshHadamard
 import all QuantumAlg.Core.Execution.Measurement.Cells.Laws
 import all QuantumAlg.Core.Execution.Measurement.Readout
@@ -40,9 +44,10 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-theorem allocationCode_localDensity (n : Nat) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (preparedContext n) Reference H) :
-    ((allocationCode n).execute Reference state).quantumMarginal.marginalLeft =
+theorem allocationCode_localDensity {n : Nat} (function : WalshHadamard.Oracle n)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (preparedContext n) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
+    ((allocationCode function).execute Reference state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post n).register)
         (MeasurementCells.basisEquiv (resultContext n) 2 n) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
@@ -50,41 +55,42 @@ theorem allocationCode_localDensity (n : Nat) {Reference : Register}
     _ = ((State.retain state ⟨2⟩ (.bits n) (resultFresh n)).quantumMarginal.reindex
         (S := Register.prod (post n).register Reference)
         (MeasurementCells.jointBasisEquiv (resultContext n) 2 n Reference)).marginalLeft :=
-      congrArg (DensityOperator.marginalLeft (R := (post n).register) (S := Reference))
-        (MeasurementCells.allocate_quantumMarginal (resultContext n) 2 n
-          ((Circuit.retain (preparedContext n) ⟨2⟩ (.bits n) (resultFresh n)).execute
-            Reference state))
+      by
+        simpa only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal,
+          State.retain_quantumMarginal] using
+          congrArg (DensityOperator.marginalLeft (R := (post n).register) (S := Reference))
+            (MeasurementCells.allocate_quantumMarginal (model := model function)
+              (resultContext n) 2 n
+              ((Circuit.retain (model := model function) (preparedContext n)
+                ⟨2⟩ (.bits n) (resultFresh n)).execute
+                Reference state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
 
 private theorem program_input {n : Nat} (f : WalshHadamard.Oracle n) :
     DensityOperator.applyUnitary (program f).matrix
-      ((DensityOperator.ofPure (WalshHadamard.input n)).reindex
+      ((DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
         (S := (preparedContext n).register) (preparedBasisEquiv n).symm) =
       (DensityOperator.ofPure (WalshHadamard.finalJointState f)).reindex
         (S := (preparedContext n).register) (preparedBasisEquiv n).symm := by
-  rw [program, UnitaryCircuit.reindex_matrix, ← DensityOperator.applyUnitary_reindex,
-    ← DensityOperator.ofPure_apply]
-  change (DensityOperator.ofPure
-    ((WalshHadamard.circuit f).applyNormalized (WalshHadamard.input n))).reindex
-      (S := (preparedContext n).register) (preparedBasisEquiv n).symm = _
-  rw [WalshHadamard.circuit_applyNormalized]
+  rw [program_matrix, ← DensityOperator.applyUnitary_reindex,
+    ← DensityOperator.ofPure_apply, Native.walshNative_zeroInputProgram_apply_zero]
 
 /-- The actual preparation and circuit produce the original final vector before the real Z reads. -/
 theorem beforeMeasurement_localDensity {n : Nat} (f : WalshHadamard.Oracle n)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) :
     ((beforeMeasurement f).execute Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (WalshHadamard.finalJointState f)).reindex
         (S := (post n).register) (outputBasisEquiv n).symm := by
   have prepared :
-      ((preparationCode n).execute Reference state).quantumMarginal.marginalLeft =
-        (DensityOperator.ofPure (WalshHadamard.input n)).reindex
+      ((preparationCode f).execute Reference state).quantumMarginal.marginalLeft =
+        (DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
           (S := (preparedContext n).register) (preparedBasisEquiv n).symm :=
-    (Circuit.prepare_empty_local_density state ⟨1⟩ (runtimeLayout n)
-      preparationFresh (preparationDisjoint n) (inputPreparation n)
-      pre_systemCount normalized).trans
+    (Circuit.prepareZero_empty_local_density state ⟨1⟩ (runtimeLayout n)
+      preparationFresh (preparationDisjoint n) pre_systemCount normalized).trans
         (inputPreparation_density n)
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, allocationCode_localDensity,

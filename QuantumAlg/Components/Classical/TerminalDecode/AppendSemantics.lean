@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.TerminalDecode.Circuit
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Store.Read
 
@@ -29,90 +30,103 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private def incrementChoiceStep {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+private def incrementChoiceStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (output : CWriteRef ctx (OutputShape width)) (value : CShape.Value .bit)
     (store : Store ctx) : Store ctx ×
-      (if value.toBool then Circuit.classical (incrementOp width output)
-        else Circuit.id ctx).Path :=
+      (if value.toBool then BitWord.instruction (execution := model) (incrementOp width output)
+        else Circuit.id (model := model) ctx).Path :=
   match value with
   | .bit false => (store, ())
-  | .bit true => (store.applyOp (incrementOp width output), ())
+  | .bit true => BitWord.instructionStep (execution := model) (incrementOp width output) store
 
-private theorem incrementChoice_execute {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    {width : Nat} (output : CWriteRef ctx (OutputShape width))
+private theorem incrementChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (value : CShape.Value .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (if value.toBool then Circuit.classical (incrementOp width output)
-      else Circuit.id ctx).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (if value.toBool then BitWord.instruction (execution := model) (incrementOp width output)
+      else Circuit.id (model := model) ctx).execute Reference state =
         state.mapClassical (fun entry =>
-          ((incrementChoiceStep output value entry.1).1,
-            (entry.2, (incrementChoiceStep output value entry.1).2))) := by
+          let result := incrementChoiceStep (model := model) output value entry.1
+          (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
   | bit bit =>
       cases bit
       · simp only [CShape.Value.toBool, incrementChoiceStep]
-        refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _
+        exact (Circuit.execute_id_mapClassical Reference state).trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)
       · simp only [CShape.Value.toBool, incrementChoiceStep]
-        refine (Circuit.execute_classical_mapClassical
-          (incrementOp width output) Reference state).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _
+        exact BitWord.bitWord_instruction_execute (execution := model)
+          (incrementOp width output) state
 
 /-- The concrete store and path obtained by shifting and reading its actual selected bit. -/
-def appendStep {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+def appendStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
-    (store : Store ctx) : Store ctx × (bitRefRoutine input output).Path :=
-  let shifted := store.applyOp (shiftOp width output)
-  let choice := shifted.read input
-  let selected := incrementChoiceStep output choice shifted
-  (selected.1, ((), ⟨choice, selected.2⟩))
+    (store : Store ctx) : Store ctx × (bitRefRoutine (model := model) input output).Path :=
+  let shifted := BitWord.instructionStep (execution := model) (shiftOp width output) store
+  let choice := shifted.1.read input
+  let selected := incrementChoiceStep (model := model) output choice shifted.1
+  (selected.1, (shifted.2, ⟨choice, selected.2⟩))
 
-private theorem appendStep_store {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+private theorem appendStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (store : Store ctx) :
-    (appendStep input output store).1 =
+    (appendStep (model := model) input output store).1 =
       if ((store.applyOp (shiftOp width output)).read input).toBool then
         (store.applyOp (shiftOp width output)).applyOp (incrementOp width output)
       else store.applyOp (shiftOp width output) := by
-  dsimp only [appendStep]
+  change (incrementChoiceStep (model := model) output
+    ((store.applyOp (shiftOp width output)).read input)
+    (store.applyOp (shiftOp width output))).1 = _
   cases choice : (store.applyOp (shiftOp width output)).read input with
   | bit bit => cases bit <;> rfl
 
-/-- The actual append circuit maps each complete input block to its exact store and path. -/
-theorem terminalDecode_append_execute {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    {width : Nat} (input : CInputRef ctx .bit)
+/-- The actual append preserves the complete service/reference state and chosen native path. -/
+theorem terminalDecode_append_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (bitRefRoutine input output).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (bitRefRoutine (model := model) input output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((appendStep input output entry.1).1, (entry.2, (appendStep input output entry.1).2))) := by
+        let result := appendStep (model := model) input output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (.classical (shiftOp width output))
+    (BitWord.instruction (execution := model) (shiftOp width output))
     (.branch input (fun value =>
-      if value.toBool then .classical (incrementOp width output) else .id ctx))
-    (fun store => (store.applyOp (shiftOp width output), ()))
-    (fun store =>
-      ((incrementChoiceStep output (store.read input) store).1,
-        ⟨store.read input, (incrementChoiceStep output (store.read input) store).2⟩))
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (shiftOp width output) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => Circuit.execute_branch_mapClassical input _
-      (incrementChoiceStep output) (incrementChoice_execute output) reference initial)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      if value.toBool then BitWord.instruction (execution := model) (incrementOp width output)
+        else .id ctx))
+    (fun before =>
+      let result := BitWord.instructionStep (execution := model) (shiftOp width output) before.1
+      ((result.1, before.2), result.2))
+    (fun before =>
+      let choice := before.1.read input
+      let result := incrementChoiceStep (model := model) output choice before.1
+      ((result.1, before.2), ⟨choice, result.2⟩)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (BitWord.bitWord_instruction_execute (execution := model) (shiftOp width output)
+      initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · intro reference history _ initial
+    refine (Circuit.execute_branch_mapClassical input _
+      (fun value before =>
+        let result := incrementChoiceStep (model := model) output value before.1
+        ((result.1, before.2), result.2)) ?_ reference initial).trans ?_
+    · intro value reference history _ initial
+      exact (incrementChoice_execute (model := model) output value reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+    · exact ExecutionState.executionState_mapClassical_congr _ rfl
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The exact overwritten word implements wrapping shift-and-append on its original source bit. -/
-theorem terminalDecode_append_read_output {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem terminalDecode_append_read_output {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx)
     (separate : output.key ∉ input.storageKeys) :
-    ((appendStep input output store).1.read (writeInput output)).toNat =
+    ((appendStep (model := model) input output store).1.read (writeInput output)).toNat =
       appendBit (store.read (writeInput output)).toNat (store.read input).toBool %
         CShape.wordModulus width := by
   have frame : (store.applyOp (shiftOp width output)).read input = store.read input :=
@@ -141,12 +155,13 @@ theorem terminalDecode_append_read_output {kind : ProblemKind} {ctx : RuntimeCtx
           congrArg CShape.Value.toNat incremented
 
 /-- The same exact append preserves every structural read outside its only written word. -/
-theorem terminalDecode_append_read_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem terminalDecode_append_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} {observed : CShape} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx)
     (other : CInputRef ctx observed)
     (separate : output.key ∉ other.storageKeys) :
-    (appendStep input output store).1.read other = store.read other := by
+    (appendStep (model := model) input output store).1.read other = store.read other := by
   have shifted : (store.applyOp (shiftOp width output)).read other = store.read other :=
     Store.read_applyOp_of_not_mem_storageKeys store (shiftOp width output) other separate
   rw [appendStep_store]

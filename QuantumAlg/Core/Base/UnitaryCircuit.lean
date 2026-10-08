@@ -6,594 +6,312 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-public import QuantumAlg.Core.Base.Accounting.Kind
-import all QuantumAlg.Core.Base.Accounting.Kind
-public import QuantumAlg.Core.Base.Accounting.ResourcePool
-import all QuantumAlg.Core.Base.Accounting.ResourcePool
 public import QuantumAlg.Core.Base.UnitaryCircuit.Construction
-import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
-public import QuantumAlg.Core.Base.Depth.Expr
-import all QuantumAlg.Core.Base.Depth.Expr
-public import QuantumAlg.Core.Base.Gate.Unitary
-import all QuantumAlg.Core.Base.Gate.Unitary
 public import QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
+import all QuantumAlg.Core.Base.UnitaryCircuit.Sequence
+import all QuantumAlg.Core.Base.Accounting.ResourcePool
+import all QuantumAlg.Core.Base.Depth.Expr
 import all QuantumAlg.Core.Base.State.Normalized
-import all QuantumAlg.Core.Base.State.Pure
 
 /-!
-# Typed circuit semantics
+# Semantics and accounting of physical model-relative circuits
 
-`UnitaryCircuit R` is constructed only through the safe smart constructors owned by
-`UnitaryCircuit.Construction`. This facade derives its unitary matrix, ordered strict
-event trace, event pool, and symbolic event depth from the stored typed
-sequence. Resource claims use these strict event projections directly.
-
-Sequence order is execution order. Thus `seq left right` executes `left` first
-and `right` second, and its matrix is `right.matrix * left.matrix`. Repetition
-and indexed products remain symbolic nodes, so large regular circuits need not
-be expanded into gate lists.
+Every observation comes from the actual construction stored by the circuit.
+The type fixes the gate model, declared oracle access and full physical layout.
+Native events include expanded macro bodies, while macro names support separate
+statistics on that same execution. No label-to-cost interpretation is accepted.
 -/
 
-section
-
-namespace QuantumAlg
+namespace QuantumAlg.UnitaryCircuit
 
 open scoped BigOperators
 
-namespace UnitaryCircuit
-
 noncomputable section
 
-/-- Metadata-free unitary semantics derived from the circuit sequence. -/
-public def matrix {R : Register} (circuit : UnitaryCircuit R) : UnitaryOperator R :=
-  circuit.sequence.toUnitary
+variable {gates : GateModel} {oracles : OracleModel}
+variable {count : Nat} {layout : QuantumLayout count}
 
-instance {R : Register} : Coe (UnitaryCircuit R) (UnitaryOperator R) :=
+/-- Exact, metadata-free unitary semantics of the actual construction. -/
+public def matrix (circuit : UnitaryCircuit gates oracles layout) :
+    UnitaryOperator layout.register := circuit.sequence.toUnitary
+
+instance : CoeOut (UnitaryCircuit gates oracles layout) (UnitaryOperator layout.register) :=
   ⟨matrix⟩
 
-instance {R : Register} : CoeTail (UnitaryCircuit R) (HilbertOperator R) :=
-  ⟨fun circuit => circuit.matrix⟩
+instance : CoeFun (UnitaryCircuit gates oracles layout)
+    (fun _ => layout.Basis → layout.Basis → ℂ) := ⟨fun circuit => circuit.matrix⟩
 
-instance {R : Register} : CoeOut (UnitaryCircuit R) (HilbertOperator R) :=
-  ⟨fun circuit => circuit.matrix⟩
+/-- Ordered native occurrences, including every actual macro expansion. -/
+public def eventTrace (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    List (Resource.Event (.quantum gates oracles operations classicalOracles)) :=
+  circuit.sequence.eventTrace operations classicalOracles
 
-instance {R : Register} : CoeFun (UnitaryCircuit R) (fun _ => R.Index → R.Index → ℂ) :=
-  ⟨fun circuit => circuit.matrix⟩
+/-- Literal model-relative event multiplicities from the same construction. -/
+public def eventCost (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    ResourcePool (.quantum gates oracles operations classicalOracles) :=
+  circuit.sequence.eventCost operations classicalOracles
 
-instance {R : Register} : HMul (UnitaryCircuit R) (HilbertOperator R) (HilbertOperator R) where
-  hMul circuit operator := (circuit : HilbertOperator R) * operator
+/-- Native dependency structure; macro boundaries preserve the complete depth. -/
+public def eventDepth (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    DepthExpr (Resource.Event (.quantum gates oracles operations classicalOracles)) :=
+  circuit.sequence.eventDepth operations classicalOracles
 
-instance {R : Register} : HMul (HilbertOperator R) (UnitaryCircuit R) (HilbertOperator R) where
-  hMul operator circuit := operator * (circuit : HilbertOperator R)
+/-- Evaluate actual dependency depth under independently supplied event durations. -/
+public def evaluatedEventDepth (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (circuit : UnitaryCircuit gates oracles layout) : Nat :=
+  DepthExpr.depthEval duration circuit.eventDepth
 
-/-- Ordered strict execution events derived from the circuit sequence. -/
-def eventTrace {R : Register} (circuit : UnitaryCircuit R) :
-    List (Resource.Event .quantum) :=
-  circuit.sequence.eventTrace
-
-/-- Strict event pool derived from the circuit sequence. -/
-public def eventCost {R : Register} (circuit : UnitaryCircuit R) : ResourcePool .quantum :=
-  circuit.sequence.eventCost
-
-/-- Strict symbolic event critical path derived from the same sequence. -/
-public def eventDepth {R : Register} (circuit : UnitaryCircuit R) :
-    DepthExpr (Resource.Event .quantum) :=
-  circuit.sequence.eventDepth
-
-/-- Evaluate the strict event critical path. -/
-public def evaluatedEventDepth {R : Register}
-    (assign : Resource.Event .quantum → Nat) (circuit : UnitaryCircuit R) : Nat :=
-  DepthExpr.depthEval assign circuit.eventDepth
-
-/-- Literal query depth of one strict event coordinate.  Unlike the legacy
-query view, this performs no pooling or relabeling. -/
-def eventQueryDepth {R : Register} (focus : Resource.Event .quantum)
-    (circuit : UnitaryCircuit R) : Nat :=
+/-- Count the deepest sequential chain of occurrences of one literal event coordinate. -/
+public def eventQueryDepth (focus : Resource.Event (.quantum gates oracles))
+    (circuit : UnitaryCircuit gates oracles layout) : Nat :=
   DepthExpr.queryDepthEval focus circuit.eventDepth
 
+/-- Count descriptive macro occurrences without replacing their native expansions. -/
+public def macroCount (name : String) (circuit : UnitaryCircuit gates oracles layout) : Nat :=
+  circuit.sequence.macroTrace.count name
 
+/-- Linearize the dependency expression with literal native-event multiplicities. -/
+public def resourcesFromEventDepth (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    ResourcePool (.quantum gates oracles operations classicalOracles) :=
+  DepthExpr.costEval (fun event => ResourcePool.singleton event)
+    (circuit.eventDepth operations classicalOracles)
 
+/-- Native multiplicity and dependency accounting observe the same construction. -/
+@[simp] public theorem resourcesFromEventDepth_eq_eventCost
+    (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    circuit.resourcesFromEventDepth operations classicalOracles =
+      circuit.eventCost operations classicalOracles :=
+  UnitarySequence.resourcesFromEventDepth_eq_eventCost circuit.sequence operations classicalOracles
 
+/-- Forgetting order in the actual native trace yields exactly the circuit's event ledger. -/
+@[simp] public theorem ofList_eventTrace_eq_eventCost
+    (circuit : UnitaryCircuit gates oracles layout)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    ResourcePool.ofList (circuit.eventTrace operations classicalOracles) =
+      circuit.eventCost operations classicalOracles :=
+  UnitarySequence.ofList_eventTrace_eq_eventCost circuit.sequence operations classicalOracles
 
-
-
-
-
-
-
-
-
-
-
-/-- Linearize the strict event-depth tree. -/
-def resourcesFromEventDepth {R : Register} (circuit : UnitaryCircuit R) :
-    ResourcePool .quantum :=
-  DepthExpr.costEval (fun event => ResourcePool.singleton event) circuit.eventDepth
-
-@[simp] theorem resourcesFromEventDepth_eq_eventCost {R : Register}
-    (circuit : UnitaryCircuit R) :
-    circuit.resourcesFromEventDepth = circuit.eventCost :=
-  UnitarySequence.resourcesFromEventDepth_eq_eventCost circuit.sequence
-
-/-- Forgetting the order of the circuit's derived execution trace gives its
-strict event pool exactly. -/
-@[simp] theorem ofList_eventTrace_eq_eventCost {R : Register}
-    (circuit : UnitaryCircuit R) :
-    ResourcePool.ofList circuit.eventTrace = circuit.eventCost :=
-  UnitarySequence.ofList_eventTrace_eq_eventCost circuit.sequence
-
-/-- Apply the derived circuit matrix to a raw state vector. -/
-def applyVec {R : Register} (circuit : UnitaryCircuit R)
-    (state : HilbertVector R) : HilbertVector R :=
+/-- The action on a mathematical vector carries no model selection in the state type. -/
+public def applyVec (circuit : UnitaryCircuit gates oracles layout)
+    (state : HilbertVector layout.register) : HilbertVector layout.register :=
   circuit.matrix.applyVec state
 
-@[simp]
-theorem applyVec_add {R : Register} (circuit : UnitaryCircuit R)
-    (left right : HilbertVector R) :
-    circuit.applyVec (left + right) = circuit.applyVec left + circuit.applyVec right :=
-  HilbertOperator.applyVec_add (circuit : HilbertOperator R) left right
-
-@[simp]
-theorem applyVec_smul {R : Register} (circuit : UnitaryCircuit R) (scalar : ℂ)
-    (state : HilbertVector R) :
-    circuit.applyVec (scalar • state) = scalar • circuit.applyVec state :=
-  HilbertOperator.applyVec_smul (circuit : HilbertOperator R) scalar state
-
-/-- Apply the circuit semantics while preserving mathematical normalization. -/
-public def applyNormalized {R : Register} (circuit : UnitaryCircuit R)
-    (state : NormalizedVector R) : NormalizedVector R :=
+/-- Apply the actual operator while preserving mathematical normalization. -/
+public def applyNormalized (circuit : UnitaryCircuit gates oracles layout)
+    (state : NormalizedVector layout.register) : NormalizedVector layout.register :=
   circuit.matrix.apply state
 
-@[simp]
-theorem applyNormalized_coe {R : Register} (circuit : UnitaryCircuit R)
-    (state : NormalizedVector R) :
-    ((circuit.applyNormalized state : NormalizedVector R) : HilbertVector R) =
-      circuit.applyVec (state : HilbertVector R) := rfl
+@[simp] theorem identity_matrix : (identity gates oracles layout).matrix = 1 := by rfl
 
-@[simp]
-theorem applyVec_identity (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup)
-    (state : HilbertVector R) :
-    applyVec (identity R physical_idx physical_idx_nodup) state = state := by
-  change HilbertOperator.applyVec (1 : HilbertOperator R) state = state
-  exact HilbertOperator.one_applyVec state
+@[simp] theorem identity_eventCost : (identity gates oracles layout).eventCost = 0 := by rfl
 
-@[simp]
-theorem applyNormalized_identity (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup)
-    (state : NormalizedVector R) :
-    applyNormalized (identity R physical_idx physical_idx_nodup) state = state := by
-  apply NormalizedVector.ext
-  intro index
-  exact congrArg (fun output : HilbertVector R => output index)
-    (applyVec_identity R physical_idx physical_idx_nodup
-      (state : HilbertVector R))
+@[simp] theorem identity_eventTrace : (identity gates oracles layout).eventTrace = [] := by rfl
 
-@[simp]
-theorem applyVec_seq {R : Register} (left right : UnitaryCircuit R)
-    (state : HilbertVector R) :
-    applyVec (seq left right) state = applyVec right (applyVec left state) := by
-  change HilbertOperator.applyVec
-      ((right.matrix : HilbertOperator R) * (left.matrix : HilbertOperator R)) state =
-    HilbertOperator.applyVec (right.matrix : HilbertOperator R)
-      (HilbertOperator.applyVec (left.matrix : HilbertOperator R) state)
-  exact HilbertOperator.mul_applyVec _ _ _
+@[simp] theorem identity_eventDepth : (identity gates oracles layout).eventDepth = .id := by rfl
 
-@[simp]
-theorem applyNormalized_seq {R : Register} (left right : UnitaryCircuit R)
-    (state : NormalizedVector R) :
-    applyNormalized (seq left right) state =
-      applyNormalized right (applyNormalized left state) := by
-  apply NormalizedVector.ext
-  intro i
-  exact congrArg (fun ψ : HilbertVector R => ψ i)
-    (applyVec_seq left right (state : HilbertVector R))
-
-/-- Evolve a pure state whose physical placement is exactly the circuit layout.
-Accounting remains a projection of the circuit or enclosing run. -/
-@[nolint unusedArguments]
-def apply {R : Register} (circuit : UnitaryCircuit R) (state : PureState R)
-    (_hplacement : state.system_idx = circuit.physical_idx) : PureState R :=
-  PureState.ofNormalized (circuit.applyNormalized state.state)
-    state.system_idx
-
-@[simp]
-theorem identity_matrix (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup) :
-    ((identity R physical_idx physical_idx_nodup).matrix : HilbertOperator R) = 1 := rfl
-
-
-
-
-
-@[simp]
-theorem identity_eventCost (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup) :
-    (identity R physical_idx physical_idx_nodup).eventCost = 0 := rfl
-
-@[simp]
-theorem identity_eventTrace (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup) :
-    (identity R physical_idx physical_idx_nodup).eventTrace = [] := rfl
-
-@[simp]
-theorem identity_eventDepth (R : Register) (physical_idx : List Nat)
-    (physical_idx_nodup : physical_idx.Nodup) :
-    (identity R physical_idx physical_idx_nodup).eventDepth = .id := rfl
-
-@[simp]
-theorem leaf_matrix {R : Register} (leaf : UnitaryLeaf R)
-    (systemIdxNodup : leaf.systemIdx.Nodup) :
-    ((ofLeaf leaf systemIdxNodup).matrix : HilbertOperator R) =
-      leaf.operator := rfl
-
-@[simp]
-theorem leaf_eventCost {R : Register} (leaf : UnitaryLeaf R)
-    (systemIdxNodup : leaf.systemIdx.Nodup) :
-    (ofLeaf leaf systemIdxNodup).eventCost =
-      ResourcePool.singleton leaf.event := rfl
-
-@[simp]
-theorem leaf_eventTrace {R : Register} (leaf : UnitaryLeaf R)
-    (systemIdxNodup : leaf.systemIdx.Nodup) :
-    (ofLeaf leaf systemIdxNodup).eventTrace = [leaf.event] := rfl
-
-@[simp]
-theorem leaf_eventDepth {R : Register} (leaf : UnitaryLeaf R)
-    (systemIdxNodup : leaf.systemIdx.Nodup) :
-    (ofLeaf leaf systemIdxNodup).eventDepth = .atom leaf.event := rfl
-
-
-
-
-
-@[simp]
-theorem reindex_matrix {R S : Register} (equiv : R.Index ≃ S.Index)
-    (circuit : UnitaryCircuit R) :
-    (reindex equiv circuit).matrix = UnitaryOperator.reindex equiv circuit.matrix :=
+@[simp] theorem evaluatedEventDepth_identity
+    (duration : Resource.Event (.quantum gates oracles) → Nat) :
+    (identity gates oracles layout).evaluatedEventDepth duration = 0 := by
   rfl
 
+@[simp] theorem leaf_matrix (leaf : UnitaryLeaf gates oracles layout) :
+    (ofLeaf leaf).matrix = leaf.operator := by rfl
 
+@[simp] theorem leaf_eventCost (leaf : UnitaryLeaf gates oracles layout) :
+    (ofLeaf leaf).eventCost = ResourcePool.singleton leaf.event := by rfl
 
+@[simp] public theorem native_matrix (application : GateModel.Application gates layout) :
+    (native (oracles := oracles) application).matrix = application.operator := by rfl
 
-
-@[simp]
-theorem reindex_eventCost {R S : Register} (equiv : R.Index ≃ S.Index)
-    (circuit : UnitaryCircuit R) :
-    (reindex equiv circuit).eventCost = circuit.eventCost := rfl
-
-@[simp]
-theorem reindex_eventTrace {R S : Register} (equiv : R.Index ≃ S.Index)
-    (circuit : UnitaryCircuit R) :
-    (reindex equiv circuit).eventTrace = circuit.eventTrace := rfl
-
-@[simp]
-theorem reindex_eventDepth {R S : Register} (equiv : R.Index ≃ S.Index)
-    (circuit : UnitaryCircuit R) :
-    (reindex equiv circuit).eventDepth = circuit.eventDepth := rfl
-
-@[simp]
-theorem seq_matrix {R : Register} (left right : UnitaryCircuit R) :
-    ((seq left right).matrix : HilbertOperator R) =
-      (right.matrix : HilbertOperator R) * (left.matrix : HilbertOperator R) := rfl
-
-
-
-
-
-@[simp]
-theorem seq_eventCost {R : Register} (left right : UnitaryCircuit R) :
-    (seq left right).eventCost = left.eventCost + right.eventCost := rfl
-
-@[simp]
-theorem seq_eventTrace {R : Register} (left right : UnitaryCircuit R) :
-    (seq left right).eventTrace = left.eventTrace ++ right.eventTrace := rfl
-
-@[simp]
-theorem seq_eventDepth {R : Register} (left right : UnitaryCircuit R) :
-    (seq left right).eventDepth =
-      .seq left.eventDepth right.eventDepth := rfl
-
-@[simp]
-theorem evaluatedEventDepth_seq {R : Register}
-    (assign : Resource.Event .quantum → Nat) (left right : UnitaryCircuit R) :
-    (seq left right).evaluatedEventDepth assign =
-      left.evaluatedEventDepth assign + right.evaluatedEventDepth assign := rfl
-
-@[simp]
-theorem eventQueryDepth_seq {R : Register} (focus : Resource.Event .quantum)
-    (left right : UnitaryCircuit R) :
-    (seq left right).eventQueryDepth focus =
-      left.eventQueryDepth focus + right.eventQueryDepth focus := rfl
-
-
-
-
-
-@[simp]
-theorem dagger_physical_idx {R : Register} (body : UnitaryCircuit R) :
-    body.dagger.physical_idx = body.physical_idx := rfl
-
-@[simp]
-theorem dagger_matrix {R : Register} (body : UnitaryCircuit R) :
-    (body.dagger.matrix : HilbertOperator R) =
-      (body.matrix : HilbertOperator R).conjTranspose := by
-  rw [← Matrix.star_eq_conjTranspose]
+@[simp] public theorem native_eventCost (application : GateModel.Application gates layout) :
+    (native (oracles := oracles) application).eventCost =
+      ResourcePool.singleton (model := .quantum gates oracles) (.gate application.coordinate) := by
   rfl
 
+/-- A native instruction records exactly the coordinate of its actual model token. -/
+@[simp] public theorem native_eventTrace (application : GateModel.Application gates layout) :
+    (native (oracles := oracles) application).eventTrace =
+      [.gate application.coordinate] := by rfl
 
+@[simp] theorem evaluatedEventDepth_native
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (application : GateModel.Application gates layout) :
+    (native (oracles := oracles) application).evaluatedEventDepth duration =
+      duration (.gate application.coordinate) := by
+  rfl
 
-@[simp]
-theorem dagger_eventTrace {R : Register} (body : UnitaryCircuit R) :
-    body.dagger.eventTrace = body.eventTrace.reverse := rfl
+@[simp] theorem query_matrix (application : OracleModel.Application oracles layout) :
+    (query (gates := gates) application).matrix = application.operator := by rfl
 
-@[simp]
-theorem dagger_eventCost {R : Register} (body : UnitaryCircuit R) :
-    body.dagger.eventCost = body.eventCost := rfl
+@[simp] theorem query_eventCost (application : OracleModel.Application oracles layout) :
+    (query (gates := gates) application).eventCost =
+      ResourcePool.singleton (model := .quantum gates oracles)
+        (.oracle application.coordinate) := by
+  rfl
 
+@[simp] theorem evaluatedEventDepth_query
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (application : OracleModel.Application oracles layout) :
+    (query (gates := gates) application).evaluatedEventDepth duration =
+      duration (.oracle application.coordinate) := by
+  rfl
 
+@[simp] theorem seq_matrix (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).matrix = right.matrix * left.matrix := by rfl
 
-@[simp]
-theorem dagger_eventDepth {R : Register} (body : UnitaryCircuit R) :
-    body.dagger.eventDepth = .inverse body.eventDepth := rfl
+/-- Parallel syntax denotes the product of the two actual lifted operators. -/
+@[simp] public theorem parallel_matrix_raw {leftCount rightCount count : Nat}
+    {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
+    {layout : QuantumLayout count} (left : UnitaryCircuit gates oracles leftLayout)
+    (right : UnitaryCircuit gates oracles rightLayout)
+    (leftPlacement : QuantumLayout.Embedding leftLayout layout)
+    (rightPlacement : QuantumLayout.Embedding rightLayout layout)
+    (disjoint : Disjoint leftPlacement.selection rightPlacement.selection) :
+    (parallel left right leftPlacement rightPlacement disjoint).matrix =
+      rightPlacement.liftOperator right.matrix *
+        leftPlacement.liftOperator left.matrix := by
+  rfl
 
-@[simp]
-theorem evaluatedEventDepth_dagger {R : Register}
-    (assign : Resource.Event .quantum → Nat) (body : UnitaryCircuit R) :
-    body.dagger.evaluatedEventDepth assign = body.evaluatedEventDepth assign := rfl
-
-@[simp]
-theorem eventQueryDepth_dagger {R : Register}
-    (focus : Resource.Event .quantum) (body : UnitaryCircuit R) :
-    body.dagger.eventQueryDepth focus = body.eventQueryDepth focus := rfl
-
-
-
-
-
-@[simp]
-theorem iterate_matrix {R : Register} (count : Nat) (body : UnitaryCircuit R) :
-    ((iterate count body).matrix : HilbertOperator R) =
-      (body.matrix : HilbertOperator R) ^ count := rfl
-
-
-
-
-
-@[simp]
-theorem iterate_eventCost {R : Register} (count : Nat) (body : UnitaryCircuit R) :
-    (iterate count body).eventCost = count • body.eventCost := rfl
-
-@[simp]
-theorem iterate_eventTrace {R : Register} (count : Nat) (body : UnitaryCircuit R) :
-    (iterate count body).eventTrace =
-      (List.replicate count body.eventTrace).flatten := rfl
-
-@[simp]
-theorem iterate_eventDepth {R : Register} (count : Nat) (body : UnitaryCircuit R) :
-    (iterate count body).eventDepth = .iterate count body.eventDepth := rfl
-
-@[simp]
-theorem evaluatedEventDepth_iterate {R : Register}
-    (assign : Resource.Event .quantum → Nat) (count : Nat) (body : UnitaryCircuit R) :
-    (iterate count body).evaluatedEventDepth assign =
-      count * body.evaluatedEventDepth assign := rfl
-
-@[simp]
-theorem eventQueryDepth_iterate {R : Register}
-    (focus : Resource.Event .quantum) (count : Nat) (body : UnitaryCircuit R) :
-    (iterate count body).eventQueryDepth focus =
-      count * body.eventQueryDepth focus := rfl
-
-
-
-
-
-@[simp]
-theorem sequenceList_nil {R : Register} (start : UnitaryCircuit R) :
-    sequenceList start [] = start := rfl
-
-@[simp]
-theorem sequenceList_cons {R : Register} (start step : UnitaryCircuit R)
-    (steps : List (UnitaryCircuit R)) :
-    sequenceList start (step :: steps) = sequenceList (seq start step) steps := rfl
-
-@[simp]
-theorem sequenceList_matrix {R : Register} (start : UnitaryCircuit R)
-    (steps : List (UnitaryCircuit R)) :
-    ((sequenceList start steps).matrix : HilbertOperator R) =
-      steps.foldl
-        (fun accumulated next => (next.matrix : HilbertOperator R) * accumulated)
-        (start.matrix : HilbertOperator R) := by
-  induction steps generalizing start with
-  | nil => rfl
-  | cons step steps ih =>
-      change ((sequenceList (seq start step) steps).matrix : HilbertOperator R) = _
-      simpa using ih (seq start step)
-
-@[simp]
-theorem indexedProductNamed_matrix {R : Register} (label : String) (count : Nat)
-    (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    ((indexedProductNamed label count start step).matrix : HilbertOperator R) =
-      (List.ofFn (fun j => ((step j).matrix : HilbertOperator R))).foldl
-        (fun accumulated next => next * accumulated)
-        (start.matrix : HilbertOperator R) := by
-  change
-    (((List.ofFn (fun j => (step j).sequence.toUnitary)).foldl
-        (fun accumulated next => next * accumulated) start.sequence.toUnitary :
-        UnitaryOperator R) : HilbertOperator R) =
-      (List.ofFn (fun j => ((step j).sequence.toUnitary : HilbertOperator R))).foldl
-        (fun accumulated next => next * accumulated)
-        (start.sequence.toUnitary : HilbertOperator R)
-  have hmap :
-      List.map (fun next : UnitaryOperator R => (next : HilbertOperator R))
-          (List.ofFn (fun j => (step j).sequence.toUnitary)) =
-        List.ofFn (fun j => ((step j).sequence.toUnitary : HilbertOperator R)) := by
-    exact (List.ofFn_comp' (fun j => (step j).sequence.toUnitary)
-      (fun next : UnitaryOperator R => (next : HilbertOperator R))).symm
-  rw [← hmap]
-  exact UnitarySequence.coe_foldl_unitary start.sequence.toUnitary
-    (List.ofFn fun j => (step j).sequence.toUnitary)
-
-/-- The indexed circuit product applies its members in increasing list order,
-starting after the stored initial circuit. -/
-theorem applyVec_indexedProductNamed {R : Register} (label : String)
-    (count : Nat) (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R)
-    (state : HilbertVector R) :
-    (indexedProductNamed label count start step).applyVec state =
-      (List.ofFn step).foldl
-        (fun accumulated next => next.applyVec accumulated)
-        (start.applyVec state) := by
-  have foldl_applyVec : ∀ (circuits : List (UnitaryCircuit R))
-      (initial : HilbertOperator R),
-      HilbertOperator.applyVec
-          ((circuits.map fun circuit =>
-            (circuit.matrix : HilbertOperator R)).foldl
-            (fun accumulated next => next * accumulated) initial) state =
-        circuits.foldl
-          (fun accumulated next => next.applyVec accumulated)
-          (HilbertOperator.applyVec initial state) := by
-    intro circuits initial
-    induction circuits generalizing initial with
-    | nil => rfl
-    | cons circuit rest ih =>
-        simp only [List.map_cons, List.foldl_cons]
-        rw [ih, HilbertOperator.mul_applyVec]
-        rfl
-  change HilbertOperator.applyVec
-      ((indexedProductNamed label count start step).matrix : HilbertOperator R)
-      state = _
-  rw [indexedProductNamed_matrix]
-  have matrixList :
-      List.ofFn (fun index : Fin count =>
-          ((step index).matrix : HilbertOperator R)) =
-        (List.ofFn step).map fun circuit =>
-          (circuit.matrix : HilbertOperator R) :=
-    List.ofFn_comp' step fun circuit =>
-      (circuit.matrix : HilbertOperator R)
-  rw [matrixList]
-  exact foldl_applyVec (List.ofFn step) start.matrix
-
-/-- Normalized-vector form of the increasing-order indexed product action. -/
-theorem applyNormalized_indexedProductNamed {R : Register} (label : String)
-    (count : Nat) (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R)
-    (state : NormalizedVector R) :
-    (indexedProductNamed label count start step).applyNormalized state =
-      (List.ofFn step).foldl
-        (fun accumulated next => next.applyNormalized accumulated)
-        (start.applyNormalized state) := by
-  have foldl_coe : ∀ (circuits : List (UnitaryCircuit R))
-      (initial : NormalizedVector R),
-      (((circuits.foldl
-          (fun accumulated next => next.applyNormalized accumulated)
-          initial : NormalizedVector R) : HilbertVector R)) =
-        circuits.foldl
-          (fun accumulated next => next.applyVec accumulated)
-          (initial : HilbertVector R) := by
-    intro circuits initial
-    induction circuits generalizing initial with
-    | nil => rfl
-    | cons circuit rest ih =>
-        simp only [List.foldl_cons]
-        simpa using ih (circuit.applyNormalized initial)
+/-- Sequential execution applies the first actual operator before the second. -/
+@[simp] public theorem applyNormalized_seq (left right : UnitaryCircuit gates oracles layout)
+    (state : NormalizedVector layout.register) :
+    (seq left right).applyNormalized state =
+      right.applyNormalized (left.applyNormalized state) := by
   apply NormalizedVector.ext
   intro index
-  have action :=
-    applyVec_indexedProductNamed label count start step
-      (state : HilbertVector R)
-  have outputCoe := foldl_coe (List.ofFn step) (start.applyNormalized state)
-  exact congrArg (fun output : HilbertVector R => output index)
-    (action.trans (by simpa using outputCoe.symm))
+  change (right.matrix * left.matrix).applyVec state index =
+    right.matrix.applyVec (left.matrix.applyVec state) index
+  rw [UnitaryOperator.mul_applyVec]
 
+@[simp] theorem seq_eventCost (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).eventCost = left.eventCost + right.eventCost := by rfl
 
+@[simp] theorem seq_eventTrace (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).eventTrace = left.eventTrace ++ right.eventTrace := by rfl
 
+@[simp] theorem seq_eventDepth (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).eventDepth = .seq left.eventDepth right.eventDepth := by rfl
 
+@[simp] theorem evaluatedEventDepth_seq
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).evaluatedEventDepth duration =
+      left.evaluatedEventDepth duration + right.evaluatedEventDepth duration := by rfl
 
-@[simp]
-theorem indexedProductNamed_eventCost {R : Register} (label : String) (count : Nat)
-    (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    (indexedProductNamed label count start step).eventCost =
-      start.eventCost + ∑ j, (step j).eventCost := rfl
+@[simp] theorem parallel_eventCost {leftCount rightCount totalCount : Nat}
+    {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
+    {totalLayout : QuantumLayout totalCount}
+    (left : UnitaryCircuit gates oracles leftLayout)
+    (right : UnitaryCircuit gates oracles rightLayout)
+    (leftPlacement : QuantumLayout.Embedding leftLayout totalLayout)
+    (rightPlacement : QuantumLayout.Embedding rightLayout totalLayout)
+    (disjoint : Disjoint leftPlacement.selection rightPlacement.selection) :
+    (parallel left right leftPlacement rightPlacement disjoint).eventCost =
+      left.eventCost + right.eventCost := by
+  rfl
 
-@[simp]
-theorem indexedProductNamed_eventTrace {R : Register} (label : String)
-    (count : Nat) (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    (indexedProductNamed label count start step).eventTrace =
-      start.eventTrace ++
-        (List.ofFn fun j => (step j).eventTrace).flatten := rfl
+@[simp] theorem evaluatedEventDepth_parallel {leftCount rightCount totalCount : Nat}
+    {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
+    {totalLayout : QuantumLayout totalCount}
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (left : UnitaryCircuit gates oracles leftLayout)
+    (right : UnitaryCircuit gates oracles rightLayout)
+    (leftPlacement : QuantumLayout.Embedding leftLayout totalLayout)
+    (rightPlacement : QuantumLayout.Embedding rightLayout totalLayout)
+    (disjoint : Disjoint leftPlacement.selection rightPlacement.selection) :
+    (parallel left right leftPlacement rightPlacement disjoint).evaluatedEventDepth duration =
+      max (left.evaluatedEventDepth duration) (right.evaluatedEventDepth duration) := by
+  rfl
 
-@[simp]
-theorem indexedProductNamed_eventDepth {R : Register} (label : String) (count : Nat)
-    (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    (indexedProductNamed label count start step).eventDepth =
-      .indexedProduct label count start.eventDepth (fun j => (step j).eventDepth) := rfl
+@[simp] theorem iterate_matrix (repetitions : Nat)
+    (body : UnitaryCircuit gates oracles layout) :
+    (iterate repetitions body).matrix = body.matrix ^ repetitions := by rfl
 
-@[simp]
-theorem evaluatedEventDepth_indexedProductNamed {R : Register}
-    (assign : Resource.Event .quantum → Nat) (label : String) (count : Nat)
-    (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    (indexedProductNamed label count start step).evaluatedEventDepth assign =
-      start.evaluatedEventDepth assign +
-        ∑ j, (step j).evaluatedEventDepth assign := rfl
+@[simp] theorem iterate_eventCost (repetitions : Nat)
+    (body : UnitaryCircuit gates oracles layout) :
+    (iterate repetitions body).eventCost = repetitions • body.eventCost := by rfl
 
-@[simp]
-theorem eventQueryDepth_indexedProductNamed {R : Register}
-    (focus : Resource.Event .quantum) (label : String) (count : Nat)
-    (start : UnitaryCircuit R) (step : Fin count → UnitaryCircuit R) :
-    (indexedProductNamed label count start step).eventQueryDepth focus =
-      start.eventQueryDepth focus + ∑ j, (step j).eventQueryDepth focus := rfl
+@[simp] theorem iterate_eventTrace (repetitions : Nat)
+    (body : UnitaryCircuit gates oracles layout) :
+    (iterate repetitions body).eventTrace =
+      (List.replicate repetitions body.eventTrace).flatten := by
+  rfl
 
+@[simp] theorem iterate_eventDepth (repetitions : Nat)
+    (body : UnitaryCircuit gates oracles layout) :
+    (iterate repetitions body).eventDepth = .iterate repetitions body.eventDepth := by rfl
 
+@[simp] theorem macroCall_matrix (name : String) (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).matrix = body.matrix := by rfl
 
+@[simp] theorem macroCall_eventCost (name : String) (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).eventCost = body.eventCost := by rfl
 
+@[simp] theorem macroCall_eventTrace (name : String) (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).eventTrace = body.eventTrace := by rfl
 
-namespace UnitaryLeafFixtures
+@[simp] theorem macroCall_eventDepth (name : String) (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).eventDepth = body.eventDepth := by rfl
 
-private def gateLabel : Resource.GateLabel :=
-  .builtin "fixture-gate"
+/-- Descriptive macro boundaries add no dependency beyond their retained native body. -/
+@[simp] public theorem evaluatedEventDepth_macroCall
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (name : String) (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).evaluatedEventDepth duration =
+      body.evaluatedEventDepth duration := by
+  rfl
 
-private def subroutineLabel : Resource.SubroutineLabel :=
-  { family := "fixture", name := "opaque-subroutine" }
+/-- The macro name adds one observation while every nested occurrence remains visible. -/
+public theorem macroCount_macroCall (focus name : String)
+    (body : UnitaryCircuit gates oracles layout) :
+    (macroCall name body).macroCount focus =
+      (if name = focus then 1 else 0) + body.macroCount focus := by
+  by_cases same : name = focus
+  · subst name
+    simp [macroCount, macroCall, UnitarySequence.macroTrace, Nat.add_comm]
+  · simp [macroCount, macroCall, UnitarySequence.macroTrace, same]
 
-/-- Gate and subroutine event coordinates are independently visible in one
-sequenced circuit, while semantics uses the same two sealed leaves. -/
-example (gateLeaf subroutineLeaf : UnitaryLeaf (Qubits 1))
-    (gateSystemIdxNodup : gateLeaf.systemIdx.Nodup)
-    (subroutineSystemIdxNodup : subroutineLeaf.systemIdx.Nodup)
-    (gateRole : gateLeaf.role = .gate gateLabel)
-    (subroutineRole : subroutineLeaf.role = .subroutine subroutineLabel) :
-    let gate := ofLeaf gateLeaf gateSystemIdxNodup
-    let subroutine := ofLeaf subroutineLeaf subroutineSystemIdxNodup
-    (seq gate subroutine).matrix =
-        subroutineLeaf.operator * gateLeaf.operator ∧
-      ResourcePool.count (.gate gateLabel) (seq gate subroutine).eventCost = 1 ∧
-      ResourcePool.count (.quantumSubroutine subroutineLabel.quantum)
-        (seq gate subroutine).eventCost = 1 := by
-  dsimp only
-  constructor
-  · rfl
-  constructor <;>
-    simp [ResourcePool.count, ResourcePool.singleton, UnitaryLeaf.event,
-      UnitaryLeafRole.event, gateRole, subroutineRole]
+@[simp] theorem indexedProduct_matrix (label : String) (steps : Nat)
+    (start : UnitaryCircuit gates oracles layout)
+    (step : Fin steps → UnitaryCircuit gates oracles layout) :
+    (indexedProduct label steps start step).matrix =
+      (List.ofFn (fun index => (step index).matrix)).foldl
+        (fun accumulated next => next * accumulated) start.matrix := by rfl
 
-/-- The strict event-depth linearization is definitionally coherent with the
-strict event pool for a mixed leaf sequence. -/
-example (gateLeaf subroutineLeaf : UnitaryLeaf (Qubits 1))
-    (gateSystemIdxNodup : gateLeaf.systemIdx.Nodup)
-    (subroutineSystemIdxNodup : subroutineLeaf.systemIdx.Nodup) :
-    let gate := ofLeaf gateLeaf gateSystemIdxNodup
-    let subroutine := ofLeaf subroutineLeaf subroutineSystemIdxNodup
-    (seq gate subroutine).resourcesFromEventDepth =
-      (seq gate subroutine).eventCost := by
-  simp
+@[simp] theorem indexedProduct_eventCost (label : String) (steps : Nat)
+    (start : UnitaryCircuit gates oracles layout)
+    (step : Fin steps → UnitaryCircuit gates oracles layout) :
+    (indexedProduct label steps start step).eventCost =
+      start.eventCost + ∑ index, (step index).eventCost := by rfl
 
-end UnitaryLeafFixtures
+@[simp] theorem indexedProduct_eventDepth (label : String) (steps : Nat)
+    (start : UnitaryCircuit gates oracles layout)
+    (step : Fin steps → UnitaryCircuit gates oracles layout) :
+    (indexedProduct label steps start step).eventDepth =
+      .indexedProduct label steps start.eventDepth
+        (fun index => (step index).eventDepth) := by rfl
+
+@[simp] theorem evaluatedEventDepth_indexedProduct
+    (duration : Resource.Event (.quantum gates oracles) → Nat)
+    (label : String) (steps : Nat) (start : UnitaryCircuit gates oracles layout)
+    (step : Fin steps → UnitaryCircuit gates oracles layout) :
+    (indexedProduct label steps start step).evaluatedEventDepth duration =
+      start.evaluatedEventDepth duration +
+        ∑ index, (step index).evaluatedEventDepth duration := by
+  rfl
 
 end
 
-end UnitaryCircuit
-
-end QuantumAlg
-
-end
+end QuantumAlg.UnitaryCircuit

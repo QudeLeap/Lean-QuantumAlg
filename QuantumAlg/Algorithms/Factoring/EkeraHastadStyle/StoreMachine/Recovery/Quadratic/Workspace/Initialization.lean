@@ -155,53 +155,60 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   one : (Layout.cellRef cells .one).key ∉ other.storageKeys
   zero : (Layout.cellRef cells .zero).key ∉ other.storageKeys
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The existing native resize reads the actual public-modulus source word. -/
-def resizeOp (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
+def resizeOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) :=
   ClassicalOp.wordResize (modulusBits N + 1) (Layout.DiscriminantWidth N)
     ctx source (modulusCell cells)
 
 /-- Resize the modulus, self-initialize one, and clear zero with four actual instructions. -/
 def into (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
-    (cells : Layout.Cells ctx N) : Circuit ctx ctx :=
-  .seq (.classical (resizeOp source cells))
+    (cells : Layout.Cells ctx N) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeOp source cells))
     (.seq (Word.PowerOfTwo.seedInto (Layout.cellRef cells .one))
-      (.classical (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero))))
+      (BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero))))
 
 /-- Full actual store and native path after initializing the three persistent constants. -/
 def step (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (store : Store ctx) : Store ctx × (into source cells).Path :=
-  let one := Word.PowerOfTwo.seedStep (Layout.cellRef cells .one)
-    (store.applyOp (resizeOp source cells))
-  (one.1.applyOp (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero)), ((), (one.2, ())))
+  let resized := BitWord.instructionStep (execution := model) (resizeOp source cells) store
+  let one := Word.PowerOfTwo.seedStep (Layout.cellRef cells .one) resized.1
+  let zero := BitWord.instructionStep (execution := model)
+    (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero)) one.1
+  (zero.1, (resized.2, (one.2, zero.2)))
 
 /-- The actual native sequence preserves complete quantum-reference blocks and history. -/
 theorem into_execute (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into source cells).execute Reference state = state.mapClassical (fun entry =>
-      ((step source cells entry.1).1, (entry.2, (step source cells entry.1).2))) := by
-  simp only [into, step, Word.PowerOfTwo.seedInto, Word.PowerOfTwo.seedStep,
-    Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
+      let actual := step source cells entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [into, step, Circuit.execute_seq, Word.PowerOfTwo.seedInto_execute,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual read outside all three destinations survives the four native writes. -/
 theorem into_callerFrame (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (avoids : CallerFrameAvoids cells other) :
     (step source cells store).1.read other = store.read other := by
-  simp only [step, Word.PowerOfTwo.seedStep]
+  simp only [step, Word.PowerOfTwo.seedStep, BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids.zero,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids.one,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids.one,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids.modulus]
 
 /-- Exact actual constants and every caller read outside their destinations. -/
-structure Relation (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
+structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (before after : Store ctx) : Prop where
   modulus : (after.read (QuadraticScratchViews.modulusInput cells)).toNat = N
   one : (after.read (QuadraticScratchViews.oneInput cells)).toNat = 1
@@ -219,7 +226,7 @@ theorem into_correct (input : Input N)
   let seeded := (Word.PowerOfTwo.seedStep (Layout.cellRef cells .one) resized).1
   have modulusAtSeed : seeded.read (FirstAccepted.cellRead (modulusCell cells)) =
       resized.read (FirstAccepted.cellRead (modulusCell cells)) := by
-    dsimp only [seeded, Word.PowerOfTwo.seedStep]
+    dsimp only [seeded, Word.PowerOfTwo.seedStep, BitWord.instructionStep]
     rw [Store.read_applyOp_of_not_mem_storageKeys _ _ _ separated.modulusAvoidsOne,
       Store.read_applyOp_of_not_mem_storageKeys _ _ _ separated.modulusAvoidsOne]
   have modulusAtEnd : (step source cells store).1.read
@@ -252,24 +259,41 @@ theorem into_correct (input : Input N)
   · exact Word.PowerOfTwo.clear_read (Layout.cellRef cells .zero) seeded
 
 /-- Independent native formula for all four initialization instructions. -/
-def events (N : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordResize (modulusBits N + 1) (Layout.DiscriminantWidth N)),
-    .classicalOperation (.wordBinary .bitXor (Layout.CandidateWidth N)),
-    .classicalOperation (.wordUnary .increment (Layout.CandidateWidth N)),
-    .classicalOperation (.wordBinary .bitXor (Layout.CandidateWidth N))]
+def events (N : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (modulusBits N + 1) (Layout.DiscriminantWidth N))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (Layout.CandidateWidth N))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .increment (Layout.CandidateWidth N))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (Layout.CandidateWidth N)))]
 
 /-- Independent coordinate budget for the three initialized constant destinations. -/
-def eventEnvelope (N : Nat) : ResourcePool kind := ResourcePool.ofList (events N)
+def eventEnvelope (N : Nat) : ResourcePool model := ResourcePool.ofList (events N)
 
 /-- Every actual path emits the same four native instructions. -/
 theorem into_events (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (path : (into source cells).Path) :
-    (into source cells).eventTrace path = events N := rfl
+    (into source cells).eventTrace path = events N := by
+  change (BitWord.instruction (execution := model) (resizeOp source cells)).eventTrace path.1 ++
+    (((BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp (Layout.cellRef cells .one))).eventTrace path.2.1.1 ++
+      (BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.incrementOp (Layout.cellRef cells .one))).eventTrace path.2.1.2) ++
+      (BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero))).eventTrace path.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Native multiplicities equal the independent four-instruction formula. -/
 theorem into_resourcePool (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (path : (into source cells).Path) :
-    (into source cells).resourcePool path = eventEnvelope N := rfl
+    (into source cells).resourcePool path = eventEnvelope N := by
+  change ResourcePool.ofList ((into source cells).eventTrace path) = _
+  rw [into_events]
+  rfl
 
 /-- Initialization has exactly four serial native instructions. -/
 theorem into_depth (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
@@ -279,7 +303,8 @@ theorem into_depth (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
 /-- Every original cell remains live during the complete native initializer. -/
 theorem into_visited (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (path : (into source cells).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into source cells).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (into source cells).visitedContexts path) :
     visited = ctx := by
   change visited ∈ [ctx] ++ ([ctx] ++ [ctx]) ++ [ctx] at present
   simpa using present
@@ -304,19 +329,28 @@ theorem into_auxiliary_le (source : CInputRef ctx (.unsignedWord (modulusBits N 
 theorem into_borrowedRestored
     (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into source cells).BorrowedRestored Reference state
       ((into source cells).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical _ _
+  · exact Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (resizeOp source cells)) _
   · apply Circuit.borrowedRestored_seq
     · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical _ _
-      · exact Circuit.borrowedRestored_classical _ _
-    · exact Circuit.borrowedRestored_classical _ _
+      · exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model)
+            (Word.PowerOfTwo.clearOp (Layout.cellRef cells .one))) _
+      · exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model)
+            (Word.PowerOfTwo.incrementOp (Layout.cellRef cells .one))) _
+    · exact Circuit.borrowedRestored_classical
+        (BitWord.selectedApplication (execution := model)
+          (Word.PowerOfTwo.clearOp (Layout.cellRef cells .zero))) _
 
 /-- The three actual constant values supply the guarded recovery entry contract. -/
-theorem guardedInitialConditions_of_values (input : Input N) (cells : Layout.Cells ctx N)
+theorem guardedInitialConditions_of_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    {N : Nat} (input : Input N) (cells : Layout.Cells ctx N)
     (shortLogSelection : FirstAccepted.Direct.Refs ctx (Layout.ShortWidth N))
     (factorSelection : FirstAccepted.Refs ctx (Layout.CandidateWidth N)) (store : Store ctx)
     (modulusValue : (store.read (QuadraticScratchViews.modulusInput cells)).toNat = N)
@@ -331,7 +365,8 @@ theorem guardedInitialConditions_of_values (input : Input N) (cells : Layout.Cel
     modulusValue⟩
 
 /-- The same actual initializer establishes the downstream guarded recovery contract. -/
-theorem guardedInitialConditions_of_relation (input : Input N)
+theorem guardedInitialConditions_of_relation {kind : ProblemKind}
+    {ctx : RuntimeCtx kind} {N : Nat} (input : Input N)
     (source : CInputRef ctx (.unsignedWord (modulusBits N + 1)))
     (cells : Layout.Cells ctx N)
     (shortLogSelection : FirstAccepted.Direct.Refs ctx (Layout.ShortWidth N))

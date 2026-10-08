@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Inversion.MK.DataPath.Swap
 
 /-!
@@ -141,8 +142,9 @@ theorem coefficientAddRIntoSGates_toffoliMultiplicity_sum
 
 /-- Base-gate program for the `r`-into-`s` coefficient adder. -/
 def coefficientAddRIntoSProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (coefficientAddRIntoSLayout n counterWidth)
 
@@ -740,8 +742,9 @@ theorem coefficientAddSIntoRGates_toffoliMultiplicity_sum
 
 /-- Base-gate program for the `s`-into-`r` coefficient adder. -/
 def coefficientAddSIntoRProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (coefficientAddSIntoRLayout n counterWidth)
 
@@ -1433,9 +1436,10 @@ def coeffWorkCompareFalseControlledAddRIntoSStep (n counterWidth : Nat) :
 /-- Circuit for compare-false-controlled `s := s + r`. -/
 def coeffWorkCompareFalseControlledAddRIntoSProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledAddRIntoSGates n counterWidth)
 
 /-- The compare-false-controlled `s := s + r` circuit realizes its step. -/
@@ -1444,7 +1448,7 @@ theorem coeffWorkCompareFalseControlledAddRIntoS_realizes
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkCompareFalseControlledAddRIntoSProgram n counterWidth)
       (coeffWorkCompareFalseControlledAddRIntoSStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledAddRIntoSGates n counterWidth)
 
 /-- If compare is false and `scratchA` is clean, the compare-false wrapper acts
@@ -1606,9 +1610,10 @@ def coeffWorkCompareControlledAddSIntoRStep (n counterWidth : Nat) :
 /-- Circuit for compare-controlled `r := r + s`. -/
 def coeffWorkCompareControlledAddSIntoRProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledAddSIntoRGates n counterWidth)
 
 /-- The compare-controlled `r := r + s` circuit realizes its step. -/
@@ -1617,7 +1622,7 @@ theorem coeffWorkCompareControlledAddSIntoR_realizes
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkCompareControlledAddSIntoRProgram n counterWidth)
       (coeffWorkCompareControlledAddSIntoRStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledAddSIntoRGates n counterWidth)
 
 /-- If compare is false, the compare-controlled `r := r + s` coefficient add
@@ -1679,9 +1684,10 @@ def coeffWorkCompareSelectedCoefficientAddGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the compare-selected coefficient-add atom. -/
 def coeffWorkCompareSelectedCoefficientAddProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedCoefficientAddGates n counterWidth)
 
 /-- Compare-selected coefficient-add atom for the odd-odd data path.  It
@@ -1714,6 +1720,7 @@ theorem coeffWorkCompareSelectedCoefficientAdd_realizes
       (coeffWorkCompareSelectedCoefficientAddProgram n counterWidth)
       (coeffWorkCompareSelectedCoefficientAddStep n counterWidth) := by
   exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedCoefficientAddGates n counterWidth)
     (coeffWorkCompareSelectedCoefficientAddStep_eq_gateList n counterWidth)
 
@@ -1878,16 +1885,19 @@ def coeffWorkAddVIntoUStep (n counterWidth : Nat) :
 
 /-- Circuit for the concrete source-register adder `u := u + v`. -/
 def coeffWorkAddVIntoUProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (coeffWorkAddVIntoUGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (coeffWorkAddVIntoUGates n counterWidth)
 
 /-- The concrete source-register adder circuit realizes `u := u + v`. -/
 theorem coeffWorkAddVIntoU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkAddVIntoUProgram n counterWidth)
       (coeffWorkAddVIntoUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (coeffWorkAddVIntoUGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (coeffWorkAddVIntoUGates n counterWidth)
 
 /-- Reverse gate list used as the concrete source-register subtract path
 `u := u - v`. -/
@@ -1939,16 +1949,19 @@ def coeffWorkSubVFromUStep (n counterWidth : Nat) :
 
 /-- Circuit for the concrete source-register subtract path `u := u - v`. -/
 def coeffWorkSubVFromUProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (coeffWorkSubVFromUGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (coeffWorkSubVFromUGates n counterWidth)
 
 /-- The concrete source-register subtract circuit realizes `u := u - v`. -/
 theorem coeffWorkSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkSubVFromUProgram n counterWidth)
       (coeffWorkSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (coeffWorkSubVFromUGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (coeffWorkSubVFromUGates n counterWidth)
 
 /-- The concrete `u := u - v` source-subtract gate list is disjoint from the
 staged compare bit. -/
@@ -2070,9 +2083,10 @@ def coeffWorkCompareControlledSubVFromUStep (n counterWidth : Nat) :
 /-- Circuit for compare-controlled `u := u - v` source subtract. -/
 def coeffWorkCompareControlledSubVFromUProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledSubVFromUGates n counterWidth)
 
 /-- The compare-controlled `u := u - v` circuit realizes its step. -/
@@ -2081,7 +2095,7 @@ theorem coeffWorkCompareControlledSubVFromU_realizes
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkCompareControlledSubVFromUProgram n counterWidth)
       (coeffWorkCompareControlledSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledSubVFromUGates n counterWidth)
 
 /-- If compare is false, the compare-controlled `u := u - v` source subtract is
@@ -2922,16 +2936,19 @@ def coeffWorkAddUIntoVStep (n counterWidth : Nat) :
 
 /-- Circuit for the concrete source-register adder `v := v + u`. -/
 def coeffWorkAddUIntoVProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (coeffWorkAddUIntoVGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (coeffWorkAddUIntoVGates n counterWidth)
 
 /-- The concrete source-register adder circuit realizes `v := v + u`. -/
 theorem coeffWorkAddUIntoV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkAddUIntoVProgram n counterWidth)
       (coeffWorkAddUIntoVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (coeffWorkAddUIntoVGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (coeffWorkAddUIntoVGates n counterWidth)
 
 /-- Reverse gate list used as the concrete source-register subtract path
 `v := v - u`. -/
@@ -2983,16 +3000,19 @@ def coeffWorkSubUFromVStep (n counterWidth : Nat) :
 
 /-- Circuit for the concrete source-register subtract path `v := v - u`. -/
 def coeffWorkSubUFromVProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (coeffWorkSubUFromVGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (coeffWorkSubUFromVGates n counterWidth)
 
 /-- The concrete source-register subtract circuit realizes `v := v - u`. -/
 theorem coeffWorkSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkSubUFromVProgram n counterWidth)
       (coeffWorkSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (coeffWorkSubUFromVGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (coeffWorkSubUFromVGates n counterWidth)
 
 /-- The concrete `v := v - u` source-subtract gate list is disjoint from the
 staged compare bit. -/
@@ -3116,9 +3136,10 @@ def coeffWorkCompareFalseControlledSubUFromVStep (n counterWidth : Nat) :
 /-- Circuit for compare-false-controlled `v := v - u` source subtract. -/
 def coeffWorkCompareFalseControlledSubUFromVProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledSubUFromVGates n counterWidth)
 
 /-- The compare-false-controlled `v := v - u` circuit realizes its step. -/
@@ -3127,7 +3148,7 @@ theorem coeffWorkCompareFalseControlledSubUFromV_realizes
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkCompareFalseControlledSubUFromVProgram n counterWidth)
       (coeffWorkCompareFalseControlledSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledSubUFromVGates n counterWidth)
 
 /-- If compare is false and the dedicated coefficient carry-in is clean, the
@@ -3272,9 +3293,10 @@ def coeffWorkCompareSelectedSourceSubtractGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the compare-selected source-subtract atom. -/
 def coeffWorkCompareSelectedSourceSubtractProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedSourceSubtractGates n counterWidth)
 
 /-- Compare-selected source-subtract atom for the odd-odd data path.  It
@@ -3308,6 +3330,7 @@ theorem coeffWorkCompareSelectedSourceSubtract_realizes
       (coeffWorkCompareSelectedSourceSubtractProgram n counterWidth)
       (coeffWorkCompareSelectedSourceSubtractStep n counterWidth) := by
   exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedSourceSubtractGates n counterWidth)
     (coeffWorkCompareSelectedSourceSubtractStep_eq_gateList n counterWidth)
 
@@ -4511,8 +4534,9 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit_clean
 
 /-- Circuit for `u := u - v` followed by `r := r + s`. -/
 def coeffWorkSubVFromUThenAddSIntoRProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkSubVFromUProgram n counterWidth)
     (coefficientAddSIntoRProgram n counterWidth)
@@ -4541,8 +4565,9 @@ theorem coeffWorkSubVFromUThenAddSIntoR_realizes (n counterWidth : Nat) :
 
 /-- Circuit for `v := v - u` followed by `s := s + r`. -/
 def coeffWorkSubUFromVThenAddRIntoSProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkSubUFromVProgram n counterWidth)
     (coefficientAddRIntoSProgram n counterWidth)
@@ -4580,9 +4605,10 @@ def coeffWorkCompareSelectedOddDataPathGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the compare-selected odd data path. -/
 def coeffWorkCompareSelectedOddDataPathProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedOddDataPathGates n counterWidth)
 
 /-- Compare-selected odd data path for the two odd Kaliski branches.  It first
@@ -4617,6 +4643,7 @@ theorem coeffWorkCompareSelectedOddDataPath_realizes
       (coeffWorkCompareSelectedOddDataPathProgram n counterWidth)
       (coeffWorkCompareSelectedOddDataPathStep n counterWidth) := by
   exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedOddDataPathGates n counterWidth)
     (coeffWorkCompareSelectedOddDataPathStep_eq_gateList n counterWidth)
 
@@ -6077,18 +6104,21 @@ def liftComparisonWorkStepToCoeffAdderWork
 coefficient-adder work object. -/
 def liftComparisonWorkProgramToCoeffAdderWork
     (n counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := (coeffAdderWorkEncoding n).width) program
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (coeffAdderWorkEncoding n).width program
 
 /-- Lifting an actual comparison-work circuit preserves its semantic action
 while leaving the coefficient-adder work object unchanged. -/
 theorem liftComparisonWorkProgramToCoeffAdderWork_realizes
     (n counterWidth : Nat)
-    {program : UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum}
     {step :
       RegistersWithComparisonWork n counterWidth ->
         RegistersWithComparisonWork n counterWidth}
@@ -6097,19 +6127,15 @@ theorem liftComparisonWorkProgramToCoeffAdderWork_realizes
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (liftComparisonWorkProgramToCoeffAdderWork n counterWidth program)
       (liftComparisonWorkStepToCoeffAdderWork n counterWidth step) := by
-  change UnitaryCircuit.Realizes
-    (BinaryLabelEncoding.prod
-      (registersWithComparisonWorkEncoding n counterWidth)
-      (coeffAdderWorkEncoding n))
-    (UnitaryCircuit.prodLeft (n := (coeffAdderWorkEncoding n).width) program)
-    (fun x => (step x.1, x.2))
-  exact UnitaryCircuit.Realizes.prodLeft h
+  exact UnitaryCircuit.Realizes.onBinaryPrefix
+    (right := coeffAdderWorkEncoding n) h
 
 /-- The comparison-controlled `u`/`v` swap circuit lifted over the trailing
 coefficient-adder workspace. -/
 def coeffWorkCompareControlledUVSwapProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (compareControlledUVSwapProgram n counterWidth)
 
@@ -6132,8 +6158,9 @@ theorem coeffWorkCompareControlledUVSwap_realizes (n counterWidth : Nat) :
 /-- The comparison-controlled `r`/`s` swap circuit lifted over the trailing
 coefficient-adder workspace. -/
 def coeffWorkCompareControlledRSSwapProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (compareControlledRSSwapProgram n counterWidth)
 
@@ -6156,8 +6183,9 @@ theorem coeffWorkCompareControlledRSSwap_realizes (n counterWidth : Nat) :
 /-- Circuit for the coefficient-work-lifted sequence of the
 comparison-controlled `u`/`v` and `r`/`s` swaps. -/
 def coeffWorkCompareControlledSwapsProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkCompareControlledUVSwapProgram n counterWidth)
     (coeffWorkCompareControlledRSSwapProgram n counterWidth)
@@ -6423,8 +6451,9 @@ slice in a single circuit object; it is not yet a controlled branch update
 or full Montgomery--Kaliski round [HJN+20, modular-arithmetic.tex:176-195;
 RNSL17, ECDLP.tex:399-421; VBE95, 9511018.tex:237-264,591-618]. -/
 def coeffWorkSwapsThenAddRIntoSProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkCompareControlledSwapsProgram n counterWidth)
     (coefficientAddRIntoSProgram n counterWidth)
@@ -6632,8 +6661,9 @@ swap-plus-adder slice, not a full branch arithmetic update [HJN+20,
 modular-arithmetic.tex:176-195; RNSL17, ECDLP.tex:399-421; VBE95,
 9511018.tex:237-264,591-618]. -/
 def coeffWorkSwapsThenAddSIntoRProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkCompareControlledSwapsProgram n counterWidth)
     (coefficientAddSIntoRProgram n counterWidth)
@@ -7725,13 +7755,17 @@ theorem coefficientAddSIntoRGates_length (n counterWidth : Nat) :
 
 /-- Compiled compact program for adding `r` into `s`. -/
 def coefficientAddRIntoSProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (coefficientAddRIntoSLayout n counterWidth)
 
 /-- Compiled compact program for adding `s` into `r`. -/
 def coefficientAddSIntoRProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (coefficientAddSIntoRLayout n counterWidth)
 
@@ -7765,62 +7799,74 @@ theorem coefficientAddSIntoR_realizes (n counterWidth : Nat) :
 
 /-- The compiled compact `r`-into-`s` program retains its exact X count. -/
 theorem coefficientAddRIntoSProgram_x_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (coefficientAddRIntoSProgram n counterWidth).eventCost = 0 := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddRIntoSGates n counterWidth)).eventCost = 0
   rw [EncodedBit.GateSpec.programList_x_count_eq_sum,
     coefficientAddRIntoSGates_xMultiplicity_sum]
 
 /-- The compiled compact `r`-into-`s` program retains its exact CNOT count. -/
 theorem coefficientAddRIntoSProgram_cnot_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (coefficientAddRIntoSProgram n counterWidth).eventCost =
       2 * (n + 1) := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddRIntoSGates n counterWidth)).eventCost = 2 * (n + 1)
   rw [EncodedBit.GateSpec.programList_cnot_count_eq_sum,
     coefficientAddRIntoSGates_cnotMultiplicity_sum]
 
 /-- The compiled compact `r`-into-`s` program retains its exact Toffoli count. -/
 theorem coefficientAddRIntoSProgram_toffoli_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (coefficientAddRIntoSProgram n counterWidth).eventCost = 6 * n := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddRIntoSGates n counterWidth)).eventCost = 6 * n
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
     coefficientAddRIntoSGates_toffoliMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact X count. -/
 theorem coefficientAddSIntoRProgram_x_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (coefficientAddSIntoRProgram n counterWidth).eventCost = 0 := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddSIntoRGates n counterWidth)).eventCost = 0
   rw [EncodedBit.GateSpec.programList_x_count_eq_sum,
     coefficientAddSIntoRGates_xMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact CNOT count. -/
 theorem coefficientAddSIntoRProgram_cnot_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (coefficientAddSIntoRProgram n counterWidth).eventCost =
       2 * (n + 1) := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddSIntoRGates n counterWidth)).eventCost = 2 * (n + 1)
   rw [EncodedBit.GateSpec.programList_cnot_count_eq_sum,
     coefficientAddSIntoRGates_cnotMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact Toffoli count. -/
 theorem coefficientAddSIntoRProgram_toffoli_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (coefficientAddSIntoRProgram n counterWidth).eventCost = 6 * n := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coefficientAddSIntoRGates n counterWidth)).eventCost = 6 * n
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
     coefficientAddSIntoRGates_toffoliMultiplicity_sum]
@@ -8818,27 +8864,35 @@ def sourceSubUFromVStep (n counterWidth : Nat) :
 
 /-- Circuit for the compact source subtraction `u := u - v`. -/
 def sourceSubVFromUProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (sourceSubVFromUGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (sourceSubVFromUGates n counterWidth)
 
 /-- Circuit for the compact source subtraction `v := v - u`. -/
 def sourceSubUFromVProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (sourceSubUFromVGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (sourceSubUFromVGates n counterWidth)
 
 /-- The compact `u := u - v` program realizes the reverse physical schedule. -/
 theorem sourceSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (sourceSubVFromUProgram n counterWidth)
       (sourceSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (sourceSubVFromUGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (sourceSubVFromUGates n counterWidth)
 
 /-- The compact `v := v - u` program realizes the reverse physical schedule. -/
 theorem sourceSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (sourceSubUFromVProgram n counterWidth)
       (sourceSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (sourceSubUFromVGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (sourceSubUFromVGates n counterWidth)
 
 /-- Exact X coordinate of either compact source-add schedule. -/
 private theorem sourceAddGates_xMultiplicity_sum
@@ -8953,60 +9007,72 @@ theorem sourceSubUFromVGates_length (n counterWidth : Nat) :
 
 /-- The compiled `u := u - v` circuit retains the exact X count. -/
 theorem sourceSubVFromUProgram_x_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (sourceSubVFromUProgram n counterWidth).eventCost = 0 := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubVFromUGates n counterWidth)).eventCost = 0
   rw [EncodedBit.GateSpec.programList_x_count_eq_sum,
     sourceSubVFromUGates_xMultiplicity_sum]
 
 /-- The compiled `u := u - v` circuit retains the exact CNOT count. -/
 theorem sourceSubVFromUProgram_cnot_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (sourceSubVFromUProgram n counterWidth).eventCost = 2 * n := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubVFromUGates n counterWidth)).eventCost = 2 * n
   rw [EncodedBit.GateSpec.programList_cnot_count_eq_sum,
     sourceSubVFromUGates_cnotMultiplicity_sum]
 
 /-- The compiled `u := u - v` circuit retains the exact Toffoli count. -/
 theorem sourceSubVFromUProgram_toffoli_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (sourceSubVFromUProgram n counterWidth).eventCost = 6 * (n - 1) := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubVFromUGates n counterWidth)).eventCost = 6 * (n - 1)
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
     sourceSubVFromUGates_toffoliMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact X count. -/
 theorem sourceSubUFromVProgram_x_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (sourceSubUFromVProgram n counterWidth).eventCost = 0 := by
-  change ResourcePool.count (.gate (.builtin "x"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubUFromVGates n counterWidth)).eventCost = 0
   rw [EncodedBit.GateSpec.programList_x_count_eq_sum,
     sourceSubUFromVGates_xMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact CNOT count. -/
 theorem sourceSubUFromVProgram_cnot_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (sourceSubUFromVProgram n counterWidth).eventCost = 2 * n := by
-  change ResourcePool.count (.gate (.builtin "cnot"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubUFromVGates n counterWidth)).eventCost = 2 * n
   rw [EncodedBit.GateSpec.programList_cnot_count_eq_sum,
     sourceSubUFromVGates_cnotMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact Toffoli count. -/
 theorem sourceSubUFromVProgram_toffoli_count (n counterWidth : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (sourceSubUFromVProgram n counterWidth).eventCost = 6 * (n - 1) := by
-  change ResourcePool.count (.gate (.builtin "toffoli"))
-      (EncodedBit.GateSpec.programList
+  change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (sourceSubUFromVGates n counterWidth)).eventCost = 6 * (n - 1)
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
     sourceSubUFromVGates_toffoliMultiplicity_sum]
@@ -10393,14 +10459,18 @@ def compareFalseControlledSubUFromVStep (n counterWidth : Nat) :
 
 /-- Circuit for compare-controlled `u := u - v` source subtraction. -/
 def compareControlledSubVFromUProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareControlledSubVFromUGates n counterWidth)
 
 /-- Circuit for compare-false-controlled `v := v - u` source subtraction. -/
 def compareFalseControlledSubUFromVProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareFalseControlledSubUFromVGates n counterWidth)
 
 /-- The compare-controlled `u := u - v` circuit realizes its folded step. -/
@@ -10408,7 +10478,7 @@ theorem compareControlledSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (compareControlledSubVFromUProgram n counterWidth)
       (compareControlledSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compareControlledSubVFromUGates n counterWidth)
 
 /-- The compare-false-controlled `v := v - u` circuit realizes its folded
@@ -10417,7 +10487,7 @@ theorem compareFalseControlledSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (compareFalseControlledSubUFromVProgram n counterWidth)
       (compareFalseControlledSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compareFalseControlledSubUFromVGates n counterWidth)
 
 /-- A false compare bit disables the `u := u - v` source wrapper. -/
@@ -10587,8 +10657,10 @@ def compareSelectedSourceSubtractGates (n counterWidth : Nat) :
 
 /-- Circuit for compare-selected compact source subtraction. -/
 def compareSelectedSourceSubtractProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareSelectedSourceSubtractGates n counterWidth)
 
 /-- Folded compare-selected compact source subtraction. -/
@@ -10615,6 +10687,7 @@ theorem compareSelectedSourceSubtract_realizes (n counterWidth : Nat) :
       (compareSelectedSourceSubtractProgram n counterWidth)
       (compareSelectedSourceSubtractStep n counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (compareSelectedSourceSubtractGates n counterWidth)
     (compareSelectedSourceSubtractStep_eq_gateList n counterWidth)
 
@@ -10976,27 +11049,31 @@ def compareFalseControlledAddRIntoSStep (n counterWidth : Nat) :
     (compareFalseControlledAddRIntoSGates n counterWidth)
 
 def compareControlledAddSIntoRProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareControlledAddSIntoRGates n counterWidth)
 
 def compareFalseControlledAddRIntoSProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareFalseControlledAddRIntoSGates n counterWidth)
 
 theorem compareControlledAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (compareControlledAddSIntoRProgram n counterWidth)
       (compareControlledAddSIntoRStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compareControlledAddSIntoRGates n counterWidth)
 
 theorem compareFalseControlledAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (compareFalseControlledAddRIntoSProgram n counterWidth)
       (compareFalseControlledAddRIntoSStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compareFalseControlledAddRIntoSGates n counterWidth)
 
 theorem compareControlledAddSIntoRStep_eq_self_of_compare_false
@@ -11153,8 +11230,10 @@ def compareSelectedCoefficientAddGates (n counterWidth : Nat) :
     compareFalseControlledAddRIntoSGates n counterWidth
 
 def compareSelectedCoefficientAddProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareSelectedCoefficientAddGates n counterWidth)
 
 def compareSelectedCoefficientAddStep (n counterWidth : Nat) :
@@ -11176,6 +11255,7 @@ theorem compareSelectedCoefficientAdd_realizes (n counterWidth : Nat) :
       (compareSelectedCoefficientAddProgram n counterWidth)
       (compareSelectedCoefficientAddStep n counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (compareSelectedCoefficientAddGates n counterWidth)
     (compareSelectedCoefficientAddStep_eq_gateList n counterWidth)
 
@@ -11280,8 +11360,10 @@ def compareSelectedOddDataPathGates (n counterWidth : Nat) :
     compareSelectedCoefficientAddGates n counterWidth
 
 def compareSelectedOddDataPathProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareSelectedOddDataPathGates n counterWidth)
 
 def compareSelectedOddDataPathStep (n counterWidth : Nat) :
@@ -11305,6 +11387,7 @@ theorem compareSelectedOddDataPath_realizes (n counterWidth : Nat) :
       (compareSelectedOddDataPathProgram n counterWidth)
       (compareSelectedOddDataPathStep n counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (compareSelectedOddDataPathGates n counterWidth)
     (compareSelectedOddDataPathStep_eq_gateList n counterWidth)
 
@@ -12550,15 +12633,17 @@ def activeOddSelectedDataPathStep (n counterWidth : Nat) :
     (activeOddSelectedDataPathGates n counterWidth)
 
 def activeOddSelectedDataPathProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeOddSelectedDataPathGates n counterWidth)
 
 theorem activeOddSelectedDataPath_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (activeOddSelectedDataPathProgram n counterWidth)
       (activeOddSelectedDataPathStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeOddSelectedDataPathGates n counterWidth)
 
 theorem activeOddSelectedDataPathStep_eq_stages

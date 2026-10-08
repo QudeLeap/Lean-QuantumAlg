@@ -9,13 +9,14 @@ module
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Resources
 import all QuantumAlg.Core.Execution.Measurement.Cells.Framing.Resources
+import all QuantumAlg.Core.Execution.Circuit.Weighted
 
 /-!
 # Charged initialization and actual placed point-addition resources
 
-The actual initialization contributes both fixed quantum preparations, while
-the retained cells contribute their real live storage. The placed body keeps
-the accepted ordered events, evaluated depth and complete resident footprint.
+The actual initialization charges every zero preparation and fixed X load;
+retained cells contribute their live storage. The placed body keeps the
+accepted ordered events, depth and complete resident footprint.
 -/
 
 namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddition.Allocation
@@ -24,31 +25,19 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-/-- Both concrete basis preparations are present in the literal initialization trace. -/
+/-- The literal initialization trace contains every zero preparation and fixed X load. -/
 theorem initialize_eventTrace (modulus : Nat) (path : (initializeWork modulus).Path) :
-    (initializeWork modulus).eventTrace path =
-      [(InPlacePreparation.preparation modulus).event,
-        (BasisPreparation.zero (selectorLayout modulus.size)).event] := by
-  change [(InPlacePreparation.preparation modulus).event] ++
-    ((allocateCells modulus.size).eventTrace path.2.1 ++
-      [(BasisPreparation.zero (selectorLayout modulus.size)).event]) = _
-  have noEvents : (allocateCells modulus.size).eventTrace path.2.1 = [] :=
-    MeasurementCells.allocateFramed_eventTrace _ _ _ _ _ _
-  rw [noEvents]
-  rfl
+    (initializeWork modulus).eventTrace path = initializationTrace modulus :=
+  initializeWork_eventTrace modulus path
 
-/-- The two actual preparations retain their sequential duration dependency. -/
-theorem initialize_depth (modulus : Nat) (duration : Resource.Event .quantum → Nat)
+/-- The real preparation and load dependencies fit their exact event allowance. -/
+theorem initialize_depth (modulus : Nat)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (initializeWork modulus).Path) :
-    (initializeWork modulus).depth duration path =
-      duration (InPlacePreparation.preparation modulus).event +
-        duration (BasisPreparation.zero (selectorLayout modulus.size)).event := by
-  change duration (InPlacePreparation.preparation modulus).event +
-    ((allocateCells modulus.size).depth duration path.2.1 +
-      duration (BasisPreparation.zero (selectorLayout modulus.size)).event) = _
-  have noDepth : (allocateCells modulus.size).depth duration path.2.1 = 0 :=
-    MeasurementCells.allocateFramed_depth _ _ _ _ _ _ _
-  rw [noDepth, Nat.zero_add]
+    (initializeWork modulus).depth duration path ≤
+      ResourcePool.weightedCount duration (ResourcePool.ofList (initializationTrace modulus)) := by
+  exact (Circuit.depth_le_weightedCount_of_pool_le _ duration _ path
+    (initializeWork_resourcePool modulus path).le)
 
 /-- Every path of the placed body corresponds to an original actual body path. -/
 def placedPathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -90,38 +79,37 @@ theorem placedBody_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact 
     (placedBody E Q).peakAuxiliarySpace path = space p.size :=
   (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans (context_auxiliary p.size)
 
-/-- Full execution includes initialization before the unchanged actual body trace. -/
+/-- Full execution includes every initialization event before the unchanged body trace. -/
 theorem circuit_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
     (circuit E Q).eventTrace path =
-      [(InPlacePreparation.preparation p).event,
-        (BasisPreparation.zero (selectorLayout p.size)).event] ++
-          (placedBody E Q).eventTrace path.2 := by
+      initializationTrace p ++ (placedBody E Q).eventTrace path.2 := by
   change (initializeWork p).eventTrace path.1 ++ (placedBody E Q).eventTrace path.2 = _
   rw [initialize_eventTrace]
 
-/-- Independent native allowance includes both fixed preparations and the original body budget. -/
-def eventBudget (modulus : Nat) : ResourcePool .quantum :=
-  ResourcePool.ofList [(InPlacePreparation.preparation modulus).event,
-    (BasisPreparation.zero (selectorLayout modulus.size)).event] + events modulus.size
+/-- The input-determined preparation allowance and native body allowance. -/
+def eventBudget (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.ofList (initializationTrace modulus) + events modulus.size
 
 /-- Every actual complete path charges preparation before the bounded native measured body. -/
 theorem circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
     (circuit E Q).resourcePool path ≤ eventBudget p := by
-  have recorded := congrArg (ResourcePool.ofList (kind := .quantum))
+  have recorded := congrArg (ResourcePool.ofList (model := .quantum AlgorithmGate.model .empty))
     (circuit_eventTrace E Q path)
   exact recorded.le.trans ((ResourcePool.ofList_append _ _).le.trans
     (ResourcePool.add_mono le_rfl (placedBody_budget E Q path.2)))
 
-/-- Two actual preparation steps precede the independently bounded measured execution depth. -/
+/-- Every preparation and X load precedes the independently bounded measured body. -/
 theorem circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
-    (circuit E Q).depth (fun _ => 1) path ≤ 2 + depthBound p.size := by
+    (circuit E Q).depth (fun _ => 1) path ≤
+      ResourcePool.weightedCount (fun _ => 1)
+        (ResourcePool.ofList (initializationTrace p)) + depthBound p.size := by
   change (initializeWork p).depth (fun _ => 1) path.1 +
     (placedBody E Q).depth (fun _ => 1) path.2 ≤ _
-  rw [initialize_depth]
-  exact Nat.add_le_add_left (placedBody_depth E Q path.2) 2
+  exact Nat.add_le_add (initialize_depth p (fun _ => 1) path.1)
+    (placedBody_depth E Q path.2)
 
 end
 

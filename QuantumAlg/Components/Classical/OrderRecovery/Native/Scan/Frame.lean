@@ -25,25 +25,30 @@ open Execution ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth candidateWidth : Nat}
+variable {modulusWidth candidateWidth : Nat}
 
 /-- The actual persistent destinations written by either real scan branch. -/
-def ScanCells.writeKeys (cells : ScanCells ctx modulusWidth candidateWidth) : List StorageKey :=
+def ScanCells.writeKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    (cells : ScanCells ctx modulusWidth candidateWidth) : List StorageKey :=
   [cells.cursor.older.key, cells.cursor.previous.key, cells.cursor.numerator.key,
     cells.cursor.denominator.key, cells.cursor.candidate.key, cells.cursor.active.key,
     cells.selected.key, cells.accepted.key, cells.power.key, cells.positive.key, cells.valid.key]
 
 /-- Lifting the real scan destinations through a workspace preserves their exact keys. -/
-theorem nativeScan_writeKeys_underWorkspace (cells : ScanCells ctx modulusWidth candidateWidth)
+theorem nativeScan_writeKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    (cells : ScanCells ctx modulusWidth candidateWidth)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (cells.underWorkspace key shape fresh).writeKeys = cells.writeKeys := by
   rfl
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 private theorem selection_read_other (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth)) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    (selectionChoiceStep cells remainder value store).1.read other = store.read other := by
+    (selectionChoiceStep (model := model) cells remainder value store).1.read other =
+      store.read other := by
   cases value with
   | bit value =>
       cases value
@@ -66,7 +71,8 @@ theorem nativeScan_visit_read_other (spec : ModulusSpec modulusWidth)
     {shape : CShape} (other : CInputRef ctx shape)
     (divisionFree : division.key ∉ other.storageKeys)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    (visitWithDivisionStep spec base cells division store).1.read other = store.read other := by
+    (visitWithDivisionStep (model := model) spec base cells division store).1.read other =
+      store.read other := by
   unfold visitWithDivisionStep
   rw [selection_read_other cells _ _ other separate]
   rw [nativeValidation_read_other spec base (cellRead cells.cursor.candidate) cells.zero cells.one
@@ -80,7 +86,8 @@ theorem nativeScan_visit_read_other (spec : ModulusSpec modulusWidth)
     (separate _ (by simp [ScanCells.writeKeys])) store
 
 /-- The genuine fresh division pair is separate from every original structural read. -/
-theorem nativeScan_division_input_separate {shape : CShape}
+theorem nativeScan_division_input_separate {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    {shape : CShape}
     (other : CInputRef ctx shape) :
     (scanDivisionCell ctx candidateWidth).key ∉
       (other.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
@@ -94,7 +101,8 @@ theorem nativeScan_activeVisit_read_other (spec : ModulusSpec modulusWidth)
     (cells : ScanCells ctx modulusWidth candidateWidth) {shape : CShape}
     (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    (activeVisitStep spec base cells store).1.read other = store.read other := by
+    (activeVisitStep (model := model) spec base cells store).1.read other =
+      store.read other := by
   have liftedSeparate : ∀ key ∈
       (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape candidateWidth)
         ctx.canonicalFreshKey_fresh).writeKeys,
@@ -113,7 +121,8 @@ private theorem activity_read_other (spec : ModulusSpec modulusWidth)
     (cells : ScanCells ctx modulusWidth candidateWidth) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    (activityChoiceStep spec base cells value store).1.read other = store.read other := by
+    (activityChoiceStep (model := model) spec base cells value store).1.read other =
+      store.read other := by
   cases value with
   | bit value =>
       cases value
@@ -126,7 +135,7 @@ theorem nativeScan_slot_read_other (spec : ModulusSpec modulusWidth)
     (cells : ScanCells ctx modulusWidth candidateWidth) {shape : CShape}
     (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    (scanSlotStep spec base cells store).1.read other = store.read other :=
+    (scanSlotStep (model := model) spec base cells store).1.read other = store.read other :=
   activity_read_other spec base cells (store.read (cellRead cells.cursor.active))
     other separate store
 
@@ -136,7 +145,8 @@ theorem nativeScan_iterate_read_other (spec : ModulusSpec modulusWidth)
     (cells : ScanCells ctx modulusWidth candidateWidth) (fuel : Nat) {shape : CShape}
     (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
-    ((fun initial => (scanSlotStep spec base cells initial).1)^[fuel] store).read other =
+    ((fun initial => (scanSlotStep (model := model) spec base cells initial).1)^[fuel]
+      store).read other =
       store.read other := by
   induction fuel generalizing store with
   | zero => rfl

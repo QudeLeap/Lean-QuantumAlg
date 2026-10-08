@@ -21,34 +21,54 @@ namespace QuantumAlg.ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native
 
 open Execution Modular.NativePower NormalizedRecovery.Native
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Exact chronological events selected by the original stored inverse-status bit. -/
-def selectedRecoveryEvents (kind : ProblemKind) (width : Nat) (selected : Bool) :
-    List (Resource.Event kind) :=
-  (if selected then recoveryEvents kind width else []) ++
-    [.classicalOperation (.nominalEncoding (.packOption (width + 1)))]
+def selectedRecoveryEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat)
+    (selected : Bool) :
+    List (Resource.Event model) :=
+  (if selected then recoveryEvents model width else []) ++
+    [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
+        (.packOption (width + 1))))]
 
 /-- The actual path performs recovery only on success, followed by the common optional pack. -/
 theorem withSelectedRecovery_eventTrace
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).eventTrace path =
-      selectedRecoveryEvents kind width path.1.1.toBool := by
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).eventTrace path =
+      selectedRecoveryEvents model width path.1.1.toBool := by
   rcases path with ⟨⟨value, chosen⟩, packed⟩
   cases value with
-  | bit value => cases value <;> rfl
+  | bit value =>
+      cases value
+      · change [] ++ (BitWord.instruction (execution := model)
+          (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
+            (writeUnderSelection output width))).eventTrace packed = _
+        rw [BitWord.bitWord_instruction_eventTrace]
+        rfl
+      · change (withRecovery (model := model) (underSelection input width)
+          (underSelection modulus width) (selectionPayloadCell ctx width)).Path at chosen
+        change (withRecovery (model := model) (underSelection input width)
+          (underSelection modulus width) (selectionPayloadCell ctx width)).eventTrace chosen ++
+          (BitWord.instruction (execution := model)
+            (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
+              (writeUnderSelection output width))).eventTrace packed = _
+        rw [withRecovery_eventTrace, BitWord.bitWord_instruction_eventTrace]
+        rfl
 
 /-- The native resource pool follows that same actual selected event trace. -/
 theorem withSelectedRecovery_resourcePool
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).resourcePool path =
-      ResourcePool.ofList (selectedRecoveryEvents kind width path.1.1.toBool) := by
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).resourcePool path =
+      ResourcePool.ofList (selectedRecoveryEvents model width path.1.1.toBool) := by
   exact congrArg ResourcePool.ofList (withSelectedRecovery_eventTrace input modulus success output
     path)
 
@@ -57,43 +77,51 @@ theorem withSelectedRecovery_eventCount
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    ((withSelectedRecovery input modulus success output).eventTrace path).length =
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    ((withSelectedRecovery (model := model) input modulus success output).eventTrace path).length =
       if path.1.1.toBool then 9 else 1 := by
-  rcases path with ⟨⟨value, chosen⟩, packed⟩
-  cases value with
-  | bit value => cases value <;> rfl
+  rw [withSelectedRecovery_eventTrace]
+  cases path.1.1.toBool <;> rfl
 
 /-- Arbitrary durations charge the original selected arithmetic and common final materialization. -/
 theorem withSelectedRecovery_durationDepth
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
-    (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).depth duration path =
+    (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).depth duration path =
       (if path.1.1.toBool then 2 * multiplyDepth width duration +
-        duration (.classicalOperation (.wordBinary .equal width)) +
-          duration (.classicalOperation (.nominalEncoding (.packProduct width 1))) else 0) +
-            duration (.classicalOperation (.nominalEncoding (.packOption (width + 1)))) := by
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.wordBinary .equal width))) +
+          duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+              (.nominalEncoding (.packProduct width 1)))) else 0) +
+            duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+                (.nominalEncoding (.packOption (width + 1))))) := by
   rcases path with ⟨⟨value, chosen⟩, packed⟩
   cases value with
   | bit value =>
       cases value
-      · rfl
-      · change (withRecovery (underSelection input width) (underSelection modulus width)
-          (selectionPayloadCell ctx width)).depth duration chosen + _ = _
-        exact congrArg
-          (fun elapsed => elapsed +
-            duration (.classicalOperation (.nominalEncoding (.packOption (width + 1)))))
-          (withRecovery_durationDepth (underSelection input width) (underSelection modulus width)
-            (selectionPayloadCell ctx width) duration chosen)
+      · change 0 + (BitWord.instruction (execution := model)
+          (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
+            (writeUnderSelection output width))).depth duration packed = _
+        rw [BitWord.bitWord_instruction_depth]
+        rfl
+      · change (withRecovery (model := model) (underSelection input width)
+          (underSelection modulus width) (selectionPayloadCell ctx width)).Path at chosen
+        change (withRecovery (model := model) (underSelection input width)
+          (underSelection modulus width) (selectionPayloadCell ctx width)).depth duration chosen +
+          (BitWord.instruction (execution := model)
+            (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
+              (writeUnderSelection output width))).depth duration packed = _
+        rw [withRecovery_durationDepth, BitWord.bitWord_instruction_depth]
+        rfl
 
 /-- Unit-duration dependency depth equals the actual selected event count. -/
 theorem withSelectedRecovery_depth (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).depth (fun _ => 1) path =
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).depth (fun _ => 1) path =
       if path.1.1.toBool then 9 else 1 := by
   rcases path with ⟨⟨value, chosen⟩, packed⟩
   cases value with
@@ -109,8 +137,8 @@ private theorem selectedRecoveryPlaced_resident
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (selectedRecoveryPlaced input modulus success output).Path) :
-    (selectedRecoveryPlaced input modulus success output).peakResidentSpace path =
+    (path : (selectedRecoveryPlaced (model := model) input modulus success output).Path) :
+    (selectedRecoveryPlaced (model := model) input modulus success output).peakResidentSpace path =
       (if path.1.1.toBool then recoveryScratchSpace width else 0) +
         (selectionCtx ctx width).residentSpace := by
   rcases path with ⟨⟨value, chosen⟩, packed⟩
@@ -123,24 +151,30 @@ private theorem selectedRecoveryPlaced_resident
         simp only [SpacePool.max_zero, SpacePool.max_self, zero_add]
       · have combined := Circuit.peakResidentSpace_seq
           (.branch (underSelection success width)
-            (selectedRecoveryChoice (underSelection input width) (underSelection modulus width)
+            (selectedRecoveryChoice (model := model) (underSelection input width)
+                (underSelection modulus width)
               (selectionPayloadCell ctx width)))
-          (.classical (selectedRecoveryPackOp (underSelection success width)
+          (BitWord.instruction (execution := model) (selectedRecoveryPackOp (underSelection
+              success width)
             (selectionPayloadCell ctx width) (writeUnderSelection output width)))
           (⟨.bit true, chosen⟩, packed)
         refine combined.trans ?_
         change SpacePool.max
-          ((withRecovery (underSelection input width) (underSelection modulus width)
+          ((withRecovery (model := model) (underSelection input width) (underSelection modulus
+              width)
             (selectionPayloadCell ctx width)).peakResidentSpace chosen)
-          ((Circuit.classical (selectedRecoveryPackOp (underSelection success width)
+          ((BitWord.instruction (execution := model) (selectedRecoveryPackOp (underSelection
+              success width)
             (selectionPayloadCell ctx width) (writeUnderSelection output width))).peakResidentSpace
               packed) = _
         refine (congrArg₂ SpacePool.max
           (withRecovery_resident (underSelection input width) (underSelection modulus width)
             (selectionPayloadCell ctx width) chosen)
           (Circuit.peakResidentSpace_classical
-            (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
-              (writeUnderSelection output width)) packed)).trans ?_
+            (BitWord.selectedApplication (execution := model)
+              (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx
+                  width)
+                (writeUnderSelection output width))) packed)).trans ?_
         exact SpacePool.max_eq_left le_add_self
 
 /-- Exact resident peak includes original roles, payload and selected recovery scratch. -/
@@ -148,12 +182,12 @@ theorem withSelectedRecovery_resident
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).peakResidentSpace path =
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).peakResidentSpace path =
       selectedRecoveryScratchSpace width path.1.1.toBool + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_workspace ctx.canonicalFreshKey
     (FiniteCyclicDLP.OutputShape width) ctx.canonicalFreshKey_fresh
-    (selectedRecoveryPlaced input modulus success output) path).trans
+    (selectedRecoveryPlaced (model := model) input modulus success output) path).trans
       ((congrArg (SpacePool.max ctx.residentSpace)
         (selectedRecoveryPlaced_resident input modulus success output path)).trans ?_)
   have bounded : ctx.residentSpace ≤
@@ -172,8 +206,8 @@ private theorem selectedRecoveryPlaced_auxiliary
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (selectedRecoveryPlaced input modulus success output).Path) :
-    (selectedRecoveryPlaced input modulus success output).peakAuxiliarySpace path =
+    (path : (selectedRecoveryPlaced (model := model) input modulus success output).Path) :
+    (selectedRecoveryPlaced (model := model) input modulus success output).peakAuxiliarySpace path =
       (if path.1.1.toBool then recoveryScratchSpace width else 0) +
         (selectionCtx ctx width).auxiliarySpace := by
   rcases path with ⟨⟨value, chosen⟩, packed⟩
@@ -186,24 +220,30 @@ private theorem selectedRecoveryPlaced_auxiliary
         simp only [SpacePool.max_zero, SpacePool.max_self, zero_add]
       · have combined := Circuit.peakAuxiliarySpace_seq
           (.branch (underSelection success width)
-            (selectedRecoveryChoice (underSelection input width) (underSelection modulus width)
+            (selectedRecoveryChoice (model := model) (underSelection input width)
+                (underSelection modulus width)
               (selectionPayloadCell ctx width)))
-          (.classical (selectedRecoveryPackOp (underSelection success width)
+          (BitWord.instruction (execution := model) (selectedRecoveryPackOp (underSelection
+              success width)
             (selectionPayloadCell ctx width) (writeUnderSelection output width)))
           (⟨.bit true, chosen⟩, packed)
         refine combined.trans ?_
         change SpacePool.max
-          ((withRecovery (underSelection input width) (underSelection modulus width)
+          ((withRecovery (model := model) (underSelection input width) (underSelection modulus
+              width)
             (selectionPayloadCell ctx width)).peakAuxiliarySpace chosen)
-          ((Circuit.classical (selectedRecoveryPackOp (underSelection success width)
+          ((BitWord.instruction (execution := model) (selectedRecoveryPackOp (underSelection
+              success width)
             (selectionPayloadCell ctx width) (writeUnderSelection output width))).peakAuxiliarySpace
               packed) = _
         refine (congrArg₂ SpacePool.max
           (withRecovery_auxiliary (underSelection input width) (underSelection modulus width)
             (selectionPayloadCell ctx width) chosen)
           (Circuit.peakAuxiliarySpace_classical
-            (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx width)
-              (writeUnderSelection output width)) packed)).trans ?_
+            (BitWord.selectedApplication (execution := model)
+              (selectedRecoveryPackOp (underSelection success width) (selectionPayloadCell ctx
+                  width)
+                (writeUnderSelection output width))) packed)).trans ?_
         exact SpacePool.max_eq_left le_add_self
 
 /-- Exact auxiliary peak includes original roles, payload and selected recovery scratch. -/
@@ -211,12 +251,12 @@ theorem withSelectedRecovery_auxiliary
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).peakAuxiliarySpace path =
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).peakAuxiliarySpace path =
       selectedRecoveryScratchSpace width path.1.1.toBool + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_workspace ctx.canonicalFreshKey
     (FiniteCyclicDLP.OutputShape width) ctx.canonicalFreshKey_fresh
-    (selectedRecoveryPlaced input modulus success output) path).trans
+    (selectedRecoveryPlaced (model := model) input modulus success output) path).trans
       ((congrArg (SpacePool.max ctx.auxiliarySpace)
         (selectedRecoveryPlaced_auxiliary input modulus success output path)).trans ?_)
   have bounded : ctx.auxiliarySpace ≤
@@ -230,5 +270,7 @@ theorem withSelectedRecovery_auxiliary
   rw [SpacePool.max_eq_right bounded]
   simp only [selectionCtx, RuntimeCtx.auxiliarySpace_addWorkspace,
     selectedRecoveryScratchSpace, add_assoc]
+
+end
 
 end QuantumAlg.ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native

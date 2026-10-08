@@ -22,29 +22,67 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
+
+/-- The selected coordinate of a pivot-materialization operation. -/
+def pivotMaterializeEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
 
 /-- Exact row-mask instruction list, including the used-row OR and pivot-row vector write. -/
-def pivotRowTrace (kind : ProblemKind) (rowCount width : Nat) (pivot : Fin rowCount) :
-    List (Resource.Event kind) :=
-  Word.PowerOfTwo.powerTrace rowCount (rowCount - 1 - pivot.val) ++
-    [.classicalOperation (.wordBinary .bitOr rowCount),
-      .classicalOperation (.vector .write width rowCount)]
+def pivotRowTrace (rowCount width : Nat) (pivot : Fin rowCount) :
+    List (Resource.Event model) :=
+  Word.PowerOfTwo.powerTrace (model := model) rowCount (rowCount - 1 - pivot.val) ++
+    [pivotMaterializeEvent (model := model) (.wordBinary .bitOr rowCount),
+      pivotMaterializeEvent (model := model) (.vector .write width rowCount)]
 
 /-- Exact column-mask instruction list, including its pivot-column OR. -/
-def pivotColumnTrace (kind : ProblemKind) (width : Nat) (column : Fin width) :
-    List (Resource.Event kind) :=
-  Word.PowerOfTwo.powerTrace width (width - 1 - column.val) ++
-    [.classicalOperation (.wordBinary .bitOr width)]
+def pivotColumnTrace (width : Nat) (column : Fin width) :
+    List (Resource.Event model) :=
+  Word.PowerOfTwo.powerTrace (model := model) width (width - 1 - column.val) ++
+    [pivotMaterializeEvent (model := model) (.wordBinary .bitOr width)]
 
 private theorem power_duration (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
-    (duration : Resource.Event kind → Nat) (path : (Word.PowerOfTwo.into count output).Path) :
-    (Word.PowerOfTwo.into count output).depth duration path =
-      ((Word.PowerOfTwo.powerTrace width count).map duration).sum := by
-  change (duration (.classicalOperation (.wordBinary .bitXor width)) +
-    duration (.classicalOperation (.wordUnary .increment width))) +
-      (0 + ∑ _index : Fin count, duration (.classicalOperation (.wordUnary .shiftLeft width))) = _
-  simp [Word.PowerOfTwo.powerTrace, Word.PowerOfTwo.shiftTrace, Nat.add_assoc]
+    (duration : Resource.Event model → Nat)
+    (path : (Word.PowerOfTwo.into (model := model) count output).Path) :
+    (Word.PowerOfTwo.into (model := model) count output).depth duration path =
+      ((Word.PowerOfTwo.powerTrace (model := model) width count).map duration).sum := by
+  change (Circuit.seq
+    (Circuit.seq
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp output))
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.incrementOp output)))
+    (Word.PowerOfTwo.shiftInto (model := model) count output)).Path at path
+  change
+    ((BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp output)).depth
+        duration path.1.1 +
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.incrementOp output)).depth
+        duration path.1.2) +
+      (Word.PowerOfTwo.shiftInto (model := model) count output).depth duration path.2 = _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  simp only [Word.PowerOfTwo.clearOp, Word.PowerOfTwo.incrementOp, ClassicalOp.label]
+  unfold Word.PowerOfTwo.shiftInto BitWord.repeatInstruction
+  have shiftDepth :
+      (Circuit.iterate count
+        (BitWord.instruction (execution := model)
+          (Word.PowerOfTwo.shiftOp output))).depth duration path.2 =
+        0 + ∑ _index : Fin count,
+          duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.wordUnary .shiftLeft width))) := by
+    change 0 + ∑ index : Fin count,
+      (BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.shiftOp output)).depth duration (path.2 index) = _
+    congr 1
+    apply Finset.sum_congr rfl
+    intro index _present
+    rw [BitWord.bitWord_instruction_depth]
+    rfl
+  rw [shiftDepth]
+  change (duration (pivotMaterializeEvent (model := model) (.wordBinary .bitXor width)) +
+    duration (pivotMaterializeEvent (model := model) (.wordUnary .increment width))) +
+      (0 + ∑ _index : Fin count,
+        duration (pivotMaterializeEvent (model := model) (.wordUnary .shiftLeft width))) = _
+  simp [pivotMaterializeEvent, Word.PowerOfTwo.powerTrace,
+    Word.PowerOfTwo.shiftTrace, Nat.add_assoc]
 
 /-- Actual row-mask paths emit exactly the original row-record instructions. -/
 theorem gf2PivotRowBody_events (used : CWriteRef ctx (.unsignedWord rowCount))
@@ -52,23 +90,46 @@ theorem gf2PivotRowBody_events (used : CWriteRef ctx (.unsignedWord rowCount))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
     (pivotRowBody used rows mask pivot column).eventTrace path =
-      pivotRowTrace kind rowCount width pivot :=
-  congrArg (fun events : List (Resource.Event kind) =>
-    events ++ [.classicalOperation (.wordBinary .bitOr rowCount),
-    .classicalOperation (.vector .write width rowCount)])
+      pivotRowTrace (model := model) rowCount width pivot := by
+  change (Circuit.seq
+    (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask)
+    (Circuit.seq (BitWord.instruction (execution := model) (pivotOrOp used mask))
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column)))).Path at path
+  change (Word.PowerOfTwo.into (model := model)
+      (rowCount - 1 - pivot.val) mask).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (pivotOrOp used mask)).eventTrace path.2.1 ++
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column)).eventTrace path.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  exact congrArg (fun events : List (Resource.Event model) =>
+    events ++ [pivotMaterializeEvent (model := model) (.wordBinary .bitOr rowCount),
+    pivotMaterializeEvent (model := model) (.vector .write width rowCount)])
     (Word.PowerOfTwo.into_events _ mask path.1)
 
 /-- Every duration is charged in the original row-materialization order. -/
 theorem gf2PivotRowBody_depth (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
-    (column : Fin width) (duration : Resource.Event kind → Nat)
+    (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (pivotRowBody used rows mask pivot column).Path) :
     (pivotRowBody used rows mask pivot column).depth duration path =
-      ((pivotRowTrace kind rowCount width pivot).map duration).sum := by
-  change (Word.PowerOfTwo.into (rowCount - 1 - pivot.val) mask).depth duration path.1 +
-    (duration (.classicalOperation (.wordBinary .bitOr rowCount)) +
-      duration (.classicalOperation (.vector .write width rowCount))) = _
+      ((pivotRowTrace (model := model) rowCount width pivot).map duration).sum := by
+  change (Circuit.seq
+    (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask)
+    (Circuit.seq (BitWord.instruction (execution := model) (pivotOrOp used mask))
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column)))).Path at path
+  change (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask).depth
+      duration path.1 +
+    ((BitWord.instruction (execution := model) (pivotOrOp used mask)).depth duration path.2.1 +
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column)).depth duration path.2.2) = _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  change (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask).depth
+      duration path.1 +
+    (duration (pivotMaterializeEvent (model := model) (.wordBinary .bitOr rowCount)) +
+      duration (pivotMaterializeEvent (model := model) (.vector .write width rowCount))) = _
   rw [power_duration]
   simp only [pivotRowTrace, List.map_append, List.sum_append, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, Nat.add_zero]
@@ -76,19 +137,37 @@ theorem gf2PivotRowBody_depth (used : CWriteRef ctx (.unsignedWord rowCount))
 /-- Actual column-mask paths emit exactly the original loader and column OR. -/
 theorem gf2PivotColumnBody_events (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
-    (pivotColumnBody output mask column).eventTrace path = pivotColumnTrace kind width column :=
-  congrArg (fun events : List (Resource.Event kind) =>
-    events ++ [.classicalOperation (.wordBinary .bitOr width)])
+    (pivotColumnBody output mask column).eventTrace path =
+      pivotColumnTrace (model := model) width column := by
+  change (Circuit.seq
+    (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask)
+    (BitWord.instruction (execution := model) (pivotOrOp output mask))).Path at path
+  change (Word.PowerOfTwo.into (model := model)
+      (width - 1 - column.val) mask).eventTrace path.1 ++
+    (BitWord.instruction (execution := model)
+      (pivotOrOp output mask)).eventTrace path.2 = _
+  rw [BitWord.bitWord_instruction_eventTrace]
+  exact congrArg (fun events : List (Resource.Event model) =>
+    events ++ [pivotMaterializeEvent (model := model) (.wordBinary .bitOr width)])
     (Word.PowerOfTwo.into_events _ mask path.1)
 
 /-- Column-materialization depth is the duration sum of those exact original instructions. -/
 theorem gf2PivotColumnBody_depth (output mask : CWriteRef ctx (.unsignedWord width))
-    (column : Fin width) (duration : Resource.Event kind → Nat)
+    (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).depth duration path =
-      ((pivotColumnTrace kind width column).map duration).sum := by
-  change (Word.PowerOfTwo.into (width - 1 - column.val) mask).depth duration path.1 +
-    duration (.classicalOperation (.wordBinary .bitOr width)) = _
+      ((pivotColumnTrace (model := model) width column).map duration).sum := by
+  change (Circuit.seq
+    (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask)
+    (BitWord.instruction (execution := model) (pivotOrOp output mask))).Path at path
+  change (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask).depth
+      duration path.1 +
+    (BitWord.instruction (execution := model) (pivotOrOp output mask)).depth
+      duration path.2 = _
+  rw [BitWord.bitWord_instruction_depth]
+  change (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask).depth
+      duration path.1 +
+    duration (pivotMaterializeEvent (model := model) (.wordBinary .bitOr width)) = _
   rw [power_duration]
   simp only [pivotColumnTrace, List.map_append, List.sum_append, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, Nat.add_zero]
@@ -99,31 +178,31 @@ theorem gf2MaterializePivotRow_events (used : CWriteRef ctx (.unsignedWord rowCo
     (pivot : Fin rowCount) (column : Fin width)
     (path : (materializePivotRow used rows pivot column).Path) :
     (materializePivotRow used rows pivot column).eventTrace path =
-      pivotRowTrace kind rowCount width pivot :=
+      pivotRowTrace (model := model) rowCount width pivot :=
   gf2PivotRowBody_events _ _ _ pivot column path
 
 /-- The complete row scope retains the exact original duration sum. -/
 theorem gf2MaterializePivotRow_depth (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event kind → Nat)
+    (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (materializePivotRow used rows pivot column).Path) :
     (materializePivotRow used rows pivot column).depth duration path =
-      ((pivotRowTrace kind rowCount width pivot).map duration).sum :=
+      ((pivotRowTrace (model := model) rowCount width pivot).map duration).sum :=
   gf2PivotRowBody_depth _ _ _ pivot column duration path
 
 /-- Column allocation and release preserve the exact original instruction sequence. -/
 theorem gf2MaterializePivotColumn_events (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).eventTrace path =
-      pivotColumnTrace kind width column :=
+      pivotColumnTrace (model := model) width column :=
   gf2PivotColumnBody_events _ _ column path
 
 /-- The complete column scope retains the exact original duration sum. -/
 theorem gf2MaterializePivotColumn_depth (output : CWriteRef ctx (.unsignedWord width))
-    (column : Fin width) (duration : Resource.Event kind → Nat)
+    (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).depth duration path =
-      ((pivotColumnTrace kind width column).map duration).sum :=
+      ((pivotColumnTrace (model := model) width column).map duration).sum :=
   gf2PivotColumnBody_depth _ _ column duration path
 
 private theorem pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCount))
@@ -132,9 +211,11 @@ private theorem pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCo
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
     (pivotRowBody used rows mask pivot column).peakResidentSpace path ≤ ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
-    (Word.PowerOfTwo.into (rowCount - 1 - pivot.val) mask)
-    (.seq (.classical (pivotOrOp used mask))
-      (.classical (pivotRowWriteOp rows mask column))) path).le.trans ?_
+    (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask)
+    (.seq (BitWord.instruction (execution := model) (pivotOrOp used mask))
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_seq, Circuit.peakResidentSpace_classical,
     Circuit.peakResidentSpace_classical]
   exact SpacePool.max_le (Word.PowerOfTwo.into_resident_le _ mask path.1)
@@ -143,8 +224,10 @@ private theorem pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCo
 private theorem pivotColumnBody_resident (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).peakResidentSpace path ≤ ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (Word.PowerOfTwo.into (width - 1 - column.val) mask)
-    (.classical (pivotOrOp output mask)) path).le.trans ?_
+  refine (Circuit.peakResidentSpace_seq
+    (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask)
+    (BitWord.instruction (execution := model) (pivotOrOp output mask)) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical]
   exact SpacePool.max_le (Word.PowerOfTwo.into_resident_le _ mask path.1) le_rfl
 
@@ -176,9 +259,11 @@ private theorem pivotRowBody_auxiliary (used : CWriteRef ctx (.unsignedWord rowC
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
     (pivotRowBody used rows mask pivot column).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
-    (Word.PowerOfTwo.into (rowCount - 1 - pivot.val) mask)
-    (.seq (.classical (pivotOrOp used mask))
-      (.classical (pivotRowWriteOp rows mask column))) path).le.trans ?_
+    (Word.PowerOfTwo.into (model := model) (rowCount - 1 - pivot.val) mask)
+    (.seq (BitWord.instruction (execution := model) (pivotOrOp used mask))
+      (BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows mask column))) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_seq, Circuit.peakAuxiliarySpace_classical,
     Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_le (Word.PowerOfTwo.into_auxiliary_le _ mask path.1)
@@ -187,8 +272,10 @@ private theorem pivotRowBody_auxiliary (used : CWriteRef ctx (.unsignedWord rowC
 private theorem pivotColumnBody_auxiliary (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (Word.PowerOfTwo.into (width - 1 - column.val) mask)
-    (.classical (pivotOrOp output mask)) path).le.trans ?_
+  refine (Circuit.peakAuxiliarySpace_seq
+    (Word.PowerOfTwo.into (model := model) (width - 1 - column.val) mask)
+    (BitWord.instruction (execution := model) (pivotOrOp output mask)) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_le (Word.PowerOfTwo.into_auxiliary_le _ mask path.1) le_rfl
 

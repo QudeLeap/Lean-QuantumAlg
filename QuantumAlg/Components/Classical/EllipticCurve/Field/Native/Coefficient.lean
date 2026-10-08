@@ -49,11 +49,14 @@ def coefficientScratch (cells : Cells ctx (coefficientShapes width)) :
   modulus := cells.tail.tail.tail.head.ref
   outputs := ⟨cells.tail.tail.head.ref, cells.tail.head.ref, cells.head.ref⟩
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Original actual loading, widened XGCD, and unconditional signed-coefficient reduction. -/
 def coefficientBody (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (scratch : CoefficientScratch ctx width)
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .seq (ConstantWord.circuit scratch.modulus spec.modulus)
     (.seq (NumberTheory.Checked.Native.withWidenedXgcd denominator
       (coefficientRead scratch.modulus) scratch.outputs)
@@ -64,7 +67,7 @@ def coefficientBody (spec : ModulusSpec width)
 /-- Allocate all original persistent cells and execute the total coefficient path. -/
 def coefficientIntoWord (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   withCells ctx (coefficientShapes width) fun cells _ transport _ =>
     coefficientBody spec (transport.liftInput denominator) (coefficientScratch cells)
       (transport.liftWrite output)

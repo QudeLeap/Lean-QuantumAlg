@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+public import QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Gate.Unitary
+public import Mathlib.Logic.Equiv.Defs
 import Mathlib.Data.Matrix.Block
 
 /-!
@@ -43,7 +45,7 @@ private theorem reindex_mem_unitaryGroup (e : R.Index ≃ S.Index)
   exact reindex_matrix_mem_unitaryGroup e U U.property
 
 /-- Transport a certified unitary operator along a register-index equivalence. -/
-def reindex (e : R.Index ≃ S.Index) (U : UnitaryOperator R) : UnitaryOperator S :=
+public def reindex (e : R.Index ≃ S.Index) (U : UnitaryOperator R) : UnitaryOperator S :=
   ofMatrix (Matrix.reindex e e (U : HilbertOperator R))
     (reindex_mem_unitaryGroup e U)
 
@@ -101,13 +103,13 @@ private theorem controlledMatrix_mem_unitaryGroup (control : Register)
   rw [hblocks, Matrix.blockDiagonal_one]
 
 /-- Add a finite-dimensional control register at an explicit activation value. -/
-def controlled (control : Register) (activationValue : control.Index)
+public def controlled (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) : UnitaryOperator (Register.prod control R) :=
   ofMatrix (controlledMatrix control activationValue U)
     (controlledMatrix_mem_unitaryGroup control activationValue U)
 
 @[simp]
-theorem controlled_apply (control : Register) (activationValue : control.Index)
+public theorem controlled_apply (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index) :
     controlled control activationValue U i j =
       if i.1 = j.1 then
@@ -117,14 +119,14 @@ theorem controlled_apply (control : Register) (activationValue : control.Index)
   change controlledMatrix control activationValue U i j = _
   exact controlledMatrix_apply control activationValue U i j
 
-theorem controlled_active (control : Register) (activationValue : control.Index)
+public theorem controlled_active (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index)
     (hcontrol : i.1 = j.1) (hactive : i.1 = activationValue) :
     controlled control activationValue U i j = U i.2 j.2 := by
   have hjactive : j.1 = activationValue := hcontrol.symm.trans hactive
   simp [controlled_apply, hcontrol, hjactive]
 
-theorem controlled_inactive (control : Register) (activationValue : control.Index)
+public theorem controlled_inactive (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index)
     (hcontrol : i.1 = j.1) (hinactive : i.1 ≠ activationValue) :
     controlled control activationValue U i j =

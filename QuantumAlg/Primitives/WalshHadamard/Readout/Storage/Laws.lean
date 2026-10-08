@@ -33,6 +33,9 @@ noncomputable section
 
 open QuantumAlg.Execution
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
 private theorem transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) :
     (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same) ref).key =
@@ -70,12 +73,15 @@ theorem readouts_keys_nodup (n : Nat) :
 /-- The typed actual measurement writes the original finite value into its own retained cell. -/
 theorem measuredCell_value (n : Nat) (store : Store (post n))
     (basis : (post n).register.Index) (index : Fin n) :
-    ((Circuit.writeMeasurementPath (readouts n) store
-      (Circuit.measurementBasisPath (readouts n) basis)).read
+    ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) (readouts n) store
+      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext n) 2 n index).toCStorageRef)).toFin.val =
       (basis (queryWire n index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (readouts n) (readouts_keys_nodup n)
+  have actual := Circuit.writeMeasurementBasis_read (gates := gates) (oracles := oracles)
+    (operations := operations) (services := services) (readouts n) (readouts_keys_nodup n)
     (queryReadout n index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
   rw [queryReadout_read_value] at numeric
@@ -129,13 +135,17 @@ theorem queryWire_bit (n : Nat) (basis : (post n).register.Index) (index : Fin n
 the original query readout. -/
 theorem packing_measured_value (n : Nat) (store : Store (post n))
     (basis : (post n).register.Index) :
-    (packing n).eval ((Circuit.writeMeasurementPath (readouts n) store
-      (Circuit.measurementBasisPath (readouts n) basis)).read
+    (packing n).eval ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) (readouts n) store
+      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (MeasurementCells.input (resultContext n) 2 n)) =
       CShape.Value.bits ((measurement n).readout (outputBasisEquiv n basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (readouts n) store
-      (Circuit.measurementBasisPath (readouts n) basis)).read
+    (((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) (readouts n) store
+      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext n) 2 n index).toCStorageRef)).toFin.val =
           1)) = _

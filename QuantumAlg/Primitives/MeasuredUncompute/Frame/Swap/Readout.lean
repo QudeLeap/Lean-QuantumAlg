@@ -89,10 +89,13 @@ theorem step_eq_grouping (width : Nat) (state : Frame width) :
 /-- The real final gates undo the earlier workspace-role exchange on every complete label. -/
 theorem program_reused_ket (width : Nat) (state : Frame width) :
     (FrameSwap.program width).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding width).width)
-          ((frameEncoding width).encode ((WorkspaceReuse.placement width).grouping.symm state))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding width).width)
-        ((frameEncoding width).encode state) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
+            ((frameEncoding width).encode
+              ((WorkspaceReuse.placement width).grouping.symm state)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
+          ((frameEncoding width).encode state)) := by
   have actual := (FrameSwap.frameSwap_realizes width).apply_encoded_ket
     ((WorkspaceReuse.placement width).grouping.symm state)
   rw [step_eq_grouping, Equiv.apply_symm_apply] at actual

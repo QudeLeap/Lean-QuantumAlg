@@ -92,8 +92,9 @@ def gates (width : Nat) : List (EncodedBit.GateSpec (encoding width)) :=
     (fun index => source_target_disjoint width index index)
 
 /-- Execute those same n actual CNOT occurrences. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  EncodedBit.GateSpec.programList (gates width)
+def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- The complete retained frame is unchanged and only the arbitrary output is xored. -/
 def step {width : Nat} (state : Data width) : Data width :=
@@ -121,7 +122,8 @@ private theorem gates_step (width : Nat) (state : Data width) :
 /-- Exact native action preserves every compute-state correlation and arbitrary target value. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  (EncodedBit.Word.xorInto_realizes (sourceWord width) (targetWord width)
+  (EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty
+    (sourceWord width) (targetWord width)
     (fun index => source_target_disjoint width index index)).congrStep (gates_step width)
 
 /-- An internally proved fitted coefficient is copied completely without truncation. -/
@@ -142,12 +144,14 @@ theorem gates_length (width : Nat) : (gates width).length = width :=
 /-- Literal native coordinates are n uncontrolled CNOT occurrences. -/
 theorem program_eventCost (width : Nat) :
     (program width).eventCost =
-      ResourcePool.ofList (List.replicate width (.gate (.builtin "cnot"))) := by
+      ResourcePool.ofList (List.replicate width
+        (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) := by
   rw [program, EncodedBit.GateSpec.programList_eventCost]
   unfold gates EncodedBit.Word.xorIntoGates
   rw [List.map_ofFn]
   change ResourcePool.ofList
-    (List.ofFn fun _ : Fin width => Resource.Event.gate (.builtin "cnot")) = _
+    (List.ofFn fun _ : Fin width =>
+      (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) = _
   rw [List.ofFn_const]
 
 /-- Literal list scheduling charges each of those same actual CNOT occurrences. -/
@@ -155,14 +159,10 @@ theorem program_serial_resources (width : Nat) :
     (program width).eventCost.card = width ∧
       (program width).evaluatedEventDepth (fun _ => 1) = width := by
   constructor
-  · exact (EncodedBit.GateSpec.programList_eventCost_card (gates width)).trans (gates_length width)
-  · exact (EncodedBit.GateSpec.programList_evaluatedEventDepth_unit
+  · exact (EncodedBit.GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty
       (gates width)).trans (gates_length width)
-
-/-- Every actual copy address lies in the original frame plus the declared output word. -/
-theorem program_physical_range (width : Nat) :
-    (program width).physical_idx ⊆ List.range (encoding width).width :=
-  EncodedBit.GateSpec.programList_physical_idx_subset_range (gates width)
+  · exact (EncodedBit.GateSpec.programList_evaluatedEventDepth_unit
+      (QubitLayout.canonical _) .empty (gates width)).trans (gates_length width)
 
 end
 

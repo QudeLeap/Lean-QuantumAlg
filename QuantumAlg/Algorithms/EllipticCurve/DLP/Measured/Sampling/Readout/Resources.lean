@@ -30,7 +30,9 @@ noncomputable section
 open Execution ContextUnion ScalarMultiplication.MeasuredPlacement
 open FiniteCyclicDLP ConcreteCircuitAccess GenericPointAddition.InPlace
 
-private theorem cells_pool {ctx : RuntimeCtx .quantum} (code : Circuit ctx ctx)
+private abbrev Model : ExecutionModel := .quantum AlgorithmGate.model .empty
+
+private theorem cells_pool {ctx : RuntimeCtx .quantum} (code : Circuit Model ctx ctx)
     (supported : code.IsLocal) (dimension : ℕ+) (count : Nat)
     (path : (Circuit.underMeasurementCells code supported dimension count).Path) :
     (Circuit.underMeasurementCells code supported dimension count).resourcePool path =
@@ -40,9 +42,9 @@ private theorem cells_pool {ctx : RuntimeCtx .quantum} (code : Circuit ctx ctx)
     Circuit.underMeasurementCells_resourcePool code supported dimension count
       ((Circuit.underMeasurementCellsPathEquiv code supported dimension count).symm path)
 
-private theorem cells_depth {ctx : RuntimeCtx .quantum} (code : Circuit ctx ctx)
+private theorem cells_depth {ctx : RuntimeCtx .quantum} (code : Circuit Model ctx ctx)
     (supported : code.IsLocal) (dimension : ℕ+) (count : Nat)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event Model → Nat)
     (path : (Circuit.underMeasurementCells code supported dimension count).Path) :
     (Circuit.underMeasurementCells code supported dimension count).depth duration path =
       code.depth duration
@@ -98,7 +100,7 @@ theorem samplingReadout_budget
   exact add_le_add (first.le.trans (samplingPrefix_budget E fieldTail odd problem points _)) last.le
 
 /-- Native durations preserve the same scalar path, followed by all actual sequential readouts. -/
-theorem samplingReadout_duration (duration : Resource.Event .quantum → Nat)
+theorem samplingReadout_duration (duration : Resource.Event Model → Nat)
     (path : (samplingReadout E fieldTail odd problem points).Path) :
     (samplingReadout E fieldTail odd problem points).depth duration path =
       (exponentPreparationCircuit problem).evaluatedEventDepth duration +

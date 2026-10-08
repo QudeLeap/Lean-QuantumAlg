@@ -31,25 +31,28 @@ open FiniteCyclicDLP Canonical.Probability
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 private theorem actualEventWeight_compare {ctx : RuntimeCtx .quantum}
-    (actual : Circuit ctx ctx) (Reference : Register) (store : Store ctx)
+    (actual : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx)
+    (Reference : Register) (store : Store ctx)
     (input : NormalizedVector (ctx.register.prod Reference))
     (good : HilbertVector (ctx.register.prod Reference)) (bounded : ‖good‖ ≤ 1)
     (observed ideal : Effect (ctx.register.prod Reference))
     (agrees : observed.weight
-      ((actual.execute Reference (ExecutionState.ofValue (store, ())
+      ((actual.execute Reference (ExecutionState.ofValue (store, ((), ()))
         (DensityOperator.ofSubnormalizedVector good bounded))).quantumMarginal) =
       ideal.weight (DensityOperator.ofSubnormalizedVector good bounded)) :
     ideal.weight (DensityOperator.ofPure input) ≤
-      observed.weight ((actual.execute Reference (ExecutionState.ofValue (store, ())
+      observed.weight ((actual.execute Reference (ExecutionState.ofValue (store, ((), ()))
         (DensityOperator.ofPure input))).quantumMarginal) + 4 * ‖input.vec - good‖ := by
-  let pulled := actual.effectPullback Reference (fun _ => observed) (store, ())
+  let pulled := actual.effectPullback Reference (fun _ => observed) (store, ((), ()))
   have goodWeight := actual.effectWeight_execute Reference
-    (ExecutionState.ofValue (store, ()) (DensityOperator.ofSubnormalizedVector good bounded))
+    (ExecutionState.ofValue (store, ((), ()))
+      (DensityOperator.ofSubnormalizedVector good bounded))
     (fun _ => observed)
   rw [ExecutionState.effectWeight_constant, ExecutionState.effectWeight_ofValue_decision]
     at goodWeight
   have inputWeight := actual.effectWeight_execute Reference
-    (ExecutionState.ofValue (store, ()) (DensityOperator.ofPure input)) (fun _ => observed)
+    (ExecutionState.ofValue (store, ((), ())) (DensityOperator.ofPure input))
+    (fun _ => observed)
   rw [ExecutionState.effectWeight_constant, ExecutionState.effectWeight_ofValue_decision]
     at inputWeight
   rw [inputWeight]
@@ -81,7 +84,7 @@ theorem idealInputWeight_le_samplingPrefixWeight_add
       (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)) ≤
       (QubitReadouts.eventEffect (afterExponentWires p (orderWidth problem)) event Reference).weight
         (((samplingPrefix E fieldTail odd problem points).execute Reference
-          (ExecutionState.ofValue (store, ()) (DensityOperator.ofPure
+          (ExecutionState.ofValue (store, ((), ())) (DensityOperator.ofPure
             (samplingInputVector problem fieldTail sameWidth fits seed
               reference)))).quantumMarginal) +
         4 * Real.sqrt (preparedExceptionalMass problem points seed) := by
@@ -94,12 +97,15 @@ theorem idealInputWeight_le_samplingPrefixWeight_add
   let residentGood := DensityOperator.ofSubnormalizedVector
     (samplingGoodVector problem fieldTail sameWidth fits points seed reference)
     (samplingGoodVector_norm_le_one problem fieldTail sameWidth fits points seed reference)
-  have initialized : (ExecutionState.ofValue (store, ()) residentGood).quantumMarginal =
+  let goodState : State (after p.size (2 * orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × Unit) :=
+    ExecutionState.ofValue (store, ((), ())) residentGood
+  have initialized : goodState.quantumMarginal =
       initializedDensity p (2 * orderWidth problem) Reference originalGood := by
-    rw [ExecutionState.ofValue_quantumMarginal]
+    simp only [goodState, ExecutionState.ofValue_quantumMarginal]
     exact samplingGoodVector_density problem fieldTail sameWidth fits points seed reference
   have actualGood := samplingPrefix_density_of_initialized E fieldTail sameWidth fits odd
-    problem points seed (ExecutionState.ofValue (store, ()) residentGood) originalGood initialized
+    problem points seed goodState originalGood initialized
     (goodInputVector_prepared_supported problem fieldTail sameWidth fits points seed reference)
   have extendedGood : extended.weight residentGood = ideal.weight originalGood :=
     Effect.extend_weight_ofSubnormalizedVector embedding injective ideal
@@ -143,7 +149,7 @@ theorem selectedSamplingPrefix_weight_bound
       (QubitReadouts.eventEffect (afterExponentWires p (orderWidth problem))
         (selectedExponentEvent problem input) Reference).weight
         (((samplingPrefix E fieldTail odd problem points).execute Reference
-          (ExecutionState.ofValue (store, ()) (DensityOperator.ofPure
+          (ExecutionState.ofValue (store, ((), ())) (DensityOperator.ofPure
             (samplingInputVector problem fieldTail sameWidth fits seed
               reference)))).quantumMarginal) +
         4 * Real.sqrt (preparedExceptionalMass problem points seed) := by

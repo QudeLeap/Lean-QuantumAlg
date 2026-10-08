@@ -6,8 +6,12 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
+public import QuantumAlg.Util.Classical.Modular.Basic
+public import QuantumAlg.Util.FiniteCyclicDLP
 
 /-!
 # The original public-order modulus for finite-cyclic recovery
@@ -29,7 +33,7 @@ open ClassicalAlgorithms ClassicalAlgorithms.Modular
 
 /-- The modulus specification used by the nontrivial branch, constructed
 solely from the public group order and its Fourier width. -/
-def resourceModulusSpec (P : KnownOrderProblem G) (two_le : 2 ≤ P.order) :
+@[expose] public def resourceModulusSpec (P : KnownOrderProblem G) (two_le : 2 ≤ P.order) :
     ModulusSpec (orderWidth P) where
   modulus := P.order
   two_le := two_le

@@ -22,7 +22,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem third_namedFrame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape)
@@ -64,6 +65,7 @@ private theorem second_namedFrame (refs : Refs ctx width) (separation : Separati
     separation.second.phase.phaseCellKey_ne cell source
       (fun equal => outside (equal ▸ cellMember))
 
+omit [BitWord.Selected model] in
 private theorem point_of_frames {before after : Store ctx}
     (refs : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents before refs value)

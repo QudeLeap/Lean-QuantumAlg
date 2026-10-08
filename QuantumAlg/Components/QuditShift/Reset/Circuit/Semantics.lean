@@ -28,67 +28,79 @@ noncomputable section
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
+local instance (proposition : Prop) : Decidable proposition :=
+  Classical.propDecidable proposition
 
 private instance semanticsDimensionNeZero (dimension : ℕ+) : NeZero (dimension : ℕ) :=
   ⟨Nat.ne_of_gt dimension.property⟩
 
+variable {gates : GateModel} {oracles : OracleModel}
 variable {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
   (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
+  (realizations : Realizations gates oracles ctx.quantumLayout wire)
 
 /-- The actual record writes and then reads the same measured finite value. -/
-def resetCircuitRecord {History : Type} (entry : Store ctx × History)
+def resetCircuitRecord {History : Type}
+    (entry : Store ctx ×
+      ((ExecutionModel.quantum gates oracles).HiddenState × History))
     (outcome : Fin (ctx.quantumLayout.wire wire).dimension) :
-    Store ctx × (History × (resetCircuit wire output).Path) :=
-  (entry.1.write output (.finite outcome), (entry.2, (outcome, ⟨.finite outcome, ()⟩)))
+    Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
+      (History × (resetCircuit wire output realizations).Path)) :=
+  (entry.1.write output (.finite outcome),
+    (entry.2.1, (entry.2.2, (outcome, ⟨.finite outcome, ()⟩))))
 
 /-- The complete interpreter state retains the actual store, history, result and reference. -/
 theorem resetCircuit_execute {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (resetCircuit wire output).execute Reference state =
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
+    (resetCircuit wire output realizations).execute Reference state =
       ((ExecutionState.measureZ state
         (fun basis : (Register.prod ctx.register Reference).Index => basis.1 wire)).applyUnitary
           fun entry =>
-        UnitaryOperator.prodTensor (program ctx.quantumLayout wire (-entry.2)).matrix
+        UnitaryOperator.prodTensor (operator ctx.quantumLayout wire (-entry.2))
           (1 : UnitaryOperator Reference)).mapClassical
-            (fun entry => resetCircuitRecord wire output entry.1 entry.2) := by
-  have sequential := Circuit.execute_seq (Circuit.measureZ wire output)
+            (fun entry => resetCircuitRecord wire output realizations entry.1 entry.2) := by
+  have sequential := Circuit.execute_seq
+    (Circuit.measureZ (gates := gates) (oracles := oracles) wire output)
     (Circuit.branch (.storage output.toCStorageRef) (fun value =>
-      Circuit.unitary (program ctx.quantumLayout wire (-value.toFin))
-        ((program_physical_idx ctx.quantumLayout wire (-value.toFin)).trans
-          ctx.quantumLayout_identities))) state
+      Circuit.unitary (realizations (-value.toFin)).circuit)) state
   refine sequential.trans ?_
   simp only [Circuit.execute_measureZ, Circuit.selectedUnitary_execute,
-    State.measureZ, ExecutionState.applyUnitary_mapClassical,
+    ExecutionState.applyUnitary_mapClassical,
     Store.read_write_same, CShape.Value.toFin_finite, State.mapHistory,
+    UnitaryCircuit.ExactRealization.matrix_eq,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   have readBack :
-      (fun entry : (Store ctx × History) × Fin (ctx.quantumLayout.wire wire).dimension =>
-        (show Store ctx × (History × (resetCircuit wire output).Path) from
-          (entry.1.1.write output (.finite entry.2), (entry.1.2, (entry.2,
+      (fun entry : (Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState × History)) ×
+          Fin (ctx.quantumLayout.wire wire).dimension =>
+        (show Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
+            (History × (resetCircuit wire output realizations).Path)) from
+          (entry.1.1.write output (.finite entry.2),
+            (entry.1.2.1, (entry.1.2.2, (entry.2,
             ⟨(entry.1.1.write output (.finite entry.2)).read
-              (.storage output.toCStorageRef), ()⟩))))) =
-        (fun entry => resetCircuitRecord wire output entry.1 entry.2) := by
+              (.storage output.toCStorageRef), ()⟩)))))) =
+        (fun entry => resetCircuitRecord wire output realizations entry.1 entry.2) := by
     funext entry
     exact congrArg
       (fun value : (CShape.finite (ctx.quantumLayout.wire wire).dimension).Value =>
-        (show Store ctx × (History × (resetCircuit wire output).Path) from
+        (show Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
+            (History × (resetCircuit wire output realizations).Path)) from
           (entry.1.1.write output (.finite entry.2),
-            (entry.1.2, (entry.2, ⟨value, ()⟩)))))
+            (entry.1.2.1, (entry.1.2.2, (entry.2, ⟨value, ()⟩))))))
         (Store.read_write_same entry.1.1 output (.finite entry.2))
   have updated := congrArg (fun update =>
     ((ExecutionState.measureZ state
       (fun basis : (Register.prod ctx.register Reference).Index => basis.1 wire)).applyUnitary
         fun entry => UnitaryOperator.prodTensor
-          (program ctx.quantumLayout wire (-entry.2)).matrix
+          (operator ctx.quantumLayout wire (-entry.2))
           (1 : UnitaryOperator Reference)).mapClassical update) readBack
   refine Eq.trans ?_ updated
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem program_reference_permutation {systemCount : Nat}
+private theorem operator_reference_permutation {systemCount : Nat}
     (layout : QuantumLayout systemCount) (selected : Fin systemCount)
     (amount : Fin (layout.wire selected).dimension) (Reference : Register) :
-    UnitaryOperator.prodTensor (program layout selected amount).matrix
+    UnitaryOperator.prodTensor (operator layout selected amount)
       (1 : UnitaryOperator Reference) =
       UnitaryOperator.ofPerm ((labelShift layout selected amount).symm.prodCongr
         (Equiv.refl Reference.Index)) := by
@@ -109,7 +121,7 @@ theorem resetCircuitBranch_entry {Reference : Register}
     (density : DensityOperator (Register.prod ctx.register Reference))
     (left right : ctx.quantumLayout.Basis) (refLeft refRight : Reference.Index) :
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor (program ctx.quantumLayout wire (-outcome)).matrix
+      (UnitaryOperator.prodTensor (operator ctx.quantumLayout wire (-outcome))
         (1 : UnitaryOperator Reference))
       (ZMeasurement.branch (R := Register.prod ctx.register Reference)
         (fun basis => basis.1 wire) outcome density)).matrix
@@ -118,7 +130,7 @@ theorem resetCircuitBranch_entry {Reference : Register}
         density.matrix (Function.update left wire outcome, refLeft)
           (Function.update right wire outcome, refRight)
       else 0 := by
-  rw [program_reference_permutation, ZReset.permutationDensityEntry]
+  rw [operator_reference_permutation, ZReset.permutationDensityEntry]
   change (ZMeasurement.branch (R := Register.prod ctx.register Reference)
     (fun basis => basis.1 wire) outcome density).matrix
     (Function.update left wire (left wire - -outcome), refLeft)
@@ -129,13 +141,15 @@ theorem resetCircuitBranch_entry {Reference : Register}
 
 /-- Exact actual output blocks sum all old stores and histories that write that complete record. -/
 theorem resetCircuit_block_entry {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History)
-    (result : Store ctx × (History × (resetCircuit wire output).Path))
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
+    (result : Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
+      (History × (resetCircuit wire output realizations).Path)))
     (left right : ctx.quantumLayout.Basis) (refLeft refRight : Reference.Index) :
-    (((resetCircuit wire output).execute Reference state).block result).matrix
+    (((resetCircuit wire output realizations).execute Reference state).block result).matrix
         (left, refLeft) (right, refRight) =
-      ∑ entry : Store ctx × History, ∑ outcome,
-        if resetCircuitRecord wire output entry outcome = result then
+      ∑ entry : Store ctx ×
+          ((ExecutionModel.quantum gates oracles).HiddenState × History), ∑ outcome,
+        if resetCircuitRecord wire output realizations entry outcome = result then
           if left wire = 0 ∧ right wire = 0 then
             (state.block entry).matrix (Function.update left wire outcome, refLeft)
               (Function.update right wire outcome, refRight)
@@ -148,7 +162,7 @@ theorem resetCircuit_block_entry {Reference : Register} {History : Type} [Fintyp
   intro entry _
   apply Finset.sum_congr rfl
   intro outcome _
-  by_cases written : resetCircuitRecord wire output entry outcome = result
+  by_cases written : resetCircuitRecord wire output realizations entry outcome = result
   · simp only [written, if_true]
     exact resetCircuitBranch_entry wire outcome (state.block entry) left right refLeft refRight
   · simp only [written, if_false]
@@ -156,19 +170,22 @@ theorem resetCircuit_block_entry {Reference : Register} {History : Type} [Fintyp
 
 /-- Summing actual output records retains the original joint marginal of all other systems. -/
 theorem resetCircuit_quantum_entry {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (left right : ctx.quantumLayout.Basis)
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
+    (left right : ctx.quantumLayout.Basis)
     (refLeft refRight : Reference.Index) :
-    ((resetCircuit wire output).execute Reference state).quantumMarginal.matrix
+    ((resetCircuit wire output realizations).execute Reference state).quantumMarginal.matrix
         (left, refLeft) (right, refRight) =
       if left wire = 0 ∧ right wire = 0 then
-        ∑ entry : Store ctx × History, ∑ outcome,
+        ∑ entry : Store ctx ×
+            ((ExecutionModel.quantum gates oracles).HiddenState × History), ∑ outcome,
           (state.block entry).matrix (Function.update left wire outcome, refLeft)
             (Function.update right wire outcome, refRight)
       else 0 := by
   rw [resetCircuit_execute, ExecutionState.mapClassical_quantumMarginal]
-  change (∑ entry : (Store ctx × History) × Fin (ctx.quantumLayout.wire wire).dimension,
+  change (∑ entry : (Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState × History)) ×
+      Fin (ctx.quantumLayout.wire wire).dimension,
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor (program ctx.quantumLayout wire (-entry.2)).matrix
+      (UnitaryOperator.prodTensor (operator ctx.quantumLayout wire (-entry.2))
         (1 : UnitaryOperator Reference))
       (ZMeasurement.branch (R := Register.prod ctx.register Reference)
         (fun basis => basis.1 wire) entry.2 (state.block entry.1))).matrix)
@@ -178,8 +195,8 @@ theorem resetCircuit_quantum_entry {Reference : Register} {History : Type} [Fint
 
 /-- The actual measured correction preserves the complete execution mass. -/
 theorem resetCircuit_mass {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    ((resetCircuit wire output).execute Reference state).mass = state.mass :=
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
+    ((resetCircuit wire output realizations).execute Reference state).mass = state.mass :=
   Circuit.execute_mass _ _ _
 
 end

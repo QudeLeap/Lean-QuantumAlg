@@ -190,7 +190,7 @@ end SourceScope
 namespace KnownOrderProblem
 
 /-- The declared known order is positive. -/
-theorem order_pos (P : KnownOrderProblem G) : 0 < P.order :=
+public theorem order_pos (P : KnownOrderProblem G) : 0 < P.order :=
   Nat.pos_of_ne_zero P.order_ne_zero
 
 /-- The chosen generator has the declared known order. -/

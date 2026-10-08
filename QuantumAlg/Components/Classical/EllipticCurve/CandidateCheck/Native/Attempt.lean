@@ -27,7 +27,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- All six original stages run in order on the same seven persistent destinations. -/
-def attemptInto (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def attemptInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess : CWriteRef ctx .bit)
@@ -35,7 +36,7 @@ def attemptInto (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (targetAccepted : CWriteRef ctx .bit)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .seq (recoveryInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted)
     (FirstAccepted.withSelection

@@ -84,11 +84,15 @@ theorem hrsCarry_packed_step (width : Nat) (constant input : Fin (2 ^ width))
 theorem hrsCarry_packed_apply (width : Nat) (constant input : Fin (2 ^ width))
     (borrowed : Fin (2 ^ (width - 2))) (dirty : Bool) :
     (carryProgram width constant).applyNormalized
-        (NormalizedVector.ket ((carryEncoding width).encode
-          (input, carryWorkEquiv width (borrowed, dirty)))) =
-      NormalizedVector.ket ((carryEncoding width).encode
-        (input, carryWorkEquiv width
-          (borrowed, dirty ^^ decide (2 ^ width ≤ input.val + constant.val)))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (carryEncoding width).width).basisEquiv.symm
+            ((carryEncoding width).encode
+              (input, carryWorkEquiv width (borrowed, dirty))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (carryEncoding width).width).basisEquiv.symm
+          ((carryEncoding width).encode
+            (input, carryWorkEquiv width
+              (borrowed, dirty ^^ decide (2 ^ width ≤ input.val + constant.val))))) := by
   have hstep := hrsCarry_packed_step width constant input borrowed dirty
   rw [hrsCarry_step] at hstep
   simpa only [hstep] using (hrsCarry_realizes width constant).apply_encoded_ket

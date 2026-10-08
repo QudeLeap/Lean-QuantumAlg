@@ -80,9 +80,10 @@ theorem gates_step {width : Nat} (window : Window width) (operation : Operation)
 
 /-- Place the same actual controlled native list on the original physical frame. -/
 def program {width : Nat} (window : Window width) (operation : Operation) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  ArithmeticWindowPlacement.place window (GateSpec.programList (gates window operation))
-    (GateSpec.programList_physical_idx_subset_range _)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  ArithmeticWindowPlacement.place window
+    (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation))
 
 /-- Reassemble the complete output of the actual selected arithmetic. -/
 def step {width : Nat} (window : Window width) (operation : Operation)
@@ -96,29 +97,24 @@ theorem program_realizes {width : Nat} (window : Window width) (operation : Oper
     UnitaryCircuit.Realizes (encoding width) (program window operation)
       (step window operation) := by
   have body : UnitaryCircuit.Realizes (groupedEncoding window)
-      (GateSpec.programList (gates window operation))
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation))
       (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
         if (ArithmeticWindowEncoding.controlBit window).get pair then
           (focusStep operation pair.1, pair.2) else pair) :=
-    GateSpec.realizesList_congrStep (gates window operation) (gates_step window operation)
-  exact ArithmeticWindowPlacement.place_realizes window
-    (body := GateSpec.programList (gates window operation))
-    (action := fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
-      if (ArithmeticWindowEncoding.controlBit window).get pair then
-        (focusStep operation pair.1, pair.2) else pair)
-    (GateSpec.programList_physical_idx_subset_range (gates window operation)) body
+    GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+      (gates window operation) (gates_step window operation)
+  exact ArithmeticWindowPlacement.place_realizes window body
 
 /-- The original Ctrl selects the exact ungated arithmetic; its false branch is identity. -/
 theorem step_eq_if {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     step window operation state =
       if state.control then ArithmeticWindowProgram.step window operation state else state := by
-  unfold step ArithmeticWindowPlacement.placedStep
-  dsimp only
+  rw [step, ArithmeticWindowPlacement.placedStep_eq]
   rw [ArithmeticWindowEncoding.controlBit_get]
   by_cases selected : state.control = true
   · rw [if_pos selected, if_pos selected]
-    rfl
+    rw [ArithmeticWindowProgram.step, ArithmeticWindowPlacement.placedStep_eq]
   · rw [if_neg selected, if_neg selected]
     exact (grouping window).symm_apply_apply state
 
@@ -141,14 +137,10 @@ theorem step_source {width : Nat} (window : Window width) (operation : Operation
   · rw [ArithmeticWindowProgram.step_grouping, focusStep_source]
   · rfl
 
-/-- No extra physical system is allocated by dirty control of any window, including an empty one. -/
-theorem program_physical {width : Nat} (window : Window width) (operation : Operation) :
-    (program window operation).physical_idx = List.range (encoding width).width :=
-  ArithmeticWindowPlacement.place_physical window _ _
-
 /-- The trace contains exactly the actual controlled elementary gates in their execution order. -/
 theorem program_eventTrace {width : Nat} (window : Window width) (operation : Operation) :
-    (program window operation).eventTrace = (gates window operation).map GateSpec.event := by
+    (program window operation).eventTrace =
+      (gates window operation).map (GateSpec.event .empty) := by
   rw [program, ArithmeticWindowPlacement.place_eventTrace, GateSpec.programList_eventTrace]
 
 /-- Exact unit depth is the real one-or-four-gate expansion of each original primitive. -/

@@ -52,26 +52,36 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-          ((frameEncoding modulus.size).encode (InitialFrame.initial modulus input, target))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-        ((frameEncoding modulus.size).encode
-          (InitialFrame.initial modulus input, output modulus (by omega) input.val target)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (InitialFrame.initial modulus input, target)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+          ((frameEncoding modulus.size).encode
+            (InitialFrame.initial modulus input, output modulus (by omega) input.val target))) := by
   let initial := InitialFrame.initial modulus input
   let computed := CorrectedSchedule.result modulus input.val positive bounded
   let result := output modulus (by omega) input.val target
   have forward (value : Fin (2 ^ modulus.size)) :
       (forwardProgram modulus nontrivial).applyNormalized
-          (NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, value))) =
-        NormalizedVector.ket ((frameEncoding modulus.size).encode (computed, value)) :=
-    UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+              ((frameEncoding modulus.size).encode (initial, value)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (computed, value))) :=
+    UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
       (SharedEEA.encoding modulus.size) (BinaryLabelEncoding.finIdentity modulus.size)
       (CorrectedSchedule.program modulus nontrivial) initial computed value
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have accumulated :
       (middleProgram modulus.size (fittedModulus modulus)).applyNormalized
-          (NormalizedVector.ket ((frameEncoding modulus.size).encode (computed, target))) =
-        NormalizedVector.ket ((frameEncoding modulus.size).encode (computed, result)) := by
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+              ((frameEncoding modulus.size).encode (computed, target)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (computed, result))) := by
     rw [(accumulateMiddle_realizes modulus.size (fittedModulus modulus)).apply_encoded_ket]
     have fields : middleStep modulus.size (fittedModulus modulus) (computed, target) =
         (computed, result) := by
@@ -85,14 +95,25 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
         rfl
     rw [fields]
   have restored :
-      (forwardProgram modulus nontrivial).dagger.applyNormalized
-          (NormalizedVector.ket ((frameEncoding modulus.size).encode (computed, result))) =
-        NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, result)) :=
-    (congrArg (forwardProgram modulus nontrivial).dagger.applyNormalized
+      ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+              ((frameEncoding modulus.size).encode (computed, result)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (initial, result))) :=
+    (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
       (forward result)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
-        (NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, result))))
+        ((forwardProgram modulus nontrivial).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty))
+        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (initial, result)))))
   exact UnitaryCircuit.applyNormalized_seq_of_eq (forward target)
     (UnitaryCircuit.applyNormalized_seq_of_eq accumulated restored)
 
@@ -108,12 +129,14 @@ theorem accumulateProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     let inputWord := residueWord modulus (by omega) (input : ZMod modulus)
     let targetWord := residueWord modulus (by omega) target
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
+              targetWord)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
           ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
-            targetWord))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-        ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
-          output modulus (by omega) inputWord.val targetWord)) := by
+            output modulus (by omega) inputWord.val targetWord))) := by
   let : NeZero modulus := ⟨by omega⟩
   obtain ⟨positive, bounded, coprime, _⟩ :=
     CanonicalInverse.unit_input_conditions modulus nontrivial input
@@ -126,15 +149,19 @@ theorem accumulateProgram_reference {Reference : Type} (reference : BinaryLabelE
     (input target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) (retained : Reference) :
-    (UnitaryCircuit.prodLeft (n := reference.width) (program modulus nontrivial)).applyNormalized
+    (UnitaryCircuit.onBinaryPrefix reference.width (program modulus nontrivial)).applyNormalized
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
-            ((InitialFrame.initial modulus input, target), retained))) =
+          ((QubitLayout.canonical
+            (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm
+            ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
+              ((InitialFrame.initial modulus input, target), retained)))) =
       NormalizedVector.ket
-        ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
-          ((InitialFrame.initial modulus input,
-            output modulus (by omega) input.val target), retained)) :=
-  UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+        ((QubitLayout.canonical
+          (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm
+          ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
+            ((InitialFrame.initial modulus input,
+              output modulus (by omega) input.val target), retained))) :=
+  UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
     (frameEncoding modulus.size) reference (program modulus nontrivial) _ _ retained
     (accumulateProgram_initial modulus nontrivial input target coprime positive bounded
       targetBounded)

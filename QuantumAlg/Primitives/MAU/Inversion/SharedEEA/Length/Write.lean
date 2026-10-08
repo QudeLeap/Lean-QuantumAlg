@@ -236,11 +236,12 @@ theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firs
 /-- Exact complete-state realization of the same emitted elementary gate list. -/
 theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
     UnitaryCircuit.Realizes (encoding width)
-      (GateSpec.programList (gates width field key firstWord))
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates width field key firstWord))
       (fun state => if boundaryValue field state = key
         then Word.xorConstantStep (target width field)
           (constant width (payloadValue field key firstWord state).size) state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width field key firstWord)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width field key firstWord) (gates_step width field key firstWord)
 
 end
 

@@ -51,19 +51,30 @@ end ExecutionState
 
 namespace Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 open Execution
 
 /-- Each final store has the full quantum block selected by its actual ordered Z writes. -/
 theorem measurementSequence_store_matrix_entry {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (stored : Store ctx)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (stored : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
-    (ExecutionState.filterClassical ((measurementSequence readouts).execute Reference state)
+    (ExecutionState.filterClassical ((measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+      Reference state)
       (fun entry => entry.1 = stored)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       if measurementLabelsAgree readouts left right then
         ExecutionState.weightedMatrixEntry state (fun original =>
-          if writeMeasurementPath readouts original.1 (measurementBasisPath readouts left) =
+          if writeMeasurementPath (gates := gates) (oracles := oracles)
+            (operations := operations) (classicalOracles := classicalOracles)
+            readouts original.1
+            (measurementBasisPath (gates := gates) (oracles := oracles)
+              (operations := operations) (classicalOracles := classicalOracles)
+              readouts left) =
             stored then 1 else 0) (left, leftRef) (right, rightRef)
       else 0 := by
   rw [ExecutionState.filterClassical_matrix_weighted,
@@ -72,37 +83,60 @@ theorem measurementSequence_store_matrix_entry {ctx : RuntimeCtx .quantum}
 /-- Actual stored results select the later gates on every full local-reference matrix entry. -/
 theorem measuredSelectedUnitary_store_entry {ctx : RuntimeCtx .quantum} {shape : CShape}
     (readouts : List (ZReadout ctx)) (input : CInputRef ctx shape)
-    (program : shape.Value → UnitaryCircuit ctx.register)
-    (placed : ∀ value, (program value).physical_idx = ctx.physicalIdx)
+    (program : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (stored : Store ctx)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (stored : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((Circuit.seq (measurementSequence readouts)
-        (.branch input (fun value => .unitary (program value) (placed value)))).execute
+      ((Circuit.seq (measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts)
+        (.branch input (fun value => .unitary
+          (operations := operations) (classicalOracles := classicalOracles)
+          (program value)))).execute
           Reference state) (fun entry => entry.1 = stored)).quantumMarginal.matrix
             (left, leftRef) (right, rightRef) =
       ∑ column : ctx.register.Index, (∑ row : ctx.register.Index,
         (program (stored.read input)).matrix left row *
           (if measurementLabelsAgree readouts row column then
             ExecutionState.weightedMatrixEntry state (fun original =>
-              if writeMeasurementPath readouts original.1 (measurementBasisPath readouts row) =
+              if writeMeasurementPath (gates := gates) (oracles := oracles)
+                (operations := operations) (classicalOracles := classicalOracles)
+                readouts original.1
+                (measurementBasisPath (gates := gates) (oracles := oracles)
+                  (operations := operations) (classicalOracles := classicalOracles)
+                  readouts row) =
                 stored then 1 else 0) (row, leftRef) (column, rightRef)
           else 0)) * star ((program (stored.read input)).matrix right column) := by
   have composed := congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef))
-    (seq_store_marginal (measurementSequence readouts)
-      (.branch input (fun value => .unitary (program value) (placed value))) state stored)
+    (seq_store_marginal (measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts)
+      (.branch input (fun value => .unitary
+        (operations := operations) (classicalOracles := classicalOracles)
+        (program value))) state stored)
   have selected := congrArg
     (fun matrix : HilbertOperator (Register.prod ctx.register Reference) =>
       matrix (left, leftRef) (right, rightRef))
-    (selectedUnitary_store_matrix input program placed
-      ((measurementSequence readouts).execute Reference state) stored)
+    (selectedUnitary_store_matrix (operations := operations)
+      (classicalOracles := classicalOracles) input program
+      ((measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+        Reference state) stored)
   refine composed.trans (selected.trans ?_)
   rw [DensityOperator.localUnitary_block]
-  simp only [Matrix.mul_apply, Matrix.submatrix_apply, Matrix.conjTranspose_apply,
-    measurementSequence_store_matrix_entry]
+  simp only [Matrix.mul_apply, Matrix.submatrix_apply, Matrix.conjTranspose_apply]
+  apply Finset.sum_congr rfl
+  intro column _
+  apply congrArg (fun entry =>
+    entry * star ((program (stored.read input)).matrix right column))
+  apply Finset.sum_congr rfl
+  intro row _
+  apply congrArg (fun entry => (program (stored.read input)).matrix left row * entry)
+  exact measurementSequence_store_matrix_entry (gates := gates) (oracles := oracles)
+    (operations := operations) (classicalOracles := classicalOracles)
+    readouts state stored row column leftRef rightRef
 
 end Circuit
 

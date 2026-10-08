@@ -11,7 +11,6 @@ import all QuantumAlg.Components.QubitPrimitive
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -102,7 +101,8 @@ def flagWire {N n : Nat} (E : BinaryResidueEncoding N n) :
 /-- One CNOT that xors one scratch bit into the corresponding target bit. -/
 def cnotScratchToTarget {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding E).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding E).width).toQuantum :=
   QubitPrimitive.circuit
     (.cnot (scratchWire E bit) (targetWire E bit) (by
       intro h
@@ -110,13 +110,15 @@ def cnotScratchToTarget {N n : Nat}
       have hv : n + bit.val = bit.val := by
         simpa [scratchWire, targetWire] using congrArg Fin.val h
       omega))
+    (QubitLayout.canonical _) .empty
 
 /-- Two-bit ripple-style block for a selected low/high bit pair: carry from
 the low scratch/target pair into the high target bit, then xor the high and low
 scratch bits into the target field. -/
 def twoBitRippleProgram {N n : Nat}
     (E : BinaryResidueEncoding N n) (low high : Fin n) (hlh : low ≠ high) :
-    UnitaryCircuit (Qubits (encoding E).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding E).width).toQuantum :=
   BitSlice.Raw.targetAdd2Program
     (scratchWire E low) (targetWire E low) (scratchWire E high) (targetWire E high)
     (by
@@ -147,7 +149,8 @@ end RawLayout
 modular-inversion target updates. -/
 structure Witness {N n : Nat} (E : BinaryResidueEncoding N n) where
   /-- Program acting on the target/scratch/flag field layout. -/
-  program : UnitaryCircuit (Qubits (encoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding E).width).toQuantum
   /-- Correctness of the target-add program on encoded basis states. -/
   realizes : UnitaryCircuit.Realizes (encoding E) program step
 
@@ -156,15 +159,18 @@ target/scratch/flag inputs.  This is the shape naturally discharged by a
 concrete Toffoli/CNOT/X schedule before it is exposed as a semantic witness. -/
 structure RawCanonicalWitness {N n : Nat} (E : BinaryResidueEncoding N n) where
   /-- Program acting on the packed target/scratch/flag binary layout. -/
-  program : UnitaryCircuit (Qubits (encoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding E).width).toQuantum
   /-- The same program has the required action on canonical basis states. -/
   applyNormalized_encode_eq :
     ∀ (target scratch : ZMod N) (flag : Bool),
       program.applyNormalized
           (NormalizedVector.ket
-            ((encoding E).encode (target, (scratch, flag)))) =
+            ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
+              ((encoding E).encode (target, (scratch, flag))))) =
         NormalizedVector.ket
-          ((encoding E).encode (step (target, (scratch, flag))))
+          ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
+            ((encoding E).encode (step (target, (scratch, flag)))))
 
 namespace RawCanonicalWitness
 
@@ -192,74 +198,6 @@ def residueEncoding (n : Nat) : BinaryResidueEncoding (2 ^ n) n where
   modulus_pos := by
     exact pow_pos (by decide : (0 : Nat) < 2) n
   register_fits := le_rfl
-
-/-- Relabel target-add fields as the plain-adder convention: scratch is the
-left/source word, target is the right/updated word, and the flag is the carry
-bit.  This is a semantic bridge for the VBE-style adder route, not a carry
-schedule proof [VBE95, 9511018.tex:218-264,591-618]. -/
-def plainEquiv (n : Nat) : Data (2 ^ n) ≃ PlainAdder.Data n where
-  toFun := fun x =>
-    { left := x.2.1
-      right := x.1
-      carry := x.2.2 }
-  invFun := fun x => (x.right, (x.left, x.carry))
-  left_inv := by
-    intro x
-    rcases x with ⟨target, rest⟩
-    rcases rest with ⟨scratch, flag⟩
-    rfl
-  right_inv := by
-    intro x
-    cases x
-    rfl
-
-/-- The target-add update is the plain-adder update under `plainEquiv`. -/
-@[simp] theorem plainEquiv_step (n : Nat) (x : Data (2 ^ n)) :
-    plainEquiv n (step x) = PlainAdder.Data.addIntoRight (plainEquiv n x) := by
-  rcases x with ⟨target, rest⟩
-  rcases rest with ⟨scratch, flag⟩
-  rfl
-
-/-- Equivalently, transporting the plain-adder update back gives target-add. -/
-@[simp] theorem plainEquiv_symm_addIntoRight (n : Nat)
-    (x : PlainAdder.Data n) :
-    (plainEquiv n).symm (PlainAdder.Data.addIntoRight x) =
-      step ((plainEquiv n).symm x) := by
-  cases x
-  rfl
-
-/-- Plain-adder labels encoded through the target/scratch/flag power-of-two
-layout. -/
-def plainEncoding (n : Nat) : BinaryLabelEncoding (PlainAdder.Data n) :=
-  (encoding (residueEncoding n)).relabel (plainEquiv n).symm
-
-/-- A future word-level plain-adder circuit over the same physical
-target/scratch/flag layout.  This records the plug-in point for the carry
-schedule proof without claiming that proof here. -/
-structure PlainWitness (n : Nat) where
-  /-- Program acting on the target/scratch/flag power-of-two field layout. -/
-  program : UnitaryCircuit (Qubits (plainEncoding n).width)
-  /-- Correctness of the program as a plain in-place adder under the relabeled
-  target-add encoding. -/
-  realizesPlain :
-    UnitaryCircuit.Realizes (plainEncoding n) program
-      PlainAdder.Data.addIntoRight
-
-namespace PlainWitness
-
-/-- Convert a proved plain-adder program over the target/scratch/flag layout
-into the modular target-add witness for `N = 2^n`, reusing the exact program. -/
-def toTargetAdd {n : Nat} (w : PlainWitness n) :
-    Witness (residueEncoding n) where
-  program := w.program
-  realizes := by
-    exact
-      { apply_encoded_ket := by
-          intro x
-          have h := w.realizesPlain.apply_encoded_ket (plainEquiv n x)
-          simpa [plainEncoding, BinaryLabelEncoding.relabel] using h }
-
-end PlainWitness
 
 /-- Carry-work labels used by the VBE full-adder route. -/
 abbrev CarryWork (n : Nat) : Type :=
@@ -578,7 +516,8 @@ def cleanCarrySumGates (n : Nat) :
 
 /-- Base-gate program for target-add with clean carry work. -/
 def cleanCarrySumProgram (n : Nat) :
-    UnitaryCircuit (Qubits (withCarryWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram (carryWorkLayout n)
 
 /-- Folded semantic action for target-add with clean carry work. -/
@@ -823,7 +762,8 @@ structure CleanWorkWitness (n : Nat) where
   /-- Folded full-register semantic action. -/
   stepWithWork : Data (2 ^ n) × CarryWork n -> Data (2 ^ n) × CarryWork n
   /-- Actual folded full-register program. -/
-  program : UnitaryCircuit (Qubits (withCarryWorkEncoding n).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum
   /-- Direct realization of the folded full-register action. -/
   realizes :
     UnitaryCircuit.Realizes (withCarryWorkEncoding n) program stepWithWork
@@ -853,7 +793,9 @@ def residueEncoding : BinaryResidueEncoding 2 1 where
   register_fits := by decide
 
 /-- One CNOT implements target update over `ZMod 2`. -/
-def cnotProgram : UnitaryCircuit (Qubits (encoding residueEncoding).width) :=
+def cnotProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding residueEncoding).width).toQuantum :=
   RawLayout.cnotScratchToTarget residueEncoding ⟨0, by decide⟩
 
 /-- Raw canonical-label action of the one-CNOT `ZMod 2` target update. -/
@@ -861,9 +803,14 @@ theorem cnotProgram_applyNormalized_encode_eq
     (target scratch : ZMod 2) (flag : Bool) :
     cnotProgram.applyNormalized
         (NormalizedVector.ket
-          ((encoding residueEncoding).encode (target, (scratch, flag)))) =
+          ((QubitLayout.canonical
+              (encoding residueEncoding).width).basisEquiv.symm
+            ((encoding residueEncoding).encode (target, (scratch, flag))))) =
       NormalizedVector.ket
-        ((encoding residueEncoding).encode (step (target, (scratch, flag)))) := by
+        ((QubitLayout.canonical
+            (encoding residueEncoding).width).basisEquiv.symm
+          ((encoding residueEncoding).encode
+            (step (target, (scratch, flag))))) := by
   rw [cnotProgram, RawLayout.cnotScratchToTarget,
     QubitPrimitive.circuit_applyNormalized_ket]
   congr 1
@@ -908,7 +855,9 @@ def scratchMSB : Fin (encoding residueEncoding).width :=
 
 /-- Two-bit ripple-carry target update over `ZMod 4`: compute the low-bit carry
 into the target MSB, xor the scratch MSB, then xor the scratch LSB. -/
-def rippleProgram : UnitaryCircuit (Qubits (encoding residueEncoding).width) :=
+def rippleProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding residueEncoding).width).toQuantum :=
   RawLayout.twoBitRippleProgram residueEncoding
     ⟨1, by decide⟩ ⟨0, by decide⟩ (by decide)
 
@@ -918,13 +867,23 @@ theorem rippleProgram_applyNormalized_encode_eq
     (target scratch : ZMod 4) (flag : Bool) :
     rippleProgram.applyNormalized
         (NormalizedVector.ket
-          ((encoding residueEncoding).encode (target, (scratch, flag)))) =
+          ((QubitLayout.canonical
+              (encoding residueEncoding).width).basisEquiv.symm
+            ((encoding residueEncoding).encode (target, (scratch, flag))))) =
       NormalizedVector.ket
-        ((encoding residueEncoding).encode (step (target, (scratch, flag)))) := by
-  simp only [rippleProgram, RawLayout.twoBitRippleProgram,
+        ((QubitLayout.canonical
+            (encoding residueEncoding).width).basisEquiv.symm
+          ((encoding residueEncoding).encode
+            (step (target, (scratch, flag))))) := by
+  rw [rippleProgram, RawLayout.twoBitRippleProgram,
     BitSlice.Raw.targetAdd2Program, UnitaryCircuit.applyNormalized_seq,
+    UnitaryCircuit.applyNormalized_seq,
+    QubitPrimitive.circuit_applyNormalized_ket,
+    QubitPrimitive.circuit_applyNormalized_ket,
     QubitPrimitive.circuit_applyNormalized_ket]
-  congr 1
+  apply congrArg (fun label : Fin (2 ^ (encoding residueEncoding).width) =>
+    NormalizedVector.ket
+      ((QubitLayout.canonical (encoding residueEncoding).width).basisEquiv.symm label))
   fin_cases target <;> fin_cases scratch <;> cases flag <;> decide
 
 /-- End-to-end raw witness for the two-bit modular-add target update. -/
@@ -1018,7 +977,8 @@ def flagWire {N n : Nat} (E : BinaryResidueEncoding N n) :
 leaving the auxiliary field untouched. -/
 def cnotScratchToTarget {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding E).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding E).width).toQuantum :=
   QubitPrimitive.circuit
     (.cnot (scratchWire E bit) (targetWire E bit) (by
       intro h
@@ -1026,12 +986,14 @@ def cnotScratchToTarget {N n : Nat}
       have hv : n + n + bit.val = bit.val := by
         simpa [scratchWire, targetWire] using congrArg Fin.val h
       omega))
+    (QubitLayout.canonical _) .empty
 
 /-- Two-bit ripple-style block for a selected low/high bit pair, preserving
 the auxiliary field. -/
 def twoBitRippleProgram {N n : Nat}
     (E : BinaryResidueEncoding N n) (low high : Fin n) (hlh : low ≠ high) :
-    UnitaryCircuit (Qubits (encoding E).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding E).width).toQuantum :=
   BitSlice.Raw.targetAdd2Program
     (scratchWire E low) (targetWire E low) (scratchWire E high) (targetWire E high)
     (by
@@ -1062,7 +1024,8 @@ end RawLayout
 modular-division target updates. -/
 structure Witness {N n : Nat} (E : BinaryResidueEncoding N n) where
   /-- Program acting on the target/auxiliary/scratch/flag field layout. -/
-  program : UnitaryCircuit (Qubits (encoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding E).width).toQuantum
   /-- Correctness of the target-add program on encoded basis states. -/
   realizes : UnitaryCircuit.Realizes (encoding E) program step
 
@@ -1070,15 +1033,18 @@ structure Witness {N n : Nat} (E : BinaryResidueEncoding N n) where
 target/auxiliary/scratch/flag inputs. -/
 structure RawCanonicalWitness {N n : Nat} (E : BinaryResidueEncoding N n) where
   /-- Program acting on the packed target/auxiliary/scratch/flag binary layout. -/
-  program : UnitaryCircuit (Qubits (encoding E).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding E).width).toQuantum
   /-- The same program has the required action on canonical basis states. -/
   applyNormalized_encode_eq :
     ∀ (target aux scratch : ZMod N) (flag : Bool),
       program.applyNormalized
           (NormalizedVector.ket
-            ((encoding E).encode (target, (aux, (scratch, flag))))) =
+            ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
+              ((encoding E).encode (target, (aux, (scratch, flag)))))) =
         NormalizedVector.ket
-          ((encoding E).encode (step (target, (aux, (scratch, flag)))))
+          ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
+            ((encoding E).encode (step (target, (aux, (scratch, flag))))))
 
 namespace RawCanonicalWitness
 
@@ -1107,87 +1073,6 @@ def residueEncoding (n : Nat) : BinaryResidueEncoding (2 ^ n) n where
   modulus_pos := by
     exact pow_pos (by decide : (0 : Nat) < 2) n
   register_fits := le_rfl
-
-/-- Plain-adder view of the target-add-with-aux fields: the auxiliary residue is
-preserved separately, while scratch/target/flag form the plain-adder source,
-target, and carry fields. -/
-def plainAuxEquiv (n : Nat) :
-    Data (2 ^ n) ≃ (ZMod (2 ^ n) × PlainAdder.Data n) where
-  toFun := fun x =>
-    (x.2.1,
-      { left := x.2.2.1
-        right := x.1
-        carry := x.2.2.2 })
-  invFun := fun x => (x.2.right, (x.1, (x.2.left, x.2.carry)))
-  left_inv := by
-    intro x
-    rcases x with ⟨target, rest⟩
-    rcases rest with ⟨aux, rest⟩
-    rcases rest with ⟨scratch, flag⟩
-    rfl
-  right_inv := by
-    intro x
-    rcases x with ⟨aux, plain⟩
-    cases plain
-    rfl
-
-/-- Plain-adder update on the scratch/target part, preserving the auxiliary
-residue. -/
-def plainAuxStep {n : Nat} :
-    (ZMod (2 ^ n) × PlainAdder.Data n) ->
-      (ZMod (2 ^ n) × PlainAdder.Data n)
-  | (aux, plain) => (aux, PlainAdder.Data.addIntoRight plain)
-
-/-- The target-add-with-aux update is the auxiliary-preserving plain-adder
-update under `plainAuxEquiv`. -/
-@[simp] theorem plainAuxEquiv_step (n : Nat) (x : Data (2 ^ n)) :
-    plainAuxEquiv n (step x) = plainAuxStep (plainAuxEquiv n x) := by
-  rcases x with ⟨target, rest⟩
-  rcases rest with ⟨aux, rest⟩
-  rcases rest with ⟨scratch, flag⟩
-  rfl
-
-/-- Transporting the auxiliary-preserving plain-adder update back gives
-target-add-with-aux. -/
-@[simp] theorem plainAuxEquiv_symm_step (n : Nat)
-    (x : ZMod (2 ^ n) × PlainAdder.Data n) :
-    (plainAuxEquiv n).symm (plainAuxStep x) =
-      step ((plainAuxEquiv n).symm x) := by
-  rcases x with ⟨aux, plain⟩
-  cases plain
-  rfl
-
-/-- Auxiliary-preserving plain-adder labels encoded through the
-target/auxiliary/scratch/flag power-of-two layout. -/
-def plainAuxEncoding (n : Nat) :
-    BinaryLabelEncoding (ZMod (2 ^ n) × PlainAdder.Data n) :=
-  (encoding (residueEncoding n)).relabel (plainAuxEquiv n).symm
-
-/-- A future word-level plain-adder circuit over the same physical
-target/auxiliary/scratch/flag layout, preserving the auxiliary residue. -/
-structure PlainAuxWitness (n : Nat) where
-  /-- Program acting on the target/auxiliary/scratch/flag power-of-two layout. -/
-  program : UnitaryCircuit (Qubits (plainAuxEncoding n).width)
-  /-- Correctness of the program as an auxiliary-preserving plain in-place
-  adder under the relabeled target-add-with-aux encoding. -/
-  realizesPlainAux :
-    UnitaryCircuit.Realizes (plainAuxEncoding n) program plainAuxStep
-
-namespace PlainAuxWitness
-
-/-- Convert a proved auxiliary-preserving plain-adder program into the
-target-add-with-aux witness for `N = 2^n`, reusing the exact program. -/
-def toTargetAddWithAux {n : Nat} (w : PlainAuxWitness n) :
-    Witness (residueEncoding n) where
-  program := w.program
-  realizes := by
-    exact
-      { apply_encoded_ket := by
-          intro x
-          have h := w.realizesPlainAux.apply_encoded_ket (plainAuxEquiv n x)
-          simpa [plainAuxEncoding, BinaryLabelEncoding.relabel] using h }
-
-end PlainAuxWitness
 
 /-- Carry-work labels used by the VBE full-adder route with one auxiliary
 residue field. -/
@@ -1565,7 +1450,8 @@ def cleanCarrySumGates (n : Nat) :
 
 /-- Base-gate program for target-add-with-aux with clean carry work. -/
 def cleanCarrySumProgram (n : Nat) :
-    UnitaryCircuit (Qubits (withCarryWorkEncoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram (carryWorkLayout n)
 
 /-- Folded semantic action for target-add-with-aux with clean carry work. -/
@@ -1840,7 +1726,8 @@ structure CleanWorkWitness (n : Nat) where
   /-- Folded full-register semantic action. -/
   stepWithWork : Data (2 ^ n) × CarryWork n -> Data (2 ^ n) × CarryWork n
   /-- Actual folded full-register program. -/
-  program : UnitaryCircuit (Qubits (withCarryWorkEncoding n).width)
+  program : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum
   /-- Direct realization of the folded full-register action. -/
   realizes :
     UnitaryCircuit.Realizes (withCarryWorkEncoding n) program stepWithWork
@@ -1872,7 +1759,9 @@ def residueEncoding : BinaryResidueEncoding 2 1 where
 
 /-- One CNOT implements target update over `ZMod 2`, preserving the auxiliary
 field. -/
-def cnotProgram : UnitaryCircuit (Qubits (encoding residueEncoding).width) :=
+def cnotProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding residueEncoding).width).toQuantum :=
   RawLayout.cnotScratchToTarget residueEncoding ⟨0, by decide⟩
 
 /-- Raw canonical-label action of the one-CNOT `ZMod 2` target update with an
@@ -1881,11 +1770,15 @@ theorem cnotProgram_applyNormalized_encode_eq
     (target aux scratch : ZMod 2) (flag : Bool) :
     cnotProgram.applyNormalized
         (NormalizedVector.ket
-          ((encoding residueEncoding).encode
-            (target, (aux, (scratch, flag))))) =
+          ((QubitLayout.canonical
+              (encoding residueEncoding).width).basisEquiv.symm
+            ((encoding residueEncoding).encode
+              (target, (aux, (scratch, flag)))))) =
       NormalizedVector.ket
-        ((encoding residueEncoding).encode
-          (step (target, (aux, (scratch, flag))))) := by
+        ((QubitLayout.canonical
+            (encoding residueEncoding).width).basisEquiv.symm
+          ((encoding residueEncoding).encode
+            (step (target, (aux, (scratch, flag)))))) := by
   rw [cnotProgram, RawLayout.cnotScratchToTarget,
     QubitPrimitive.circuit_applyNormalized_ket]
   congr 1
@@ -1934,7 +1827,9 @@ def scratchMSB : Fin (encoding residueEncoding).width :=
 
 /-- Two-bit ripple-carry target update over `ZMod 4`, preserving the auxiliary
 field. -/
-def rippleProgram : UnitaryCircuit (Qubits (encoding residueEncoding).width) :=
+def rippleProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding residueEncoding).width).toQuantum :=
   RawLayout.twoBitRippleProgram residueEncoding
     ⟨1, by decide⟩ ⟨0, by decide⟩ (by decide)
 
@@ -1944,15 +1839,24 @@ theorem rippleProgram_applyNormalized_encode_eq
     (target aux scratch : ZMod 4) (flag : Bool) :
     rippleProgram.applyNormalized
         (NormalizedVector.ket
-          ((encoding residueEncoding).encode
-            (target, (aux, (scratch, flag))))) =
+          ((QubitLayout.canonical
+              (encoding residueEncoding).width).basisEquiv.symm
+            ((encoding residueEncoding).encode
+              (target, (aux, (scratch, flag)))))) =
       NormalizedVector.ket
-        ((encoding residueEncoding).encode
-          (step (target, (aux, (scratch, flag))))) := by
-  simp only [rippleProgram, RawLayout.twoBitRippleProgram,
+        ((QubitLayout.canonical
+            (encoding residueEncoding).width).basisEquiv.symm
+          ((encoding residueEncoding).encode
+            (step (target, (aux, (scratch, flag)))))) := by
+  rw [rippleProgram, RawLayout.twoBitRippleProgram,
     BitSlice.Raw.targetAdd2Program, UnitaryCircuit.applyNormalized_seq,
+    UnitaryCircuit.applyNormalized_seq,
+    QubitPrimitive.circuit_applyNormalized_ket,
+    QubitPrimitive.circuit_applyNormalized_ket,
     QubitPrimitive.circuit_applyNormalized_ket]
-  congr 1
+  apply congrArg (fun label : Fin (2 ^ (encoding residueEncoding).width) =>
+    NormalizedVector.ket
+      ((QubitLayout.canonical (encoding residueEncoding).width).basisEquiv.symm label))
   fin_cases target <;> fin_cases aux <;> fin_cases scratch <;> cases flag <;>
     decide
 

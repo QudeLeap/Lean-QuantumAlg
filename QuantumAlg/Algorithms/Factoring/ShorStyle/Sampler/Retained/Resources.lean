@@ -23,60 +23,72 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Retained
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
 
 /-- Independent allowance for the actual random draw and expanded residue preparation. -/
-def nativeEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.randomBits (residueSamplingBits N))) +
-    Program.nativeEnvelope kind N
+def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (N : Nat) : ResourcePool model :=
+  ResourcePool.singleton (.classicalOperation
+    (BitWord.selectedCoordinate (execution := model) (.randomBits (residueSamplingBits N)))) +
+    Program.nativeEnvelope model N
 
+omit [BitWord.Selected model] in
 /-- The two real retained allocations add no native operations. -/
-theorem samplerRetained_allocation_trace (ctx : RuntimeCtx kind) (N : Nat)
-    (path : (allocation ctx N).Path) : (allocation ctx N).eventTrace path = [] := rfl
+theorem samplerRetained_allocation_trace (ctx : RuntimeCtx model.kind) (N : Nat)
+    (path : (allocation (model := model)
+        ctx N).Path) : (allocation (model := model) ctx N).eventTrace path = [] := rfl
 
 /-- Every sampled body path obeys the independent coordinate-wise native allowance. -/
-theorem samplerRetained_body_pool_le (ctx : RuntimeCtx kind) (N : Nat)
-    (path : (body ctx N).Path) :
-    (body ctx N).resourcePool path ≤ nativeEnvelope kind N := by
-  change ResourcePool.ofList ((PackedSample.draw N (sampleRef ctx N)).eventTrace path.1 ++
-    (Program.circuit N (FirstAccepted.cellRead (sampleRef ctx N))
+theorem samplerRetained_body_pool_le (ctx : RuntimeCtx model.kind) (N : Nat)
+    (path : (body (model := model) ctx N).Path) :
+    (body (model := model) ctx N).resourcePool path ≤ nativeEnvelope model N := by
+  change ResourcePool.ofList ((PackedSample.draw (model := model)
+      N (sampleRef ctx N)).eventTrace path.1 ++
+    (Program.circuit (model := model) N (FirstAccepted.cellRead (sampleRef ctx N))
       (parameterRef ctx N)).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
-  exact add_le_add (PackedSample.packedSample_draw_pool N (sampleRef ctx N) path.1).le
-    (Program.samplerProgram_pool_le N (FirstAccepted.cellRead (sampleRef ctx N))
+  exact add_le_add (PackedSample.packedSample_draw_pool (model := model)
+      N (sampleRef ctx N) path.1).le
+    (Program.samplerProgram_pool_le (model := model) N (FirstAccepted.cellRead (sampleRef ctx N))
       (parameterRef ctx N) path.2)
 
 /-- The full circuit charges the sampled native path after its two real allocations. -/
-theorem samplerRetained_pool_le (ctx : RuntimeCtx kind) (N : Nat)
-    (path : (circuit ctx N).Path) :
-    (circuit ctx N).resourcePool path ≤ nativeEnvelope kind N := by
-  change ResourcePool.ofList ((allocation ctx N).eventTrace path.1 ++
-    (body ctx N).eventTrace path.2) ≤ _
+theorem samplerRetained_pool_le (ctx : RuntimeCtx model.kind) (N : Nat)
+    (path : (circuit (model := model) ctx N).Path) :
+    (circuit (model := model) ctx N).resourcePool path ≤ nativeEnvelope model N := by
+  change ResourcePool.ofList ((allocation (model := model) ctx N).eventTrace path.1 ++
+    (body (model := model) ctx N).eventTrace path.2) ≤ _
   rw [samplerRetained_allocation_trace, List.nil_append]
-  exact samplerRetained_body_pool_le ctx N path.2
+  exact samplerRetained_body_pool_le (model := model) ctx N path.2
 
 /-- Exact capacity of the independent native allowance, including the random draw. -/
-theorem samplerRetainedEnvelope_card (kind : ProblemKind) (N : Nat) :
-    (nativeEnvelope kind N).card = 44 * modulusBits N + 163 := by
+theorem samplerRetainedEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
+    (nativeEnvelope model N).card = 44 * modulusBits N + 163 := by
   simp only [nativeEnvelope, Multiset.card_add, ResourcePool.singleton,
     Multiset.card_replicate, Program.samplerProgramEnvelope_card]
   omega
 
 /-- The actual sampled body has one random layer followed by its selected preparation path. -/
-theorem samplerRetained_body_unit_depth_le (ctx : RuntimeCtx kind) (N : Nat)
-    (path : (body ctx N).Path) :
-    (body ctx N).depth (fun _ => 1) path ≤ 44 * modulusBits N + 161 := by
-  have prepared := Program.samplerProgram_unit_depth_le N
+theorem samplerRetained_body_unit_depth_le (ctx : RuntimeCtx model.kind) (N : Nat)
+    (path : (body (model := model) ctx N).Path) :
+    (body (model := model) ctx N).depth (fun _ => 1) path ≤ 44 * modulusBits N + 161 := by
+  have prepared := Program.samplerProgram_unit_depth_le (model := model) N
     (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N) path.2
-  change 1 + (Program.circuit N (FirstAccepted.cellRead (sampleRef ctx N))
+  change (PackedSample.draw (model := model) N (sampleRef ctx N)).depth (fun _ => 1) path.1 +
+    (Program.circuit (model := model) N (FirstAccepted.cellRead (sampleRef ctx N))
     (parameterRef ctx N)).depth (fun _ => 1) path.2 ≤ _
+  rw [PackedSample.packedSample_draw_unit_depth]
   omega
 
 /-- Real retention contributes no event duration to the complete sampler's chosen path. -/
-theorem samplerRetained_unit_depth_le (ctx : RuntimeCtx kind) (N : Nat)
-    (path : (circuit ctx N).Path) :
-    (circuit ctx N).depth (fun _ => 1) path ≤ 44 * modulusBits N + 161 := by
-  change (0 + 0) + (body ctx N).depth (fun _ => 1) path.2 ≤ _
-  simpa only [Nat.zero_add] using samplerRetained_body_unit_depth_le ctx N path.2
+theorem samplerRetained_unit_depth_le (ctx : RuntimeCtx model.kind) (N : Nat)
+    (path : (circuit (model := model) ctx N).Path) :
+    (circuit (model := model) ctx N).depth (fun _ => 1) path ≤ 44 * modulusBits N + 161 := by
+  change (0 + 0) + (body (model := model) ctx N).depth (fun _ => 1) path.2 ≤ _
+  simpa only [Nat.zero_add] using samplerRetained_body_unit_depth_le (model := model) ctx N path.2
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Retained

@@ -60,20 +60,22 @@ private theorem selected_mass {C : Type} [Fintype C] {R : Register}
   by_cases selected : read value = flag <;>
     simp only [selected, if_true, if_false, Effect.weight_one, Effect.weight_zero]
 
-private theorem storedWeight_seq {kind : ProblemKind}
-    {origin middle final : RuntimeCtx kind}
-    (first : Circuit origin middle) (second : Circuit middle final)
+private theorem storedWeight_seq {model : ExecutionModel}
+    {origin middle final : RuntimeCtx model.kind}
+    (first : Circuit model origin middle) (second : Circuit model middle final)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State origin Reference H)
+    (state : State origin Reference (model.HiddenState × H))
     (effects : Store final → Effect (final.register.prod Reference)) :
     ((first.seq second).execute Reference state).effectWeight (fun entry => effects entry.1) =
       (second.execute Reference (first.execute Reference state)).effectWeight
         (fun entry => effects entry.1) := by
   rw [Circuit.execute_seq, State.effectWeight_mapHistory]
 
-private theorem execution_complement_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (code : Circuit ctx ctx) {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference H) (eligible : Store ctx → Prop) [DecidablePred eligible]
+private theorem execution_complement_le {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx) {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (model.HiddenState × H))
+    (eligible : Store ctx → Prop) [DecidablePred eligible]
     (lower : ℝ)
     (bound : state.mass * lower ≤ (code.execute Reference state).effectWeight
       (fun entry => if eligible entry.1 then Effect.one _ else Effect.zero _)) :
@@ -83,7 +85,8 @@ private theorem execution_complement_le {kind : ProblemKind} {ctx : RuntimeCtx k
   rw [complement_weight, Circuit.execute_mass]
   linarith
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (basePoint targetPoint : Pure.Point curve)
@@ -94,20 +97,20 @@ local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
 
 /-- Actual subnormalized mass of the existing unaccepted records. -/
 def persistentFailureWeight {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) : ℝ :=
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H)) : ℝ :=
   state.effectWeight (fun entry => if (entry.1.read
     (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false then
       Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
     else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference))
 
 private theorem sampled_failure_weight
-    (actual : Circuit (persistentCtx ctx width scalarWidth)
+    (actual : Circuit model (persistentCtx ctx width scalarWidth)
       (persistentCtx ctx width scalarWidth))
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (represents : ∀ entry, 0 < ((actual.execute Reference state).block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint) :
@@ -124,9 +127,8 @@ private theorem sampled_failure_weight
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false then
         Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
       else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference))).trans
-    (@persistentAttempt_failure_weight kind ctx width scalarWidth curve modulus sample base target
-      basePoint targetPoint Reference (H × actual.Path) inferInstance
-      (actual.execute Reference state) represents)
+    (persistentAttempt_failure_weight curve modulus sample base target
+      basePoint targetPoint (actual.execute Reference state) represents)
 
 private theorem conjunction_effectWeight {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (before current : C → Prop)
@@ -143,12 +145,12 @@ attribute [local irreducible] underPersistent
 
 /-- A proved candidate floor on the real failure fiber contracts the actual sampled attempt. -/
 theorem sampledAttempt_failure_weight_le
-    (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal)
+    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (represents : ∀ entry, 0 < (((underPersistent sampleCode supported width scalarWidth).execute
       Reference state).block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
@@ -169,23 +171,24 @@ theorem sampledAttempt_failure_weight_le
         Reference state) ≤ (1 - lower) *
           persistentFailureWeight (ctx := ctx) (width := width) (scalarWidth := scalarWidth)
             state := by
-  let read := fun entry : Store (persistentCtx ctx width scalarWidth) × H =>
+  let read := fun entry : Store (persistentCtx ctx width scalarWidth) ×
+      (model.HiddenState × H) =>
     (entry.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool
   let rejected := state.selectClassical read false
   let eligible := fun store : Store (persistentCtx ctx width scalarWidth) =>
     SampleAccepted curve modulus basePoint targetPoint
       (store.read (persistentInput width scalarWidth sample))
-  have checked := @sampled_failure_weight kind ctx width scalarWidth
+  have checked := sampled_failure_weight
     (underPersistent sampleCode supported width scalarWidth) curve modulus sample
-    base target basePoint targetPoint Reference H inferInstance state
+    base target basePoint targetPoint state
     (fun entry positive => represents entry positive)
   have grouped := conjunction_effectWeight
     ((underPersistent sampleCode supported width scalarWidth).execute Reference state)
     (fun entry => (entry.1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false)
     (fun entry => ¬eligible entry.1)
-  have selected := @underPersistent_acceptance_effectWeight kind ctx sampleCode supported width
-    scalarWidth Reference H inferInstance state false
+  have selected := underPersistent_acceptance_effectWeight sampleCode supported width
+    scalarWidth state false
     (fun entry => if ¬eligible entry.1 then
       Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
     else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference))

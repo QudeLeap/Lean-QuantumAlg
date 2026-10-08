@@ -37,17 +37,20 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- Complete actual first-pair execution realizes the original result without extra hypotheses. -/
-theorem firstPairInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem firstPairInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    Outcome refs store (firstPairStep refs store).1 basis := by
+    Outcome refs store (firstPairStep (model := model) refs store).1 basis := by
   have reduced := reductionPrefix_correct refs separation store basis initial fits
-  have selected := lovaszBranch_correct refs separation (reductionPrefixStep refs store).1
+  have selected := lovaszBranch_correct refs separation
+    (reductionPrefixStep (model := model) refs store).1
     basis.sizeReduceFirstPair.1 reduced.1 reduced.2.1 reduced.2.2
     fits.firstFits fits.twiceSecondFits
   refine ⟨selected.1, selected.2, ?_, firstPairInto_callerFrame refs store⟩
   change RawSignedRepresents
-    ((lovaszBranchStep refs (reductionPrefixStep refs store).1).1.read
+    ((lovaszBranchStep (model := model) refs
+      (reductionPrefixStep (model := model) refs store).1).1.read
       (writeInput refs.metric.g22)) _
   rw [lovaszBranch_g22 refs separation]
   exact reduced.2.2

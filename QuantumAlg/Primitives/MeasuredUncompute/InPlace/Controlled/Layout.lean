@@ -11,6 +11,12 @@ import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.OperatorAgreement
 import all QuantumAlg.Core.Execution.Context.Union.Store.Laws
 import all QuantumAlg.Core.Execution.Local.Framing.State
 import all QuantumAlg.Core.Execution.Owned.Qubits
+import all QuantumAlg.Primitives.MeasuredUncompute.Native.Frame.Controlled
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Inverse.Runtime.Frame
+import all QuantumAlg.Core.Base.Layout.Quantum.IdentityPosition
+import all QuantumAlg.Core.Base.UnitaryCircuit.Placement.Entries
+import all QuantumAlg.Primitives.MeasuredUncompute.Numerator.Runtime
+import all QuantumAlg.Util.FinPow.BinaryBasis.Append
 
 /-!
 # One actual owned control beside the measured arithmetic frame
@@ -177,6 +183,213 @@ theorem native_contained (width : Nat) :
   · apply List.mem_append_right
     have same : wire = controlWire width := by unfold controlWire; omega
     exact List.mem_singleton.mpr same
+
+/-- The native arithmetic frame followed by its actual final control, with original addresses. -/
+abbrev nativeLayout (width : Nat) :=
+  QubitLayout.canonical (NativeFrameControl.encoding width).width
+
+private theorem native_identities_contained (width : Nat) :
+    (nativeLayout width).toQuantum.identities ⊆ (context width).quantumLayout.identities := by
+  rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
+  change (nativeLayout width).systemIdx ⊆ _
+  rw [QubitLayout.canonical_systemIdx]
+  change List.range ((ProductPlacement.frameEncoding width).width + 1) ⊆ _
+  have contained := native_contained width
+  change List.range (1 + (ProductPlacement.frameEncoding width).width) ⊆ _ at contained
+  simpa only [Nat.add_comm] using contained
+
+private theorem context_identities_contained (width : Nat) :
+    (context width).quantumLayout.identities ⊆ (nativeLayout width).toQuantum.identities := by
+  rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
+  change (context width).physicalIdx ⊆ (nativeLayout width).systemIdx
+  rw [QubitLayout.canonical_systemIdx]
+  intro identity present
+  rw [context_physical] at present
+  apply List.mem_range.mpr
+  rcases List.mem_append.mp present with original | control
+  · have bound := original_bounded width identity original
+    change identity < (ProductPlacement.frameEncoding width).width + 1
+    change identity < (ProductPlacement.frameEncoding width).width at bound
+    omega
+  · have same := List.mem_singleton.mp control
+    rw [same]
+    change (ProductPlacement.frameEncoding width).width <
+      (ProductPlacement.frameEncoding width).width + 1
+    omega
+
+/-- Every native address selects the runtime wire bearing that same physical identity. -/
+def nativePosition (width : Nat) :
+    Fin (NativeFrameControl.encoding width).width ↪ Fin (context width).systemCount :=
+  QuantumLayout.positionOfIdentity (nativeLayout width).toQuantum (context width).quantumLayout
+    (native_identities_contained width)
+
+/-- The physical placement covers every live wire, including every dirty history position. -/
+theorem nativePosition_surjective (width : Nat) : Function.Surjective (nativePosition width) :=
+  QuantumLayout.positionOfIdentity_surjective (nativeLayout width).toQuantum
+    (context width).quantumLayout (native_identities_contained width)
+    (context_identities_contained width)
+
+/-- The native placement never relabels a physical address. -/
+theorem nativePosition_identity (width : Nat)
+    (index : Fin (NativeFrameControl.encoding width).width) :
+    ((context width).quantumLayout.wire (nativePosition width index)).identity = index.val :=
+  QuantumLayout.positionOfIdentity_identity (nativeLayout width).toQuantum
+    (context width).quantumLayout (native_identities_contained width) index
+
+private theorem context_dimension (width : Nat) (index : Fin (context width).systemCount) :
+    ((context width).quantumLayout.wire index).dimension = 2 := by
+  obtain ⟨position, rfl⟩ :=
+    (unionPositionEquiv (NumeratorMeasurement.context width) (controlContext width)
+      (control_disjoint width)).surjective index
+  cases position with
+  | inl original =>
+      change (((NumeratorMeasurement.context width).disjointUnion (controlContext width)
+        (control_disjoint width)).quantumLayout.wire
+        (leftPosition (NumeratorMeasurement.context width) (controlContext width)
+          (control_disjoint width) original)).dimension = 2
+      rw [contextUnion_left_wire]
+      obtain ⟨old, rfl⟩ :=
+        (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width).surjective original
+      change ((MeasurementCells.context (InversePreparation.after width) 2 width).quantumLayout.wire
+        (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width old)).dimension = 2
+      rw [MeasurementCells.wireEquiv_preserved]
+      exact InverseRuntimeFrame.after_dimension width old
+  | inr control =>
+      change (((NumeratorMeasurement.context width).disjointUnion (controlContext width)
+        (control_disjoint width)).quantumLayout.wire
+        (rightPosition (NumeratorMeasurement.context width) (controlContext width)
+          (control_disjoint width) control)).dimension = 2
+      rw [contextUnion_right_wire]
+      obtain ⟨old, rfl⟩ := (positionsOfEqualWires (controlLayout width)
+        (controlContext width).quantumLayout (control_wires width)).surjective control
+      rw [wireAtCorrespondingPosition (controlLayout width)
+        (controlContext width).quantumLayout (control_wires width) old]
+      rfl
+
+/-- The same identity placement retains the certified dimension of every original qubit. -/
+theorem nativePosition_dimensions (width : Nat)
+    (index : Fin (NativeFrameControl.encoding width).width) :
+    ((nativeLayout width).toQuantum.wire index).dimension =
+      ((context width).quantumLayout.wire (nativePosition width index)).dimension := by
+  rw [context_dimension]
+  rfl
+
+/-- Read precisely the native coordinates selected by the actual complete physical placement. -/
+def nativeBasis (width : Nat) (state : (context width).register.Index) :
+    (nativeLayout width).toQuantum.register.Index :=
+  UnitaryCircuit.basisAt (nativeLayout width).toQuantum (context width).quantumLayout
+    (nativePosition width) (nativePosition_dimensions width) state
+
+private theorem nativePosition_left (width : Nat)
+    (index : Fin (ProductPlacement.frameEncoding width).width) :
+    nativePosition width (Fin.castAdd 1 index) =
+      ContextUnion.leftPosition (NumeratorMeasurement.context width) (controlContext width)
+        (control_disjoint width)
+        (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width
+          (InverseRuntimeFrame.position width index)) := by
+  apply (context width).quantumLayout.identityInjective
+  have joined := ContextUnion.contextUnion_left_wire (NumeratorMeasurement.context width)
+    (controlContext width) (control_disjoint width)
+    (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width
+      (InverseRuntimeFrame.position width index))
+  have retained := MeasurementCells.wireEquiv_preserved (InversePreparation.after width) 2 width
+    (InverseRuntimeFrame.position width index)
+  exact (nativePosition_identity width (Fin.castAdd 1 index)).trans
+    ((congrArg QuantumWire.identity joined).trans
+      ((congrArg QuantumWire.identity retained).trans
+        (InverseRuntimeFrame.position_identity width index))).symm
+
+private theorem nativeBasis_label_left (width : Nat) (control : Fin 2)
+    (original : (NumeratorMeasurement.context width).register.Index)
+    (index : Fin (ProductPlacement.frameEncoding width).width) :
+    (nativeBasis width (label width control original) (Fin.castAdd 1 index)).val =
+      ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
+        (NumeratorMeasurement.frameBasis width original) index).val := by
+  have split := ContextUnion.contextUnion_split_left_value
+    (NumeratorMeasurement.context width) (controlContext width) (control_disjoint width)
+    (label width control original)
+    (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width
+      (InverseRuntimeFrame.position width index))
+  simp only [label, Equiv.apply_symm_apply] at split
+  have retained := MeasurementCells.basisEquiv_value (InversePreparation.after width) 2 width
+    ((MeasurementCells.basisEquiv (InversePreparation.after width) 2 width).symm original)
+    (InverseRuntimeFrame.position width index)
+  have roundtrip := congrArg
+    (fun basis => (basis (MeasurementCells.wireEquiv (InversePreparation.after width) 2 width
+      (InverseRuntimeFrame.position width index))).val)
+    ((MeasurementCells.basisEquiv (InversePreparation.after width) 2 width).apply_symm_apply
+      original)
+  have selected := congrArg (fun basis => (basis index).val)
+    (NumeratorRuntime.selected_basis width original)
+  rw [NumeratorRuntime.frameCoordinates_eq_cells] at selected
+  change (label width control original (nativePosition width (Fin.castAdd 1 index))).val = _
+  rw [nativePosition_left]
+  exact split.trans (roundtrip.symm.trans (retained.trans selected))
+
+private theorem nativePosition_right (width : Nat) (index : Fin 1) :
+    nativePosition width (Fin.natAdd (ProductPlacement.frameEncoding width).width index) =
+      ContextUnion.rightPosition (NumeratorMeasurement.context width) (controlContext width)
+        (control_disjoint width)
+        (positionsOfEqualWires (controlLayout width) (controlContext width).quantumLayout
+          (control_wires width) index) := by
+  have zero : index = 0 := Subsingleton.elim _ _
+  subst index
+  apply (context width).quantumLayout.identityInjective
+  have joined := ContextUnion.contextUnion_right_wire (NumeratorMeasurement.context width)
+    (controlContext width) (control_disjoint width)
+    (positionsOfEqualWires (controlLayout width) (controlContext width).quantumLayout
+      (control_wires width) 0)
+  have retained := wireAtCorrespondingPosition (controlLayout width)
+    (controlContext width).quantumLayout (control_wires width) 0
+  exact (nativePosition_identity width
+    (Fin.natAdd (ProductPlacement.frameEncoding width).width (0 : Fin 1))).trans
+      ((congrArg QuantumWire.identity joined).trans
+        (congrArg QuantumWire.identity retained)).symm
+
+private theorem nativeBasis_label_right (width : Nat) (control : Fin 2)
+    (original : (NumeratorMeasurement.context width).register.Index) (index : Fin 1) :
+    (nativeBasis width (label width control original)
+      (Fin.natAdd (ProductPlacement.frameEncoding width).width index)).val =
+      ((QubitLayout.canonical 1).basisEquiv.symm control index).val := by
+  have split := ContextUnion.contextUnion_split_right_value
+    (NumeratorMeasurement.context width) (controlContext width) (control_disjoint width)
+    (label width control original)
+    (positionsOfEqualWires (controlLayout width) (controlContext width).quantumLayout
+      (control_wires width) index)
+  simp only [label, Equiv.apply_symm_apply] at split
+  have retained := basisOfEqualWires_value (controlLayout width)
+    (controlContext width).quantumLayout (control_wires width)
+    ((controlQubitLayout width).binaryIndexEquiv.symm control) index
+  change (label width control original
+    (nativePosition width (Fin.natAdd (ProductPlacement.frameEncoding width).width index))).val = _
+  rw [nativePosition_right]
+  exact split.trans retained
+
+/-- The exact native readout appends the supplied control after the entire original frame. -/
+theorem controlledNativeBasis_label (width : Nat) (control : Fin 2)
+    (original : (NumeratorMeasurement.context width).register.Index) :
+    nativeBasis width (label width control original) =
+      (nativeLayout width).basisEquiv.symm
+        (prodEquiv (NumeratorMeasurement.frameBasis width original, control)) := by
+  let originalLabel : Fin (2 ^ (ProductPlacement.frameEncoding width).width) :=
+    NumeratorMeasurement.frameBasis width original
+  change (fun index : Fin ((ProductPlacement.frameEncoding width).width + 1) =>
+    nativeBasis width (label width control original) index) =
+      (BinaryBasis.bigEndianEquiv ((ProductPlacement.frameEncoding width).width + 1)).symm
+        (prodEquiv (originalLabel, control))
+  rw [BinaryBasis.bigEndianEquiv_symm_prod
+    (leftWidth := (ProductPlacement.frameEncoding width).width) (rightWidth := 1)]
+  funext index
+  refine Fin.addCases (m := (ProductPlacement.frameEncoding width).width) (n := 1)
+    (fun first => ?_) (fun last => ?_) index
+  · simp only [Fin.addCases_left]
+    apply Fin.ext
+    exact nativeBasis_label_left width control original first
+  · simp only [Fin.addCases_right]
+    apply Fin.ext
+    exact nativeBasis_label_right width control original last
+
+
 
 end
 

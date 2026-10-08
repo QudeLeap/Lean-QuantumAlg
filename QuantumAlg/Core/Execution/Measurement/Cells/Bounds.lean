@@ -26,16 +26,17 @@ namespace QuantumAlg.Execution.MeasurementCells
 variable {kind : ProblemKind}
 
 /-- Every visited frame contains exactly an already allocated number of the requested cells. -/
-theorem allocate_visitedContexts (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
-    (path : (allocate ctx dimension count).Path) (frame : RuntimeCtx kind)
-    (present : frame ∈ (allocate ctx dimension count).visitedContexts path) :
+theorem allocate_visitedContexts {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+    (path : (allocate (model := model) ctx dimension count).Path) (frame : RuntimeCtx model.kind)
+    (present : frame ∈ (allocate (model := model) ctx dimension count).visitedContexts path) :
     ∃ used, used ≤ count ∧ frame = context ctx dimension used := by
   induction count with
   | zero =>
       have same : frame = ctx := List.mem_singleton.mp present
       exact ⟨0, le_rfl, same⟩
   | succ count ih =>
-      change frame ∈ (allocate ctx dimension count).visitedContexts path.1 ++
+      change frame ∈ (allocate (model := model) ctx dimension count).visitedContexts path.1 ++
         [context ctx dimension count, context ctx dimension (count + 1)] at present
       rcases List.mem_append.mp present with previous | current
       · obtain ⟨used, bounded, same⟩ := ih path.1 previous
@@ -67,23 +68,27 @@ theorem context_auxiliarySpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
   exact Nat.add_le_add_right (Nat.mul_le_mul_right _ bounded) _
 
 /-- Actual resident peak is bounded by the complete final retained-cell frame. -/
-theorem allocate_peakResidentSpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
-    (path : (allocate ctx dimension count).Path) :
-    (allocate ctx dimension count).peakResidentSpace path ≤
+theorem allocate_peakResidentSpace {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+    (path : (allocate (model := model) ctx dimension count).Path) :
+    (allocate (model := model) ctx dimension count).peakResidentSpace path ≤
       (context ctx dimension count).residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro frame present
-  obtain ⟨used, bounded, rfl⟩ := allocate_visitedContexts ctx dimension count path frame present
+  obtain ⟨used, bounded, rfl⟩ := allocate_visitedContexts (model := model)
+    ctx dimension count path frame present
   exact context_residentSpace_mono ctx dimension bounded
 
 /-- Auxiliary peak counts the same retained cells throughout their actual allocation. -/
-theorem allocate_peakAuxiliarySpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
-    (path : (allocate ctx dimension count).Path) :
-    (allocate ctx dimension count).peakAuxiliarySpace path ≤
+theorem allocate_peakAuxiliarySpace {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+    (path : (allocate (model := model) ctx dimension count).Path) :
+    (allocate (model := model) ctx dimension count).peakAuxiliarySpace path ≤
       (context ctx dimension count).auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro frame present
-  obtain ⟨used, bounded, rfl⟩ := allocate_visitedContexts ctx dimension count path frame present
+  obtain ⟨used, bounded, rfl⟩ := allocate_visitedContexts (model := model)
+    ctx dimension count path frame present
   exact context_auxiliarySpace_mono ctx dimension bounded
 
 end QuantumAlg.Execution.MeasurementCells

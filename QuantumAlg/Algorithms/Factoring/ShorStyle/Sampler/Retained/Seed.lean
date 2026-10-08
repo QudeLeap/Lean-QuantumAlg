@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.Execution
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Execution
 import all QuantumAlg.Core.Execution.Basis.Seeded.Classical
 
 /-!
@@ -28,13 +28,15 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual retained source sampling preserves the seed on every complete store-reference block. -/
-theorem samplerRetained_seeded {ctx : RuntimeCtx .quantum} {N : Nat} (input : Input N)
+theorem samplerRetained_seeded {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {N : Nat} (input : Input N)
     (seed : ctx.register.Index)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : BasisSeeded.Holds seed state) :
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : BasisSeeded.Holds seed state) :
     BasisSeeded.Holds (ctx := context ctx N) seed
-      ((circuit ctx N).execute Reference state) := by
-  let sampled := (circuit ctx N).execute Reference state
+      ((circuit (model := model) ctx N).execute Reference state) := by
+  let sampled := (circuit (model := model) ctx N).execute Reference state
   change BasisSeeded.Holds (ctx := context ctx N) seed sampled
   intro finalStore left right leftRef rightRef
   by_cases supported : left = seed ∧ right = seed
@@ -42,12 +44,12 @@ theorem samplerRetained_seeded {ctx : RuntimeCtx .quantum} {N : Nat} (input : In
     exact (if_pos ⟨rfl, rfl⟩).symm
   · refine Eq.trans ?_ (if_neg supported).symm
     let count : ℕ+ := ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩
-    let histories := fun entry : (Store ctx × History) × Fin count =>
-      (entry.1.2, resultPath ctx N entry.1.1 entry.2)
+    let histories := fun entry : (Store ctx × (model.HiddenState × History)) × Fin count =>
+      (entry.1.2.1, (entry.1.2.2, resultPath (model := model) ctx N entry.1.1 entry.2))
     have executedState : sampled =
         @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
           (@instDecidableEqProd (Store (context ctx N))
-            (History × (circuit ctx N).Path)
+            (model.HiddenState × (History × (circuit (model := model) ctx N).Path))
             (Classical.decEq _) (Classical.decEq _))
           (uniformChoice state count)
           (fun entry =>
@@ -56,7 +58,7 @@ theorem samplerRetained_seeded {ctx : RuntimeCtx .quantum} {N : Nat} (input : In
       exact mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
     have executed := congrArg
       (fun output : State (context ctx N) Reference
-          (History × (circuit ctx N).Path) =>
+          (model.HiddenState × (History × (circuit (model := model) ctx N).Path)) =>
         ((output.mapClassical (fun entry => entry.1)).block finalStore).matrix)
       executedState
     have grouped := BasisSeeded.sampledMap_store_matrix state count

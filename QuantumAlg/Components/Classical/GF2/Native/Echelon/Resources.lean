@@ -25,14 +25,20 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
+
+/-- The selected coordinate of a matrix-reduction initialization. -/
+def echelonOperationEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
 
 /-- The original vector-write event used by every pivot-row initialization entry. -/
-def pivotRowsClearEvent (kind : ProblemKind) (rowCount width : Nat) : Resource.Event kind :=
-  .classicalOperation (.vector .write width rowCount)
+def pivotRowsClearEvent (rowCount width : Nat) : Resource.Event model :=
+  echelonOperationEvent (model := model) (.vector .write width rowCount)
 
-private theorem repeated_trace (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (event : Resource.Event kind)
+omit [BitWord.Selected model] in
+private theorem repeated_trace (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (event : Resource.Event model)
     (events : ∀ index path, (body index).eventTrace path = [event])
     (path : (Circuit.forRange count body).Path) :
     (Circuit.forRange count body).eventTrace path = List.replicate count event := by
@@ -50,33 +56,38 @@ theorem gf2PivotRowsClearBody_events
     (zero : CWriteRef ctx (.unsignedWord rowCount))
     (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).eventTrace path =
-      List.replicate width (pivotRowsClearEvent kind rowCount width) :=
-  repeated_trace width _ _ (fun _column _path => rfl) path
+      List.replicate width (pivotRowsClearEvent (model := model) rowCount width) :=
+  repeated_trace width _ _ (fun column current => by
+    rw [BitWord.bitWord_instruction_eventTrace]
+    change [pivotRowsClearEvent (model := model) rowCount width] = _
+    rfl) path
 
 /-- The same actual initialization path has exact serial event-duration accounting. -/
 theorem gf2PivotRowsClearBody_duration_eventTrace
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (zero : CWriteRef ctx (.unsignedWord rowCount)) (duration : Resource.Event kind → Nat)
+    (zero : CWriteRef ctx (.unsignedWord rowCount)) (duration : Resource.Event model → Nat)
     (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).depth duration path =
       (((pivotRowsClearBody rows zero).eventTrace path).map duration).sum :=
   Circuit.forRange_duration_eventTrace width _ duration
-    (fun _column _path => (Nat.add_zero _).symm) path
+    (fun column current => by
+      rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+      simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]) path
 
 /-- Real lexical entry and exit add no events to the original initialization writes. -/
 theorem gf2ClearPivotRows_events
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).eventTrace path =
-      List.replicate width (pivotRowsClearEvent kind rowCount width) :=
+      List.replicate width (pivotRowsClearEvent (model := model) rowCount width) :=
   gf2PivotRowsClearBody_events _ _ path
 
 /-- The complete initialization scope charges every vector-write duration exactly once. -/
 theorem gf2ClearPivotRows_depth
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (duration : Resource.Event kind → Nat) (path : (clearPivotRows rows).Path) :
+    (duration : Resource.Event model → Nat) (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).depth duration path =
-      width * duration (pivotRowsClearEvent kind rowCount width) := by
+      width * duration (pivotRowsClearEvent (model := model) rowCount width) := by
   have serial := gf2PivotRowsClearBody_duration_eventTrace
     (rows.underWorkspace ctx.canonicalFreshKey (.unsignedWord rowCount)
       ctx.canonicalFreshKey_fresh) (pivotMaskCell ctx rowCount) duration path
@@ -84,22 +95,23 @@ theorem gf2ClearPivotRows_depth
     (rows.underWorkspace ctx.canonicalFreshKey (.unsignedWord rowCount)
       ctx.canonicalFreshKey_fresh) (pivotMaskCell ctx rowCount) path
   have complete := serial.trans (congrArg
-    (fun events : List (Resource.Event kind) => (events.map duration).sum) trace)
+    (fun events : List (Resource.Event model) => (events.map duration).sum) trace)
   exact complete.trans (by
     simp only [List.map_replicate, List.sum_replicate, smul_eq_mul])
 
 /-- All original initialization event coordinates precede the individual column allowances. -/
-def echelonEnvelope (kind : ProblemKind) (rowCount width : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.wordBinary .bitXor rowCount)) +
-    (ResourcePool.singleton (.classicalOperation (.wordBinary .bitXor width)) +
-      (ResourcePool.scale width (ResourcePool.singleton (pivotRowsClearEvent kind rowCount width)) +
-        ∑ column, pivotColumnEnvelope kind rowCount width column))
+def echelonEnvelope (rowCount width : Nat) : ResourcePool model :=
+  ResourcePool.singleton (echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)) +
+    (ResourcePool.singleton (echelonOperationEvent (model := model) (.wordBinary .bitXor width)) +
+      (ResourcePool.scale width
+          (ResourcePool.singleton (pivotRowsClearEvent (model := model) rowCount width)) +
+        ∑ column, pivotColumnEnvelope (model := model) rowCount width column))
 
 /-- The original three initialization stages precede every column's duration allowance. -/
-def echelonDepthLimit (rowCount width : Nat) (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.wordBinary .bitXor rowCount)) +
-    (duration (.classicalOperation (.wordBinary .bitXor width)) +
-      (width * duration (pivotRowsClearEvent kind rowCount width) +
+def echelonDepthLimit (rowCount width : Nat) (duration : Resource.Event model → Nat) : Nat :=
+  duration (echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)) +
+    (duration (echelonOperationEvent (model := model) (.wordBinary .bitXor width)) +
+      (width * duration (pivotRowsClearEvent (model := model) rowCount width) +
         ∑ column, pivotColumnDepthLimit rowCount width column duration))
 
 variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
@@ -110,11 +122,26 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 /-- Complete reduction charges both real self-XORs, all initialization writes and all columns. -/
 theorem gf2ReduceMatrix_pool_le (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).resourcePool path ≤
-      echelonEnvelope kind rowCount width :=
-  by
+      echelonEnvelope (model := model) rowCount width := by
+    change (Circuit.seq
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+      (Circuit.seq
+        (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+        (Circuit.seq (clearPivotRows (model := model) rows)
+          (Circuit.forRange width
+            (reduceColumn (model := model) matrix used rows columns))))).Path at path
     change ResourcePool.ofList
-      ([.classicalOperation (.wordBinary .bitXor rowCount)] ++
-        ([.classicalOperation (.wordBinary .bitXor width)] ++
+      ((BitWord.instruction (execution := model)
+          (Word.PowerOfTwo.clearOp used)).eventTrace path.1 ++
+        ((BitWord.instruction (execution := model)
+            (Word.PowerOfTwo.clearOp columns)).eventTrace path.2.1 ++
+          ((clearPivotRows rows).eventTrace path.2.2.1 ++
+            (Circuit.forRange width (reduceColumn matrix used rows columns)).eventTrace
+              path.2.2.2))) ≤ _
+    rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+    change ResourcePool.ofList
+      ([echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)] ++
+        ([echelonOperationEvent (model := model) (.wordBinary .bitXor width)] ++
           ((clearPivotRows rows).eventTrace path.2.2.1 ++
             (Circuit.forRange width (reduceColumn matrix used rows columns)).eventTrace
               path.2.2.2))) ≤ _
@@ -125,12 +152,27 @@ theorem gf2ReduceMatrix_pool_le (path : (reduceMatrix matrix used rows columns).
         (gf2ReduceColumn_pool_le matrix used rows columns) path.2.2.2)))
 
 /-- The original serial initialization precedes each column's actual duration allowance. -/
-theorem gf2ReduceMatrix_depth_le (duration : Resource.Event kind → Nat)
+theorem gf2ReduceMatrix_depth_le (duration : Resource.Event model → Nat)
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).depth duration path ≤
       echelonDepthLimit rowCount width duration := by
-  change duration (.classicalOperation (.wordBinary .bitXor rowCount)) +
-    (duration (.classicalOperation (.wordBinary .bitXor width)) +
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (Circuit.seq
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (Circuit.seq (clearPivotRows (model := model) rows)
+        (Circuit.forRange width
+          (reduceColumn (model := model) matrix used rows columns))))).Path at path
+  change (BitWord.instruction (execution := model)
+      (Word.PowerOfTwo.clearOp used)).depth duration path.1 +
+    ((BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp columns)).depth duration path.2.1 +
+      ((clearPivotRows rows).depth duration path.2.2.1 +
+        (Circuit.forRange width (reduceColumn matrix used rows columns)).depth duration
+          path.2.2.2)) ≤ _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  change duration (echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)) +
+    (duration (echelonOperationEvent (model := model) (.wordBinary .bitXor width)) +
       ((clearPivotRows rows).depth duration path.2.2.1 +
         (Circuit.forRange width (reduceColumn matrix used rows columns)).depth duration
           path.2.2.2)) ≤ _
@@ -141,17 +183,42 @@ theorem gf2ReduceMatrix_depth_le (duration : Resource.Event kind → Nat)
       path.2.2.2) _) _) _
 
 /-- Every complete reduction path retains its exact emitted serial-duration sum. -/
-theorem gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event kind → Nat)
+theorem gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).depth duration path =
       (((reduceMatrix matrix used rows columns).eventTrace path).map duration).sum := by
-  change duration (.classicalOperation (.wordBinary .bitXor rowCount)) +
-    (duration (.classicalOperation (.wordBinary .bitXor width)) +
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (Circuit.seq
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (Circuit.seq (clearPivotRows (model := model) rows)
+        (Circuit.forRange width
+          (reduceColumn (model := model) matrix used rows columns))))).Path at path
+  change (BitWord.instruction (execution := model)
+      (Word.PowerOfTwo.clearOp used)).depth duration path.1 +
+    ((BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp columns)).depth duration path.2.1 +
       ((clearPivotRows rows).depth duration path.2.2.1 +
         (Circuit.forRange width (reduceColumn matrix used rows columns)).depth duration
           path.2.2.2)) =
-    ((([.classicalOperation (.wordBinary .bitXor rowCount)] : List (Resource.Event kind)) ++
-      (([.classicalOperation (.wordBinary .bitXor width)] : List (Resource.Event kind)) ++
+    (((BitWord.instruction (execution := model)
+        (Word.PowerOfTwo.clearOp used)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model)
+          (Word.PowerOfTwo.clearOp columns)).eventTrace path.2.1 ++
+        ((clearPivotRows rows).eventTrace path.2.2.1 ++
+          (Circuit.forRange width (reduceColumn matrix used rows columns)).eventTrace
+            path.2.2.2))).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change duration (echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)) +
+    (duration (echelonOperationEvent (model := model) (.wordBinary .bitXor width)) +
+      ((clearPivotRows rows).depth duration path.2.2.1 +
+        (Circuit.forRange width (reduceColumn matrix used rows columns)).depth duration
+          path.2.2.2)) =
+    ((([echelonOperationEvent (model := model) (.wordBinary .bitXor rowCount)] :
+        List (Resource.Event model)) ++
+      (([echelonOperationEvent (model := model) (.wordBinary .bitXor width)] :
+          List (Resource.Event model)) ++
         ((clearPivotRows rows).eventTrace path.2.2.1 ++
           (Circuit.forRange width (reduceColumn matrix used rows columns)).eventTrace
             path.2.2.2))).map duration).sum
@@ -165,8 +232,8 @@ theorem gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event kind → 
 theorem gf2LoadAndReduce_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).resourcePool path ≤
-      ResourcePool.scale rowCount (rowEnvelope kind rowCount width) +
-        echelonEnvelope kind rowCount width := by
+      ResourcePool.scale rowCount (rowEnvelope (model := model) rowCount width) +
+        echelonEnvelope (model := model) rowCount width := by
   change ResourcePool.ofList ((loadMatrix input matrix).eventTrace path.1 ++
     (reduceMatrix matrix used rows columns).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
@@ -175,7 +242,7 @@ theorem gf2LoadAndReduce_pool_le (input : CInputRef ctx (.fixedVector rowCount (
 
 /-- The complete original loading duration is followed by the initialized reduction duration. -/
 theorem gf2LoadAndReduce_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).depth duration path ≤
       rowCount * rowDepthLimit rowCount width duration +
@@ -186,7 +253,7 @@ theorem gf2LoadAndReduce_depth_le (input : CInputRef ctx (.fixedVector rowCount 
 /-- Both real prefix phases retain the exact duration sum of their original emitted events. -/
 theorem gf2LoadAndReduce_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).depth duration path =
       (((loadAndReduce input matrix used rows columns).eventTrace path).map duration).sum := by

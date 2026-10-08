@@ -119,54 +119,52 @@ theorem clock_bit (width : Nat) (index : Fin (clockWidth width)) (state : Regist
     exact (PaddingClock.high_bit state.firstWord index.val high).symm
   · rw [if_pos (by omega), if_neg high]
 
-/-- Native HRS physical order: full Work2, the two actual high bits, low shift, and Phase2. -/
+/-- Native HRS physical order: the clock, full borrowed Work2, and Phase2. -/
 def physicalIndex (width index : Nat) : Nat :=
-  if index < width + 3 then width + 3 + index
-  else if index < width + 5 then width + (index - (width + 3))
-  else if index < width + 3 + clockWidth width then
-    2 * (width + 3) + 3 * width.size + (index - (width + 5))
+  if index < clockWidth width then
+    if index < 2 then width + index
+    else 2 * (width + 3) + 3 * width.size + (index - 2)
+  else if index < clockWidth width + width + 3 then
+    width + 3 + (index - clockWidth width)
   else 2 * (width + 3) + 4 * width.size + 1
 
 /-- Every borrowed bit is an actual Work2 wire. -/
 theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
-    physicalIndex width index.val = (secondWordBit width index).wire.val := by
+    physicalIndex width (clockWidth width + index.val) =
+      (secondWordBit width index).wire.val := by
   rw [secondWordBit_wire]
-  exact if_pos index.isLt
+  have afterClock : ¬clockWidth width + index.val < clockWidth width := by omega
+  have beforeControl : clockWidth width + index.val < clockWidth width + width + 3 := by
+    have bound := index.isLt
+    omega
+  simp only [physicalIndex, if_neg afterClock, if_pos beforeControl,
+    Nat.add_sub_cancel_left]
 
 /-- Both high-counter addresses are exactly the pre-existing Work1 tail positions. -/
 theorem physicalIndex_high (width : Nat) (index : Fin 2) :
-    physicalIndex width (width + 3 + index.val) =
+    physicalIndex width index.val =
       (firstWordBit width ⟨width + index.val, by have bound := index.isLt; omega⟩).wire.val := by
   rw [firstWordBit_wire]
   have bound := index.isLt
-  have afterWork : ¬width + 3 + index.val < width + 3 := by omega
-  have beforeShift : width + 3 + index.val < width + 5 := by omega
-  simp only [physicalIndex, if_neg afterWork, if_pos beforeShift, Nat.add_sub_cancel_left]
+  have inClock : index.val < clockWidth width := by unfold clockWidth; omega
+  simp only [physicalIndex, if_pos inClock, if_pos bound]
 
 /-- Every low-counter address is the unchanged actual shift-register wire. -/
 theorem physicalIndex_low (width : Nat) (index : Fin width.size) :
-    physicalIndex width (width + 5 + index.val) = (shiftBit width index).wire.val := by
+    physicalIndex width (2 + index.val) = (shiftBit width index).wire.val := by
   rw [shiftBit_wire]
   have bound := index.isLt
-  have afterWork : ¬width + 5 + index.val < width + 3 := by omega
-  have afterHigh : ¬width + 5 + index.val < width + 5 := by omega
-  have beforeControl : width + 5 + index.val < width + 3 + clockWidth width := by
-    unfold clockWidth
-    omega
-  simp only [physicalIndex, if_neg afterWork, if_neg afterHigh, if_pos beforeControl,
-    Nat.add_sub_cancel_left]
+  have inClock : 2 + index.val < clockWidth width := by unfold clockWidth; omega
+  have afterHigh : ¬2 + index.val < 2 := by omega
+  simp only [physicalIndex, if_pos inClock, if_neg afterHigh, Nat.add_sub_cancel_left]
 
 /-- The incrementer control is the original Phase2 physical wire. -/
 theorem physicalIndex_control (width : Nat) :
-    physicalIndex width (width + 3 + clockWidth width) = (phase2Bit width).wire.val := by
+    physicalIndex width (clockWidth width + width + 3) =
+      (phase2Bit width).wire.val := by
   rw [phase2Bit_wire]
-  have afterWork : ¬width + 3 + clockWidth width < width + 3 := by
-    unfold clockWidth
-    omega
-  have afterHigh : ¬width + 3 + clockWidth width < width + 5 := by
-    unfold clockWidth
-    omega
-  simp only [physicalIndex, if_neg afterWork, if_neg afterHigh, Nat.lt_irrefl, if_false]
+  have afterClock : ¬clockWidth width + width + 3 < clockWidth width := by omega
+  simp only [physicalIndex, if_neg afterClock, Nat.lt_irrefl, if_false]
 
 end
 

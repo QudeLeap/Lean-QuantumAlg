@@ -66,41 +66,69 @@ private theorem splitState_eventWeight {ctx framed : RuntimeCtx .quantum}
     exact original.symm
   rw [reads]
 
+private theorem splitServiceState_eventWeight {ctx framed : RuntimeCtx .quantum}
+    (separate : RuntimeCtx.StorageDisjoint ctx framed)
+    {Reference : Register} {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (ctx.disjointUnion framed separate) Reference (Hidden × History))
+    {shape : CShape} (input : CInputRef ctx shape) (event : shape.Value → Bool) :
+    state.effectWeight (fun record =>
+      if event (record.1.read (inputLeft separate input)) = true then
+        Effect.one (Register.prod (ctx.disjointUnion framed separate).register Reference)
+      else Effect.zero (Register.prod (ctx.disjointUnion framed separate).register Reference)) =
+      (splitServiceState ctx framed separate state).effectWeight (fun record =>
+        if event (record.1.read input) = true then
+          Effect.one (Register.prod ctx.register (Register.prod framed.register Reference))
+        else Effect.zero
+          (Register.prod ctx.register (Register.prod framed.register Reference))) := by
+  rw [splitServiceState, State.effectWeight_mapHistory]
+  exact splitState_eventWeight separate state input event
+
 private theorem framedReadout_eventWeight {ctx framed : RuntimeCtx .quantum} {width : Nat}
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (separate : RuntimeCtx.StorageDisjoint ctx framed)
     (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (ctx.disjointUnion framed separate) Reference History)
+    (state : State (ctx.disjointUnion framed separate) Reference
+      (services.HiddenState × History))
     (event : (Fin width → Bool) → Bool) :
-    ((frameLocal (Circuit.measurementSequence (QubitReadouts.readouts wires qubits cells))
+    ((frameLocal (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services)
+      (QubitReadouts.readouts wires qubits cells))
       (Circuit.measurementSequence_isLocal _) framed separate).execute Reference state).effectWeight
         (fun record => if event (QubitReadouts.mask
           (record.1.read (inputLeft separate (QubitReadouts.input cells)))) = true then
             Effect.one (Register.prod (ctx.disjointUnion framed separate).register Reference)
           else Effect.zero (Register.prod (ctx.disjointUnion framed separate).register Reference)) =
       (QubitReadouts.eventEffect wires event (Register.prod framed.register Reference)).weight
-        (splitState ctx framed separate state).quantumMarginal := by
-  rw [splitState_eventWeight separate _ (QubitReadouts.input cells)
+        (splitServiceState ctx framed separate state).quantumMarginal := by
+  rw [splitServiceState_eventWeight separate _ (QubitReadouts.input cells)
     (fun value => event (QubitReadouts.mask value))]
-  rw [frameLocal_execute]
+  erw [frameLocal_execute]
   erw [State.effectWeight_mapHistory]
   exact QubitReadouts.measurement_eventEffectWeight wires qubits cells distinct _ event
 
 private theorem framedPrefixReadout_eventWeight {ctx framed : RuntimeCtx .quantum} {width : Nat}
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (separate : RuntimeCtx.StorageDisjoint ctx framed)
-    (prior : Circuit ctx ctx) (supported : prior.IsLocal)
+    (prior : Circuit (.quantum gates oracles operations services) ctx ctx)
+    (supported : prior.IsLocal)
     (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (ctx.disjointUnion framed separate) Reference History)
+    (state : State (ctx.disjointUnion framed separate) Reference
+      (services.HiddenState × History))
     (event : (Fin width → Bool) → Bool) :
     (((frameLocal prior supported framed separate).seq
-      (frameLocal (Circuit.measurementSequence (QubitReadouts.readouts wires qubits cells))
+      (frameLocal (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services)
+        (QubitReadouts.readouts wires qubits cells))
         (Circuit.measurementSequence_isLocal _) framed separate)).execute
           Reference state).effectWeight
         (fun record => if event (QubitReadouts.mask
@@ -109,17 +137,21 @@ private theorem framedPrefixReadout_eventWeight {ctx framed : RuntimeCtx .quantu
           else Effect.zero (Register.prod (ctx.disjointUnion framed separate).register Reference)) =
       (QubitReadouts.eventEffect wires event (Register.prod framed.register Reference)).weight
         (prior.execute (Register.prod framed.register Reference)
-          (splitState ctx framed separate state)).quantumMarginal := by
+          (splitServiceState ctx framed separate state)).quantumMarginal := by
   rw [Circuit.execute_seq]
   erw [State.effectWeight_mapHistory]
-  rw [framedReadout_eventWeight separate wires qubits cells distinct,
-    frameLocal_execute, State.mapHistory_quantumMarginal]
+  rw [framedReadout_eventWeight separate wires qubits cells distinct]
+  erw [frameLocal_execute, State.mapHistory_quantumMarginal]
 
 private theorem cellPrefixReadout_eventWeight {ctx : RuntimeCtx .quantum}
-    (prior : Circuit ctx ctx) (supported : prior.IsLocal) (count : Nat)
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (prior : Circuit (.quantum gates oracles operations services) ctx ctx)
+    (supported : prior.IsLocal) (count : Nat)
     {width : Nat} (wires : Fin width → Fin ctx.systemCount)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (MeasurementCells.context ctx 2 count) Reference History)
+    (state : State (MeasurementCells.context ctx 2 count) Reference
+      (services.HiddenState × History))
     (event : (Fin width → Bool) → Bool) :
     (QubitReadouts.eventEffect
       (fun index ↦ MeasurementCells.wireEquiv ctx 2 count (wires index)) event Reference).weight
@@ -130,7 +162,9 @@ private theorem cellPrefixReadout_eventWeight {ctx : RuntimeCtx .quantum}
           (prior.execute (Circuit.measurementCellsReference ctx 2 count Reference)
             (Circuit.underMeasurementCellsSplitState ctx 2 count state)).quantumMarginal := by
   rw [Circuit.underMeasurementCells_eventEffectWeight]
-  rw [Circuit.underMeasurementCells_execute, State.mapHistory_quantumMarginal]
+  have commute := Circuit.underMeasurementCells_execute
+    (model := .quantum gates oracles operations services) ctx 2 prior supported count state
+  rw [commute, State.mapHistory_quantumMarginal]
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
@@ -139,7 +173,8 @@ theorem samplingReadout_eventWeight (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E (orderWidth problem)) Reference History)
+    (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (event : (Fin (2 * orderWidth problem) → Bool) → Bool) :
     ((samplingReadout E fieldTail odd problem points).execute Reference state).effectWeight
       (fun record => if event (QubitReadouts.mask (record.1.read
@@ -155,7 +190,7 @@ theorem samplingReadout_eventWeight (fieldTail : Nat) (odd : Odd p)
             (samplingPrefix_isLocal E fieldTail odd problem points) 2
             (2 * orderWidth problem)).execute
               (Register.prod (PublicInput.frame E (orderWidth problem)).register Reference)
-              (splitState (exponentMeasurementContext p (orderWidth problem))
+              (splitServiceState (exponentMeasurementContext p (orderWidth problem))
                 (PublicInput.frame E (orderWidth problem))
                 (PublicInput.terminal_disjoint E (orderWidth problem)) state)).quantumMarginal :=
   framedPrefixReadout_eventWeight
@@ -172,15 +207,18 @@ theorem samplingReadout_eventWeight (fieldTail : Nat) (odd : Odd p)
 /-- Exact coordinates retain all old cells and public stores beside the original scalar state. -/
 def samplingReadoutSplitState (exponentWidth : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E exponentWidth) Reference History) :
+    (state : State (PublicInput.terminal E exponentWidth) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     State (Allocation.after p.size (2 * exponentWidth))
       (Circuit.measurementCellsReference (Allocation.after p.size (2 * exponentWidth)) 2
         (2 * exponentWidth) (Register.prod (PublicInput.frame E exponentWidth).register Reference))
-      (Circuit.measurementCellsHistory (Allocation.after p.size (2 * exponentWidth)) 2
-        (2 * exponentWidth) × (Store (PublicInput.frame E exponentWidth) × History)) :=
+      (ClassicalOracleModel.empty.HiddenState ×
+        (Circuit.measurementCellsHistory (Allocation.after p.size (2 * exponentWidth)) 2
+          (2 * exponentWidth) × (Store (PublicInput.frame E exponentWidth) × History))) :=
   Circuit.underMeasurementCellsSplitState (Allocation.after p.size (2 * exponentWidth)) 2
     (2 * exponentWidth)
-    (splitState (exponentMeasurementContext p exponentWidth) (PublicInput.frame E exponentWidth)
+    (splitServiceState (exponentMeasurementContext p exponentWidth)
+      (PublicInput.frame E exponentWidth)
       (PublicInput.terminal_disjoint E exponentWidth) state)
 
 /-- Actual result events are the original-wire event of the complete scalar execution. -/
@@ -188,7 +226,8 @@ theorem samplingReadout_eventWeight_split (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E (orderWidth problem)) Reference History)
+    (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (event : (Fin (2 * orderWidth problem) → Bool) → Bool) :
     ((samplingReadout E fieldTail odd problem points).execute Reference state).effectWeight
       (fun record => if event (QubitReadouts.mask (record.1.read
@@ -208,7 +247,7 @@ theorem samplingReadout_eventWeight_split (fieldTail : Nat) (odd : Odd p)
   exact cellPrefixReadout_eventWeight (samplingPrefix E fieldTail odd problem points)
     (samplingPrefix_isLocal E fieldTail odd problem points) (2 * orderWidth problem)
     (afterExponentWires p (orderWidth problem))
-    (splitState (exponentMeasurementContext p (orderWidth problem))
+    (splitServiceState (exponentMeasurementContext p (orderWidth problem))
       (PublicInput.frame E (orderWidth problem))
       (PublicInput.terminal_disjoint E (orderWidth problem)) state) event
 
@@ -218,7 +257,8 @@ theorem samplingReadout_eventWeight_of_initialized (fieldTail : Nat)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E (orderWidth problem)) Reference History)
+    (state : State (PublicInput.terminal E (orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (input : DensityOperator
       (Register.prod (Allocation.before p.size (2 * orderWidth problem)).register
         (Circuit.measurementCellsReference (Allocation.after p.size (2 * orderWidth problem)) 2

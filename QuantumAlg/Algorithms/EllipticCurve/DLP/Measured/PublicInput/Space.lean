@@ -50,10 +50,10 @@ private theorem initialization_resident (path : (initializeWork E exponentWidth)
       (after E exponentWidth).residentSpace := by
   have prepared : (prepareAuxiliary E exponentWidth).peakResidentSpace path.1 =
       (withAuxiliary E exponentWidth).residentSpace :=
-    Circuit.prepare_peakResidentSpace _ _ _ _ _ _ _
+    ContextUnion.prepareFramed_peakResidentSpace _ _ _ _ _ _ path.1
   have selected : (prepareSelector E exponentWidth).peakResidentSpace path.2.2 =
       (after E exponentWidth).residentSpace :=
-    Circuit.prepare_peakResidentSpace _ _ _ _ _ _ _
+    Circuit.prepare_peakResidentSpace _ _ _ _ _ _
   have firstBound := (Circuit.input_residentSpace_le_peak
     (allocateCells E exponentWidth) path.2.1).trans_eq (cells_resident E exponentWidth path.2.1)
   have lastBound := (Circuit.input_residentSpace_le_peak
@@ -72,10 +72,10 @@ private theorem initialization_auxiliary (path : (initializeWork E exponentWidth
       (after E exponentWidth).auxiliarySpace := by
   have prepared : (prepareAuxiliary E exponentWidth).peakAuxiliarySpace path.1 =
       (withAuxiliary E exponentWidth).auxiliarySpace :=
-    Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _ _
+    ContextUnion.prepareFramed_peakAuxiliarySpace _ _ _ _ _ _ path.1
   have selected : (prepareSelector E exponentWidth).peakAuxiliarySpace path.2.2 =
       (after E exponentWidth).auxiliarySpace :=
-    Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _ _
+    Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _
   have firstBound := (Circuit.input_auxiliarySpace_le_peak
     (allocateCells E exponentWidth) path.2.1).trans_eq (cells_auxiliary E exponentWidth path.2.1)
   have lastBound := (Circuit.input_auxiliarySpace_le_peak

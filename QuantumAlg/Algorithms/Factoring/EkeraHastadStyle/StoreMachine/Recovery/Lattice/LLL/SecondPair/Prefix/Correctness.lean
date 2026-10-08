@@ -26,13 +26,14 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Original numeric bounds identify the actual stored second-direction quotient. -/
-theorem division_coefficient (refs : Refs ctx width) (separation : Separation refs)
+theorem division_coefficient {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (numerator : RawSignedRepresents (store.read refs.division32.numerator)
       basis.secondReductionNumerator)
     (denominator : RawSignedRepresents (store.read refs.division32.denominator)
       basis.secondReductionDenominator) (fits : Fits width basis) :
-    RawSignedRepresents ((RoundedDiv.bodyStep refs.division32 store).1.read
+    RawSignedRepresents ((RoundedDiv.bodyStep (model := model) refs.division32 store).1.read
       (writeInput refs.division32.output)) basis.sizeReduceSecondPair.2.1 := by
   have denominatorCast : (basis.secondReductionDenominator.toNat : Int) =
       basis.secondReductionDenominator := Int.toNat_of_nonneg (le_of_lt fits.denominatorPositive)
@@ -58,10 +59,12 @@ theorem division_coefficient (refs : Refs ctx width) (separation : Separation re
   exact divided
 
 /-- Actual rounded division preserves all nine represented basis coordinates. -/
-theorem division_basis (refs : Refs ctx width) (separation : Separation refs)
+theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
-    LatticeMetricMachine.BasisRawRepresents (RoundedDiv.bodyStep refs.division32 store).1
+    LatticeMetricMachine.BasisRawRepresents
+      (RoundedDiv.bodyStep (model := model) refs.division32 store).1
       refs.basis basis := by
   intro row
   apply row_raw_of_frame refs separation.phase row _ divisionCells (rep row)
@@ -105,9 +108,10 @@ theorem reduction_coefficient (refs : Refs ctx width) (separation : Separation r
     (.division32 .output) rfl reductionCells (by decide))
 
 /-- Complete actual prefix execution retains the original first squared-norm input word. -/
-theorem secondPairPrefixInto_g11 (refs : Refs ctx width) (separation : Separation refs)
+theorem secondPairPrefixInto_g11 {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (secondPairPrefixStep refs store).1.read (writeInput refs.metric.g11) =
+    (secondPairPrefixStep (model := model) refs store).1.read (writeInput refs.metric.g11) =
       store.read (writeInput refs.metric.g11) :=
   secondPairPrefixInto_callerFrame refs store _
     (metric_avoids refs separation.phase .g11 mutableCells (by decide))
@@ -123,12 +127,14 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- Complete actual prefix correctness holds on precisely the original input domain. -/
-theorem secondPairPrefixInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem secondPairPrefixInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    Outcome refs store (secondPairPrefixStep refs store).1 basis := by
+    Outcome refs store (secondPairPrefixStep (model := model) refs store).1 basis := by
   have prepared := refreshInputs_correct refs separation store basis initial
-  have coefficient := division_coefficient refs separation (refreshInputsStep refs store).1
+  have coefficient := division_coefficient refs separation
+    (refreshInputsStep (model := model) refs store).1
     basis prepared.2.1 prepared.2.2 fits
   have dividedBasis := division_basis refs separation _ basis prepared.1
   have reducedBasis := reduction_basis refs separation _ basis dividedBasis coefficient
@@ -136,7 +142,8 @@ theorem secondPairPrefixInto_correct (refs : Refs ctx width) (separation : Separ
     secondPairPrefixInto_callerFrame refs store⟩
   change RawSignedRepresents ((LatticeArithmetic.pointStore (writeInput refs.division32.output)
     refs.basis.second refs.basis.third refs.reduceProduct
-      (RoundedDiv.bodyStep refs.division32 (refreshInputsStep refs store).1).1).read
+      (RoundedDiv.bodyStep (model := model) refs.division32
+        (refreshInputsStep (model := model) refs store).1).1).read
         (writeInput refs.division32.output)) _
   rw [reduction_coefficient refs separation]
   exact coefficient

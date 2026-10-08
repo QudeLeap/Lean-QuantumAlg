@@ -66,58 +66,62 @@ def coefficientUpdatedCell (ctx : RuntimeCtx kind) (width : Nat) :
     (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (coefficientProductCtx ctx width).canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Execute the four-operation recurrence inside two actual lexical allocations. -/
 def scopedCoefficientUpdate (quotient : CInputRef ctx (.unsignedWord width))
-    (first second : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (first second : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (.workspace (coefficientProductCtx ctx width)
       (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (coefficientProductCtx ctx width).canonicalFreshKey_fresh
-      (coefficientUpdateBody (coefficientUnderScratch quotient width)
+      (coefficientUpdateBody (model := model) (coefficientUnderScratch quotient width)
         (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
         (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width)))
 
 /-- The concrete store transformation includes both matching allocation and release pairs. -/
 def scopedCoefficientStep (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (scopedCoefficientUpdate quotient first second).Path :=
+    Store ctx × (scopedCoefficientUpdate (model := model) quotient first second).Path :=
   let entered := (store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh).pushWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh
-  let final := coefficientUpdateStore (coefficientUnderScratch quotient width)
+  let final := coefficientUpdateStep (model := model) (coefficientUnderScratch quotient width)
     (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
     (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width) entered
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (Store.popWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
-      (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh final),
-    ((), ((), ((), ()))))
+      (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh final.1),
+    final.2)
 
 /-- Both lexical scopes preserve every full quantum-reference block and the actual body path. -/
 theorem xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (scopedCoefficientUpdate quotient first second).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scopedCoefficientUpdate (model := model) quotient first second).execute Reference state =
       state.mapClassical (fun entry =>
-        ((scopedCoefficientStep quotient first second entry.1).1,
-          (entry.2, (scopedCoefficientStep quotient first second entry.1).2))) := by
-  let body := coefficientUpdateBody (coefficientUnderScratch quotient width)
+        ((scopedCoefficientStep (model := model) quotient first second entry.1).1,
+          (entry.2.1, (entry.2.2, (scopedCoefficientStep
+            (model := model) quotient first second entry.1).2)))) := by
+  let body := coefficientUpdateBody (model := model) (coefficientUnderScratch quotient width)
     (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
     (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width)
-  let update := fun store =>
-    (coefficientUpdateStore (coefficientUnderScratch quotient width)
+  let update := fun before : Store (coefficientScratchCtx ctx width) × model.HiddenState =>
+    let actual := coefficientUpdateStep (model := model) (coefficientUnderScratch quotient width)
       (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
-      (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width) store,
-      ((), ((), ((), ()))))
+      (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width) before.1
+    ((actual.1, before.2), actual.2)
   let inner := Circuit.workspace (coefficientProductCtx ctx width)
     (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (coefficientProductCtx ctx width).canonicalFreshKey_fresh body
-  let innerUpdate := fun store : Store (coefficientProductCtx ctx width) =>
-    let final := update (store.pushWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
-      (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh)
-    (Store.popWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
-      (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh final.1,
-      final.2)
+  let innerUpdate := fun before : Store (coefficientProductCtx ctx width) × model.HiddenState =>
+    let final := update
+      (before.1.pushWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
+        (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh, before.2)
+    ((Store.popWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
+      (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh final.1.1,
+      final.1.2), final.2)
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh inner innerUpdate
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
@@ -129,10 +133,10 @@ theorem xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord w
           (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
           (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width)
           reference initial).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _) reference initial
+        exact ExecutionState.executionState_mapClassical_congr _ rfl) reference initial
   · congr 1
 
+omit [BitWord.Selected model] in
 private theorem coefficientFresh_ne_cell {shape : CShape} (cell : CWriteRef ctx shape) :
     ctx.canonicalFreshKey ≠ cell.key := by
   intro same
@@ -140,6 +144,7 @@ private theorem coefficientFresh_ne_cell {shape : CShape} (cell : CWriteRef ctx 
   rw [same]
   exact List.mem_map_of_mem cell.toCStorageRef.present
 
+omit [BitWord.Selected model] in
 private theorem coefficientWriteUnderScratch_key (cell : CWriteRef ctx (.unsignedWord width)) :
     (coefficientWriteUnderScratch cell).key = cell.key := rfl
 
@@ -149,8 +154,20 @@ theorem xgcdScopedCoefficient_read_other (quotient : CInputRef ctx (.unsignedWor
     (other : CInputRef ctx observed)
     (firstFree : first.key ∉ other.storageKeys) (secondFree : second.key ∉ other.storageKeys)
     (store : Store ctx) :
-    ((scopedCoefficientStep quotient first second store).1).read other = store.read other := by
+    ((scopedCoefficientStep (model := model) quotient first second store).1).read other =
+      store.read other := by
   unfold scopedCoefficientStep
+  change (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord width)
+    ctx.canonicalFreshKey_fresh (Store.popWorkspace
+      (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
+      (coefficientProductCtx ctx width).canonicalFreshKey_fresh
+      (coefficientUpdateStore (coefficientUnderScratch quotient width)
+        (coefficientWriteUnderScratch first) (coefficientWriteUnderScratch second)
+        (coefficientProductCell ctx width) (coefficientUpdatedCell ctx width)
+        ((store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width)
+          ctx.canonicalFreshKey_fresh).pushWorkspace
+            (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
+            (coefficientProductCtx ctx width).canonicalFreshKey_fresh)))).read other = _
   rw [Store.read_popWorkspace_underWorkspace, Store.read_popWorkspace_underWorkspace]
   rw [xgcdCoefficientUpdate_read_other]
   · rw [Store.read_pushWorkspace_underWorkspace, Store.read_pushWorkspace_underWorkspace]
@@ -169,7 +186,7 @@ theorem xgcdScopedCoefficient_read_other (quotient : CInputRef ctx (.unsignedWor
 theorem xgcdScopedCoefficient_store_values (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) (different : first.key ≠ second.key)
     (store : Store ctx) :
-    let final := (scopedCoefficientStep quotient first second store).1
+    let final := (scopedCoefficientStep (model := model) quotient first second store).1
     final.read (coefficientRead first) =
         Resource.WordBinaryOpcode.eval .sub width
           (.product (store.read (coefficientRead second))
@@ -187,20 +204,22 @@ theorem xgcdScopedCoefficient_store_values (quotient : CInputRef ctx (.unsignedW
     ((store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh).pushWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
         (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh)
-  have liftRead {ambient : RuntimeCtx kind} (cell : CWriteRef ambient (.unsignedWord width))
+  have liftRead {ambient : RuntimeCtx model.kind} (cell : CWriteRef ambient (.unsignedWord width))
       (key : StorageKey) (fresh : key ∉ ambient.keys) :
       coefficientRead (cell.underWorkspace key (.unsignedWord width) fresh) =
         (coefficientRead cell).underWorkspace key (.unsignedWord width) fresh := rfl
-  simpa only [scopedCoefficientStep, Store.read_popWorkspace_underWorkspace,
+  simpa only [scopedCoefficientStep, coefficientUpdateStep, BitWord.instructionStep,
+    coefficientUpdateStore, Store.read_popWorkspace_underWorkspace,
     coefficientUnderScratch, coefficientWriteUnderScratch, liftRead,
     Store.read_pushWorkspace_underWorkspace] using actual
 
 /-- Lexical allocation adds no padding operation to the original four-instruction trace. -/
 theorem xgcdScopedCoefficient_eventTrace (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
-    (path : (scopedCoefficientUpdate quotient first second).Path) :
-    (scopedCoefficientUpdate quotient first second).eventTrace path =
-      coefficientUpdateEvents kind width := rfl
+    (path : (scopedCoefficientUpdate (model := model) quotient first second).Path) :
+    (scopedCoefficientUpdate (model := model) quotient first second).eventTrace path =
+      coefficientUpdateEvents model width :=
+  xgcdCoefficientUpdate_eventTrace _ _ _ _ _ path
 
 end
 

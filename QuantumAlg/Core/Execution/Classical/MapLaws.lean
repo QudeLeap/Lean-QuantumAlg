@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Core.Execution.Classical.Pushforward
 import all QuantumAlg.Core.Execution.Classical.Branch
 import all QuantumAlg.Core.Measure.Instrument
 

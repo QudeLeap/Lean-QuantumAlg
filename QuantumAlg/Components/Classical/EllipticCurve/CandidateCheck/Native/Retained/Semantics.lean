@@ -67,11 +67,12 @@ theorem retainedAccepted_separate (width : Nat) {shape : CShape} (input : CInput
   exact fun present => separate (keys ▸ present)
 
 /-- Both actual retained allocations preserve every full quantum-reference block. -/
-theorem retainOutputs_execute (ctx : RuntimeCtx kind) (width : Nat)
+theorem retainOutputs_execute {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width : Nat)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (retainOutputs ctx width).execute Reference state = state.mapClassical (fun entry =>
-      (retainedInitialStore width entry.1, (entry.2, ((), ())))) := by
+      (retainedInitialStore width entry.1, (entry.2.1, (entry.2.2, ((), ()))))) := by
   dsimp only [retainOutputs, retainedInitialStore, retainedCtx, acceptedCtx]
   rw [Circuit.execute_seq]
   erw [Circuit.execute_retain, Circuit.execute_retain]
@@ -81,17 +82,19 @@ theorem retainOutputs_execute (ctx : RuntimeCtx kind) (width : Nat)
   exact Subsingleton.elim _ _
 
 /-- The complete actual record includes both real allocations and all original native stages. -/
-def retainedStep (spec : CurveSpec width)
+def retainedStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit) :
-    Store ctx → Store (retainedCtx ctx width) ×
-      (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path :=
+    Store ctx × model.HiddenState →
+      (Store (retainedCtx ctx width) × model.HiddenState) ×
+        (retainedCircuit spec candidate base target inverseSuccess reconstruction).Path :=
   fun before =>
     let final := verifyStep spec (retainedInput width candidate) (retainedInput width base)
       (retainedInput width target) (retainedInput width inverseSuccess)
       (retainedInput width reconstruction) (retainedScalar ctx width) (retainedAccepted ctx width)
-      (retainedInitialStore width before)
+      (retainedInitialStore width before.1, before.2)
     (final.1, (((), ()), final.2))
 
 private theorem three_maps_eq {A B C D : Type}
@@ -112,35 +115,38 @@ private theorem three_maps_eq {A B C D : Type}
     (Circuit.mapClassical_canonicalDecision finalDecision state _).symm
 
 /-- Actual retained verification preserves the same complete reference and actual prior history. -/
-theorem retained_execute (spec : CurveSpec width)
+theorem retained_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (retainedCircuit spec candidate base target inverseSuccess reconstruction).execute
       Reference state = state.mapClassical (fun entry =>
-        ((retainedStep spec candidate base target inverseSuccess reconstruction entry.1).1,
-          (entry.2,
-            (retainedStep spec candidate base target inverseSuccess
-              reconstruction entry.1).2))) := by
+        let result := retainedStep spec candidate base target inverseSuccess reconstruction
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   simp only [retainedCircuit, Circuit.execute_seq]
   erw [retainOutputs_execute, verifyInto_execute]
   simp only [State.mapHistory]
   exact three_maps_eq _ _ _ _ state _ _ _
 
 /-- All original structural reads survive both retained allocations and actual verification. -/
-theorem retainedStep_preserves_read (spec : CurveSpec width)
+theorem retainedStep_preserves_read {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
-    (before : Store ctx) {shape : CShape} (observed : CInputRef ctx shape) :
-    (retainedStep spec candidate base target inverseSuccess reconstruction before).1.read
-      (retainedInput width observed) = before.read observed :=
+    (before : Store ctx) (hidden : model.HiddenState)
+    {shape : CShape} (observed : CInputRef ctx shape) :
+    (retainedStep spec candidate base target inverseSuccess reconstruction
+      (before, hidden)).1.1.read (retainedInput width observed) =
+        before.read observed :=
   (verifyStep_preserves_read spec (retainedInput width candidate) (retainedInput width base)
     (retainedInput width target) (retainedInput width inverseSuccess)
     (retainedInput width reconstruction) (retainedScalar ctx width) (retainedAccepted ctx width)
-    (retainedInitialStore width before) (retainedInput width observed)
+    (retainedInitialStore width before) hidden (retainedInput width observed)
     (retainedScalar_separate width observed) (retainedAccepted_separate width observed)).trans
     (retainedInitialStore_read width before observed)
 

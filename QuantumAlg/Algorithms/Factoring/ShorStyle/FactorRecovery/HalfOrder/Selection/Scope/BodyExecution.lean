@@ -24,78 +24,59 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem one_execute (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (ConstantWord.circuit (oneRef ctx N) 1).execute Reference state =
-      state.mapClassical (fun entry => ((oneStep entry.1).1, (entry.2, (oneStep entry.1).2))) := by
-  refine (ConstantWord.constantWord_fold_execute (oneRef ctx N)
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (ConstantWord.circuit (model := model) (oneRef ctx N) 1).execute Reference state =
+      state.mapClassical (fun entry => ((oneStep (model := model) entry.1).1, (entry.2.1,
+          (entry.2.2, (oneStep (model := model) entry.1).2)))) := by
+  refine (ConstantWord.constantWord_fold_execute (model := model) (oneRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) 1)) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store (context ctx N) ×
-        (History × (ConstantWord.circuit (oneRef ctx N) 1).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((oneStep entry.1).1, (entry.2, (oneStep entry.1).2))))
-    (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem modulus_execute (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (ConstantWord.circuit (modulusRef ctx N) N).execute Reference state =
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (ConstantWord.circuit (model := model) (modulusRef ctx N) N).execute Reference state =
       state.mapClassical (fun entry =>
-        ((modulusStep entry.1).1, (entry.2, (modulusStep entry.1).2))) := by
-  refine (ConstantWord.constantWord_fold_execute (modulusRef ctx N)
+        ((modulusStep (model := model) entry.1).1, (entry.2.1, (entry.2.2, (modulusStep (model :=
+            model) entry.1).2)))) := by
+  refine (ConstantWord.constantWord_fold_execute (model := model) (modulusRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store (context ctx N) ×
-        (History × (ConstantWord.circuit (modulusRef ctx N) N).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((modulusStep entry.1).1,
-          (entry.2, (modulusStep entry.1).2)))) (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem modulusTail_execute
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (Circuit.seq (ConstantWord.circuit (modulusRef ctx N) N)
-        (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output))).execute
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (Circuit.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
+        (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+            output))).execute
         Reference state =
-      state.mapClassical (fun entry => ((modulusTailStep halfPower output entry.1).1,
-        (entry.2, (modulusTailStep halfPower output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (ConstantWord.circuit (modulusRef ctx N) N)
-    (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output)) modulusStep
-    (NativeHalfFactor.step (liftInput halfPower) (cells ctx N) (liftWrite output))
-    modulus_execute
-    (NativeHalfFactor.code_execute (liftInput halfPower) (cells ctx N) (liftWrite output))
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store (context ctx N) × (History ×
-        (Circuit.seq (ConstantWord.circuit (modulusRef ctx N) N)
-          (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output))).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((modulusTailStep halfPower output entry.1).1,
-          (entry.2, (modulusTailStep halfPower output entry.1).2)))) (Subsingleton.elim _ _)
+      state.mapClassical (fun entry => ((modulusTailStep (model := model) halfPower output
+          entry.1).1,
+        (entry.2.1, (entry.2.2, (modulusTailStep (model := model) halfPower output entry.1).2))))
+            := by
+  rw [Circuit.execute_seq, NativeHalfFactor.code_execute, modulus_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual initialized body executes its exact physical store and complete path on CQ blocks. -/
 theorem body_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (body halfPower output).execute Reference state =
-      state.mapClassical (fun entry => ((bodyStep halfPower output entry.1).1,
-        (entry.2, (bodyStep halfPower output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (ConstantWord.circuit (oneRef ctx N) 1)
-    (.seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output))) oneStep
-    (modulusTailStep halfPower output) one_execute (modulusTail_execute halfPower output)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq
-        (Store (context ctx N) × (History × (body halfPower output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((bodyStep halfPower output entry.1).1,
-          (entry.2, (bodyStep halfPower output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (body (model := model) halfPower output).execute Reference state =
+      state.mapClassical (fun entry => ((bodyStep (model := model) halfPower output entry.1).1,
+        (entry.2.1, (entry.2.2, (bodyStep (model := model) halfPower output entry.1).2)))) := by
+  unfold body
+  rw [Circuit.execute_seq, modulusTail_execute, one_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

@@ -36,7 +36,8 @@ namespace OutputRead
 variable {kind : ProblemKind} {post : RuntimeCtx kind} {shape : CShape}
 
 /-- Obtain the result from the final store without transforming that store. -/
-public def eval (output : OutputRead post shape) (store : Execution.Store post) : shape.Value :=
+@[expose] public def eval (output : OutputRead post shape)
+    (store : Execution.Store post) : shape.Value :=
   match output with
   | .unit => .unit
   | .read input => store.read input
@@ -72,7 +73,8 @@ namespace Output
 variable {kind : ProblemKind} {post : RuntimeCtx kind} {shape : CShape}
 
 /-- Explicitly expose all live resources in context order with the chosen result readout. -/
-public def all (post : RuntimeCtx kind) (result : OutputRead post shape) : Output post shape where
+@[expose] public def all (post : RuntimeCtx kind) (result : OutputRead post shape) :
+    Output post shape where
   listing := post.keys
   complete := List.Perm.refl _
   result := result
@@ -82,7 +84,8 @@ public def all (post : RuntimeCtx kind) (result : OutputRead post shape) : Outpu
     (all post result).listing = post.keys := rfl
 
 /-- Obtain the shaped result through the manifest's actual store observation. -/
-public def eval (output : Output post shape) (store : Execution.Store post) : shape.Value :=
+@[expose] public def eval (output : Output post shape)
+    (store : Execution.Store post) : shape.Value :=
   output.result.eval store
 
 /-- The canonical complete manifest uses exactly its supplied structural readout. -/

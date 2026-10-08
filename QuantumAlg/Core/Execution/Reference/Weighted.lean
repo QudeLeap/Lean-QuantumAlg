@@ -49,16 +49,19 @@ namespace Circuit
 open Execution
 
 /-- The actual unitary instruction preserves each complete store-weighted reference entry. -/
-theorem unitary_weighted_reference {ctx : RuntimeCtx .quantum}
-    (program : UnitaryCircuit ctx.register) (placed : program.physical_idx = ctx.physicalIdx)
+theorem unitary_weighted_reference {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (weight : Store ctx → ℂ)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (weight : Store ctx → ℂ)
     (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((Circuit.unitary program placed).execute Reference state)
+    ExecutionState.referenceFiberSum ((Circuit.unitary (operations := operations)
+        (classicalOracles := classicalOracles) program).execute Reference state)
         (fun entry _ => weight entry.1) left right =
       ExecutionState.referenceFiberSum state (fun entry _ => weight entry.1) left right := by
   rw [execute_unitary]
-  simp only [State.unitary, ExecutionState.referenceFiberSum_mapClassical]
+  simp only [ExecutionState.referenceFiberSum_mapClassical]
   exact ExecutionState.referenceFiberSum_applyLocalUnitary state (fun _ => program.matrix)
     (fun entry => weight entry.1) left right
 

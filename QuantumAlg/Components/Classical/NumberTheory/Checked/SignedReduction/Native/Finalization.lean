@@ -36,73 +36,92 @@ def correctionCopyOp (remainder : CInputRef ctx (.unsignedWord width))
   .wordUnary .copy width ctx remainder output
 
 /-- Actual sign selection retains both original correction arms. -/
-def finalCorrectionChoice (remainder : CInputRef ctx (.unsignedWord width))
+def finalCorrectionChoice {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) : Circuit ctx ctx :=
-  if value.toBool then withNegativeCorrection remainder modulus output
-  else .classical (correctionCopyOp remainder output)
+    (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) : Circuit model
+      ctx ctx :=
+  if value.toBool then withNegativeCorrection (model := model) remainder modulus output
+  else BitWord.instruction (execution := model) (correctionCopyOp remainder output)
 
 /-- True branch-local store updates and native paths. -/
-def finalCorrectionChoiceStep (remainder : CInputRef ctx (.unsignedWord width))
+def finalCorrectionChoiceStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) (store : Store ctx) :
-    Store ctx × (finalCorrectionChoice remainder modulus output value).Path :=
+    Store ctx × (finalCorrectionChoice (model := model) remainder modulus output value).Path :=
   match value with
-  | .bit false => (store.applyOp (correctionCopyOp remainder output), ())
-  | .bit true => withNegativeCorrectionStep remainder modulus output store
+  | .bit false =>
+      BitWord.instructionStep (execution := model) (correctionCopyOp remainder output) store
+  | .bit true => withNegativeCorrectionStep (model := model) remainder modulus output store
 
 /-- The selector reads the actual sign bit left by classification. -/
-def finalCorrection (remainder : CInputRef ctx (.unsignedWord width))
+def finalCorrection {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .branch negative (finalCorrectionChoice remainder modulus output)
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .branch negative (finalCorrectionChoice (model := model) remainder modulus output)
 
 /-- Actual original sign value and selected native path are both recorded. -/
-def finalCorrectionStep (remainder : CInputRef ctx (.unsignedWord width))
+def finalCorrectionStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (finalCorrection remainder modulus negative output).Path :=
+    Store ctx × (finalCorrection (model := model) remainder modulus negative output).Path :=
   let value := store.read negative
-  let chosen := finalCorrectionChoiceStep remainder modulus output value store
+  let chosen := finalCorrectionChoiceStep (model := model) remainder modulus output value store
   (chosen.1, ⟨value, chosen.2⟩)
 
 /-- Both real arms preserve the full reference-correlated quantum blocks and old histories. -/
-theorem finalCorrectionChoice_execute (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrectionChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (finalCorrectionChoice remainder modulus output value).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (finalCorrectionChoice (model := model) remainder modulus output value).execute Reference
+      state =
       state.mapClassical (fun entry =>
-        ((finalCorrectionChoiceStep remainder modulus output value entry.1).1,
-          (entry.2, (finalCorrectionChoiceStep remainder modulus output value entry.1).2))) := by
+        ((finalCorrectionChoiceStep (model := model) remainder modulus output value entry.1).1,
+          (entry.2.1, (entry.2.2, (finalCorrectionChoiceStep (model := model) remainder modulus
+            output value entry.1).2)))) := by
   cases value with
   | bit value =>
       cases value
-      · refine (Circuit.execute_classical_mapClassical
-          (correctionCopyOp remainder output) Reference state).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _
+      · exact (BitWord.bitWord_instruction_execute (execution := model)
+          (correctionCopyOp remainder output) state).trans
+            (ExecutionState.executionState_mapClassical_congr _ rfl)
       · exact withNegativeCorrection_execute remainder modulus output Reference state
 
 /-- The actual sign branch composes its full-state equation with its genuine stored selector. -/
-theorem finalCorrection_execute (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (finalCorrection remainder modulus negative output).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (finalCorrection (model := model) remainder modulus negative output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((finalCorrectionStep remainder modulus negative output entry.1).1,
-          (entry.2, (finalCorrectionStep remainder modulus negative output entry.1).2))) :=
-  Circuit.execute_branch_mapClassical negative (finalCorrectionChoice remainder modulus output)
-    (finalCorrectionChoiceStep remainder modulus output)
-    (finalCorrectionChoice_execute remainder modulus output) Reference state
+        ((finalCorrectionStep (model := model) remainder modulus negative output entry.1).1,
+          (entry.2.1, (entry.2.2, (finalCorrectionStep (model := model) remainder modulus
+            negative output entry.1).2)))) := by
+  refine (Circuit.execute_branch_mapClassical negative
+    (finalCorrectionChoice (model := model) remainder modulus output)
+    (fun value before =>
+      let result := finalCorrectionChoiceStep (model := model) remainder modulus output value
+        before.1
+      ((result.1, before.2), result.2)) ?_ Reference state).trans ?_
+  · intro value reference history _ initial
+    exact (finalCorrectionChoice_execute (model := model) remainder modulus output value
+      reference initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both actual arms yield the precise finite word determined by their incoming stored sign. -/
-theorem finalCorrectionChoice_value (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrectionChoice_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit) (store : Store ctx) :
-    (finalCorrectionChoiceStep remainder modulus output value store).1.read (reductionRead output) =
+    (finalCorrectionChoiceStep (model := model) remainder modulus output value store).1.read
+      (reductionRead output) =
       if value.toBool then negativeCorrectionValue (store.read remainder) (store.read modulus)
       else store.read remainder := by
   cases value with
@@ -112,12 +131,13 @@ theorem finalCorrectionChoice_value (remainder : CInputRef ctx (.unsignedWord wi
       · exact withNegativeCorrection_value remainder modulus output store
 
 /-- Every actual branch preserves structural reads outside the original output cell. -/
-theorem finalCorrectionChoice_read_other (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrectionChoice_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (finalCorrectionChoiceStep remainder modulus output value store).1.read other =
+    (finalCorrectionChoiceStep (model := model) remainder modulus output value store).1.read other =
       store.read other := by
   cases value with
   | bit value =>
@@ -127,26 +147,30 @@ theorem finalCorrectionChoice_read_other (remainder : CInputRef ctx (.unsignedWo
       · exact withNegativeCorrection_read_other remainder modulus output other separate store
 
 /-- The actual sign-controlled finalization writes only the original result cell. -/
-theorem finalCorrection_read_other (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (finalCorrectionStep remainder modulus negative output store).1.read other = store.read other :=
+    (finalCorrectionStep (model := model) remainder modulus negative output store).1.read other =
+      store.read other :=
   finalCorrectionChoice_read_other remainder modulus output _ other separate store
 
 /-- Original canonical remainders give exactly the sign-dependent integer normalization. -/
-theorem finalCorrection_original_value (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_original_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)
     (modulusValue : (store.read modulus).toNat = spec.modulus)
     (remainderRange : (store.read remainder).toNat < spec.modulus) :
-    ((finalCorrectionStep remainder modulus negative output store).1.read
+    ((finalCorrectionStep (model := model) remainder modulus negative output store).1.read
       (reductionRead output)).toNat =
       if (store.read negative).toBool then
         if (store.read remainder).toNat = 0 then 0
         else spec.modulus - (store.read remainder).toNat
       else (store.read remainder).toNat := by
-  change ((finalCorrectionChoiceStep remainder modulus output (store.read negative) store).1.read
+  change ((finalCorrectionChoiceStep (model := model) remainder modulus output (store.read
+    negative) store).1.read
     (reductionRead output)).toNat = _
   rw [finalCorrectionChoice_value]
   cases value : (store.read negative).toBool
@@ -156,50 +180,71 @@ theorem finalCorrection_original_value (remainder : CInputRef ctx (.unsignedWord
       (correctionRemainder_eq_normalized spec _ remainderRange)
 
 /-- Original branch-dependent finalization events, without any replacement arithmetic. -/
-def finalCorrectionEvents (kind : ProblemKind) (width : Nat) (negative : Bool) :
-    List (Resource.Event kind) :=
-  if negative then negativeCorrectionEvents kind width
-  else [.classicalOperation (.wordUnary .copy width)]
+def finalCorrectionEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat)
+  (negative : Bool) :
+    List (Resource.Event model) :=
+  if negative then negativeCorrectionEvents model width
+  else [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy
+    width))]
 
 /-- The actual selected finalization emits exactly the original four-or-one event list. -/
-theorem finalCorrection_eventTrace (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (finalCorrection remainder modulus negative output).Path) :
-    (finalCorrection remainder modulus negative output).eventTrace path =
-      finalCorrectionEvents kind width path.1.toBool := by
+    (path : (finalCorrection (model := model) remainder modulus negative output).Path) :
+    (finalCorrection (model := model) remainder modulus negative output).eventTrace path =
+      finalCorrectionEvents model width path.1.toBool := by
   rcases path with ⟨value, path⟩
   cases value with
-  | bit value => cases value <;> rfl
+  | bit value =>
+      cases value
+      · change (BitWord.instruction (execution := model) (correctionCopyOp remainder output)).Path
+          at path
+        change (BitWord.instruction (execution := model) (correctionCopyOp remainder
+          output)).eventTrace
+          path = _
+        rw [BitWord.bitWord_instruction_eventTrace]
+        rfl
+      · exact withNegativeCorrection_eventTrace remainder modulus output path
 
 /-- Actual finalization resource multiplicities retain the selected instruction list. -/
-theorem finalCorrection_resourcePool (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (finalCorrection remainder modulus negative output).Path) :
-    (finalCorrection remainder modulus negative output).resourcePool path =
-      ResourcePool.ofList (finalCorrectionEvents kind width path.1.toBool) := by
-  rcases path with ⟨value, path⟩
-  cases value with
-  | bit value => cases value <;> rfl
+    (path : (finalCorrection (model := model) remainder modulus negative output).Path) :
+    (finalCorrection (model := model) remainder modulus negative output).resourcePool path =
+      ResourcePool.ofList (finalCorrectionEvents model width path.1.toBool) :=
+  congrArg ResourcePool.ofList (finalCorrection_eventTrace remainder modulus negative output path)
 
 /-- Each actual branch charges precisely its original serial native durations. -/
-theorem finalCorrection_durationDepth (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
-    (path : (finalCorrection remainder modulus negative output).Path) :
-    (finalCorrection remainder modulus negative output).depth duration path =
-      ((finalCorrectionEvents kind width path.1.toBool).map duration).sum := by
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
+    (path : (finalCorrection (model := model) remainder modulus negative output).Path) :
+    (finalCorrection (model := model) remainder modulus negative output).depth duration path =
+      ((finalCorrectionEvents model width path.1.toBool).map duration).sum := by
   rcases path with ⟨value, path⟩
   cases value with
-  | bit value => cases value <;> rfl
+  | bit value =>
+      cases value
+      · change (BitWord.instruction (execution := model) (correctionCopyOp remainder output)).Path
+          at path
+        change (BitWord.instruction (execution := model) (correctionCopyOp remainder output)).depth
+          duration path = _
+        rw [BitWord.bitWord_instruction_depth]
+        rfl
+      · exact withNegativeCorrection_durationDepth remainder modulus output duration path
 
 /-- Exactly the selected real scratch scopes contribute to the resident peak. -/
-theorem finalCorrection_resident (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_resident {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (finalCorrection remainder modulus negative output).Path) :
-    (finalCorrection remainder modulus negative output).peakResidentSpace path =
+    (path : (finalCorrection (model := model) remainder modulus negative output).Path) :
+    (finalCorrection (model := model) remainder modulus negative output).peakResidentSpace path =
       (if path.1.toBool then negativeCorrectionScratchSpace width else 0) + ctx.residentSpace := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -210,11 +255,12 @@ theorem finalCorrection_resident (remainder : CInputRef ctx (.unsignedWord width
       · exact withNegativeCorrection_resident remainder modulus output path
 
 /-- The auxiliary peak counts the same selected actual scratch allocation and release. -/
-theorem finalCorrection_auxiliary (remainder : CInputRef ctx (.unsignedWord width))
+theorem finalCorrection_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (negative : CInputRef ctx .bit)
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (finalCorrection remainder modulus negative output).Path) :
-    (finalCorrection remainder modulus negative output).peakAuxiliarySpace path =
+    (path : (finalCorrection (model := model) remainder modulus negative output).Path) :
+    (finalCorrection (model := model) remainder modulus negative output).peakAuxiliarySpace path =
       (if path.1.toBool then negativeCorrectionScratchSpace width else 0) + ctx.auxiliarySpace := by
   rcases path with ⟨value, path⟩
   cases value with

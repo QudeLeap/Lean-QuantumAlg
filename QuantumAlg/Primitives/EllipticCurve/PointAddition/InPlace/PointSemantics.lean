@@ -76,17 +76,21 @@ theorem program_applyNormalized_point_ket
         (Semantics.montgomeryWord fieldTail p hpPos hp Q.x)
         (Semantics.montgomeryWord fieldTail p hpPos hp Q.y)).applyNormalized
         (NormalizedVector.ket
+          ((QubitLayout.canonical
+              (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
+            ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
+              (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
+                control (Semantics.montgomeryWord fieldTail p hpPos hp P.y) 0
+                ⟨p, hp⟩
+                (Semantics.montgomeryWord fieldTail p hpPos hp P.x) 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+            (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
           ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
             (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
-              control (Semantics.montgomeryWord fieldTail p hpPos hp P.y) 0
+              control (Semantics.montgomeryWord fieldTail p hpPos hp point.y) 0
               ⟨p, hp⟩
-              (Semantics.montgomeryWord fieldTail p hpPos hp P.x) 0))) =
-      NormalizedVector.ket
-        ((Layout.encoding fieldTail.succ (counterTail + 2)).encode
-          (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
-            control (Semantics.montgomeryWord fieldTail p hpPos hp point.y) 0
-            ⟨p, hp⟩
-            (Semantics.montgomeryWord fieldTail p hpPos hp point.x) 0)) := by
+              (Semantics.montgomeryWord fieldTail p hpPos hp point.x) 0))) := by
   dsimp only
   let data := Semantics.montgomeryInput fieldTail p hpPos hp control
     P.x P.y Q.x Q.y

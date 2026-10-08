@@ -8,7 +8,8 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Execution
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Layout.Laws
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Adjacent.Correctness
+import all
+  QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.HalfOrder.GCD.Adjacent.Correctness
 
 /-!
 # Actual adjacent half-power GCD values
@@ -26,11 +27,13 @@ open Execution ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
-    ((gcdTailStep output store).1.read (.storage (liftWrite output).toCStorageRef)).toNat =
+    ((gcdTailStep (model := model) output store).1.read (.storage (liftWrite
+      output).toCStorageRef)).toNat =
       Nat.gcd (store.read (.storage (adjacentRef ctx N).toCStorageRef)).toNat
         (store.read (.storage (modulusRef ctx N).toCStorageRef)).toNat := by
   let cleared := store.applyOp (clearOp output)
@@ -44,7 +47,7 @@ private theorem gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBi
     exact ⟨output_ne_adjacent output, output_ne_modulus output⟩
   have unchanged := Store.read_applyOp_of_not_mem_storageKeys store
     (clearOp output) (operands ctx N) free
-  have actual := NumberTheory.GCD.gcdLexical_read_result (operands ctx N)
+  have actual := NumberTheory.GCD.gcdLexical_read_result (model := model) (operands ctx N)
     (liftWrite output) cleared zeroValue
   refine (congrArg CShape.Value.toNat actual).trans ?_
   rw [unchanged]
@@ -60,25 +63,26 @@ private theorem gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBi
 private theorem loadTail_result (source : Input N)
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
-    ((loadTailStep output store).1.read (.storage (liftWrite output).toCStorageRef)).toNat =
+    ((loadTailStep (model := model) output store).1.read (.storage (liftWrite
+      output).toCStorageRef)).toNat =
       Nat.gcd (store.read (.storage (adjacentRef ctx N).toCStorageRef)).toNat N := by
-  let loaded := ConstantWord.foldStep (modulusRef ctx N)
+  let loaded := ConstantWord.foldStep (model := model) (modulusRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) store
   have separated : (modulusRef ctx N).key ∉
       (CInputRef.storage (adjacentRef ctx N).toCStorageRef).storageKeys := by
     change (modulusRef ctx N).key ∉ [(adjacentRef ctx N).key]
     exact fun member => adjacent_ne_modulus ctx N (List.mem_singleton.mp member).symm
-  have adjacentSame := ConstantWord.constantWord_fold_read_other (modulusRef ctx N)
+  have adjacentSame := ConstantWord.constantWord_fold_read_other (model := model) (modulusRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N))
     (.storage (adjacentRef ctx N).toCStorageRef) separated store
   have modulusSame : (loaded.1.read (.storage (modulusRef ctx N).toCStorageRef)).toNat = N := by
-    refine (ConstantWord.constantWord_read (modulusRef ctx N) N store).trans ?_
+    refine (ConstantWord.constantWord_read (model := model) (modulusRef ctx N) N store).trans ?_
     apply Nat.mod_eq_of_lt
     have fits := source.register_fits
     have positive := Nat.two_pow_pos (modulusBits N)
     have doubled := Nat.pow_succ 2 (modulusBits N)
     omega
-  exact (gcdTail_result output loaded.1).trans
+  exact (gcdTail_result (model := model) output loaded.1).trans
     (congrArg₂ Nat.gcd (congrArg CShape.Value.toNat adjacentSame) modulusSame)
 
 /-- The genuine body returns the original GCD of the stored half-power's natural adjacent value. -/
@@ -86,28 +90,31 @@ theorem body_result (source : Input N) (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
-    ((bodyStep successor halfPower output store).1.read
+    ((bodyStep (model := model) successor halfPower output store).1.read
       (.storage (liftWrite output).toCStorageRef)).toNat =
       Nat.gcd
         (if successor then (store.read (liftInput halfPower)).toNat + 1
           else (store.read (liftInput halfPower)).toNat - 1) N :=
-  (loadTail_result source output
-    (NativeAdjacentWord.step successor (liftInput halfPower) (adjacentRef ctx N) store).1).trans
+  (loadTail_result (model := model) source output
+    (NativeAdjacentWord.step (model := model) successor (liftInput halfPower) (adjacentRef ctx N)
+      store).1).trans
     (congrArg (fun adjacent => Nat.gcd adjacent N)
-      (NativeAdjacentWord.result_toNat successor (liftInput halfPower) (adjacentRef ctx N) store))
+      (NativeAdjacentWord.result_toNat (model := model) successor (liftInput halfPower)
+        (adjacentRef ctx N) store))
 
 /-- Actual scope exit exposes exactly the original left or right half-power GCD. -/
 theorem result_toNat (source : Input N) (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) (store : Store ctx) :
-    ((step successor halfPower output store).1.read (.storage output.toCStorageRef)).toNat =
+    ((step (model := model) successor halfPower output store).1.read (.storage
+      output.toCStorageRef)).toNat =
       Nat.gcd
         (if successor then (store.read halfPower).toNat + 1 else (store.read halfPower).toNat - 1)
         N := by
   have popped := popStore_read (.storage output.toCStorageRef)
-    (bodyStep successor halfPower output (pushStore N store)).1
+    (bodyStep (model := model) successor halfPower output (pushStore N store)).1
   refine (congrArg CShape.Value.toNat popped).trans
-    ((body_result source successor halfPower output (pushStore N store)).trans ?_)
+    ((body_result (model := model) source successor halfPower output (pushStore N store)).trans ?_)
   exact congrArg (fun half : CShape.Word (modulusBits N) =>
     Nat.gcd (if successor then half.toNat + 1 else half.toNat - 1) N)
     (pushStore_read halfPower store)

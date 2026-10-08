@@ -26,18 +26,19 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Independent original check allowance plus the four-operation selector allowance. -/
-def eventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
   QuadraticCandidateCheck.eventEnvelope shortWidth +
-    FirstAccepted.nativeEnvelope kind (QuadraticCandidateCheck.CandidateWidth shortWidth)
+    FirstAccepted.nativeEnvelope model (QuadraticCandidateCheck.CandidateWidth shortWidth)
 
 /-- Chronological native formula on the two actual recorded decisions. -/
-def nativeTrace (shortWidth : Nat) (positive taken : Bool) : List (Resource.Event kind) :=
+def nativeTrace (shortWidth : Nat) (positive taken : Bool) : List (Resource.Event model) :=
   QuadraticCandidateCheck.nativeTrace shortWidth positive ++
-    (FirstAccepted.decisionEvents kind ++
-      if taken then FirstAccepted.copyEvents kind
+    (FirstAccepted.decisionEvents model ++
+      if taken then FirstAccepted.copyEvents model
         (QuadraticCandidateCheck.CandidateWidth shortWidth) else [])
 
 /-- The exact native trace contains the check path and selected selector arm in order. -/
@@ -88,7 +89,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
 
 /-- Every actually visited context is the complete existing caller context. -/
 theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (QuadraticCandidateCheck.into refs.check).visitedContexts path.1 ++
     (FirstAccepted.circuit (selectionInputs refs) refs.selection).visitedContexts path.2 at present
@@ -113,7 +114,8 @@ theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path)
 
 /-- Complete borrowed restoration composes across the real check and canonical selector. -/
 theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
     (QuadraticCandidateCheck.into_borrowedRestored refs.check Reference state)

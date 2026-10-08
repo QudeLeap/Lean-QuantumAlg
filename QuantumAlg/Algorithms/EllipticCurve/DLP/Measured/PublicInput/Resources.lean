@@ -24,21 +24,23 @@ noncomputable section
 open Execution ContextUnion MeasuredUncompute ScalarMultiplication.MeasuredPlacement
 open MAU.Inversion.SharedEEA FiniteCyclicDLP ConcreteCircuitAccess GenericPointAddition.InPlace
 
+private abbrev Model : ExecutionModel := .quantum AlgorithmGate.model .empty
+
 private theorem inputTransport_property {pre next post : RuntimeCtx .quantum}
-    (same : pre = next) (code : Circuit next post)
-    (property : ∀ pre post, Circuit pre post → Prop) (holds : property next post code) :
-    property pre post (Eq.mpr (congrArg (fun ctx => Circuit ctx post) same) code) := by
+    (same : pre = next) (code : Circuit Model next post)
+    (property : ∀ pre post, Circuit Model pre post → Prop) (holds : property next post code) :
+    property pre post (Eq.mpr (congrArg (fun ctx => Circuit Model ctx post) same) code) := by
   cases same
   exact holds
 
 private theorem outputTransport_property {pre post next : RuntimeCtx .quantum}
-    (same : post = next) (code : Circuit pre next)
-    (property : ∀ pre post, Circuit pre post → Prop) (holds : property pre next code) :
-    property pre post (Eq.mpr (congrArg (fun ctx => Circuit pre ctx) same) code) := by
+    (same : post = next) (code : Circuit Model pre next)
+    (property : ∀ pre post, Circuit Model pre post → Prop) (holds : property pre next code) :
+    property pre post (Eq.mpr (congrArg (fun ctx => Circuit Model pre ctx) same) code) := by
   cases same
   exact holds
 
-private theorem framed_pool {pre post : RuntimeCtx .quantum} (code : Circuit pre post)
+private theorem framed_pool {pre post : RuntimeCtx .quantum} (code : Circuit Model pre post)
     (supported : code.IsLocal) (resident : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint pre resident)
     (path : (frameLocal code supported resident separate).Path) :
@@ -48,10 +50,10 @@ private theorem framed_pool {pre post : RuntimeCtx .quantum} (code : Circuit pre
   rw [Equiv.symm_apply_apply]
   exact frameLocal_resourcePool code supported resident separate original
 
-private theorem framed_depth {pre post : RuntimeCtx .quantum} (code : Circuit pre post)
+private theorem framed_depth {pre post : RuntimeCtx .quantum} (code : Circuit Model pre post)
     (supported : code.IsLocal) (resident : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint pre resident)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event Model → Nat)
     (path : (frameLocal code supported resident separate).Path) :
     (frameLocal code supported resident separate).depth duration path =
       code.depth duration ((frameLocalPathEquiv code supported resident separate).symm path) := by
@@ -62,11 +64,12 @@ private theorem framed_depth {pre post : RuntimeCtx .quantum} (code : Circuit pr
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) (exponentWidth : Nat)
 
 private theorem allocateCells_property
-    (property : ∀ pre post : RuntimeCtx .quantum, Circuit pre post → Prop)
+    (property : ∀ pre post : RuntimeCtx .quantum, Circuit Model pre post → Prop)
     (holds : ∀ (resident : RuntimeCtx .quantum)
       (separate : RuntimeCtx.StorageDisjoint (NumeratorMeasurement.context p.size) resident),
       property _ _
-        (MeasurementCells.allocateFramed (InversePreparation.after p.size) resident 2 p.size
+        (MeasurementCells.allocateFramed (model := Model) (InversePreparation.after p.size)
+          resident 2 p.size
           separate)) :
     property (withAuxiliary E exponentWidth) (withCells E exponentWidth)
       (allocateCells E exponentWidth) := by
@@ -94,38 +97,63 @@ theorem allocateCells_eventTrace : ∀ path : (allocateCells E exponentWidth).Pa
   apply allocateCells_property E exponentWidth
     (fun _ _ code => ∀ path, code.eventTrace path = [])
   intro resident separate
-  exact MeasurementCells.allocateFramed_eventTrace _ resident _ _ separate
+  exact MeasurementCells.allocateFramed_eventTrace (model := Model) _ resident _ _ separate
 
 /-- Every original retain has zero event duration, for any supplied duration assignment. -/
-theorem allocateCells_depth (duration : Resource.Event .quantum → Nat) :
+theorem allocateCells_depth (duration : Resource.Event Model → Nat) :
     ∀ path : (allocateCells E exponentWidth).Path,
       (allocateCells E exponentWidth).depth duration path = 0 := by
   apply allocateCells_property E exponentWidth
     (fun _ _ code => ∀ path, code.depth duration path = 0)
   intro resident separate
-  exact MeasurementCells.allocateFramed_depth _ resident _ _ separate duration
+  exact MeasurementCells.allocateFramed_depth (model := Model) _ resident _ _ separate duration
 
-/-- Both original fixed preparations occur in their actual chronological positions. -/
+/-- Every auxiliary zero, fixed X load, and selector zero occurs in the actual trace. -/
 theorem initializeWork_eventTrace (path : (initializeWork E exponentWidth).Path) :
     (initializeWork E exponentWidth).eventTrace path =
-      [(InPlacePreparation.preparation p).event,
-        (BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).event] := by
-  change [(InPlacePreparation.preparation p).event] ++
+      Allocation.initializationTrace p (2 * exponentWidth) := by
+  have loaded : (prepareAuxiliary E exponentWidth).eventTrace path.1 =
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout p.size) ++
+        (InPlacePreparation.loadProgram p).eventTrace .empty .empty := by
+    change ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout p.size) ++
+      (frameUnitary _ _ _
+        (frameUnitary _ _ _ (InPlacePreparation.loadProgram p))).eventTrace .empty .empty = _
+    rw [contextUnion_frameUnitary_eventTrace, contextUnion_frameUnitary_eventTrace]
+  change (prepareAuxiliary E exponentWidth).eventTrace path.1 ++
     ((allocateCells E exponentWidth).eventTrace path.2.1 ++
-      [(BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).event]) = _
-  rw [allocateCells_eventTrace]
+      (prepareSelector E exponentWidth).eventTrace path.2.2) = _
+  rw [loaded, allocateCells_eventTrace]
   rfl
 
-/-- The original two charged preparations determine the exact initialization duration. -/
-theorem initializeWork_depth (duration : Resource.Event .quantum → Nat)
+/-- The parallel zero preparations and actual X loading determine initialization depth. -/
+theorem initializeWork_depth (duration : Resource.Event Model → Nat)
     (path : (initializeWork E exponentWidth).Path) :
     (initializeWork E exponentWidth).depth duration path =
-      duration (InPlacePreparation.preparation p).event +
-        duration (BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).event := by
-  change duration (InPlacePreparation.preparation p).event +
+      DepthExpr.depthEval duration (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout p.size)) +
+      (InPlacePreparation.loadProgram p).evaluatedEventDepth duration +
+      DepthExpr.depthEval duration (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (indexedLayout p.size (2 * exponentWidth))) := by
+  have auxiliary : (prepareAuxiliary E exponentWidth).depth duration path.1 =
+      DepthExpr.depthEval duration (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout p.size)) +
+      (InPlacePreparation.loadProgram p).evaluatedEventDepth duration := by
+    change DepthExpr.depthEval duration (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout p.size)) +
+      DepthExpr.depthEval duration
+        ((frameUnitary _ _ _
+          (frameUnitary _ _ _ (InPlacePreparation.loadProgram p))).eventDepth .empty .empty) = _
+    rw [contextUnion_frameUnitary_evaluatedEventDepth,
+      contextUnion_frameUnitary_evaluatedEventDepth]
+    rfl
+  change (prepareAuxiliary E exponentWidth).depth duration path.1 +
     ((allocateCells E exponentWidth).depth duration path.2.1 +
-      duration (BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).event) = _
-  rw [allocateCells_depth, Nat.zero_add]
+      (prepareSelector E exponentWidth).depth duration path.2.2) = _
+  rw [auxiliary, allocateCells_depth]
+  simp only [zero_add]
+  rfl
 
 variable [Fact p.Prime]
 
@@ -157,16 +185,21 @@ theorem preMeasurement_budget (fieldTail : Nat) (odd : Odd p)
   have prepared := (framed_pool (beforeExponentPreparation p problem) trivial
     (frame E width) (before_disjoint E width) path.1.1).trans
       (beforeExponentCircuit_cost p width (exponentPreparationCircuit problem)
-        (exponentPreparationCircuit_physical_idx problem) _)
+        _)
   have readout := (framed_pool (afterExponentReadout p problem) trivial
     (frame E width) (after_disjoint E width) path.2).trans
       (afterExponentCircuit_cost p width (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem) _)
+        _)
   have scalarBound := (framed_pool scalar supported (frame E width)
     (after_disjoint E width) path.1.2.2).le.trans
       (Encoding.placedConvertedCascade_budget E points (List.finRange (2 * width))
         (Semantics.radixUnit p fieldTail.succ odd) _)
   rw [List.length_finRange] at scalarBound
+  change _ ≤ (exponentPreparationCircuit problem).eventCost +
+    (ResourcePool.ofList (Allocation.initializationTrace p (2 * width)) +
+      (ResourcePool.scale 4 (MAU.Multiplication.Gidney.nativeBudget p.size) +
+        ResourcePool.scale (2 * width) (MeasuredPointAddition.events p.size))) +
+    (exponentReadoutCircuit problem).eventCost
   exact ResourcePool.add_mono (ResourcePool.add_mono prepared.le
     (ResourcePool.add_mono initialized.le scalarBound)) readout.le
 
@@ -208,12 +241,11 @@ private def scalarOriginalPath (fieldTail : Nat) (odd : Odd p)
 theorem preMeasurement_duration (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event Model → Nat)
     (path : (preMeasurement E fieldTail odd problem points).Path) :
     (preMeasurement E fieldTail odd problem points).depth duration path =
       (exponentPreparationCircuit problem).evaluatedEventDepth duration +
-        (duration (InPlacePreparation.preparation p).event +
-          duration (BasisPreparation.zero (indexedLayout p.size (2 * orderWidth problem))).event +
+        ((initializeWork E (orderWidth problem)).depth duration path.1.2.1 +
           (Encoding.placedConvertedCascade E points (List.finRange (2 * orderWidth problem))
             (Semantics.radixUnit p fieldTail.succ odd)).depth duration
               (scalarOriginalPath E fieldTail odd problem points path)) +
@@ -233,13 +265,13 @@ theorem preMeasurement_duration (fieldTail : Nat) (odd : Odd p)
   have prepared := (framed_depth (beforeExponentPreparation p problem) trivial
     (frame E width) (before_disjoint E width) duration path.1.1).trans
       (beforeExponentCircuit_depth p width (exponentPreparationCircuit problem)
-        (exponentPreparationCircuit_physical_idx problem) duration _)
+        duration _)
   have readout := (framed_depth (afterExponentReadout p problem) trivial
     (frame E width) (after_disjoint E width) duration path.2).trans
       (afterExponentCircuit_depth p width (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem) duration _)
+        duration _)
   exact congrArg₂ Nat.add (congrArg₂ Nat.add prepared
-    (congrArg₂ Nat.add (initializeWork_depth E width duration path.1.2.1)
+    (congrArg₂ Nat.add rfl
       (framed_depth scalar supported (frame E width) (after_disjoint E width) duration
         path.1.2.2))) readout
 
@@ -250,19 +282,27 @@ theorem preMeasurement_depth (fieldTail : Nat) (odd : Odd p)
     (path : (preMeasurement E fieldTail odd problem points).Path) :
     (preMeasurement E fieldTail odd problem points).depth (fun _ => 1) path ≤
       (exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
-        (2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
+        (ResourcePool.weightedCount (fun _ => 1)
+          (ResourcePool.ofList (Allocation.initializationTrace p
+            (2 * orderWidth problem))) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
           (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size)) +
         (exponentReadoutCircuit problem).evaluatedEventDepth (fun _ => 1) := by
   rw [preMeasurement_duration]
+  have initialization := Circuit.depth_le_weightedCount_of_pool_le
+    (initializeWork E (orderWidth problem)) (fun _ => 1)
+    (ResourcePool.ofList (Allocation.initializationTrace p (2 * orderWidth problem)))
+    path.1.2.1
+    (congrArg ResourcePool.ofList
+      (initializeWork_eventTrace E (orderWidth problem) path.1.2.1)).le
   have scalarBound := Encoding.placedConvertedCascade_depth E points
       (List.finRange (2 * orderWidth problem)) (Semantics.radixUnit p fieldTail.succ odd)
       (scalarOriginalPath E fieldTail odd problem points path)
   rw [List.length_finRange] at scalarBound
-  exact Nat.add_le_add_right
-    (Nat.add_le_add_left (Nat.add_le_add_left scalarBound 2) _) _
+  omega
 
 private theorem measurement_duration (modulus width : Nat)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event Model → Nat)
     (path : (exponentMeasurements modulus width).Path) :
     (exponentMeasurements modulus width).depth duration path =
       (2 * width) * duration (Circuit.zEvent 2) := by
@@ -277,12 +317,11 @@ private theorem measurement_duration (modulus width : Nat)
 theorem exponentRun_duration (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event Model → Nat)
     (path : (exponentRun E fieldTail odd problem points).code.Path) :
     (exponentRun E fieldTail odd problem points).code.depth duration path =
       (exponentPreparationCircuit problem).evaluatedEventDepth duration +
-        (duration (InPlacePreparation.preparation p).event +
-          duration (BasisPreparation.zero (indexedLayout p.size (2 * orderWidth problem))).event +
+        ((initializeWork E (orderWidth problem)).depth duration path.1.1.1.2.1 +
           (Encoding.placedConvertedCascade E points (List.finRange (2 * orderWidth problem))
             (Semantics.radixUnit p fieldTail.succ odd)).depth duration
               (scalarOriginalPath E fieldTail odd problem points path.1.1)) +
@@ -308,7 +347,10 @@ theorem exponentRun_depth (fieldTail : Nat) (odd : Odd p)
     (path : (exponentRun E fieldTail odd problem points).code.Path) :
     (exponentRun E fieldTail odd problem points).code.depth (fun _ => 1) path ≤
       (exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
-        (2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
+        (ResourcePool.weightedCount (fun _ => 1)
+          (ResourcePool.ofList (Allocation.initializationTrace p
+            (2 * orderWidth problem))) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
           (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size)) +
         (exponentReadoutCircuit problem).evaluatedEventDepth (fun _ => 1) +
           2 * orderWidth problem := by

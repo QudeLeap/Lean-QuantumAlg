@@ -75,14 +75,16 @@ def preparedRequirement (width : Nat) (modulus : Fin (2 ^ width + 1))
     .mixed (preparedTarget width modulus coefficient Reference input)
       (preparedTarget_normalized width modulus coefficient Reference input)
 
-/-- Actual preparation and native multiplication meet the complete independent state target. -/
+/-- Actual zero preparation and native multiplication meet the complete
+independent state target with every external reference. -/
 theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) {shape : CShape}
     (output : Output (preparedContext width) shape) {Reference : Register}
-    (input : Execution.Input (context width) Reference) :
-    (preparedRequirement width modulus coefficient).Holds input
+    (input : Execution.OracleInput .empty (context width) Reference) :
+    (preparedRequirement width modulus coefficient).Holds input.caller
       (({ code := preparedCode width modulus coefficient, output := output } :
-        AlgorithmRun (context width) (preparedContext width) shape).finalState
+        AlgorithmRun (.quantum AlgorithmGate.model .empty)
+          (context width) (preparedContext width) shape).finalState
           Reference input.state) := by
   intro value
   cases value with
@@ -90,40 +92,63 @@ theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width 
       let initial : DensityOperator (Register.prod (preparedContext width).register Reference) :=
         Execution.preparedDensity auxiliaryKey (auxiliaryLayout width)
           (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
-          (auxiliaryPreparation width).normalized Reference input.state.quantumMarginal
-      let result := ({ code := preparedCode width modulus coefficient, output := output } :
-        AlgorithmRun (context width) (preparedContext width) shape).finalState Reference input.state
+          (auxiliaryPreparation width).normalized Reference
+            input.caller.state.quantumMarginal
+      let result :=
+        ({ code := preparedCode width modulus coefficient, output := output } :
+          AlgorithmRun (.quantum AlgorithmGate.model .empty)
+            (context width) (preparedContext width) shape).finalState
+            Reference input.state
+      have actualWithService : result.quantumMarginal = DensityOperator.applyUnitary
+          (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
+            (1 : UnitaryOperator Reference))
+          (Execution.preparedDensity auxiliaryKey (auxiliaryLayout width)
+            (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
+            (auxiliaryPreparation width).normalized Reference input.state.quantumMarginal) :=
+        Execution.preparedUnitary_finalState_quantumMarginal (ctx := context width)
+          auxiliaryKey (auxiliaryLayout width) (gidneyAuxiliary_fresh width)
+          (gidneyAuxiliary_disjoint width)
+          (preparedUnitary width modulus coefficient) output Reference input.state
       have actual : result.quantumMarginal = DensityOperator.applyUnitary
           (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
             (1 : UnitaryOperator Reference)) initial :=
-        Execution.preparedUnitary_finalState_quantumMarginal (ctx := context width)
-          auxiliaryKey (auxiliaryLayout width) (gidneyAuxiliary_fresh width)
-          (gidneyAuxiliary_disjoint width) (auxiliaryPreparation width)
-          (preparedUnitary width modulus coefficient)
-          (gidneyPreparedUnitary_physical width modulus coefficient) output Reference input.state
+        actualWithService.trans (congrArg
+          (fun density : DensityOperator
+              (Register.prod (preparedContext width).register Reference) =>
+            DensityOperator.applyUnitary
+              (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
+                (1 : UnitaryOperator Reference)) density)
+          (congrArg
+            (fun density : DensityOperator
+                (Register.prod (context width).register Reference) =>
+              Execution.preparedDensity auxiliaryKey (auxiliaryLayout width)
+                (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
+                (auxiliaryPreparation width).normalized Reference density)
+            input.oracleInput_caller_quantumMarginal.symm))
       have semantic := actual.trans
         (congrArg (fun operator : UnitaryOperator (preparedContext width).register =>
           DensityOperator.applyUnitary
             (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)) initial)
           (gidneyPreparedUnitary_matrix width modulus coefficient))
       have observed := congrArg
-        (fun density : DensityOperator (Register.prod (preparedContext width).register Reference) =>
+        (fun density : DensityOperator
+            (Register.prod (preparedContext width).register Reference) =>
           DensityOperator.observeSelectionWithReference (preparedContext width).quantumLayout
             Finset.univ Reference density)
         ((ExecutionState.executionState_mapClassical_const_block result CShape.Value.unit).trans
           semantic)
       have targetHolds :
-          (StatePromise.mixed (preparedTarget width modulus coefficient Reference input)
-            (preparedTarget_normalized width modulus coefficient Reference input)).Holds
-              (preparedTarget width modulus coefficient Reference input) := by
-        change (preparedTarget width modulus coefficient Reference input).matrix =
-          ((preparedTarget width modulus coefficient Reference input).mass : ℝ) •
-            (preparedTarget width modulus coefficient Reference input).matrix
+          (StatePromise.mixed (preparedTarget width modulus coefficient Reference input.caller)
+            (preparedTarget_normalized width modulus coefficient Reference input.caller)).Holds
+              (preparedTarget width modulus coefficient Reference input.caller) := by
+        change (preparedTarget width modulus coefficient Reference input.caller).matrix =
+          ((preparedTarget width modulus coefficient Reference input.caller).mass : ℝ) •
+            (preparedTarget width modulus coefficient Reference input.caller).matrix
         rw [preparedTarget_normalized]
         simp only [one_smul]
       exact (congrArg
-        (StatePromise.mixed (preparedTarget width modulus coefficient Reference input)
-          (preparedTarget_normalized width modulus coefficient Reference input)).Holds
+        (StatePromise.mixed (preparedTarget width modulus coefficient Reference input.caller)
+          (preparedTarget_normalized width modulus coefficient Reference input.caller)).Holds
         observed).mpr targetHolds
 
 end

@@ -27,7 +27,7 @@ open Execution ScalarMultiplication.MeasuredPlacement FiniteCyclicDLP Canonical.
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-attribute [local irreducible] exponentRepeatedRun PublicInput.initialInput
+attribute [local irreducible] exponentRepeatedRun repeatedOracleInput
   AlgorithmRun.outputDistribution
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -63,7 +63,7 @@ private theorem fixedOffset_probability_bound
           ((problem.order - 1 : Nat) : ℝ)))) ^ count) ≤
       (exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
         nontrivial count).outputDistribution
-          (PublicInput.initialInput E (orderWidth problem) problem original)
+          (repeatedOracleInput E problem original)
             (.optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)) := by
   have originalBound := exponentRepeatedRun_secret_probability_ge E fieldTail sameWidth fits
     odd problem nontrivial points seed addends count input original
@@ -90,7 +90,7 @@ theorem exists_fixedOffset_repeated_secret_probability_bound
                 ((problem.order - 1 : Nat) : ℝ)))) ^ count) ≤
             (exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
               nontrivial count).outputDistribution
-                (PublicInput.initialInput E (orderWidth problem) problem original)
+                (repeatedOracleInput E problem original)
                   (.optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)) := by
   obtain ⟨seed, member, nonidentity, massBound⟩ :=
     exists_fixedOffset_exceptionalMass_bound problem nontrivial points

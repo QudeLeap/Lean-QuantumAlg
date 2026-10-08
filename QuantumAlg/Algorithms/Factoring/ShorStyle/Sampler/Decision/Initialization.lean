@@ -63,18 +63,6 @@ def initializationStore (shared : Proposal.SharedRefs ctx width)
         (FirstAccepted.cellRead shared.selector.selected) shared.selector.selected)).applyOp
           (clearBitOp scratch.eligible)
 
-/-- Actual initialization preserves every complete quantum-reference block with its real path. -/
-theorem decisionInitialization_execute (shared : Proposal.SharedRefs ctx width)
-    (scratch : Proposal.ScratchRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (initializeBody shared scratch).execute Reference state =
-      state.mapClassical (fun entry =>
-        (initializationStore shared scratch entry.1, (entry.2, ((), ((), ((), ())))))) := by
-  simp only [initializeBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
-
 private theorem preserves_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
@@ -120,6 +108,43 @@ theorem decisionInitialization_values (shared : Proposal.SharedRefs ctx width)
   · exact (preserves_cell (clearBitOp scratch.eligible)
       shared.selector.selected flagUnit _).trans loaded
   · exact decision_clearBit_read scratch.eligible _
+
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+/-- Exact native outcomes of the four initialization instructions in execution order. -/
+def initializationStep (shared : Proposal.SharedRefs ctx width)
+    (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
+    Store ctx × (initializeBody (model := model) shared scratch).Path :=
+  let copied := BitWord.instructionStep (execution := model) (.wordUnary .copy width ctx
+    (FirstAccepted.cellRead shared.selector.selected) scratch.candidate) store
+  let cleared := BitWord.instructionStep (execution := model)
+    (clearWordOp shared.selector.selected) copied.1
+  let incremented := BitWord.instructionStep (execution := model) (.wordUnary .increment width ctx
+    (FirstAccepted.cellRead shared.selector.selected) shared.selector.selected) cleared.1
+  let tagged := BitWord.instructionStep (execution := model)
+    (clearBitOp scratch.eligible) incremented.1
+  (tagged.1, (copied.2, (cleared.2, (incremented.2, tagged.2))))
+
+/-- Recording native outcomes leaves the original initialized store unchanged. -/
+theorem decisionInitialization_step_store (shared : Proposal.SharedRefs ctx width)
+    (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
+    (initializationStep (model := model) shared scratch store).1 =
+      initializationStore shared scratch store := rfl
+
+/-- Actual initialization preserves every complete quantum-reference block with its real path. -/
+theorem decisionInitialization_execute (shared : Proposal.SharedRefs ctx width)
+    (scratch : Proposal.ScratchRefs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (initializeBody (model := model) shared scratch).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := initializationStep (model := model) shared scratch entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [initializeBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

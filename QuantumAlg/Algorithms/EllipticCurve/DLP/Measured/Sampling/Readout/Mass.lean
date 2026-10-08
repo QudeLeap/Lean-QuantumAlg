@@ -24,18 +24,9 @@ open Execution ContextUnion ScalarMultiplication.MeasuredPlacement
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem retainedSplit_mass (ctx : RuntimeCtx .quantum) (key : StorageKey)
-    (shape : CShape) (fresh : key ∉ ctx.keys) {Reference : Register}
-    {History : Type} [Fintype History]
-    (state : State (ctx.addRetained key shape fresh) Reference History) :
-    (Circuit.underRetainedSplitState key shape fresh state).mass = state.mass := by
-  unfold Circuit.underRetainedSplitState Circuit.retainedUnionState
-  rw [contextUnion_splitState_mass, ExecutionState.reindex_mass,
-    ExecutionState.mapClassical_mass]
-
 private theorem cellsSplit_mass (ctx : RuntimeCtx .quantum) (count : Nat)
-    {Reference : Register} {History : Type} [Fintype History]
-    (state : State (MeasurementCells.context ctx 2 count) Reference History) :
+    {Reference : Register} {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (MeasurementCells.context ctx 2 count) Reference (Hidden × History)) :
     (Circuit.underMeasurementCellsSplitState ctx 2 count state).mass = state.mass := by
   induction count generalizing Reference History with
   | zero =>
@@ -43,18 +34,20 @@ private theorem cellsSplit_mass (ctx : RuntimeCtx .quantum) (count : Nat)
       exact State.mapHistory_mass state _
   | succ count ih =>
       simp only [Circuit.underMeasurementCellsSplitState]
-      erw [State.mapHistory_mass, ih, retainedSplit_mass]
+      erw [State.mapHistory_mass, ih, Circuit.underRetainedSplitState_mass]
 
 /-- Complete scalar proof coordinates retain the mass of the same actual terminal state. -/
 theorem samplingReadoutSplitState_mass {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (exponentWidth : Nat) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E exponentWidth) Reference History) :
+    (state : State (PublicInput.terminal E exponentWidth) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     (samplingReadoutSplitState E exponentWidth state).mass = state.mass :=
   (cellsSplit_mass (Allocation.after p.size (2 * exponentWidth)) (2 * exponentWidth)
-    (splitState (exponentMeasurementContext p exponentWidth) (PublicInput.frame E exponentWidth)
+    (splitServiceState (exponentMeasurementContext p exponentWidth)
+      (PublicInput.frame E exponentWidth)
       (PublicInput.terminal_disjoint E exponentWidth) state)).trans
-    (contextUnion_splitState_mass (exponentMeasurementContext p exponentWidth)
+    (contextUnion_splitServiceState_mass (exponentMeasurementContext p exponentWidth)
       (PublicInput.frame E exponentWidth) (PublicInput.terminal_disjoint E exponentWidth) state)
 
 end

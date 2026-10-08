@@ -6,10 +6,14 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Model
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Placement
 import all QuantumAlg.Primitives.ZReset.Bank.Scope
 import all QuantumAlg.Core.Execution.Measurement.Sequence
 import all QuantumAlg.Core.Algorithm.ClassicalOp.Finite.Bits
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # One actual short-DLP round on the same owned quantum bank
@@ -30,6 +34,9 @@ through actual classical instructions before the next round overwrites it.
 namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
+
+/-- Concrete arithmetic and native bit/word processing, with no oracle service. -/
+public abbrev model : ExecutionModel := .quantum AlgorithmGate.model .empty BitWord.model
 
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -69,28 +76,25 @@ def packing (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
 
 /-- Runtime dispatch reads the real retained parameter before executing its actual gate member. -/
 def selected {shape : CShape} (parameter : CInputRef ctx shape) (N : Nat)
-    (generator target : shape.Value → (ZMod N)ˣ) : Circuit ctx ctx :=
+    (generator target : shape.Value → (ZMod N)ˣ) : Circuit model ctx ctx :=
   .branch parameter (fun value =>
     .unitary (RuntimePlacement.memberProgram m ell width sameWires N
-      (generator value) (target value))
-      (RuntimePlacement.shortDLP_runtimeMember_physicalIdx m ell width sameWires N
-        (generator value) (target value)))
+      (generator value) (target value)))
 
 /-- Reset and actual X reload return the same bank to its original source seed. -/
-def resetReload (N : Nat) : Circuit ctx ctx :=
+def resetReload (N : Nat) : Circuit model ctx ctx :=
   .seq (ZReset.BankScope.code
-    (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires))
-    (.unitary (RuntimePlacement.reloadProgram m ell width sameWires N)
-      (RuntimePlacement.shortDLP_runtimeReload_physicalIdx m ell width sameWires N))
+    (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) BitWord.model)
+    (.unitary (RuntimePlacement.reloadProgram m ell width sameWires N))
 
 /-- One actual parameter-selected member, measured and packed result, and reset/reload sequence. -/
 def code {shape : CShape} (parameter : CInputRef ctx shape) (N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
-    (result : CWriteRef ctx (.bits (resultBits m ell width))) : Circuit ctx ctx :=
+    (result : CWriteRef ctx (.bits (resultBits m ell width))) : Circuit model ctx ctx :=
   .seq (selected m ell width sameWires parameter N generator target)
     (.seq (Circuit.measurementSequence (readouts m ell width sameWires cells))
-      (.seq (.classical (packing m ell width cells result))
+      (.seq (BitWord.instruction (packing m ell width cells result))
         (resetReload m ell width sameWires N)))
 
 /-- The complete result manifest reads the packed cell and retains every actual runtime entry. -/
@@ -98,7 +102,7 @@ def run {shape : CShape} (parameter : CInputRef ctx shape) (N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width))) :
-    AlgorithmRun ctx ctx (.bits (resultBits m ell width)) where
+    AlgorithmRun model ctx ctx (.bits (resultBits m ell width)) where
   code := code m ell width sameWires parameter N generator target cells result
   output := Output.all ctx (.read (.storage result.toCStorageRef))
 

@@ -26,28 +26,30 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- An already accepted first value is retained for arbitrary subsequent actual recovery inputs. -/
 theorem persistentAttemptStore_preserves_first_of_accepted
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (before : Store (persistentCtx ctx width scalarWidth))
-    (already : (before.read (.storage
+    (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
+    (already : (before.1.read (.storage
       (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true) :
     let after := persistentAttemptStore curve modulus sample base target before
     (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ∧
       after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
-        before.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
+        before.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) := by
   have latches := attempt_latches curve modulus (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
     (persistentReconstruction ctx width scalarWidth) (persistentScalar ctx width scalarWidth)
     (persistentTargetAccepted ctx width scalarWidth) (persistentAccepted ctx width scalarWidth)
-    (persistentSelected ctx width scalarWidth) before (attemptKeys_distinct ctx width scalarWidth)
+    (persistentSelected ctx width scalarWidth) before.1 before.2
+    (attemptKeys_distinct ctx width scalarWidth)
   dsimp only at latches ⊢
-  simpa only [persistentAttemptStore, already, Bool.true_or, Bool.not_true, Bool.false_and,
+  simpa only [persistentAttemptStore_eq, already, Bool.true_or, Bool.not_true, Bool.false_and,
     Bool.false_eq_true,
     if_false] using latches
 
@@ -57,12 +59,15 @@ private def firstSelected (width scalarWidth : Nat)
   (store.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true ∧
     store.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = wanted
 
-private def PreservesStore (code : Circuit ctx ctx) (predicate : Store ctx → Prop) : Prop :=
-  ∀ {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H),
+private def PreservesStore (code : Circuit model ctx ctx) (predicate : Store ctx → Prop) : Prop :=
+  ∀ {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (model.HiddenState × H)),
     (∀ entry, 0 < (state.block entry).mass → predicate entry.1) →
       ∀ result, 0 < ((code.execute Reference state).block result).mass → predicate result.1
 
-private theorem preservesStore_seq (first second : Circuit ctx ctx) (predicate : Store ctx → Prop)
+omit [BitWord.Selected model] in
+private theorem preservesStore_seq (first second : Circuit model ctx ctx)
+    (predicate : Store ctx → Prop)
     (firstKeeps : PreservesStore first predicate) (secondKeeps : PreservesStore second predicate) :
     PreservesStore (first.seq second) predicate := by
   unfold PreservesStore
@@ -94,14 +99,17 @@ private theorem persistentAttempt_supported_first
   obtain ⟨original, equality, present⟩ := (mapped_positive _ _ _ _).mp positive
   have input := holds original present
   have kept := persistentAttemptStore_preserves_first_of_accepted curve modulus sample base target
-    original.1 input.1
+    (original.1, original.2.1) input.1
+  rw [persistentAttemptStore_eq] at kept
   rw [← equality]
   dsimp only
   rw [stores]
   exact ⟨kept.1, kept.2.trans input.2⟩
 
+omit [BitWord.Selected model] in
 private theorem sampled_supported_first
-    (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal) (width scalarWidth : Nat)
+    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+    (width scalarWidth : Nat)
     (wanted : (CShape.unsignedWord scalarWidth).Value) :
     PreservesStore (underPersistent sampleCode supported width scalarWidth)
       (firstSelected width scalarWidth wanted) := by
@@ -119,18 +127,20 @@ private theorem sampled_supported_first
 
 /-- Actual sampling followed by checked recovery preserves an already accepted first word. -/
 theorem sampledAttempt_preserves_first
-    (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal)
+    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    {H : Type} [Fintype H]
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (wanted : (CShape.unsignedWord scalarWidth).Value)
     (holds : ∀ entry, 0 < (state.block entry).mass →
       (entry.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
           true ∧
         entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = wanted)
     (result : Store (persistentCtx ctx width scalarWidth) ×
-      (H × (sampledAttempt sampleCode supported curve modulus sample base target).Path))
+      (model.HiddenState ×
+        (H × (sampledAttempt sampleCode supported curve modulus sample base target).Path)))
     (positive : 0 < (((sampledAttempt sampleCode supported curve modulus sample base
       target).execute
       Reference state).block result).mass) :
@@ -138,12 +148,13 @@ theorem sampledAttempt_preserves_first
         true ∧
       result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         wanted := by
-  exact @preservesStore_seq kind (persistentCtx ctx width scalarWidth)
+  exact preservesStore_seq
     (underPersistent sampleCode supported width scalarWidth)
-    (persistentAttempt curve modulus sample base target) (firstSelected width scalarWidth wanted)
-    (@sampled_supported_first kind ctx sampleCode supported width scalarWidth wanted)
-    (@persistentAttempt_supported_first kind ctx width scalarWidth curve modulus sample base target
-      wanted) Reference H _ state holds result positive
+    (persistentAttempt curve modulus sample base target)
+    (firstSelected width scalarWidth wanted)
+    (sampled_supported_first sampleCode supported width scalarWidth wanted)
+    (persistentAttempt_supported_first curve modulus sample base target wanted)
+    state holds result positive
 
 end
 

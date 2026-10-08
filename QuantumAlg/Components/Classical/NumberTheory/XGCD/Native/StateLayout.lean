@@ -93,10 +93,10 @@ theorem xgcdNativeState_initial_value (cells : Cells ctx (stateShapes width))
   Cells.workspaceCells_cellAt_initialized cells store initialized index
 
 /-- Allocate the seven states through the existing fresh lexical Circuit instruction. -/
-def withStateCells (ctx : RuntimeCtx kind) (width : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner (stateShapes width)),
+def withStateCells {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner (stateShapes width)),
       cells.Distinct → (transport : Transport ctx inner) →
-      cells.TransportSeparated transport → Circuit inner inner) : Circuit ctx ctx :=
+      cells.TransportSeparated transport → Circuit model inner inner) : Circuit model ctx ctx :=
   withCells ctx (stateShapes width) body
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.XGCD.Native

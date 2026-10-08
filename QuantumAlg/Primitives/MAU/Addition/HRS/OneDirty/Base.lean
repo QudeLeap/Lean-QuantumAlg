@@ -80,8 +80,9 @@ def oneDirtyBaseGates (width : Nat) (constant : Fin (2 ^ width)) :
   EncodedBit.Word.xorConstantGates (baseWord width) constant
 
 def oneDirtyBaseProgram (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit (Qubits (oneDirtyEncoding width).width) :=
-  programList (oneDirtyBaseGates width constant)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oneDirtyEncoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (oneDirtyBaseGates width constant)
 
 /-- At the two base widths, finite xor and finite addition coincide exactly. -/
 theorem hrsOneDirtyBase_step (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width))
@@ -114,7 +115,8 @@ theorem hrsOneDirtyBase_step (width : Nat) (base : width ≤ 1) (constant : Fin 
 theorem hrsOneDirtyBase_realizes (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes (oneDirtyEncoding width) (oneDirtyBaseProgram width constant)
       (oneDirtyOutput constant) :=
-  realizesList_congrStep (oneDirtyBaseGates width constant)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (oneDirtyBaseGates width constant)
     (hrsOneDirtyBase_step width base constant)
 
 /-- Exact event and serial-depth counts of the selected base gates. -/
@@ -123,16 +125,21 @@ theorem hrsOneDirtyBase_resources (width : Nat) (constant : Fin (2 ^ width)) :
         (EncodedBit.Word.constantOneIndices constant).length ∧
       (oneDirtyBaseProgram width constant).evaluatedEventDepth (fun _ => 1) =
         (EncodedBit.Word.constantOneIndices constant).length := by
-  change (programList (oneDirtyBaseGates width constant)).eventCost.card = _ ∧
-    (programList (oneDirtyBaseGates width constant)).evaluatedEventDepth (fun _ => 1) = _
+  change (programList (QubitLayout.canonical _) .empty
+      (oneDirtyBaseGates width constant)).eventCost.card = _ ∧
+    (programList (QubitLayout.canonical _) .empty
+      (oneDirtyBaseGates width constant)).evaluatedEventDepth (fun _ => 1) = _
   rw [programList_eventCost_card, programList_evaluatedEventDepth_unit]
   simp [oneDirtyBaseGates, EncodedBit.Word.xorConstantGates_length]
 
 /-- Base gates occupy at most the original input word, within the exact word/dirty carrier. -/
-theorem hrsOneDirtyBase_interface (width : Nat) (constant : Fin (2 ^ width)) :
+theorem hrsOneDirtyBase_interface (width : Nat) :
     (oneDirtyEncoding width).width = width + 1 ∧
-      (oneDirtyBaseProgram width constant).physical_idx ⊆ List.range (width + 1) :=
-  ⟨rfl, programList_physical_idx_subset_range (oneDirtyBaseGates width constant)⟩
+      (QubitLayout.canonical (oneDirtyEncoding width).width).systemIdx =
+        List.range (width + 1) := by
+  constructor
+  · rfl
+  · exact QubitLayout.canonical_systemIdx (width + 1)
 
 end
 

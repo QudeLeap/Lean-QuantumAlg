@@ -25,36 +25,42 @@ open ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original coefficient loader is charged for its actual public word bits. -/
-def doublingLoaderTrace (kind : ProblemKind) (spec : CurveSpec width) :
-    List (Resource.Event kind) :=
-  ConstantWord.loaderTrace kind width
+def doublingLoaderTrace (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) :
+    List (Resource.Event model) :=
+  ConstantWord.loaderTrace model width
     (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat))
 
 /-- Original native allowances in the seven actual chronological positions. -/
-def doublingStageEnvelope (kind : ProblemKind) (spec : CurveSpec width) :
-    Fin 7 → ResourcePool kind :=
-  let addition := ResourcePool.ofList (additionTrace kind spec.field)
-  ![ResourcePool.ofList (multiplicationTrace kind spec.field), addition, addition,
-    ResourcePool.ofList (doublingLoaderTrace kind spec), addition, addition,
-    affineEnvelope kind spec.field]
+def doublingStageEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) :
+    Fin 7 → ResourcePool model :=
+  let addition := ResourcePool.ofList (additionTrace model spec.field)
+  ![ResourcePool.ofList (multiplicationTrace model spec.field), addition, addition,
+    ResourcePool.ofList (doublingLoaderTrace model spec), addition, addition,
+    affineEnvelope model spec.field]
 
 /-- Each original multiplication, addition, public loader and tail is charged exactly once. -/
-def doublingEnvelope (kind : ProblemKind) (spec : CurveSpec width) : ResourcePool kind :=
-  ∑ index, doublingStageEnvelope kind spec index
+def doublingEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : CurveSpec width) : ResourcePool model :=
+  ∑ index, doublingStageEnvelope model spec index
 
 /-- Original native-duration allowances in their seven actual chronological positions. -/
-def doublingStageDepthLimit (spec : CurveSpec width) (duration : Resource.Event kind → Nat) :
+def doublingStageDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (duration : Resource.Event model → Nat) :
     Fin 7 → Nat :=
-  let addition := ((additionTrace kind spec.field).map duration).sum
-  ![((multiplicationTrace kind spec.field).map duration).sum, addition, addition,
-    ((doublingLoaderTrace kind spec).map duration).sum, addition, addition,
+  let addition := ((additionTrace model spec.field).map duration).sum
+  ![((multiplicationTrace model spec.field).map duration).sum, addition, addition,
+    ((doublingLoaderTrace model spec).map duration).sum, addition, addition,
     affineDepthLimit spec.field duration]
 
 /-- The original serial allowance retains every real public-constant loader duration. -/
-def doublingDepthLimit (spec : CurveSpec width) (duration : Resource.Event kind → Nat) : Nat :=
+def doublingDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : CurveSpec width) (duration : Resource.Event model → Nat) : Nat :=
   ∑ index, doublingStageDepthLimit spec duration index
 
 /-- Prefix arithmetic and the complete affine tail occupy successive actual scopes. -/
@@ -71,48 +77,52 @@ private theorem doublingStage_pool_le (spec : CurveSpec width)
     (path : (doublingStage spec pointX pointY scratch output index).Path) :
     (doublingStage spec pointX pointY scratch output index).resourcePool
       path ≤
-      doublingStageEnvelope kind spec index := by
+      doublingStageEnvelope model spec index := by
   fin_cases index
-  all_goals first
-    | exact (mulIntoWord_resourcePool _ _ _ _ path).le
-    | exact (addIntoWord_resourcePool _ _ _ _ path).le
-    | exact (congrArg ResourcePool.ofList (ConstantWord.constantFold_eventTrace scratch.a
-        (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat)) path)).le
-    | exact affineInto_pool_le _ _ _ _ _ _ _ path
+  · exact (mulIntoWord_resourcePool _ _ _ _ path).le
+  · exact (addIntoWord_resourcePool _ _ _ _ path).le
+  · exact (addIntoWord_resourcePool _ _ _ _ path).le
+  · exact (congrArg ResourcePool.ofList (ConstantWord.constantFold_eventTrace scratch.a
+      (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat)) path)).le
+  · exact (addIntoWord_resourcePool _ _ _ _ path).le
+  · exact (addIntoWord_resourcePool _ _ _ _ path).le
+  · exact affineInto_pool_le _ _ _ _ _ _ _ path
 
 private theorem doublingBody_pool_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (doublingBody spec pointX pointY scratch output).Path) :
     (doublingBody spec pointX pointY scratch output).resourcePool path ≤
-      doublingEnvelope kind spec :=
+      doublingEnvelope model spec :=
   Circuit.forRange_pool_le_sum 7
     (doublingStage spec pointX pointY scratch output)
-    (doublingStageEnvelope kind spec)
+    (doublingStageEnvelope model spec)
     (doublingStage_pool_le spec pointX pointY scratch output) path
 
 private theorem doublingStage_depth_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (index : Fin 7)
     (path : (doublingStage spec pointX pointY scratch output index).Path) :
     (doublingStage spec pointX pointY scratch output index).depth
       duration path ≤
       doublingStageDepthLimit spec duration index := by
   fin_cases index
-  all_goals first
-    | exact (mulIntoWord_durationDepth _ _ _ _ duration path).le
-    | exact (addIntoWord_durationDepth _ _ _ _ duration path).le
-    | exact (ConstantWord.constantFold_depth scratch.a
-        (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat))
-        duration path).le
-    | exact affineInto_depth_le _ _ _ _ _ _ _ duration path
+  · exact (mulIntoWord_durationDepth _ _ _ _ duration path).le
+  · exact (addIntoWord_durationDepth _ _ _ _ duration path).le
+  · exact (addIntoWord_durationDepth _ _ _ _ duration path).le
+  · exact (ConstantWord.constantFold_depth scratch.a
+      (List.ofFn (ConstantWord.constantBits width (doublingCurveAWord spec).toNat))
+      duration path).le
+  · exact (addIntoWord_durationDepth _ _ _ _ duration path).le
+  · exact (addIntoWord_durationDepth _ _ _ _ duration path).le
+  · exact affineInto_depth_le _ _ _ _ _ _ _ duration path
 
 private theorem doublingBody_depth_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (doublingBody spec pointX pointY scratch output).Path) :
     (doublingBody spec pointX pointY scratch output).depth duration path ≤
       doublingDepthLimit spec duration :=
@@ -125,7 +135,7 @@ private theorem doublingBody_depth_le (spec : CurveSpec width)
 private theorem doublingStage_duration_eventTrace (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (index : Fin 7)
     (path : (doublingStage spec pointX pointY scratch output index).Path) :
     (doublingStage spec pointX pointY scratch output index).depth
@@ -152,7 +162,7 @@ private theorem doublingStage_duration_eventTrace (spec : CurveSpec width)
 private theorem doublingBody_duration_eventTrace (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (doublingBody spec pointX pointY scratch output).Path) :
     (doublingBody spec pointX pointY scratch output).depth duration path =
       ((((doublingBody spec pointX pointY scratch output).eventTrace
@@ -168,13 +178,13 @@ theorem doublingInto_pool_le (spec : CurveSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (doublingInto spec point output).Path) :
     (doublingInto spec point output).resourcePool path ≤
-      doublingEnvelope kind spec := by
+      doublingEnvelope model spec := by
   exact withCellsFrom_property (Transport.id ctx) (doublingShapes width)
     (fun cells _ transport _ => doublingBody spec
       (.first (.second (transport.liftInput point)))
       (.second (.second (transport.liftInput point)))
       (doublingScratch cells) (transport.liftWrite output))
-    (fun _ code => ∀ selected, code.resourcePool selected ≤ doublingEnvelope kind spec)
+    (fun _ code => ∀ selected, code.resourcePool selected ≤ doublingEnvelope model spec)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => doublingBody_pool_le _ _ _ _ _ selected) path
 
@@ -182,7 +192,7 @@ theorem doublingInto_pool_le (spec : CurveSpec width)
 theorem doublingInto_depth_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (doublingInto spec point output).Path) :
     (doublingInto spec point output).depth duration path ≤
       doublingDepthLimit spec duration := by
@@ -199,7 +209,7 @@ theorem doublingInto_depth_le (spec : CurveSpec width)
 theorem doublingInto_duration_eventTrace (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (doublingInto spec point output).Path) :
     (doublingInto spec point output).depth duration path =
       (((doublingInto spec point output).eventTrace path).map
@@ -221,10 +231,10 @@ private theorem doublingBody_resident_le (spec : CurveSpec width)
     (path : (doublingBody spec pointX pointY scratch output).Path) :
     (doublingBody spec pointX pointY scratch output).peakResidentSpace
       path ≤
-      doublingActiveSpace kind width + ctx.residentSpace := by
+      doublingActiveSpace model.kind width + ctx.residentSpace := by
   refine Circuit.forRange_resident_le 7
     (doublingStage spec pointX pointY scratch output)
-    (doublingActiveSpace kind width + ctx.residentSpace) le_add_self ?_ path
+    (doublingActiveSpace model.kind width + ctx.residentSpace) le_add_self ?_ path
   intro index selected
   fin_cases index
   all_goals first
@@ -243,14 +253,14 @@ theorem doublingInto_resident_le (spec : CurveSpec width)
     (path : (doublingInto spec point output).Path) :
     (doublingInto spec point output).peakResidentSpace
       path ≤
-      ((doublingShapes width).map SpacePool.ofShape).sum + doublingActiveSpace kind width +
+      ((doublingShapes width).map SpacePool.ofShape).sum + doublingActiveSpace model.kind width +
         ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (doublingShapes width)
     (fun cells _ transport _ => doublingBody spec
       (.first (.second (transport.liftInput point)))
       (.second (.second (transport.liftInput point)))
       (doublingScratch cells) (transport.liftWrite output))
-    (doublingActiveSpace kind width)
+    (doublingActiveSpace model.kind width)
     (fun cells _ transport _ selected => doublingBody_resident_le _ _ _ _ _ selected) path
 
 private theorem doublingBody_auxiliary_le (spec : CurveSpec width)
@@ -259,10 +269,10 @@ private theorem doublingBody_auxiliary_le (spec : CurveSpec width)
     (path : (doublingBody spec pointX pointY scratch output).Path) :
     (doublingBody spec pointX pointY scratch output).peakAuxiliarySpace
       path ≤
-      doublingActiveSpace kind width + ctx.auxiliarySpace := by
+      doublingActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine Circuit.forRange_auxiliary_le 7
     (doublingStage spec pointX pointY scratch output)
-    (doublingActiveSpace kind width + ctx.auxiliarySpace) le_add_self ?_ path
+    (doublingActiveSpace model.kind width + ctx.auxiliarySpace) le_add_self ?_ path
   intro index selected
   fin_cases index
   all_goals first
@@ -281,14 +291,14 @@ theorem doublingInto_auxiliary_le (spec : CurveSpec width)
     (path : (doublingInto spec point output).Path) :
     (doublingInto spec point output).peakAuxiliarySpace
       path ≤
-      ((doublingShapes width).map SpacePool.ofShape).sum + doublingActiveSpace kind width +
+      ((doublingShapes width).map SpacePool.ofShape).sum + doublingActiveSpace model.kind width +
         ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (doublingShapes width)
     (fun cells _ transport _ => doublingBody spec
       (.first (.second (transport.liftInput point)))
       (.second (.second (transport.liftInput point)))
       (doublingScratch cells) (transport.liftWrite output))
-    (doublingActiveSpace kind width)
+    (doublingActiveSpace model.kind width)
     (fun cells _ transport _ selected => doublingBody_auxiliary_le _ _ _ _ _ selected) path
 
 end

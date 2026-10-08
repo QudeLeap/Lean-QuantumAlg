@@ -7,14 +7,16 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Measurement.Fibers
+import all QuantumAlg.Core.Execution.Classical.Composition
 
 /-!
 # Actual Z writes followed by a closed classical instruction
 
 The finite measurement sequence supplies its real outcomes and writes them
-into actual storage. The following existing classical opcode reads that
-storage and writes its result. Every observation of the resulting store
-retains the complete reference matrix entry of that same actual fiber.
+into actual storage. A selected deterministic native instruction then reads
+that storage and writes its declared result. Every observation of the
+resulting store retains the complete reference matrix entry of that fiber,
+including correlations with the persistent service state.
 -/
 
 namespace QuantumAlg.Circuit
@@ -25,27 +27,49 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- A real classical opcode after Z writes has exactly its actual store-reference fiber. -/
-theorem measurementSequence_classical_reference_entry {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) {input output : CShape}
-    (op : ClassicalOp input output ctx ctx)
+/-- A declared deterministic native instruction after Z writes has its exact
+store-reference fiber, including the untouched persistent service state. -/
+theorem measurementSequence_classical_reference_entry
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
+    (application : operations.Application ctx)
+    (compute : (operations.inputShape application.token).Value →
+      (operations.outputShape application.token).Value)
+    (declared : ∀ input,
+      operations.evaluate application.token input = PMF.pure (compute input))
     {Reference : Register} {History Observed : Type} [Fintype History] [Fintype Observed]
-    (state : State ctx Reference History) (observe : Store ctx → Observed) (value : Observed)
+    (state : State ctx Reference (services.HiddenState × History))
+    (observe : Store ctx → Observed) (value : Observed)
     (left right : Reference.Index) :
     (∑ basis : ctx.register.Index,
       DensityOperator.matrix
         ((ExecutionState.mapClassical
-          ((Circuit.seq (measurementSequence readouts) (.classical op)).execute Reference state)
+          ((Circuit.seq (measurementSequence (gates := gates) (oracles := oracles)
+            (operations := operations) (classicalOracles := services) readouts)
+            (.classical application)).execute Reference state)
           (fun entry => observe entry.1)).block value) (basis, left) (basis, right)) =
       ExecutionState.referenceFiberSum state (fun original basis =>
-        if observe ((writeMeasurementPath readouts original.1
-          (measurementBasisPath readouts basis)).applyOp op) = value then 1 else 0) left right := by
+        if observe ((writeMeasurementPath (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := services) readouts original.1
+          (measurementBasisPath (gates := gates) (oracles := oracles)
+            (operations := operations) (classicalOracles := services) readouts basis)).write
+              application.output
+              (compute ((writeMeasurementPath (gates := gates) (oracles := oracles)
+                (operations := operations) (classicalOracles := services) readouts original.1
+                (measurementBasisPath (gates := gates) (oracles := oracles)
+                  (operations := operations) (classicalOracles := services)
+                  readouts basis)).read application.input))) = value then 1 else 0)
+        left right := by
   rw [ExecutionState.mapClassical_block_referenceFiberSum, execute_seq]
   simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical]
-  rw [execute_classical]
-  simp only [State.classicalStep, ExecutionState.referenceFiberSum_mapClassical]
+  rw [execute_classical_mapClassical
+    (model := .quantum gates oracles operations services) application compute declared]
+  simp only [ExecutionState.referenceFiberSum_mapClassical]
   exact measurementSequence_referenceFiberSum readouts state
-    (fun entry _ => if observe (entry.1.applyOp op) = value then 1 else 0) left right
+    (fun entry _ =>
+      if observe (entry.1.write application.output
+        (compute (entry.1.read application.input))) = value then 1 else 0) left right
 
 end
 

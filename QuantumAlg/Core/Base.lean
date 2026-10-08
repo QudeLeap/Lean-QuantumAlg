@@ -12,6 +12,7 @@ public import QuantumAlg.Core.Base.State
 public import QuantumAlg.Core.Base.Gate.Basic
 public import QuantumAlg.Core.Base.Gate.Unitary
 public import QuantumAlg.Core.Base.Gate.OperatorNorm
+public import QuantumAlg.Core.Base.Gate.Placement
 public import QuantumAlg.Core.Base.Hamiltonian
 public import QuantumAlg.Core.Base.Tensor
 public import QuantumAlg.Core.Base.Tensor.Basic

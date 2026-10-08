@@ -29,9 +29,31 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The original selector consumes the real recovery and verification store. -/
+noncomputable def attemptRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (inverseSuccess : CWriteRef ctx .bit)
+    (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
+    (reconstruction : CWriteRef ctx .bit)
+    (scalarResult : CWriteRef ctx (PointShape width)) (targetAccepted : CWriteRef ctx .bit)
+    (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth))
+    (before : Store ctx × model.HiddenState) :
+      (Store ctx × model.HiddenState) ×
+        (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
+          scalarResult targetAccepted accepted selected).Path :=
+  let recovered := Classical.choose
+    (recoveryInto_actualRecord curve modulus sample base target inverseSuccess candidate
+      reconstruction scalarResult targetAccepted)
+  let selection := Classical.choose
+    (FirstAccepted.withSelection_actualRecord
+      ⟨.storage targetAccepted.toCStorageRef, .storage candidate.toCStorageRef⟩ accepted selected)
+  Circuit.sequenceRecord _ _ recovered selection before
+
+/-- The actual six-stage caller store after conditional selection. -/
 def attemptStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -40,11 +62,36 @@ def attemptStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (targetAccepted : CWriteRef ctx .bit)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth))
-    (before : Store ctx) : Store ctx :=
-  FirstAccepted.selectionWrite
+    (before : Store ctx × model.HiddenState) : Store ctx :=
+  (attemptRecord curve modulus sample base target inverseSuccess candidate reconstruction
+    scalarResult targetAccepted accepted selected before).1.1
+
+/-- Conditional selection consumes the caller store returned by the exact recovery record. -/
+theorem attemptStore_eq (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (inverseSuccess : CWriteRef ctx .bit)
+    (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
+    (reconstruction : CWriteRef ctx .bit)
+    (scalarResult : CWriteRef ctx (PointShape width)) (targetAccepted : CWriteRef ctx .bit)
+    (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth))
+    (before : Store ctx × model.HiddenState) :
+    attemptStore curve modulus sample base target inverseSuccess candidate reconstruction
+      scalarResult targetAccepted accepted selected before =
+        FirstAccepted.selectionWrite
+          ⟨.storage targetAccepted.toCStorageRef, .storage candidate.toCStorageRef⟩
+          accepted selected
+          (recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
+            scalarResult targetAccepted before) := by
+  let recoveryResult := recoveryInto_actualRecord curve modulus sample base target
+    inverseSuccess candidate reconstruction scalarResult targetAccepted
+  let selectionResult := FirstAccepted.withSelection_actualRecord
     ⟨.storage targetAccepted.toCStorageRef, .storage candidate.toCStorageRef⟩ accepted selected
-    (recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
-      scalarResult targetAccepted before)
+  have recoveryStored := (Classical.choose_spec recoveryResult).2 before
+  have selectionStored := (Classical.choose_spec selectionResult).2
+    ((Classical.choose recoveryResult) before).1
+  unfold attemptStore attemptRecord
+  rw [Circuit.sequenceRecord_store, selectionStored, recoveryStored]
 
 /-- One actual record preserves the original six stages, their complete store and actual paths. -/
 theorem attemptInto_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -55,29 +102,31 @@ theorem attemptInto_actualRecord (curve : CurveSpec width) (modulus : ModulusSpe
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (targetAccepted : CWriteRef ctx .bit)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth)) :
-    ∃ record : Store ctx → Store ctx ×
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
           scalarResult targetAccepted accepted selected).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
           scalarResult targetAccepted accepted selected).execute Reference state =
             state.mapClassical (fun entry =>
-              ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
+              let result := record (entry.1, entry.2.1)
+              (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
         attemptStore curve modulus sample base target inverseSuccess candidate reconstruction
           scalarResult targetAccepted accepted selected before := by
-  obtain ⟨recoveryRecord, recoveryEquation, recoveryStored⟩ :=
-    recoveryInto_actualRecord curve modulus sample base target inverseSuccess candidate
-      reconstruction scalarResult targetAccepted
-  obtain ⟨selectionRecord, selectionEquation, selectionStored⟩ :=
-    FirstAccepted.withSelection_actualRecord
+  let recoveryResult := recoveryInto_actualRecord curve modulus sample base target
+    inverseSuccess candidate reconstruction scalarResult targetAccepted
+  let selectionResult := FirstAccepted.withSelection_actualRecord
       ⟨.storage targetAccepted.toCStorageRef, .storage candidate.toCStorageRef⟩ accepted selected
-  refine ⟨Circuit.sequenceRecord _ _ recoveryRecord selectionRecord,
-    Circuit.execute_sequenceRecord _ _ _ _ recoveryEquation selectionEquation, ?_⟩
-  intro before
-  rw [Circuit.sequenceRecord_store, selectionStored, recoveryStored]
-  rfl
+  refine ⟨attemptRecord curve modulus sample base target inverseSuccess candidate reconstruction
+      scalarResult targetAccepted accepted selected, ?_, ?_⟩
+  · intro Reference History _ state
+    exact Circuit.execute_sequenceRecord _ _ (Classical.choose recoveryResult)
+      (Classical.choose selectionResult) (Classical.choose_spec recoveryResult).1
+      (Classical.choose_spec selectionResult).1 Reference state
+  · intro before
+    rfl
 
 end
 

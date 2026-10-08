@@ -71,16 +71,19 @@ theorem second_fits (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
     (CShape.wordModulus width : Nat)
   exact_mod_cast invariant.stepFits.area12Fits
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual second-pair writes preserve both original phase bits. -/
 theorem second_pair_phase (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (phase : NumberTheory.LLLPhase3)
     (rep : refs.machine.PhaseRepresents store phase) :
     refs.machine.PhaseRepresents
-      (LatticeSecondPairFullMachine.secondPairStep refs.second store).1 phase :=
+      (LatticeSecondPairFullMachine.secondPairStep (model := model) refs.second store).1 phase :=
   phase_of_frames refs phase
-    (LatticeSecondPairFullMachine.secondPairInto_callerFrame refs.second store _
+    (LatticeSecondPairFullMachine.secondPairInto_callerFrame (model := model) refs.second store _
       (fun cell _ => separation.secondPhaseSecond cell))
-    (LatticeSecondPairFullMachine.secondPairInto_callerFrame refs.second store _
+    (LatticeSecondPairFullMachine.secondPairInto_callerFrame (model := model) refs.second store _
       (fun cell _ => separation.doneSecond cell)) rep
 
 /-- The second Lovasz result selects finish or restart without changing its selected basis. -/
@@ -90,15 +93,15 @@ theorem second_advance_correct (refs : Refs ctx width) (separation : Separation 
     (phase : refs.machine.PhaseRepresents store .second)
     (decision :
       (store.read (.storage refs.second.branch.lovasz.passes.toCStorageRef)).toBool = passes) :
-    LatticeMetricMachine.BasisRawRepresents (secondAdvanceStep refs store).1 refs.machine.basis
-      basis ∧
-      refs.machine.PhaseRepresents (secondAdvanceStep refs store).1
+    LatticeMetricMachine.BasisRawRepresents
+      (secondAdvanceStep (model := model) refs store).1 refs.machine.basis basis ∧
+      refs.machine.PhaseRepresents (secondAdvanceStep (model := model) refs store).1
         (if passes then .done else .first) := by
   change LatticeMetricMachine.BasisRawRepresents
-    (secondAdvanceArmStep refs
+    (secondAdvanceArmStep (model := model) refs
       (store.read (.storage refs.second.branch.lovasz.passes.toCStorageRef)) store).1
     refs.machine.basis basis ∧ refs.machine.PhaseRepresents
-      (secondAdvanceArmStep refs
+      (secondAdvanceArmStep (model := model) refs
         (store.read (.storage refs.second.branch.lovasz.passes.toCStorageRef)) store).1
       (if passes then .done else .first)
   cases observed : store.read (.storage refs.second.branch.lovasz.passes.toCStorageRef) with
@@ -117,8 +120,10 @@ theorem second_advance_correct (refs : Refs ctx width) (separation : Separation 
 theorem secondStepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) (phase : state.phase = .second) :
-    StoreInvariant refs input (secondStep refs store).1 (NumberTheory.lllStep3 state) := by
-  have pair := LatticeSecondPairFullMachine.secondPairInto_correct refs.second separation.second
+    StoreInvariant refs input (secondStep (model := model) refs store).1
+      (NumberTheory.lllStep3 state) := by
+  have pair := LatticeSecondPairFullMachine.secondPairInto_correct (model := model)
+    refs.second separation.second
     store
     state.basis (second_initial refs input store state invariant)
     (second_fits refs input store state invariant)

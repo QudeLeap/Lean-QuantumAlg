@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+
 public import QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Core.Base.Accounting.Context
@@ -19,13 +21,18 @@ import all QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Components.Kets
 import all QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Primitives.WalshHadamard
+public import QuantumAlg.Components.Classical.Model.BitWord
+public import QuantumAlg.Primitives.WalshHadamard.Initialization
+import all QuantumAlg.Primitives.WalshHadamard.Initialization
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Util.FinPow.BinaryBasis.Zero
 
 /-!
 # The actual Walsh-Hadamard query readout input and prepared physical register
 
 The classical input remains a borrowed unit cell. The execution prepares its
-own n query qubits and one target qubit in `|0^n>|1>`, then applies the original
-Hadamard, XOR-query, Hadamard circuit [dW19, qcnotes.tex:1193,1245]. The target
+own n query qubits and one target qubit in zero, then executes a native target
+X and the original Hadamard, XOR-query, Hadamard circuit [dW19, qcnotes.tex:1193,1245]. The target
 wire is part of the complete live register at every later step.
 
 The basis equivalence below is the actual preparation assembly with the
@@ -37,6 +44,10 @@ their cardinalities.
 namespace QuantumAlg.WalshHadamard.Readout
 
 noncomputable section
+
+/-- Default native gates, explicitly granted XOR access, and the selected bit/word operations. -/
+public abbrev model {n : Nat} (function : Fin (2 ^ n) → Bool) : ExecutionModel :=
+  .quantum AlgorithmGate.model (XorOracle.model function) BitWord.model .empty
 
 /-- The original zero-bit borrowed input, with no supplied quantum systems. -/
 @[reducible] public def pre : RuntimeCtx .quantum :=
@@ -84,27 +95,24 @@ def preparedBasisEquiv (n : Nat) :
     (preparedContext n).register.Index ≃ (Qubits (n + 1)).Index :=
   (preparedLayoutEquiv n).symm.trans (layout n).binaryIndexEquiv
 
-/-- Prepare zero on every query wire and one on the target wire. -/
+/-- The fixed preparation supplies zero on every query wire and on the target wire. -/
 def inputPreparation (n : Nat) : BasisPreparation (runtimeLayout n) :=
-  ⟨(layout n).binaryIndexEquiv.symm
-    (prodEquiv ((0 : Fin (2 ^ n)), (1 : Fin (2 ^ 1))))⟩
+  BasisPreparation.zero (runtimeLayout n)
 
-/-- The prescribed preparation is exactly the original pure input in its physical coordinates. -/
+/-- Fixed zero preparation is the original zero binary label on the same physical systems. -/
 theorem inputPreparation_density (n : Nat) :
     (DensityOperator.ofPure (inputPreparation n).normalized).reindex
       (S := (preparedContext n).register) (preparedLayoutEquiv n) =
-        (DensityOperator.ofPure (WalshHadamard.input n)).reindex
+        (DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
           (S := (preparedContext n).register) (preparedBasisEquiv n).symm := by
-  have originalInput : WalshHadamard.input n =
-      NormalizedVector.ket (prodEquiv ((0 : Fin (2 ^ n)), (1 : Fin (2 ^ 1)))) := by
-    exact NormalizedVector.tensor_ket (0 : Fin (2 ^ n)) (1 : Fin (2 ^ 1))
+  have physicalZero : (layout n).binaryIndexEquiv.symm (0 : Fin (2 ^ (n + 1))) =
+      (inputPreparation n).value :=
+    BinaryBasis.bigEndianEquiv_symm_zero (n + 1)
   have preparedEntry (basis : (runtimeLayout n).register.Index) :
       (inputPreparation n).normalized basis =
-        WalshHadamard.input n ((layout n).binaryIndexEquiv basis) := by
-    rw [originalInput]
-    change NormalizedVector.ket ((layout n).binaryIndexEquiv.symm
-      (prodEquiv ((0 : Fin (2 ^ n)), (1 : Fin (2 ^ 1))))) basis = _
-    rw [NormalizedVector.ket_apply, NormalizedVector.ket_apply]
+        NormalizedVector.ket (R := Qubits (n + 1)) 0 ((layout n).binaryIndexEquiv basis) := by
+    change NormalizedVector.ket (inputPreparation n).value basis = _
+    rw [← physicalZero, NormalizedVector.ket_apply, NormalizedVector.ket_apply]
     simp only [Equiv.eq_symm_apply]
   apply DensityOperator.ext
   ext row column
@@ -112,15 +120,17 @@ theorem inputPreparation_density (n : Nat) :
     DensityOperator.ofPure_matrix, DensityOperator.ofPure_matrix, preparedEntry, preparedEntry]
   rfl
 
-/-- The original executable query circuit, transported through the actual wire assembly. -/
-def program {n : Nat} (f : WalshHadamard.Oracle n) :
-    UnitaryCircuit (preparedContext n).register :=
-  UnitaryCircuit.reindex (preparedBasisEquiv n).symm (WalshHadamard.circuit f)
+/-- Allocating these wires retains their exact canonical order in the prepared context. -/
+theorem runtime_wires (n : Nat) :
+    (runtimeLayout n).wires = (preparedContext n).quantumLayout.wires := by
+  rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
 
-theorem program_placement {n : Nat} (f : WalshHadamard.Oracle n) :
-    (program f).physical_idx = (preparedContext n).physicalIdx := by
-  change (WalshHadamard.circuit f).physical_idx = _
-  rw [WalshHadamard.circuit_physical_idx, preparedContext_physicalIdx]
+/-- The actual X-and-query native word on exactly the complete live prepared register. -/
+def program {n : Nat} (function : WalshHadamard.Oracle n) :
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model function)
+      (preparedContext n).quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout n) (preparedContext n).quantumLayout
+    (runtime_wires n) (WalshHadamard.Native.zeroInputProgram function)
 
 end
 

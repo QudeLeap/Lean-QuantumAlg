@@ -18,7 +18,8 @@ from the actual final Store. Output events and relations with the retained
 initial Store are exact indicator-effect observations of those same records.
 The complete quantum register and arbitrary external reference are retained.
 The same circuit's certified pullback returns each observable to the original
-input Store, including its exact duplicated historical record.
+joint caller and persistent-service input, including the exact duplicated
+initial caller Store. Service initialization is supplied once by that input.
 -/
 
 namespace QuantumAlg.AlgorithmRun
@@ -27,11 +28,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {pre post : RuntimeCtx kind} {outputShape : CShape}
+variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {outputShape : CShape}
 
 /-- Reading any finite event from actual execution records equals its indicator-effect weight. -/
-theorem executionDistribution_map_eq_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem executionDistribution_map_eq_effectWeight (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     {Value : Type} [Finite Value] [valueDecision : DecidableEq Value]
     (read : run.Record → Value) (value : Value) :
     (run.executionDistribution input).map read value =
@@ -47,8 +48,9 @@ theorem executionDistribution_map_eq_effectWeight (run : AlgorithmRun pre post o
     (ExecutionState.effectWeight_observed_mass (run.execute Reference input.state) read value).symm)
 
 /-- A shaped output value is observed through the run's actual complete Output evaluation. -/
-theorem outputDistribution_apply_eq_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference) (value : outputShape.Value) :
+theorem outputDistribution_apply_eq_effectWeight (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
+    (value : outputShape.Value) :
     run.outputDistribution input value =
       ENNReal.ofReal ((run.execute Reference input.state).effectWeight (fun record =>
         if run.result record = value then Effect.one (Register.prod post.register Reference)
@@ -56,20 +58,20 @@ theorem outputDistribution_apply_eq_effectWeight (run : AlgorithmRun pre post ou
   executionDistribution_map_eq_effectWeight run input run.result value
 
 /-- The original Store and actual shaped result have their exact joint event probability. -/
-theorem relationalDistribution_apply_eq_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem relationalDistribution_apply_eq_effectWeight (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     (value : Execution.Store pre × outputShape.Value) :
     run.relationalDistribution input value =
       ENNReal.ofReal ((run.execute Reference input.state).effectWeight (fun record =>
-        if (record.2.1, run.result record) = value then
+        if (record.2.2.1, run.result record) = value then
           Effect.one (Register.prod post.register Reference)
         else Effect.zero (Register.prod post.register Reference))) :=
   executionDistribution_map_eq_effectWeight run input
-    (fun record => (record.2.1, run.result record)) value
+    (fun record => (record.2.2.1, run.result record)) value
 
 /-- Any Boolean output event is evaluated on the actual declared output, with exact probability. -/
-theorem outputDistribution_event_eq_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem outputDistribution_event_eq_effectWeight (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     (event : outputShape.Value → Bool) :
     (run.outputDistribution input).map event true =
       ENNReal.ofReal ((run.execute Reference input.state).effectWeight (fun record =>
@@ -79,27 +81,29 @@ theorem outputDistribution_event_eq_effectWeight (run : AlgorithmRun pre post ou
   exact executionDistribution_map_eq_effectWeight run input (event ∘ run.result) true
 
 /-- Boolean relational success uses the retained original Store and the actual final result. -/
-theorem relationalDistribution_event_eq_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem relationalDistribution_event_eq_effectWeight (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     (event : Execution.Store pre × outputShape.Value → Bool) :
     (run.relationalDistribution input).map event true =
       ENNReal.ofReal ((run.execute Reference input.state).effectWeight (fun record =>
-        if event (record.2.1, run.result record) = true then
+        if event (record.2.2.1, run.result record) = true then
           Effect.one (Register.prod post.register Reference)
         else Effect.zero (Register.prod post.register Reference))) := by
   rw [relationalDistribution, PMF.map_comp]
   exact executionDistribution_map_eq_effectWeight run input
-    (fun record => event (record.2.1, run.result record)) true
+    (fun record => event (record.2.2.1, run.result record)) true
 
 /-- The same circuit pulls final observables to the actual input and its initial Store record. -/
-def effectPullback (run : AlgorithmRun pre post outputShape) (Reference : Register)
+def effectPullback (run : AlgorithmRun model pre post outputShape) (Reference : Register)
     (effects : run.Record → Effect (Register.prod post.register Reference)) :
-    Execution.Store pre → Effect (Register.prod pre.register Reference) :=
-  fun store => run.code.effectPullback Reference effects (store, store)
+    Execution.Store pre × model.HiddenState → Effect (Register.prod pre.register Reference) :=
+  fun original => run.code.effectPullback Reference effects
+    (original.1, (original.2, original.1))
 
 /-- Exact algorithm execution pulls observations through the circuit and its real history map. -/
-theorem effectWeight_execute (run : AlgorithmRun pre post outputShape) (Reference : Register)
-    (input : ExecutionState (Execution.Store pre) (Register.prod pre.register Reference))
+theorem effectWeight_execute (run : AlgorithmRun model pre post outputShape) (Reference : Register)
+    (input : ExecutionState (Execution.Store pre × model.HiddenState)
+      (Register.prod pre.register Reference))
     (effects : run.Record → Effect (Register.prod post.register Reference)) :
     (run.execute Reference input).effectWeight effects =
       input.effectWeight (run.effectPullback Reference effects) := by
@@ -108,8 +112,9 @@ theorem effectWeight_execute (run : AlgorithmRun pre post outputShape) (Referenc
   rfl
 
 /-- Every finite execution-record event has its exact effect weight on the original input. -/
-theorem executionDistribution_map_eq_input_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem executionDistribution_map_eq_input_effectWeight
+    (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     {Value : Type} [Finite Value] [DecidableEq Value]
     (read : run.Record → Value) (value : Value) :
     (run.executionDistribution input).map read value =
@@ -119,8 +124,9 @@ theorem executionDistribution_map_eq_input_effectWeight (run : AlgorithmRun pre 
   rw [executionDistribution_map_eq_effectWeight, effectWeight_execute]
 
 /-- Actual Boolean output success is the certified pulled effect on the complete original input. -/
-theorem outputDistribution_event_eq_input_effectWeight (run : AlgorithmRun pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference)
+theorem outputDistribution_event_eq_input_effectWeight
+    (run : AlgorithmRun model pre post outputShape)
+    {Reference : Register} (input : Execution.OracleInput model.classicalOracles pre Reference)
     (event : outputShape.Value → Bool) :
     (run.outputDistribution input).map event true =
       ENNReal.ofReal (input.state.effectWeight (run.effectPullback Reference (fun record =>
@@ -130,12 +136,12 @@ theorem outputDistribution_event_eq_input_effectWeight (run : AlgorithmRun pre p
 
 /-- Relational success pulls back the real Output and the historical initial Store. -/
 theorem relationalDistribution_event_eq_input_effectWeight
-    (run : AlgorithmRun pre post outputShape) {Reference : Register}
-    (input : Execution.Input pre Reference)
+    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference)
     (event : Execution.Store pre × outputShape.Value → Bool) :
     (run.relationalDistribution input).map event true =
       ENNReal.ofReal (input.state.effectWeight (run.effectPullback Reference (fun record =>
-        if event (record.2.1, run.result record) = true then
+        if event (record.2.2.1, run.result record) = true then
           Effect.one (Register.prod post.register Reference)
         else Effect.zero (Register.prod post.register Reference)))) := by
   rw [relationalDistribution_event_eq_effectWeight, effectWeight_execute]

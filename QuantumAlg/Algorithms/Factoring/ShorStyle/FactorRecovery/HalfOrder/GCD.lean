@@ -43,33 +43,45 @@ def clearOp (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) :
     (.product (.storage (liftWrite output).toCStorageRef)
       (.storage (liftWrite output).toCStorageRef)) (liftWrite output)
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The native GCD receives its own actually cleared result, with no zero-input assumption. -/
 def gcdTail (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) :
-    Circuit (context ctx N) (context ctx N) :=
-  .seq (.classical (clearOp output))
-    (NumberTheory.GCD.lexicalBody (operands ctx N) (liftWrite output))
+    Circuit model (context ctx N) (context ctx N) :=
+  .seq (BitWord.instruction (execution := model) (clearOp output))
+    (NumberTheory.GCD.lexicalBody (model := model) (operands ctx N) (liftWrite output))
 
 /-- Literal adjacent arithmetic, modulus loading and the actual Euclidean reduction. -/
 def body (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) :
-    Circuit (context ctx N) (context ctx N) :=
-  .seq (NativeAdjacentWord.code successor (liftInput halfPower) (adjacentRef ctx N))
-    (.seq (ConstantWord.circuit (modulusRef ctx N) N) (gcdTail output))
+    Circuit model (context ctx N) (context ctx N) :=
+  .seq (NativeAdjacentWord.code (model := model) successor (liftInput halfPower) (adjacentRef ctx
+    N))
+    (.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N) (gcdTail (model := model)
+      output))
 
 /-- Both real adjacent-value operand cells are scoped around the same actual GCD body. -/
 def code (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
-    (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1))
     ctx.canonicalFreshKey_fresh
     (.workspace (adjacentContext ctx N) (adjacentContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh
-      (body successor halfPower output))
+      (body (model := model) successor halfPower output))
 
 /-- The GCD path contains its real initialization instruction and the expanded Euclidean trace. -/
 theorem gcdTail_eventTrace (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
-    (path : (gcdTail output).Path) :
-    (gcdTail output).eventTrace path =
-      Resource.Event.classicalOperation (.wordBinary .bitXor (modulusBits N + 1)) ::
-        (NumberTheory.GCD.lexicalBody (operands ctx N) (liftWrite output)).eventTrace path.2 := rfl
+    (path : (gcdTail (model := model) output).Path) :
+    (gcdTail (model := model) output).eventTrace path =
+      Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .bitXor (modulusBits N + 1))) ::
+        (NumberTheory.GCD.lexicalBody (model := model) (operands ctx N) (liftWrite
+          output)).eventTrace path.2 := by
+  simp only [gcdTail, Circuit.eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfGCD

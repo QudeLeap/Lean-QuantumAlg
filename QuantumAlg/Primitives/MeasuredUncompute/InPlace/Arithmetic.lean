@@ -185,13 +185,15 @@ theorem backward_reset_ket (modulus : Nat) (prime : Nat.Prime modulus)
     let multiplied := NativeProductFrame.step modulus.size (modulusWord modulus)
       (completed, numerator)
     (NativeEEAFrame.backward modulus prime).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-          ((frameEncoding modulus.size).encode (multiplied.1, 0))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-        ((frameEncoding modulus.size).encode
-          ((WorkspaceReuse.placement modulus.size).grouping.symm
-            (InitialPortProgram.inputFrame modulus value,
-              accumulator modulus.size multiplied))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (multiplied.1, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+          ((frameEncoding modulus.size).encode
+            ((WorkspaceReuse.placement modulus.size).grouping.symm
+              (InitialPortProgram.inputFrame modulus value,
+                accumulator modulus.size multiplied)))) := by
   dsimp only
   rw [reset_for_backward modulus prime value numerator positive bounded]
   exact NativeEEAFrame.backward_result modulus prime value _ positive bounded

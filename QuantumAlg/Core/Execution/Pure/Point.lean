@@ -9,6 +9,9 @@ module
 public import QuantumAlg.Core.Execution.State.Promise
 import all QuantumAlg.Core.Execution.State.Promise
 import all QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Core.Base.State.Density.BasisSupport
+import all QuantumAlg.Core.Execution.Reindex
+import all QuantumAlg.Core.Execution.SelectionAll
 
 /-!
 # A pure basis promise from exact matrix support
@@ -66,6 +69,111 @@ public theorem statePromise_pureKet_of_row_support {R : Register}
       if_neg sameRow, zero_mul, smul_zero]
   · simp only [support row sameRow column, NormalizedVector.ket_apply,
       if_neg sameRow, zero_mul, smul_zero]
+
+/-- A full joint-coordinate relabeling that preserves the local basis value
+also preserves a fixed pure local ket, even when the reference coordinates
+depend on the local value. No assumption of a product reference state is needed. -/
+theorem pureKet_marginal_of_reindex_first {R Reference EncodedReference : Register}
+    (state : DensityOperator (Register.prod R Reference))
+    (basis : (Register.prod R Reference).Index ≃
+      (Register.prod R EncodedReference).Index)
+    (first : ∀ input, (basis input).1 = input.1) (seed : R.Index)
+    (promised : (StatePromise.pure (NormalizedVector.ket seed)).Holds
+      (state.reindex basis).marginalLeft) :
+    (StatePromise.pure (NormalizedVector.ket seed)).Holds state.marginalLeft := by
+  apply StatePromise.statePromise_pureKet_of_row_support
+  intro row different column
+  rw [DensityOperator.marginalLeft_matrix]
+  apply Finset.sum_eq_zero
+  intro reference _
+  let input : (Register.prod R Reference).Index := (row, reference)
+  have encodedDifferent : (basis input).1 ≠ seed := by
+    simpa only [first input] using different
+  have zeroDiagonal :
+      ((state.reindex basis).marginalLeft).matrix
+        (basis input).1 (basis input).1 = 0 := by
+    have diagonal := congrArg (fun matrix : HilbertOperator R =>
+      matrix (basis input).1 (basis input).1) promised
+    change ((state.reindex basis).marginalLeft).matrix
+      (basis input).1 (basis input).1 =
+        ((state.reindex basis).marginalLeft).mass •
+          (DensityOperator.ofPure (NormalizedVector.ket seed)).matrix
+            (basis input).1 (basis input).1 at diagonal
+    rw [DensityOperator.ofPure_matrix] at diagonal
+    simpa only [NormalizedVector.ket_apply, if_neg encodedDifferent,
+      star_zero, zero_mul, mul_zero, smul_zero] using diagonal
+  have zeroRow := DensityOperator.joint_row_zero_of_marginal_diagonal_zero
+    (state.reindex basis) (basis input).1 zeroDiagonal (basis input).2
+      (basis (column, reference))
+  have transferred :
+      (state.reindex basis).matrix (basis input) (basis (column, reference)) =
+        state.matrix input (column, reference) := by
+    rw [DensityOperator.reindex_entry]
+    simp only [Equiv.symm_apply_apply]
+  exact transferred.symm.trans (by simpa only [Prod.mk.eta] using zeroRow)
+
+/-- The same full-coordinate transport applies to the physical observation of
+every quantum wire. It keeps the actual probability mass and arbitrary
+external-reference correlations. -/
+theorem pureKet_fullSelection_of_reindex_first {count : Nat}
+    (layout : QuantumLayout count) {Reference EncodedReference : Register}
+    (state : DensityOperator (Register.prod layout.register Reference))
+    (basis : (Register.prod layout.register Reference).Index ≃
+      (Register.prod layout.register EncodedReference).Index)
+    (first : ∀ input, (basis input).1 = input.1)
+    (seed : (layout.selectedRegister Finset.univ).Index)
+    (promised : (StatePromise.pure (NormalizedVector.ket seed)).Holds
+      (DensityOperator.observeSelection layout Finset.univ EncodedReference
+        (state.reindex basis))) :
+    (StatePromise.pure (NormalizedVector.ket seed)).Holds
+      (DensityOperator.observeSelection layout Finset.univ Reference state) := by
+  apply StatePromise.statePromise_pureKet_of_row_support
+  intro row different column
+  rw [DensityOperator.observeSelection_all, DensityOperator.reindex_entry,
+    DensityOperator.marginalLeft_matrix]
+  apply Finset.sum_eq_zero
+  intro reference _
+  let localRow := layout.allSelectedBasisEquiv.symm row
+  let localColumn := layout.allSelectedBasisEquiv.symm column
+  let input : (Register.prod layout.register Reference).Index := (localRow, reference)
+  have encodedDifferent : layout.allSelectedBasisEquiv (basis input).1 ≠ seed := by
+    intro same
+    apply different
+    rw [first input] at same
+    exact (layout.allSelectedBasisEquiv.apply_symm_apply row).symm.trans same
+  have sourceDiagonal :
+      ((state.reindex basis).marginalLeft).matrix
+        (basis input).1 (basis input).1 = 0 := by
+    have selectedDiagonal :
+        (DensityOperator.observeSelection layout Finset.univ EncodedReference
+          (state.reindex basis)).matrix
+            (layout.allSelectedBasisEquiv (basis input).1)
+            (layout.allSelectedBasisEquiv (basis input).1) = 0 := by
+      have coefficient := congrArg
+        (fun matrix : HilbertOperator (layout.selectedRegister Finset.univ) =>
+          matrix (layout.allSelectedBasisEquiv (basis input).1)
+            (layout.allSelectedBasisEquiv (basis input).1)) promised
+      change _ =
+        (DensityOperator.observeSelection layout Finset.univ EncodedReference
+          (state.reindex basis)).mass •
+          (DensityOperator.ofPure (NormalizedVector.ket seed)).matrix
+            (layout.allSelectedBasisEquiv (basis input).1)
+            (layout.allSelectedBasisEquiv (basis input).1) at coefficient
+      rw [DensityOperator.ofPure_matrix] at coefficient
+      simpa only [NormalizedVector.ket_apply, if_neg encodedDifferent,
+        star_zero, zero_mul, mul_zero, smul_zero] using coefficient
+    rw [DensityOperator.observeSelection_all,
+      DensityOperator.reindex_entry] at selectedDiagonal
+    simpa only [Equiv.symm_apply_apply] using selectedDiagonal
+  have zeroRow := DensityOperator.joint_row_zero_of_marginal_diagonal_zero
+    (state.reindex basis) (basis input).1 sourceDiagonal (basis input).2
+      (basis (localColumn, reference))
+  have transferred :
+      (state.reindex basis).matrix (basis input) (basis (localColumn, reference)) =
+        state.matrix input (localColumn, reference) := by
+    rw [DensityOperator.reindex_entry]
+    simp only [Equiv.symm_apply_apply]
+  exact transferred.symm.trans (by simpa only [Prod.mk.eta] using zeroRow)
 
 end
 

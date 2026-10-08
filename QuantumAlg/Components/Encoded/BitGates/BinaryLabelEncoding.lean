@@ -8,12 +8,7 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
 
 /-!
 # Binary-label bit and word encodings

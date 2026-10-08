@@ -23,13 +23,14 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Copying the target preserves the original nearest-plane coefficients and residual. -/
 theorem savedTargetInto_nearest (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     let samples := sourceSamples refs store
-    let after := (savedTargetStep refs store).1
+    let after := savedTargetStore refs store
     RawSignedRepresents (after.read (writeInput refs.pairNearest.first.division.output))
         (LatticeNearestPlaneShortLog.trace (shortLogBits N) (tradeoffBits N) samples).center.1 ∧
       RawSignedRepresents (after.read (writeInput refs.pairNearest.second.division.output))
@@ -44,7 +45,8 @@ theorem savedTargetInto_nearest (refs : Refs ctx N) (separation : Separation ref
     (nearest_initial_after_copy refs separation store initial)
 
 /-- Original basis, center, residual, saved target and complete actual caller frame. -/
-structure Outcome (refs : Refs ctx N) (before after : Store ctx) : Prop where
+structure Outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (refs : Refs ctx N) (before after : Store ctx) : Prop where
   basis : LatticeMetricMachine.BasisRawRepresents after (nearestRefs refs).basis
     (LatticeNearestPlaneShortLog.basis (shortLogBits N) (tradeoffBits N)
       (sourceSamples refs before))
@@ -69,7 +71,7 @@ structure Outcome (refs : Refs ctx N) (before after : Store ctx) : Prop where
 /-- The actual saved-target run returns the original mathematical objects and full caller frame. -/
 theorem pairToNearestPlaneSavedTargetInto_correct (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
-    Outcome refs store (savedTargetStep refs store).1 := by
+    Outcome refs store (savedTargetStore refs store) := by
   have nearest := savedTargetInto_nearest refs separation store initial
   exact ⟨savedTargetInto_basis refs separation store initial,
     nearest.1, nearest.2.1, nearest.2.2.1, nearest.2.2.2,

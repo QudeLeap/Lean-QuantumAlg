@@ -28,8 +28,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual initialized power loading into the original two nonzero lower-row words. -/
-def powerRowsInto (m ell : Nat) (output : RawOutputRefs ctx width) : Circuit ctx ctx :=
+def powerRowsInto (m ell : Nat) (output : RawOutputRefs ctx width) : Circuit model ctx ctx :=
   .seq (loadPowerOfTwoInto (ell + m) output.b21) (loadPowerOfTwoInto (ell + m) output.b32)
 
 /-- The chronological actual lower-row power stores and complete operation paths. -/
@@ -41,7 +44,7 @@ def powerRowsStep (m ell : Nat) (output : RawOutputRefs ctx width) (store : Stor
 
 /-- Actual loading of the original rows `(j₁, j₂, 1)`, `(Q, 0, 0)` and `(0, Q, 0)`. -/
 def loadBasisInto {m ell : Nat} (pair : BatchMachine.PairRefs ctx N)
-    (output : RawOutputRefs ctx width) : Circuit ctx ctx :=
+    (output : RawOutputRefs ctx width) : Circuit model ctx ctx :=
   .seq (loadFirstBasisRowInto pair output) (powerRowsInto m ell output)
 
 /-- The complete actual source-basis store and every chronological native path. -/
@@ -54,31 +57,47 @@ def basisStep (m ell : Nat) (pair : BatchMachine.PairRefs ctx N) (output : RawOu
 /-- Both actual lower-row power loaders retain every original state block and its correlations. -/
 theorem powerRowsInto_execute (m ell : Nat) (output : RawOutputRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (powerRowsInto m ell output).execute Reference state = state.mapClassical (fun entry =>
-      ((powerRowsStep m ell output entry.1).1,
-        (entry.2, (powerRowsStep m ell output entry.1).2))) := by
+      let actual := powerRowsStep m ell output entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (loadPowerOfTwoInto (ell + m) output.b21)
-    (loadPowerOfTwoInto (ell + m) output.b32) (powerStep (ell + m) output.b21)
-    (powerStep (ell + m) output.b32) (Word.PowerOfTwo.into_execute (ell + m) output.b21)
-    (Word.PowerOfTwo.into_execute (ell + m) output.b32) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (loadPowerOfTwoInto (ell + m) output.b32)
+    (fun before =>
+      let actual := powerStep (model := model) (ell + m) output.b21 before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := powerStep (model := model) (ell + m) output.b32 before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      Word.PowerOfTwo.into_execute (ell + m) output.b21 reference current)
+    (fun reference _history _ current =>
+      Word.PowerOfTwo.into_execute (ell + m) output.b32 reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual source-basis loading preserves every original quantum-reference correlation. -/
 theorem loadBasisInto_execute (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadBasisInto (m := m) (ell := ell) pair output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((basisStep m ell pair output entry.1).1,
-          (entry.2, (basisStep m ell pair output entry.1).2))) := by
+        let actual := basisStep m ell pair output entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (loadFirstBasisRowInto pair output)
-    (powerRowsInto m ell output) (firstRowStep pair output) (powerRowsStep m ell output)
-    (loadFirstBasisRowInto_execute pair output) (powerRowsInto_execute m ell output)
+    (powerRowsInto m ell output)
+    (fun before =>
+      let actual := firstRowStep (model := model) pair output before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := powerRowsStep (model := model) m ell output before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      loadFirstBasisRowInto_execute pair output reference current)
+    (fun reference _history _ current => powerRowsInto_execute m ell output reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

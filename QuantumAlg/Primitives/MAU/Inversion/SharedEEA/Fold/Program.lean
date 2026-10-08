@@ -35,7 +35,8 @@ def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.si
       (FoldRegisters.grouping modulus.size state).2)
 
 /-- The real comparison and controlled reflection, placed on the original full source frame. -/
-def program (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   FoldComparisonPlacement.placeFocus modulus.size
     (FoldComparisonFocus.place (modulus.size + 3) (FoldSourceProgram.program modulus))
 

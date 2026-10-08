@@ -25,13 +25,14 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native instruction formula for the eleven recorded sign decisions. -/
 def phaseTrace (width : Nat) (denominatorNegative numeratorNegative : Bool)
     (thirdMagnitude thirdCorrection thirdRestore : Bool)
     (secondMagnitude secondCorrection secondRestore : Bool)
-    (firstMagnitude firstCorrection firstRestore : Bool) : List (Resource.Event kind) :=
+    (firstMagnitude firstCorrection firstRestore : Bool) : List (Resource.Event model) :=
   LatticeNearestPlaneThird.phaseTrace width denominatorNegative numeratorNegative
     thirdMagnitude thirdCorrection thirdRestore ++
       (LatticeNearestPlaneSecond.phaseTrace width secondMagnitude secondCorrection secondRestore ++
@@ -94,7 +95,8 @@ theorem threeInto_depth_le (refs : Refs ctx width) (path : (threeInto refs).Path
 
 /-- Complete execution restores borrowed state jointly with every external quantum reference. -/
 theorem threeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (threeInto refs).BorrowedRestored Reference state
       ((threeInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
@@ -105,7 +107,7 @@ theorem threeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register
 
 /-- All three actual reductions use exactly the supplied context without hidden allocation. -/
 theorem threeInto_visited (refs : Refs ctx width) (path : (threeInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (threeInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (threeInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ (_ ++ _)) at present
   simp only [List.mem_append] at present

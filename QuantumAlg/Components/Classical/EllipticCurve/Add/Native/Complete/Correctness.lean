@@ -148,12 +148,14 @@ theorem additionOutputValue_represents (spec : CurveSpec width)
   exact additionOutputValue_encoded_represents spec P Q
 
 /-- The same actual complete-addition record writes the original sum into the caller result cell. -/
-theorem addIntoStep_represents (spec : CurveSpec width)
+theorem addIntoStep_represents {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx (PointShape width))
-    (store : Store ctx) (P Q : Pure.Point spec)
+    (store : Store ctx) (hidden : model.HiddenState) (P Q : Pure.Point spec)
     (leftRep : PointRepresents spec (store.read left) P)
     (rightRep : PointRepresents spec (store.read right) Q) :
-    PointRepresents spec ((addIntoStep spec left right output store).1.read (classifierRead output))
+    PointRepresents spec ((addIntoStep spec left right output (store, hidden)).1.1.read
+      (classifierRead output))
       (ClassicalAlgorithms.EllipticCurve.Add.eval spec P Q) := by
   rw [addIntoStep_store]
   simpa only [classifierRead, Store.read_write_same] using

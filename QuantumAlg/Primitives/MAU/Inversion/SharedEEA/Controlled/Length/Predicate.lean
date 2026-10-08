@@ -145,9 +145,10 @@ theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) 
 /-- Actual unit depth is the emitted candidate's elementary length. -/
 theorem gates_unitDepth (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
-    (GateSpec.programList (gates width field key firstWord position output)).evaluatedEventDepth
+    (GateSpec.programList (QubitLayout.canonical _) .empty
+      (gates width field key firstWord position output)).evaluatedEventDepth
         (fun _ => 1) = (gates width field key firstWord position output).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 
 end
 

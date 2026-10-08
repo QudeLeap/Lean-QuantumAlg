@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Storage
+import all QuantumAlg.Components.Classical.Model.BitWord.Placement
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Measurement.Cells
 import all QuantumAlg.Core.Execution.Measurement.Sequence
@@ -31,30 +32,32 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- Prepare the owned query-target register through the real preparation instruction. -/
-def preparationCode (n : Nat) : Circuit pre (preparedContext n) :=
-  .prepare pre ⟨1⟩ (runtimeLayout n) preparationFresh
-    (preparationDisjoint n) (inputPreparation n)
+def preparationCode {n : Nat} (function : WalshHadamard.Oracle n) :
+    Circuit (model function) pre (preparedContext n) :=
+  .prepareZero pre ⟨1⟩ (runtimeLayout n) preparationFresh (preparationDisjoint n)
 
 /-- Retain the final bit string and every independently writable measured-result cell. -/
-def allocationCode (n : Nat) : Circuit (preparedContext n) (post n) :=
-  .seq (.retain (preparedContext n) ⟨2⟩ (.bits n) (resultFresh n))
-    (MeasurementCells.allocate (resultContext n) 2 n)
+def allocationCode {n : Nat} (function : WalshHadamard.Oracle n) :
+    Circuit (model function) (preparedContext n) (post n) :=
+  .seq (.retain (model := model function) (preparedContext n) ⟨2⟩ (.bits n) (resultFresh n))
+    (MeasurementCells.allocate (model := model function) (resultContext n) 2 n)
 
 /-- The actual state immediately before the first query-wire measurement. -/
-def beforeMeasurement {n : Nat} (f : WalshHadamard.Oracle n) : Circuit pre (post n) :=
-  .seq (preparationCode n)
-    (.seq (.unitary (program f) (program_placement f)) (allocationCode n))
+def beforeMeasurement {n : Nat} (f : WalshHadamard.Oracle n) : Circuit (model f) pre (post n) :=
+  .seq (preparationCode f)
+    (.seq (.unitary (program f)) (allocationCode f))
 
 /-- Record every measured query bit, then pack those actual finite values into the final result. -/
-def readoutCode (n : Nat) : Circuit (post n) (post n) :=
-  .seq (Circuit.measurementSequence (readouts n)) (.classical (packing n))
+def readoutCode {n : Nat} (function : WalshHadamard.Oracle n) :
+    Circuit (model function) (post n) (post n) :=
+  .seq (Circuit.measurementSequence (readouts n)) (.classical (BitWord.application (packing n)))
 
 /-- One native program for every width, including the empty query register. -/
-def code {n : Nat} (f : WalshHadamard.Oracle n) : Circuit pre (post n) :=
-  .seq (beforeMeasurement f) (readoutCode n)
+def code {n : Nat} (f : WalshHadamard.Oracle n) : Circuit (model f) pre (post n) :=
+  .seq (beforeMeasurement f) (readoutCode f)
 
 /-- The explicit complete manifest observes the actual packed result cell. -/
-def run {n : Nat} (f : WalshHadamard.Oracle n) : AlgorithmRun pre (post n) (.bits n) where
+def run {n : Nat} (f : WalshHadamard.Oracle n) : AlgorithmRun (model f) pre (post n) (.bits n) where
   code := code f
   output := Output.all (post n) (.read (.storage (resultRef n).toCStorageRef))
 

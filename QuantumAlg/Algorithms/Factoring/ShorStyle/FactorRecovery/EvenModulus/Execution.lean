@@ -25,89 +25,61 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem two_execute (cells : Cells ctx N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (ConstantWord.circuit cells.halfPower 2).execute Reference state =
-      state.mapClassical (fun entry => ((twoStep cells entry.1).1,
-        (entry.2, (twoStep cells entry.1).2))) := by
-  refine (ConstantWord.constantWord_fold_execute cells.halfPower
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (ConstantWord.circuit (model := model) cells.halfPower 2).execute Reference state =
+      state.mapClassical (fun entry => ((twoStep (model := model) cells entry.1).1,
+        (entry.2.1, (entry.2.2, (twoStep (model := model) cells entry.1).2)))) := by
+  refine (ConstantWord.constantWord_fold_execute (model := model) cells.halfPower
     (List.ofFn (ConstantWord.constantBits (modulusBits N) 2)) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq
-        (Store ctx × (History × (ConstantWord.circuit cells.halfPower 2).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((twoStep cells entry.1).1, (entry.2, (twoStep cells entry.1).2))))
-    (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem twoPack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (ConstantWord.circuit cells.halfPower 2)
-      (.classical (packOutputOp cells output))).execute Reference state =
-      state.mapClassical (fun entry => ((twoPackStep cells output entry.1).1,
-        (entry.2, (twoPackStep cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (ConstantWord.circuit cells.halfPower 2)
-    (.classical (packOutputOp cells output)) (twoStep cells)
-    (fun store => (store.applyOp (packOutputOp cells output), ())) (two_execute cells)
-    (fun reference _ _ initial =>
-      NativeHalfPower.classical_path_execute (packOutputOp cells output) reference initial _)
-    Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History ×
-        (Circuit.seq (ConstantWord.circuit cells.halfPower 2)
-          (.classical (packOutputOp cells output))).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((twoPackStep cells output entry.1).1,
-          (entry.2, (twoPackStep cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (ConstantWord.circuit (model := model) cells.halfPower 2)
+      (BitWord.instruction (execution := model) (packOutputOp cells output))).execute Reference
+          state =
+      state.mapClassical (fun entry => ((twoPackStep (model := model) cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (twoPackStep (model := model) cells output entry.1).2)))) := by
+  rw [Circuit.execute_seq, BitWord.bitWord_instruction_execute, two_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem setTwoPack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (.classical (setActiveOp cells))
-      (.seq (ConstantWord.circuit cells.halfPower 2)
-        (.classical (packOutputOp cells output)))).execute Reference state =
-      state.mapClassical (fun entry => ((setTwoPackStep cells output entry.1).1,
-        (entry.2, (setTwoPackStep cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (setActiveOp cells))
-    (.seq (ConstantWord.circuit cells.halfPower 2) (.classical (packOutputOp cells output)))
-    (fun store => (store.applyOp (setActiveOp cells), ())) (twoPackStep cells output)
-    (fun reference _ _ initial =>
-      NativeHalfPower.classical_path_execute (setActiveOp cells) reference initial _)
-    (twoPack_execute cells output) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History ×
-        (Circuit.seq (.classical (setActiveOp cells))
-          (.seq (ConstantWord.circuit cells.halfPower 2)
-            (.classical (packOutputOp cells output)))).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((setTwoPackStep cells output entry.1).1,
-          (entry.2, (setTwoPackStep cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (BitWord.instruction (execution := model) (setActiveOp cells))
+      (.seq (ConstantWord.circuit (model := model) cells.halfPower 2)
+        (BitWord.instruction (execution := model) (packOutputOp cells output)))).execute Reference
+            state =
+      state.mapClassical (fun entry => ((setTwoPackStep (model := model) cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (setTwoPackStep (model := model) cells output entry.1).2)))) := by
+  rw [Circuit.execute_seq, twoPack_execute, BitWord.bitWord_instruction_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The real even-modulus branch has its exact complete store and genuine instruction record. -/
 theorem even_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (evenModulus cells output).execute Reference state =
-      state.mapClassical (fun entry => ((evenStep cells output entry.1).1,
-        (entry.2, (evenStep cells output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (clearActiveOp cells))
-    (.seq (.classical (setActiveOp cells))
-      (.seq (ConstantWord.circuit cells.halfPower 2) (.classical (packOutputOp cells output))))
-    (fun store => (store.applyOp (clearActiveOp cells), ())) (setTwoPackStep cells output)
-    (fun reference _ _ initial =>
-      NativeHalfPower.classical_path_execute (clearActiveOp cells) reference initial _)
-    (setTwoPack_execute cells output) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx × (History × (evenModulus cells output).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) decision state
-        (fun entry => ((evenStep cells output entry.1).1,
-          (entry.2, (evenStep cells output entry.1).2)))) (Subsingleton.elim _ _)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (evenModulus (model := model) cells output).execute Reference state =
+      state.mapClassical (fun entry => ((evenStep (model := model) cells output entry.1).1,
+        (entry.2.1, (entry.2.2, (evenStep (model := model) cells output entry.1).2)))) := by
+  unfold evenModulus
+  rw [Circuit.execute_seq, setTwoPack_execute, BitWord.bitWord_instruction_execute]
+  simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
+    Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

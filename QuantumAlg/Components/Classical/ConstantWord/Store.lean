@@ -23,18 +23,20 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The real width-many shift and increment sequence changes exactly its actual target word. -/
 theorem constantWord_fold_store (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (store : Store ctx) :
-    (foldStep output (List.ofFn (constantBits width constant)) store).1 =
+    (foldStep (model := model) output (List.ofFn (constantBits width constant)) store).1 =
       store.write output (CShape.wordOfNat width constant) := by
   apply Store.store_eq_write_of_read_frame
-  · have actual := constantWord_read output constant store
-    change (foldStep output (List.ofFn (constantBits width constant)) store).1.read
+  · have actual := constantWord_read (model := model) output constant store
+    change (foldStep (model := model) output (List.ofFn (constantBits width constant)) store).1.read
       (targetRead output) = _
-    cases value : (foldStep output (List.ofFn (constantBits width constant)) store).1.read
+    cases value : (foldStep (model := model) output
+      (List.ofFn (constantBits width constant)) store).1.read
       (targetRead output) with
     | unsignedWord result =>
         apply congrArg CShape.Value.unsignedWord
@@ -42,7 +44,7 @@ theorem constantWord_fold_store (output : CWriteRef ctx (.unsignedWord width))
         rw [value] at actual
         exact actual
   · intro shape input different
-    exact constantWord_fold_read_other output _ (.storage input)
+    exact constantWord_fold_read_other (model := model) output _ (.storage input)
       (by simpa [CInputRef.storageKeys] using different) store
 
 end

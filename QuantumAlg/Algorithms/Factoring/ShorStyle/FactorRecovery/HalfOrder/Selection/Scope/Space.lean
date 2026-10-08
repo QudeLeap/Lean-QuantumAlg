@@ -32,21 +32,28 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 def spaceBound (kind : ProblemKind) (N : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (10 * modulusBits N + 12))
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem body_resident_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (body halfPower output).Path) :
-    (body halfPower output).peakResidentSpace path ≤
-      (context ctx N).residentSpace + NativeHalfGCD.spaceBound kind N := by
-  refine (Circuit.peakResidentSpace_seq (ConstantWord.circuit (oneRef ctx N) 1)
-    (.seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output)))
+    (path : (body (model := model) halfPower output).Path) :
+    (body (model := model) halfPower output).peakResidentSpace path ≤
+      (context ctx N).residentSpace + NativeHalfGCD.spaceBound model.kind N := by
+  refine (Circuit.peakResidentSpace_seq (ConstantWord.circuit (model := model) (oneRef ctx N) 1)
+    (.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
+      (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+          output)))
     path).le.trans ?_
   apply SpacePool.max_le
   · exact (ConstantWord.constantWord_resident_le (oneRef ctx N) 1 path.1).trans
       (fun _ => Nat.le_add_right _ _)
-  · refine (Circuit.peakResidentSpace_seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output))
+  · refine (Circuit.peakResidentSpace_seq (ConstantWord.circuit (model := model) (modulusRef ctx
+      N) N)
+      (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+          output))
       path.2).le.trans ?_
     apply SpacePool.max_le
     · exact (ConstantWord.constantWord_resident_le (modulusRef ctx N) N path.2.1).trans
@@ -57,18 +64,21 @@ private theorem body_resident_le
 private theorem body_auxiliary_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (body halfPower output).Path) :
-    (body halfPower output).peakAuxiliarySpace path ≤
-      (context ctx N).auxiliarySpace + NativeHalfGCD.spaceBound kind N := by
-  refine (Circuit.peakAuxiliarySpace_seq (ConstantWord.circuit (oneRef ctx N) 1)
-    (.seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output)))
+    (path : (body (model := model) halfPower output).Path) :
+    (body (model := model) halfPower output).peakAuxiliarySpace path ≤
+      (context ctx N).auxiliarySpace + NativeHalfGCD.spaceBound model.kind N := by
+  refine (Circuit.peakAuxiliarySpace_seq (ConstantWord.circuit (model := model) (oneRef ctx N) 1)
+    (.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
+      (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+          output)))
     path).le.trans ?_
   apply SpacePool.max_le
   · exact (ConstantWord.constantWord_auxiliary_le (oneRef ctx N) 1 path.1).trans
       (fun _ => Nat.le_add_right _ _)
-  · refine (Circuit.peakAuxiliarySpace_seq (ConstantWord.circuit (modulusRef ctx N) N)
-      (NativeHalfFactor.code (liftInput halfPower) (cells ctx N) (liftWrite output))
+  · refine (Circuit.peakAuxiliarySpace_seq (ConstantWord.circuit (model := model) (modulusRef ctx
+      N) N)
+      (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
+          output))
       path.2).le.trans ?_
     apply SpacePool.max_le
     · exact (ConstantWord.constantWord_auxiliary_le (modulusRef ctx N) N path.2.1).trans
@@ -81,19 +91,23 @@ set_option maxHeartbeats 800000 in
 -- transports. Keep that finite elaboration allowance local to this actual trace-membership bridge.
 private theorem code_visited (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code halfPower output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (code halfPower output).visitedContexts path) :
+    (path : (code (model := model) halfPower output).Path) (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (code (model := model) halfPower output).visitedContexts path) :
     visited ∈ [ctx, candidateContext ctx N, oneContext ctx N, modulusContext ctx N,
       lowerContext ctx N, upperContext ctx N] ∨
-      visited ∈ (body halfPower output).visitedContexts path := by
+      visited ∈ (body (model := model) halfPower output).visitedContexts path := by
   change visited ∈ (ctx) :: ((candidateContext ctx N) :: ((oneContext ctx N) :: ((modulusContext
-    ctx N) :: ((lowerContext ctx N) :: ((upperContext ctx N) :: ((body halfPower
+    ctx N) :: ((lowerContext ctx N) :: ((upperContext ctx N) :: ((body (model := model) halfPower
     output).visitedContexts path ++ [upperContext ctx N]) ++ [lowerContext ctx N]) ++
     [modulusContext ctx N]) ++ [oneContext ctx N]) ++ [candidateContext ctx N]) ++ [ctx])
     at present
   simp only [List.mem_cons, List.mem_append, List.not_mem_nil, or_false] at present
   simp only [List.mem_cons, List.not_mem_nil, or_false]
   tauto
+
+section
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, candidateContext ctx N, oneContext ctx N, modulusContext ctx N,
@@ -118,18 +132,25 @@ private theorem full_resident_capacity :
       NativeHalfGCD.spaceBound, spaceBound, SpacePool.ofShape]
   all_goals omega
 
+end
+
 /-- The actual resident peak includes every outer entry while nested division cells are live. -/
 theorem code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code halfPower output).Path) :
-    (code halfPower output).peakResidentSpace path ≤ ctx.residentSpace + spaceBound kind N := by
+    (path : (code (model := model) halfPower output).Path) :
+    (code (model := model) halfPower output).peakResidentSpace path ≤ ctx.residentSpace +
+        spaceBound model.kind N := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rcases code_visited halfPower output path visited present with outer | inner
   · exact prefix_resident_capacity visited outer
   · exact (Circuit.residentSpace_le_peak_of_visited
-      (body halfPower output) path visited inner).trans
+      (body (model := model) halfPower output) path visited inner).trans
         ((body_resident_le halfPower output path).trans full_resident_capacity)
+
+section
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, candidateContext ctx N, oneContext ctx N, modulusContext ctx N,
@@ -154,17 +175,22 @@ private theorem full_auxiliary_capacity :
       NativeHalfGCD.spaceBound, spaceBound, SpacePool.ofShape]
   all_goals omega
 
+end
+
 /-- The actual auxiliary peak includes every outer entry while nested division cells are live. -/
 theorem code_auxiliary_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code halfPower output).Path) :
-    (code halfPower output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace + spaceBound kind N := by
+    (path : (code (model := model) halfPower output).Path) :
+    (code (model := model) halfPower output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
+        spaceBound model.kind N := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rcases code_visited halfPower output path visited present with outer | inner
   · exact prefix_auxiliary_capacity visited outer
   · exact (Circuit.auxiliarySpace_le_peak_of_visited
-      (body halfPower output) path visited inner).trans
+      (body (model := model) halfPower output) path visited inner).trans
         ((body_auxiliary_le halfPower output path).trans full_auxiliary_capacity)
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfFactorScope

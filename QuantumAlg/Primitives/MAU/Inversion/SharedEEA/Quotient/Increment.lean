@@ -9,6 +9,8 @@ module
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Quotient.Placement
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Control.Placement
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.LowShift.Increment
+import all QuantumAlg.Core.Base.UnitaryCircuit.Adjoint
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 
 /-!
 # Actual HRS increment and inverse on the retained quotient length
@@ -30,11 +32,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.QuotientIncrement
 
 noncomputable section
 
-private def sourceProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+private def sourceProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   ControlPlacement.place width (LowShiftIncrement.program width)
 
 /-- Reuse the actual native HRS body under the proved quotient/shift wire placement. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   QuotientPlacement.place width (sourceProgram width)
 
 /-- The complete register action increments only the selected quotient length. -/
@@ -64,8 +70,12 @@ private theorem step_inverseStep (width : Nat) (state : Registers width) :
 
 /-- The literal native adjoint performs finite decrement with the same fully restored work. -/
 theorem inverse_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width).dagger inverseStep :=
-  (program_realizes width).dagger_of_rightInverse (step_inverseStep width)
+    UnitaryCircuit.Realizes (encoding width)
+      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) inverseStep := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes width)
+  · rw [UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · exact step_inverseStep width
 
 /-- Both shared words, every other retained length, and all controls are unchanged. -/
 theorem step_retained {width : Nat} (state : Registers width) :
@@ -81,8 +91,11 @@ theorem step_retained {width : Nat} (state : Registers width) :
 /-- The control-zero branch retains the entire input frame exactly. -/
 theorem program_apply_closed (width : Nat) (state : Registers width)
     (closed : state.control = false) :
-    (program width).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode state) := by
+    (program width).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state)) := by
   rw [(program_realizes width).apply_encoded_ket]
   simp only [step, closed, Bool.false_eq_true, if_false]
 
@@ -91,32 +104,6 @@ theorem program_eventTrace (width : Nat) :
     (program width).eventTrace = (LowShiftIncrement.program width).eventTrace := by
   rw [program, QuotientPlacement.place_eventTrace, sourceProgram,
     ControlPlacement.place_eventTrace]
-
-/-- The actual decrement executes the full reversed native trace. -/
-theorem inverse_eventTrace (width : Nat) :
-    (program width).dagger.eventTrace = (LowShiftIncrement.program width).eventTrace.reverse := by
-  rw [UnitaryCircuit.dagger_eventTrace, program_eventTrace]
-
-private theorem source_physical_idx_subset (width : Nat) :
-    (sourceProgram width).physical_idx ⊆ List.range (encoding width).width := by
-  rw [sourceProgram, ControlPlacement.place_physical,
-    LowShiftIncrement.program_physical]
-  intro wire present
-  obtain ⟨old, oldPresent, rfl⟩ := List.mem_map.mp present
-  have oldWithin := List.mem_range.mp oldPresent
-  apply List.mem_range.mpr
-  change Equiv.swap (phase2Bit width).wire.val (controlBit width).wire.val old < _
-  rw [Equiv.swap_apply_def]
-  split_ifs
-  · exact (controlBit width).wire.isLt
-  · exact (phase2Bit width).wire.isLt
-  · exact oldWithin
-
-/-- Both target placement and all borrowed work remain inside the original complete frame. -/
-theorem program_physical_idx_subset (width : Nat) :
-    (program width).physical_idx ⊆ List.range (encoding width).width :=
-  QuotientPlacement.place_physical_idx_subset width (sourceProgram width)
-    (source_physical_idx_subset width)
 
 end
 

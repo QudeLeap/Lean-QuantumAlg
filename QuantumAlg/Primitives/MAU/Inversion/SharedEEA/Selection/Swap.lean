@@ -225,13 +225,16 @@ theorem step_condition (width : Nat) (selected : Key width)
   · rfl
 
 /-- The complete actual predicate/swap/inverse-predicate native program for one finite key. -/
-def program (width : Nat) (selected : Key width) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width selected)
+def program (width : Nat) (selected : Key width) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width selected)
 
 /-- Exact all-label realization of that same complete native list. -/
 theorem program_realizes (width : Nat) (selected : Key width) :
     UnitaryCircuit.Realizes (encoding width) (program width selected) (step width selected) :=
-  GateSpec.realizesList_congrStep _ (gates_step width selected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width selected) (gates_step width selected)
 
 /-- Literal count of both full predicate passes and the three actual swap Toffolis. -/
 theorem gates_length (width : Nat) (selected : Key width) :

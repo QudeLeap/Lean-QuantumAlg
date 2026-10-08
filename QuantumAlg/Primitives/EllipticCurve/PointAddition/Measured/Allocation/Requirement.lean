@@ -9,6 +9,9 @@ module
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Execution
 import all QuantumAlg.Core.Execution.State.Requirement
 import all QuantumAlg.Core.Execution.MarginalLaws
+import all QuantumAlg.Core.Execution.Input.Oracle
+
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Correctness
 
 /-!
 # Complete independent state promise for measured affine point addition
@@ -83,10 +86,13 @@ private theorem requirement_of_marginal {p : Nat} (E : PrimeFieldShortWeierstras
 
 /-- The same complete actual run satisfies the independent state promise on the original domain. -/
 theorem requirement_holds {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) {Reference : Register} (input : Input (before p.size) Reference)
-    (allowed : valid E Q input.localState) :
-    (requirement E Q).Holds input ((run E Q).finalState Reference input.state) :=
-  requirement_of_marginal E Q input _ (run_finalState E Q input allowed)
+    (Q : AffinePoint E) {Reference : Register}
+    (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference)
+    (allowed : valid E Q input.caller.localState) :
+    (requirement E Q).Holds input.caller ((run E Q).finalState Reference input.state) :=
+  requirement_of_marginal E Q input.caller _
+    ((run_finalState E Q input allowed).trans
+      (congrArg (resultDensity E Q Reference) input.oracleInput_caller_quantumMarginal.symm))
 
 end
 

@@ -76,7 +76,8 @@ theorem shortDLP_runtimeRound_joint_outcome_reference {parameterShape observedSh
     (cellsSeparate : ∀ index, (cells index).key ∉ observed.storageKeys)
     (resultSeparate : result.key ∉ observed.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (oldValue : observedShape.Value) (outcome : Fin (resultBits m ell width) → Bool)
     (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,

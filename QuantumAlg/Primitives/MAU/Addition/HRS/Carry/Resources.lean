@@ -37,37 +37,43 @@ private theorem base_weight {Data : Type} {encoding : BinaryLabelEncoding Data}
     (low high output : EncodedBit encoding)
     (hlh : low.wire ≠ high.wire) (hlo : low.wire ≠ output.wire)
     (hho : high.wire ≠ output.wire) (c0 c1 : Bool)
-    (weight : Resource.Event .quantum → Nat) :
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     ((baseCarryGates low high output hlh hlo hho c0 c1).map
-      fun gate => weight gate.event).sum =
-      c1.toNat * (weight (.gate (.builtin "cnot")) + 2 * weight (.gate (.builtin "x"))) +
-        c0.toNat * weight (.gate (.builtin "toffoli")) := by
+      fun gate => weight (event .empty gate)).sum =
+      c1.toNat * (weight (.gate .cnot) + 2 * weight (.gate .singleQubit)) +
+        c0.toNat * weight (.gate .toffoli) := by
   cases c0 <;> cases c1
-  all_goals simp [baseCarryGates, event]
+  all_goals simp [baseCarryGates, EncodedBit.GateSpec.event,
+    EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+    AlgorithmGate.model, AlgorithmGate.coordinate]
   all_goals omega
 
 private theorem propagate_weight {Data : Type} {encoding : BinaryLabelEncoding Data}
     (input previous output : EncodedBit encoding)
     (hip : input.wire ≠ previous.wire) (hio : input.wire ≠ output.wire)
     (hpo : previous.wire ≠ output.wire) (constant : Bool)
-    (lower : List (EncodedBit.GateSpec encoding)) (weight : Resource.Event .quantum → Nat) :
+    (lower : List (EncodedBit.GateSpec encoding))
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     ((propagateCarryGates input previous output hip hio hpo constant lower).map
-      fun gate => weight gate.event).sum =
-      (lower.map fun gate => weight gate.event).sum +
+      fun gate => weight (event .empty gate)).sum =
+      (lower.map fun gate => weight (event .empty gate)).sum +
         constant.toNat *
-          (weight (.gate (.builtin "cnot")) + 2 * weight (.gate (.builtin "x"))) +
-        2 * weight (.gate (.builtin "toffoli")) := by
+          (weight (.gate .cnot) + 2 * weight (.gate .singleQubit)) +
+        2 * weight (.gate .toffoli) := by
   cases constant
-  all_goals simp [propagateCarryGates, event]
+  all_goals simp [propagateCarryGates, EncodedBit.GateSpec.event,
+    EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+    AlgorithmGate.model, AlgorithmGate.coordinate]
   all_goals omega
 
 /-- Weighted native leaves of a prefix follow from the actual local lists. -/
 theorem hrsCarryPrefix_weight (width : Nat) (constant : Fin (2 ^ width))
-    (index : Nat) (h : index + 2 ≤ width) (weight : Resource.Event .quantum → Nat) :
-    ((carryPrefix width constant index h).map fun gate => weight gate.event).sum =
+    (index : Nat) (h : index + 2 ≤ width)
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
+    ((carryPrefix width constant index h).map fun gate => weight (event .empty gate)).sum =
       highConstantCount constant.val (index + 1) *
-        (weight (.gate (.builtin "cnot")) + 2 * weight (.gate (.builtin "x"))) +
-      (2 * index + (constant.val.testBit 0).toNat) * weight (.gate (.builtin "toffoli")) := by
+        (weight (.gate .cnot) + 2 * weight (.gate .singleQubit)) +
+      (2 * index + (constant.val.testBit 0).toNat) * weight (.gate .toffoli) := by
   induction index with
   | zero =>
       dsimp only [carryPrefix, carryPrefixInput, carryPrefixWork]
@@ -80,21 +86,24 @@ theorem hrsCarryPrefix_weight (width : Nat) (constant : Fin (2 ^ width))
       ring
 
 private theorem carry_weight (width : Nat) (constant : Fin (2 ^ width))
-    (weight : Resource.Event .quantum → Nat) :
-    ((carryGates width constant).map fun gate => weight gate.event).sum =
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
+    ((carryGates width constant).map fun gate => weight (event .empty gate)).sum =
       match width with
       | 0 => 0
-      | 1 => (constant.val.testBit 0).toNat * weight (.gate (.builtin "cnot"))
+      | 1 => (constant.val.testBit 0).toNat * weight (.gate .cnot)
       | n + 2 =>
           (highConstantCount constant.val (n + 1) + highConstantCount constant.val n) *
-            (weight (.gate (.builtin "cnot")) + 2 * weight (.gate (.builtin "x"))) +
+            (weight (.gate .cnot) + 2 * weight (.gate .singleQubit)) +
           (2 * n + (constant.val.testBit 0).toNat +
             (if n = 0 then 0 else 2 * (n - 1) + (constant.val.testBit 0).toNat)) *
-              weight (.gate (.builtin "toffoli")) := by
+              weight (.gate .toffoli) := by
   match width with
   | 0 => rfl
   | 1 =>
-      cases hc : constant.val.testBit 0 <;> simp [carryGates, event, hc]
+      cases hc : constant.val.testBit 0 <;>
+        simp [carryGates, EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
+          QubitPrimitive.event, QubitPrimitive.nativeToken, AlgorithmGate.model,
+          AlgorithmGate.coordinate, hc]
   | n + 2 =>
       rw [carryGates, List.map_append, List.sum_append, List.map_reverse, List.sum_reverse,
         hrsCarryPrefix_weight]
@@ -107,19 +116,22 @@ private theorem carry_weight (width : Nat) (constant : Fin (2 ^ width))
 
 /-- Every coordinate of the native event pool follows from the literal list. -/
 theorem hrsCarry_native_count (width : Nat) (constant : Fin (2 ^ width))
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (carryProgram width constant).eventCost =
       match width with
       | 0 => 0
       | 1 => (constant.val.testBit 0).toNat *
-          (if (.gate (.builtin "cnot") : Resource.Event .quantum) = focus then 1 else 0)
+          (if (.gate .cnot : Resource.Event
+            (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0)
       | n + 2 =>
           (highConstantCount constant.val (n + 1) + highConstantCount constant.val n) *
-            ((if (.gate (.builtin "cnot") : Resource.Event .quantum) = focus then 1 else 0) +
-              2 * (if (.gate (.builtin "x") : Resource.Event .quantum) = focus then 1 else 0)) +
+            ((if (.gate .cnot : Resource.Event
+              (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0) +
+              2 * (if (.gate .singleQubit : Resource.Event
+                (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0)) +
           (2 * n + (constant.val.testBit 0).toNat +
             (if n = 0 then 0 else 2 * (n - 1) + (constant.val.testBit 0).toNat)) *
-              (if (.gate (.builtin "toffoli") : Resource.Event .quantum) = focus
+              (if (.gate .toffoli : Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
                 then 1 else 0) := by
   rw [carryProgram, programList_event_count_eq_sum_eventMultiplicity]
   exact carry_weight width constant (fun emitted => if emitted = focus then 1 else 0)
@@ -127,26 +139,29 @@ theorem hrsCarry_native_count (width : Nat) (constant : Fin (2 ^ width))
 /-- For input width `n+2`, the two selected-bit sums count the forward and
 reversed lower prefixes. -/
 theorem hrsCarry_cnot_count (n : Nat) (constant : Fin (2 ^ (n + 2))) :
-    ResourcePool.count (.gate (.builtin "cnot")) (carryProgram (n + 2) constant).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+        (carryProgram (n + 2) constant).eventCost =
       highConstantCount constant.val (n + 1) + highConstantCount constant.val n := by
-  simpa [Resource.GateLabel.builtin] using
-    hrsCarry_native_count (n + 2) constant (.gate (.builtin "cnot"))
+  simpa using
+    hrsCarry_native_count (n + 2) constant (.gate .cnot)
 
 /-- Each selected high constant bit adds exactly two actual X gates. -/
 theorem hrsCarry_x_count (n : Nat) (constant : Fin (2 ^ (n + 2))) :
-    ResourcePool.count (.gate (.builtin "x")) (carryProgram (n + 2) constant).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (carryProgram (n + 2) constant).eventCost =
       2 * (highConstantCount constant.val (n + 1) + highConstantCount constant.val n) := by
-  simpa [Resource.GateLabel.builtin, Nat.mul_comm] using
-    hrsCarry_native_count (n + 2) constant (.gate (.builtin "x"))
+  simpa [Nat.mul_comm] using
+    hrsCarry_native_count (n + 2) constant (.gate .singleQubit)
 
 /-- The optimized first stage is counted once at width two and twice when
 its inverse also appears in the cleanup. -/
 theorem hrsCarry_toffoli_count (n : Nat) (constant : Fin (2 ^ (n + 2))) :
-    ResourcePool.count (.gate (.builtin "toffoli")) (carryProgram (n + 2) constant).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+        (carryProgram (n + 2) constant).eventCost =
       2 * n + (constant.val.testBit 0).toNat +
         (if n = 0 then 0 else 2 * (n - 1) + (constant.val.testBit 0).toNat) := by
-  simpa [Resource.GateLabel.builtin] using
-    hrsCarry_native_count (n + 2) constant (.gate (.builtin "toffoli"))
+  simpa using
+    hrsCarry_native_count (n + 2) constant (.gate .toffoli)
 
 /-- Total occurrences in the executed list, with explicit small-width cases. -/
 theorem hrsCarry_event_count (width : Nat) (constant : Fin (2 ^ width)) :

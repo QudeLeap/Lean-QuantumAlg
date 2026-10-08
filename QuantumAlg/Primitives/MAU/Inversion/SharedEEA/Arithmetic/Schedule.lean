@@ -32,9 +32,10 @@ noncomputable section
 open ArithmeticSelectionKey ArithmeticInstruction
 
 private def listProgram (width : Nat) (instruction : Instruction) :
-    List (Key width (includeSign instruction)) → UnitaryCircuit (Qubits (encoding width).width)
-  | [] => UnitaryCircuit.identity (Qubits (encoding width).width)
-      (List.range (encoding width).width) (List.nodup_range)
+    List (Key width (includeSign instruction)) →
+      UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical (encoding width).width).toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty (QubitLayout.canonical _).toQuantum
   | selected :: rest =>
       (ArithmeticInstruction.program width instruction selected).seq
         (listProgram width instruction rest)
@@ -47,8 +48,8 @@ private theorem listProgram_realizes (width : Nat) (instruction : Instruction)
         state) := by
   induction indices with
   | nil =>
-      exact UnitaryCircuit.Realizes.identityAt (encoding width)
-        (List.range (encoding width).width) (List.nodup_range)
+      exact UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        (encoding width) (QubitLayout.canonical _)
   | cons selected rest ih =>
       exact (ArithmeticInstruction.program_realizes width instruction selected).seq ih
 
@@ -134,7 +135,8 @@ private theorem fold_once (width : Nat) (instruction : Instruction)
 
 /-- Execute the actual fixed native program for every complete source key once. -/
 def program (width : Nat) (instruction : Instruction) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   listProgram width instruction (keys width (includeSign instruction))
 
 /-- Complete frame action of that actual finite instruction schedule. -/
@@ -183,10 +185,10 @@ theorem step_eq_source (width : Nat) (instruction : Instruction) (state : Regist
 theorem program_apply_prepared (width : Nat) (instruction : Instruction) (state : Registers width)
     (clean : state.control = false) :
     (program width instruction).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding width).width)
-          ((encoding width).encode state)) =
-      NormalizedVector.ket (R := Qubits (encoding width).width)
-        ((encoding width).encode (ArithmeticInstruction.sourceStep instruction state)) := by
+        (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+          ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (ArithmeticInstruction.sourceStep instruction state))) := by
   rw [(program_realizes width instruction).apply_encoded_ket, step_eq_source width instruction state
     clean]
 

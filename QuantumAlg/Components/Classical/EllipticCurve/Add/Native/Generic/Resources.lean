@@ -23,17 +23,20 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.Modular Field.Native
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The two actual subtractions precede the original affine allowance. -/
-def genericEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  ResourcePool.ofList (subtractionTrace kind spec) +
-    (ResourcePool.ofList (subtractionTrace kind spec) + affineEnvelope kind spec)
+def genericEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  ResourcePool.ofList (subtractionTrace model spec) +
+    (ResourcePool.ofList (subtractionTrace model spec) + affineEnvelope model spec)
 
 /-- Every native duration in both original subtractions precedes the original tail allowance. -/
-def genericDepthLimit (spec : ModulusSpec width) (duration : Resource.Event kind → Nat) : Nat :=
-  ((subtractionTrace kind spec).map duration).sum +
-    (((subtractionTrace kind spec).map duration).sum + affineDepthLimit spec duration)
+def genericDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : ModulusSpec width) (duration : Resource.Event model → Nat) : Nat :=
+  ((subtractionTrace model spec).map duration).sum +
+    (((subtractionTrace model spec).map duration).sum + affineDepthLimit spec duration)
 
 /-- Prefix arithmetic and the complete affine allocation occupy successive real scopes. -/
 def genericActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -47,7 +50,7 @@ private theorem genericBody_pool_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericBody spec leftX leftY rightX rightY numerator denominator output).Path) :
     (genericBody spec leftX leftY rightX rightY numerator denominator output).resourcePool path ≤
-      genericEnvelope kind spec := by
+      genericEnvelope model spec := by
   change ResourcePool.ofList
     ((subIntoWord spec rightY leftY numerator).eventTrace path.1 ++
       ((subIntoWord spec rightX leftX denominator).eventTrace path.2.1 ++
@@ -62,7 +65,7 @@ private theorem genericBody_depth_le (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (genericBody spec leftX leftY rightX rightY numerator denominator output).Path) :
     (genericBody spec leftX leftY rightX rightY numerator denominator output).depth duration path ≤
       genericDepthLimit spec duration :=
@@ -74,7 +77,7 @@ private theorem genericBody_duration_eventTrace (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (genericBody spec leftX leftY rightX rightY numerator denominator output).Path) :
     (genericBody spec leftX leftY rightX rightY numerator denominator output).depth duration path =
       (((genericBody spec leftX leftY rightX rightY numerator denominator output).eventTrace
@@ -101,7 +104,7 @@ theorem genericInto_pool_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :
     (genericInto spec left right output).resourcePool path ≤
-      genericEnvelope kind spec := by
+      genericEnvelope model spec := by
   exact withCellsFrom_property (Transport.id ctx) (genericShapes width)
     (fun cells _ transport _ =>
       genericBody spec (.first (.second (transport.liftInput left)))
@@ -109,7 +112,7 @@ theorem genericInto_pool_le (spec : ModulusSpec width)
         (.first (.second (transport.liftInput right)))
         (.second (.second (transport.liftInput right))) cells.tail.head.ref cells.head.ref
         (transport.liftWrite output))
-    (fun _ code => ∀ selected, code.resourcePool selected ≤ genericEnvelope kind spec)
+    (fun _ code => ∀ selected, code.resourcePool selected ≤ genericEnvelope model spec)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected =>
       genericBody_pool_le _ _ _ _ _ _ _ _ selected) path
@@ -118,7 +121,7 @@ theorem genericInto_pool_le (spec : ModulusSpec width)
 theorem genericInto_depth_le (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (genericInto spec left right output).Path) :
     (genericInto spec left right output).depth duration path ≤
       genericDepthLimit spec duration := by
@@ -138,7 +141,7 @@ theorem genericInto_depth_le (spec : ModulusSpec width)
 theorem genericInto_duration_eventTrace (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (genericInto spec left right output).Path) :
     (genericInto spec left right output).depth duration path =
       (((genericInto spec left right output).eventTrace
@@ -162,7 +165,7 @@ private theorem genericBody_resident_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericBody spec leftX leftY rightX rightY numerator denominator output).Path) :
     (genericBody spec leftX leftY rightX rightY numerator denominator output).peakResidentSpace
-      path ≤ genericActiveSpace kind width + ctx.residentSpace := by
+      path ≤ genericActiveSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (subIntoWord_resident _ _ _ _ path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -179,7 +182,7 @@ theorem genericInto_resident_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :
     (genericInto spec left right output).peakResidentSpace path ≤
-      ((genericShapes width).map SpacePool.ofShape).sum + genericActiveSpace kind width +
+      ((genericShapes width).map SpacePool.ofShape).sum + genericActiveSpace model.kind width +
         ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (genericShapes width)
     (fun cells _ transport _ =>
@@ -188,7 +191,7 @@ theorem genericInto_resident_le (spec : ModulusSpec width)
         (.first (.second (transport.liftInput right)))
         (.second (.second (transport.liftInput right))) cells.tail.head.ref cells.head.ref
         (transport.liftWrite output))
-    (genericActiveSpace kind width)
+    (genericActiveSpace model.kind width)
     (fun cells _ transport _ selected => genericBody_resident_le _ _ _ _ _ _ _ _ selected) path
 
 private theorem genericBody_auxiliary_le (spec : ModulusSpec width)
@@ -197,7 +200,7 @@ private theorem genericBody_auxiliary_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericBody spec leftX leftY rightX rightY numerator denominator output).Path) :
     (genericBody spec leftX leftY rightX rightY numerator denominator output).peakAuxiliarySpace
-      path ≤ genericActiveSpace kind width + ctx.auxiliarySpace := by
+      path ≤ genericActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (subIntoWord_auxiliary _ _ _ _ path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -214,7 +217,7 @@ theorem genericInto_auxiliary_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :
     (genericInto spec left right output).peakAuxiliarySpace path ≤
-      ((genericShapes width).map SpacePool.ofShape).sum + genericActiveSpace kind width +
+      ((genericShapes width).map SpacePool.ofShape).sum + genericActiveSpace model.kind width +
         ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (genericShapes width)
     (fun cells _ transport _ =>
@@ -223,7 +226,7 @@ theorem genericInto_auxiliary_le (spec : ModulusSpec width)
         (.first (.second (transport.liftInput right)))
         (.second (.second (transport.liftInput right))) cells.tail.head.ref cells.head.ref
         (transport.liftWrite output))
-    (genericActiveSpace kind width)
+    (genericActiveSpace model.kind width)
     (fun cells _ transport _ selected => genericBody_auxiliary_le _ _ _ _ _ _ _ _ selected) path
 
 end

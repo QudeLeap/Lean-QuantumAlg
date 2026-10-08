@@ -28,6 +28,9 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+-- Observe the mathematical full-path record through the generic composition laws.
+attribute [local irreducible] Circuit.sequenceStoreRecord
+
 /-- Pair recovery and quadratic recovery wired through one short-log latch. -/
 structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
   /-- Nested references for the pair stage. -/
@@ -78,10 +81,9 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   pair : LatticePairCandidateRecovery.CallerFrameAvoids refs.pair other
   quadratic : QuadraticRecoveryGuarded.CallerFrameAvoids refs.quadratic other
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-
 /-- Optional quadratic projection is precisely the original pair factor result. -/
-theorem recoveryOption_recoverShortLogFromPair (m ell : Nat) (generator : (ZMod N)ˣ)
+theorem recoveryOption_recoverShortLogFromPair {N : Nat}
+    (m ell : Nat) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     QuadraticRecoveryGuarded.recoveryOption N
         (RSA.recoverShortLogFromPair m ell generator samples) =
@@ -89,15 +91,18 @@ theorem recoveryOption_recoverShortLogFromPair (m ell : Nat) (generator : (ZMod 
   rw [RSA.recoverFactorFromShortLogPair_eq_run]
   cases RSA.recoverShortLogFromPair m ell generator samples <;> rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
+
 /-- Execute the complete pair short-log recovery before optional quadratic factor recovery. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair)
     (QuadraticRecoveryGuarded.into refs.quadratic)
 
 /-- Actual full store and both chronological component paths of pair-to-factor recovery. -/
-def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
-  Circuit.sequenceRecord
+  Circuit.sequenceStoreRecord
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair)
     (QuadraticRecoveryGuarded.into refs.quadratic)
     (LatticePairCandidateRecovery.recoveryStep input refs.pair)
@@ -107,15 +112,16 @@ def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
 theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 = (QuadraticRecoveryGuarded.step refs.quadratic
       (LatticePairCandidateRecovery.recoveryStep input refs.pair store).1).1 :=
-  Circuit.sequenceRecord_store _ _ _ _ store
+  Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The actual composition executes its whole record on all histories and external references. -/
 theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input refs entry.1).1, (entry.2, (step input refs entry.1).2))) := by
-  dsimp only [into, step]
-  exact Circuit.execute_sequenceRecord _ _ _ _
+      let actual := step input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  exact Circuit.execute_sequenceStoreRecord _ _ _ _
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto_execute input refs.pair)
     (QuadraticRecoveryGuarded.into_execute refs.quadratic) Reference state
 
@@ -226,7 +232,7 @@ theorem into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx
   exact result
 
 /-- Independent native allowance of complete pair recovery and its guarded quadratic projection. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   LatticePairCandidateRecovery.recoveryEventEnvelope N +
     QuadraticRecoveryGuarded.eventEnvelope (LatticePairCandidateRecovery.Width N)
 
@@ -257,8 +263,9 @@ private theorem guarded_pool_le
   generalize widthEq : LatticePairCandidateRecovery.Width N = width at refs path ⊢
   exact QuadraticRecoveryGuarded.into_pool_le refs path
 
-private theorem sequence_pool_le (first second : Circuit ctx ctx)
-    (firstBudget secondBudget : ResourcePool kind)
+omit [BitWord.Selected model] in
+private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+    (firstBudget secondBudget : ResourcePool model)
     (firstBound : ∀ path, first.resourcePool path ≤ firstBudget)
     (secondBound : ∀ path, second.resourcePool path ≤ secondBudget)
     (path : (Circuit.seq first second).Path) :
@@ -291,7 +298,7 @@ theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input 
 /-- Resident space includes every original cell and the reusable native-power scope. -/
 theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤ ctx.residentSpace +
-      Modular.NativePower.powerSpace kind (modulusBits N) := by
+      Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair)
     (QuadraticRecoveryGuarded.into refs.quadratic) path).le.trans ?_
@@ -303,7 +310,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
 /-- Auxiliary space reuses one native-power scope and retains all existing workspace roles. -/
 theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      Modular.NativePower.powerSpace kind (modulusBits N) := by
+      Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair)
     (QuadraticRecoveryGuarded.into refs.quadratic) path).le.trans ?_
@@ -314,7 +321,8 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
 
 /-- Both actual component circuits restore the full borrowed-reference joint state. -/
 theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state

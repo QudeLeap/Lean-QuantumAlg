@@ -91,14 +91,14 @@ private theorem threeSpace_reassociate {kind : ProblemKind}
     first + (second + (third + extra)) + base = first + second + third + extra + base := by
   simp only [add_assoc]
 
-variable {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
-      (transport : Transport ctx inner), Certificates transport cells → Circuit inner inner)
-    (additional : SpacePool kind)
+variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
+      (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)
+    (additional : SpacePool model.kind)
 
 /-- The actual core resident peak includes all three packages and the body's extra space. -/
 theorem withWorkspaces_resident_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakResidentSpace path ≤
@@ -106,9 +106,9 @@ theorem withWorkspaces_resident_le
     (path : (withWorkspaces ctx N body).Path) :
     (withWorkspaces ctx N body).peakResidentSpace path ≤
       allocationSpace N + additional + ctx.residentSpace := by
-  let slotSpace : SpacePool kind :=
+  let slotSpace : SpacePool model.kind :=
     ((LatticeCandidateSlotWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let stateSpace : SpacePool kind :=
+  let stateSpace : SpacePool model.kind :=
     ((LatticePairStateWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (withCellsFrom_resident_le _ _ _ (slotSpace + (stateSpace + additional)) ?_ path).trans ?_
@@ -122,7 +122,7 @@ theorem withWorkspaces_resident_le
 
 /-- The actual core auxiliary peak includes all three packages and the body's extra space. -/
 theorem withWorkspaces_auxiliary_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakAuxiliarySpace path ≤
@@ -130,9 +130,9 @@ theorem withWorkspaces_auxiliary_le
     (path : (withWorkspaces ctx N body).Path) :
     (withWorkspaces ctx N body).peakAuxiliarySpace path ≤
       allocationSpace N + additional + ctx.auxiliarySpace := by
-  let slotSpace : SpacePool kind :=
+  let slotSpace : SpacePool model.kind :=
     ((LatticeCandidateSlotWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
-  let stateSpace : SpacePool kind :=
+  let stateSpace : SpacePool model.kind :=
     ((LatticePairStateWorkspaceLayout.shapes N).map SpacePool.ofShape).sum
   unfold withWorkspaces at path ⊢
   refine (withCellsFrom_auxiliary_le _ _ _ (slotSpace + (stateSpace + additional)) ?_ path).trans ?_
@@ -146,7 +146,7 @@ theorem withWorkspaces_auxiliary_le
 
 /-- Both native space bounds hold on the same actual path through all three core packages. -/
 theorem withWorkspaces_space_le
-    (bodyBound : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
       (body cells transport certificates).peakResidentSpace path ≤

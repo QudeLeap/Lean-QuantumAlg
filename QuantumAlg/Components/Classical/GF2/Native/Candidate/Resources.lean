@@ -24,43 +24,48 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
+
+/-- The selected coordinate of a candidate-construction operation. -/
+def candidateOperationEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
 
 /-- The actual coefficient test chooses the original one-hot/OR events or no events. -/
-def candidateCoefficientEvents (kind : ProblemKind) (width : Nat) (column : Fin width) :
-    CShape.Value .bit → List (Resource.Event kind)
-  | .bit false => pivotColumnTrace kind width column
+def candidateCoefficientEvents (width : Nat) (column : Fin width) :
+    CShape.Value .bit → List (Resource.Event model)
+  | .bit false => pivotColumnTrace (model := model) width column
   | .bit true => []
 
 /-- Every possible row contribution retains its original native event coordinates. -/
-def candidateRowEnvelope (kind : ProblemKind) (width : Nat) (column : Fin width) :
-    ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.wordBinary .bitAnd width)) +
-    (ResourcePool.singleton (.classicalOperation (.wordBinary .equal width)) +
-      ResourcePool.ofList (pivotColumnTrace kind width column))
+def candidateRowEnvelope (width : Nat) (column : Fin width) :
+    ResourcePool model :=
+  ResourcePool.singleton (candidateOperationEvent (model := model) (.wordBinary .bitAnd width)) +
+    (ResourcePool.singleton (candidateOperationEvent (model := model) (.wordBinary .equal width)) +
+      ResourcePool.ofList (pivotColumnTrace (model := model) width column))
 
 /-- The actual free-mask copy precedes both original nested traversal allowances. -/
-def candidateEnvelope (kind : ProblemKind) (rowCount width : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.wordUnary .copy width)) +
-    ∑ column : Fin width, ∑ _row : Fin rowCount, candidateRowEnvelope kind width column
+def candidateEnvelope (rowCount width : Nat) : ResourcePool model :=
+  ResourcePool.singleton (candidateOperationEvent (model := model) (.wordUnary .copy width)) +
+    ∑ column : Fin width, ∑ _row : Fin rowCount, candidateRowEnvelope (model := model) width column
 
 /-- A selected row preserves the original mask, equality and column-loader durations. -/
 def candidateRowDepthLimit (width : Nat) (column : Fin width)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.wordBinary .bitAnd width)) +
-    (duration (.classicalOperation (.wordBinary .equal width)) +
-      ((pivotColumnTrace kind width column).map duration).sum)
+    (duration : Resource.Event model → Nat) : Nat :=
+  duration (candidateOperationEvent (model := model) (.wordBinary .bitAnd width)) +
+    (duration (candidateOperationEvent (model := model) (.wordBinary .equal width)) +
+      ((pivotColumnTrace (model := model) width column).map duration).sum)
 
 /-- The actual free-mask copy precedes every column and every row duration allowance. -/
-def candidateDepthLimit (rowCount width : Nat) (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.wordUnary .copy width)) +
+def candidateDepthLimit (rowCount width : Nat) (duration : Resource.Event model → Nat) : Nat :=
+  duration (candidateOperationEvent (model := model) (.wordUnary .copy width)) +
     ∑ column : Fin width, ∑ _row : Fin rowCount, candidateRowDepthLimit width column duration
 
 private theorem coefficient_events (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).eventTrace path =
-      candidateCoefficientEvents kind width column value := by
+      candidateCoefficientEvents (model := model) width column value := by
   cases value with
   | bit value =>
       cases value
@@ -68,10 +73,10 @@ private theorem coefficient_events (candidate : CWriteRef ctx (.unsignedWord wid
       · rfl
 
 private theorem coefficient_duration (candidate : CWriteRef ctx (.unsignedWord width))
-    (column : Fin width) (value : CShape.Value .bit) (duration : Resource.Event kind → Nat)
+    (column : Fin width) (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).depth duration path =
-      ((candidateCoefficientEvents kind width column value).map duration).sum := by
+      ((candidateCoefficientEvents (model := model) width column value).map duration).sum := by
   cases value with
   | bit value =>
       cases value
@@ -85,12 +90,24 @@ theorem gf2CandidateRowBody_events
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
     (path : (candidateRowBody matrix free candidate zero work flag row column).Path) :
     (candidateRowBody matrix free candidate zero work flag row column).eventTrace path =
-      [.classicalOperation (.wordBinary .bitAnd width),
-        .classicalOperation (.wordBinary .equal width)] ++
-          candidateCoefficientEvents kind width column path.2.2.1 :=
-  congrArg (fun events : List (Resource.Event kind) =>
-    [.classicalOperation (.wordBinary .bitAnd width),
-      .classicalOperation (.wordBinary .equal width)] ++ events)
+      [candidateOperationEvent (model := model) (.wordBinary .bitAnd width),
+        candidateOperationEvent (model := model) (.wordBinary .equal width)] ++
+          candidateCoefficientEvents (model := model) width column path.2.2.1 := by
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (Circuit.seq (BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag))
+      (Circuit.branch (.storage flag.toCStorageRef)
+        (candidateCoefficientChoice (model := model) candidate column)))).Path at path
+  change (BitWord.instruction (execution := model)
+      (candidateMaskOp matrix free work row)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag)).eventTrace path.2.1 ++
+      (candidateCoefficientChoice candidate column path.2.2.1).eventTrace path.2.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  exact congrArg (fun events : List (Resource.Event model) =>
+    [candidateOperationEvent (model := model) (.wordBinary .bitAnd width),
+      candidateOperationEvent (model := model) (.wordBinary .equal width)] ++ events)
     (coefficient_events candidate column path.2.2.1 path.2.2.2)
 
 /-- The selected-row body has the exact duration sum of its actual emitted event trace. -/
@@ -98,15 +115,39 @@ theorem gf2CandidateRowBody_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (candidateRowBody matrix free candidate zero work flag row column).Path) :
     (candidateRowBody matrix free candidate zero work flag row column).depth duration path =
       (((candidateRowBody matrix free candidate zero work flag row column).eventTrace path).map
         duration).sum := by
-  change duration (.classicalOperation (.wordBinary .bitAnd width)) +
-    (duration (.classicalOperation (.wordBinary .equal width)) +
-      (candidateCoefficientChoice candidate column path.2.2.1).depth duration path.2.2.2) = _
-  rw [gf2CandidateRowBody_events, coefficient_duration]
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (Circuit.seq (BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag))
+      (Circuit.branch (.storage flag.toCStorageRef)
+        (candidateCoefficientChoice (model := model) candidate column)))).Path at path
+  change (BitWord.instruction (execution := model)
+      (candidateMaskOp matrix free work row)).depth duration path.1 +
+    ((BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag)).depth duration path.2.1 +
+      (candidateCoefficientChoice candidate column path.2.2.1).depth
+        duration path.2.2.2) =
+    (((BitWord.instruction (execution := model)
+        (candidateMaskOp matrix free work row)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model)
+          (decisionEqualityOp work zero flag)).eventTrace path.2.1 ++
+        (candidateCoefficientChoice candidate column path.2.2.1).eventTrace
+          path.2.2.2)).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change duration (candidateOperationEvent (model := model) (.wordBinary .bitAnd width)) +
+    (duration (candidateOperationEvent (model := model) (.wordBinary .equal width)) +
+      (candidateCoefficientChoice candidate column path.2.2.1).depth duration path.2.2.2) =
+    (([candidateOperationEvent (model := model) (.wordBinary .bitAnd width),
+      candidateOperationEvent (model := model) (.wordBinary .equal width)] ++
+      (candidateCoefficientChoice candidate column path.2.2.1).eventTrace
+        path.2.2.2).map duration).sum
+  rw [coefficient_duration, coefficient_events]
   simp only [List.map_append, List.sum_append, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, Nat.add_zero, Nat.add_assoc]
 
@@ -116,10 +157,25 @@ private theorem rowBody_pool_le
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
     (path : (candidateRowBody matrix free candidate zero work flag row column).Path) :
     (candidateRowBody matrix free candidate zero work flag row column).resourcePool path ≤
-      candidateRowEnvelope kind width column := by
+      candidateRowEnvelope (model := model) width column := by
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (Circuit.seq (BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag))
+      (Circuit.branch (.storage flag.toCStorageRef)
+        (candidateCoefficientChoice (model := model) candidate column)))).Path at path
   change ResourcePool.ofList
-    ([.classicalOperation (.wordBinary .bitAnd width)] ++
-      (([.classicalOperation (.wordBinary .equal width)] : List (Resource.Event kind)) ++
+    ((BitWord.instruction (execution := model)
+        (candidateMaskOp matrix free work row)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model)
+          (decisionEqualityOp work zero flag)).eventTrace path.2.1 ++
+        (candidateCoefficientChoice candidate column path.2.2.1).eventTrace
+          path.2.2.2)) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change ResourcePool.ofList
+    ([candidateOperationEvent (model := model) (.wordBinary .bitAnd width)] ++
+      (([candidateOperationEvent (model := model) (.wordBinary .equal width)] :
+          List (Resource.Event model)) ++
         (candidateCoefficientChoice candidate column path.2.2.1).eventTrace path.2.2.2)) ≤ _
   rw [coefficient_events]
   simp only [ResourcePool.ofList_append]
@@ -129,19 +185,32 @@ private theorem rowBody_pool_le
   | bit value =>
       cases value
       · exact le_rfl
-      · change (0 : ResourcePool kind) ≤ _
+      · change (0 : ResourcePool model) ≤ _
         exact zero_le
 
 private theorem rowBody_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (candidateRowBody matrix free candidate zero work flag row column).Path) :
     (candidateRowBody matrix free candidate zero work flag row column).depth duration path ≤
       candidateRowDepthLimit width column duration := by
-  change duration (.classicalOperation (.wordBinary .bitAnd width)) +
-    (duration (.classicalOperation (.wordBinary .equal width)) +
+  change (Circuit.seq
+    (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (Circuit.seq (BitWord.instruction (execution := model)
+      (decisionEqualityOp work zero flag))
+      (Circuit.branch (.storage flag.toCStorageRef)
+        (candidateCoefficientChoice (model := model) candidate column)))).Path at path
+  change (BitWord.instruction (execution := model)
+      (candidateMaskOp matrix free work row)).depth duration path.1 +
+    ((BitWord.instruction (execution := model)
+        (decisionEqualityOp work zero flag)).depth duration path.2.1 +
+      (candidateCoefficientChoice candidate column path.2.2.1).depth
+        duration path.2.2.2) ≤ _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  change duration (candidateOperationEvent (model := model) (.wordBinary .bitAnd width)) +
+    (duration (candidateOperationEvent (model := model) (.wordBinary .equal width)) +
       (candidateCoefficientChoice candidate column path.2.2.1).depth duration path.2.2.2) ≤ _
   rw [coefficient_duration]
   refine Nat.add_le_add_left (Nat.add_le_add_left ?_ _) _
@@ -160,18 +229,18 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 theorem gf2CandidatePivotRow_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).resourcePool path ≤
-      candidateRowEnvelope kind width column := by
+      candidateRowEnvelope (model := model) width column := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
       cases value
-      · change (0 : ResourcePool kind) ≤ _
+      · change (0 : ResourcePool model) ≤ _
         exact zero_le
       · exact rowBody_pool_le _ _ _ _ _ _ row column path
 
 /-- Both outer scopes preserve the original duration allowance selected by the actual pivot bit. -/
 theorem gf2CandidatePivotRow_depth_le (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).depth duration path ≤
       candidateRowDepthLimit width column duration := by
@@ -184,7 +253,7 @@ theorem gf2CandidatePivotRow_depth_le (row : Fin rowCount) (column : Fin width)
 
 /-- Every pivot-record branch preserves the exact serial sum of its actual emitted events. -/
 theorem gf2CandidatePivotRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).depth duration path =
       (((candidatePivotRow matrix rows free candidate zero row column).eventTrace path).map
@@ -199,8 +268,20 @@ theorem gf2CandidatePivotRow_duration_eventTrace (row : Fin rowCount) (column : 
 /-- The actual free-mask copy and every original column-major invocation remain charged. -/
 theorem gf2BuildCandidate_pool_le (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).resourcePool path ≤
-      candidateEnvelope kind rowCount width := by
-  change ResourcePool.ofList ([.classicalOperation (.wordUnary .copy width)] ++
+      candidateEnvelope (model := model) rowCount width := by
+  change (Circuit.seq (BitWord.instruction (execution := model)
+      (candidateCopyOp free candidate))
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow (model := model)
+        matrix rows free candidate zero row column)))).Path at path
+  change ResourcePool.ofList
+    ((BitWord.instruction (execution := model)
+        (candidateCopyOp free candidate)).eventTrace path.1 ++
+      (Circuit.forRange width (fun column => Circuit.forRange rowCount
+        (fun row => candidatePivotRow matrix rows free candidate zero row column))).eventTrace
+          path.2) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace]
+  change ResourcePool.ofList ([candidateOperationEvent (model := model) (.wordUnary .copy width)] ++
     (Circuit.forRange width (fun column => Circuit.forRange rowCount
       (fun row => candidatePivotRow matrix rows free candidate zero row column))).eventTrace
         path.2) ≤ _
@@ -211,10 +292,25 @@ theorem gf2BuildCandidate_pool_le (path : (buildCandidate matrix rows free candi
     (fun row => gf2CandidatePivotRow_pool_le matrix rows free candidate zero row column) current
 
 /-- Both original nested loops retain each column's actual one-hot-loader duration allowance. -/
-theorem gf2BuildCandidate_depth_le (duration : Resource.Event kind → Nat)
+theorem gf2BuildCandidate_depth_le (duration : Resource.Event model → Nat)
     (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).depth duration path ≤
       candidateDepthLimit rowCount width duration := by
+  change (Circuit.seq (BitWord.instruction (execution := model)
+      (candidateCopyOp free candidate))
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow (model := model)
+        matrix rows free candidate zero row column)))).Path at path
+  change (BitWord.instruction (execution := model)
+      (candidateCopyOp free candidate)).depth duration path.1 +
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow matrix rows free candidate zero row column))).depth
+        duration path.2 ≤ _
+  rw [BitWord.bitWord_instruction_depth]
+  change duration (candidateOperationEvent (model := model) (.wordUnary .copy width)) +
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow matrix rows free candidate zero row column))).depth
+        duration path.2 ≤ _
   refine Nat.add_le_add_left (Circuit.forRange_depth_le_sum width _ duration _ ?_ path.2) _
   intro column current
   exact Circuit.forRange_depth_le_sum rowCount _ duration _
@@ -222,11 +318,27 @@ theorem gf2BuildCandidate_depth_le (duration : Resource.Event kind → Nat)
     current
 
 /-- The complete candidate construction retains exact same-path serial event durations. -/
-theorem gf2BuildCandidate_duration_eventTrace (duration : Resource.Event kind → Nat)
+theorem gf2BuildCandidate_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).depth duration path =
       (((buildCandidate matrix rows free candidate zero).eventTrace path).map duration).sum := by
-  change duration (.classicalOperation (.wordUnary .copy width)) +
+  change (Circuit.seq (BitWord.instruction (execution := model)
+      (candidateCopyOp free candidate))
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow (model := model)
+        matrix rows free candidate zero row column)))).Path at path
+  change (BitWord.instruction (execution := model)
+      (candidateCopyOp free candidate)).depth duration path.1 +
+    (Circuit.forRange width (fun column => Circuit.forRange rowCount
+      (fun row => candidatePivotRow matrix rows free candidate zero row column))).depth
+        duration path.2 =
+    (((BitWord.instruction (execution := model)
+        (candidateCopyOp free candidate)).eventTrace path.1 ++
+      (Circuit.forRange width (fun column => Circuit.forRange rowCount
+        (fun row => candidatePivotRow matrix rows free candidate zero row column))).eventTrace
+          path.2).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+  change duration (candidateOperationEvent (model := model) (.wordUnary .copy width)) +
     (Circuit.forRange width (fun column => Circuit.forRange rowCount
       (fun row => candidatePivotRow matrix rows free candidate zero row column))).depth duration
         path.2 = _
@@ -237,8 +349,9 @@ theorem gf2BuildCandidate_duration_eventTrace (duration : Resource.Event kind �
       (fun row => gf2CandidatePivotRow_duration_eventTrace matrix rows free candidate zero
         row column duration)) path.2
   rw [serial]
-  change duration (.classicalOperation (.wordUnary .copy width)) + _ =
-    ((([.classicalOperation (.wordUnary .copy width)] : List (Resource.Event kind)) ++
+  change duration (candidateOperationEvent (model := model) (.wordUnary .copy width)) + _ =
+    ((([candidateOperationEvent (model := model) (.wordUnary .copy width)] :
+        List (Resource.Event model)) ++
       (Circuit.forRange width (fun column => Circuit.forRange rowCount
         (fun row => candidatePivotRow matrix rows free candidate zero row column))).eventTrace
           path.2).map duration).sum

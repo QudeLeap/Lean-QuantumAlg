@@ -13,6 +13,7 @@ import all QuantumAlg.Algorithms.AmplitudeEstimation.Storage
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Storage.Laws
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Execution
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Execution.Laws
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Measurement.Distribution
 import all QuantumAlg.Core.Execution.Measurement.Readout
 import all QuantumAlg.Core.Execution.Interpret.Laws
@@ -41,14 +42,18 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 private theorem packedRead (t n : Nat) (store : Store (post t n)) :
-    (store.applyOp (packing t n)).read (.storage (resultRef t n).toCStorageRef) =
+    (store.write (BitWord.application (packing t n)).output
+      ((packing t n).eval (store.read (BitWord.application (packing t n)).input))).read
+       (.storage (resultRef t n).toCStorageRef) =
       (packing t n).eval (store.read (MeasurementCells.input (resultContext t n) 2 t)) :=
   Store.read_applyOp_output store (packing t n)
 
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass (t n : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (post t n) Reference H) (output : CShape.Value (.bits t)) :
-    ((((readoutCode t n).execute Reference state).mapClassical
+theorem readoutCode_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (post t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (output : CShape.Value (.bits t)) :
+    ((((readoutCode E t).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output).mass =
       (∑ basis : (post t n).register.Index,
         if CShape.Value.bits ((qpeMeasurement t (Elementary.helperWidth t n + n)).readout
@@ -59,8 +64,10 @@ theorem readoutCode_block_mass (t n : Nat) {Reference : Register} {H : Type} [Fi
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical]
-  simp only [State.classicalStep, ExecutionState.diagonalSum_mapClassical]
+  rw [Circuit.execute_classical_mapClassical (model := model E)
+    (BitWord.application (packing t n))
+    (packing t n).eval (BitWord.bitWord_application_evaluate (packing t n))]
+  simp only [ExecutionState.diagonalSum_mapClassical]
   rw [Circuit.measurementSequence_diagonalSum]
   simp only [packedRead, packing_measured_value]
   calc
@@ -88,7 +95,8 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
 derived from actual preparation, gates, measurements, storage writes and packing. -/
 theorem code_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (empty : Elementary.helperWidth t n = 0)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits t)) :
     ((((code E t).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output).mass =
@@ -105,7 +113,7 @@ theorem code_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : N
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass t n ((beforeMeasurement E t).execute Reference state) output
+          readoutCode_block_mass E t ((beforeMeasurement E t).execute Reference state) output
     _ = (∑ basis : Fin (2 ^ (t + n)),
         if CShape.Value.bits ((qpeMeasurement t n).readout basis) = output then
           (DensityOperator.ofPure ((evolvedState E t).normalized)).matrix basis basis

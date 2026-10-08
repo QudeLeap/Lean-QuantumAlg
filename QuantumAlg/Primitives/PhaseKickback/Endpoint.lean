@@ -20,6 +20,9 @@ import all QuantumAlg.Core.Execution.Borrowed.Empty
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 
 /-!
 # Complete XOR-oracle phase kickback
@@ -43,23 +46,29 @@ private def semanticOperator (f : Fin (2 ^ n) → Bool) :
     UnitaryOperator (context (n + 1)).register :=
   UnitaryOperator.reindex (basisEquiv (n + 1)).symm (xorOracleOp f)
 
+/-- The native model explicitly grants the one source query used here. -/
+public abbrev model (f : Fin (2 ^ n) → Bool) : ExecutionModel :=
+  .quantum AlgorithmGate.model (XorOracle.model f)
+
 private def program (f : Fin (2 ^ n) → Bool) :
-    UnitaryCircuit (context (n + 1)).register :=
-  UnitaryCircuit.reindex (basisEquiv (n + 1)).symm (circuit f)
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model f) (context (n + 1)).quantumLayout :=
+  Execution.unitaryOfEqualWires (layout (n + 1)) (context (n + 1)).quantumLayout
+    (layout_wires (n + 1)) (circuit f)
 
 private theorem program_matrix (f : Fin (2 ^ n) → Bool) :
     (program f).matrix = semanticOperator f := by
-  exact (UnitaryCircuit.reindex_matrix (basisEquiv (n + 1)).symm (circuit f)).trans
-    (congrArg (UnitaryOperator.reindex (basisEquiv (n + 1)).symm) (circuit_matrix f))
-
-private theorem placement (f : Fin (2 ^ n) → Bool) :
-    (program f).physical_idx = (context (n + 1)).physicalIdx := by
-  change (circuit f).physical_idx = (context (n + 1)).physicalIdx
-  rw [circuit_physicalIdx, ownedQubits_physicalIdx]
+  refine (Execution.unitaryOfEqualWires_matrix (layout (n + 1))
+    (context (n + 1)).quantumLayout (layout_wires (n + 1)) (circuit f)).trans ?_
+  refine (congrArg
+    (UnitaryOperator.reindex (R := (layout (n + 1)).register)
+      (S := (context (n + 1)).register)
+      (Execution.basisOfEqualWires (layout (n + 1)) (context (n + 1)).quantumLayout
+        (layout_wires (n + 1)))) (circuit_matrix f)).trans ?_
+  exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _
 
 private def code (f : Fin (2 ^ n) → Bool) :
-    Circuit (context (n + 1)) (context (n + 1)) :=
-  .unitary (program f) (placement f)
+    Circuit (model f) (context (n + 1)) (context (n + 1)) :=
+  .unitary (program f)
 
 /-- Complete XOR-oracle phase-kickback contract.
 
@@ -77,20 +86,26 @@ No new quantum or classical storage is allocated.
 **Source.** The source query and its phase-kickback action are [dW19, qcnotes.tex:1145-1173].
 -/
 public def problem (f : Fin (2 ^ n) → Bool) :
-    Problem .quantum (context (n + 1)) (context (n + 1)) .unit where
+    Problem (model f) (context (n + 1)) (context (n + 1)) .unit where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [StateRequirement.unitary (semanticOperator f)]
   resources :=
-    { events := ResourcePool.singleton (phaseKickbackEvent n)
+    { events := ResourcePool.singleton (model := model f)
+        (.oracle XorOracle.Coordinate.xor)
       resident := space (n + 1)
       auxiliary := space (n + 1) }
-  depth := .quantum (fun _ => 1) 1
+  depth :=
+    { duration := fun _ => 1
+      limit := 1
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute the actual query and retain the complete supplied joint register. -/
 public def algorithm (f : Fin (2 ^ n) → Bool) :
-    Algorithm .quantum (context (n + 1)) (context (n + 1)) .unit where
+    Algorithm (model f) (context (n + 1)) (context (n + 1)) .unit where
   run := { code := code f, output := Output.all (context (n + 1)) .unit }
 
 /-- Complete Output lists the same original owned systems. -/
@@ -104,9 +119,11 @@ public theorem algorithm_output_listing (f : Fin (2 ^ n) → Bool) :
 private theorem actual_events (f : Fin (2 ^ n) → Bool) (path : (code f).Path) :
     (code f).resourcePool path = (problem f).resources.events := by
   change ResourcePool.ofList (program f).eventTrace = _
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, program,
-    UnitaryCircuit.reindex_eventCost, circuit_events]
-  rfl
+  refine (UnitaryCircuit.ofList_eventTrace_eq_eventCost (program f)).trans ?_
+  refine (Execution.unitaryOfEqualWires_cost (layout (n + 1))
+    (context (n + 1)).quantumLayout (layout_wires (n + 1))
+    (circuit f) .empty .empty).trans ?_
+  exact circuit_events f
 
 private theorem actual_resident (f : Fin (2 ^ n) → Bool) (path : (code f).Path) :
     (code f).peakResidentSpace path ≤ space (n + 1) := by
@@ -125,30 +142,29 @@ private theorem actual_auxiliary (f : Fin (2 ^ n) → Bool) (path : (code f).Pat
 private theorem algorithm_solves (f : Fin (2 ^ n) → Bool) :
     Algorithm.Solves (algorithm f) (problem f) := by
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialization requirement present
     have same : requirement = StateRequirement.unitary (semanticOperator f) :=
       List.mem_singleton.mp present
     subst requirement
     exact StateRequirement.unitary_holds (semanticOperator f)
-      (program f) (placement f) (program_matrix f)
+      (program f) (program_matrix f)
       (Output.all (context (n + 1)) .unit) input
-  · intro Reference input _valid
-    exact Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
-      (program f) (placement f)
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initialization
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+      (program f) (Output.all (context (n + 1)) .unit) input
+  · intro _Reference _input _valid _initialization path _supported
     exact le_of_eq (actual_events f path)
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_resident f path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_auxiliary f path
-  · intro _Reference _input _valid _path _supported
+  · intro _Reference _input _valid _initialization _path _supported
     exact circuit_depth f
 
 /-- The actual complete query solves its independent execution problem and

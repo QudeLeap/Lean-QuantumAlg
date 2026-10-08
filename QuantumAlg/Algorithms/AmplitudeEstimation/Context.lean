@@ -6,6 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Model
+public import QuantumAlg.Algorithms.AmplitudeEstimation.Basic
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord
+public import QuantumAlg.Components.Oracle.AmplitudeAmplification
 public import QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Construction
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Construction
@@ -18,13 +23,14 @@ import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Execution.Preparation
 import all QuantumAlg.Core.Execution.Preparation.Empty
 import all QuantumAlg.Core.Execution.Context.Layout
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Execution.Reindex
 
 /-!
 # Internally prepared phase and source registers
 
-Amplitude estimation has no supplied runtime quantum input. One charged
-basis preparation creates all phase, explicit work, and source systems. The source-query
+Amplitude estimation has no supplied runtime quantum input. Per-system zero
+preparation creates all phase, explicit work, and source systems. The source-query
 unitary performs the actual preparation, phase-estimation ladder and readout
 [Lin22, appqpe.tex:189-219]. Every system remains live after Z measurement.
 -/
@@ -33,15 +39,20 @@ namespace QuantumAlg.AmplitudeEstimation
 
 noncomputable section
 
+/-- The explicit source grants and width-indexed native classical operations. -/
+public abbrev model {n : Nat} (E : GeneralAmplitudeEstimationInput n) : ExecutionModel :=
+  .quantum AlgorithmGate.model
+    (AmplitudeAmplificationSource.model E.source.preparation E.source.good true true)
+    BitWord.model .empty
+
 /-- The original empty runtime input context. -/
 @[reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
 
 theorem pre_systemCount : pre.systemCount = 0 := rfl
 
 /-- Original phase wires, any actual work position, and source wires, all dimension two. -/
-@[implicit_reducible]
-def runtimeLayout (t n : Nat) : QuantumLayout (t + (Elementary.helperWidth t n + n)) :=
-  (qpeLayout t (Elementary.helperWidth t n + n)).toQuantumLayout
+abbrev runtimeLayout (t n : Nat) : QuantumLayout (t + (Elementary.helperWidth t n + n)) :=
+  (QuantumSignature.qubits (t + (Elementary.helperWidth t n + n))).canonicalPlacement.layout
 
 theorem preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
 
@@ -77,11 +88,11 @@ def preparedLayoutEquiv (t n : Nat) :
 def preparedBasisEquiv (t n : Nat) :
     (preparedContext t n).register.Index ≃ (Qubits (t + (Elementary.helperWidth t n + n))).Index :=
   (preparedLayoutEquiv t n).symm.trans
-    (qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv
+    (QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n)))
 
-/-- Charge one actual all-zero basis preparation for the entire owned register. -/
+/-- The mathematical zero state corresponding to actual per-system preparation. -/
 def inputPreparation (t n : Nat) : BasisPreparation (runtimeLayout t n) :=
-  ⟨(qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv.symm
+  ⟨(QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n))).symm
     (0 : Fin (2 ^ (t + (Elementary.helperWidth t n + n))))⟩
 
 /-- The basis vector prepared on the entire actual physical register. -/
@@ -98,10 +109,10 @@ theorem inputPreparation_density (t n : Nat) :
   have preparedEntry (basis : (runtimeLayout t n).register.Index) :
       (inputPreparation t n).normalized basis =
         preparedInput t n
-          ((qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv basis) := by
+          ((QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n))) basis) := by
     dsimp only [preparedInput]
     change NormalizedVector.ket
-      ((qpeLayout t (Elementary.helperWidth t n + n)).binaryIndexEquiv.symm
+      ((QuantumSignature.qubitsIndexEquiv (t + (Elementary.helperWidth t n + n))).symm
       (0 : Fin (2 ^ (t + (Elementary.helperWidth t n + n))))) basis =
         NormalizedVector.ket (R := Qubits (t + (Elementary.helperWidth t n + n)))
           (0 : Fin (2 ^ (t + (Elementary.helperWidth t n + n)))) _
@@ -113,18 +124,25 @@ theorem inputPreparation_density (t n : Nat) :
     DensityOperator.ofPure_matrix, DensityOperator.ofPure_matrix, preparedEntry, preparedEntry]
   rfl
 
-/-- The source-query program in the actual runtime register coordinates. -/
-def nativeProgram {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    UnitaryCircuit (preparedContext t n).register :=
-  UnitaryCircuit.reindex
-    ((Elementary.phaseRegroupEquiv t n).symm.trans (preparedBasisEquiv t n).symm)
+/-- The original width reassociation preserves the complete actual native word. -/
+def runtimeProgram {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles E.source.preparation E.source.good)
+      (runtimeLayout t n) :=
+  Elementary.castCircuit (Elementary.oracles E.source.preparation E.source.good)
+    (Nat.add_assoc t (Elementary.helperWidth t n) n)
     (Elementary.program t E.source.preparation E.source.good)
 
-theorem nativeProgram_placement {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    (nativeProgram E t).physical_idx = (preparedContext t n).physicalIdx := by
-  change (Elementary.program t E.source.preparation E.source.good).physical_idx = _
-  rw [Elementary.program_physical_idx, preparedContext_physicalIdx]
-  exact congrArg List.range (Nat.add_assoc t (Elementary.helperWidth t n) n)
+/-- The source word and the prepared runtime enumerate exactly the same physical wires. -/
+theorem prepared_canonical_wires (t n : Nat) :
+    (runtimeLayout t n).wires = (preparedContext t n).quantumLayout.wires := by
+  rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
+
+/-- The actual source word in the prepared runtime, retaining every wire identity and value. -/
+def nativeProgram {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles E.source.preparation E.source.good)
+      (preparedContext t n).quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout t n)
+    (preparedContext t n).quantumLayout (prepared_canonical_wires t n) (runtimeProgram E t)
 
 end
 

@@ -13,6 +13,7 @@ import all QuantumAlg.Algorithms.QPE.Analysis
 import all QuantumAlg.Algorithms.QPE.Construction
 import all QuantumAlg.Components.Oracle.ZeroReflection.Action
 import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Components.BinaryLabelEncoding
 
 /-!
@@ -34,8 +35,8 @@ private theorem control_read {t : Nat} (n : Nat) (stage : Fin t)
       phase.val.testBit (extendedStage n stage).val := by
   change phase.val.testBit (WireAddress.bitIndex (controlWire n stage)).val = _
   congr 1
-  change phaseWidth t n - 1 - qpeStagePrefixWidth stage = stage.val + helperWidth t n
-  dsimp only [phaseWidth, qpeStagePrefixWidth]
+  change phaseWidth t n - 1 - stage.rev.val = stage.val + helperWidth t n
+  dsimp only [phaseWidth, Fin.rev]
   omega
 
 private theorem expected_reflection_action {t : Nat} (n : Nat) (stage : Fin t)
@@ -76,18 +77,42 @@ private theorem expected_reflection_action {t : Nat} (n : Nat) (stage : Fin t)
       by_cases zeroSource : source = 0 <;>
       simp [equalPhase, zeroSource, NormalizedVector.ket_apply, packed]
 
-/-- The selected elementary sequence implements the exact full controlled source operator. -/
-theorem reflection_matrix {t : Nat} (n : Nat) (stage : Fin t) :
-    (reflection n stage).matrix = qpeControlledBitOp (phaseWidth t n)
+private theorem reflection_binary_action (oracles : OracleModel) {t : Nat}
+    (n : Nat) (stage : Fin t) (phase : Fin (2 ^ phaseWidth t n))
+    (source : Fin (2 ^ n)) :
+    (reflection oracles n stage).binaryMatrix.applyVec
+        (NormalizedVector.ket (R := Qubits (totalQubits t n)) (prodEquiv (phase, source))).vec =
+      if (BinaryLabelEncoding.finIdentityBit (phaseWidth t n) (controlWire n stage)).get phase then
+        if source = 0 then
+          (NormalizedVector.ket (R := Qubits (totalQubits t n)) (prodEquiv (phase, source))).vec
+        else -(NormalizedVector.ket (R := Qubits (totalQubits t n)) (prodEquiv (phase, source))).vec
+      else (NormalizedVector.ket (R := Qubits (totalQubits t n))
+        (prodEquiv (phase, source))).vec := by
+  ext row
+  have actual := congrArg
+    (fun state => state ((physical (totalQubits t n)).basisEquiv.symm row))
+    (reflection_applyVec_pair oracles n stage phase source)
+  simp only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
+    HilbertOperator.applyVec_ket] at actual ⊢
+  change (reflection oracles n stage).matrix
+    ((physical (totalQubits t n)).basisEquiv.symm row)
+    ((physical (totalQubits t n)).basisEquiv.symm (prodEquiv (phase, source))) = _
+  split <;> split_ifs at actual ⊢ <;>
+    simpa only [PiLp.neg_apply, NormalizedVector.ket_apply, Equiv.apply_eq_iff_eq,
+      Equiv.symm_apply_eq] using actual
+
+/-- The actual native reflection has the exact full controlled source matrix. -/
+theorem reflection_matrix (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t) :
+    (reflection oracles n stage).binaryMatrix = qpeControlledBitOp (phaseWidth t n)
       (ZeroReflection.zeroReflectionOperator n) (extendedStage n stage) := by
   apply Subtype.ext
   ext row column
   obtain ⟨⟨phase, source⟩, rfl⟩ :=
     (prodEquiv (m := phaseWidth t n) (n := n)).surjective column
-  have actual := reflection_applyVec_pair n stage phase source
+  have actual := reflection_binary_action oracles n stage phase source
   rw [control_read] at actual
   have action := actual.trans (expected_reflection_action n stage phase source).symm
-  simpa only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]
+  simpa only [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]
     using congrArg (fun state : HilbertVector (Qubits (totalQubits t n)) => state row) action
 
 end

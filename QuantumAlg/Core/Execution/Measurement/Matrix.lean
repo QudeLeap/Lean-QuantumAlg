@@ -85,6 +85,9 @@ end ExecutionState
 
 namespace Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 open Execution
 
 /-- Two complete labels agree on every actually measured physical position. -/
@@ -97,37 +100,52 @@ def measurementLabelsAgree {ctx : RuntimeCtx .quantum} :
 /-- The actual Z sequence retains every unmeasured matrix entry and its actual classical writes. -/
 theorem measurementSequence_weightedMatrixEntry {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History)
-    (weight : Store ctx × (History × (measurementSequence readouts).Path) → ℂ)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (weight : Store ctx × (classicalOracles.HiddenState ×
+      (History × (measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts).Path)) → ℂ)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-        ((measurementSequence readouts).execute Reference state) weight
+        ((measurementSequence (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+          Reference state) weight
         (left, leftRef) (right, rightRef) =
       if measurementLabelsAgree readouts left right then
         ExecutionState.weightedMatrixEntry state
           (fun value => weight
-            (writeMeasurementPath readouts value.1 (measurementBasisPath readouts left),
-              (value.2, measurementBasisPath readouts left))) (left, leftRef) (right, rightRef)
+            (writeMeasurementPath (gates := gates) (oracles := oracles)
+              (operations := operations) (classicalOracles := classicalOracles) readouts value.1
+              (measurementBasisPath (gates := gates) (oracles := oracles)
+                (operations := operations) (classicalOracles := classicalOracles)
+                readouts left),
+              (value.2.1, (value.2.2,
+                measurementBasisPath (gates := gates) (oracles := oracles)
+                  (operations := operations) (classicalOracles := classicalOracles)
+                  readouts left)))) (left, leftRef) (right, rightRef)
       else 0 := by
   induction readouts generalizing History with
   | nil =>
-      simp only [measurementSequence, execute_id, State.skip, State.mapHistory,
+      simp only [measurementSequence, execute_id,
         ExecutionState.weightedMatrixEntry_mapClassical, measurementLabelsAgree,
-        writeMeasurementPath, measurementBasisPath]
+        writeMeasurementPath,
+        measurementBasisPath]
       exact (if_pos trivial).symm
   | cons head tail inductionHypothesis =>
       change ExecutionState.weightedMatrixEntry
         ((Circuit.seq (.measureZ head.wire head.output)
-          (measurementSequence tail)).execute Reference state) weight _ _ = _
+          (measurementSequence (gates := gates) (oracles := oracles)
+            (operations := operations) (classicalOracles := classicalOracles) tail)).execute
+            Reference state) weight _ _ = _
       rw [execute_seq]
       simp only [State.mapHistory, ExecutionState.weightedMatrixEntry_mapClassical]
       rw [inductionHypothesis]
       by_cases tailAgrees : measurementLabelsAgree tail left right
       · rw [if_pos tailAgrees, execute_measureZ]
-        simp only [State.measureZ, ExecutionState.weightedMatrixEntry_mapClassical]
+        simp only [ExecutionState.weightedMatrixEntry_mapClassical]
         rw [ExecutionState.weightedMatrixEntry_measureZ]
         simp only [measurementLabelsAgree, tailAgrees, and_true,
-          writeMeasurementPath, measurementBasisPath]
+          writeMeasurementPath,
+          measurementBasisPath]
       · simp only [measurementLabelsAgree, tailAgrees, and_false, if_false]
 
 end Circuit

@@ -37,11 +37,13 @@ def retainedRead (ctx : RuntimeCtx kind) (width : Nat)
   .storage (CStorageRef.retainedHead ctx key (OutputShape width) fresh)
 
 /-- Real result allocation precedes actual preparation, checked inversion and selected recovery. -/
-def retainedCircuit (spec : ModulusSpec width)
+def retainedCircuit {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) : Circuit ctx (retainedCtx ctx width key fresh) :=
+    (key : StorageKey) (fresh : key ∉ ctx.keys) : Circuit model ctx (retainedCtx ctx width key
+      fresh) :=
   .seq (.retain ctx key (OutputShape width) fresh)
-    (singleIntoResult spec (input.underRetained key (OutputShape width) fresh)
+    (singleIntoResult (model := model) spec (input.underRetained key (OutputShape width) fresh)
       (CWriteRef.retainedHead ctx key (OutputShape width) fresh))
 
 end

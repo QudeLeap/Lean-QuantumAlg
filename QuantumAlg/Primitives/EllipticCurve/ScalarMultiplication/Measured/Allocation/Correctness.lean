@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Support
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Cascade.Correctness
 
@@ -39,7 +40,8 @@ private theorem permuted_marginal {source destination : RuntimeCtx .quantum}
 private theorem placedCascade_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (readyContext p.size count) Reference H) :
+    (original : State (readyContext p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     ((placedCascade E points order).execute Reference
       (ContextPermutation.state (body_entries p.size count) original)).quantumMarginal =
         ((cascade E points order).execute Reference original).quantumMarginal.reindex
@@ -49,7 +51,8 @@ private theorem placedCascade_marginal {p : Nat} (E : PrimeFieldShortWeierstrass
     Reference original
   have marginal := congrArg
     (fun result : State (after p.size count) Reference
-      (H × (placedCascade E points order).Path) => result.quantumMarginal) actual
+      (ClassicalOracleModel.empty.HiddenState × (H × (placedCascade E points order).Path)) =>
+        result.quantumMarginal) actual
   exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans (permuted_marginal _ _))
 
 /-- The independent point product uses precisely the entries produced by actual initialization. -/
@@ -64,7 +67,8 @@ def placedTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 theorem placedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (after p.size count) Reference H)
+    (original : State (after p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       (original.quantumMarginal.reindex
         (ContextPermutation.referenceBasis (body_entries p.size count) Reference).symm)) :
@@ -72,15 +76,16 @@ theorem placedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact
       DensityOperator.applyUnitary (placedTarget E points order Reference)
         original.quantumMarginal := by
   let coordinates := ContextPermutation.referenceBasis (body_entries p.size count) Reference
-  let labels := ContextPermutation.recordEquiv (body_entries p.size count) H
-  let reversed : State (readyContext p.size count) Reference H :=
-    (original.mapClassical labels.symm).reindex coordinates.symm
-  have roundtrip : ContextPermutation.state (body_entries p.size count) reversed = original :=
-    ExecutionState.coordinate_transport_inverse original labels.symm coordinates.symm
+  obtain ⟨reversed, roundtrip⟩ :=
+    ContextPermutation.state_surjective (body_entries p.size count) original
   have reversedMarginal : reversed.quantumMarginal =
       original.quantumMarginal.reindex coordinates.symm := by
-    dsimp only [reversed]
-    rw [MeasuredPointAddition.reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
+    have mapped := permuted_marginal (body_entries p.size count) reversed
+    rw [roundtrip] at mapped
+    have back := congrArg (fun density => density.reindex coordinates.symm) mapped.symm
+    rw [DensityOperator.reindex_trans, Equiv.self_trans_symm,
+      DensityOperator.reindex_refl] at back
+    exact back
   have originalSupport : cascadeSupport E points Reference order reversed.quantumMarginal := by
     rw [reversedMarginal]
     exact support
@@ -105,7 +110,8 @@ def resultDensity {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 theorem circuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size count) Reference H)
+    (original : State (before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       ((initializedDensity p count Reference original.quantumMarginal).reindex
         (ContextPermutation.referenceBasis (body_entries p.size count) Reference).symm)) :
@@ -124,7 +130,8 @@ theorem circuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Pri
 theorem circuit_singleton_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (active : Fin count)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size count) Reference H)
+    (original : State (before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬inputStepAdmissible E (points active) active input.1 →
         original.quantumMarginal.matrix input input = 0) :

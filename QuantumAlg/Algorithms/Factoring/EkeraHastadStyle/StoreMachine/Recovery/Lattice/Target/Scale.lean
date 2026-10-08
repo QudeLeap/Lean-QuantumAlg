@@ -36,21 +36,26 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (m ell : Nat) where
   scaledWritable : scaled.toCStorageRef.role = .workspace ∨
     scaled.toCStorageRef.role = .retained
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell : Nat}
+variable {m ell : Nat}
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Actual original-source resize followed by precisely the prescribed native one-bit shifts. -/
-def scaleKInto (refs : Refs ctx m ell) : Circuit ctx ctx :=
-  Word.PowerOfTwo.Scale.into m refs.k refs.scaled
+def scaleKInto (refs : Refs ctx m ell) : Circuit model ctx ctx :=
+  Word.PowerOfTwo.Scale.into (model := model) m refs.k refs.scaled
 
 /-- Complete actual original preimage store and its native resize-and-shift path. -/
 def scaleKStep (refs : Refs ctx m ell) (store : Store ctx) : Store ctx × (scaleKInto refs).Path :=
-  Word.PowerOfTwo.Scale.step m refs.k refs.scaled store
+  Word.PowerOfTwo.Scale.step (model := model) m refs.k refs.scaled store
 
 /-- Actual native preimage loading retains every incoming state block and original history. -/
 theorem scaleKInto_execute (refs : Refs ctx m ell) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scaleKInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((scaleKStep refs entry.1).1, (entry.2, (scaleKStep refs entry.1).2))) :=
+      let actual := scaleKStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   Word.PowerOfTwo.Scale.into_execute m refs.k refs.scaled Reference state
 
 /-- The original output width makes the actual preimage exactly `2^m * k`, without wraparound. -/
@@ -99,14 +104,16 @@ theorem scaleKInto_depth (refs : Refs ctx m ell) (path : (scaleKInto refs).Path)
 
 /-- Actual preimage loading restores every borrowed-reference correlation jointly. -/
 theorem scaleKInto_borrowedRestored (refs : Refs ctx m ell) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scaleKInto refs).BorrowedRestored Reference state
       ((scaleKInto refs).execute Reference state) :=
   Word.PowerOfTwo.Scale.into_borrowedRestored m refs.k refs.scaled Reference state
 
 /-- Every actual preimage instruction retains the complete original context. -/
 theorem scaleKInto_visited (refs : Refs ctx m ell) (path : (scaleKInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (scaleKInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (scaleKInto refs).visitedContexts path) :
     visited = ctx :=
   Word.PowerOfTwo.Scale.into_visited m refs.k refs.scaled path visited present
 

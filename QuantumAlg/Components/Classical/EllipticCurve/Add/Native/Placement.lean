@@ -95,47 +95,67 @@ private theorem classifierStore_readsAs {outer : RuntimeCtx kind}
   rw [classifierOfCells_keys] at member
   exact Cells.workspaceCells_transportSeparated_avoids_of_mem cells transport separated member input
 
+section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Real allocation and classification discharge the continuation's original input predicates. -/
 theorem withClassification_actualRecord_post (left right : CInputRef ctx (PointShape width))
-    (body : ∀ {inner : RuntimeCtx kind}, Classifier inner width →
-      Transport ctx inner → Circuit inner inner)
+    (body : ∀ {inner : RuntimeCtx model.kind}, Classifier inner width →
+      Transport ctx inner → Circuit model inner inner)
     (Post : Store ctx → Store ctx → Prop)
-    (bodyContract : ∀ {inner : RuntimeCtx kind} (classifier : Classifier inner width)
+    (bodyContract : ∀ {inner : RuntimeCtx model.kind} (classifier : Classifier inner width)
       (transport : Transport ctx inner),
-      ∃ step : Store inner → Store inner × (body classifier transport).Path,
+      ∃ step : Store inner × model.HiddenState →
+          (Store inner × model.HiddenState) × (body classifier transport).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
-          (state : State inner Reference History),
+          (state : State inner Reference (model.HiddenState × History)),
           (body classifier transport).execute Reference state = state.mapClassical (fun entry =>
-            ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
-        ∀ (source : Store ctx) (before : Store inner), transport.ReadsAs source before →
-          classifier.Ready before (source.read left) (source.read right) →
-            ∃ target : Store ctx, Post source target ∧ transport.ReadsAs target (step before).1) :
-    ∃ step : Store ctx → Store ctx × (withClassification left right body).Path,
+            let result := step (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+        ∀ (source : Store ctx) (before : Store inner × model.HiddenState),
+          transport.ReadsAs source before.1 →
+          classifier.Ready before.1 (source.read left) (source.read right) →
+            ∃ target : Store ctx, Post source target ∧
+              transport.ReadsAs target (step before).1.1) :
+    ∃ step : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (withClassification left right body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (withClassification left right body).execute Reference state = state.mapClassical
-          (fun entry => ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
-      ∀ before : Store ctx, Post before (step before).1 := by
+          (fun entry =>
+            let result := step (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
   apply withCells_actualRecord_initialized_post ctx (classifierShapes width)
     (fun cells _ transport _ =>
       .seq (classifierBody (transport.liftInput left) (transport.liftInput right)
         (classifierOfCells cells)) (body (classifierOfCells cells) transport)) Post
   intro inner cells distinct transport separated
   obtain ⟨bodyStep, bodyEquation, bodyCorrect⟩ := bodyContract (classifierOfCells cells) transport
-  refine ⟨Circuit.sequenceRecord _ _ (classifierRecord _ _ _) bodyStep,
-    Circuit.execute_sequenceRecord _ _ _ _ (classifierBody_execute _ _ _) bodyEquation, ?_⟩
+  refine ⟨Circuit.sequenceRecord _ _
+      (Circuit.preserveHiddenRecord (classifierRecord _ _ _)) bodyStep,
+    Circuit.execute_sequenceRecord _ _ _ _ (by
+      intro reference history _ state
+      exact classifierBody_execute _ _ _ reference state) bodyEquation, ?_⟩
   intro source before reads initialized
   have ready := classifierBody_ready (transport.liftInput left) (transport.liftInput right)
     (classifierOfCells cells) (classifierOfCells_separation left right cells distinct
-      transport separated) before (classifierOfCells_zero_initialized cells before initialized)
+      transport separated) before.1
+      (classifierOfCells_zero_initialized cells before.1 initialized)
   rw [reads left, reads right] at ready
   obtain ⟨target, post, returned⟩ := bodyCorrect source
     (classifierStore (transport.liftInput left) (transport.liftInput right)
-      (classifierOfCells cells) before)
-    (classifierStore_readsAs left right cells transport separated source before reads) ready
+    (classifierOfCells cells) before.1, before.2)
+    (classifierStore_readsAs left right cells transport separated source before.1 reads) ready
   refine ⟨target, post, ?_⟩
-  rw [Circuit.sequenceRecord_store, classifierRecord_store]
+  rw [Circuit.sequenceRecord_store]
+  dsimp only [Circuit.preserveHiddenRecord]
+  rw [classifierRecord_store]
   exact returned
+
+end
 
 end
 

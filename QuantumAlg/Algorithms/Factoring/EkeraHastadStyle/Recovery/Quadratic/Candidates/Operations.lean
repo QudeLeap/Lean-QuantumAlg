@@ -58,19 +58,6 @@ def squareOp (refs : Refs ctx width) :
   .wordBinary .mulLow (RSA.quadraticWordWidth width) ctx
     (.product (.storage refs.center.toCStorageRef) (.storage refs.center.toCStorageRef)) refs.root
 
-/-- The actual discriminant uses source natural subtraction, including its underflow-to-zero arm. -/
-def discriminant (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
-    (refs : Refs ctx width) : Circuit ctx ctx :=
-  NativeSub.into (.storage refs.root.toCStorageRef) modulus refs.root
-
-/-- The actual square-root component reuses the discriminant cell and owns its own scratch. -/
-def squareRoot (refs : Refs ctx width) : Circuit ctx ctx :=
-  NativeSqrt.into (.storage refs.root.toCStorageRef) refs.root
-
-/-- The source lower candidate uses actual natural subtraction on the center and computed root. -/
-def firstCandidate (refs : Refs ctx width) : Circuit ctx ctx :=
-  NativeSub.into (.storage refs.center.toCStorageRef) (.storage refs.root.toCStorageRef) refs.first
-
 /-- The source upper candidate is the actual native addition of the same two stored words. -/
 def secondOp (refs : Refs ctx width) :
     ClassicalOp (.product (.unsignedWord (RSA.quadraticWordWidth width))
@@ -79,15 +66,36 @@ def secondOp (refs : Refs ctx width) :
   .wordBinary .add (RSA.quadraticWordWidth width) ctx
     (.product (.storage refs.center.toCStorageRef) (.storage refs.root.toCStorageRef)) refs.second
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- The actual discriminant uses source natural subtraction, including its underflow-to-zero arm. -/
+def discriminant (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
+  NativeSub.into (model := model) (.storage refs.root.toCStorageRef) modulus refs.root
+
+/-- The actual square-root component reuses the discriminant cell and owns its own scratch. -/
+def squareRoot (refs : Refs ctx width) : Circuit model ctx ctx :=
+  NativeSqrt.into (model := model) (.storage refs.root.toCStorageRef) refs.root
+
+/-- The source lower candidate uses actual natural subtraction on the center and computed root. -/
+def firstCandidate (refs : Refs ctx width) : Circuit model ctx ctx :=
+  NativeSub.into (model := model) (.storage refs.center.toCStorageRef) (.storage
+    refs.root.toCStorageRef) refs.first
+
 /-- Actual chronological arithmetic materializes both original source candidate factors. -/
 def candidates (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
-    (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (widenOp input refs))
-    (.seq (.classical (centerOp refs))
-      (.seq (.classical (squareOp refs))
-        (.seq (discriminant modulus refs)
-          (.seq (squareRoot refs)
-            (.seq (firstCandidate refs) (.classical (secondOp refs)))))))
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (widenOp input refs))
+    (.seq (BitWord.instruction (execution := model) (centerOp refs))
+      (.seq (BitWord.instruction (execution := model) (squareOp refs))
+        (.seq (discriminant (model := model) modulus refs)
+          (.seq (squareRoot (model := model) refs)
+            (.seq (firstCandidate (model := model) refs) (BitWord.instruction (execution := model)
+              (secondOp refs)))))))
+
+end
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic

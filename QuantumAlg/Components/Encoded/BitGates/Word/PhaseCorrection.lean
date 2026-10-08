@@ -8,7 +8,7 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.PauliZ
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.UnitaryCircuit.Vector
 
 /-!
 # Literal Pauli correction selected by a classical word
@@ -30,12 +30,14 @@ namespace QuantumAlg.EncodedBit.Word.PhaseCorrection
 noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Existing Z gates at the selected positions, with the full physical register retained. -/
 def sequence (word : EncodedBit.Word encoding width) :
-    List (Fin width) → UnitaryCircuit (Qubits encoding.width)
-  | [] => .identity (Qubits encoding.width) (List.range encoding.width) List.nodup_range
-  | index :: rest => .seq (word.bit index).pauliZ (sequence word rest)
+    List (Fin width) → UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum
+  | [] => .identity AlgorithmGate.model oracles physical.toQuantum
+  | index :: rest => .seq ((word.bit index).pauliZ physical oracles)
+      (sequence word rest)
 
 /-- Exact scalar contributed by the selected bit phases. -/
 def sign (word : EncodedBit.Word encoding width) (state : Data) : List (Fin width) → ℂ
@@ -45,12 +47,15 @@ def sign (word : EncodedBit.Word encoding width) (state : Data) : List (Fin widt
 /-- The full encoded input is unchanged, with its exact selected parity sign retained. -/
 theorem phaseCorrection_sequence_ket (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) (state : Data) :
-    (sequence word indices).applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (sequence physical oracles word indices).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       sign word state indices •
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   induction indices with
-  | nil => simp only [sequence, UnitaryCircuit.applyVec_identity, sign, one_smul]
+  | nil => simp only [sequence, UnitaryCircuit.applyVec, UnitaryCircuit.identity_matrix,
+      UnitaryOperator.one_applyVec, sign, one_smul]
   | cons index rest induction =>
       rw [sequence, UnitaryCircuit.applyVec_seq, pauliZ_applyVec_encoded_ket,
         UnitaryCircuit.applyVec_smul, induction, smul_smul]
@@ -68,18 +73,20 @@ theorem phaseCorrection_sign_square (word : EncodedBit.Word encoding width)
 /-- The actual selected Z sequence cancels the same phase on a recomputed word. -/
 theorem phaseCorrection_cancel_ket (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) (state : Data) :
-    (sequence word indices).applyVec
+    (sequence physical oracles word indices).applyVec
         (sign word state indices •
-          (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec) =
-      (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+          (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec) =
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   rw [UnitaryCircuit.applyVec_smul, phaseCorrection_sequence_ket, smul_smul,
     phaseCorrection_sign_square, one_smul]
 
-/-- Every selected gate is charged at its original native Pauli-Z coordinate. -/
+/-- Every selected Z is charged as one native single-qubit operation. -/
 theorem phaseCorrection_sequence_trace (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) :
-    (sequence word indices).eventTrace = List.replicate indices.length
-      (Gate.atomicEvent (.declared "QuantumAlg.Components.Gate" "pauli-z")) := by
+    (sequence physical oracles word indices).eventTrace = List.replicate indices.length
+      (.gate .singleQubit) := by
   induction indices with
   | nil => rfl
   | cons index rest induction =>
@@ -89,7 +96,7 @@ theorem phaseCorrection_sequence_trace (word : EncodedBit.Word encoding width)
 /-- The same literal sequential program has one unit of depth per selected Z gate. -/
 theorem phaseCorrection_sequence_depth (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) :
-    (sequence word indices).evaluatedEventDepth (fun _ => 1) = indices.length := by
+    (sequence physical oracles word indices).evaluatedEventDepth (fun _ => 1) = indices.length := by
   induction indices with
   | nil => rfl
   | cons index rest induction =>
@@ -97,29 +104,14 @@ theorem phaseCorrection_sequence_depth (word : EncodedBit.Word encoding width)
       change 1 + rest.length = rest.length + 1
       omega
 
-/-- The complete original register remains live, including every unselected position. -/
-theorem phaseCorrection_sequence_physical (word : EncodedBit.Word encoding width)
-    (indices : List (Fin width)) :
-    (sequence word indices).physical_idx = List.range encoding.width := by
-  induction indices with
-  | nil => rfl
-  | cons index rest induction =>
-      change UnitaryCircuit.unionPhysicalIdx [(word.bit index).wire.val]
-        (sequence word rest).physical_idx = _
-      rw [induction]
-      apply UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset
-      intro wire member
-      have same : wire = (word.bit index).wire.val := List.mem_singleton.mp member
-      rw [same, List.mem_range]
-      exact (word.bit index).wire.isLt
-
 /-- An individual classical result selects precisely its one-bit positions. -/
 def selected (outcome : Fin width → Bool) : List (Fin width) :=
   (List.finRange width).filter outcome
 
 /-- Actual unitary branch for a previously read classical result. -/
 def program (word : EncodedBit.Word encoding width) (outcome : Fin width → Bool) :
-    UnitaryCircuit (Qubits encoding.width) := sequence word (selected outcome)
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  sequence physical oracles word (selected outcome)
 
 /-- The selected correction cannot execute more than one Z gate per word position. -/
 theorem phaseCorrection_selected_count_le (outcome : Fin width → Bool) :

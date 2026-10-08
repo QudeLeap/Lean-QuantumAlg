@@ -44,7 +44,7 @@ private theorem rounds_weighted_reference
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (sampledContext base N) Reference History)
+    (state : State (sampledContext base N) Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatchReuse_sampled_wires base N sameWires) N state)
@@ -110,7 +110,7 @@ theorem nativeBatchReuse_source_weighted_reference (input : Input N)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state)
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value →
@@ -131,14 +131,16 @@ theorem nativeBatchReuse_source_weighted_reference (input : Input N)
         leftRef rightRef := by
   have repetitionLaw := rounds_weighted_reference base N sameWires originalCells previous
     distinct separate
-    ((ShorStyle.Canonical.Sampler.Retained.circuit base N).execute Reference state)
+    (Circuit.execute
+      (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+      Reference state)
     (nativeBatchReuse_sampler_seedBlocks input sameWires state seeded) weight leftRef rightRef
   have sampledLaw := ShorStyle.Canonical.Sampler.Retained.samplerRetained_reference_input
-    input.samplerInput previous state
+    (model := RuntimeRound.model) input.samplerInput previous state
     (fun old parameter sample => NativeBatch.conditionalMoment
       (fun p s outcomes => weight p s old outcomes) parameter sample) leftRef rightRef
   exact (Circuit.referenceFiberSum_execute_seq
-    (ShorStyle.Canonical.Sampler.Retained.circuit base N)
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells) state
     (fun store => weight (store.read (finalParameter base N))
       (store.read (finalSample base N)) (store.read (callerInput base N previous))
@@ -156,7 +158,7 @@ theorem nativeBatchReuse_output_weighted_reference (input : Input N)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state)
     (weight : previousShape.Value → (NativeBatch.resultShape N).Value → ℂ)

@@ -48,13 +48,16 @@ theorem nativeQuadratic_checkedOperands_separated
   remainderFirst := fun present => separated.rootFirst (List.mem_singleton.mp present)
   remainderSecond := fun present => separated.rootSecond (List.mem_singleton.mp present)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual initialized arithmetic, fresh checker entry and both checks yield the source decisions.
 -/
 theorem nativeQuadratic_loaded_checks_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (selector : FirstAccepted.Refs ctx (RSA.quadraticWordWidth width))
     (separated : Separated modulus refs) (store : Store ctx) :
-    let initialized := (Initialized.step input modulus refs store).1
+    let initialized := (Initialized.step (model := model) input modulus refs store).1
     let entered := CheckLayout.pushStore (RSA.quadraticWordWidth width) initialized
     let checked := Pair.checkedStore
       (CheckLayout.pairRefs (checkedOperands modulus refs selector)) entered
@@ -69,11 +72,11 @@ theorem nativeQuadratic_loaded_checks_values (input : CInputRef ctx (.unsignedWo
           (store.read modulus).toNat % source.2 = 0) := by
   let work := RSA.quadraticWordWidth width
   let operands := checkedOperands modulus refs selector
-  let initialized := (Initialized.step input modulus refs store).1
+  let initialized := (Initialized.step (model := model) input modulus refs store).1
   let entered := CheckLayout.pushStore work initialized
-  have materialized := Initialized.nativeQuadratic_initialized_values
+  have materialized := Initialized.nativeQuadratic_initialized_values (model := model)
     input modulus refs separated store
-  have modulusBefore := nativeQuadratic_initialized_read_other
+  have modulusBefore := nativeQuadratic_initialized_read_other (model := model)
     input modulus refs modulus separated.modulusFree store
   have modulusEntered := congrArg CShape.Value.toNat
     (CheckLayout.nativeQuadratic_checkLayout_push_read modulus work initialized)

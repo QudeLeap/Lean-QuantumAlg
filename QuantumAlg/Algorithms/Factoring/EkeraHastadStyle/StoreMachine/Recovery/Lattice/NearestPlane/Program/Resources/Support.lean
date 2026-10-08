@@ -22,16 +22,21 @@ open Execution ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem third_supported (width : Nat)
     (denominator numerator magnitude correction restore : Bool) :
     NativeTraceSupported width
-      (LatticeNearestPlaneThird.phaseTrace (kind := kind) width denominator numerator magnitude
+      (LatticeNearestPlaneThird.phaseTrace (model := model) width denominator numerator magnitude
         correction restore) := by
-  have numeratorSupport : NativeTraceSupported (kind := kind) width
-      (if numerator then [.classicalOperation (.wordUnary .complement width),
-        .classicalOperation (.wordUnary .increment width)] else []) := by
+  have numeratorSupport : NativeTraceSupported (model := model) width
+      (if numerator then
+        [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.wordUnary .complement width)),
+          .classicalOperation (BitWord.selectedCoordinate (execution := model)
+            (.wordUnary .increment width))]
+        else []) := by
     cases numerator <;> simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
   simp only [LatticeNearestPlaneThird.phaseTrace, LatticeNearestPlaneThird.normalizationTrace,
     nativeTraceSupported_append, and_assoc]
@@ -42,16 +47,14 @@ private theorem third_supported (width : Nat)
 
 private theorem secondPrefix_supported (width : Nat) :
     NativeTraceSupported width
-      (LatticeNearestPlaneSecond.prefixTrace (kind := kind) width) := by
-  rw [LatticeNearestPlaneSecond.prefixTrace, nativeTraceSupported_append]
-  constructor
-  · simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
-  · apply nativeTraceSupported_replicate
-    simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
+      (LatticeNearestPlaneSecond.prefixTrace (model := model) width) := by
+  simp [LatticeNearestPlaneSecond.prefixTrace, NativeTraceSupported, nativeAlphabet,
+    ResourcePool.ofList]
 
 private theorem second_supported (width : Nat) (magnitude correction restore : Bool) :
     NativeTraceSupported width
-      (LatticeNearestPlaneSecond.phaseTrace (kind := kind) width magnitude correction restore) := by
+      (LatticeNearestPlaneSecond.phaseTrace (model := model) width magnitude correction
+        restore) := by
   simp only [LatticeNearestPlaneSecond.phaseTrace, nativeTraceSupported_append]
   refine ⟨secondPrefix_supported width, ?_,
     roundedDivBodyTrace_nativeSupported width magnitude correction restore, ?_⟩
@@ -60,7 +63,8 @@ private theorem second_supported (width : Nat) (magnitude correction restore : B
 
 private theorem first_supported (width : Nat) (magnitude correction restore : Bool) :
     NativeTraceSupported width
-      (LatticeNearestPlaneFirst.phaseTrace (kind := kind) width magnitude correction restore) := by
+      (LatticeNearestPlaneFirst.phaseTrace (model := model) width magnitude correction
+        restore) := by
   simp only [LatticeNearestPlaneFirst.phaseTrace, nativeTraceSupported_append, and_assoc]
   refine ⟨?_, roundedDivBodyTrace_nativeSupported width magnitude correction restore, ?_⟩
   all_goals simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
@@ -71,7 +75,7 @@ theorem phaseTrace_nativeSupported (width : Nat) (denominatorNegative numeratorN
     (secondMagnitude secondCorrection secondRestore : Bool)
     (firstMagnitude firstCorrection firstRestore : Bool) :
     NativeTraceSupported width
-      (phaseTrace (kind := kind) width denominatorNegative numeratorNegative
+      (phaseTrace (model := model) width denominatorNegative numeratorNegative
         thirdMagnitude thirdCorrection thirdRestore secondMagnitude secondCorrection secondRestore
         firstMagnitude firstCorrection firstRestore) := by
   simp only [phaseTrace, nativeTraceSupported_append]
@@ -80,7 +84,7 @@ theorem phaseTrace_nativeSupported (width : Nat) (denominatorNegative numeratorN
     first_supported width firstMagnitude firstCorrection firstRestore⟩
 
 /-- Independent native coordinate allowance for all three original nearest-plane stages. -/
-def eventEnvelope (width : Nat) : ResourcePool kind := 128 • nativeAlphabet width
+def eventEnvelope (width : Nat) : ResourcePool model := 128 • nativeAlphabet width
 
 -- The generic accounting application elaborates the full dependent three-stage path.
 set_option maxRecDepth 4096 in

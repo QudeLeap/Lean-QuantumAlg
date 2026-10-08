@@ -9,7 +9,6 @@ module
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Semantics
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Packing
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Persistent.Semantics
-import all QuantumAlg.Core.Execution.MappedTail
 
 /-!
 # Complete actual persistent recovery execution
@@ -28,20 +27,31 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
+
+/-- The allocated store and unchanged service state enter the actual ordered loop. -/
+def recoveryBatchState (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store ctx × model.HiddenState) :
+    Store (persistentCtx ctx width scalarWidth) × model.HiddenState :=
+  repeatedAttemptsState curve modulus samples base target
+    (persistentInitialStore width scalarWidth before.1, before.2)
 
 /-- The actual allocated initial store feeds the original ordered attempt updates. -/
 def recoveryBatchStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width)) (before : Store ctx) :
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store ctx × model.HiddenState) :
     Store (persistentCtx ctx width scalarWidth) :=
-  repeatedAttemptsStore curve modulus samples base target
-    (persistentInitialStore width scalarWidth before)
+  (recoveryBatchState curve modulus samples base target before).1
 
 /-- Actual optional-result retention and packing consume the real loop's returned store. -/
 def recoveryTailStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width)) (before : Store ctx) :
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store ctx × model.HiddenState) :
     Store (batchResultCtx ctx width scalarWidth) :=
   (packBatchResultStep ctx width scalarWidth
     (recoveryBatchStore curve modulus samples base target before)).1
@@ -50,133 +60,174 @@ def recoveryTailStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWid
 def recoveryBatchRecordState (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
-    (record : Store ctx → Store (persistentCtx ctx width scalarWidth) ×
-      (recoveryBatch curve modulus samples base target).Path)
+    (record : Store ctx × model.HiddenState →
+      (Store (persistentCtx ctx width scalarWidth) × model.HiddenState) ×
+        (recoveryBatch curve modulus samples base target).Path)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     State (persistentCtx ctx width scalarWidth) Reference
-      (History × (recoveryBatch curve modulus samples base target).Path) :=
-  state.mapClassical (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2)))
+      (model.HiddenState × (History × (recoveryBatch curve modulus samples base target).Path)) :=
+  state.mapClassical (fun entry =>
+    let result := record (entry.1, entry.2.1)
+    (result.1.1, (result.1.2, (entry.2.2, result.2))))
 
-/-- Map the actual complete recovery tail record over all incoming reference blocks. -/
-def recoveryTailRecordState (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
-    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width))
-    (record : Store ctx → Store (batchResultCtx ctx width scalarWidth) ×
-      (recoveryTail curve modulus samples base target).Path)
-    (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    State (batchResultCtx ctx width scalarWidth) Reference
-      (History × (recoveryTail curve modulus samples base target).Path) :=
-  state.mapClassical (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2)))
-
-private theorem deterministicTail_after {pre middle : RuntimeCtx kind}
-    (first : Circuit pre middle) (second : Circuit middle middle)
-    (record : Store middle → Store middle × second.Path)
+omit [BitWord.Selected model] in
+private theorem deterministicTail_after {pre middle : RuntimeCtx model.kind}
+    (first : Circuit model pre middle) (second : Circuit model middle middle)
+    (record : Store middle × model.HiddenState →
+      (Store middle × model.HiddenState) × second.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State middle Reference History), second.execute Reference state =
-        state.mapClassical (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2))))
+      (state : State middle Reference (model.HiddenState × History)),
+      second.execute Reference state = state.mapClassical (fun entry =>
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State pre Reference History) :
+    (state : State pre Reference (model.HiddenState × History)) :
     (first.seq second).execute Reference state =
       (first.execute Reference state).mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2.1, (entry.2.2, (record entry.1).2)))) := by
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2))))) := by
   rw [Circuit.execute_seq, equation]
   simp only [State.mapHistory]
-  exact persistentTwoMaps_eq _ _ _ (first.execute Reference state) _ _
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual allocator and complete loop preserve the entire incoming reference and history. -/
 theorem recoveryBatch_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store (persistentCtx ctx width scalarWidth) ×
-        (recoveryBatch curve modulus samples base target).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store (persistentCtx ctx width scalarWidth) × model.HiddenState) ×
+          (recoveryBatch curve modulus samples base target).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (recoveryBatch curve modulus samples base target).execute Reference state =
           recoveryBatchRecordState curve modulus samples base target record Reference state) ∧
-      ∀ before : Store ctx, (record before).1 =
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
         recoveryBatchStore curve modulus samples base target before := by
   obtain ⟨loopRecord, loopEquation, loopStore⟩ :=
     repeatedAttempts_actualRecord curve modulus samples base target
-  let record : Store ctx → Store (persistentCtx ctx width scalarWidth) ×
-      (recoveryBatch curve modulus samples base target).Path := fun before =>
-    let allocated := persistentAllocationStep width scalarWidth before
-    let looped := loopRecord allocated.1
+  let record : Store ctx × model.HiddenState →
+      (Store (persistentCtx ctx width scalarWidth) × model.HiddenState) ×
+        (recoveryBatch curve modulus samples base target).Path := fun before =>
+    let allocated := persistentAllocationStep width scalarWidth before.1
+    let looped := loopRecord (allocated.1, before.2)
     (looped.1, (allocated.2, looped.2))
   refine ⟨record, ?_, ?_⟩
-  · intro Reference History historyFinite state
+  · intro Reference History _ state
     have whole := deterministicTail_after (retainPersistent ctx width scalarWidth)
       (repeatedAttempts curve modulus samples base target) loopRecord loopEquation Reference state
-    conv at whole =>
-      rhs
-      arg 1
-      rw [retainPersistent_execute]
-      unfold persistentAllocationState
-    conv at whole =>
-      rhs
-      erw [persistentTwoMaps_eq _ _ (Classical.decEq _) state _ _]
-    refine whole.trans ?_
+    rw [retainPersistent_execute] at whole
+    unfold persistentAllocationState at whole
+    erw [ExecutionState.executionState_mapClassical_comp_instances
+      (result := inferInstance)] at whole
     unfold recoveryBatchRecordState
-    exact (Circuit.mapClassical_canonicalDecision _ state _).symm
+    exact whole.trans (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro before
-    exact loopStore (persistentInitialStore width scalarWidth before)
+    exact loopStore (persistentInitialStore width scalarWidth before.1, before.2)
 
-/-- Final actual packing retains the complete allocated-loop record and original input history. -/
-theorem recoveryTail_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+/-- Observing the actual loop's returned store preserves every incoming reference and history. -/
+theorem recoveryBatch_observe {D : Type} [Fintype D]
+    (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (observe : Store (persistentCtx ctx width scalarWidth) → D)
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    ((recoveryBatch curve modulus samples base target).execute Reference state).mapClassical
+      (fun entry => (observe entry.1, entry.2.2.1)) =
+        state.mapClassical (fun entry =>
+          (observe (recoveryBatchStore curve modulus samples base target
+            (entry.1, entry.2.1)), entry.2.2)) := by
+  obtain ⟨record, equation, returned⟩ :=
+    recoveryBatch_actualRecord curve modulus samples base target
+  rw [equation Reference state]
+  unfold recoveryBatchRecordState
+  erw [ExecutionState.executionState_mapClassical_comp_instances
+    (result := inferInstance)]
+  apply ExecutionState.executionState_mapClassical_congr state
+  funext entry
+  simp only [Function.comp_def, returned]
+
+/-- Use the proved allocated-loop record as the input to final packing. -/
+noncomputable def recoveryBatchRecord (curve : CurveSpec width)
+    (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store (batchResultCtx ctx width scalarWidth) ×
-        (recoveryTail curve modulus samples base target).Path,
-      (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (recoveryTail curve modulus samples base target).execute Reference state =
-          recoveryTailRecordState curve modulus samples base target record Reference state) ∧
-      ∀ before : Store ctx, (record before).1 =
-        recoveryTailStore curve modulus samples base target before := by
-  obtain ⟨batchRecord, batchEquation, batchStore⟩ :=
-    recoveryBatch_actualRecord curve modulus samples base target
-  let record : Store ctx → Store (batchResultCtx ctx width scalarWidth) ×
-      (recoveryTail curve modulus samples base target).Path := fun before =>
-    let looped := batchRecord before
-    let packed := packBatchResultStep ctx width scalarWidth looped.1
-    (packed.1, (looped.2, packed.2))
-  refine ⟨record, ?_, ?_⟩
-  · intro Reference History historyFinite state
-    let finalFinite : Fintype (Store ((persistentCtx ctx width scalarWidth).addRetained
-        (persistentCtx ctx width scalarWidth).canonicalFreshKey
-        (.option (.unsignedWord scalarWidth))
-        (persistentCtx ctx width scalarWidth).canonicalFreshKey_fresh) × History ×
-        (recoveryBatch curve modulus samples base target).Path ×
-        (packBatchResult ctx width scalarWidth).Path) := inferInstance
-    have whole := Circuit.execute_seq_retained_mapClassical_tail
-      (persistentCtx ctx width scalarWidth).canonicalFreshKey
-      (.option (.unsignedWord scalarWidth))
-      (persistentCtx ctx width scalarWidth).canonicalFreshKey_fresh
-      (recoveryBatch curve modulus samples base target) (packBatchResult ctx width scalarWidth)
-      (packBatchResultStep ctx width scalarWidth)
-      (fun Reference _ _ state => packBatchResult_execute ctx width scalarWidth Reference state)
-      Reference state
-    conv at whole =>
-      rhs
-      arg 1
-      rw [batchEquation]
-      unfold recoveryBatchRecordState
-    conv at whole =>
-      rhs
-      erw [@persistentTwoMaps_eq _ _ _ _ _ finalFinite _ _ _ (Classical.decEq _)
-        state _ _]
-    refine whole.trans ?_
-    unfold recoveryTailRecordState
-    exact (@Circuit.mapClassical_canonicalDecision _ _ _ finalFinite _ _ state _).symm
-  · intro before
-    exact congrArg (fun current => (packBatchResultStep ctx width scalarWidth current).1)
-      (batchStore before)
+    Store ctx × model.HiddenState →
+      (Store (persistentCtx ctx width scalarWidth) × model.HiddenState) ×
+        (recoveryBatch curve modulus samples base target).Path :=
+  Classical.choose (recoveryBatch_actualRecord curve modulus samples base target)
+
+/-- Follow the proved allocated-loop record with the actual final packing execution. -/
+def recoveryTailComposedState (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    State (batchResultCtx ctx width scalarWidth) Reference
+      (model.HiddenState × (History × (recoveryTail curve modulus samples base target).Path)) :=
+  (packBatchResultState ctx width scalarWidth Reference
+    (recoveryBatchRecordState curve modulus samples base target
+      (recoveryBatchRecord curve modulus samples base target) Reference state)).mapHistory
+      (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2))))
+
+/-- One named record follows the actual allocated loop with its final output instruction. -/
+def recoveryTailRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width)) :
+    Store ctx × model.HiddenState →
+      (Store (batchResultCtx ctx width scalarWidth) × model.HiddenState) ×
+        (recoveryTail curve modulus samples base target).Path := fun before =>
+  let looped := recoveryBatchRecord curve modulus samples base target before
+  let packed := packBatchResultStep ctx width scalarWidth looped.1.1
+  ((packed.1, looped.1.2), (looped.2, packed.2))
+
+/-- The actual tail first executes the allocated loop, then retains and packs its result. -/
+theorem recoveryTail_execute (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (recoveryTail curve modulus samples base target).execute Reference state =
+      (packBatchResultState ctx width scalarWidth Reference
+        ((recoveryBatch curve modulus samples base target).execute Reference state)).mapHistory
+        (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) :=
+  packBatchResult_after ctx width scalarWidth
+    (recoveryBatch curve modulus samples base target) Reference state
+
+/-- The final actual store is the result of the same named complete record. -/
+theorem recoveryTailRecord_store (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store ctx × model.HiddenState) :
+    (recoveryTailRecord curve modulus samples base target before).1.1 =
+      recoveryTailStore curve modulus samples base target before := by
+  exact congrArg (fun current => (packBatchResultStep ctx width scalarWidth current).1)
+    ((Classical.choose_spec
+      (recoveryBatch_actualRecord curve modulus samples base target)).2 before)
+
+/-- One complete record accounts for the allocated loop, option packing, and service state. -/
+theorem recoveryTail_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+    (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
+    (base target : CInputRef ctx (PointShape width)) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (recoveryTail curve modulus samples base target).execute Reference state =
+      recoveryTailComposedState curve modulus samples base target Reference state := by
+  unfold recoveryTailComposedState
+  exact (recoveryTail_execute curve modulus samples base target Reference state).trans
+    (congrArg (fun current =>
+      (packBatchResultState ctx width scalarWidth Reference current).mapHistory
+        (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))))
+      ((Classical.choose_spec
+        (recoveryBatch_actualRecord curve modulus samples base target)).1 Reference state))
 
 /-- The complete actual tail returns the option encoded by its final persistent latches. -/
 theorem recoveryTailStore_output (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width)) (before : Store ctx) :
+    (base target : CInputRef ctx (PointShape width))
+    (before : Store ctx × model.HiddenState) :
     (recoveryTailStore curve modulus samples base target before).read
       (batchResultRead ctx width scalarWidth) =
         CShape.packOption (.product

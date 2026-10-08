@@ -33,7 +33,7 @@ variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 def samplingReadout (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    Circuit (PublicInput.terminal E (orderWidth problem))
+    Circuit (.quantum AlgorithmGate.model .empty) (PublicInput.terminal E (orderWidth problem))
       (PublicInput.terminal E (orderWidth problem)) :=
   (frameLocal
     (Circuit.underMeasurementCells (samplingPrefix E fieldTail odd problem points)

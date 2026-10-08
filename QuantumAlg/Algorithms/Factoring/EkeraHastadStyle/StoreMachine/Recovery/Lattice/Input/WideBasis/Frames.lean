@@ -38,6 +38,9 @@ theorem secondDecoderKey_mem (pair : BatchMachine.PairRefs ctx N)
     BatchMachine.pairOutputKey pair.second slot ∈ decoderKeys pair := by
   cases slot <;> simp [BatchMachine.pairOutputKey, decoderKeys]
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Both actual decoders preserve every raw coordinate from the original nine-cell basis. -/
 theorem decoder_rawFrame (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (output : CWriteRef ctx (.unsignedWord (Width N))) (member : output.key ∈ rawKeys refs.raw) :

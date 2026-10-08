@@ -24,7 +24,8 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original four mathematical fields encoded in the actual seven-cell workspace. -/
 def columnStateValues (cells : Cells ctx (stateShapes rowCount width)) (store : Store ctx)
@@ -44,6 +45,7 @@ def columnStateValues (cells : Cells ctx (stateShapes rowCount width)) (store : 
     .unsignedWord (ClassicalAlgorithms.GF2.wordOfLogicalBits
       (fun column => (lookup column).isSome)))
 
+omit [BitWord.Selected model] in
 private theorem word_or_bits (left right : Fin width → Bool) :
     (ClassicalAlgorithms.GF2.wordOfLogicalBits left).val |||
       (ClassicalAlgorithms.GF2.wordOfLogicalBits right).val =
@@ -68,6 +70,7 @@ private theorem word_or_bits (left right : Fin width → Bool) :
     rw [Nat.testBit_or, first, second, result]
   exact congrArg Fin.val same
 
+omit [BitWord.Selected model] in
 private theorem used_insert (used : Finset (Fin rowCount)) (pivot : Fin rowCount) :
     (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun row => decide (row ∈ used))).val |||
       2 ^ (Fin.rev pivot).val =
@@ -78,6 +81,7 @@ private theorem used_insert (used : Finset (Fin rowCount)) (pivot : Fin rowCount
   funext row
   simp [Finset.mem_insert, Bool.or_comm]
 
+omit [BitWord.Selected model] in
 private theorem lookup_append_same (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
@@ -85,6 +89,7 @@ private theorem lookup_append_same (state : ClassicalAlgorithms.GF2.State rowCou
       (fun entry => decide (entry.column = column)) = some ⟨pivot, column⟩ := by
   simp [List.find?_append, absent]
 
+omit [BitWord.Selected model] in
 private theorem lookup_append_other (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column other : Fin width) (different : other ≠ column) :
     (state.pivots ++ [(⟨pivot, column⟩ : ClassicalAlgorithms.GF2.Pivot rowCount width)]).find?
@@ -92,6 +97,7 @@ private theorem lookup_append_other (state : ClassicalAlgorithms.GF2.State rowCo
         state.pivots.find? (fun entry => decide (entry.column = other)) := by
   simp [List.find?_append, different.symm]
 
+omit [BitWord.Selected model] in
 private theorem rows_append (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
@@ -117,6 +123,7 @@ private theorem rows_append (state : ClassicalAlgorithms.GF2.State rowCount widt
   · simp only [Function.update_of_ne same, CShape.Value.get,
       lookup_append_other state pivot column other same]
 
+omit [BitWord.Selected model] in
 private theorem columns_append (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
@@ -135,6 +142,7 @@ private theorem columns_append (state : ClassicalAlgorithms.GF2.State rowCount w
     simp [lookup_append_same state pivot column absent]
   · simp [lookup_append_other state pivot column other same, same]
 
+omit [BitWord.Selected model] in
 private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
@@ -174,6 +182,7 @@ theorem gf2SelectPivot_cellState
     rw [columnsDone, columnsValue]
     exact columns_append state pivot column absent
 
+omit [BitWord.Selected model] in
 private theorem clear_read (found : CWriteRef ctx .bit) (store : Store ctx)
     {shape : CShape} (other : CWriteRef ctx shape) (nonbit : .bit ≠ shape) :
     (store.applyOp (pivotClearOp found)).read (.storage other.toCStorageRef) =
@@ -184,6 +193,7 @@ private theorem clear_read (found : CWriteRef ctx .bit) (store : Store ctx)
   exact nonbit (CStorageRef.storageRef_shape_eq_of_key found.toCStorageRef
     other.toCStorageRef same)
 
+omit [BitWord.Selected model] in
 private theorem clear_values (cells : Cells ctx (stateShapes rowCount width))
     (found : CWriteRef ctx .bit) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
@@ -198,6 +208,7 @@ private theorem clear_values (cells : Cells ctx (stateShapes rowCount width))
       clear_read found store cells.tail.tail.tail.head.ref (by intro same; cases same)]
   exact represented
 
+omit [BitWord.Selected model] in
 private theorem used_value (cells : Cells ctx (stateShapes rowCount width))
     (store : Store ctx) (state : ClassicalAlgorithms.GF2.State rowCount width)
     (represented : columnStateValues cells store state) (row : Fin rowCount) :

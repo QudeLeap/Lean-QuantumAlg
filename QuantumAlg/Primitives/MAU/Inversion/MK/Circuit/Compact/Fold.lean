@@ -2650,9 +2650,10 @@ def compactRoundProgram
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compactRoundGates fieldTail counterTail hfit historyIndex)
 
 /-- The compiled compact round realizes its exact native gate-list action. -/
@@ -2664,7 +2665,7 @@ theorem compactRound_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
       (compactRoundProgram fieldTail counterTail hfit historyIndex)
       (compactRoundStep fieldTail counterTail hfit historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compactRoundGates fieldTail counterTail hfit historyIndex)
 
 /-- Expose the physical order of the compact round. -/
@@ -2986,9 +2987,10 @@ theorem compactFoldGates_bitDisjoint_target
 def compactFoldProgram
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compactFoldGates fieldTail counterTail hfit)
 
 /-- Folded action of the complete compact primitive ledger. -/
@@ -3008,7 +3010,7 @@ theorem compactFold_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
       (compactFoldProgram fieldTail counterTail hfit)
       (compactFoldStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compactFoldGates fieldTail counterTail hfit)
 
 private theorem flatMap_compactRoundGates_xMultiplicity_sum
@@ -3134,7 +3136,8 @@ theorem compactFoldGates_length
 theorem compactFoldProgram_x_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (compactFoldProgram fieldTail counterTail hfit).eventCost =
       2 * fieldTail.succ *
         (10 * fieldTail + 2 * counterTail + 30) := by
@@ -3146,7 +3149,8 @@ theorem compactFoldProgram_x_count
 theorem compactFoldProgram_cnot_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (compactFoldProgram fieldTail counterTail hfit).eventCost =
       2 * fieldTail.succ * (2 * counterTail + 13) := by
   rw [compactFoldProgram,
@@ -3157,7 +3161,8 @@ theorem compactFoldProgram_cnot_count
 theorem compactFoldProgram_toffoli_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (compactFoldProgram fieldTail counterTail hfit).eventCost =
       2 * fieldTail.succ *
         (112 * fieldTail + 8 * counterTail + 95) := by
@@ -3166,8 +3171,8 @@ theorem compactFoldProgram_toffoli_count
     compactFoldGates_toffoliMultiplicity_sum]
 
 private theorem depthEval_compactDepthOfEvents
-    (assignment : Resource.Event .quantum -> Nat) :
-    forall events : List (Resource.Event .quantum),
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) -> Nat) :
+    forall events : List (Resource.Event (.quantum AlgorithmGate.model .empty)),
       DepthExpr.depthEval assignment
           (EncodedBit.GateSpec.depthOfEvents events) =
         (events.map assignment).sum
@@ -3194,8 +3199,9 @@ theorem compactFoldProgram_eventDepth
     (compactFoldProgram fieldTail counterTail hfit).eventDepth =
       EncodedBit.GateSpec.depthOfEvents
         ((compactFoldGates fieldTail counterTail hfit).map
-          EncodedBit.GateSpec.event) := by
+          (EncodedBit.GateSpec.event .empty)) := by
   exact EncodedBit.GateSpec.programList_eventDepth
+    (QubitLayout.canonical _) .empty
     (compactFoldGates fieldTail counterTail hfit)
 
 /-- With unit cost per native event, the exact compact fold depth equals the
@@ -3211,7 +3217,7 @@ theorem compactFoldProgram_unitDepth_eq
     depthEval_compactDepthOfEvents]
   change
     (((compactFoldGates fieldTail counterTail hfit).map
-      EncodedBit.GateSpec.event).map fun _ => 1).sum = _
+      (EncodedBit.GateSpec.event .empty)).map fun _ => 1).sum = _
   rw [sum_map_one, List.length_map,
     compactFoldGates_length fieldTail counterTail hfit]
 
@@ -3227,9 +3233,10 @@ def compactFoldReverseGates
 def compactFoldReverseProgram
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compactFoldReverseGates fieldTail counterTail hfit)
 
 /-- Folded action of the reverse compact ledger. -/
@@ -3249,7 +3256,7 @@ theorem compactFoldReverse_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
       (compactFoldReverseProgram fieldTail counterTail hfit)
       (compactFoldReverseStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compactFoldReverseGates fieldTail counterTail hfit)
 
 /-- Reversing the full literal fold restores every compact register. -/

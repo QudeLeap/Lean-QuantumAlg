@@ -7,13 +7,16 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.GateModel.Algorithm
 public import Mathlib.Data.Nat.Prime.Defs
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Requirement
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Restoration
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Multiplication.Resources
+import all QuantumAlg.Core.Execution.Borrowed.Preservation
 
 /-!
 # Complete measured in-place modular multiplication
@@ -86,9 +89,11 @@ arithmetic domain in [LYL+26, sec_point_add/sec_point_add.tex:24-36].
 The joint density interpretation uses [dW19, qcnotes.tex:5381,5394,5405].
 -/
 public def problem (modulus : Nat) (prime : Nat.Prime modulus) :
-    Problem .quantum (inputContext modulus.size) (outputContext modulus.size)
+    Problem (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size)
       (.fixedVector modulus.size (.finite 2)) where
   valid := InPlaceDomain.valid modulus
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [InPlaceRequirement.requirement .multiplication modulus prime]
@@ -96,11 +101,16 @@ public def problem (modulus : Nat) (prime : Nat.Prime modulus) :
     { events := InPlaceMultiplicationResources.events modulus
       resident := InPlaceDivisionResources.space modulus.size
       auxiliary := InPlaceDivisionResources.space modulus.size }
-  depth := .quantum (fun _ => 1) (InPlaceMultiplicationResources.depthBound modulus.size)
+  depth :=
+    { duration := fun _ => 1
+      limit := InPlaceMultiplicationResources.depthBound modulus.size
+      classicalQuery_unit := fun coordinate => nomatch coordinate
+      quantumQuery_unit := fun coordinate => nomatch coordinate }
 
 /-- The single actual circuit exposes all live storage and reads its real measurement results. -/
 public def algorithm (modulus : Nat) (prime : Nat.Prime modulus) :
-    Algorithm .quantum (inputContext modulus.size) (outputContext modulus.size)
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size)
       (.fixedVector modulus.size (.finite 2)) where
   run := { code := code modulus prime, output := output modulus.size }
 
@@ -109,27 +119,36 @@ public theorem main (modulus : Nat) (prime : Nat.Prime modulus) :
     ∃ candidate, Algorithm.Solves candidate (problem modulus prime) := by
   refine ⟨algorithm modulus prime, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid requirement present
+  · intro Reference input valid _initial requirement present
     have same : requirement = InPlaceRequirement.requirement .multiplication modulus prime :=
       List.mem_singleton.mp present
     subst requirement
     exact InPlaceRequirement.multiplication_holds modulus prime (output modulus.size) input valid
-  · intro Reference input _valid
-    exact InPlaceRestoration.multiplication_restored modulus prime
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initial
+    change Execution.observeBorrowedAfter (code modulus prime) Reference
+      ((code modulus prime).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
+      Execution.observeBorrowed Reference input.state
+    refine (InPlaceRestoration.multiplication_restored modulus prime
+      (input.state.mapClassical fun value => (value.1, (value.2, value.1)))).trans ?_
+    refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
+      (fun _ => rfl) _ _
+  · intro _Reference _input _valid _initial path _supported
     exact InPlaceMultiplicationResources.event_budget modulus prime path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact InPlaceMultiplicationResources.resident modulus prime path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact InPlaceMultiplicationResources.auxiliary modulus prime path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact InPlaceMultiplicationResources.depth modulus prime path
 
 end

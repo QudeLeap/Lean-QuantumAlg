@@ -25,7 +25,9 @@ open Nat.FixedWidth
 
 /-- Select the already proved literal small-width pivot circuit. -/
 def pivotProgram : (width : Nat) → width ≤ 2 →
-    Fin (2 ^ width + 1) → UnitaryCircuit (Qubits width)
+    Fin (2 ^ width + 1) →
+      UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical width).toQuantum
   | 0, _, pivot => Zero.circuit pivot
   | 1, _, pivot => One.circuit pivot
   | 2, _, pivot => Two.circuit pivot
@@ -40,21 +42,13 @@ theorem gidneySmallPivot_realizes (width : Nat) (small : width ≤ 2)
   · exact One.gidneySmallOne_realizes pivot
   · exact Two.gidneySmallTwo_realizes pivot
 
-theorem gidneySmallPivot_physical (width : Nat) (small : width ≤ 2)
-    (pivot : Fin (2 ^ width + 1)) :
-    (pivotProgram width small pivot).physical_idx = List.range width := by
-  interval_cases width
-  · exact (Zero.gidneySmallZero_interface pivot).1
-  · exact One.gidneySmallOne_physical pivot
-  · exact Two.gidneySmallTwo_physical pivot
-
 /-- Each selected pivot has at most three actual native events. -/
 theorem gidneySmallPivot_event_count_bound (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width small pivot).eventCost.card ≤ 3 := by
   interval_cases width
   · change (Zero.circuit pivot).eventCost.card ≤ 3
-    rw [(Zero.gidneySmallZero_interface pivot).2.1]
+    rw [(Zero.gidneySmallZero_interface pivot).1]
     decide
   · change (One.circuit pivot).eventCost.card ≤ 3
     rw [One.gidneySmallOne_eventCost]
@@ -70,8 +64,8 @@ theorem gidneySmallPivot_depth_eq_events (width : Nat) (small : width ≤ 2)
   interval_cases width
   · change (Zero.circuit pivot).evaluatedEventDepth (fun _ => 1) =
       (Zero.circuit pivot).eventCost.card
-    rw [(Zero.gidneySmallZero_interface pivot).2.1,
-      (Zero.gidneySmallZero_interface pivot).2.2]
+    rw [(Zero.gidneySmallZero_interface pivot).1,
+      (Zero.gidneySmallZero_interface pivot).2]
     rfl
   · change (One.circuit pivot).evaluatedEventDepth (fun _ => 1) =
       (One.circuit pivot).eventCost.card
@@ -85,7 +79,8 @@ theorem gidneySmallPivot_depth_eq_events (width : Nat) (small : width ≤ 2)
 /-- Three actual small pivots on the original target carrier. -/
 def modularOffsetProgram (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
-    UnitaryCircuit (Qubits width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical width).toQuantum :=
   ((pivotProgram width small (offsetFirstPivot modulus constant)).seq
     (pivotProgram width small modulus)).seq
       (pivotProgram width small (offsetLastPivot modulus constant))
@@ -99,16 +94,6 @@ theorem gidneySmallModularOffset_realizes (width : Nat) (small : width ≤ 2)
     (gidneySmallPivot_realizes width small modulus)).seq
       (gidneySmallPivot_realizes width small (offsetLastPivot modulus constant))).congrStep
         (gidneyModularWord_three_pivots modulus constant)
-
-theorem gidneySmallModularOffset_physical (width : Nat) (small : width ≤ 2)
-    (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
-    (modularOffsetProgram width small modulus constant).physical_idx = List.range width := by
-  have hunion : List.range width ∪ List.range width = List.range width :=
-    List.Subset.union_eq_right (fun _ h => h)
-  change (pivotProgram width small (offsetFirstPivot modulus constant)).physical_idx ∪
-      (pivotProgram width small modulus).physical_idx ∪
-        (pivotProgram width small (offsetLastPivot modulus constant)).physical_idx = _
-  simp only [gidneySmallPivot_physical, hunion]
 
 /-- Literal native ledgers are retained; no effective aggregate operation is substituted. -/
 theorem gidneySmallModularOffset_eventCost (width : Nat) (small : width ≤ 2)

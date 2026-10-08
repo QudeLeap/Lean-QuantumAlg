@@ -29,8 +29,8 @@ noncomputable section
 open Execution ShortDLP.CompiledMAU
 
 /-- Independent native allowance for one complete later sampled batch. -/
-def nativeEnvelope (N : Nat) : ResourcePool .quantum :=
-  ShorStyle.Canonical.Sampler.Retained.nativeEnvelope .quantum N +
+def nativeEnvelope (N : Nat) : ResourcePool RuntimeRound.model :=
+  ShorStyle.Canonical.Sampler.Retained.nativeEnvelope RuntimeRound.model N +
     16 • RuntimeRound.eventEnvelope (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
 
 /-- Independent serial bound retains the source-to-round dependency and all round resets. -/
@@ -69,11 +69,13 @@ variable (base : RuntimeCtx .quantum) (N : Nat)
 theorem nativeBatchReuse_resourcePool_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).resourcePool path ≤ nativeEnvelope N := by
   change ResourcePool.ofList
-    ((ShorStyle.Canonical.Sampler.Retained.circuit base N).eventTrace path.1 ++
+    ((ShorStyle.Canonical.Sampler.Retained.circuit
+        (model := RuntimeRound.model) base N).eventTrace path.1 ++
       (rounds base N sameWires originalCells).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add
-    (ShorStyle.Canonical.Sampler.Retained.samplerRetained_pool_le base N path.1)
+    (ShorStyle.Canonical.Sampler.Retained.samplerRetained_pool_le
+      (model := RuntimeRound.model) base N path.1)
     (RuntimeRepetition.shortDLP_runtimeRepetition_resourcePool_le
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
       (parameterUnit (N := N)) (parameterTarget (N := N))
@@ -84,7 +86,8 @@ theorem nativeBatchReuse_resourcePool_le (path : (code base N sameWires original
 theorem nativeBatchReuse_unitDepth_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).depth (fun _ => 1) path ≤ unitDepthBound N :=
   Nat.add_le_add
-    (ShorStyle.Canonical.Sampler.Retained.samplerRetained_unit_depth_le base N path.1)
+    (ShorStyle.Canonical.Sampler.Retained.samplerRetained_unit_depth_le
+      (model := RuntimeRound.model) base N path.1)
     (RuntimeRepetition.shortDLP_runtimeRepetition_unitDepth_le
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
       (parameterUnit (N := N)) (parameterTarget (N := N))
@@ -96,11 +99,12 @@ theorem nativeBatchReuse_resident_le (path : (code base N sameWires originalCell
     (code base N sameWires originalCells).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N := by
   refine (Circuit.peakResidentSpace_seq
-    (ShorStyle.Canonical.Sampler.Retained.circuit base N)
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells) path).le.trans ?_
   apply SpacePool.max_le
   · exact (ShorStyle.Canonical.Sampler.Retained.samplerRetained_resident_le
-      base N path.1).trans (samplerSpaceBound (modulusBits N) (measurementBits N) _)
+      (model := RuntimeRound.model) base N path.1).trans
+        (samplerSpaceBound (modulusBits N) (measurementBits N) _)
   · have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_resident_le
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
       (parameterUnit (N := N)) (parameterTarget (N := N))
@@ -117,11 +121,12 @@ theorem nativeBatchReuse_auxiliary_le (path : (code base N sameWires originalCel
     (code base N sameWires originalCells).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N := by
   refine (Circuit.peakAuxiliarySpace_seq
-    (ShorStyle.Canonical.Sampler.Retained.circuit base N)
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells) path).le.trans ?_
   apply SpacePool.max_le
   · exact (ShorStyle.Canonical.Sampler.Retained.samplerRetained_auxiliary_le
-      base N path.1).trans (samplerSpaceBound (modulusBits N) (measurementBits N) _)
+      (model := RuntimeRound.model) base N path.1).trans
+        (samplerSpaceBound (modulusBits N) (measurementBits N) _)
   · have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_auxiliary_le
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
       (parameterUnit (N := N)) (parameterTarget (N := N))

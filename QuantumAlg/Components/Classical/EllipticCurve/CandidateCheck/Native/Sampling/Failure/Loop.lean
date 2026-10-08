@@ -31,7 +31,8 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 attribute [local irreducible] underPersistent
 
-variable {kind : ProblemKind} {ctx origin : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx origin : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (basePoint targetPoint : Pure.Point curve)
@@ -41,18 +42,19 @@ local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
   infer_instance
 
 private theorem sampledAttempt_failure_on_prefix
-    (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal)
+    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
-    {Reference : Register} {H : Type} [Fintype H] (initial : State origin Reference H)
-    (points : ∀ (priorCode : Circuit origin (persistentCtx ctx width scalarWidth)) entry,
+    {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H))
+    (points : ∀ (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) entry,
       0 < ((priorCode.execute Reference initial).block entry).mass →
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
     (lower : ℝ)
     (bound : ∀ (K : Type) [Fintype K]
-      (state : State (persistentCtx ctx width scalarWidth) Reference K),
+      (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × K)),
       state.mass * lower ≤
         ((underPersistent sampleCode supported width scalarWidth).execute
           Reference state).effectWeight (fun entry =>
@@ -60,7 +62,7 @@ private theorem sampledAttempt_failure_on_prefix
                 (entry.1.read (persistentInput width scalarWidth sample)) then
               Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
             else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference)))
-    (priorCode : Circuit origin (persistentCtx ctx width scalarWidth)) :
+    (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) :
     persistentFailureWeight (ctx := ctx) (width := width) (scalarWidth := scalarWidth)
       ((priorCode.seq
         (sampledAttempt sampleCode supported curve modulus sample base target)).execute
@@ -86,18 +88,19 @@ private theorem sampledAttempt_failure_on_prefix
 
 /-- Actual-prefix point support and a uniform candidate floor contract the real finite loop. -/
 theorem sampledAttempts_failure_weight_le_on_prefix
-    (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
-    {Reference : Register} {H : Type} [Fintype H] (initial : State origin Reference H)
-    (points : ∀ (priorCode : Circuit origin (persistentCtx ctx width scalarWidth)) entry,
+    {Reference : Register} {H : Type} [Fintype H]
+    (initial : State origin Reference (model.HiddenState × H))
+    (points : ∀ (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) entry,
       0 < ((priorCode.execute Reference initial).block entry).mass →
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
     (lower : ℝ) (atMostOne : lower ≤ 1)
     (bound : ∀ (K : Type) [Fintype K]
-      (state : State (persistentCtx ctx width scalarWidth) Reference K),
+      (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × K)),
       state.mass * lower ≤
         ((underPersistent sampleCode supported width scalarWidth).execute
           Reference state).effectWeight (fun entry =>
@@ -105,7 +108,7 @@ theorem sampledAttempts_failure_weight_le_on_prefix
                 (entry.1.read (persistentInput width scalarWidth sample)) then
               Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
             else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference)))
-    (priorCode : Circuit origin (persistentCtx ctx width scalarWidth)) :
+    (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) :
     persistentFailureWeight (ctx := ctx) (width := width) (scalarWidth := scalarWidth)
       ((priorCode.seq
         (sampledAttempts sampleCode supported count curve modulus sample base target)).execute

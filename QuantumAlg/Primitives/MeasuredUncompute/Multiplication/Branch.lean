@@ -40,18 +40,24 @@ theorem after_reset (modulus : Nat) (prime : Nat.Prime modulus)
         (fun index => outcome.val.testBit index.val)).seq
           ((NativeEEAFrame.backward modulus prime).seq (FrameSwap.program modulus.size)))).applyVec
         (WalshHadamard.walshSign outcome numerator •
-          (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-            ((frameEncoding modulus.size).encode (resetFrame modulus value numerator))).vec) =
-      (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-        ((frameEncoding modulus.size).encode
-          (InitialPortProgram.inputFrame modulus value, saved modulus value numerator))).vec := by
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode (resetFrame modulus value numerator)))).vec) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode
+          (InitialPortProgram.inputFrame modulus value, saved modulus value numerator)))).vec := by
   rw [UnitaryCircuit.applyVec_seq, UnitaryCircuit.applyVec_smul]
   have forward := congrArg
-    (fun state : NormalizedVector (Qubits (frameEncoding modulus.size).width) => state.vec)
+    (fun state :
+      NormalizedVector (QubitLayout.canonical (frameEncoding modulus.size).width).toQuantum.register
+      => state.vec)
     (forward_ket modulus prime value numerator positive bounded)
   change (NativeReusedEEA.forward modulus prime).applyVec
-    (NormalizedVector.ket ((frameEncoding modulus.size).encode
-      (resetFrame modulus value numerator))).vec = _ at forward
+    (NormalizedVector.ket
+      ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode
+      (resetFrame modulus value numerator)))).vec = _ at forward
   rw [forward]
   exact MultiplicationRecompute.correction_backward_swap modulus prime value numerator outcome
     positive bounded numeratorBound

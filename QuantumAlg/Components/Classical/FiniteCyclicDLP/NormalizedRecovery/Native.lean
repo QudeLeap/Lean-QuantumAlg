@@ -95,52 +95,60 @@ def recoveryPackOp (candidate : CWriteRef ctx (.unsignedWord width))
   .packProduct ctx (.product (wordRead candidate) (wordRead verified)) output
 
 /-- Original native order: recover, reconstruct, compare and materialize the result. -/
-def recoveryBody (left right inverse : CInputRef ctx (.unsignedWord width))
+def recoveryBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width)) :
-    Circuit ctx ctx :=
-  .seq (scopedMultiply right inverse modulus candidate)
-    (.seq (scopedMultiply (wordRead candidate) left modulus reconstruction)
-      (.seq (.classical (recoveryEqualOp right reconstruction verified))
-        (.classical (recoveryPackOp candidate verified output))))
+    Circuit model ctx ctx :=
+  .seq (scopedMultiply (model := model) right inverse modulus candidate)
+    (.seq (scopedMultiply (model := model) (wordRead candidate) left modulus reconstruction)
+      (.seq (BitWord.instruction (execution := model)
+        (recoveryEqualOp right reconstruction verified))
+        (BitWord.instruction (execution := model) (recoveryPackOp candidate verified output))))
 
 /-- Store and history path determined by precisely those actual instructions. -/
-def recoveryBodyStep (left right inverse : CInputRef ctx (.unsignedWord width))
+def recoveryBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (store : Store ctx) :
-    Store ctx × (recoveryBody left right inverse modulus candidate reconstruction verified
-      output).Path :=
-  let recovered := scopedMultiplyStep right inverse modulus candidate store
-  let reconstructed := scopedMultiplyStep (wordRead candidate) left modulus reconstruction
-    recovered.1
-  let checked := reconstructed.1.applyOp (recoveryEqualOp right reconstruction verified)
-  (checked.applyOp (recoveryPackOp candidate verified output),
-    (recovered.2, (reconstructed.2, ((), ()))))
+    Store ctx × (recoveryBody (model := model) left right inverse modulus candidate reconstruction
+      verified output).Path :=
+  let recovered := scopedMultiplyStep (model := model) right inverse modulus
+    candidate store
+  let reconstructed := scopedMultiplyStep (model := model) (wordRead candidate) left modulus
+    reconstruction recovered.1
+  let checked := BitWord.instructionStep (execution := model)
+    (recoveryEqualOp right reconstruction verified) reconstructed.1
+  let packed := BitWord.instructionStep (execution := model)
+    (recoveryPackOp candidate verified output) checked.1
+  (packed.1, (recovered.2, (reconstructed.2, (checked.2, packed.2))))
 
 /-- Actual lexical placement uses all three original input components without reordering. -/
-def recoveryPlaced (input : CInputRef ctx (InputShape width))
+def recoveryPlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) :
-    Circuit (recoveryCtx ctx width) (recoveryCtx ctx width) :=
-  recoveryBody (underRecovery (.first input) width)
+    Circuit model (recoveryCtx ctx width) (recoveryCtx ctx width) :=
+  recoveryBody (model := model) (underRecovery (.first input) width)
     (underRecovery (.first (.second input)) width)
     (underRecovery (.second (.second input)) width) (underRecovery modulus width)
     (candidateCell ctx width) (reconstructionCell ctx width) (verifiedCell ctx width)
     (writeUnderRecovery output width)
 
 /-- Complete success component with real allocation and release of all three scratch cells. -/
-def withRecovery (input : CInputRef ctx (InputShape width))
+def withRecovery {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (OutputShape width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (OutputShape width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (.workspace (candidateCtx ctx width) (candidateCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (candidateCtx ctx width).canonicalFreshKey_fresh
         (.workspace (reconstructionCtx ctx width) (reconstructionCtx ctx width).canonicalFreshKey
           .bit (reconstructionCtx ctx width).canonicalFreshKey_fresh
-            (recoveryPlaced input modulus output)))
+            (recoveryPlaced (model := model) input modulus output)))
 
 /-- Push precisely the three actual scratch entries. -/
 def enterRecovery (store : Store ctx) (width : Nat) : Store (recoveryCtx ctx width) :=
@@ -159,11 +167,12 @@ def leaveRecovery (store : Store (recoveryCtx ctx width)) : Store ctx :=
           (reconstructionCtx ctx width).canonicalFreshKey_fresh store))
 
 /-- The complete actual outer update and native execution path. -/
-def withRecoveryStep (input : CInputRef ctx (InputShape width))
+def withRecoveryStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
-    Store ctx × (withRecovery input modulus output).Path :=
-  let result := recoveryBodyStep (underRecovery (.first input) width)
+    Store ctx × (withRecovery (model := model) input modulus output).Path :=
+  let result := recoveryBodyStep (model := model) (underRecovery (.first input) width)
     (underRecovery (.first (.second input)) width)
     (underRecovery (.second (.second input)) width) (underRecovery modulus width)
     (candidateCell ctx width) (reconstructionCell ctx width) (verifiedCell ctx width)

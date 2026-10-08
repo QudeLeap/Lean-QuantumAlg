@@ -7,95 +7,136 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
+public import QuantumAlg.Components.Gates.Construction
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
-import all QuantumAlg.Components.Gates
-import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
+import all QuantumAlg.Components.Gates.Construction
+import all QuantumAlg.Components.Gates.SingleQubit.Singleton
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Base.UnitaryCircuit.Placement.Macros
+import all QuantumAlg.Core.Base.UnitaryCircuit.Sequence
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
+import all QuantumAlg.Core.Base.Tensor.Certified
 
 /-!
-# Actual reflection-convention QSP words
+# Native reflection-convention QSP words
 
-The source word has one processing rotation per phase and one signal
-occurrence per list entry [Lin22, hermfunc.tex:1103-1138]. Its placement,
-matrix, event pool and depth all come from that same literal word.
+The source product has d signal factors and d+1 processing rotations
+[Lin22, hermfunc.tex:1103-1138]. Each factor is implemented by its actual
+one-qubit operator in the default native model. The supplied qubit remains
+live and arbitrary, including at degree zero; no oracle access is assumed.
 -/
 
 namespace QuantumAlg.ReflectionBasedQuantumSignalProcessing
 
 noncomputable section
 
-/-- The declared source signal coordinate. -/
-public def signalEvent : Resource.Event .quantum :=
-  .gate (.declared "qsp" "qsp-signal-o")
+/-- The default native model for the explicit one-qubit signal formula. -/
+public abbrev model : ExecutionModel := .quantum AlgorithmGate.model .empty
 
-/-- The declared exact processing-rotation coordinate. -/
-public def rotationEvent : Resource.Event .quantum :=
-  .gate (.declared "QuantumAlg.Components.Gate" "rotation-z")
+/-- The single supplied physical qubit. -/
+public abbrev layout := (QuantumSignature.qubits 1).canonicalPlacement.layout
 
-/-- Independent native ledger for a degree-d source word. -/
-public def eventBudget (d : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton signalEvent d + ResourcePool.singleton rotationEvent (d + 1)
+/-- Independent native ledger of the fully expanded degree-d word. -/
+public def eventBudget (d : Nat) : ResourcePool model :=
+  (2 * d + 1) • ResourcePool.singleton (model := model) (.gate .singleQubit)
 
-/-- The actual source-order processing word, without preparation or new wires. -/
+private def one (name : String) (operator : UnitaryOperator (Qubits 1)) :
+    UnitaryCircuit AlgorithmGate.model .empty layout :=
+  .macroCall name (Gate.singleQubitAt layout .empty operator (0 : Fin 1) rfl)
+
+private theorem one_matrix (name : String) (operator : UnitaryOperator (Qubits 1)) :
+    (one name operator).binaryMatrix = operator := by
+  exact Gate.singleQubitAt_singleton_binaryMatrix .empty operator
+
+private def step (x φ : Real) (hx : x ∈ Set.Icc (-1 : Real) 1) :
+    UnitaryCircuit AlgorithmGate.model .empty layout :=
+  (one "processing-rotation" (rotZOp φ)).seq (one "qsp-signal" (qspSignalOOp x hx))
+
+/-- The actual source-order word, without preparation or allocation. -/
 public def circuit (φ₀ : Real) (φs : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) : UnitaryCircuit (Qubits 1) :=
-  qspOIndexedCircuit φ₀ φs x hx
+    (hx : x ∈ Set.Icc (-1 : Real) 1) :
+    UnitaryCircuit AlgorithmGate.model .empty layout :=
+  φs.foldl (fun accumulated φ => (step x φ hx).seq accumulated)
+    (one "processing-rotation" (rotZOp φ₀))
 
-/-- The independent algebraic source product, certified on its signal domain. -/
+/-- The independent certified algebraic source product. -/
 public def operator (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) : UnitaryOperator (Qubits 1) :=
-  .ofMatrix (qspO φ₀ φs x) (qspO_mem_unitaryGroup φ₀ φs hx)
+  qspOUnitary φ₀ φs x hx
+
+private theorem fold_matrix (phases : List Real) (x : Real)
+    (hx : x ∈ Set.Icc (-1 : Real) 1)
+    (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
+    (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).binaryMatrix =
+      phases.foldl (fun accumulated φ => accumulated * (qspSignalOOp x hx * rotZOp φ))
+        start.binaryMatrix := by
+  induction phases generalizing start with
+  | nil => rfl
+  | cons φ tail ih =>
+      simp only [List.foldl_cons]
+      rw [ih]
+      simp only [UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, step, one_matrix]
 
 theorem circuit_matrix (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) :
-    (circuit φ₀ φs x hx).matrix = operator φ₀ φs x hx := by
-  apply Subtype.ext
-  exact qspOIndexedCircuit_matrix φ₀ φs x hx
-
-private theorem fold_placement (phases : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) (start : UnitaryCircuit (Qubits 1))
-    (placed : start.physical_idx = [0]) :
-    (phases.foldl (fun acc φ => .seq (qspOStepCircuit x φ hx) acc) start).physical_idx =
-      [0] := by
-  induction phases generalizing start with
-  | nil => exact placed
-  | cons φ tail ih =>
-      apply ih
-      change UnitaryCircuit.unionPhysicalIdx [0] start.physical_idx = [0]
-      rw [placed]
-      rfl
-
-theorem circuit_physicalIdx (φ₀ : Real) (φs : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) :
-    (circuit φ₀ φs x hx).physical_idx = List.range 1 :=
-  fold_placement φs x hx _ rfl
+    (circuit φ₀ φs x hx).binaryMatrix = operator φ₀ φs x hx := by
+  rw [circuit, fold_matrix, one_matrix]
+  rfl
 
 private theorem fold_events (phases : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) (start : UnitaryCircuit (Qubits 1)) :
-    (phases.foldl (fun acc φ => .seq (qspOStepCircuit x φ hx) acc) start).eventCost =
-      ResourcePool.singleton signalEvent phases.length +
-        ResourcePool.singleton rotationEvent phases.length + start.eventCost := by
+    (hx : x ∈ Set.Icc (-1 : Real) 1)
+    (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
+    (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).eventCost =
+      (2 * phases.length) • ResourcePool.singleton (model := model) (.gate .singleQubit) +
+        start.eventCost := by
   induction phases generalizing start with
   | nil => simp
   | cons φ tail ih =>
       simp only [List.foldl_cons, List.length_cons, ih, UnitaryCircuit.seq_eventCost]
-      change _ + _ + (ResourcePool.singleton rotationEvent +
-        ResourcePool.singleton signalEvent + start.eventCost) = _
-      simp only [ResourcePool.singleton, Multiset.replicate_add]
+      simp only [step, UnitaryCircuit.seq_eventCost, one,
+        UnitaryCircuit.macroCall_eventCost, Gate.singleQubitAt_eventCost]
+      rw [Nat.mul_add, add_nsmul]
+      simp only [Nat.mul_one, two_nsmul]
       ac_rfl
 
 theorem circuit_events (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) :
     (circuit φ₀ φs x hx).eventCost = eventBudget φs.length := by
-  rw [circuit, qspOIndexedCircuit, fold_events]
-  change _ + _ + ResourcePool.singleton rotationEvent = _
-  simp only [eventBudget, ResourcePool.singleton, Multiset.replicate_add, add_assoc]
+  rw [circuit, fold_events]
+  simp [one, eventBudget, add_nsmul]
+
+private theorem one_macro (name focus : String) (operator : UnitaryOperator (Qubits 1)) :
+    (one name operator).macroCount focus = if name = focus then 1 else 0 := by
+  rw [one, UnitaryCircuit.macroCount_macroCall]
+  rfl
+
+private theorem fold_macro (phases : List Real) (x : Real)
+    (hx : x ∈ Set.Icc (-1 : Real) 1)
+    (start : UnitaryCircuit AlgorithmGate.model .empty layout) (focus : String) :
+    (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).macroCount focus =
+      phases.length * ((if "processing-rotation" = focus then 1 else 0) +
+        (if "qsp-signal" = focus then 1 else 0)) + start.macroCount focus := by
+  induction phases generalizing start with
+  | nil => simp
+  | cons φ tail ih =>
+      simp only [List.foldl_cons, List.length_cons]
+      rw [ih]
+      simp only [UnitaryCircuit.macroCount_seq, step, one_macro, Nat.add_mul, Nat.one_mul]
+      omega
+
+/-- Source factors are descriptive observations of this same expanded native word. -/
+public theorem circuit_macro_counts (φ₀ : Real) (φs : List Real) (x : Real)
+    (hx : x ∈ Set.Icc (-1 : Real) 1) :
+    (circuit φ₀ φs x hx).macroCount "qsp-signal" = φs.length ∧
+      (circuit φ₀ φs x hx).macroCount "processing-rotation" = φs.length + 1 := by
+  simp [circuit, fold_macro, one_macro]
 
 private theorem fold_depth (phases : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) (start : UnitaryCircuit (Qubits 1)) :
-    UnitaryCircuit.evaluatedEventDepth (fun _ => 1)
-      (phases.foldl (fun acc φ => UnitaryCircuit.seq (qspOStepCircuit x φ hx) acc) start) =
-        2 * phases.length + start.evaluatedEventDepth (fun _ => 1) := by
+    (hx : x ∈ Set.Icc (-1 : Real) 1)
+    (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
+    (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).evaluatedEventDepth
+        (fun _ => 1) = 2 * phases.length + start.evaluatedEventDepth (fun _ => 1) := by
   induction phases generalizing start with
   | nil => simp
   | cons φ tail ih =>

@@ -175,12 +175,16 @@ theorem nativeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
     (valid : (selectedInput coordinate x y).val < modulus) :
     (nativeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient
       coordinate).applyNormalized
-        (NormalizedVector.ket ((ProductPlacement.frameEncoding modulus.size).encode
-        (preparedFrame modulus x y))) =
-      NormalizedVector.ket ((ProductPlacement.frameEncoding modulus.size).encode
-        (preparedUpdate modulus coordinate x y
-          (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
-            (selectedInput coordinate x y)))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical
+            (ProductPlacement.frameEncoding modulus.size).width).basisEquiv.symm
+              ((ProductPlacement.frameEncoding modulus.size).encode (preparedFrame modulus x y)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (ProductPlacement.frameEncoding modulus.size).width).basisEquiv.symm
+          ((ProductPlacement.frameEncoding modulus.size).encode
+            (preparedUpdate modulus coordinate x y
+              (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive
+                coefficient (selectedInput coordinate x y))))) := by
   have actual := (nativeProgram_realizes modulus.size
     (InPlaceTarget.modulusWord modulus) coefficient coordinate).apply_encoded_ket
       (preparedFrame modulus x y)
@@ -221,30 +225,19 @@ theorem runtimeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
       NormalizedVector.ket (preparedRuntimeUpdate modulus coordinate x y
         (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
           (selectedInput coordinate x y))) := by
-  have actual := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-    (R := Qubits (ProductPlacement.frameEncoding modulus.size).width)
-    (NumeratorMeasurement.frameBasis modulus.size).symm
-    (nativeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient coordinate) _ _
+  have actual := runtimeProgram_apply_ket modulus.size
+    (InPlaceTarget.modulusWord modulus) coefficient coordinate
+    ((ProductPlacement.frameEncoding modulus.size).encode (preparedFrame modulus x y))
+    ((ProductPlacement.frameEncoding modulus.size).encode
+      (preparedUpdate modulus coordinate x y
+        (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
+          (selectedInput coordinate x y))))
     (nativeProgram_prepared modulus positive coefficient coordinate x y valid)
-  have inputSame := preparedFrame_runtime modulus x y
-  have outputSame := preparedUpdate_runtime modulus coordinate x y
-    (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
-      (selectedInput coordinate x y))
-  have transported := (congrArg (fun label :
-      (NumeratorMeasurement.context modulus.size).register.Index =>
-    (UnitaryCircuit.reindex (NumeratorMeasurement.frameBasis modulus.size).symm
-      (nativeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient
-        coordinate)).applyNormalized (NormalizedVector.ket label)) inputSame.symm).trans
-          (actual.trans (congrArg (fun label :
-            (NumeratorMeasurement.context modulus.size).register.Index =>
-              NormalizedVector.ket label) outputSame))
-  change ((UnitaryCircuit.reindex (NumeratorMeasurement.frameBasis modulus.size).symm
-    (nativeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient coordinate)).seq
-      (UnitaryCircuit.identity (NumeratorMeasurement.context modulus.size).register
-        (NumeratorMeasurement.context modulus.size).physicalIdx
-        (NumeratorMeasurement.context modulus.size).identitiesNodup)).applyNormalized _ = _
-  rw [UnitaryCircuit.applyNormalized_seq]
-  exact (UnitaryCircuit.applyNormalized_identity _ _ _ _).trans transported
+  rw [preparedFrame_runtime modulus x y,
+    preparedUpdate_runtime modulus coordinate x y
+      (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
+        (selectedInput coordinate x y))] at actual
+  exact actual
 
 end
 

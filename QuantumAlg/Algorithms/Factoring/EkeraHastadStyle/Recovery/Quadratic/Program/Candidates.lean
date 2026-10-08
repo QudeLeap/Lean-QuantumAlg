@@ -29,7 +29,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width resultWidth : Nat}
 
 /-- Actual candidate initialization and checker scopes return their recorded stores and paths. -/
 def candidateBodyStep (input : CInputRef ctx (.unsignedWord width))
@@ -48,37 +49,26 @@ theorem nativeQuadratic_candidateBody_execute (input : CInputRef ctx (.unsignedW
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (LocalLayout.candidateContext ctx width) Reference History) :
+    (state : State (LocalLayout.candidateContext ctx width) Reference
+      (model.HiddenState × History)) :
     (candidateBody input modulus original).execute Reference state =
       state.mapClassical (fun entry => ((candidateBodyStep input modulus original entry.1).1,
-        (entry.2, (candidateBodyStep input modulus original entry.1).2))) := by
-  let initialization := Initialized.code (LocalLayout.arithmeticRead input width)
-    (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width)
-  let initializeStep := Initialized.step (LocalLayout.arithmeticRead input width)
-    (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width)
-  let checks := CheckLayout.scopes (LocalLayout.candidateContext ctx width)
-    (RSA.quadraticWordWidth width) (checkedBody modulus original)
-  let checkStep := CheckLayout.scopeStep (RSA.quadraticWordWidth width)
-    (checkedBody modulus original) (checkedBodyStep modulus original)
-  refine (Circuit.execute_seq_mapClassical initialization checks initializeStep checkStep
-    (Initialized.nativeQuadratic_initialized_execute (LocalLayout.arithmeticRead input width)
-      (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width))
-    (CheckLayout.nativeQuadratic_checkScopes_execute (RSA.quadraticWordWidth width)
+        (entry.2.1, (entry.2.2, (candidateBodyStep input modulus original entry.1).2)))) := by
+  have checksLaw (reference : Register) {history : Type} [Fintype history]
+      (initial : State (LocalLayout.candidateContext ctx width) reference
+        (model.HiddenState × history)) :
+      (CheckLayout.scopes (LocalLayout.candidateContext ctx width)
+        (RSA.quadraticWordWidth width) (checkedBody modulus original)).execute reference initial =
+      initial.mapClassical (fun entry =>
+        let actual := CheckLayout.scopeStep (RSA.quadraticWordWidth width)
+          (checkedBody modulus original) (checkedBodyStep modulus original) entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+    CheckLayout.nativeQuadratic_checkScopes_execute (RSA.quadraticWordWidth width)
       (checkedBody modulus original) (checkedBodyStep modulus original)
-      (nativeQuadratic_checkedBody_execute modulus original)) Reference state).trans ?_
-  dsimp only [candidateBodyStep]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (LocalLayout.candidateContext ctx width) × History)
-    (D := Store (LocalLayout.candidateContext ctx width) ×
-      (History × (candidateBody input modulus original).Path))
-    (R := Register.prod (LocalLayout.candidateContext ctx width).register Reference)
-    _ state _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (LocalLayout.candidateContext ctx width) × History)
-    (D := Store (LocalLayout.candidateContext ctx width) ×
-      (History × (candidateBody input modulus original).Path))
-    (R := Register.prod (LocalLayout.candidateContext ctx width).register Reference)
-    _ state _).symm
+      (nativeQuadratic_checkedBody_execute modulus original) reference initial
+  simp only [candidateBody, Circuit.execute_seq, Initialized.nativeQuadratic_initialized_execute,
+    checksLaw, State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

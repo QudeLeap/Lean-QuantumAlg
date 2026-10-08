@@ -15,12 +15,15 @@ import all QuantumAlg.Algorithms.QPE.Specification
 import all QuantumAlg.Algorithms.QPE.Execution.Laws
 import all QuantumAlg.Core.Execution.Measurement.Distribution
 import all QuantumAlg.Core.Execution.Measurement.Readout
+import all QuantumAlg.Core.Execution.Measured.Classical
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Probability
 import all QuantumAlg.Core.Execution.State
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Measure.Distribution
+import all QuantumAlg.Components.Classical.Model.BitWord.Placement
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # The Born fibers of the actual phase-estimation output
@@ -41,14 +44,46 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 private theorem packedRead (t n : Nat) (store : Store (post t n)) :
-    (store.applyOp (packing t n)).read (.storage (resultRef t n).toCStorageRef) =
+    (store.write (BitWord.application (packing t n)).output
+      ((packing t n).eval (store.read (BitWord.application (packing t n)).input))).read
+        (.storage (resultRef t n).toCStorageRef) =
       (packing t n).eval (store.read (MeasurementCells.input (resultContext t n) 2 t)) :=
   Store.read_applyOp_output store (packing t n)
 
+/-- Actual Z writes and the declared packing instruction preserve every
+external-reference matrix entry of the selected phase-result fiber. -/
+theorem readoutCode_reference_entry {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (post t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (output : CShape.Value (.bits t)) (left right : Reference.Index) :
+    (∑ basis : (post t n).register.Index,
+      DensityOperator.matrix
+        ((((readoutCode P t).execute Reference state).mapClassical
+          (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output)
+          (basis, left) (basis, right)) =
+      ExecutionState.referenceFiberSum state (fun _ basis =>
+        if CShape.Value.bits ((qpeMeasurement t n).readout (outputBasisEquiv t n basis)) =
+          output then 1 else 0) left right := by
+  have actual := Circuit.measurementSequence_classical_reference_entry
+    (gates := AlgorithmGate.model) (oracles := UnitarySource.model P.unitary true)
+    (operations := BitWord.model) (services := ClassicalOracleModel.empty)
+    (readouts t n) (BitWord.application (packing t n)) (packing t n).eval
+    (BitWord.bitWord_application_evaluate (packing t n)) state
+    (fun store => store.read (.storage (resultRef t n).toCStorageRef))
+    output left right
+  change (∑ basis : (post t n).register.Index,
+    DensityOperator.matrix
+      ((((readoutCode P t).execute Reference state).mapClassical
+        (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output)
+        (basis, left) (basis, right)) = _ at actual
+  simpa only [packedRead, packing_measured_value] using actual
+
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass (t n : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (post t n) Reference H) (output : CShape.Value (.bits t)) :
-    ((((readoutCode t n).execute Reference state).mapClassical
+theorem readoutCode_block_mass {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (post t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (output : CShape.Value (.bits t)) :
+    ((((readoutCode P t).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output).mass =
       (∑ basis : (post t n).register.Index,
         if CShape.Value.bits ((qpeMeasurement t n).readout (outputBasisEquiv t n basis)) = output
@@ -58,8 +93,10 @@ theorem readoutCode_block_mass (t n : Nat) {Reference : Register} {H : Type} [Fi
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical]
-  simp only [State.classicalStep, ExecutionState.diagonalSum_mapClassical]
+  rw [Circuit.execute_classical_mapClassical (model := model P)
+    (BitWord.application (packing t n))
+    (packing t n).eval (BitWord.bitWord_application_evaluate (packing t n))]
+  simp only [ExecutionState.diagonalSum_mapClassical]
   rw [Circuit.measurementSequence_diagonalSum]
   simp only [packedRead, packing_measured_value]
   calc
@@ -84,7 +121,8 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
 /-- Every final output-block mass is the original query-readout Born fiber,
 derived from actual preparation, gates, measurements, storage writes and packing. -/
 theorem code_block_mass {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State (pre t n) Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (pre t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise P t state.quantumMarginal.marginalLeft)
     (output : CShape.Value (.bits t)) :
     ((((code P t).execute Reference state).mapClassical
@@ -101,7 +139,7 @@ theorem code_block_mass {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass t n ((beforeMeasurement P t).execute Reference state) output
+          readoutCode_block_mass P t ((beforeMeasurement P t).execute Reference state) output
     _ = (∑ basis : Fin (2 ^ (t + n)),
         if CShape.Value.bits ((qpeMeasurement t n).readout basis) = output then
           (DensityOperator.ofPure ((qpeEvolvedState P t).normalized)).matrix basis basis

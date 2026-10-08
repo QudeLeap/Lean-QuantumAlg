@@ -11,6 +11,7 @@ import all QuantumAlg.Primitives.AmplitudeAmplification.Program
 import all QuantumAlg.Primitives.AmplitudeAmplification.Context
 import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Execution.Circuit
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 
@@ -26,29 +27,31 @@ namespace QuantumAlg.AmplitudeAmplification
 
 noncomputable section
 
-/-- The source program in the coordinates of the actual physical register. -/
+/-- Default native gates with the source route's explicitly granted ordinary inverse access. -/
+abbrev model {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) : ExecutionModel :=
+  .quantum AlgorithmGate.model (Native.oracles M.preparation M.good)
+
+/-- The same native word acts on the runtime register's identical ordered physical wires. -/
 def nativeProgram {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    UnitaryCircuit (post n k).register :=
-  UnitaryCircuit.reindex (preparedBasisEquiv n k).symm
-    (Native.program M.preparation M.good k)
+    UnitaryCircuit AlgorithmGate.model (Native.oracles M.preparation M.good)
+      (post n k).quantumLayout :=
+  Execution.unitaryOfEqualWires
+    (QuantumSignature.qubits (ZeroReflection.Workspace.totalQubits n k)).canonicalPlacement.layout
+    (post n k).quantumLayout (post_canonical_wires n k) (Native.program M.preparation M.good k)
 
-theorem nativeProgram_placement {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) : (nativeProgram M k).physical_idx = (post n k).physicalIdx := by
-  change (Native.program M.preparation M.good k).physical_idx = _
-  rw [Native.program_physical_idx, post_physicalIdx]
+/-- Charge one zero preparation for every newly owned source and helper qubit. -/
+def preparationCode {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
+    Circuit (model M) pre (post n k) :=
+  .prepareZero pre ⟨0⟩ (runtimeLayout n k) preparationFresh (preparationDisjoint n k)
 
-def preparationCode (n k : Nat) : Circuit pre (post n k) :=
-  .prepare pre ⟨0⟩ (runtimeLayout n k) preparationFresh
-    (preparationDisjoint n k) (inputPreparation n k)
-
-/-- The sole executed circuit, including the charged initial basis preparation. -/
+/-- The sole execution contains zero preparation followed by the actual source/gate sequence. -/
 def code {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    Circuit pre (post n k) :=
-  .seq (preparationCode n k) (.unitary (nativeProgram M k) (nativeProgram_placement M k))
+    Circuit (model M) pre (post n k) :=
+  .seq (preparationCode M k) (.unitary (nativeProgram M k))
 
 /-- Every final live system appears in the explicit complete manifest. -/
 def run {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    AlgorithmRun pre (post n k) .unit where
+    AlgorithmRun (model M) pre (post n k) .unit where
   code := code M k
   output := Output.all (post n k) .unit
 

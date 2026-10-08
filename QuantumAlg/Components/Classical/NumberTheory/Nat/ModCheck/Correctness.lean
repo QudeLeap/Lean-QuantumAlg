@@ -44,9 +44,11 @@ theorem check_accepted (refs : Refs ctx numeratorWidth divisorWidth) (store : St
   rw [Store.read_applyOp_output]
   rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Both actual writes preserve every caller read outside their keys, for all numerical inputs. -/
 theorem into_callerFrame (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
-    CallerFrame refs store (step refs store).1 := by
+    CallerFrame refs store (step (model := model) refs store).1 := by
   intro shape other avoidsDivision avoidsAccepted
   change (((store.applyOp (divideOp refs)).applyOp (checkOp refs)).read other) = _
   exact (Store.read_applyOp_of_not_mem_storageKeys _ (checkOp refs) other avoidsAccepted).trans
@@ -55,14 +57,14 @@ theorem into_callerFrame (refs : Refs ctx numeratorWidth divisorWidth) (store : 
 /-- The original supplied zero input is preserved as a complete structural value. -/
 theorem into_zero_preserved (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx) :
-    (step refs store).1.read refs.zero = store.read refs.zero :=
+    (step (model := model) refs store).1.read refs.zero = store.read refs.zero :=
   into_callerFrame refs store refs.zero separation.zeroAvoidsDivision separation.zeroAvoidsAccepted
 
 /-- The actual comparison write preserves the exact natural remainder computed by division. -/
 theorem into_remainder (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
     (nonzero : (store.read refs.divisor).toNat ≠ 0) :
-    ((step refs store).1.read (remainderInput refs)).toNat =
+    ((step (model := model) refs store).1.read (remainderInput refs)).toNat =
       (store.read refs.numerator).toNat % (store.read refs.divisor).toNat := by
   change (((store.applyOp (divideOp refs)).applyOp (checkOp refs)).read
     (remainderInput refs)).toNat = _
@@ -74,7 +76,7 @@ theorem into_remainder (refs : Refs ctx numeratorWidth divisorWidth)
 theorem into_accepted (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions store refs) :
-    ((step refs store).1.read (writeInput refs.accepted)).toBool =
+    ((step (model := model) refs store).1.read (writeInput refs.accepted)).toBool =
       decide ((store.read refs.numerator).toNat % (store.read refs.divisor).toNat = 0) := by
   change (((store.applyOp (divideOp refs)).applyOp (checkOp refs)).read
     (writeInput refs.accepted)).toBool = _
@@ -85,7 +87,8 @@ theorem into_accepted (refs : Refs ctx numeratorWidth divisorWidth)
 /-- The actual record meets the complete contract on the unchanged original numerical domain. -/
 theorem into_correct (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
-    (initial : InitialConditions store refs) : Relation refs store (step refs store).1 :=
+    (initial : InitialConditions store refs) : Relation refs store (step (model := model) refs
+      store).1 :=
   ⟨into_remainder refs separation store (Nat.ne_of_gt initial.1),
     into_accepted refs separation store initial, into_callerFrame refs store⟩
 

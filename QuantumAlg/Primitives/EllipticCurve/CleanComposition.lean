@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Primitives.MAU.CleanInterface
+import all QuantumAlg.Components.Encoded.BasisMap.Contract
 
 /-!
 # Clean composition for elliptic-curve circuit endpoints

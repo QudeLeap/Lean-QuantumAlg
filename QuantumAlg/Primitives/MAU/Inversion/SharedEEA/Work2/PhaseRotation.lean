@@ -142,8 +142,10 @@ theorem gates_step (width : Nat) (state : Registers width) :
     if_true, right_step]
 
 /-- Compile exactly the ordered CNOT and phase-controlled Toffoli lists. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- The actual program has the full conditional frame action with exact amplitudes. -/
 theorem program_realizes (width : Nat) :
@@ -152,7 +154,8 @@ theorem program_realizes (width : Nat) :
         if state.flags.second then
           ((state.secondWord.rotateLeft 1).rotateRight 1).rotateRight 1
         else state.secondWord.rotateLeft 1 }) :=
-  GateSpec.realizesList_congrStep (gates width) (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- All three sweeps remain in the actual trace, including on the unselected basis subspace. -/
 theorem program_eventTrace_length (width : Nat) :

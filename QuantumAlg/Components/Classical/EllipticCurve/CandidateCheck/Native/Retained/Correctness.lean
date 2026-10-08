@@ -27,24 +27,27 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- The retained actual acceptance is the original target equation and both actual success flags. -/
-theorem retainedStep_accepts_iff (spec : CurveSpec width)
+theorem retainedStep_accepts_iff {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
-    (before : Store ctx) (scalar : ClassicalAlgorithms.Word scalarWidth)
+    (before : Store ctx) (hidden : model.HiddenState)
+    (scalar : ClassicalAlgorithms.Word scalarWidth)
     (basePoint targetPoint : Pure.Point spec)
     (candidateValue : before.read candidate = .unsignedWord scalar)
     (baseRep : PointRepresents spec (before.read base) basePoint)
     (targetRep : PointRepresents spec (before.read target) targetPoint) :
-    ((retainedStep spec candidate base target inverseSuccess reconstruction before).1.read
-      (.storage (retainedAccepted ctx width).toCStorageRef)).toBool = true ↔
+    ((retainedStep spec candidate base target inverseSuccess reconstruction
+      (before, hidden)).1.1.read
+        (.storage (retainedAccepted ctx width).toCStorageRef)).toBool = true ↔
       scalar.val • basePoint = targetPoint ∧
         (before.read inverseSuccess).toBool = true ∧
         (before.read reconstruction).toBool = true := by
   have actual := verifyStep_accepts_iff spec (retainedInput width candidate)
     (retainedInput width base) (retainedInput width target) (retainedInput width inverseSuccess)
     (retainedInput width reconstruction) (retainedScalar ctx width) (retainedAccepted ctx width)
-    (retainedInitialStore width before) scalar basePoint targetPoint
+    (retainedInitialStore width before) hidden scalar basePoint targetPoint
     ((retainedInitialStore_read width before candidate).trans candidateValue)
     (by rw [retainedInitialStore_read]; exact baseRep)
     (by rw [retainedInitialStore_read]; exact targetRep)

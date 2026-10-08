@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Access.Unitary
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Access.Specification
 import Mathlib.Logic.Equiv.Fintype
 
 /-!

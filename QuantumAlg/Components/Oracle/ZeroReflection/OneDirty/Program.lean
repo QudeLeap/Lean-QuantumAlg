@@ -15,6 +15,8 @@ import all QuantumAlg.Components.BinaryLabelEncoding
 import all QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Core.Base.Tensor.Basic
 import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.Control.Operator
+import all QuantumAlg.Core.Base.Gate.Basic
 import all QuantumAlg.Util.FinPow
 import Mathlib.Tactic.FinCases
 
@@ -33,38 +35,45 @@ namespace QuantumAlg.ZeroReflection.OneDirty
 noncomputable section
 
 /-- The actual elementary program on the original source followed by its one work wire. -/
-def program (controls : Nat) : UnitaryCircuit (Qubits (controls + 1 + 1)) :=
-  (layout controls).zeroReflectionProgram
+def program (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) :
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  (layout controls).zeroReflectionProgram physical oracles
 
 /-- Every source/work basis label has exactly the positive source-reflection phase. -/
-theorem program_applyVec_pair (controls : Nat)
+theorem program_applyVec_pair (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1))
     (source : Fin (2 ^ (controls + 1))) (work : Fin (2 ^ 1)) :
-    (program controls).applyVec
-        (NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-          (prodEquiv (source, work))).vec =
+    (program oracles controls physical).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (prodEquiv (source, work)))).vec =
       if source = 0 then
-        (NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-          (prodEquiv (source, work))).vec
-      else -(NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-        (prodEquiv (source, work))).vec := by
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (prodEquiv (source, work)))).vec
+      else -(NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (prodEquiv (source, work)))).vec := by
   have encoded :
       (encoding controls).encode (source, finTwoEquiv work) = prodEquiv (source, work) := by
     fin_cases work <;> rfl
-  have actual := (layout controls).zeroReflectionProgram_applyVec_encoded_ket
+  have actual := (layout controls).zeroReflectionProgram_applyVec_encoded_ket physical oracles
     (source, finTwoEquiv work)
-  change (program controls).applyVec
-      (NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-        ((encoding controls).encode (source, finTwoEquiv work))).vec =
+  change (program oracles controls physical).applyVec
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm
+          ((encoding controls).encode (source, finTwoEquiv work)))).vec =
     (if (layout controls).reflectedZero (source, finTwoEquiv work) then
-      (NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-        ((encoding controls).encode (source, finTwoEquiv work))).vec
-    else -(NormalizedVector.ket (R := Qubits (controls + 1 + 1))
-      ((encoding controls).encode (source, finTwoEquiv work))).vec) at actual
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm
+          ((encoding controls).encode (source, finTwoEquiv work)))).vec
+    else -(NormalizedVector.ket (R := physical.toQuantum.register)
+      (physical.basisEquiv.symm
+          ((encoding controls).encode (source, finTwoEquiv work)))).vec) at actual
   simpa only [reflectedZero_iff, encoded] using actual
 
 /-- Full operator equality restores the arbitrary work subsystem, including its correlations. -/
-theorem program_matrix (controls : Nat) :
-    (program controls).matrix =
+theorem program_matrix (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) :
+    UnitaryOperator.reindex physical.basisEquiv (program oracles controls physical).matrix =
       UnitaryOperator.tensor (zeroReflectionOperator (controls + 1))
         (1 : UnitaryOperator (Qubits 1)) := by
   apply Subtype.ext
@@ -94,20 +103,50 @@ theorem program_matrix (controls : Nat) :
     by_cases zero : source = 0
     · rw [if_pos zero, if_pos zero]
     · rw [if_neg zero, if_neg zero, HilbertVector.neg_tensor]
-  have action := (program_applyVec_pair controls source work).trans expected.symm
-  simpa only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]
-    using congrArg (fun state : HilbertVector (Qubits (controls + 1 + 1)) => state row) action
+  have actual := congrArg (fun state => state (physical.basisEquiv.symm row))
+    (program_applyVec_pair oracles controls physical source work)
+  have sourceEntry := congrArg (fun state => state row) expected
+  simp only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
+    HilbertOperator.applyVec_ket] at actual
+  simp only [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at sourceEntry
+  by_cases zero : source = 0
+  · rw [if_pos zero] at actual sourceEntry
+    change (program oracles controls physical).matrix (physical.basisEquiv.symm row)
+        (physical.basisEquiv.symm (prodEquiv (source, work))) =
+      ((NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (prodEquiv (source, work))))
+        (physical.basisEquiv.symm row)) at actual
+    change (UnitaryOperator.tensor (zeroReflectionOperator (controls + 1))
+        (1 : UnitaryOperator (Qubits 1))) row (prodEquiv (source, work)) =
+      ((NormalizedVector.ket (prodEquiv (source, work))) row) at sourceEntry
+    rw [NormalizedVector.ket_apply] at actual sourceEntry
+    simp only [Equiv.symm_apply_eq, Equiv.apply_symm_apply] at actual
+    exact actual.trans sourceEntry.symm
+  · rw [if_neg zero] at actual sourceEntry
+    change (program oracles controls physical).matrix (physical.basisEquiv.symm row)
+        (physical.basisEquiv.symm (prodEquiv (source, work))) =
+      -((NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (prodEquiv (source, work))))
+        (physical.basisEquiv.symm row)) at actual
+    change (UnitaryOperator.tensor (zeroReflectionOperator (controls + 1))
+        (1 : UnitaryOperator (Qubits 1))) row (prodEquiv (source, work)) =
+      -((NormalizedVector.ket (prodEquiv (source, work))) row) at sourceEntry
+    rw [NormalizedVector.ket_apply] at actual sourceEntry
+    simp only [Equiv.symm_apply_eq, Equiv.apply_symm_apply] at actual
+    exact actual.trans sourceEntry.symm
 
 /-- All complement, phase, MCX and exact global-minus events belong to this same program. -/
-theorem program_eventTrace_length (controls : Nat) :
-    (program controls).eventTrace.length =
-      2 * (controls + 1) + (layout controls).gates.length + 6 :=
-  (layout controls).zeroReflectionProgram_eventTrace_length
+theorem program_eventTrace_length (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) :
+    (program oracles controls physical).eventTrace.length =
+      2 * (controls + 1) + (layout controls).gates.length + 3 :=
+  (layout controls).zeroReflectionProgram_eventTrace_length physical oracles
 
 /-- The actual elementary sequence has a linear count with one arbitrary work wire. -/
-theorem program_eventTrace_length_le (controls : Nat) :
-    (program controls).eventTrace.length ≤ 10 * controls + 9 :=
-  (layout controls).zeroReflectionProgram_eventTrace_length_le
+theorem program_eventTrace_length_le (oracles : OracleModel) (controls : Nat)
+    (physical : QubitLayout (controls + 1 + 1)) :
+    (program oracles controls physical).eventTrace.length ≤ 10 * controls + 6 :=
+  (layout controls).zeroReflectionProgram_eventTrace_length_le physical oracles
 
 end
 

@@ -25,8 +25,10 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem candidate_free (candidate : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
     success.key ∉ (CInputRef.storage candidate.toCStorageRef).storageKeys := by
@@ -74,14 +76,14 @@ private theorem rows_read
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (count : Nat) (indices : Fin count → Fin rowCount) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : success.key ∉ other.storageKeys) :
-    (Circuit.forRangeRecord count
+    (Circuit.forRangeStoreRecord count
       (fun index => validationSample input candidate success (indices index))
       (fun index => validationSampleStep input candidate success (indices index)) store).1.read
         other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (validationSampleStep input candidate success (indices 0) store).1).1.read other = _
       exact (ih (fun index => indices index.succ) _).trans
         (sample_read input candidate success (indices 0) store other separate)
@@ -94,7 +96,7 @@ private theorem rows_success
     let word : ClassicalAlgorithms.Word width :=
       ⟨(store.read (.storage candidate.toCStorageRef)).toNat,
         (store.read (.storage candidate.toCStorageRef)).toNat_lt⟩
-    ((Circuit.forRangeRecord count
+    ((Circuit.forRangeStoreRecord count
       (fun index => validationSample input candidate success (indices index))
       (fun index => validationSampleStep input candidate success (indices index)) store).1.read
         (.storage success.toCStorageRef)).toBool =
@@ -103,7 +105,7 @@ private theorem rows_success
           decide (ClassicalAlgorithms.GF2.dot (ClassicalAlgorithms.TerminalDecode.eval
             (TerminalDecode.decodeInput .bigEndian ((store.read input).get row))) word = 0)) := by
   induction count generalizing store with
-  | zero => simp only [Circuit.forRangeRecord, List.ofFn_zero, List.all_nil, Bool.and_true]
+  | zero => simp only [Circuit.forRangeStoreRecord, List.ofFn_zero, List.all_nil, Bool.and_true]
   | succ count ih =>
       let first := (validationSampleStep input candidate success (indices 0) store).1
       have firstInput : first.read input = store.read input :=
@@ -112,11 +114,12 @@ private theorem rows_success
           store.read (.storage candidate.toCStorageRef) :=
         sample_read input candidate success (indices 0) store (.storage candidate.toCStorageRef)
           (candidate_free candidate success)
-      change ((Circuit.forRangeRecord count _ _ first).1.read _).toBool = _
+      change ((Circuit.forRangeStoreRecord count _ _ first).1.read _).toBool = _
       rw [ih (fun index => indices index.succ) first, firstInput, firstCandidate,
         sample_success input candidate success (indices 0) store, List.ofFn_succ, List.all_cons]
       exact Bool.and_assoc _ _ _
 
+omit [BitWord.Selected model] in
 private theorem selected_read (success : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (pivotSelectedOp success)).read (.storage success.toCStorageRef) =
       store.read (.storage success.toCStorageRef) := by
@@ -133,7 +136,7 @@ theorem gf2ValidationSamples_read_other
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : success.key ∉ other.storageKeys) :
     (validateSamplesStep input candidate success store).1.read other = store.read other := by
-  dsimp only [validateSamplesStep, Circuit.sequenceRecord]
+  dsimp only [validateSamplesStep, Circuit.sequenceStoreRecord, BitWord.instructionStep]
   refine (Store.read_applyOp_of_not_mem_storageKeys _ (pivotSelectedOp success)
     other separate).trans ?_
   exact rows_read input candidate success rowCount id store other separate
@@ -151,13 +154,13 @@ theorem gf2ValidationSamples_success
       ((store.read (.storage success.toCStorageRef)).toBool &&
         ClassicalAlgorithms.GF2.satisfies? (fun row => ClassicalAlgorithms.TerminalDecode.eval
           (TerminalDecode.decodeInput .bigEndian ((store.read input).get row))) word) := by
-  dsimp only [validateSamplesStep, Circuit.sequenceRecord]
+  dsimp only [validateSamplesStep, Circuit.sequenceStoreRecord, BitWord.instructionStep]
   rw [selected_read]
   simpa only [List.ofFn_id, id_eq, ClassicalAlgorithms.GF2.satisfies?] using
     rows_success input candidate success separate rowCount id store
 
 /-- The original seven-cell allocator supplies the only caller-source separation internally. -/
-theorem gf2ValidationSamples_cellSuccess {outer : RuntimeCtx kind}
+theorem gf2ValidationSamples_cellSuccess {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (store : Store ctx) :

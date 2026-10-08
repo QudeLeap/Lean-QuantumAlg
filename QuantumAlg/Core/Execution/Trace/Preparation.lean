@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Preparation
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Base.Accounting.Space
 
@@ -22,15 +23,20 @@ namespace QuantumAlg.Circuit
 
 open Execution
 
-variable {count : Nat} (ctx : RuntimeCtx .quantum) (key : StorageKey)
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+  {count : Nat} (ctx : RuntimeCtx .quantum) (key : StorageKey)
   (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-  (preparation : BasisPreparation layout)
 
 /-- Every newly prepared system and every old entry contribute to the actual resident peak. -/
 theorem prepare_peakResidentSpace
-    (path : (Circuit.prepare ctx key layout fresh disjoint preparation).Path) :
-    (Circuit.prepare ctx key layout fresh disjoint preparation).peakResidentSpace path =
+    (path : (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).Path) :
+    (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).peakResidentSpace path =
       (ctx.addOwnedLayout key layout fresh disjoint).residentSpace := by
   change SpacePool.max ctx.residentSpace
     (SpacePool.max (ctx.addOwnedLayout key layout fresh disjoint).residentSpace 0) = _
@@ -41,8 +47,12 @@ theorem prepare_peakResidentSpace
 
 /-- The actual auxiliary peak retains all original roles and the new owned preparation bank. -/
 theorem prepare_peakAuxiliarySpace
-    (path : (Circuit.prepare ctx key layout fresh disjoint preparation).Path) :
-    (Circuit.prepare ctx key layout fresh disjoint preparation).peakAuxiliarySpace path =
+    (path : (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).Path) :
+    (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).peakAuxiliarySpace path =
       (ctx.addOwnedLayout key layout fresh disjoint).auxiliarySpace := by
   change SpacePool.max ctx.auxiliarySpace
     (SpacePool.max (ctx.addOwnedLayout key layout fresh disjoint).auxiliarySpace 0) = _

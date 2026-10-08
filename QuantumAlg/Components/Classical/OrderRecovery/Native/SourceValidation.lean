@@ -24,7 +24,8 @@ open Execution ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- A fitted actual word with the stated natural value is its unique finite source encoding. -/
 private theorem actual_candidate_word
@@ -45,7 +46,8 @@ theorem nativeScan_validation_matches_source
     (candidateValue : (store.read (cellRead cells.cursor.candidate)).toNat = candidate)
     (zeroValue : (store.read cells.zero).toNat = 0)
     (oneValue : (store.read cells.one).toNat = 1) :
-    (validateStep spec.modulusSpec base (cellRead cells.cursor.candidate) cells.zero cells.one
+    (validateStep (model := model) spec.modulusSpec base (cellRead cells.cursor.candidate)
+      cells.zero cells.one
       cells.power cells.positive cells.valid store).1.read (cellRead cells.valid) =
       .bit
         (ClassicalAlgorithms.OrderRecovery.validateCandidate spec input candidate) := by
@@ -55,7 +57,8 @@ theorem nativeScan_validation_matches_source
       (cellRead cells.cursor.candidate) store powerInput := by
     refine ⟨?_, actual_candidate_word _ candidate fits candidateValue⟩
     exact baseValue
-  have actual := nativeValidation_result spec.modulusSpec base (cellRead cells.cursor.candidate)
+  have actual := nativeValidation_result (model := model) spec.modulusSpec base
+    (cellRead cells.cursor.candidate)
     cells.zero cells.one cells.power cells.positive cells.valid
     (nativeScan_separated_keys cells separated 10 9 (by decide))
     (nativeScan_separated_keys cells separated 9 8 (by decide))

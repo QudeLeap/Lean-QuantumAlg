@@ -114,7 +114,8 @@ theorem literalInverseToffoliCount_lower (interior : Nat)
 theorem literalInPlaceProgram_toffoli_count_lower (interior : Nat)
     (params : Parameters (interior + 2).succ) :
     8 * (interior + 2).succ * (interior + 2) ^ 2 ≤
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate .toffoli)
         (literalInPlaceProgram interior params).eventCost := by
   rw [literalInPlaceProgram_toffoli_count_eq]
   have hforward := literalForwardToffoliCount_lower interior params
@@ -138,16 +139,19 @@ physical programs. -/
 theorem windowed_toffoli_count_lt_hrs (half N : Nat) (u : (ZMod N)ˣ)
     (hhalf : 3 ≤ half)
     (params : Parameters (hrsInterior half + 2).succ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (Even.multiplicationProgram half N u).eventCost <
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate .toffoli)
         (literalInPlaceProgram (hrsInterior half) params).eventCost := by
   have hwindow := Even.multiplicationProgram_toffoli_count_le half N u
   have hhrs := literalInPlaceProgram_toffoli_count_lower
     (hrsInterior half) params
   have hwidth := hrsWordWidth_eq half hhalf
   calc
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (Even.multiplicationProgram half N u).eventCost ≤
         128 * half ^ 2 + 4 * half := hwindow
     _ < 8 * (hrsInterior half + 2).succ *
@@ -155,7 +159,8 @@ theorem windowed_toffoli_count_lt_hrs (half N : Nat) (u : (ZMod N)ˣ)
       have hinterior : hrsInterior half + 2 + 1 = 2 * half := by
         simpa only [Nat.succ_eq_add_one, Even.width] using hwidth
       nlinarith
-    _ ≤ ResourcePool.count (.gate (.builtin "toffoli"))
+    _ ≤ ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
           (literalInPlaceProgram (hrsInterior half) params).eventCost := hhrs
 
 end

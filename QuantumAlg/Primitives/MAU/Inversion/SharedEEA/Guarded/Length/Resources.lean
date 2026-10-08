@@ -114,7 +114,7 @@ theorem refresh_eventTrace_length (width : Nat) :
 theorem refresh_unitDepth (width : Nat) :
     (GuardedLengthRefresh.program width).evaluatedEventDepth (fun _ => 1) =
       (GuardedLengthRefresh.gates width).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit _ .empty _
 
 /-- Every elementary cleanup gate remains in the actual inverse count. -/
 theorem refresh_reverse_length (width : Nat) :

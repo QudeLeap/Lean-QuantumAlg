@@ -26,7 +26,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual normalization, division and reduction compute the original signed coefficient. -/
-theorem thirdNormalizeInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem thirdNormalizeInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (numerator denominator : Int)
     (third target : NumberTheory.IntegerPoint3) (fits : NormalizeFits width numerator denominator)
     (numeratorRep : RawSignedRepresents (store.read (writeInput refs.numerator)) numerator)
@@ -38,6 +39,7 @@ theorem thirdNormalizeInto_correct (refs : Refs ctx width) (separation : Separat
       LatticeArithmetic.PointRawRepresents (thirdNormalizeStep refs store).1 refs.target
         (target.sub
           (third.smul (NumberTheory.nearestIntegerCoefficient numerator denominator))) := by
+  rw [thirdNormalizeStep_store]
   let prepared := signedInputsStore refs store
   let divided := (RoundedDiv.bodyStep refs.division prepared).1
   have inputs := signedInputsStore_correct refs separation.phase store numerator denominator
@@ -84,7 +86,8 @@ theorem thirdNormalizeInto_correct (refs : Refs ctx width) (separation : Separat
   exact coefficient
 
 /-- The actual full phase computes the original determinant-quotient coefficient and residual. -/
-theorem thirdInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem thirdInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (first second third target : NumberTheory.IntegerPoint3)
     (fits : Fits width first second third target)
     (firstRep : LatticeArithmetic.PointRawRepresents store refs.basis.first first)
@@ -97,6 +100,7 @@ theorem thirdInto_correct (refs : Refs ctx width) (separation : Separation refs)
       LatticeArithmetic.PointRawRepresents (thirdStep refs store).1 refs.target
         (target.sub (third.smul (NumberTheory.nearestIntegerCoefficient
           (numeratorValue first second target) (denominatorValue first second third)))) := by
+  rw [thirdStep_store]
   have metrics := thirdMetricPrefixInto_correct refs separation store first second third target
     firstRep secondRep thirdRep targetRep
   exact thirdNormalizeInto_correct refs separation (metricPrefixStore refs store)
@@ -104,7 +108,8 @@ theorem thirdInto_correct (refs : Refs ctx width) (separation : Separation refs)
     metrics.1 metrics.2.1 metrics.2.2.2.2.1 metrics.2.2.2.2.2.1
 
 /-- Specializing the actual circuit to a basis gives the public third nearest-plane coefficient. -/
-theorem thirdInto_basis_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem thirdInto_basis_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (target : NumberTheory.IntegerPoint3)
     (fits : Fits width basis.first basis.second basis.third target)
     (firstRep : LatticeArithmetic.PointRawRepresents store refs.basis.first basis.first)

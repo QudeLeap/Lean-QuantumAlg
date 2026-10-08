@@ -69,6 +69,9 @@ theorem nativePower_writeUnderMultiply_read {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     wordRead (writeUnderMultiply output width) = underMultiply (wordRead output) width := rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Only the original result cell can change after the actual temporary cells are released. -/
 theorem nativePower_scopedMultiply_read_other
     (left right : CInputRef ctx (.unsignedWord width))
@@ -76,9 +79,12 @@ theorem nativePower_scopedMultiply_read_other
     (output : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    ((scopedMultiplyStep left right modulus output store).1).read other =
+    ((scopedMultiplyStep (model := model) left right modulus output store).1).read other =
       store.read other := by
   unfold scopedMultiplyStep
+  change (leaveMultiply (multiplyStore (underMultiply left width) (underMultiply right width)
+    (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
+    (writeUnderMultiply output width) (enterMultiply store width))).read _ = _
   rw [nativePower_leaveMultiply_read]
   rw [nativePowerMultiply_read_other]
   · exact nativePower_enterMultiply_read store other width
@@ -92,9 +98,13 @@ theorem nativePower_scopedMultiply_result
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    ((scopedMultiplyStep left right modulus output store).1).read (wordRead output) =
+    ((scopedMultiplyStep (model := model) left right modulus output store).1).read
+        (wordRead output) =
       multiplyValue (store.read left) (store.read right) (store.read modulus) := by
   unfold scopedMultiplyStep
+  change (leaveMultiply (multiplyStore (underMultiply left width) (underMultiply right width)
+    (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
+    (writeUnderMultiply output width) (enterMultiply store width))).read _ = _
   rw [nativePower_leaveMultiply_read, ← nativePower_writeUnderMultiply_read]
   rw [nativePowerMultiply_result _ _ _ _ _ _ (nativePower_productCell_fresh modulus width)]
   rw [nativePower_enterMultiply_read, nativePower_enterMultiply_read,
@@ -107,47 +117,49 @@ theorem nativePower_scopedMultiply_toNat
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (positive : 0 < (store.read modulus).toNat)
     (fits : (store.read modulus).toNat ≤ 2 ^ width) :
-    (((scopedMultiplyStep left right modulus output store).1).read (wordRead output)).toNat =
+    (((scopedMultiplyStep (model := model) left right modulus output store).1).read
+        (wordRead output)).toNat =
       (store.read left).toNat * (store.read right).toNat % (store.read modulus).toNat := by
   rw [nativePower_scopedMultiply_result]
   exact nativePower_multiplyValue_toNat _ _ _ positive fits
 
-/-- Actual lexical execution yields the concrete update and real three-operation path. -/
+/-- Actual lexical execution preserves the shared service through both matching releases. -/
 theorem nativePower_scopedMultiply_execute
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (scopedMultiply left right modulus output).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scopedMultiply (model := model) left right modulus output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((scopedMultiplyStep left right modulus output entry.1).1,
-          (entry.2, (scopedMultiplyStep left right modulus output entry.1).2))) := by
-  let inner := placedMultiply left right modulus output
-  let innerUpdate : Store (divisionCtx ctx width) →
-      Store (divisionCtx ctx width) × inner.Path := fun store =>
-    (multiplyStore (underMultiply left width) (underMultiply right width)
-      (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
-      (writeUnderMultiply output width) store, ((), ((), ())))
+        let result := scopedMultiplyStep (model := model) left right modulus output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  let inner := placedMultiply (model := model) left right modulus output
+  let innerUpdate : Store (divisionCtx ctx width) × model.HiddenState →
+      (Store (divisionCtx ctx width) × model.HiddenState) × inner.Path := fun before =>
+    let result := multiplyStep (model := model) (underMultiply left width)
+      (underMultiply right width) (underMultiply modulus width) (productCell ctx width)
+      (divisionCell ctx width) (writeUnderMultiply output width) before.1
+    ((result.1, before.2), result.2)
   let middle := Circuit.workspace (productCtx ctx width)
     (productCtx ctx width).canonicalFreshKey (divisionShape width)
     (productCtx ctx width).canonicalFreshKey_fresh inner
-  let middleUpdate : Store (productCtx ctx width) →
-      Store (productCtx ctx width) × middle.Path := fun store =>
-    let next := innerUpdate (store.pushWorkspace (productCtx ctx width).canonicalFreshKey
-      (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh)
-    (Store.popWorkspace (productCtx ctx width).canonicalFreshKey (divisionShape width)
-      (productCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
+  let middleUpdate : Store (productCtx ctx width) × model.HiddenState →
+      (Store (productCtx ctx width) × model.HiddenState) × middle.Path := fun before =>
+    let result := innerUpdate (before.1.pushWorkspace (productCtx ctx width).canonicalFreshKey
+      (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh, before.2)
+    ((Store.popWorkspace (productCtx ctx width).canonicalFreshKey (divisionShape width)
+      (productCtx ctx width).canonicalFreshKey_fresh result.1.1, result.1.2), result.2)
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
     (.unsignedWord (width + width)) ctx.canonicalFreshKey_fresh middle middleUpdate
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
   · refine (Circuit.execute_workspace_mapClassical (productCtx ctx width).canonicalFreshKey
       (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh inner innerUpdate
       (fun reference' {_} _ initial' => ?_) reference initial).trans ?_
-    · refine (nativePowerMultiply_execute _ _ _ _ _ _ reference' initial').trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
-    · congr 1
-  · congr 1
+    · exact (nativePowerMultiply_execute _ _ _ _ _ _ reference' initial').trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+    · exact ExecutionState.executionState_mapClassical_congr _ rfl
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

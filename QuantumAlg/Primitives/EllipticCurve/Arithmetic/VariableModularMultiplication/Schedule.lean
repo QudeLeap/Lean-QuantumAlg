@@ -27,79 +27,10 @@ variable [params :
 # Width-parameterized variable modular-multiplication schedule
 
 This module assembles the parameterized selected-addition and source-doubling
-blocks and records their carrier, realization, and clean-fold properties.
+blocks and records their carrier, realization, and clean-fold properties.  The
+carrier is now part of each circuit's type, so the former `physical_idx`
+side-condition layer is obsolete.
 -/
-
-section
-
-namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.Arithmetic.VariableModularMul
-
-noncomputable section
-
-set_option exponentiation.threshold 4096 in
-/-- Lifting an in-place program through the shared carrier preserves its range certificate. -/
-theorem liftInPlaceProgram_physical_idx_subset_range
-    (program : UnitaryCircuit (Qubits inPlaceEncoding.width))
-    (contained : program.physical_idx ⊆ List.range inPlaceEncoding.width) :
-    (liftInPlaceProgram program).physical_idx ⊆ List.range rawEncoding.width := by
-  unfold liftInPlaceProgram
-  apply UnitaryCircuit.prodRight_physical_idx_subset_range
-  apply UnitaryCircuit.prodRight_physical_idx_subset_range
-  exact UnitaryCircuit.prodLeft_physical_idx_subset_range program contained
-
-set_option exponentiation.threshold 4096 in
-/-- The external-accumulator word exchange stays in the shared carrier. -/
-theorem accumulatorSwapCircuit_physical_idx_subset_range :
-    accumulatorSwapCircuit.physical_idx ⊆ List.range rawEncoding.width := by
-  unfold accumulatorSwapCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- The source-copy word xor stays in the shared carrier. -/
-theorem sourceCopyCircuit_physical_idx_subset_range :
-    sourceCopyCircuit.physical_idx ⊆ List.range rawEncoding.width := by
-  unfold sourceCopyCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- Source unload is the same carrier-local xor program as source copy. -/
-theorem sourceUnloadCircuit_physical_idx_subset_range :
-    sourceUnloadCircuit.physical_idx ⊆ List.range rawEncoding.width := by
-  unfold sourceUnloadCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- One mechanically controlled selected-add stage stays in the shared carrier. -/
-theorem stageCircuit_physical_idx_subset_range (bit : Fin params.width) :
-    (stageCircuit bit).physical_idx ⊆ List.range rawEncoding.width := by
-  unfold stageCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range
-    (rawStageGates bit)
-
-set_option exponentiation.threshold 4096 in
-/-- The lifted concrete multiplication-by-two program stays in the common carrier. -/
-theorem doublingCircuit_physical_idx_subset_range :
-    doublingCircuit.physical_idx ⊆ List.range rawEncoding.width := by
-  unfold doublingCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- One selected-add routing block stays in the shared carrier. -/
-theorem selectedAddCircuit_physical_idx_subset_range (bit : Fin params.width) :
-    (selectedAddCircuit bit).physical_idx ⊆ List.range rawEncoding.width := by
-  unfold selectedAddCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- A selected-add followed by the lifted source doubling stays in the carrier. -/
-theorem roundCircuit_physical_idx_subset_range (bit : Fin params.width) :
-    (roundCircuit bit).physical_idx ⊆ List.range rawEncoding.width := by
-  unfold roundCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-end
-
-end QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.Arithmetic.VariableModularMul
 
 /-! ## Width-indexed schedule assembly -/
 
@@ -139,8 +70,9 @@ def inverseDoublingGates :
 set_option exponentiation.threshold 2048 in
 /-- Exact inverse of the concrete shift/reduce source-doubling circuit. -/
 def inverseDoublingCircuit :
-    UnitaryCircuit (Qubits VariableModularMul.rawEncoding.width) :=
-  EncodedBit.GateSpec.programList inverseDoublingGates
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (VariableModularMul.rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty inverseDoublingGates
 
 /-- Raw fold of the exact reversed source list. -/
 def rawInverseDoublingStep :
@@ -169,7 +101,8 @@ theorem inverseDoubling_realizes :
   have raw : UnitaryCircuit.Realizes VariableModularMul.rawEncoding
       inverseDoublingCircuit rawInverseDoublingStep := by
     unfold inverseDoublingCircuit
-    exact EncodedBit.GateSpec.realizesList inverseDoublingGates
+    exact EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      inverseDoublingGates
   exact UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv raw
 
 /-! ## Clean source-scaling bridges -/
@@ -265,10 +198,12 @@ def forwardGates : List (Fin params.width) →
   | bit :: rest => VariableModularMul.roundGates bit ++ forwardGates rest
 
 /-- The physical forward fold for an explicit list of multiplier-bit rounds. -/
-def forwardProgram :
+  def forwardProgram :
     List (Fin params.width) →
-      UnitaryCircuit (Qubits VariableModularMul.rawEncoding.width)
-  | [] => UnitaryCircuit.identity (Qubits VariableModularMul.rawEncoding.width) [] (by simp)
+      UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical (VariableModularMul.rawEncoding.width)).toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical VariableModularMul.rawEncoding.width).toQuantum
   | bit :: rest =>
       UnitaryCircuit.seq (VariableModularMul.roundCircuit bit) (forwardProgram rest)
 
@@ -315,7 +250,8 @@ theorem forward_realizes :
   | [] => by
       apply UnitaryCircuit.Realizes.congrStep
         (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv
-          (UnitaryCircuit.Realizes.identity VariableModularMul.rawEncoding))
+          (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+            VariableModularMul.rawEncoding (QubitLayout.canonical _)))
       intro x
       exact VariableModularMul.registersEquiv.symm_apply_apply x
   | bit :: rest => by
@@ -334,8 +270,10 @@ def restoreGates : Nat →
 
 /-- The physical source-restoration fold executes one actual inverse-doubling
 block for every requested prior doubling. -/
-def restoreProgram : Nat → UnitaryCircuit (Qubits VariableModularMul.rawEncoding.width)
-  | 0 => UnitaryCircuit.identity (Qubits VariableModularMul.rawEncoding.width) [] (by simp)
+def restoreProgram : Nat → UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (VariableModularMul.rawEncoding.width)).toQuantum
+  | 0 => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical VariableModularMul.rawEncoding.width).toQuantum
   | rounds + 1 => UnitaryCircuit.seq inverseDoublingCircuit (restoreProgram rounds)
 
 /-- Repeated execution of one state transformer, shared by the physical and
@@ -378,7 +316,8 @@ theorem restore_realizes :
   | 0 => by
       apply UnitaryCircuit.Realizes.congrStep
         (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv
-          (UnitaryCircuit.Realizes.identity VariableModularMul.rawEncoding))
+          (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+            VariableModularMul.rawEncoding (QubitLayout.canonical _)))
       intro x
       exact VariableModularMul.registersEquiv.symm_apply_apply x
   | rounds + 1 => by
@@ -459,8 +398,9 @@ theorem gates_stepList (x : VariableModularMul.RawRegisters) :
 
 /-- The width-indexed schedule: all but the last selected-add/doubling rounds,
 the last selected add, then the inverse doublings restoring the source. -/
-def circuit : UnitaryCircuit (Qubits VariableModularMul.rawEncoding.width) :=
-  EncodedBit.GateSpec.programList gates
+def circuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (VariableModularMul.rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
 /-- Folded action of the complete width-indexed physical schedule. -/
 def step : VariableModularMul.Registers → VariableModularMul.Registers :=
@@ -482,7 +422,8 @@ set_option exponentiation.threshold 2048 in
 theorem realizes : UnitaryCircuit.Realizes VariableModularMul.encoding circuit step := by
   have raw : UnitaryCircuit.Realizes VariableModularMul.rawEncoding circuit rawStep := by
     unfold circuit
-    exact EncodedBit.GateSpec.realizesList_congrStep gates gates_stepList
+    exact EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+      gates gates_stepList
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv raw)
   intro x
@@ -492,7 +433,7 @@ theorem realizes : UnitaryCircuit.Realizes VariableModularMul.encoding circuit s
 /-! ## Resource projections -/
 
 /-- Strict event pool derived solely from the complete actual schedule. -/
-def eventCost : ResourcePool .quantum :=
+def eventCost : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   circuit.eventCost
 
 /-- Strict event critical path derived solely from the complete actual
@@ -514,65 +455,6 @@ end Arithmetic
 end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
-
-/-! ## Physical schedule footprint -/
-
-/-! # Physical footprint of the variable modular-multiplication schedule -/
-
-section
-
-namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.Arithmetic.VariableModularMulSchedule
-
-noncomputable section
-
-set_option exponentiation.threshold 4096 in
-/-- The lifted inverse source-doubling program stays in the common carrier. -/
-theorem inverseDoublingCircuit_physical_idx_subset_range :
-    inverseDoublingCircuit.physical_idx ⊆
-      List.range VariableModularMul.rawEncoding.width := by
-  unfold inverseDoublingCircuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-set_option exponentiation.threshold 4096 in
-/-- Every explicit selected-add/doubling prefix stays in the common carrier. -/
-theorem forwardProgram_physical_idx_subset_range :
-    ∀ bits : List (Fin params.width),
-      (forwardProgram bits).physical_idx ⊆
-        List.range VariableModularMul.rawEncoding.width
-  | [] => by
-      simp [forwardProgram, UnitaryCircuit.identity]
-  | bit :: rest => by
-      change (UnitaryCircuit.seq (VariableModularMul.roundCircuit bit)
-        (forwardProgram rest)).physical_idx ⊆
-          List.range VariableModularMul.rawEncoding.width
-      exact UnitaryCircuit.seq_physical_idx_subset _ _
-        (VariableModularMul.roundCircuit_physical_idx_subset_range bit)
-        (forwardProgram_physical_idx_subset_range rest)
-
-set_option exponentiation.threshold 4096 in
-/-- Every inverse-doubling restoration suffix stays in the common carrier. -/
-theorem restoreProgram_physical_idx_subset_range :
-    ∀ rounds : Nat, (restoreProgram rounds).physical_idx ⊆
-      List.range VariableModularMul.rawEncoding.width
-  | 0 => by
-      simp [restoreProgram, UnitaryCircuit.identity]
-  | rounds + 1 => by
-      change (UnitaryCircuit.seq inverseDoublingCircuit (restoreProgram rounds)).physical_idx ⊆
-        List.range VariableModularMul.rawEncoding.width
-      exact UnitaryCircuit.seq_physical_idx_subset _ _
-        inverseDoublingCircuit_physical_idx_subset_range
-        (restoreProgram_physical_idx_subset_range rounds)
-
-set_option exponentiation.threshold 4096 in
-/-- The complete width-indexed multiplication schedule stays in its carrier. -/
-theorem circuit_physical_idx_subset_range :
-    circuit.physical_idx ⊆ List.range VariableModularMul.rawEncoding.width := by
-  unfold circuit
-  exact EncodedBit.GateSpec.programList_physical_idx_subset_range _
-
-end
-
-end QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.Arithmetic.VariableModularMulSchedule
 
 /-! ## Clean restoration semantics -/
 
@@ -735,8 +617,6 @@ end PrimeFieldShortWeierstrass
 end EllipticCurve
 end QuantumAlg
 
-end
-end
 end
 end
 end

@@ -42,14 +42,17 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (shortWidth : Nat) w
   sqrtOutputRole :
     recovery.candidates.quadraticPrefix.sqrt.output.toCStorageRef.role = .workspace
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The natural-square-root cells reset before every quadratic recovery. -/
-def sqrtRefs (refs : Refs ctx shortWidth) : NatSqrt.Refs ctx (InputWidth shortWidth) :=
+def sqrtRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+    (refs : Refs ctx shortWidth) : NatSqrt.Refs ctx (InputWidth shortWidth) :=
   refs.recovery.candidates.quadraticPrefix.sqrt
 
 /-- Cross-clear separation of the four reusable words. -/
-structure Separation (refs : Refs ctx shortWidth) : Prop where
+structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+    (refs : Refs ctx shortWidth) : Prop where
   wideAvoidsRoot : (sqrtRefs refs).round.root.key ∉
     (QuadraticPrefix.writeInput (sqrtRefs refs).wideInput).storageKeys
   wideAvoidsHalf : (sqrtRefs refs).round.half.key ∉
@@ -64,7 +67,8 @@ structure Separation (refs : Refs ctx shortWidth) : Prop where
     (QuadraticPrefix.writeInput (sqrtRefs refs).round.half).storageKeys
 
 /-- One caller read avoids all four actual reset destinations. -/
-structure CallerFrameAvoids (refs : Refs ctx shortWidth) {shape : CShape}
+structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+    (refs : Refs ctx shortWidth) {shape : CShape}
     (other : CInputRef ctx shape) : Prop where
   wideInput : (sqrtRefs refs).wideInput.key ∉ other.storageKeys
   root : (sqrtRefs refs).round.root.key ∉ other.storageKeys
@@ -77,34 +81,40 @@ def clearOp {width : Nat} (output : CWriteRef ctx (.unsignedWord width)) :=
     (.product (QuadraticPrefix.writeInput output) (QuadraticPrefix.writeInput output)) output
 
 /-- Four native self-XOR writes run in the original wide/root/half/output order. -/
-def into (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
-  .seq (.classical (clearOp (sqrtRefs refs).wideInput))
-    (.seq (.classical (clearOp (sqrtRefs refs).round.root))
-      (.seq (.classical (clearOp (sqrtRefs refs).round.half))
-        (.classical (clearOp (sqrtRefs refs).output))))
+def into (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).wideInput))
+    (.seq (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).round.root))
+      (.seq (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).round.half))
+        (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).output))))
 
 /-- Complete actual store and chronological native path of the scratch reset. -/
 def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into refs).Path :=
-  ((((store.applyOp (clearOp (sqrtRefs refs).wideInput)).applyOp
-    (clearOp (sqrtRefs refs).round.root)).applyOp
-      (clearOp (sqrtRefs refs).round.half)).applyOp (clearOp (sqrtRefs refs).output),
-    ((), ((), ((), ()))))
+  let wide := BitWord.instructionStep (execution := model)
+    (clearOp (sqrtRefs refs).wideInput) store
+  let root := BitWord.instructionStep (execution := model)
+    (clearOp (sqrtRefs refs).round.root) wide.1
+  let half := BitWord.instructionStep (execution := model)
+    (clearOp (sqrtRefs refs).round.half) root.1
+  let output := BitWord.instructionStep (execution := model)
+    (clearOp (sqrtRefs refs).output) half.1
+  (output.1, (wide.2, (root.2, (half.2, output.2))))
 
 /-- Reset executes its entire store and native path on every history and external reference. -/
 theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
-  simp only [into, step, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every structural caller read avoiding the four real writes retains its whole value. -/
 theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other := by
-  dsimp only [step]
+  dsimp only [step, BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).output)
       other avoids.output,
     Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).round.half)
@@ -115,7 +125,8 @@ theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
       other avoids.wideInput]
 
 /-- Full zero values of the four destinations and complete unconditional caller frame. -/
-structure Relation (refs : Refs ctx shortWidth) (before after : Store ctx) : Prop where
+structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+    (refs : Refs ctx shortWidth) (before after : Store ctx) : Prop where
   wideZero : after.read (QuadraticPrefix.writeInput (sqrtRefs refs).wideInput) =
     CShape.initialValue (.unsignedWord (WorkWidth shortWidth + WorkWidth shortWidth))
   rootZero : after.read (QuadraticPrefix.writeInput (sqrtRefs refs).round.root) =
@@ -127,6 +138,7 @@ structure Relation (refs : Refs ctx shortWidth) (before after : Store ctx) : Pro
   callerFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
     CallerFrameAvoids refs other → after.read other = before.read other
 
+omit [BitWord.Selected model] in
 private theorem clear_value {width : Nat} (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (store.applyOp (clearOp output)).read (QuadraticPrefix.writeInput output) =
@@ -142,7 +154,7 @@ private theorem clear_value {width : Nat} (output : CWriteRef ctx (.unsignedWord
 theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) : Relation refs store (step refs store).1 := by
   refine ⟨?_, ?_, ?_, ?_, into_callerFrame refs store⟩
-  · dsimp only [step]
+  · dsimp only [step, BitWord.instructionStep]
     rw [Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).output)
         _ separation.wideAvoidsOutput,
       Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).round.half)
@@ -150,36 +162,54 @@ theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
       Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).round.root)
         _ separation.wideAvoidsRoot]
     exact clear_value (sqrtRefs refs).wideInput store
-  · dsimp only [step]
+  · dsimp only [step, BitWord.instructionStep]
     rw [Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).output)
         _ separation.rootAvoidsOutput,
       Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).round.half)
         _ separation.rootAvoidsHalf]
     exact clear_value (sqrtRefs refs).round.root _
-  · dsimp only [step]
+  · dsimp only [step, BitWord.instructionStep]
     rw [Store.read_applyOp_of_not_mem_storageKeys _ (clearOp (sqrtRefs refs).output)
       _ separation.halfAvoidsOutput]
     exact clear_value (sqrtRefs refs).round.half _
   · exact clear_value (sqrtRefs refs).output _
 
 /-- Independent chronological native formula of the four paid clears. -/
-def nativeTrace (shortWidth : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .bitXor (WorkWidth shortWidth + WorkWidth shortWidth)),
-    .classicalOperation (.wordBinary .bitXor (WorkWidth shortWidth)),
-    .classicalOperation (.wordBinary .bitXor (WorkWidth shortWidth)),
-    .classicalOperation (.wordBinary .bitXor (WorkWidth shortWidth))]
+def nativeTrace (shortWidth : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (WorkWidth shortWidth + WorkWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (WorkWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (WorkWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .bitXor (WorkWidth shortWidth)))]
 
 /-- Original independent four-clear native coordinate allowance. -/
-def resetEventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def resetEventEnvelope (shortWidth : Nat) : ResourcePool model :=
   ResourcePool.ofList (nativeTrace shortWidth)
 
 /-- Every reset path contains precisely the original four native self-XOR instructions. -/
 theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
-    (into refs).eventTrace path = nativeTrace shortWidth := rfl
+    (into refs).eventTrace path = nativeTrace shortWidth := by
+  change (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).wideInput)).eventTrace
+      path.1 ++
+    ((BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).round.root)).eventTrace
+      path.2.1 ++
+      ((BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).round.half)).eventTrace
+        path.2.2.1 ++
+        (BitWord.instruction (execution := model) (clearOp (sqrtRefs refs).output)).eventTrace
+          path.2.2.2)) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- The actual reset native multiplicities equal their independent four-clear formula. -/
 theorem into_resourcePool (refs : Refs ctx shortWidth) (path : (into refs).Path) :
-    (into refs).resourcePool path = resetEventEnvelope shortWidth := rfl
+    (into refs).resourcePool path = resetEventEnvelope shortWidth := by
+  change ResourcePool.ofList ((into refs).eventTrace path) = _
+  rw [into_events]
+  rfl
 
 /-- Every actual reset path satisfies the original independent native coordinate allowance. -/
 theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
@@ -216,12 +246,24 @@ theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path)
 
 /-- All four writes restore the full borrowed-reference joint state on every input. -/
 theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ _) ?_
-  refine Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _) ?_
-  exact Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
-    (Circuit.borrowedRestored_classical _ _)
+  refine Circuit.borrowedRestored_seq _ _ state
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model)
+        (clearOp (sqrtRefs refs).wideInput)) _) ?_
+  refine Circuit.borrowedRestored_seq _ _ _
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model)
+        (clearOp (sqrtRefs refs).round.root)) _) ?_
+  exact Circuit.borrowedRestored_seq _ _ _
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model)
+        (clearOp (sqrtRefs refs).round.half)) _)
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model)
+        (clearOp (sqrtRefs refs).output)) _)
 
 end
 

@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.Problem
+public import QuantumAlg.Algorithms.EllipticCurve.P256.DomainParameters
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Problem
 import all QuantumAlg.Algorithms.EllipticCurve.P256.DomainParameters
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
@@ -29,7 +31,7 @@ noncomputable section
 open PrimeFieldShortWeierstrass
 
 /-- Generic ECDLP instance induced by the certified P-256 public key. -/
-def ecdlpInstance (I : DomainParameters.PublicKeyInstance) :=
+public def ecdlpInstance (I : DomainParameters.PublicKeyInstance) :=
   I.toECDLPInstance
 
 /-- Width of either oversampled P-256 exponent register. -/

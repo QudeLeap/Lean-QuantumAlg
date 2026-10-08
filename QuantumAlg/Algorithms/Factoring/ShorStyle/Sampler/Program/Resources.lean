@@ -24,50 +24,56 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Independent native coordinates of loading, all original proposals and the complete decision. -/
-def nativeEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  (ConstantWord.envelope kind (modulusBits N + 1) +
-    Proposal.scanEnvelope kind (modulusBits N) residueProposalCount) +
-      Decision.nativeEnvelope kind (modulusBits N)
+def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
+    ResourcePool model :=
+  (ConstantWord.envelope model (modulusBits N + 1) +
+    Proposal.scanEnvelope model (modulusBits N) residueProposalCount) +
+      Decision.nativeEnvelope model (modulusBits N)
 
 /-- The real loader and ordered scan respect their two independent native allowances. -/
 theorem samplerScan_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
-    (path : (Scan.circuit N sample).Path) :
-    (Scan.circuit N sample).resourcePool path ≤
-      ConstantWord.envelope kind (modulusBits N + 1) +
-        Proposal.scanEnvelope kind (modulusBits N) residueProposalCount := by
-  change ResourcePool.ofList ((Scan.loader ctx N).eventTrace path.1 ++
-    (Proposal.scan (Layout.underRead sample (modulusBits N))
+    (path : (Scan.circuit (model := model) N sample).Path) :
+    (Scan.circuit (model := model) N sample).resourcePool path ≤
+      ConstantWord.envelope model (modulusBits N + 1) +
+        Proposal.scanEnvelope model (modulusBits N) residueProposalCount := by
+  change ResourcePool.ofList ((Scan.loader (model := model) ctx N).eventTrace path.1 ++
+    (Proposal.scan (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))).eventTrace
         path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add
-    (ConstantWord.constantWord_pool_le (Layout.modulusCell ctx (modulusBits N)) N path.1)
-    (Proposal.proposalScan_pool_le (Layout.underRead sample (modulusBits N))
+    (ConstantWord.constantWord_pool_le (model := model)
+      (Layout.modulusCell ctx (modulusBits N)) N path.1)
+    (Proposal.proposalScan_pool_le (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- Every actual inner path includes its selected decision's exact native coordinates. -/
 theorem samplerInner_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (inner N sample output).Path) :
-    (inner N sample output).resourcePool path ≤ nativeEnvelope kind N := by
-  change ResourcePool.ofList ((Scan.circuit N sample).eventTrace path.1 ++
-    (Decision.circuit (Layout.shared ctx (modulusBits N))
+    (path : (inner (model := model) N sample output).Path) :
+    (inner (model := model) N sample output).resourcePool path ≤ nativeEnvelope model N := by
+  change ResourcePool.ofList ((Scan.circuit (model := model) N sample).eventTrace path.1 ++
+    (Decision.circuit (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N))).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
-  exact add_le_add (samplerScan_pool_le N sample path.1)
-    (Decision.decision_pool_le (Layout.shared ctx (modulusBits N))
+  exact add_le_add (samplerScan_pool_le (model := model) N sample path.1)
+    (Decision.decision_pool_le (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N)) path.2)
 
+omit [BitWord.Selected model] in
 /-- The actual eleven allocations and releases leave the inner event trace unchanged. -/
 theorem samplerScopes_eventTrace (width : Nat)
-    (body : Circuit (Layout.context ctx width) (Layout.context ctx width))
+    (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (path : (scopes ctx width body).Path) :
     (scopes ctx width body).eventTrace path = body.eventTrace path := rfl
 
@@ -75,19 +81,21 @@ theorem samplerScopes_eventTrace (width : Nat)
 theorem samplerProgram_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (circuit N sample output).Path) :
-    (circuit N sample output).resourcePool path ≤ nativeEnvelope kind N :=
-  samplerInner_pool_le N sample output path
+    (path : (circuit (model := model) N sample output).Path) :
+    (circuit (model := model) N sample output).resourcePool path ≤ nativeEnvelope model N :=
+  samplerInner_pool_le (model := model) N sample output path
 
 /-- The deterministic allowance contains exactly this many native event slots. -/
-theorem samplerProgramEnvelope_card (kind : ProblemKind) (N : Nat) :
-    (nativeEnvelope kind N).card = 44 * modulusBits N + 162 := by
-  have loaderCard : (ConstantWord.envelope kind (modulusBits N + 1)).card =
+theorem samplerProgramEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
+    (nativeEnvelope model N).card = 44 * modulusBits N + 162 := by
+  have loaderCard : (ConstantWord.envelope model (modulusBits N + 1)).card =
       2 * (modulusBits N + 1) := by
     simp [ConstantWord.envelope, ConstantWord.bitEnvelope, ResourcePool.scale,
       ResourcePool.singleton, Nat.mul_comm]
   simp only [nativeEnvelope, Multiset.card_add, loaderCard,
     Proposal.proposalScanEnvelope_card, Decision.decisionNativeEnvelope_card, residueProposalCount]
   omega
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

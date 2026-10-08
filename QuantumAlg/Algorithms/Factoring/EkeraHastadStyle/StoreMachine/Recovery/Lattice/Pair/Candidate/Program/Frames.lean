@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Both actual shared initializers preserve every read outside their original destinations. -/
 theorem sharedInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)

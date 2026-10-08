@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Context.Union.Unitary
 import all QuantumAlg.Core.Base.Accounting.Context
 
 /-!
@@ -15,10 +16,13 @@ import all QuantumAlg.Core.Base.Accounting.Context
 
 Disjointness of the complete prepared context ensures that the original fresh
 key and every new wire remain available beside the supplied frame. The emitted
-instruction is the existing charged preparation on that actual union context.
+instructions allocate zero on the actual union and load fixed bits using the
+selected gate model.
 -/
 
 namespace QuantumAlg.Execution.ContextUnion
+
+noncomputable section
 
 variable {ctx frame : RuntimeCtx .quantum} {count : Nat}
   (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
@@ -69,25 +73,57 @@ private theorem preparation_wires_union :
     exact List.mem_append_left _
       (by simpa only [← layout_identities_eq_map_wires] using prepared)
 
-/-- Prepare the original fixed state while retaining every actual entry of the supplied frame. -/
-def prepareFramed (preparation : BasisPreparation layout) :
-    Circuit (ctx.disjointUnion frame
+/-- Allocate zero on the actual union while retaining the complete resident frame. -/
+def prepareZeroFramed {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel} :
+    Circuit (.quantum gates oracles operations services) (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate))
       ((ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame separate) :=
-  .prepare _ key layout (preparation_fresh_union key layout fresh disjoint separate)
-    (preparation_wires_union key layout fresh disjoint separate) preparation
+  Circuit.prepareZero (gates := gates) (oracles := oracles)
+    (operations := operations) (classicalOracles := services) _ key layout
+    (preparation_fresh_union key layout fresh disjoint separate)
+    (preparation_wires_union key layout fresh disjoint separate)
 
-/-- The actual instruction charges precisely the supplied fixed preparation event. -/
-theorem prepareFramed_eventTrace (preparation : BasisPreparation layout)
-    (path : (prepareFramed key layout fresh disjoint separate preparation).Path) :
-    (prepareFramed key layout fresh disjoint separate preparation).eventTrace path =
-      [preparation.event] := rfl
+/-- Prepare zero on the actual union, then load fixed bits with the model's real gates. -/
+def prepareFramed {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (load : UnitaryCircuit gates oracles
+      (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout) :
+    Circuit (.quantum gates oracles operations services) (ctx.disjointUnion frame
+      (preparation_original_disjoint key layout fresh disjoint separate))
+      ((ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame separate) :=
+  (prepareZeroFramed key layout fresh disjoint separate).seq
+      (Circuit.unitary (operations := operations) (classicalOracles := services)
+        (frameUnitary (ctx.addOwnedLayout key layout fresh disjoint)
+          frame separate load))
 
-/-- Actual execution visits the full original union and the full prepared union. -/
-theorem prepareFramed_visitedContexts (preparation : BasisPreparation layout)
-    (path : (prepareFramed key layout fresh disjoint separate preparation).Path) :
-    (prepareFramed key layout fresh disjoint separate preparation).visitedContexts path =
+/-- The actual trace charges zero allocation and every fixed-bit loading gate. -/
+theorem prepareFramed_eventTrace {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (load : UnitaryCircuit gates oracles
+      (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
+    (path : (prepareFramed key layout fresh disjoint separate
+      (operations := operations) (services := services) load).Path) :
+    (prepareFramed key layout fresh disjoint separate load).eventTrace path =
+      ZeroPreparation.eventTrace gates oracles layout operations services ++
+        load.eventTrace operations services := by
+  exact congrArg (fun events =>
+    ZeroPreparation.eventTrace gates oracles layout operations services ++ events)
+    (contextUnion_frameUnitary_eventTrace
+      (ctx.addOwnedLayout key layout fresh disjoint) frame separate load operations services)
+
+/-- Both the allocation and the loading gate retain the complete resident frame. -/
+theorem prepareFramed_visitedContexts {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (load : UnitaryCircuit gates oracles
+      (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
+    (path : (prepareFramed key layout fresh disjoint separate
+      (operations := operations) (services := services) load).Path) :
+    (prepareFramed key layout fresh disjoint separate load).visitedContexts path =
       [ctx.disjointUnion frame (preparation_original_disjoint key layout fresh disjoint separate),
+        (ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame separate,
         (ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame separate] := rfl
+
+end
 
 end QuantumAlg.Execution.ContextUnion

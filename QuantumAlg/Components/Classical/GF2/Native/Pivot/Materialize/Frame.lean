@@ -24,7 +24,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem rowBody_read_other (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -49,6 +50,7 @@ private theorem columnBody_read_other (output mask : CWriteRef ctx (.unsignedWor
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (pivotOrOp output mask) other outputFree]
   exact Word.PowerOfTwo.into_callerFrame _ mask store other maskFree
 
+omit [BitWord.Selected model] in
 private theorem mask_fresh {shape : CShape} (other : CInputRef ctx shape) (maskWidth : Nat) :
     (pivotMaskCell ctx maskWidth).key ∉
       (other.underWorkspace ctx.canonicalFreshKey (.unsignedWord maskWidth)

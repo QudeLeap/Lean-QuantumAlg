@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 
 /-!
@@ -19,7 +20,7 @@ exactly, with no independent choice of how to transform a compound read.
 namespace QuantumAlg.CInputRef
 
 /-- Map storage leaves while preserving every structural constructor and index. -/
-def mapStorage {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+@[expose] public def mapStorage {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (lift : ∀ {shape : CShape}, CStorageRef outer shape → CStorageRef inner shape)
     {shape : CShape} : CInputRef outer shape → CInputRef inner shape
   | .storage ref => .storage (lift ref)
@@ -32,7 +33,7 @@ def mapStorage {kind : ProblemKind} {outer inner : RuntimeCtx kind}
   | .wordBitGet input index => .wordBitGet (mapStorage lift input) index
 
 /-- Mapping storage leaves identically preserves the complete input expression. -/
-theorem input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape) :
     mapStorage (fun ref => ref) input = input := by
   induction input with
@@ -46,7 +47,7 @@ theorem input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
   | wordBitGet input index ih => exact congrArg (fun source => wordBitGet source index) ih
 
 /-- Structural mapping respects composition of the typed storage maps. -/
-theorem input_mapStorage_compose {kind : ProblemKind}
+public theorem input_mapStorage_compose {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind}
     (first : ∀ {shape : CShape}, CStorageRef outer shape → CStorageRef middle shape)
     (second : ∀ {shape : CShape}, CStorageRef middle shape → CStorageRef inner shape)
@@ -64,7 +65,7 @@ theorem input_mapStorage_compose {kind : ProblemKind}
   | wordBitGet input index ih => exact congrArg (fun source => wordBitGet source index) ih
 
 /-- The existing lexical workspace lift is the structural map of its storage lift. -/
-theorem input_mapStorage_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem input_mapStorage_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (workspaceShape : CShape) (fresh : key ∉ ctx.keys) :
     mapStorage (fun ref => ref.underWorkspace key workspaceShape fresh) input =

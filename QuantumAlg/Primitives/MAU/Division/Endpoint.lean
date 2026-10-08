@@ -7,9 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.GateModel.Algorithm
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Primitives.MAU.Division.SharedEEA.Execution.State
@@ -68,16 +70,17 @@ Output.all. All relative phases and joint-reference coherences are retained.
 For N=1, the same actual preparation precedes full-frame identity, and every
 supplied and prepared field remains unchanged.
 
-**Resource budget.** The fixed preparation event occurs once. The independent
+**Resource budget.** Zero allocation and fixed-seed X gates precede arithmetic. The independent
 coordinatewise native envelope is SharedEEA.nativeBudget(n), containing both
 corrected EEA passes and all actual VariableGidney product-accumulation stages.
 Resident and owned auxiliary space each contain 4*n+4*size(n)+12 qubits and
 zero classical bits, including the supplied flag. Unit-event depth is at most
-1+SharedEEA.eventBound(n), where eventBound(n) is twice the corrected EEA count
-bound plus n*n times the Gidney stage bound. These are conservative bounds of
-this actual composition, not the source's measured-division space count or
-leading gate constant. The N=1 branch still pays the preparation event and
-retains the complete physical frame.
+1+auxiliaryWidth(n)+SharedEEA.eventBound(n). Here eventBound(n) covers both
+corrected EEA passes and n controlled MAC stages, each charged from its
+literal gate list. These are conservative bounds for this composition, not
+the source's measured-division space count or leading gate constant. The
+N=1 branch still pays the same zero allocation and seed loading and retains
+the complete physical frame.
 
 **Success.** The unit classical observation is accepted with probability one;
 a nonempty state requirement specifies the entire independent joint density.
@@ -93,8 +96,10 @@ composition results; they are not attributed to the source's measured route.
 Mixed density and local-unitary interpretation use [dW19, qcnotes.tex:5381,5394,5405].
 -/
 public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
-    Problem .quantum (inputContext modulus.size) (outputContext modulus.size) .unit where
+    Problem (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size) .unit where
   valid := ExecutionLayout.valid modulus
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [ExecutionTarget.requirement modulus modulusPositive]
@@ -102,12 +107,17 @@ public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
     { events := ExecutionResources.events modulus
       resident := ExecutionResources.space modulus.size
       auxiliary := ExecutionResources.space modulus.size }
-  depth := .quantum (fun _ => 1) (ExecutionResources.depthBound modulus.size)
+  depth :=
+    { duration := fun _ => 1
+      limit := ExecutionResources.depthBound modulus.size
+      classicalQuery_unit := fun coordinate => nomatch coordinate
+      quantumQuery_unit := fun coordinate => nomatch coordinate }
 
 /-- Execute one fixed preparation and the complete modulus-selected native body, retaining all
   keys. -/
 public def algorithm (modulus : Nat) :
-    Algorithm .quantum (inputContext modulus.size) (outputContext modulus.size) .unit where
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (inputContext modulus.size) (outputContext modulus.size) .unit where
   run :=
     { code := ExecutionRuntime.code modulus
       output := Output.all (outputContext modulus.size) .unit }
@@ -118,28 +128,37 @@ public theorem main (modulus : Nat) (modulusPositive : 0 < modulus) :
     ∃ candidate, Algorithm.Solves candidate (problem modulus modulusPositive) := by
   refine ⟨algorithm modulus, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid requirement present
+  · intro Reference input valid _initial requirement present
     have same : requirement = ExecutionTarget.requirement modulus modulusPositive :=
       List.mem_singleton.mp present
     subst requirement
     exact ExecutionStateProof.divisionState_requirement_holds modulus modulusPositive
       (Output.all (outputContext modulus.size) .unit) input valid
-  · intro Reference input _valid
-    exact ExecutionStateProof.divisionState_borrowedRestored modulus
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
-    exact ExecutionResources.divisionResources_resourcePool modulus path
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initial
+    change Execution.observeBorrowedAfter (ExecutionRuntime.code modulus) Reference
+      ((ExecutionRuntime.code modulus).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
+      Execution.observeBorrowed Reference input.state
+    refine (ExecutionStateProof.divisionState_borrowedRestored modulus
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
+    refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
+      (fun _ => rfl) _ _
+  · intro _Reference _input _valid _initial path _supported
+    exact ExecutionResources.divisionResources_events modulus path
+  · intro _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_resident modulus path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_auxiliary modulus path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_depth modulus path
 
 end

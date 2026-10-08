@@ -30,6 +30,7 @@ noncomputable section
 namespace EncodedBit
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- A fixed-width semantic word represented by encoded bit lenses over one
 shared binary label encoding.  This records only the bit-level accessors; word
@@ -97,16 +98,8 @@ theorem xorIntoGates_toffoliMultiplicity_sum
 /-- Base-gate program for bitwise xor from one encoded word into another. -/
 def xorIntoProgram (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList (xorIntoGates source target hdisjoint)
-
-/-- A word-xor program uses only wires of its shared encoding. -/
-theorem xorIntoProgram_physical_idx_subset_range
-    (source target : Word encoding width)
-    (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
-    (xorIntoProgram source target hdisjoint).physical_idx ⊆
-      List.range encoding.width := by
-  exact GateSpec.programList_physical_idx_subset_range _
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles (xorIntoGates source target hdisjoint)
 
 /-- Semantic action of the bitwise xor-into program. -/
 def xorIntoStep (source target : Word encoding width)
@@ -133,16 +126,16 @@ theorem xorIntoStep_preserves_projection
 theorem xorInto_realizes (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (xorIntoProgram source target hdisjoint)
+      (xorIntoProgram physical oracles source target hdisjoint)
       (xorIntoStep source target hdisjoint) :=
-  GateSpec.realizesList (xorIntoGates source target hdisjoint)
+  GateSpec.realizesList physical oracles (xorIntoGates source target hdisjoint)
 
 /-- Direct realization proof for bitwise xor into another encoded word. -/
 theorem xorIntoWitness (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
-    UnitaryCircuit.Realizes encoding (xorIntoProgram source target hdisjoint)
+    UnitaryCircuit.Realizes encoding (xorIntoProgram physical oracles source target hdisjoint)
       (xorIntoStep source target hdisjoint) :=
-  xorInto_realizes source target hdisjoint
+  xorInto_realizes physical oracles source target hdisjoint
 
 /-- Folded semantic action for word xor over an explicit list of indices. -/
 def xorIntoIndicesStep (source target : Word encoding width)

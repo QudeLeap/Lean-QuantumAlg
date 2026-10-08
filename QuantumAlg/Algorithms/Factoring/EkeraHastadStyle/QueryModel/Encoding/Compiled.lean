@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Encoding
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Placement
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Layout
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Layout
 
 /-!

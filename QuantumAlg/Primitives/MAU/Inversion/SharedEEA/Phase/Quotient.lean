@@ -70,7 +70,9 @@ private theorem guard_reverse_step (width : Nat) (state : Registers width) :
     ⟨p1, p2, sign, iteration⟩, control⟩
   cases p1 <;> cases p2 <;> cases control <;> rfl
 
-private def bodyProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
+private def bodyProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   (QuotientComplement.program width).seq
     ((QuotientIncrement.program width).seq (QuotientComplement.program width))
 
@@ -111,16 +113,21 @@ private theorem body_computed {width : Nat} (state : Registers width) :
       xorControl (condition state) (step state) := rfl
 
 /-- Compute the actual phase xor, execute direction-selected arithmetic, and reverse the xor. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (GateSpec.programList (guardGates width)).seq
-    ((bodyProgram width).seq (GateSpec.programList (guardGates width).reverse))
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (GateSpec.programList (QubitLayout.canonical _) .empty (guardGates width)).seq
+    ((bodyProgram width).seq
+      (GateSpec.programList (QubitLayout.canonical _) .empty (guardGates width).reverse))
 
 /-- Exact complete native action, including arbitrary incoming work and restored Ctrl. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  ((GateSpec.realizesList_congrStep _ (guard_step width)).seq
+  ((GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+      (guardGates width) (guard_step width)).seq
     ((body_realizes width).seq
-      (GateSpec.realizesList_congrStep _ (guard_reverse_step width)))).congrStep (by
+      (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+        (guardGates width).reverse (guard_reverse_step width)))).congrStep (by
     intro state
     rw [body_computed, condition_xorControl, condition_step, xorControl_twice])
 
@@ -139,8 +146,11 @@ theorem step_eq_sourceStep {width : Nat} (state : Registers width)
 /-- The source action is performed by this actual program on the internally prepared subspace. -/
 theorem program_apply_prepared (width : Nat) (state : Registers width)
     (preparedControl : state.control = false) :
-    (program width).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep state)) := by
+    (program width).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep state))) := by
   rw [(program_realizes width).apply_encoded_ket, step_eq_sourceStep state preparedControl]
 
 /-- Every borrowed word, other length, and original phase/control bit is retained. -/
@@ -154,25 +164,26 @@ theorem step_retained {width : Nat} (state : Registers width) :
   ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 private theorem guard_trace (width : Nat) :
-    (GateSpec.programList (guardGates width)).eventTrace =
-      [.gate (.builtin "cnot"), .gate (.builtin "cnot")] := by
+    (GateSpec.programList (QubitLayout.canonical _) .empty (guardGates width)).eventTrace =
+      [.gate .cnot, .gate .cnot] := by
   rw [GateSpec.programList_eventTrace]
   rfl
 
 private theorem guard_reverse_trace (width : Nat) :
-    (GateSpec.programList (guardGates width).reverse).eventTrace =
-      [.gate (.builtin "cnot"), .gate (.builtin "cnot")] := by
+    (GateSpec.programList (QubitLayout.canonical _) .empty
+      (guardGates width).reverse).eventTrace =
+      [.gate .cnot, .gate .cnot] := by
   rw [GateSpec.programList_eventTrace]
   rfl
 
 /-- Every predicate and complement CNOT surrounds the single original HRS event trace. -/
 theorem program_eventTrace (width : Nat) :
     (program width).eventTrace =
-      [.gate (.builtin "cnot"), .gate (.builtin "cnot")] ++
-        List.replicate width.size (.gate (.builtin "cnot")) ++
+      [.gate .cnot, .gate .cnot] ++
+        List.replicate width.size (.gate .cnot) ++
           (LowShiftIncrement.program width).eventTrace ++
-            List.replicate width.size (.gate (.builtin "cnot")) ++
-              [.gate (.builtin "cnot"), .gate (.builtin "cnot")] := by
+            List.replicate width.size (.gate .cnot) ++
+              [.gate .cnot, .gate .cnot] := by
   simp only [program, bodyProgram, UnitaryCircuit.seq_eventTrace, guard_trace,
     guard_reverse_trace, QuotientComplement.program_eventTrace,
     QuotientIncrement.program_eventTrace, List.append_assoc]

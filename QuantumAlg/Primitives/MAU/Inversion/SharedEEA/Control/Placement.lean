@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.PreparedFrame
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.RegisterFrame
 import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.BitGates.WirePlacement
 
 /-!
 # Exact native control placement between Phase2 and the existing Ctrl
@@ -64,8 +66,10 @@ private theorem swap_step (width : Nat) (state : Registers width) :
 /-- Exact amplitude identification of the coordinate exchange with those two physical wires. -/
 theorem exchange_coordinate_swap (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
-      (swapProgram (phase2Bit width) (controlBit width) (separate width)) exchange :=
-  (swap_realizes (phase2Bit width) (controlBit width) (separate width)).congrStep (swap_step width)
+      (swapProgram (QubitLayout.canonical _) .empty
+        (phase2Bit width) (controlBit width) (separate width)) exchange :=
+  (swap_realizes (QubitLayout.canonical _) .empty
+    (phase2Bit width) (controlBit width) (separate width)).congrStep (swap_step width)
 
 /-- Transport through the actual full binary encoding, preserving every unexchanged field. -/
 def indexEquiv (width : Nat) :
@@ -82,24 +86,138 @@ theorem indexEquiv_encode (width : Nat) (state : Registers width) :
     PreparedFrame.registerLabelEquiv width (exchange state)
   rw [Equiv.symm_apply_apply]
 
-/-- The native wire map exchanges those same physical identities and leaves all others fixed. -/
-def physicalEquiv (width : Nat) : Equiv.Perm Nat :=
-  Equiv.swap (phase2Bit width).wire.val (controlBit width).wire.val
+/-- The two named original wires are exchanged by one exact physical bijection. -/
+def wireEquiv (width : Nat) :
+    Fin (encoding width).width ≃ Fin (encoding width).width :=
+  Equiv.swap (phase2Bit width).wire (controlBit width).wire
 
-private def transported (width : Nat)
-    (body : UnitaryCircuit (Qubits (encoding width).width)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  UnitaryCircuit.reindex (indexEquiv width) body
+/-- The actual full-frame placement derives its basis action from those same wires. -/
+def placement (width : Nat) : EncodedBit.FullPlacement (encoding width) (encoding width) :=
+  EncodedBit.FullPlacement.ofWires (encoding width) (encoding width)
+    (encoding_surjective width) (encoding_surjective width) (wireEquiv width)
 
-/-- Apply the exact logical and native physical control-coordinate change to the existing body. -/
-def place (width : Nat) (body : UnitaryCircuit (Qubits (encoding width).width)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  UnitaryCircuit.relabel (transported width body)
-    { toFun := physicalEquiv width
-      map_layout := rfl
-      old_nodup := (transported width body).physical_idx_nodup
-      new_nodup := (transported width body).physical_idx_nodup.map
-        (physicalEquiv width).injective }
+private theorem placed_read (width : Nat) (state : Registers width)
+    (source target : EncodedBit (encoding width))
+    (same : wireEquiv width source.wire = target.wire) :
+    source.get ((placement width).grouping state) = target.get state :=
+  EncodedBit.FullPlacement.ofWires_read (encoding width) (encoding width)
+    (encoding_surjective width) (encoding_surjective width)
+    (wireEquiv width) source target same state
+
+private theorem fixed_read (width : Nat) (state : Registers width)
+    (bit : EncodedBit (encoding width))
+    (notPhase : bit.wire ≠ (phase2Bit width).wire)
+    (notControl : bit.wire ≠ (controlBit width).wire) :
+    bit.get ((placement width).grouping state) = bit.get state := by
+  apply placed_read width state bit bit
+  exact Equiv.swap_apply_of_ne_of_ne notPhase notControl
+
+/-- Every unchanged field and both exchanged controls agree with the source grouping. -/
+theorem placement_grouping (width : Nat) (state : Registers width) :
+    (placement width).grouping state = exchange state := by
+  apply Registers.ext_fields
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin (width + 3) := ⟨index, within⟩
+    have actual := fixed_read width state (firstWordBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [firstWordBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [firstWordBit_wire, controlBit_wire] at values; omega)
+    rw [firstWordBit_get, firstWordBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin (width + 3) := ⟨index, within⟩
+    have actual := fixed_read width state (secondWordBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [secondWordBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [secondWordBit_wire, controlBit_wire] at values; omega)
+    rw [secondWordBit_get, secondWordBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := fixed_read width state (coefficientLengthBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [coefficientLengthBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [coefficientLengthBit_wire, controlBit_wire] at values; omega)
+    rw [coefficientLengthBit_get, coefficientLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := fixed_read width state (quotientLengthBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [quotientLengthBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [quotientLengthBit_wire, controlBit_wire] at values; omega)
+    rw [quotientLengthBit_get, quotientLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := fixed_read width state (divisorLengthBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [divisorLengthBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [divisorLengthBit_wire, controlBit_wire] at values; omega)
+    rw [divisorLengthBit_get, divisorLengthBit_get] at actual
+    exact actual
+  · apply BitVec.eq_of_getMsbD_eq
+    intro index within
+    let selected : Fin width.size := ⟨index, within⟩
+    have actual := fixed_read width state (shiftBit width selected)
+      (by intro same; have values := congrArg Fin.val same
+          rw [shiftBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [shiftBit_wire, controlBit_wire] at values; omega)
+    rw [shiftBit_get, shiftBit_get] at actual
+    exact actual
+  · have actual := fixed_read width state (phase1Bit width)
+      (by intro same; have values := congrArg Fin.val same
+          rw [phase1Bit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [phase1Bit_wire, controlBit_wire] at values; omega)
+    rw [phase1Bit_get, phase1Bit_get] at actual
+    exact actual
+  · have actual := placed_read width state (phase2Bit width) (controlBit width)
+      (by exact Equiv.swap_apply_left _ _)
+    rw [phase2Bit_get, controlBit_get] at actual
+    exact actual
+  · have actual := fixed_read width state (signBit width)
+      (by intro same; have values := congrArg Fin.val same
+          rw [signBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [signBit_wire, controlBit_wire] at values; omega)
+    rw [signBit_get, signBit_get] at actual
+    exact actual
+  · have actual := fixed_read width state (iterationBit width)
+      (by intro same; have values := congrArg Fin.val same
+          rw [iterationBit_wire, phase2Bit_wire] at values; omega)
+      (by intro same; have values := congrArg Fin.val same
+          rw [iterationBit_wire, controlBit_wire] at values; omega)
+    rw [iterationBit_get, iterationBit_get] at actual
+    exact actual
+  · have actual := placed_read width state (controlBit width) (phase2Bit width)
+      (by exact Equiv.swap_apply_right _ _)
+    rw [controlBit_get, phase2Bit_get] at actual
+    exact actual
+
+theorem placement_grouping_eq (width : Nat) :
+    (placement width).grouping = fieldEquiv width := by
+  apply Equiv.ext
+  exact placement_grouping width
+
+/-- Apply the actual native body at the exchanged original physical addresses. -/
+def place (width : Nat)
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (placement width).place body
 
 /-- Conjugate the complete state action by the same explicit named-field exchange. -/
 def placedStep {width : Nat} (action : Registers width → Registers width)
@@ -108,29 +226,22 @@ def placedStep {width : Nat} (action : Registers width → Registers width)
 
 /-- The placed actual program realizes the full exchanged action with exact amplitudes. -/
 theorem place_realizes (width : Nat)
-    {body : UnitaryCircuit (Qubits (encoding width).width)}
+    {body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum}
     {action : Registers width → Registers width}
     (realizes : UnitaryCircuit.Realizes (encoding width) body action) :
-    UnitaryCircuit.Realizes (encoding width) (place width body) (placedStep action) where
-  apply_encoded_ket := by
-    intro state
-    have original := realizes.apply_encoded_ket (exchange state)
-    have reindexed := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-      (R := Qubits (encoding width).width) (S := Qubits (encoding width).width)
-      (indexEquiv width) body _ _ original
-    rw [indexEquiv_encode, indexEquiv_encode, exchange_exchange] at reindexed
-    unfold place
-    rw [UnitaryCircuit.Realizes.applyNormalized_relabel]
-    exact reindexed
+    UnitaryCircuit.Realizes (encoding width) (place width body) (placedStep action) := by
+  apply ((placement width).place_realizes realizes).congrStep
+  intro state
+  simp only [EncodedBit.FullPlacement.step, placement_grouping_eq, fieldEquiv,
+    Equiv.coe_fn_mk, Equiv.coe_fn_symm_mk, placedStep]
 
 /-- Placement retains the original native event order and adds no swap events. -/
-theorem place_eventTrace (width : Nat) (body : UnitaryCircuit (Qubits (encoding width).width)) :
+theorem place_eventTrace (width : Nat)
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum) :
     (place width body).eventTrace = body.eventTrace := by
-  rw [place, UnitaryCircuit.relabel_eventTrace, transported, UnitaryCircuit.reindex_eventTrace]
-
-/-- Every changed native identity is exactly the corresponding exchanged original address. -/
-theorem place_physical (width : Nat) (body : UnitaryCircuit (Qubits (encoding width).width)) :
-    (place width body).physical_idx = body.physical_idx.map (physicalEquiv width) := rfl
+  exact (placement width).place_eventTrace body
 
 end
 

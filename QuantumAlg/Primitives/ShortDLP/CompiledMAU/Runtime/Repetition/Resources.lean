@@ -37,7 +37,7 @@ theorem shortDLP_runtimeRepetition_resourcePool_le {shape : CShape} (m ell width
       count • RuntimeRound.eventEnvelope m ell width N := by
   induction count generalizing ctx with
   | zero =>
-      change (0 : ResourcePool .quantum) ≤ 0 • RuntimeRound.eventEnvelope m ell width N
+      change (0 : ResourcePool RuntimeRound.model) ≤ 0 • RuntimeRound.eventEnvelope m ell width N
       rw [zero_nsmul]
   | succ count ih =>
       let nextCtx := RuntimeResults.next m ell width ctx

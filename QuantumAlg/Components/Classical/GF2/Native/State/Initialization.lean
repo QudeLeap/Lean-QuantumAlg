@@ -26,7 +26,8 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem load_rows
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
@@ -36,7 +37,8 @@ private theorem load_rows
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
     (inputValues : ∀ row, ClassicalAlgorithms.TerminalDecode.eval
       (TerminalDecode.decodeInput .bigEndian ((store.read input).get row)) = samples row) :
-    (Circuit.forRangeRecord count (fun index => loadRow input matrix (indices index))
+    (Circuit.forRangeStoreRecord count
+      (fun index => loadRow (model := model) input matrix (indices index))
       (fun index => loadRowStep input matrix (indices index)) store).1.read
         (.storage matrix.toCStorageRef) =
       .fixedVector (fun row => if row ∈ List.ofFn indices then .unsignedWord (samples row)
@@ -63,7 +65,7 @@ private theorem load_rows
         exact congrArg (fun word => CShape.vectorWrite
           (store.read (.storage matrix.toCStorageRef)) (indices 0) (.unsignedWord word))
           (inputValues (indices 0))
-      change (Circuit.forRangeRecord count _ _ first).1.read _ = _
+      change (Circuit.forRangeStoreRecord count _ _ first).1.read _ = _
       rw [ih (fun index => indices index.succ) first nextInput, firstMatrix, List.ofFn_succ]
       apply congrArg CShape.Value.fixedVector
       funext row
@@ -89,7 +91,7 @@ private theorem load_matrix
   simpa only [loadMatrixStep, List.mem_ofFn, id_eq, exists_eq, if_true] using loaded
 
 /-- The original allocator supplies input separation for every actual matrix-row decode. -/
-theorem gf2LoadMatrix_cellRows {outer : RuntimeCtx kind}
+theorem gf2LoadMatrix_cellRows {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (store : Store ctx)
@@ -118,6 +120,7 @@ theorem gf2LoadMatrix_cellRows {outer : RuntimeCtx kind}
                 exact load_matrix (transport.liftInput input) matrix.ref
                   (separated.2.2.2.2.2.1 input) store samples inputValues
 
+omit [BitWord.Selected model] in
 private theorem row_written
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (column : Fin width) (store : Store ctx) :
@@ -127,6 +130,7 @@ private theorem row_written
   refine (Store.read_applyOp_output store (pivotRowWriteOp rows zero column)).trans ?_
   rfl
 
+omit [BitWord.Selected model] in
 private theorem row_zero_frame
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (column : Fin width) (store : Store ctx) :
@@ -144,9 +148,11 @@ private theorem clear_rows
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (count : Nat)
     (indices : Fin count → Fin width) (store : Store ctx)
     (zeroValue : store.read (.storage zero.toCStorageRef) = CShape.wordOfNat rowCount 0) :
-    (Circuit.forRangeRecord count
-      (fun index => .classical (pivotRowWriteOp rows zero (indices index)))
-      (fun index current => (current.applyOp (pivotRowWriteOp rows zero (indices index)), ()))
+    (Circuit.forRangeStoreRecord count
+      (fun index => BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows zero (indices index)))
+      (fun index => BitWord.instructionStep (execution := model)
+        (pivotRowWriteOp rows zero (indices index)))
       store).1.read (.storage rows.toCStorageRef) =
       .fixedVector (fun column => if column ∈ List.ofFn indices then CShape.wordOfNat rowCount 0
         else (store.read (.storage rows.toCStorageRef)).get column) := by
@@ -160,7 +166,7 @@ private theorem clear_rows
       let first := store.applyOp (pivotRowWriteOp rows zero (indices 0))
       have nextZero : first.read (.storage zero.toCStorageRef) = CShape.wordOfNat rowCount 0 :=
         (row_zero_frame rows zero (indices 0) store).trans zeroValue
-      change (Circuit.forRangeRecord count _ _ first).1.read _ = _
+      change (Circuit.forRangeStoreRecord count _ _ first).1.read _ = _
       rw [ih (fun index => indices index.succ) first nextZero, row_written, zeroValue,
         List.ofFn_succ]
       apply congrArg CShape.Value.fixedVector
@@ -179,14 +185,16 @@ private theorem clear_rows_other
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (count : Nat)
     (indices : Fin count → Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : rows.key ∉ other.storageKeys) :
-    (Circuit.forRangeRecord count
-      (fun index => .classical (pivotRowWriteOp rows zero (indices index)))
-      (fun index current => (current.applyOp (pivotRowWriteOp rows zero (indices index)), ()))
+    (Circuit.forRangeStoreRecord count
+      (fun index => BitWord.instruction (execution := model)
+        (pivotRowWriteOp rows zero (indices index)))
+      (fun index => BitWord.instructionStep (execution := model)
+        (pivotRowWriteOp rows zero (indices index)))
       store).1.read other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (store.applyOp (pivotRowWriteOp rows zero (indices 0)))).1.read other = _
       exact (ih (fun index => indices index.succ) _).trans
         (Store.read_applyOp_of_not_mem_storageKeys store
@@ -238,6 +246,7 @@ theorem gf2ClearPivotRows_read_other
   refine (show (pivotRowsClearBodyStep _ _ _).1.read _ = _ from unchanged).trans ?_
   exact Store.read_pushWorkspace_underWorkspace store _ _ _ other
 
+omit [BitWord.Selected model] in
 private theorem word_eq_of_nat {size : Nat} (left right : CShape.Value (.unsignedWord size))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
@@ -245,6 +254,7 @@ private theorem word_eq_of_nat {size : Nat} (left right : CShape.Value (.unsigne
       cases right with
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
+omit [BitWord.Selected model] in
 private theorem zero_word (size : Nat) :
     CShape.wordOfNat size 0 = .unsignedWord
       (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun _ : Fin size => false)) := by
@@ -258,6 +268,7 @@ private theorem zero_word (size : Nat) :
   simpa only [zero, CShape.wordOfNat, Nat.zero_mod] using
     (congrArg CShape.Value.unsignedWord same).symm
 
+omit [BitWord.Selected model] in
 private theorem clear_word (word : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (Word.PowerOfTwo.clearOp word)).read (.storage word.toCStorageRef) =
       CShape.wordOfNat width 0 := by
@@ -265,11 +276,13 @@ private theorem clear_word (word : CWriteRef ctx (.unsignedWord width)) (store :
   rw [Word.PowerOfTwo.clear_read]
   simp only [CShape.wordOfNat, CShape.Value.toNat, Nat.zero_mod]
 
+omit [BitWord.Selected model] in
 private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
+omit [BitWord.Selected model] in
 private theorem shapes_ne {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) : output.key ≠ other.key := by
   intro same
@@ -315,7 +328,7 @@ private theorem initialized_fields
     exact clear_word columns _
 
 /-- The original actual initialization establishes all four initial fields internally. -/
-theorem gf2Initialization_cellState {outer : RuntimeCtx kind}
+theorem gf2Initialization_cellState {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
@@ -362,7 +375,7 @@ theorem gf2Initialization_cellState {outer : RuntimeCtx kind}
       (And.intro rowsDone (columnsDone.trans (zero_word width))))
 
 /-- Actual loading, initialization and the original increasing pass realize the pure GF(2) state. -/
-theorem gf2LoadAndReduce_cellState {outer : RuntimeCtx kind}
+theorem gf2LoadAndReduce_cellState {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

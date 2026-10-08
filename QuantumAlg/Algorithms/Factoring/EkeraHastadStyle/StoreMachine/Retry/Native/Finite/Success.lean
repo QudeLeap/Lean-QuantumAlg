@@ -24,11 +24,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
 noncomputable section
 
+open ShortDLP.CompiledMAU
+
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Actual empty-output mass is bounded by the original conditional batch-failure power. -/
 theorem run_none_le_batchFailure (model : GoodKeyModel N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum model.input totalRounds).outputDistribution input
         CShape.Value.optionNone ≤ Calibration.batchFailure model.bitWidth ^ totalRounds := by
   rw [run_none]
@@ -36,7 +39,8 @@ theorem run_none_le_batchFailure (model : GoodKeyModel N) (totalRounds : Nat)
 
 /-- The actual populated-output event has the original finite conditional success floor. -/
 theorem run_successProbability_ge (model : GoodKeyModel N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     1 - Calibration.batchFailure model.bitWidth ^ totalRounds ≤
       ((run base noQuantum model.input totalRounds).outputDistribution input).toOuterMeasure
         {value | value ≠ CShape.Value.optionNone} := by
@@ -46,7 +50,8 @@ theorem run_successProbability_ge (model : GoodKeyModel N) (totalRounds : Nat)
 
 /-- Natural observation preserves the conditional actual empty-output bound. -/
 theorem run_decoded_none_le_batchFailure (model : GoodKeyModel N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum model.input totalRounds).outputDistribution input).map
         NativeRetrySelection.decodeFactor none ≤
       Calibration.batchFailure model.bitWidth ^ totalRounds := by
@@ -56,7 +61,8 @@ theorem run_decoded_none_le_batchFailure (model : GoodKeyModel N) (totalRounds :
 /-- The exact calibrated actual run spends at most half of the declared failure target. -/
 theorem run_none_le_halfTarget (model : GoodKeyModel N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum model.input (Calibration.retryCount budget)).outputDistribution input
         CShape.Value.optionNone ≤ ENNReal.ofReal (budget.value / 2) :=
   (run_none_le_batchFailure base noQuantum model _ input).trans
@@ -65,7 +71,8 @@ theorem run_none_le_halfTarget (model : GoodKeyModel N)
 /-- Conditional success of the calibrated actual run reserves half the target for key loss. -/
 theorem run_successProbability_ge_halfTarget (model : GoodKeyModel N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     1 - ENNReal.ofReal (budget.value / 2) ≤
       ((run base noQuantum model.input (Calibration.retryCount budget)).outputDistribution
         input).toOuterMeasure {value | value ≠ CShape.Value.optionNone} :=
@@ -76,7 +83,8 @@ theorem run_successProbability_ge_halfTarget (model : GoodKeyModel N)
 /-- Natural decoding also retains the calibrated actual empty-output guarantee. -/
 theorem run_decoded_none_le_halfTarget (model : GoodKeyModel N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     ((run base noQuantum model.input (Calibration.retryCount budget)).outputDistribution
         input).map NativeRetrySelection.decodeFactor none ≤ ENNReal.ofReal (budget.value / 2) :=
   (run_decoded_none_le_batchFailure base noQuantum model _ input).trans

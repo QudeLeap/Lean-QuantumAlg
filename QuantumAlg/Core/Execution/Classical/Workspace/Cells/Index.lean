@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells
 
 /-!
@@ -15,7 +16,7 @@ import all QuantumAlg.Core.Execution.Classical.Workspace.Cells
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- Retrieve one typed cell from a heterogeneous workspace list. -/
-def cellAt {kind : ProblemKind} {ctx : RuntimeCtx kind} :
+public def cellAt {kind : ProblemKind} {ctx : RuntimeCtx kind} :
     {shapes : List CShape} → (cells : Cells ctx shapes) →
       (index : Fin shapes.length) →
         Cell ctx (shapes.get index)
@@ -24,7 +25,7 @@ def cellAt {kind : ProblemKind} {ctx : RuntimeCtx kind} :
       Fin.cases head (fun tailIndex => cellAt tail tailIndex) index
 
 /-- Retrieve a cell from a layout described by one dependent shape function. -/
-def cellAtOfFn {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
+public def cellAtOfFn {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
     (shape : Fin count → CShape)
     (cells : Cells ctx (List.ofFn shape)) (index : Fin count) :
     Cell ctx (shape index) := by
@@ -35,21 +36,21 @@ def cellAtOfFn {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
   exact shapeEq ▸ cellAt cells listIndex
 
 /-- Writable reference at one dependent layout index. -/
-def refAt {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
+public def refAt {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
     (shape : Fin count → CShape)
     (cells : Cells ctx (List.ofFn shape)) (index : Fin count) :
     CWriteRef ctx (shape index) :=
   (cellAtOfFn shape cells index).ref
 
 /-- Every reference retrieved from an allocated layout is workspace-owned. -/
-theorem workspaceCells_refAt_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
+public theorem workspaceCells_refAt_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
     (shape : Fin count → CShape)
     (cells : Cells ctx (List.ofFn shape)) (index : Fin count) :
   (refAt shape cells index).toCStorageRef.role = .workspace :=
   (cellAtOfFn shape cells index).role
 
 /-- A retrieved cell inherits avoidance of one key from the complete list. -/
-theorem workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
+public theorem workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (key : StorageKey)
     (avoids : cells.AvoidsKey key) (index : Fin shapes.length) :
@@ -62,7 +63,7 @@ theorem workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
         (fun tailIndex => inductionHypothesis tailAvoids tailIndex) index
 
 /-- The key of every indexed cell occurs in the heterogeneous key list. -/
-theorem workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
+public theorem workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (index : Fin shapes.length) :
     (cellAt cells index).ref.toCStorageRef.key ∈ cells.keys := by
@@ -78,7 +79,7 @@ theorem workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
         exact List.mem_cons_of_mem _ (inductionHypothesis tailIndex)
 
 /-- Distinct heterogeneous cells have an injective indexed key projection. -/
-theorem workspaceCells_cellAt_key_injective {kind : ProblemKind}
+public theorem workspaceCells_cellAt_key_injective {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (distinct : cells.Distinct) :
     Function.Injective

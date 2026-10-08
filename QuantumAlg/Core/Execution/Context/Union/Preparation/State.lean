@@ -8,6 +8,9 @@ module
 
 import all QuantumAlg.Core.Execution.Context.Union.Preparation.Basis
 import all QuantumAlg.Core.Execution.Context.Union.Unitary.State
+import all QuantumAlg.Core.Execution.Context.Union.State.Laws
+import all QuantumAlg.Core.Execution.Preparation.Laws
+import all QuantumAlg.Core.Execution.Circuit.History
 import all QuantumAlg.Core.Execution.Prepared.BasisSupport
 
 /-!
@@ -105,7 +108,8 @@ private theorem prepared_reference_join (Reference : Register)
   exact congrArg (fun basis => (basis, reference))
     (preparedFramedBasis_join key layout fresh disjoint separate newBasis oldBasis frameBasis).symm
 
-private theorem prepared_density_naturality {Reference : Register}
+/-- Fresh preparation commutes with exact frame and reference reindexing. -/
+theorem prepared_density_naturality {Reference : Register}
     (preparation : BasisPreparation layout)
     (density : DensityOperator (Register.prod
       (ctx.disjointUnion frame
@@ -162,17 +166,18 @@ private theorem prepared_density_naturality {Reference : Register}
         (density.reindex oldBasis) newRow newColumn
         (oldRow, (frameRow, referenceRow)) (oldColumn, (frameColumn, referenceColumn))).symm
 
-/-- The actual preparation commutes with splitting the complete resident and external frame. -/
-theorem prepareFramed_execute (preparation : BasisPreparation layout)
+/-- A mathematical fixed-basis preparation commutes with splitting a resident frame. -/
+private theorem prepared_splitState (preparation : BasisPreparation layout)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)) Reference History) :
     splitState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
-      ((prepareFramed key layout fresh disjoint separate preparation).execute Reference state) =
-      ((Circuit.prepare ctx key layout fresh disjoint preparation).execute
-        (Register.prod frame.register Reference)
-        (splitState ctx frame
-          (preparation_original_disjoint key layout fresh disjoint separate) state)).mapHistory
+      (state.prepare key layout
+        (preparation_fresh_union key layout fresh disjoint separate)
+        (preparation_wires_union key layout fresh disjoint separate) preparation) =
+      ((splitState ctx frame
+        (preparation_original_disjoint key layout fresh disjoint separate) state).prepare
+          key layout fresh disjoint preparation).mapHistory
             (fun record => (record.1.1, (record.1.2, record.2))) := by
   let originalSeparate := preparation_original_disjoint key layout fresh disjoint separate
   let actualFresh := preparation_fresh_union key layout fresh disjoint separate
@@ -216,8 +221,133 @@ theorem prepareFramed_execute (preparation : BasisPreparation layout)
     _ = ((localState.prepare key layout fresh disjoint preparation).mapHistory
         (fun record => (record.1.1, (record.1.2, record.2)))).block
           (newStore, (frameStore, (history, ()))) :=
-      (historyAssoc_block post frame (localState.prepare key layout fresh disjoint preparation)
-        newStore frameStore history).symm
+      by
+        let histories : (Store frame × History) × Unit ≃
+            Store frame × (History × Unit) := Equiv.prodAssoc _ _ _
+        let prepared := localState.prepare key layout fresh disjoint preparation
+        have labels :
+            (fun record : Store post × ((Store frame × History) × Unit) =>
+              (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) =
+                ((Equiv.refl (Store post)).prodCongr histories) := by
+          funext record
+          rfl
+        have mapped :
+            prepared.mapHistory
+                (fun record => (record.1.1, (record.1.2, record.2))) =
+              prepared.mapClassical ((Equiv.refl (Store post)).prodCongr histories) := by
+          dsimp only [State.mapHistory]
+          exact ExecutionState.executionState_mapClassical_congr prepared labels
+        change prepared.block (newStore, ((frameStore, history), ())) = _
+        rw [mapped]
+        rw [ExecutionState.coordinate_mapClassical_block]
+        rfl
+
+/-- The real zero-allocation instruction preserves the complete resident frame and service. -/
+theorem prepareZeroFramed_execute {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State (ctx.disjointUnion frame
+      (preparation_original_disjoint key layout fresh disjoint separate))
+        Reference (services.HiddenState × History)) :
+    splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) _ key layout
+        (preparation_fresh_union key layout fresh disjoint separate)
+        (preparation_wires_union key layout fresh disjoint separate)).execute
+          Reference state) =
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) ctx key layout
+        fresh disjoint).execute (Register.prod frame.register Reference)
+          (splitServiceState ctx frame
+            (preparation_original_disjoint key layout fresh disjoint separate) state)).mapHistory
+              (fun record =>
+                (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) := by
+  rw [Circuit.execute_prepareZero, Circuit.execute_prepareZero]
+  dsimp only [splitServiceState]
+  erw [contextUnion_splitState_mapHistory]
+  erw [prepared_splitState]
+  let source := splitState ctx frame
+    (preparation_original_disjoint key layout fresh disjoint separate) state
+  let service := serviceHistory frame services.HiddenState History
+  have commuted := State.mapHistory_prepare source service
+    key layout fresh disjoint (BasisPreparation.zero layout)
+  conv_rhs => erw [commuted]
+  simp only [State.mapHistory_comp, Function.comp_def]
+  rfl
+
+/-- Actual zero allocation and fixed-bit loading retain the complete frame and service. -/
+theorem prepareFramed_execute {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (load : UnitaryCircuit gates oracles
+      (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State (ctx.disjointUnion frame
+      (preparation_original_disjoint key layout fresh disjoint separate))
+        Reference (services.HiddenState × History)) :
+    splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
+      ((prepareFramed key layout fresh disjoint separate load).execute Reference state) =
+      (((Circuit.prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services) ctx key layout
+        fresh disjoint).seq
+          (Circuit.unitary (operations := operations) (classicalOracles := services)
+            load)).execute (Register.prod frame.register Reference)
+              (splitServiceState ctx frame
+                (preparation_original_disjoint key layout fresh disjoint separate)
+                state)).mapHistory
+                  (fun record =>
+                    (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) := by
+  let first := prepareZeroFramed key layout fresh disjoint separate
+    (gates := gates) (oracles := oracles)
+    (operations := operations) (services := services)
+  let second := Circuit.unitary (operations := operations)
+    (classicalOracles := services)
+    (frameUnitary (ctx.addOwnedLayout key layout fresh disjoint) frame separate load)
+  let localFirst := Circuit.prepareZero (gates := gates) (oracles := oracles)
+    (operations := operations) (classicalOracles := services) ctx key layout fresh disjoint
+  let localSecond := Circuit.unitary (operations := operations)
+    (classicalOracles := services) load
+  let middle := first.execute Reference state
+  let final := second.execute Reference middle
+  let initial := splitServiceState ctx frame
+    (preparation_original_disjoint key layout fresh disjoint separate) state
+  let update : ((History × Unit) × Unit) → History × (Unit × Unit) :=
+    fun record => (record.1.1, (record.1.2, record.2))
+  let moveFrame : ((Store frame × History) × Unit) → Store frame × (History × Unit) :=
+    fun record => (record.1.1, (record.1.2, record.2))
+  have firstNatural : splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
+      frame separate middle =
+        (localFirst.execute (Register.prod frame.register Reference) initial).mapHistory
+          (fun record => (record.1, moveFrame record.2)) :=
+    prepareZeroFramed_execute key layout fresh disjoint separate state
+  have secondNatural : splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
+      frame separate final =
+        (localSecond.execute (Register.prod frame.register Reference)
+          (splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
+            frame separate middle)).mapHistory
+              (fun record => (record.1,
+                (record.2.1.1, (record.2.1.2, record.2.2)))) :=
+    contextUnion_splitServiceState_unitary
+      (ctx.addOwnedLayout key layout fresh disjoint) frame separate load middle
+  have mapped := Circuit.execute_mapHistory localSecond
+    (Register.prod frame.register Reference)
+    (localFirst.execute (Register.prod frame.register Reference) initial) moveFrame
+  have reassociated := contextUnion_splitServiceState_mapHistory
+    (ctx.addOwnedLayout key layout fresh disjoint) frame separate final update
+  change splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
+    ((first.seq second).execute Reference state) = _
+  rw [Circuit.execute_seq]
+  change splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
+      (final.mapHistory (fun record => (record.1, update record.2))) =
+    ((localFirst.seq localSecond).execute (Register.prod frame.register Reference)
+      initial).mapHistory
+        (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
+  rw [reassociated, secondNatural, firstNatural]
+  erw [mapped]
+  conv_rhs => rw [Circuit.execute_seq]
+  conv_lhs => erw [State.mapHistory_comp]
+  conv_lhs => erw [State.mapHistory_comp]
+  conv_rhs => erw [State.mapHistory_comp]
+  rfl
 
 end
 

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Parameters
 import all QuantumAlg.Components.Classical.Modular.NativePower.Construction
 
 /-!
@@ -55,32 +55,38 @@ def shiftOp (order : CInputRef ctx (.unsignedWord (phaseBits N + 1))) :
   .wordUnary .shiftRight (phaseBits N + 1) (context ctx N)
     (liftInput order) (halfRef ctx N)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Shift the actual order, then run the existing modular-power implementation on its real word. -/
 def body (source : Input N) (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N))) :
-    Circuit (context ctx N) (context ctx N) :=
-  .seq (.classical (shiftOp order))
-    (Modular.NativePower.into (modulusSpec source) (liftInput base)
+    Circuit model (context ctx N) (context ctx N) :=
+  .seq (BitWord.instruction (execution := model) (shiftOp order))
+    (Modular.NativePower.into (model := model) (modulusSpec source) (liftInput base)
       (.storage (halfRef ctx N).toCStorageRef) (liftWrite output))
 
 /-- The lexical scope owns and releases the actual half-order storage around that same body. -/
 def code (source : Input N) (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
-    (output : CWriteRef ctx (.unsignedWord (modulusBits N))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord (modulusBits N))) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (phaseBits N + 1))
-    ctx.canonicalFreshKey_fresh (body source base order output)
+    ctx.canonicalFreshKey_fresh (body (model := model) source base order output)
 
 /-- Exactly one real shift precedes the actual modular-power trace. -/
 theorem code_eventTrace (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))
-    (path : (code source base order output).Path) :
-    (code source base order output).eventTrace path =
-      Resource.Event.classicalOperation (.wordUnary .shiftRight (phaseBits N + 1)) ::
-        (Modular.NativePower.into (modulusSpec source) (liftInput base)
-          (.storage (halfRef ctx N).toCStorageRef) (liftWrite output)).eventTrace path.2 := rfl
+    (path : (code (model := model) source base order output).Path) :
+    (code (model := model) source base order output).eventTrace path =
+      Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordUnary .shiftRight (phaseBits N + 1))) ::
+        (Modular.NativePower.into (model := model) (modulusSpec source) (liftInput base)
+          (.storage (halfRef ctx N).toCStorageRef) (liftWrite output)).eventTrace path.2 := by
+  change (BitWord.instruction (execution := model) (shiftOp order)).eventTrace path.1 ++ _ = _
+  rw [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 end
 

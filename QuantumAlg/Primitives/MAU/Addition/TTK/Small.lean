@@ -31,18 +31,20 @@ open EncodedBit.GateSpec
 namespace Zero
 
 /-- No operation and no qubit are needed for two zero-width operands. -/
-def lowProgram : UnitaryCircuit (Qubits 0) :=
-  programList (encoding := finIdentity 0) []
+def lowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 0).toQuantum :=
+  programList (encoding := finIdentity 0) (QubitLayout.canonical 0) .empty []
 
 /-- Zero-width operands produce no overflow, preserving its arbitrary bit. -/
-def overflowProgram : UnitaryCircuit (Qubits 1) :=
-  programList (encoding := bool) []
+def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 1).toQuantum :=
+  programList (encoding := bool) (QubitLayout.canonical 1) .empty []
 
 theorem ttkZeroLow_realizes : UnitaryCircuit.Realizes (finIdentity 0) lowProgram id :=
-  realizesList []
+  realizesList (encoding := finIdentity 0) (QubitLayout.canonical 0) .empty []
 
 theorem ttkZeroOverflow_realizes : UnitaryCircuit.Realizes bool overflowProgram id :=
-  realizesList []
+  realizesList (encoding := bool) (QubitLayout.canonical 1) .empty []
 
 end Zero
 
@@ -59,7 +61,9 @@ def lowGates : List (EncodedBit.GateSpec lowEncoding) :=
   [.cnot leftBit rightBit (by decide)]
 
 /-- The actual two-qubit one-bit adder. -/
-def lowProgram : UnitaryCircuit (Qubits 2) := programList lowGates
+def lowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 2).toQuantum :=
+  programList (QubitLayout.canonical 2) .empty lowGates
 
 theorem ttkOneLow_step (a b : Bool) :
     stepList lowGates (a, b) = (a, b ^^ a) := by
@@ -67,7 +71,8 @@ theorem ttkOneLow_step (a b : Bool) :
 
 theorem ttkOneLow_realizes :
     UnitaryCircuit.Realizes lowEncoding lowProgram (fun s => (s.1, s.2 ^^ s.1)) :=
-  realizesList_congrStep lowGates (fun s => ttkOneLow_step s.1 s.2)
+  realizesList_congrStep (encoding := lowEncoding) (QubitLayout.canonical 2) .empty lowGates
+    (fun s => ttkOneLow_step s.1 s.2)
 
 /-- The low output and carry satisfy ordinary one-bit integer addition. -/
 theorem ttkOne_arithmetic (a b : Bool) :
@@ -91,7 +96,9 @@ def overflowGates : List (EncodedBit.GateSpec overflowEncoding) :=
    .cnot overflowLeft overflowRight (by decide)]
 
 /-- The actual three-qubit one-bit overflow adder. -/
-def overflowProgram : UnitaryCircuit (Qubits 3) := programList overflowGates
+def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 3).toQuantum :=
+  programList (QubitLayout.canonical 3) .empty overflowGates
 
 theorem ttkOneOverflow_step (a b z : Bool) :
     stepList overflowGates ((a, b), z) = ((a, b ^^ a), z ^^ (a && b)) := by
@@ -100,7 +107,8 @@ theorem ttkOneOverflow_step (a b z : Bool) :
 theorem ttkOneOverflow_realizes :
     UnitaryCircuit.Realizes overflowEncoding overflowProgram
       (fun s => ((s.1.1, s.1.2 ^^ s.1.1), s.2 ^^ (s.1.1 && s.1.2))) :=
-  realizesList_congrStep overflowGates
+  realizesList_congrStep (encoding := overflowEncoding)
+    (QubitLayout.canonical 3) .empty overflowGates
     (fun s => ttkOneOverflow_step s.1.1 s.1.2 s.2)
 
 end One
@@ -129,7 +137,9 @@ def lowGates : List (EncodedBit.GateSpec lowEncoding) :=
    .cnot a1 b1 (by decide), .cnot a0 b0 (by decide)]
 
 /-- The actual four-qubit two-bit low-word adder. -/
-def lowProgram : UnitaryCircuit (Qubits 4) := programList lowGates
+def lowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 4).toQuantum :=
+  programList (QubitLayout.canonical 4) .empty lowGates
 
 /-- The independently stated two-bit arithmetic output. -/
 def sumBits (a b : Bool × Bool) : Bool × Bool :=
@@ -143,7 +153,8 @@ theorem ttkTwoLow_step (a b : Bool × Bool) :
 
 theorem ttkTwoLow_realizes :
     UnitaryCircuit.Realizes lowEncoding lowProgram (fun s => (s.1, sumBits s.1 s.2)) :=
-  realizesList_congrStep lowGates (fun s => ttkTwoLow_step s.1 s.2)
+  realizesList_congrStep (encoding := lowEncoding) (QubitLayout.canonical 4) .empty lowGates
+    (fun s => ttkTwoLow_step s.1 s.2)
 
 /-- The two-bit output agrees with integer addition modulo four. -/
 theorem ttkTwoLow_arithmetic (a b : Bool × Bool) :
@@ -173,7 +184,9 @@ def overflowGates : List (EncodedBit.GateSpec overflowEncoding) :=
    .cnot (lift a1) (lift b1) (by decide)]
 
 /-- The actual five-qubit two-bit overflow adder. -/
-def overflowProgram : UnitaryCircuit (Qubits 5) := programList overflowGates
+def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical 5).toQuantum :=
+  programList (QubitLayout.canonical 5) .empty overflowGates
 
 theorem ttkTwoOverflow_step (a b : Bool × Bool) (out : Bool) :
     stepList overflowGates ((a, b), out) =
@@ -186,7 +199,8 @@ theorem ttkTwoOverflow_realizes :
     UnitaryCircuit.Realizes overflowEncoding overflowProgram
       (fun s => ((s.1.1, sumBits s.1.1 s.1.2),
         s.2 ^^ Bool.carry s.1.1.2 s.1.2.2 (s.1.1.1 && s.1.2.1))) :=
-  realizesList_congrStep overflowGates
+  realizesList_congrStep (encoding := overflowEncoding)
+    (QubitLayout.canonical 5) .empty overflowGates
     (fun s => ttkTwoOverflow_step s.1.1 s.1.2 s.2)
 
 /-- The overflow bit completes exact integer addition of two two-bit words. -/

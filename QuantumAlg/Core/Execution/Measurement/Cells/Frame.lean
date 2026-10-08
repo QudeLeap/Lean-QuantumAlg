@@ -26,12 +26,19 @@ namespace Circuit
 
 open Execution
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 /-- Actual Z writes preserve every structural read outside their real destination keys. -/
 theorem writeMeasurementPath_read_input {ctx : RuntimeCtx .quantum} {shape : CShape}
     (readouts : List (ZReadout ctx)) (input : CInputRef ctx shape)
     (separate : ∀ item ∈ readouts, item.output.key ∉ input.storageKeys)
-    (store : Store ctx) (path : (measurementSequence readouts).Path) :
-    (writeMeasurementPath readouts store path).read input = store.read input := by
+    (store : Store ctx)
+    (path : (measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
+    (writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      readouts store path).read input = store.read input := by
   induction input with
   | storage ref =>
       exact writeMeasurementPath_read_unwritten readouts ref

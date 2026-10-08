@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.PointEquality.Model
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Classical.Composition.Range
 import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate
 
@@ -22,6 +23,8 @@ module makes no correctness claim for an unimplemented field operation.
 namespace QuantumAlg.ClassicalRoutines.EllipticCurve.Add.Native
 
 open Execution ClassicalWorkspace
+
+noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
@@ -82,17 +85,21 @@ def classifierZeroY (classifier : Classifier ctx width) :
     (.product (.second (.second (classifierRead classifier.leftRaw)))
       (classifierRead classifier.zero)) classifier.yZero
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The original five operations occur before any branch is selected. -/
 def classifierStage (left right : CInputRef ctx (PointShape width))
-    (classifier : Classifier ctx width) : Fin 5 → Circuit ctx ctx :=
-  ![.classical (classifierUnpackLeft left classifier),
-    .classical (classifierUnpackRight right classifier),
-    .classical (classifierEqualX classifier), .classical (classifierEqualY classifier),
-    .classical (classifierZeroY classifier)]
+    (classifier : Classifier ctx width) : Fin 5 → Circuit model ctx ctx :=
+  ![BitWord.instruction (execution := model) (classifierUnpackLeft left classifier),
+    BitWord.instruction (execution := model) (classifierUnpackRight right classifier),
+    BitWord.instruction (execution := model) (classifierEqualX classifier),
+    BitWord.instruction (execution := model) (classifierEqualY classifier),
+    BitWord.instruction (execution := model) (classifierZeroY classifier)]
 
 /-- Native classification has precisely the original two-adapter, three-comparison order. -/
 def classifierBody (left right : CInputRef ctx (PointShape width))
-    (classifier : Classifier ctx width) : Circuit ctx ctx :=
+    (classifier : Classifier ctx width) : Circuit model ctx ctx :=
   Circuit.forRange 5 (classifierStage left right classifier)
 
 /-- The complete runtime arms distinguished by the original affine classifier. -/
@@ -116,12 +123,12 @@ def classifyValues (left right : CShape.Value (PointShape width)) : Case :=
 
 /-- Branch on one actual stored bit through the existing shaped branch instruction. -/
 def classifierBranch (input : CInputRef ctx .bit)
-    (whenTrue whenFalse : Circuit ctx ctx) : Circuit ctx ctx :=
+    (whenTrue whenFalse : Circuit model ctx ctx) : Circuit model ctx ctx :=
   .branch input fun value => if value.toBool then whenTrue else whenFalse
 
 /-- The complete original branch order reads the live classifier, including all infinity cases. -/
-def dispatch (classifier : Classifier ctx width) (arms : Case → Circuit ctx ctx) :
-    Circuit ctx ctx :=
+def dispatch (classifier : Classifier ctx width) (arms : Case → Circuit model ctx ctx) :
+    Circuit model ctx ctx :=
   classifierBranch (.first (classifierRead classifier.leftRaw)) (arms .leftInfinity)
     (classifierBranch (.first (classifierRead classifier.rightRaw)) (arms .rightInfinity)
       (classifierBranch (classifierRead classifier.xEqual)
@@ -131,10 +138,12 @@ def dispatch (classifier : Classifier ctx width) (arms : Case → Circuit ctx ct
 
 /-- Allocate the original classifier and execute the supplied ordinary circuit continuation. -/
 def withClassification (left right : CInputRef ctx (PointShape width))
-    (body : ∀ {inner : RuntimeCtx kind}, Classifier inner width →
-      Transport ctx inner → Circuit inner inner) : Circuit ctx ctx :=
+    (body : ∀ {inner : RuntimeCtx model.kind}, Classifier inner width →
+      Transport ctx inner → Circuit model inner inner) : Circuit model ctx ctx :=
   withCells ctx (classifierShapes width) fun cells _ transport _ =>
     .seq (classifierBody (transport.liftInput left) (transport.liftInput right)
       (classifierOfCells cells)) (body (classifierOfCells cells) transport)
+
+end
 
 end QuantumAlg.ClassicalRoutines.EllipticCurve.Add.Native

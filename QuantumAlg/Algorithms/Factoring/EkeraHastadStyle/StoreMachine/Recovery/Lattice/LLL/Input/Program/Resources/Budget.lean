@@ -25,26 +25,29 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent coordinate budget for both sample decoders, basis loading, and target centering. -/
-def decodeTargetEventEnvelope (N : Nat) : ResourcePool kind :=
+def decodeTargetEventEnvelope (N : Nat) : ResourcePool model :=
   LatticeWideInitializationPrefix.eventEnvelope N +
     LatticeWideTargetMachine.eventEnvelope (shortLogBits N) (tradeoffBits N) (Width N)
 
 /-- Independent initialization allowance, kept folded when specializing the recovery fuel. -/
-@[irreducible] def initializedEventEnvelope (fuel width : Nat) : ResourcePool kind :=
+@[irreducible] def initializedEventEnvelope (fuel width : Nat) : ResourcePool model :=
   ResourcePool.ofList (LatticeFixedFuelMachine.refreshResetTrace width) +
     LatticeFixedFuelMachine.fixedFuelEventEnvelope fuel width
 
 /-- The folded initialization allowance is exactly the original reset and fixed-fuel formula. -/
 theorem initializedEventEnvelope_eq (fuel width : Nat) :
-    initializedEventEnvelope (kind := kind) fuel width =
+    initializedEventEnvelope (model := model) fuel width =
       ResourcePool.ofList (LatticeFixedFuelMachine.refreshResetTrace width) +
         LatticeFixedFuelMachine.fixedFuelEventEnvelope fuel width := by
   unfold initializedEventEnvelope
   rfl
 
 /-- Independent full coordinate budget at the original prescribed recovery fuel. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   decodeTargetEventEnvelope N +
     initializedEventEnvelope
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) (Width N)
@@ -81,7 +84,7 @@ theorem pairToLllInto_pool_le (refs : Refs ctx N) (path : (pairToLllInto refs).P
         refs.initialization.driver).resourcePool path.2 ≤
       initializedEventEnvelope
         (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) (Width N) :=
-    initialized_pool_le (kind := kind) (ctx := ctx) (width := Width N)
+    initialized_pool_le (model := model) (ctx := ctx) (width := Width N)
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N))
       refs.initialization.driver path.2
   unfold eventEnvelope

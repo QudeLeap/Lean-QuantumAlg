@@ -21,11 +21,13 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 open Execution
 
 /-- The actual program's final store is the declared release of its actual inner store. -/
-theorem samplerProgram_store_projection {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem samplerProgram_store_projection {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx) :
-    (step N sample output store).1 =
+    (step (model := model) N sample output store).1 =
       Layout.popStore (modulusBits N)
-        (innerStep N sample output (Layout.pushStore (modulusBits N) store)).1 := rfl
+        (innerStep (model := model)
+          N sample output (Layout.pushStore (modulusBits N) store)).1 := rfl
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

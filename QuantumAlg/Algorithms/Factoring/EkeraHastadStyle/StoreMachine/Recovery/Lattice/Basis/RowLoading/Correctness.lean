@@ -38,7 +38,8 @@ theorem resize_represents {sourceWidth : Nat} (input : CInputRef ctx (.unsignedW
   exact rawSignedWordRepresents_wordResize (store.read input)
 
 /-- The initialized actual word represents the exact integer power modulo its supplied width. -/
-theorem loadPowerOfTwoInto_represents (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+theorem loadPowerOfTwoInto_represents {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     RawSignedRepresents ((powerStep count output store).1.read (writeInput output))
       ((2 : Int) ^ count) := by
@@ -53,7 +54,8 @@ theorem loadPowerOfTwoInto_represents (count : Nat) (output : CWriteRef ctx (.un
     integerCongruence
 
 /-- The complete actual first-row tail preserves every read outside its two supplied outputs. -/
-theorem firstRowTailInto_callerFrame (pair : BatchMachine.PairRefs ctx N)
+theorem firstRowTailInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (b12 : output.b12.key ∉ other.storageKeys)
     (b13 : output.b13.key ∉ other.storageKeys) :
@@ -63,7 +65,8 @@ theorem firstRowTailInto_callerFrame (pair : BatchMachine.PairRefs ctx N)
   exact Store.read_applyOp_of_not_mem_storageKeys store (secondOp pair output) other b12
 
 /-- The complete actual row loader preserves every read outside its three original destinations. -/
-theorem loadFirstBasisRowInto_callerFrame (pair : BatchMachine.PairRefs ctx N)
+theorem loadFirstBasisRowInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (b11 : output.b11.key ∉ other.storageKeys)
     (b12 : output.b12.key ∉ other.storageKeys) (b13 : output.b13.key ∉ other.storageKeys) :
@@ -85,7 +88,8 @@ structure FirstBasisRowOutcome (pair : BatchMachine.PairRefs ctx N)
       output.b13.key ∉ other.storageKeys → after.read other = before.read other
 
 /-- Actual native loading realizes the original first basis row without an initial-value premise. -/
-theorem loadFirstBasisRowInto_correct (pair : BatchMachine.PairRefs ctx N)
+theorem loadFirstBasisRowInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (separation : FirstBasisRowSeparation pair output)
     (store : Store ctx) :
     FirstBasisRowOutcome pair output store (firstRowStep pair output store).1 := by

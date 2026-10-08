@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Batch.Output.Layout
-import all QuantumAlg.Core.Algorithm.AlgorithmRun
+import all QuantumAlg.Components.GateModel.Algorithm
+import all QuantumAlg.Components.Classical.Model.BitWord
+import all QuantumAlg.Core.Algorithm.Borrowed
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Classical.Composition.Record
 import all QuantumAlg.Core.Execution.Store.Read
@@ -45,12 +47,14 @@ def resultRef : CWriteRef (context base N) (LatticeBatchRecoveryOutput.OutputSha
     base.canonicalFreshKey_fresh
 
 /-- No batch runs; the sole instruction really allocates the output cell. -/
-def code : Circuit base (context base N) :=
-  .retain base base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
+def code : Circuit (.quantum AlgorithmGate.model .empty BitWord.model) base (context base N) :=
+  .retain (model := .quantum AlgorithmGate.model .empty BitWord.model)
+    base base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
     base.canonicalFreshKey_fresh
 
 /-- Every original resource and the actual empty result occur in the complete output. -/
-def run : AlgorithmRun base (context base N) (LatticeBatchRecoveryOutput.OutputShape N) where
+def run : AlgorithmRun (.quantum AlgorithmGate.model .empty BitWord.model)
+    base (context base N) (LatticeBatchRecoveryOutput.OutputShape N) where
   code := code base N
   output := Output.all (context base N) (.read (.storage (resultRef base N).toCStorageRef))
 
@@ -67,11 +71,12 @@ theorem run_output (store : Store base) :
 
 /-- The full execution extends the actual store while keeping all input and reference blocks. -/
 theorem code_execute {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) :
+    (state : State base Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     (code base N).execute Reference state = state.mapClassical (fun entry =>
       (entry.1.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
-        base.canonicalFreshKey_fresh, (entry.2, ()))) :=
-  Circuit.execute_retain state base.canonicalFreshKey
+        base.canonicalFreshKey_fresh, (entry.2.1, (entry.2.2, ())))) :=
+  Circuit.execute_retain (model := .quantum AlgorithmGate.model .empty BitWord.model)
+    state base.canonicalFreshKey
     (LatticeBatchRecoveryOutput.OutputShape N) base.canonicalFreshKey_fresh
 
 /-- Each structural caller read keeps its exact original value after the actual allocation. -/
@@ -85,20 +90,23 @@ theorem callerFrame (store : Store base) {shape : CShape} (input : CInputRef bas
 
 /-- The actual run records its real allocation and the unchanged initial caller store. -/
 theorem run_execute {Reference : Register}
-    (state : ExecutionState (Store base) (base.register.prod Reference)) :
-    (run base N).execute Reference state = state.mapClassical (fun store =>
-      (store.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
-        base.canonicalFreshKey_fresh, (store, ()))) := by
+    (state : ExecutionState (Store base × ClassicalOracleModel.empty.HiddenState)
+      (base.register.prod Reference)) :
+    (run base N).execute Reference state = state.mapClassical (fun entry =>
+      (entry.1.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
+        base.canonicalFreshKey_fresh, (entry.2, (entry.1, ())))) := by
   simp only [AlgorithmRun.execute, run, code_execute,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   congr 1
 
 /-- The actual trace-derived output distribution is certainly the empty optional value. -/
-theorem run_outputDistribution {Reference : Register} (input : Execution.Input base Reference) :
+theorem run_outputDistribution {Reference : Register}
+    (input : Execution.OracleInput .empty base Reference) :
     (run base N).outputDistribution input = PMF.pure .optionNone := by
-  let record : Store base → (run base N).Record := fun store =>
-    (store.pushRetained base.canonicalFreshKey (LatticeBatchRecoveryOutput.OutputShape N)
-      base.canonicalFreshKey_fresh, (store, ()))
+  let record : Store base × ClassicalOracleModel.empty.HiddenState → (run base N).Record :=
+    fun entry => (entry.1.pushRetained base.canonicalFreshKey
+      (LatticeBatchRecoveryOutput.OutputShape N)
+      base.canonicalFreshKey_fresh, (entry.2, (entry.1, ())))
   have records : (run base N).executionDistribution input =
       (input.state.toPMF input.normalized).map record := by
     have actual : (run base N).executionDistribution input =
@@ -115,8 +123,9 @@ theorem run_outputDistribution {Reference : Register} (input : Execution.Input b
       exact Subsingleton.elim _ _
     exact actual.trans (ExecutionState.toPMF_mapClassical input.state input.normalized record)
   rw [AlgorithmRun.outputDistribution, records, PMF.map_comp]
-  have readRecord : (run base N).result ∘ record = Function.const (Store base) .optionNone :=
-    funext fun store => run_output base N store
+  have readRecord : (run base N).result ∘ record =
+      Function.const (Store base × ClassicalOracleModel.empty.HiddenState) .optionNone :=
+    funext fun entry => run_output base N entry.1
   rw [readRecord, PMF.map_const]
 
 /-- The independent additional capacity is the binary encoding of one optional factor. -/
@@ -139,7 +148,9 @@ theorem code_pool (path : (code base N).Path) :
     (code base N).resourcePool path = 0 := rfl
 
 /-- The actual zero-batch path has no event dependency. -/
-theorem code_depth (duration : Resource.Event .quantum → Nat) (path : (code base N).Path) :
+theorem code_depth
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty BitWord.model) → Nat)
+    (path : (code base N).Path) :
     (code base N).depth duration path = 0 := rfl
 
 /-- The actual resident peak includes the newly retained output and the entire caller context. -/
@@ -169,10 +180,13 @@ theorem additionalSpace_quantum (dimension : ℕ+) :
     additionalSpace N (.quantumSystems dimension) = 0 := rfl
 
 /-- The actual zero-batch run jointly restores every borrowed resource and reference correlation. -/
-theorem run_restoresBorrowed {Reference : Register} (input : Execution.Input base Reference) :
+theorem run_restoresBorrowed {Reference : Register}
+    (input : Execution.OracleInput .empty base Reference) :
     (run base N).RestoresBorrowed input :=
-  Circuit.borrowedRestored_retain base.canonicalFreshKey
-    (LatticeBatchRecoveryOutput.OutputShape N) base.canonicalFreshKey_fresh _
+  AlgorithmRun.restoresBorrowed_of_circuit (run base N)
+    (fun _ {_} _ state => Circuit.borrowedRestored_retain
+      (model := .quantum AlgorithmGate.model .empty BitWord.model) base.canonicalFreshKey
+      (LatticeBatchRecoveryOutput.OutputShape N) base.canonicalFreshKey_fresh state) input
 
 end
 

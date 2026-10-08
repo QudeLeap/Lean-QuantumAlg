@@ -9,7 +9,6 @@ module
 import QuantumAlg.Init
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Components.Classical.Word
-import all QuantumAlg.Components.Classical.Arithmetic
 import all QuantumAlg.Util.Classical.Modular.Additive
 
 /-!

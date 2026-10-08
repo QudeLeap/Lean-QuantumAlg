@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Batch.Reuse.Program
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Seed
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed.Record
+import all QuantumAlg.Core.Execution.Basis.Seeded.Allocation
 
 /-!
 # The actual subsequent recovered batch preserves every complete seed block
@@ -43,7 +44,8 @@ theorem seedWires :
 /-- The actual complete recovery tail preserves the seed separately in every final store. -/
 theorem tail_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (NativeBatchReuse.context base N) Reference History)
+    (state : State (NativeBatchReuse.context base N) Reference
+      (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuse.nativeBatchReuse_context_wires base N sameWires) N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -56,7 +58,7 @@ theorem tail_seedBlocks (input : Input N)
 /-- One more actual sampled-and-recovered batch preserves the internal complete seed invariant. -/
 theorem code_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       sameWires N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -64,9 +66,12 @@ theorem code_seedBlocks (input : Input N)
       ((code base sameWires originalCells input).execute Reference state) := by
   have source := NativeBatchReuse.nativeBatchReuse_code_seedBlocks base N sameWires originalCells
     input state seeded
-  exact RuntimeRepetition.seq_seed (NativeBatchReuse.code base N sameWires originalCells)
-    (tail base input) (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-    (seedWires base sameWires) state (tail_seedBlocks base sameWires input _ source)
+  exact BasisSeeded.seq (NativeBatchReuse.code base N sameWires originalCells)
+    (tail base input)
+    ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
+      (seedWires base sameWires)).symm
+      (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state
+    (tail_seedBlocks base sameWires input _ source)
 
 end
 

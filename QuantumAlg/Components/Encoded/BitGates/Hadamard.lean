@@ -8,11 +8,19 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.Hadamard.Coordinates
 import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.SingleQubit.Entries
+import all QuantumAlg.Components.Gates.Construction
+import all QuantumAlg.Components.Gates.Operator
 import all QuantumAlg.Components.Kets
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.Layout.Qubit
+import all QuantumAlg.Core.Base.Layout.Qubit.Quantum
+import all QuantumAlg.Core.Base.Layout.Signature
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.Layout.Quantum.Embedding
+import all QuantumAlg.Core.Base.Layout.Quantum.Selection
+import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Util.Complex
-import Batteries.Data.List.Lemmas
 
 /-!
 # A literal Hadamard on an encoded physical bit
@@ -31,36 +39,65 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 
-/-- The existing Hadamard gate at the target, with identity on all other coordinates. -/
-def hadamard (target : EncodedBit encoding) : UnitaryCircuit (Qubits encoding.width) :=
-  UnitaryCircuit.reindex target.targetBasisEquiv.symm
-    (UnitaryCircuit.tensor (Gate.hadamardAt [target.wire.val] (by simp))
-      (UnitaryCircuit.identity target.RemainingRegister [] List.nodup_nil)
-      { left_nodup := (Gate.hadamardAt [target.wire.val] (by simp)).physical_idx_nodup
-        right_nodup := List.nodup_nil
-        disjoint := List.disjoint_nil_right _ })
+/-- One actual native Hadamard at the original encoded physical position. -/
+def hadamard (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
+  Gate.singleQubitAt layout.toQuantum oracles Gate.HOp target.wire rfl
 
-/-- Only the actual target occurs in the gate footprint. -/
-theorem hadamard_physical_idx (target : EncodedBit encoding) :
-    target.hadamard.physical_idx = [target.wire.val] := by
-  rfl
+/-- The default model charges the actual Hadamard as one single-qubit instruction. -/
+theorem hadamard_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) :
+    (target.hadamard layout oracles).eventTrace = [.gate .singleQubit] := rfl
 
-/-- Addressing the standard gate preserves its single native event. -/
-theorem hadamard_eventTrace (target : EncodedBit encoding) :
-    target.hadamard.eventTrace = [Gate.atomicEvent (.builtin "hadamard")] := by
-  rfl
+private theorem complement_eq_iff (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (row column : Fin encoding.width → Fin 2) :
+    let application := Gate.singleQubitApplication layout.toQuantum Gate.HOp target.wire rfl
+    (application.basisEquiv row).2 = (application.basisEquiv column).2 ↔
+      (target.targetBasisEquiv (layout.basisEquiv row)).2 =
+        (target.targetBasisEquiv (layout.basisEquiv column)).2 := by
+  let application := Gate.singleQubitApplication layout.toQuantum Gate.HOp target.wire rfl
+  have member (index : Fin encoding.width) :
+      index ∈ application.embedding.selection ↔ index = target.wire := by
+    change index ∈ Finset.univ.map
+      (⟨fun _ : Fin 1 => target.wire,
+        fun _ _ _ => Subsingleton.elim _ _⟩ : Fin 1 ↪ Fin encoding.width) ↔ _
+    constructor
+    · intro selected
+      rcases Finset.mem_map.mp selected with ⟨position, _, equal⟩
+      exact equal.symm
+    · intro equal
+      exact Finset.mem_map.mpr ⟨0, Finset.mem_univ _, equal.symm⟩
+  have coordinates (basis : Fin encoding.width → Fin 2) :
+      (target.targetBasisEquiv (layout.basisEquiv basis)).2 =
+        fun index : {wire : Fin encoding.width // wire ≠ target.wire} => basis index.val := by
+    change ((Equiv.funSplitAt target.wire (Fin 2))
+      ((BinaryBasis.bigEndianEquiv encoding.width).symm
+        ((BinaryBasis.bigEndianEquiv encoding.width) basis))).2 = _
+    rw [Equiv.symm_apply_apply]
+    rfl
+  rw [coordinates row, coordinates column]
+  constructor
+  · intro same
+    funext index
+    exact congrFun same ⟨index.val, Finset.mem_compl.mpr
+      (fun selected => index.property ((member index.val).mp selected))⟩
+  · intro same
+    funext index
+    exact congrFun same ⟨index.val, fun equal =>
+      (Finset.mem_compl.mp index.property) ((member index.val).mpr equal)⟩
 
-/-- The exact tensor-and-reindex matrix retains the other coordinates by a delta. -/
-theorem hadamard_entry (target : EncodedBit encoding)
-    (row column : (Qubits encoding.width).Index) :
-    target.hadamard.matrix row column =
-      Gate.HOp (target.targetBasisEquiv row).1 (target.targetBasisEquiv column).1 *
-        if (target.targetBasisEquiv row).2 = (target.targetBasisEquiv column).2
-          then 1 else 0 := by
-  unfold hadamard
-  rw [UnitaryCircuit.reindex_matrix, UnitaryOperator.coe_reindex,
-    Matrix.reindex_apply, Matrix.submatrix_apply]
-  rfl
+/-- Every other original wire is retained in the exact native matrix entry. -/
+theorem hadamard_entry (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) (row column : Fin encoding.width → Fin 2) :
+    (target.hadamard layout oracles).matrix row column =
+      Gate.HOp (row target.wire) (column target.wire) *
+        if (target.targetBasisEquiv (layout.basisEquiv row)).2 =
+            (target.targetBasisEquiv (layout.basisEquiv column)).2 then 1 else 0 := by
+  classical
+  refine (Gate.singleQubitAt_matrix_entry layout.toQuantum oracles Gate.HOp
+    target.wire rfl row column).trans ?_
+  exact congrArg (fun value : ℂ => Gate.HOp (row target.wire) (column target.wire) * value)
+    (if_congr (complement_eq_iff target layout row column) rfl rfl)
 
 private theorem hadamard_diagonal (value : Bool) :
     Gate.HOp (finTwoEquiv.symm value) (finTwoEquiv.symm value) =
@@ -78,38 +115,77 @@ private theorem encode_flip_ne (target : EncodedBit encoding) (state : Data) :
   rw [get_flip_self] at bitSame
   cases value : target.get state <;> simp [value] at bitSame
 
-/-- Exact Hadamard superposition, including the sign for an input-one target. -/
-theorem hadamard_applyVec_encoded_ket (target : EncodedBit encoding) (state : Data) :
-    target.hadamard.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+/-- Exact full-register superposition, including the sign for an input-one target. -/
+theorem hadamard_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
+    (target.hadamard layout oracles).applyVec
+        (NormalizedVector.ket (R := layout.toQuantum.register)
+          (layout.basisEquiv.symm (encoding.encode state))).vec =
       invSqrt2 •
         ((if target.get state then (-1 : ℂ) else 1) •
-            (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec +
-          (NormalizedVector.ket (R := Qubits encoding.width)
-            (encoding.encode (target.flip state))).vec) := by
-  ext label
-  rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
-    HilbertOperator.applyVec_ket, hadamard_entry]
-  by_cases same : (target.targetBasisEquiv label).2 =
+            (NormalizedVector.ket (R := layout.toQuantum.register)
+              (layout.basisEquiv.symm (encoding.encode state))).vec +
+          (NormalizedVector.ket (R := layout.toQuantum.register)
+            (layout.basisEquiv.symm (encoding.encode (target.flip state)))).vec) := by
+  classical
+  ext row
+  refine (HilbertOperator.applyVec_ket (R := layout.toQuantum.register)
+    (target.hadamard layout oracles).matrix
+    (layout.basisEquiv.symm (encoding.encode state)) row).trans ?_
+  refine (hadamard_entry target layout oracles row
+    (layout.basisEquiv.symm (encoding.encode state))).trans ?_
+  rw [Equiv.apply_symm_apply]
+  have first (label : Fin encoding.width → Fin 2) :
+      label target.wire = (target.targetBasisEquiv (layout.basisEquiv label)).1 := by
+    change label target.wire =
+      ((BinaryBasis.bigEndianEquiv encoding.width).symm
+        ((BinaryBasis.bigEndianEquiv encoding.width) label)) target.wire
+    rw [Equiv.symm_apply_apply]
+  have ket_value (label : Fin encoding.width → Fin 2) :
+      (NormalizedVector.ket (R := layout.toQuantum.register) label).vec row =
+        if row = label then (1 : ℂ) else 0 := by
+    refine (NormalizedVector.ket_apply (R := layout.toQuantum.register) label row).trans ?_
+    split_ifs <;> rfl
+  change Gate.HOp (row target.wire)
+      (layout.basisEquiv.symm (encoding.encode state) target.wire) *
+      (if (target.targetBasisEquiv (layout.basisEquiv row)).2 =
+        (target.targetBasisEquiv (encoding.encode state)).2 then 1 else 0) =
+    invSqrt2 * ((if target.get state then (-1 : ℂ) else 1) *
+      (NormalizedVector.ket (R := layout.toQuantum.register)
+        (layout.basisEquiv.symm (encoding.encode state))).vec row +
+      (NormalizedVector.ket (R := layout.toQuantum.register)
+        (layout.basisEquiv.symm (encoding.encode (target.flip state)))).vec row)
+  refine Eq.trans ?_ (congrArg₂
+    (fun left right : ℂ => invSqrt2 * ((if target.get state then (-1 : ℂ) else 1) * left + right))
+    (ket_value (layout.basisEquiv.symm (encoding.encode state)))
+    (ket_value (layout.basisEquiv.symm (encoding.encode (target.flip state))))).symm
+  rw [first row, first (layout.basisEquiv.symm (encoding.encode state)),
+    Equiv.apply_symm_apply]
+  by_cases same : (target.targetBasisEquiv (layout.basisEquiv row)).2 =
       (target.targetBasisEquiv (encoding.encode state)).2
-  · rcases target.targetBasisEquiv_fiber state label same with original | flipped
-    · subst label
-      rw [targetBasisEquiv_first, hadamard_diagonal]
-      cases target.get state <;>
-        simp [NormalizedVector.ket_apply, (encode_flip_ne target state).symm]
-    · subst label
-      rw [targetBasisEquiv_flip, targetBasisEquiv_first, hadamard_offDiagonal]
-      cases target.get state <;>
-        simp [NormalizedVector.ket_apply, encode_flip_ne target state]
-  · have original : label ≠ encoding.encode state := by
-      intro equal
-      exact same (congrArg (fun index => (target.targetBasisEquiv index).2) equal)
-    have flipped : label ≠ encoding.encode (target.flip state) := by
+  · rcases target.targetBasisEquiv_fiber state (layout.basisEquiv row) same with original | flipped
+    · have equal : row = layout.basisEquiv.symm (encoding.encode state) :=
+        (layout.basisEquiv.eq_symm_apply).mpr original
+      subst row
+      rw [Equiv.apply_symm_apply, targetBasisEquiv_first, hadamard_diagonal]
+      have different := fun equal => encode_flip_ne target state
+        (layout.basisEquiv.symm.injective equal)
+      cases target.get state <;> simp [Ne.symm different]
+    · have equal : row = layout.basisEquiv.symm (encoding.encode (target.flip state)) :=
+        (layout.basisEquiv.eq_symm_apply).mpr flipped
+      subst row
+      rw [Equiv.apply_symm_apply, targetBasisEquiv_flip, targetBasisEquiv_first,
+        hadamard_offDiagonal]
+      cases target.get state <;> simp [encode_flip_ne target state]
+  · have original : row ≠ layout.basisEquiv.symm (encoding.encode state) := by
       intro equal
       apply same
-      rw [equal, targetBasisEquiv_flip]
-    cases target.get state <;>
-      simp [same, NormalizedVector.ket_apply, original, flipped]
+      rw [equal, Equiv.apply_symm_apply]
+    have flipped : row ≠ layout.basisEquiv.symm (encoding.encode (target.flip state)) := by
+      intro equal
+      apply same
+      rw [equal, Equiv.apply_symm_apply, targetBasisEquiv_flip]
+    simp [same, original, flipped]
 
 end
 

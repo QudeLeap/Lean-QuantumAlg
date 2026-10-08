@@ -134,16 +134,17 @@ theorem QPP.ancillaBlock_controlledOnZero (U : UnitaryOperator (Qubits n))
 /-- Ancilla blocks of the initial one-qubit processing gate in Wang's
 alternating QPP word. -/
 theorem QPP.ancillaBlock_qppAlternatingInitialGate
-    (a b : Fin (2 ^ 1)) (φ θ₀ φ₀ : ℝ) :
+    (U : UnitaryOperator (Qubits n)) (a b : Fin (2 ^ 1)) (φ θ₀ φ₀ : ℝ) :
     QPP.ancillaBlock (n := n) a b
-        ((qppAlternatingInitialGate n φ θ₀ φ₀).matrix :
+        ((qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix :
           HilbertOperator (Qubits (1 + n))) =
-      ((qspYZZYZInitialCircuit φ θ₀ φ₀).matrix :
+      ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
         HilbertOperator (Qubits 1)) a b •
         (1 : HilbertOperator (Qubits n)) := by
+  rw [qppAlternatingInitialGate_operator]
   simpa using
     (QPP.ancillaBlock_tensor_left (n := n)
-      (A := (qspYZZYZInitialCircuit φ θ₀ φ₀).matrix) a b)
+      (A := (qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix) a b)
 
 /-- Ancilla-block recurrence for one source-aligned alternating QPP step.  It
 keeps the controlled branch and the one-qubit processing block visible, which
@@ -164,16 +165,16 @@ theorem QPP.ancillaBlock_qppAlternatingStepGate
             (if a = c then
               if a = 0 then (1 : HilbertOperator (Qubits n)) else U
             else 0)) *
-          ((qppProcessingPairGate p : HilbertOperator (Qubits 1)) c b •
+          (((rotYOp p.1 : HilbertOperator (Qubits 1)) *
+              (rotZStdOp p.2 : HilbertOperator (Qubits 1))) c b •
             (1 : HilbertOperator (Qubits n))) := by
-  rw [qppAlternatingStepGate_operator, QPP.ancillaBlock_mul]
+  rw [qppAlternatingStepGate_operator, QPP.Native.processingPair_binaryMatrix,
+    QPP.ancillaBlock_mul]
   by_cases hj : j % 2 = 0
-  · rw [qppAlternatingOracleGate_matrix_of_even U hj,
-      qppLiftProcessingGate_matrix]
-    simp [hj,
+  · rw [qppAlternatingOracleGate_matrix_of_even U hj]
+    simp [hj, Matrix.star_eq_conjTranspose,
       QPP.ancillaBlock_controlledOnZero, QPP.ancillaBlock_tensor_left]
-  · rw [qppAlternatingOracleGate_matrix_of_odd U hj,
-      qppLiftProcessingGate_matrix]
+  · rw [qppAlternatingOracleGate_matrix_of_odd U hj]
     simp [hj, QPP.ancillaBlock_controlled,
       QPP.ancillaBlock_tensor_left]
 
@@ -465,7 +466,7 @@ constant Laurent polynomial evaluated at `U`. -/
 theorem QPP.projectedBlock_qppAlternatingControlledCircuit_nil
     (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ) :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ []).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ []).binaryMatrix :
           HilbertOperator (Qubits (1 + n))) =
       QPP.operatorLaurentPolynomial 0 U
         (qspYZZYZGeneratedPair φ θ₀ φ₀ []).1 := by
@@ -474,7 +475,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_nil
     QPP.ancillaBlock_qppAlternatingInitialGate,
     QPP.operatorLaurentPolynomial_zero]
   have hinitial :
-      ((qspYZZYZInitialCircuit φ θ₀ φ₀).matrix :
+      ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
         HilbertOperator (Qubits 1)) =
         (rotZStdOp φ : HilbertOperator (Qubits 1)) *
           ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
@@ -554,7 +555,7 @@ structure QPP.QppEvolutionCertificate (L : ℕ)
   length_eq : ps.length = 2 * L
   block_eq :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n))) =
       unitaryLaurentPolynomial L U coeff
 
@@ -572,7 +573,7 @@ noncomputable def QPP.qppEvolutionCertificateOfOperatorLaurent
         QPP.laurentCoeffPolynomial L coeff)
     (hblock :
       projectedBlock 1 n
-          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
             HilbertOperator (Qubits (1 + n))) =
         QPP.operatorLaurentPolynomial L U
           (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).1) :
@@ -704,7 +705,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
     (j : Fin (2 ^ n)) :
     HilbertOperator.applyVec
         (projectedBlock 1 n
-          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
             HilbertOperator (Qubits (1 + n))))
         (decomp.basis j) =
       lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff) (decomp.phase j) •
@@ -736,7 +737,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
               (QPP.laurentCoeffPolynomial L coeff) B (decomp.phase j)
   ext i
   change ((projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n)))).applyVec
         (decomp.basis j)).ofLp i =
     (lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff)
@@ -744,7 +745,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
   have hproj :=
     QPP.projectedBlock_one_applyVec
       (n := n)
-      (V := (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix)
+      (V := (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix)
       (ψ := decomp.basis j)
   have hcoord := congrArg
     (fun v : HilbertVector (Qubits (1 + n)) => v (prodEquiv ((0 : Fin (2 ^ 1)), i)))
@@ -752,7 +753,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
   rw [hproj]
   calc
     (HilbertOperator.applyVec
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n)))
         (ket0.vec.tensor (decomp.basis j))).ofLp (prodEquiv (0, i)) =
       ((qspYZZYZ φ θ₀ φ₀ ps (decomp.phase j)).applyVec
@@ -776,7 +777,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_eq_unitaryLaurentPoly
       qspYZZYZ φ θ₀ φ₀ ps x =
         qspMatYZ (2 * L) (QPP.laurentCoeffPolynomial L coeff) B x) :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).matrix :
+        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
           HilbertOperator (Qubits (1 + n))) =
       unitaryLaurentPolynomial L U coeff := by
   apply HilbertOperator.ext_of_applyVec_eq_on_orthonormalBasis decomp.basis

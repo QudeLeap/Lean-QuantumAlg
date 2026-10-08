@@ -21,22 +21,35 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent instruction formula of the original coordinatewise subtraction. -/
-def differenceTrace (width : Nat) : List (Resource.Event kind) :=
-  List.replicate 3 (.classicalOperation (.wordBinary .sub width))
+def differenceTrace (width : Nat) : List (Resource.Event model) :=
+  List.replicate 3 (.classicalOperation
+    (BitWord.selectedCoordinate (execution := model) (.wordBinary .sub width)))
 
 /-- Every actual path emits exactly the three independently specified subtraction events. -/
 theorem pointDifferenceInto_events (refs : Refs ctx width)
     (path : (pointDifferenceInto refs).Path) :
-    (pointDifferenceInto refs).eventTrace path = differenceTrace width := rfl
+    (pointDifferenceInto refs).eventTrace path = differenceTrace width := by
+  change (BitWord.instruction (execution := model) (differenceOp refs .first)).eventTrace
+      path.1 ++
+    ((BitWord.instruction (execution := model) (differenceOp refs .second)).eventTrace
+      path.2.1 ++
+      (BitWord.instruction (execution := model) (differenceOp refs .third)).eventTrace
+        path.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Native multiplicity comes from the same independent three-subtraction formula. -/
 theorem pointDifferenceInto_resourcePool (refs : Refs ctx width)
     (path : (pointDifferenceInto refs).Path) :
     (pointDifferenceInto refs).resourcePool path =
-      ResourcePool.ofList (differenceTrace width) := rfl
+      ResourcePool.ofList (differenceTrace width) :=
+  congrArg ResourcePool.ofList (pointDifferenceInto_events refs path)
 
 /-- Actual serial dependency depth is exactly three at unit native instruction duration. -/
 theorem pointDifferenceInto_depth (refs : Refs ctx width)
@@ -45,13 +58,16 @@ theorem pointDifferenceInto_depth (refs : Refs ctx width)
 
 /-- All three real writes preserve the full borrowed-reference joint state. -/
 theorem pointDifferenceInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pointDifferenceInto refs).BorrowedRestored Reference state
       ((pointDifferenceInto refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (.classical (differenceOp refs .first)) _ state
-    (Circuit.borrowedRestored_classical _ state) ?_
-  exact Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
-    (Circuit.borrowedRestored_classical _ _)
+  refine Circuit.borrowedRestored_seq
+    (BitWord.instruction (execution := model) (differenceOp refs .first)) _ state
+    (Circuit.borrowedRestored_classical (model := model) _ state) ?_
+  exact Circuit.borrowedRestored_seq _ _ _
+    (Circuit.borrowedRestored_classical (model := model) _ _)
+    (Circuit.borrowedRestored_classical (model := model) _ _)
 
 /-- Each of the three actual instructions visits the original caller context. -/
 theorem pointDifferenceInto_visited (refs : Refs ctx width)

@@ -8,7 +8,12 @@ module
 
 import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
 
+public import QuantumAlg.Core.Base.Model
 public import QuantumAlg.Core.Base.Accounting.Context
+public import QuantumAlg.Components.Classical.Model.BitWord
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Oracle.UnitarySource.Model
+public import QuantumAlg.Components.Oracle.Phase.Operator
 import all QuantumAlg.Algorithms.Grover.Construction
 import all QuantumAlg.Algorithms.Grover.Elementary.Laws
 import all QuantumAlg.Core.Base.Tensor.Certified
@@ -19,6 +24,7 @@ import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
 import all QuantumAlg.Core.Execution.Preparation
 import all QuantumAlg.Core.Execution.Preparation.Empty
 import all QuantumAlg.Core.Execution.Context.Layout
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Execution.Reindex
 
 /-!
@@ -37,6 +43,11 @@ namespace QuantumAlg.GroverSearch
 noncomputable section
 
 open QuantumAlg.ZeroReflection.Workspace
+
+/-- Ordinary predicate queries, default native gates and width-indexed bit/word operations. -/
+public abbrev model {n : Nat} (marked : Fin (2 ^ n) → Bool) : ExecutionModel :=
+  .quantum AlgorithmGate.model (UnitarySource.model (phaseOracleOp marked) false)
+    BitWord.model .empty
 
 /-- The original zero-bit borrowed input, with no supplied quantum systems. -/
 @[reducible] public def pre : RuntimeCtx .quantum :=
@@ -117,17 +128,21 @@ theorem elementaryInput_eq_zero (n k : Nat) :
   rw [NormalizedVector.tensor_ket]
   rfl
 
-/-- The executable elementary sequence, transported through the actual complete wire assembly. -/
-def program {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    UnitaryCircuit (preparedContext (totalQubits n k)).register :=
-  UnitaryCircuit.reindex (preparedBasisEquiv (totalQubits n k)).symm
-    (Elementary.circuit marked k)
+/-- The complete prepared context contains precisely the same ordered physical wires. -/
+theorem prepared_canonical_wires (width : Nat) :
+    (QuantumSignature.qubits width).canonicalPlacement.layout.wires =
+      (preparedContext width).quantumLayout.wires := by
+  rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
+  rfl
 
-theorem program_placement {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (program marked k).physical_idx =
-      (preparedContext (totalQubits n k)).physicalIdx := by
-  change (Elementary.circuit marked k).physical_idx = _
-  rw [Elementary.circuit_physical_idx, preparedContext_physicalIdx]
+/-- The actual elementary word acts on the runtime register's identical physical systems. -/
+def program {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles marked)
+      (preparedContext (totalQubits n k)).quantumLayout :=
+  Execution.unitaryOfEqualWires
+    (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout
+    (preparedContext (totalQubits n k)).quantumLayout
+    (prepared_canonical_wires (totalQubits n k)) (Elementary.circuit marked k)
 
 end
 

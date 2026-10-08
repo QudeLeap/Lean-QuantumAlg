@@ -672,8 +672,10 @@ def branchResidueCleanupStep (tail counterWidth : Nat)
 /-- Base-gate program implementing branch-residue cleanup. -/
 def branchResidueCleanupProgram (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates tail counterWidth roundIndex)
 
 theorem branchResidueCleanup_realizes (tail counterWidth : Nat)
@@ -681,7 +683,7 @@ theorem branchResidueCleanup_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (branchResidueCleanupProgram tail counterWidth roundIndex)
       (branchResidueCleanupStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates tail counterWidth roundIndex)
 
 /-- The four Boolean identities that characterize the garbage left by one

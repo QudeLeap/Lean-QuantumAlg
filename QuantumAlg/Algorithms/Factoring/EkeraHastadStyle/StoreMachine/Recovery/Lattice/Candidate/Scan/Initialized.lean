@@ -23,21 +23,27 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {N m ell : Nat} {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
+-- Keep the dependent scan path folded when comparing record projections.
+-- The generic record laws supply each observation without materializing that path.
+attribute [local irreducible] Circuit.sequenceStoreRecord
 
 /-- Clear the actual persistent latch, then execute every original canonical candidate slot. -/
 def initializedScanInto (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
-      (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) : Circuit ctx ctx :=
+      (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) : Circuit model ctx ctx :=
   .seq (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
 
-/-- The complete actual store and chronological initialized scan path. -/
-def initializedStep (input : Input N)
+/-- The complete actual store and chronological initialized scan path.
+This mathematical record retains the full path without native code extraction. -/
+noncomputable def initializedStep (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (store : Store ctx) :
     Store ctx × (initializedScanInto input refs).Path :=
-  Circuit.sequenceRecord
+  Circuit.sequenceStoreRecord
     (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
     (LatticeCandidateSelectorInit.clearStep refs.selector.selection)
@@ -50,18 +56,22 @@ theorem initializedStep_store (input : Input N)
     (initializedStep input refs store).1 =
       (LatticeCandidateScan.scanStep (LatticeCandidateModularSetup.modulusSpec input) refs
         (LatticeCandidateSelectorInit.clearStep refs.selector.selection store).1).1 :=
-  Circuit.sequenceRecord_store _ _ _ _ store
+  Circuit.sequenceStoreRecord_store (model := model)
+    (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
+    (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
+    (LatticeCandidateSelectorInit.clearStep refs.selector.selection)
+    (LatticeCandidateScan.scanStep (LatticeCandidateModularSetup.modulusSpec input) refs) store
 
 /-- Actual initialization and finite candidate execution retain the complete incoming state. -/
 theorem initializedScanInto_execute (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (initializedScanInto input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((initializedStep input refs entry.1).1,
-        (entry.2, (initializedStep input refs entry.1).2))) := by
-  dsimp only [initializedStep, initializedScanInto]
-  exact Circuit.execute_sequenceRecord
+      let actual := initializedStep input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  exact Circuit.execute_sequenceStoreRecord
     (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
     (LatticeCandidateSelectorInit.clearStep refs.selector.selection)
@@ -100,8 +110,8 @@ theorem initializedScanInto_correct (input : Input N) (generator : (ZMod N)ˣ)
         LatticeCandidateSelectorInit.clearAcceptedInto_callerFrame refs.selector.selection store
           (externalSourceInput refs source)
           (frameSeparation.externalAvoids source (.selection .accepted))
-  have scan := LatticeCandidateScanFold.scanInto_correct input generator samples refs separation
-    frameSeparation cleared clearInitial
+  have scan := LatticeCandidateScanFold.scanInto_correct (model := model)
+    input generator samples refs separation frameSeparation cleared clearInitial
   have empty : LatticeCandidateSlotMachine.selectedOption
       refs.selector.selection cleared = none := by
     unfold LatticeCandidateSlotMachine.selectedOption

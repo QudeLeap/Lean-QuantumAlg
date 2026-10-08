@@ -67,6 +67,13 @@ theorem post_physicalIdx (n k : Nat) :
   change (qubitLayout n k).systemIdx = _
   simp [qubitLayout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 
+/-- The native canonical word and runtime context contain exactly the same ordered wire records. -/
+theorem post_canonical_wires (n k : Nat) :
+    (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout.wires =
+      (post n k).quantumLayout.wires := by
+  rw [RuntimeCtx.quantumLayout_wires, post_quantumWires]
+  rfl
+
 /-- Exact physical values of the freshly prepared systems. -/
 def preparedLayoutEquiv (n k : Nat) :
     (runtimeLayout n k).register.Index ≃ (post n k).register.Index :=

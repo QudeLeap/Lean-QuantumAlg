@@ -21,16 +21,17 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticePairCoreWorkspa
 open Execution.ClassicalWorkspace
 
 /-- Lift a property through all three actual core packages and their physical certificates. -/
-theorem withWorkspaces_property {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
-      (transport : Transport ctx inner), Certificates transport cells → Circuit inner inner)
-    (property : ∀ {inner : RuntimeCtx kind}, Circuit inner inner → Prop)
-    (workspaceProperty : ∀ (inner : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
+theorem withWorkspaces_property {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
+      (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)
+    (property : ∀ {inner : RuntimeCtx model.kind}, Circuit model inner inner → Prop)
+    (workspaceProperty : ∀ (inner : RuntimeCtx model.kind) (key : StorageKey) (shape : CShape)
       (fresh : key ∉ inner.keys)
-      (code : Circuit (inner.addWorkspace key shape fresh)
+      (code : Circuit model (inner.addWorkspace key shape fresh)
         (inner.addWorkspace key shape fresh)),
       property code → property (Circuit.workspace inner key shape fresh code))
-    (bodyProperty : ∀ {inner : RuntimeCtx kind} (cells : Cells inner N)
+    (bodyProperty : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells),
       property (body cells transport certificates)) :
     property (withWorkspaces ctx N body) := by

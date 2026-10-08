@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Components.Classical.NumberTheory.Nat.ModCheck.Layout
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual division followed by comparison of its stored remainder
@@ -33,24 +34,29 @@ def checkOp (refs : Refs ctx numeratorWidth divisorWidth) :=
   ClassicalOp.wordBinary .equal divisorWidth ctx
     (.product (remainderInput refs) refs.zero) refs.accepted
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Actual native division followed by the stored-remainder comparison. -/
-def into (refs : Refs ctx numeratorWidth divisorWidth) : Circuit ctx ctx :=
-  .seq (.classical (divideOp refs)) (.classical (checkOp refs))
+def into (refs : Refs ctx numeratorWidth divisorWidth) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (divideOp refs)) (BitWord.instruction (execution
+    := model) (checkOp refs))
 
 /-- Complete actual store and chronological pair of native instruction paths. -/
 def step (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
-    Store ctx × (into refs).Path :=
-  ((store.applyOp (divideOp refs)).applyOp (checkOp refs), ((), ()))
+    Store ctx × (into (model := model) refs).Path :=
+  let division := BitWord.instructionStep (execution := model) (divideOp refs) store
+  let checked := BitWord.instructionStep (execution := model) (checkOp refs) division.1
+  (checked.1, (division.2, checked.2))
 
 /-- The actual two-instruction circuit executes its full store and path record. -/
 theorem into_execute (refs : Refs ctx numeratorWidth divisorWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
-  simp only [into, step, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      let actual := step (model := model) refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

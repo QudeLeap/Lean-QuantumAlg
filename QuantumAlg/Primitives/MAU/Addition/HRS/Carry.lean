@@ -281,8 +281,9 @@ def carryGates : (width : Nat) → Fin (2 ^ width) →
 
 /-- Compile the carry from its actual primitive list. -/
 def carryProgram (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit (Qubits (carryEncoding width).width) :=
-  programList (carryGates width constant)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (carryEncoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (carryGates width constant)
 
 /-- All input and borrowed components are restored, with only the carry output
 toggled. The statement includes the empty input and the one-bit input. -/
@@ -318,7 +319,8 @@ theorem hrsCarry_step (width : Nat) (constant : Fin (2 ^ width))
 theorem hrsCarry_realizes (width : Nat) (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes (carryEncoding width) (carryProgram width constant)
       (carryOutput width constant) :=
-  realizesList_congrStep (carryGates width constant) (hrsCarry_step width constant)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (carryGates width constant) (hrsCarry_step width constant)
 
 /-- The entire input word is restored, without any basis-value restriction. -/
 theorem hrsCarry_restores_input (width : Nat) (constant : Fin (2 ^ width))
@@ -361,16 +363,17 @@ theorem hrsCarry_output_get (width : Nat) (constant : Fin (2 ^ width))
     simp [EncodedBit.get_flip_self]
 
 /-- The actual interface is exactly the input, internal borrowed bits, and output. -/
-theorem hrsCarry_interface (width : Nat) (constant : Fin (2 ^ width)) :
+theorem hrsCarry_interface (width : Nat) :
     (carryEncoding width).width = width + (width - 2) + 1 ∧
-      (carryProgram width constant).physical_idx ⊆ List.range (width + (width - 2) + 1) := by
+      (QubitLayout.canonical (carryEncoding width).width).systemIdx =
+        List.range (width + (width - 2) + 1) := by
   have hwidth : (carryEncoding width).width = width + (width - 2) + 1 := by
     change width + (width - 2 + 1) = width + (width - 2) + 1
     omega
   constructor
   · exact hwidth
-  · simpa only [carryProgram, hwidth] using
-      programList_physical_idx_subset_range (carryGates width constant)
+  · rw [hwidth]
+    exact QubitLayout.canonical_systemIdx (width + (width - 2) + 1)
 
 /-- For at least two input bits the concrete interface occupies `2w - 1` wires. -/
 theorem hrsCarry_width_of_two_le (width : Nat) (h : 2 ≤ width) :

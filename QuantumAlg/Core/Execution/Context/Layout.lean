@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Base.Accounting.Context
-import all QuantumAlg.Core.Base.Layout.Quantum.Append
-import Mathlib.Logic.Equiv.Basic
+public import QuantumAlg.Core.Base.Accounting.Context
+public import QuantumAlg.Core.Base.Layout.Quantum.Append
+public import Mathlib.Logic.Equiv.Basic
 
 /-!
 # Exact layouts after adding owned physical systems
@@ -29,12 +29,13 @@ namespace QuantumAlg
 
 namespace Execution
 
-private def positionsOfEqualWires {leftCount rightCount : Nat}
+/-- Coordinate equivalence induced by equality of complete ordered wire lists. -/
+public def positionsOfEqualWires {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) : Fin leftCount ≃ Fin rightCount :=
   finCongr (by simpa only [QuantumLayout.wires_length] using congrArg List.length sameWires)
 
-private theorem wireAtCorrespondingPosition {leftCount rightCount : Nat}
+public theorem wireAtCorrespondingPosition {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) (index : Fin leftCount) :
     right.wire (positionsOfEqualWires left right sameWires index) = left.wire index := by
@@ -47,14 +48,15 @@ private theorem wireAtCorrespondingPosition {leftCount rightCount : Nat}
     simp
   exact (Option.some.inj (leftEntry.symm.trans (sameEntry.trans rightEntry))).symm
 
-private def basisOfEqualWires {leftCount rightCount : Nat}
+/-- Basis equivalence induced by equality of complete ordered wire lists. -/
+public def basisOfEqualWires {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) : left.Basis ≃ right.Basis :=
   (positionsOfEqualWires left right sameWires).piCongr fun index =>
     finCongr (congrArg (fun wire : QuantumWire => (wire.dimension : Nat))
       (wireAtCorrespondingPosition left right sameWires index).symm)
 
-private theorem basisOfEqualWires_value {leftCount rightCount : Nat}
+public theorem basisOfEqualWires_value {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) (basis : left.Basis) (index : Fin leftCount) :
     (basisOfEqualWires left right sameWires basis
@@ -81,7 +83,7 @@ theorem addOwnedLayout_layoutDisjoint (ctx : RuntimeCtx .quantum)
     (layout : QuantumLayout systemCount)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     List.Disjoint layout.identities ctx.quantumLayout.identities := by
-  simpa only [quantumLayout_identities] using disjoint
+  simpa only [RuntimeCtx.runtimeCtx_quantumLayout_identities] using disjoint
 
 /-- Head preparation and context extension contain the same ordered wire records. -/
 theorem addOwnedLayout_wires_eq_append (ctx : RuntimeCtx .quantum) (key : StorageKey)
@@ -90,8 +92,15 @@ theorem addOwnedLayout_wires_eq_append (ctx : RuntimeCtx .quantum) (key : Storag
     (QuantumLayout.append layout ctx.quantumLayout
       (addOwnedLayout_layoutDisjoint ctx layout disjoint)).wires =
         (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wires := by
-  simp only [QuantumLayout.wires_append, quantumLayout_wires]
-  rfl
+  calc
+    _ = layout.wires ++ ctx.quantumLayout.wires :=
+      QuantumLayout.wires_append layout ctx.quantumLayout _
+    _ = layout.wires ++ ctx.quantumWires := by
+      rw [RuntimeCtx.quantumLayout_wires]
+    _ = (ctx.addOwnedLayout key layout fresh disjoint).quantumWires :=
+      (RuntimeCtx.runtimeCtx_quantumWires_addOwnedLayout
+        ctx key layout fresh disjoint).symm
+    _ = _ := (RuntimeCtx.quantumLayout_wires _).symm
 
 /-- Corresponding positions follow the equality of the actual ordered wire lists. -/
 def addOwnedLayoutPositionEquiv (ctx : RuntimeCtx .quantum) (key : StorageKey)

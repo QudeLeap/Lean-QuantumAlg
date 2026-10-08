@@ -110,10 +110,12 @@ private theorem swap_first (refs : Refs ctx width) (separation : Separation refs
     rw [swap_frame refs _ _ (basis_avoids refs separation .firstThird swapCells (by decide))]
     exact (rep .first).2.2
 
-private theorem selectArm_basis (refs : Refs ctx width) (separation : Separation refs)
+private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (flag : CShape.Value .bit) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
-    LatticeMetricMachine.BasisRawRepresents (selectArmStep refs flag store).1 refs.basis
+    LatticeMetricMachine.BasisRawRepresents
+      (selectArmStep (model := model) refs flag store).1 refs.basis
       (if flag.toBool then basis else basis.swapSecondThird) := by
   cases flag with
   | bit flag =>
@@ -128,16 +130,18 @@ private theorem selectArm_basis (refs : Refs ctx width) (separation : Separation
     · exact rep
 
 /-- The actual stored decision selects exactly the original pure second-Lovasz basis result. -/
-theorem select_basis (refs : Refs ctx width) (separation : Separation refs)
+theorem select_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
     (decision : (store.read (writeInput refs.lovasz.passes)).toBool = basis.secondLovasz) :
-    LatticeMetricMachine.BasisRawRepresents (selectStep refs store).1 refs.basis
+    LatticeMetricMachine.BasisRawRepresents (selectStep (model := model) refs store).1 refs.basis
       (branchResult basis) := by
   have result := selectArm_basis refs separation
     (store.read (writeInput refs.lovasz.passes)) store basis rep
   change LatticeMetricMachine.BasisRawRepresents
-    (selectArmStep refs (store.read (writeInput refs.lovasz.passes)) store).1 refs.basis _
+    (selectArmStep (model := model) refs
+      (store.read (writeInput refs.lovasz.passes)) store).1 refs.basis _
   simpa only [decision, branchResult] using result
 
 /-- Original pure basis result, actual retained decision and complete caller read frame. -/
@@ -149,16 +153,18 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- Actual second-Lovasz comparison and its selected exchange realize the original contract. -/
-theorem branchInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem branchInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    Outcome refs store (branchStep refs store).1 basis := by
+    Outcome refs store (branchStep (model := model) refs store).1 basis := by
   have compared := comparison_basis refs separation store basis initial.basisRep
   have decision := LatticeLovasz.secondLovaszInto_matches_rawAreas refs.lovasz separation.lovasz
     store _ _ initial.area12 initial.area13 fits.firstFits fits.twiceSecondFits
   refine ⟨select_basis refs separation _ basis compared decision, ?_,
     branchInto_callerFrame refs store⟩
-  change ((selectStep refs (LatticeLovasz.secondLovaszStore refs.lovasz store)).1.read
+  change ((selectStep (model := model) refs
+    (LatticeLovasz.secondLovaszStore refs.lovasz store)).1.read
     (writeInput refs.lovasz.passes)).toBool = _
   rw [select_passes refs separation]
   exact decision

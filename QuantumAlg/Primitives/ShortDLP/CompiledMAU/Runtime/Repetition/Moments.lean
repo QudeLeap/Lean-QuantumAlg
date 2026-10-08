@@ -81,7 +81,7 @@ theorem shortDLP_runtimeRepetition_weighted_reference
       (_separate : ∀ index, (cells index).key ∉
         (CInputRef.product parameter previous).storageKeys)
       {Reference : Register} {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (RuntimeRound.model.HiddenState × History)),
       RuntimeRound.HasSeedBlocks m ell width sameWires N state →
       ∀ (weight : parameterShape.Value → previousShape.Value →
           (Fin count → (CShape.bits (RuntimeRound.resultBits m ell width)).Value) → ℂ)
@@ -113,21 +113,23 @@ theorem shortDLP_runtimeRepetition_weighted_reference
         weight (store.read parameter) (store.read previous)
           (store.read (RuntimeResults.input m ell width ctx 0)).get
       have identityLaw :
-          ExecutionState.referenceFiberSum ((Circuit.id ctx).execute Reference state)
+          ExecutionState.referenceFiberSum ((Circuit.id (model := RuntimeRound.model) ctx).execute
+              Reference state)
               (fun entry _ => initialWeight entry.1) leftRef rightRef =
             ExecutionState.referenceFiberSum state
               (fun entry _ => initialWeight entry.1) leftRef rightRef := by
         have executed := congrArg
-          (fun output : State ctx Reference (History × Unit) =>
+          (fun output : State ctx Reference (RuntimeRound.model.HiddenState × (History × Unit)) =>
             ExecutionState.referenceFiberSum output
               (fun entry _ => initialWeight entry.1) leftRef rightRef)
-          (Circuit.execute_id_mapClassical Reference state)
+          (Circuit.execute_id_mapClassical (model := RuntimeRound.model) Reference state)
         exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
-          (fun entry => (entry.1, (entry.2, ())))
+          (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
           (fun entry _ => initialWeight entry.1) leftRef rightRef)
       refine identityLaw.trans ?_
       apply congrArg
-        (fun observe : (Store ctx × History) → ctx.register.Index → ℂ =>
+        (fun observe : (Store ctx × (RuntimeRound.model.HiddenState × History)) →
+            ctx.register.Index → ℂ =>
           ExecutionState.referenceFiberSum state observe leftRef rightRef)
       funext entry basis
       refine Eq.trans ?_ (weighted_empty _ _).symm
@@ -149,7 +151,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
         (cells index).underRetained ctx.canonicalFreshKey bits ctx.canonicalFreshKey_fresh
       let head := RuntimeResults.head m ell width ctx
       let previousWithHead := CInputRef.product nextPrevious (.storage head.toCStorageRef)
-      let retain := Circuit.retain ctx ctx.canonicalFreshKey bits ctx.canonicalFreshKey_fresh
+      let retain := Circuit.retain (model := RuntimeRound.model) ctx ctx.canonicalFreshKey bits
+        ctx.canonicalFreshKey_fresh
       let round := RuntimeRound.code m ell width nextWires nextParameter N generator target
         nextCells head
       let tail := code m ell width N generator target next nextWires nextParameter nextCells count
@@ -235,7 +238,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
         leftRef rightRef) ?_ ?_)
       · exact congrArg
           (fun observe : (Store (RuntimeResults.context m ell width ctx (count + 1)) ×
-              ((History × retain.Path) × round.Path) × tail.Path) →
+              (RuntimeRound.model.HiddenState ×
+                (((History × retain.Path) × round.Path) × tail.Path))) →
               (RuntimeResults.context m ell width ctx (count + 1)).register.Index → ℂ =>
             ExecutionState.referenceFiberSum (tail.execute Reference rounded)
               observe leftRef rightRef)
@@ -257,11 +261,14 @@ theorem shortDLP_runtimeRepetition_weighted_reference
               (source earlier.first) (count + 1) samples).toReal : ℂ) *
               weight earlier.first earlier.second (fun index => .bits (samples.get index))
         have retainedLaw := Circuit.referenceFiberSum_execute_retain_input
+          (gates := AlgorithmGate.model) (oracles := .empty)
+          (operations := BitWord.model) (classicalOracles := .empty)
           (.product parameter previous) ctx.canonicalFreshKey bits ctx.canonicalFreshKey_fresh
           state earlierWeight leftRef rightRef
         refine Eq.trans ?_ retainedLaw
         apply congrArg
-          (fun observe : (Store next × (History × Unit)) → next.register.Index → ℂ =>
+          (fun observe : (Store next × (RuntimeRound.model.HiddenState × (History × Unit))) →
+            next.register.Index → ℂ =>
             ExecutionState.referenceFiberSum retained observe leftRef rightRef)
         funext entry basis
         have weights := PMF.independentReplicateVector_weighted_cons

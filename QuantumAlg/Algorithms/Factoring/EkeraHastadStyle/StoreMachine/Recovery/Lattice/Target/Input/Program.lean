@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Target.Scale
+import all QuantumAlg.Components.Classical.Model.BitWord.Selection
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Target.Wide.Program.Resources
 
 /-!
@@ -47,7 +48,8 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (m ell : Nat) where
   firstModulus : target.first.modulus = modulus
   secondModulus : target.second.modulus = modulus
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {m ell : Nat}
 
 /-- The original narrow target layout has the exact common-width view of the same physical cells. -/
 def wideRefs (refs : Refs ctx m ell) : LatticeWideTargetMachine.Refs ctx m ell (ell + m + 1) where
@@ -69,7 +71,7 @@ abbrev Separation (refs : Refs ctx m ell) : Prop :=
   LatticeWideTargetMachine.Separation (wideRefs refs)
 
 /-- Actual original-width preimage loading and stored-comparison target centering. -/
-def loadTargetMachineInto (refs : Refs ctx m ell) : Circuit ctx ctx :=
+def loadTargetMachineInto (refs : Refs ctx m ell) : Circuit model ctx ctx :=
   LatticeWideTargetMachine.loadTargetInto (wideRefs refs)
 
 /-- Complete actual store and chronological native path of the original-width target call. -/
@@ -79,9 +81,10 @@ def targetMachineStep (refs : Refs ctx m ell) (store : Store ctx) :
 
 /-- Actual original-width target loading retains every original state block and incoming history. -/
 theorem loadTargetMachineInto_execute (refs : Refs ctx m ell) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetMachineInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((targetMachineStep refs entry.1).1, (entry.2, (targetMachineStep refs entry.1).2))) :=
+      ((targetMachineStep refs entry.1).1,
+        (entry.2.1, (entry.2.2, (targetMachineStep refs entry.1).2)))) :=
   LatticeWideTargetMachine.loadTargetInto_execute (wideRefs refs) Reference state
 
 /-- Exact original pure target and complete actual caller frame of the original-width layout. -/
@@ -130,7 +133,7 @@ theorem loadTargetMachineInto_resourcePool (refs : Refs ctx m ell)
   congrArg ResourcePool.ofList (loadTargetMachineInto_events refs path)
 
 /-- Independent coordinate envelope at the original target width. -/
-def targetMachineEventEnvelope {kind : ProblemKind} (m ell : Nat) : ResourcePool kind :=
+def targetMachineEventEnvelope (m ell : Nat) : ResourcePool model :=
   LatticeWideTargetMachine.eventEnvelope m ell (ell + m + 1)
 
 /-- The actual original-width target obeys its complete independent coordinate envelope. -/
@@ -153,14 +156,14 @@ theorem loadTargetMachineInto_depth_le (refs : Refs ctx m ell)
 
 /-- Actual original-width target loading preserves all original borrowed-reference correlations. -/
 theorem loadTargetMachineInto_borrowedRestored (refs : Refs ctx m ell) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetMachineInto refs).BorrowedRestored Reference state
       ((loadTargetMachineInto refs).execute Reference state) :=
   LatticeWideTargetMachine.loadTargetInto_borrowedRestored (wideRefs refs) Reference state
 
 /-- Every actual original-width target instruction retains the complete supplied context. -/
 theorem loadTargetMachineInto_visited (refs : Refs ctx m ell)
-    (path : (loadTargetMachineInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (loadTargetMachineInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadTargetMachineInto refs).visitedContexts path) : visited = ctx :=
   LatticeWideTargetMachine.loadTargetInto_visited (wideRefs refs) path visited present
 

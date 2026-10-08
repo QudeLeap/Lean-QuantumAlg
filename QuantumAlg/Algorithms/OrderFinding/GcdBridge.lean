@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Algorithms.OrderFinding.General.Model
+import all QuantumAlg.Algorithms.OrderFinding.General.Recovery.Analysis
 import all QuantumAlg.Primitives.MAU.Multiplication.VBECircuit
 import all QuantumAlg.Util.Order.Finding
 
@@ -15,7 +15,7 @@ import all QuantumAlg.Util.Order.Finding
 # Order-finding to factoring mathematics
 
 This module contains only the reusable number-theoretic reduction.  The later
-factoring endpoint composes it with `OrderFinding.ShorSourceJoint.algorithm`
+factoring endpoint composes it with `OrderFinding.ShorSourceJoint.SourceNativeEndpoint.algorithm`
 directly, so no detached circuit/resource witness is retained here.
 -/
 
@@ -47,7 +47,8 @@ theorem shorSourceJointGcdBridge
           Nat.gcd (a ^ (r / 2) - 1) N < N) ∧
       (1 < Nat.gcd (a ^ (r / 2) + 1) N ∧
           Nat.gcd (a ^ (r / 2) + 1) N < N) := by
-  refine ⟨sourceOutputSuccessLowerBound hinput hregister hupper, ?_⟩
+  refine ⟨ShorSourceJoint.SourceAnalysis.sourceOutputSuccessLowerBound
+    hinput hregister hupper, ?_⟩
   exact shor_gcd_bridge_of_input_order D hinput heven hleft hright
 
 end OrderFinding

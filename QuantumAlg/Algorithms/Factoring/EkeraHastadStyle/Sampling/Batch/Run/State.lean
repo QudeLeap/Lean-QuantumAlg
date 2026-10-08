@@ -25,15 +25,15 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem run_output_entry {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (program : AlgorithmRun pre post shape) (seed : post.register.Index)
+private theorem run_output_entry {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (program : AlgorithmRun model pre post shape) (seed : post.register.Index)
     (coefficient : shape.Value → ℂ)
     (executeEntry : ∀ {Reference : Register} {History : Type} [Fintype History]
-      (state : State pre Reference History) (selected : shape.Value)
+      (state : State pre Reference (model.HiddenState × History)) (selected : shape.Value)
       (left right : post.register.Index) (leftRef rightRef : Reference.Index),
       (((program.code.execute Reference state).mapClassical
         (fun entry => program.output.eval entry.1)).block selected).matrix
@@ -42,7 +42,8 @@ private theorem run_output_entry {kind : ProblemKind} {pre post : RuntimeCtx kin
           ExecutionState.referenceFiberSum state
             (fun _ _ => coefficient selected) leftRef rightRef else 0)
     {Reference : Register}
-    (initial : ExecutionState (Store pre) (Register.prod pre.register Reference))
+    (initial : ExecutionState (Store pre × model.HiddenState)
+      (Register.prod pre.register Reference))
     (selected : shape.Value) (left right : post.register.Index)
     (leftRef rightRef : Reference.Index) :
     (((program.finalState Reference initial).mapClassical
@@ -50,14 +51,10 @@ private theorem run_output_entry {kind : ProblemKind} {pre post : RuntimeCtx kin
         (left, leftRef) (right, rightRef) =
       if left = seed ∧ right = seed then
         coefficient selected * initial.referenceMarginal.matrix leftRef rightRef else 0 := by
-  let entered : State pre Reference (Store pre) :=
-    initial.mapClassical (fun store => (store, store))
+  let entered : State pre Reference (model.HiddenState × Store pre) :=
+    initial.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have entryEquation : program.execute Reference initial =
-      program.code.execute Reference entered := by
-    unfold AlgorithmRun.execute
-    apply congrArg (fun state : State pre Reference (Store pre) =>
-      program.code.execute Reference state)
-    congr 1
+      program.code.execute Reference entered := rfl
   have runEquation := AlgorithmRun.finalState_readout program Reference initial
   have executionEquation := congrArg
     (fun state : ExecutionState program.Record (Register.prod post.register Reference) =>
@@ -71,7 +68,7 @@ private theorem run_output_entry {kind : ProblemKind} {pre post : RuntimeCtx kin
   exact congrArg
     (fun scalar : ℂ => if left = seed ∧ right = seed then scalar else 0)
     ((ExecutionState.referenceFiberSum_mapClassical initial
-      (fun store => (store, store)) (fun _ _ => coefficient selected)
+      (fun entry => (entry.1, (entry.2, entry.1))) (fun _ _ => coefficient selected)
       leftRef rightRef).trans
         (ExecutionState.referenceFiberSum_constant_eq initial (coefficient selected)
           leftRef rightRef))
@@ -80,7 +77,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- The actual run's output block retains the same independent seed and full reference density. -/
 theorem nativeBatch_run_output_joint_entry (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (selected : (resultShape N).Value)
     (left right : (context base noQuantum N).register.Index)
     (leftRef rightRef : Reference.Index) :

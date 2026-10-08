@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.Trivial.Native.Run
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Run
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
+import all QuantumAlg.Components.Classical.Model.BitWord.Promotion
 
 /-!
 # Actual elliptic-curve recovery at subgroup order one
@@ -38,10 +39,12 @@ def trivialRecoveryContext (p width : Nat) : RuntimeCtx .quantum :=
 
 /-- The original deterministic order-one circuit acts on the original endpoint input context. -/
 def trivialRecoveryRun (problem : KnownOrderProblem E.GroupPoint) :
-    AlgorithmRun (before p.size (2 * orderWidth problem))
+    AlgorithmRun (.quantum AlgorithmGate.model .empty BitWord.model)
+      (before p.size (2 * orderWidth problem))
       (trivialRecoveryContext p.size (orderWidth problem))
       (.option (.unsignedWord (orderWidth problem))) :=
   ClassicalRoutines.FiniteCyclicDLP.Trivial.Native.zeroRun
+    (model := .quantum AlgorithmGate.model .empty BitWord.model)
     (before p.size (2 * orderWidth problem)) (orderWidth problem)
     (before p.size (2 * orderWidth problem)).canonicalFreshKey
     (before p.size (2 * orderWidth problem)).canonicalFreshKey_fresh
@@ -49,7 +52,8 @@ def trivialRecoveryRun (problem : KnownOrderProblem E.GroupPoint) :
 /-- The actual order-one endpoint certainly returns the unique original secret. -/
 theorem trivialRecoveryRun_probability_one (problem : KnownOrderProblem E.GroupPoint)
     (orderOne : problem.order = 1) (input : SecretInput problem) {Reference : Register}
-    (initial : Input (before p.size (2 * orderWidth problem)) Reference) :
+    (initial : OracleInput ClassicalOracleModel.empty
+      (before p.size (2 * orderWidth problem)) Reference) :
     (trivialRecoveryRun problem).outputDistribution initial
       (.optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)) = 1 := by
   have secretZero : input.secret.val = 0 := by
@@ -58,6 +62,7 @@ theorem trivialRecoveryRun_probability_one (problem : KnownOrderProblem E.GroupP
     omega
   rw [secretZero]
   exact ClassicalRoutines.FiniteCyclicDLP.Trivial.Native.zeroRun_output_probability
+    (model := .quantum AlgorithmGate.model .empty BitWord.model)
     _ _ _ _ initial
 
 end

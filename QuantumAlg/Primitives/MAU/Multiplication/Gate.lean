@@ -76,80 +76,6 @@ theorem multiplicationOp_applyVec {N n : ℕ}
   rw [multiplicationOp, UnitaryOperator.ofPerm_applyVec]
   rfl
 
-/-! ### Same-circuit realization -/
-
-/-- An ideal-carrier circuit contract for domain-specific modular
-multiplication. Ancilla-extended physical implementations use
-`EncodedCircuitRealization` below and do not identify their register carrier
-with `unitRegister D`. -/
-structure CircuitRealization {N n : ℕ}
-    (D : ModularMultiplicationDomain N n) (a : UnitCarrier D) where
-  /-- The executable typed circuit. -/
-  circuit : UnitaryCircuit (unitRegister D)
-  /-- The circuit implements the source-facing multiplication operator. -/
-  matrix_eq : circuit.matrix = multiplicationOp D a
-
-namespace CircuitRealization
-
-variable {N n : ℕ} {D : ModularMultiplicationDomain N n} {a : UnitCarrier D}
-
-/-- Ordered strict events derived from the ideal-carrier realization. -/
-def eventTrace (realization : CircuitRealization D a) :
-    List (Resource.Event .quantum) :=
-  realization.circuit.eventTrace
-
-/-- Strict event pool derived from the ideal-carrier realization. -/
-def eventCost (realization : CircuitRealization D a) : ResourcePool .quantum :=
-  realization.circuit.eventCost
-
-/-- Strict symbolic event critical path of the ideal-carrier realization. -/
-def eventDepth (realization : CircuitRealization D a) :
-    DepthExpr (Resource.Event .quantum) :=
-  realization.circuit.eventDepth
-
-/-- Literal depth of one strict event coordinate in the ideal-carrier circuit. -/
-def eventQueryDepth (realization : CircuitRealization D a)
-    (focus : Resource.Event .quantum) : Nat :=
-  realization.circuit.eventQueryDepth focus
-
-/-- Exact multiplicity of one gate coordinate in the ideal-carrier circuit. -/
-def eventGateCount (realization : CircuitRealization D a)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) realization.circuit.eventCost
-
-/-- Linearizing ideal-carrier event depth recovers the exact event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
-    (realization : CircuitRealization D a) :
-    realization.circuit.resourcesFromEventDepth = realization.circuit.eventCost :=
-  UnitaryCircuit.resourcesFromEventDepth_eq_eventCost realization.circuit
-
-
-
-
-
-/-- Intrinsically normalized basis action of the realized multiplication
-circuit. -/
-theorem applyNormalized_ket (realization : CircuitRealization D a)
-    (x : UnitCarrier D) :
-    realization.circuit.applyNormalized
-        (NormalizedVector.ket (R := unitRegister D) x) =
-      NormalizedVector.ket (R := unitRegister D) (D.multiplyUnit a x) := by
-  change realization.circuit.matrix.apply
-      (NormalizedVector.ket (R := unitRegister D) x) = _
-  rw [realization.matrix_eq]
-  exact multiplicationOp_apply_ket D a x
-
-/-- Raw linear action of the same circuit, retained for arbitrary
-superpositions and eigenvector calculations. -/
-theorem applyVec (realization : CircuitRealization D a)
-    (ψ : HilbertVector (unitRegister D)) (x : UnitCarrier D) :
-    realization.circuit.applyVec ψ x = ψ (D.multiplyUnit a⁻¹ x) := by
-  change realization.circuit.matrix.applyVec ψ x = _
-  rw [realization.matrix_eq]
-  exact multiplicationOp_applyVec D a ψ x
-
-end CircuitRealization
-
 /-! ### Ancilla-extended encoded realization -/
 
 /-- A concrete base-gate realization on a larger physical register, restricted
@@ -167,14 +93,18 @@ structure EncodedCircuitRealization {N n : ℕ}
   /-- The clean embedding does not identify distinct ideal inputs. -/
   cleanEmbedding_injective : Function.Injective cleanEmbedding
   /-- Exact circuit on the physical layout. -/
-  program : UnitaryCircuit (Qubits encoding.width)
+  program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+    (encoding.width)).toQuantum
   /-- The exact program maps every clean input to the clean encoding of
   multiplication by `a`. -/
   applyNormalized_clean : ∀ x,
     program.applyNormalized
-        (NormalizedVector.ket (encoding.encode (cleanEmbedding x))) =
+        (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm
+            (encoding.encode (cleanEmbedding x)))) =
       NormalizedVector.ket
-        (encoding.encode (cleanEmbedding (D.multiplyUnit a x)))
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (cleanEmbedding (D.multiplyUnit a x))))
 
 namespace EncodedCircuitRealization
 
@@ -199,38 +129,41 @@ theorem cleanRealizes (realization : EncodedCircuitRealization D a) :
 
 /-- Typed circuit folded from the exact physical base-gate program. -/
 def circuit (realization : EncodedCircuitRealization D a) :
-    UnitaryCircuit (Qubits realization.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (realization.encoding.width)).toQuantum :=
   realization.program
 
 /-- Ordered strict events derived from the exact physical circuit. -/
 def eventTrace (realization : EncodedCircuitRealization D a) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   realization.circuit.eventTrace
 
 /-- Strict event pool derived from the exact physical circuit. -/
 def eventCost (realization : EncodedCircuitRealization D a) :
-    ResourcePool .quantum :=
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   realization.circuit.eventCost
 
 /-- Strict symbolic event critical path of the exact physical circuit. -/
 def eventDepth (realization : EncodedCircuitRealization D a) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   realization.circuit.eventDepth
 
 /-- Evaluated strict event depth under literal event durations. -/
 def evaluatedEventDepth (realization : EncodedCircuitRealization D a)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   realization.circuit.evaluatedEventDepth assign
 
 /-- Literal depth of one strict event coordinate in the physical circuit. -/
 def eventQueryDepth (realization : EncodedCircuitRealization D a)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   realization.circuit.eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the physical event pool. -/
 def eventGateCount (realization : EncodedCircuitRealization D a)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) realization.circuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    realization.circuit.eventCost
 
 
 
@@ -250,9 +183,12 @@ def qubitCount (realization : EncodedCircuitRealization D a) : Nat :=
 theorem applyNormalized_clean_ket
     (realization : EncodedCircuitRealization D a) (x : UnitCarrier D) :
     realization.circuit.applyNormalized
-        (NormalizedVector.ket (realization.cleanEncoding.encode x)) =
+        (NormalizedVector.ket
+          ((QubitLayout.canonical realization.encoding.width).basisEquiv.symm
+            (realization.cleanEncoding.encode x))) =
       NormalizedVector.ket
-        (realization.cleanEncoding.encode (D.multiplyUnit a x)) :=
+        ((QubitLayout.canonical realization.encoding.width).basisEquiv.symm
+          (realization.cleanEncoding.encode (D.multiplyUnit a x))) :=
   realization.cleanRealizes.apply_encoded_ket x
 
 

@@ -66,9 +66,10 @@ def program
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
-    UnitaryCircuit
-      (Qubits (Layout.encoding fieldTail.succ (counterTail + 2)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Layout.encoding fieldTail.succ (counterTail + 2)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (gates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Folded action of the lifted inversion ledger. -/
@@ -91,7 +92,7 @@ theorem realizes
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ (counterTail + 2))
       (program fieldTail counterTail p hfit hcapacity hwidth)
       (step fieldTail counterTail p hfit hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (gates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Lifting preserves the literal number of primitive gates. -/
@@ -112,9 +113,9 @@ theorem gates_map_event
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
     (gates fieldTail counterTail p hfit hcapacity hwidth).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (CompactInversion.compactInversionGates fieldTail counterTail p
-        hfit hcapacity hwidth).map EncodedBit.GateSpec.event := by
+        hfit hcapacity hwidth).map (EncodedBit.GateSpec.event .empty) := by
   exact ArithmeticLift.gates_map_event fieldTail.succ (counterTail + 2)
     (CompactInversion.compactInversionGates fieldTail counterTail p
       hfit hcapacity hwidth)

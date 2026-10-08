@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 private theorem eventWeight_of_mapped_eq {A B C : Type} [Fintype A] [Fintype B] [Fintype C]
     {R : Register} (left : ExecutionState A R) (right : ExecutionState B R)
@@ -47,7 +48,8 @@ private theorem eventWeight_of_mapped_eq {A B C : Type} [Fintype A] [Fintype B] 
 theorem recoveryTail_eventWeight (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History))
     (event : CShape.Value (.option (.unsignedWord scalarWidth)) → Bool) :
     ((recoveryTail curve modulus samples base target).execute Reference state).effectWeight
         (fun entry => if event (entry.1.read (batchResultRead ctx width scalarWidth)) = true then
@@ -55,15 +57,17 @@ theorem recoveryTail_eventWeight (curve : CurveSpec width) (modulus : ModulusSpe
         else Effect.zero
           (Register.prod (batchResultCtx ctx width scalarWidth).register Reference)) =
       state.effectWeight (fun entry =>
-        if event (recoveryTailOutput curve modulus samples base target entry.1) = true then
+        if event (recoveryTailOutput curve modulus samples base target
+          (entry.1, entry.2.1)) = true then
           Effect.one (Register.prod ctx.register Reference)
         else Effect.zero (Register.prod ctx.register Reference)) := by
   exact eventWeight_of_mapped_eq
     (C := CShape.Value (.option (.unsignedWord scalarWidth)) × History)
     ((recoveryTail curve modulus samples base target).execute Reference state)
     state
-    (fun entry => (entry.1.read (batchResultRead ctx width scalarWidth), entry.2.1))
-    (fun entry => (recoveryTailOutput curve modulus samples base target entry.1, entry.2))
+    (fun entry => (entry.1.read (batchResultRead ctx width scalarWidth), entry.2.2.1))
+    (fun entry => (recoveryTailOutput curve modulus samples base target
+      (entry.1, entry.2.1), entry.2.2))
     _ _
     (recoveryTail_outputState curve modulus samples base target Reference state)
     (fun entry => event entry.1)
@@ -73,7 +77,7 @@ theorem recoveryTailRun_outputDistribution (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
-    (initial : Input ctx Reference) :
+    (initial : OracleInput model.classicalOracles ctx Reference) :
     (recoveryTailRun curve modulus samples base target).outputDistribution initial =
       (initial.state.toPMF initial.normalized).map
         (recoveryTailOutput curve modulus samples base target) := by
@@ -100,7 +104,7 @@ theorem recoveryTailRun_eventProbability (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
-    (initial : Input ctx Reference)
+    (initial : OracleInput model.classicalOracles ctx Reference)
     (event : CShape.Value (.option (.unsignedWord scalarWidth)) → Bool) :
     ((recoveryTailRun curve modulus samples base target).outputDistribution initial).map
         event true =

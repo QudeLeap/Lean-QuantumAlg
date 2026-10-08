@@ -174,7 +174,9 @@ def terminal : RuntimeCtx .quantum :=
     (terminal_disjoint E exponentWidth)
 
 /-- The original charged arithmetic preparation executes with both public inputs resident. -/
-def prepareAuxiliary : Circuit (before E exponentWidth) (withAuxiliary E exponentWidth) :=
+def prepareAuxiliary :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before E exponentWidth) (withAuxiliary E exponentWidth) :=
   prepareFramed InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout p.size)
     (preparation_fresh_union InversePreparation.auxiliaryKey _
       (InversePreparation.auxiliary_fresh p.size) (InversePreparation.auxiliary_disjoint p.size)
@@ -182,10 +184,16 @@ def prepareAuxiliary : Circuit (before E exponentWidth) (withAuxiliary E exponen
     (preparation_wires_union InversePreparation.auxiliaryKey _
       (InversePreparation.auxiliary_fresh p.size) (InversePreparation.auxiliary_disjoint p.size)
       (Allocation.auxiliary_disjoint p.size (2 * exponentWidth)))
-    (auxiliary_disjoint E exponentWidth) (InPlacePreparation.preparation p)
+    (auxiliary_disjoint E exponentWidth)
+    (frameUnitary (InversePreparation.after p.size)
+      (Allocation.exponents p.size (2 * exponentWidth))
+      (Allocation.auxiliary_disjoint p.size (2 * exponentWidth))
+      (InPlacePreparation.loadProgram p))
 
 /-- The original arithmetic result cells are allocated with their unchanged original keys. -/
-def allocateCells : Circuit (withAuxiliary E exponentWidth) (withCells E exponentWidth) := by
+def allocateCells :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (withAuxiliary E exponentWidth) (withCells E exponentWidth) := by
   let expandedFrame := (Allocation.exponents p.size (2 * exponentWidth)).disjointUnion
     (frame E exponentWidth) (exponents_disjoint E exponentWidth)
   let complete := union_right_separate
@@ -203,25 +211,32 @@ def allocateCells : Circuit (withAuxiliary E exponentWidth) (withCells E exponen
     (cells_disjoint E exponentWidth) (exponents_disjoint E exponentWidth) complete
   unfold withAuxiliary withCells
   rw [first, last]
-  exact MeasurementCells.allocateFramed (InversePreparation.after p.size)
+  exact MeasurementCells.allocateFramed (model := .quantum AlgorithmGate.model .empty)
+    (InversePreparation.after p.size)
     expandedFrame 2 p.size complete
 
 /-- The original single zero selector is prepared without moving any original exponent wire. -/
-def prepareSelector : Circuit (withCells E exponentWidth) (after E exponentWidth) :=
-  prepareFramed (indexedKey p.size (2 * exponentWidth))
+def prepareSelector :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (withCells E exponentWidth) (after E exponentWidth) :=
+  prepareZeroFramed (indexedKey p.size (2 * exponentWidth))
     (indexedLayout p.size (2 * exponentWidth))
     (Allocation.selector_fresh p.size (2 * exponentWidth))
     (Allocation.selector_disjoint p.size (2 * exponentWidth)) (after_disjoint E exponentWidth)
-    (BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth)))
 
 /-- The same original three actual initialization stages retain both public point inputs. -/
-def initializeWork : Circuit (before E exponentWidth) (after E exponentWidth) :=
+def initializeWork :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before E exponentWidth) (after E exponentWidth) :=
   (prepareAuxiliary E exponentWidth).seq
     ((allocateCells E exponentWidth).seq (prepareSelector E exponentWidth))
 
 /-- The original terminal allocator retains exactly one result cell per original exponent wire. -/
-def allocateTerminal : Circuit (after E exponentWidth) (terminal E exponentWidth) :=
-  MeasurementCells.allocateFramed (Allocation.after p.size (2 * exponentWidth))
+def allocateTerminal :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (after E exponentWidth) (terminal E exponentWidth) :=
+  MeasurementCells.allocateFramed (model := .quantum AlgorithmGate.model .empty)
+    (Allocation.after p.size (2 * exponentWidth))
     (frame E exponentWidth) 2 (2 * exponentWidth) (terminal_disjoint E exponentWidth)
 
 variable [Fact p.Prime]
@@ -229,7 +244,8 @@ variable [Fact p.Prime]
 /-- Original exponent gates and the actual converted cascade execute beside the resident inputs. -/
 def preMeasurement (fieldTail : Nat) (odd : Odd p) (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    Circuit (before E (orderWidth problem)) (after E (orderWidth problem)) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (before E (orderWidth problem)) (after E (orderWidth problem)) :=
   ((frameLocal (beforeExponentPreparation p problem) trivial
       (frame E (orderWidth problem)) (before_disjoint E (orderWidth problem))).seq
     ((initializeWork E (orderWidth problem)).seq
@@ -241,14 +257,17 @@ def preMeasurement (fieldTail : Nat) (odd : Odd p) (problem : KnownOrderProblem 
       (frame E (orderWidth problem)) (after_disjoint E (orderWidth problem)))
 
 /-- Actual terminal measurements read the same original physical exponent wires. -/
-def measurements : Circuit (terminal E exponentWidth) (terminal E exponentWidth) :=
+def measurements :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (terminal E exponentWidth) (terminal E exponentWidth) :=
   frameLocal (exponentMeasurements p exponentWidth) (Circuit.measurementSequence_isLocal _)
     (frame E exponentWidth) (terminal_disjoint E exponentWidth)
 
 /-- The public inputs exist before exponent preparation and survive the complete measured run. -/
 def exponentRun (fieldTail : Nat) (odd : Odd p) (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    AlgorithmRun (before E (orderWidth problem)) (terminal E (orderWidth problem))
+    AlgorithmRun (.quantum AlgorithmGate.model .empty)
+      (before E (orderWidth problem)) (terminal E (orderWidth problem))
       (.fixedVector (2 * orderWidth problem) (.finite 2)) where
   code := ((preMeasurement E fieldTail odd problem points).seq
     (allocateTerminal E (orderWidth problem))).seq (measurements E (orderWidth problem))

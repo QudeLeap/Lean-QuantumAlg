@@ -24,12 +24,14 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- The actual candidate-prefix record's store, used by the existing complete visit. -/
 def candidateState {width : Nat} (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width)) (store : Store ctx) : Store ctx :=
-  (candidatePrefixStep (cellRead cells.cursor.numerator) (cellRead cells.cursor.denominator)
+  (candidatePrefixStep (model := model) (cellRead cells.cursor.numerator)
+    (cellRead cells.cursor.denominator)
     (cellRead cells.cursor.previous) (cellRead cells.cursor.older)
     division cells.cursor.candidate store).1
 
@@ -39,7 +41,7 @@ theorem nativeScan_candidateState_read_other {width : Nat}
     (division : CWriteRef ctx (cursorDivisionShape width)) {shape : CShape}
     (other : CInputRef ctx shape) (divisionFree : division.key ∉ other.storageKeys)
     (candidateFree : cells.cursor.candidate.key ∉ other.storageKeys) (store : Store ctx) :
-    (candidateState cells division store).read other = store.read other :=
+    (candidateState (model := model) cells division store).read other = store.read other :=
   nativeCandidatePrefix_read_other (cellRead cells.cursor.numerator)
     (cellRead cells.cursor.denominator) (cellRead cells.cursor.previous)
     (cellRead cells.cursor.older) division cells.cursor.candidate other
@@ -53,7 +55,7 @@ theorem nativeScan_candidateState_cursor {width : Nat}
     (store : Store ctx)
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : CursorReads cells.cursor store cursor) :
-    CursorReads cells.cursor (candidateState cells division store) cursor := by
+    CursorReads cells.cursor (candidateState (model := model) cells division store) cursor := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · exact (congrArg CShape.Value.toNat (nativeScan_candidateState_read_other cells division
       (cellRead cells.cursor.numerator)
@@ -89,7 +91,8 @@ theorem nativeScan_candidateState_candidate {width : Nat}
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : CursorReads cells.cursor store cursor)
     (fits : cursor.candidate.denominator < 2 ^ width) :
-    ((candidateState cells division store).read (cellRead cells.cursor.candidate)).toNat =
+    ((candidateState (model := model) cells division store).read
+      (cellRead cells.cursor.candidate)).toNat =
       cursor.candidate.denominator :=
   nativeCandidatePrefix_cursor (cellRead cells.cursor.numerator)
     (cellRead cells.cursor.denominator) (cellRead cells.cursor.previous)
@@ -103,7 +106,7 @@ theorem nativeScan_candidateState_division {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (different : cells.cursor.candidate.key ≠ division.key) (store : Store ctx) :
-    (candidateState cells division store).read (cellRead division) =
+    (candidateState (model := model) cells division store).read (cellRead division) =
       CShape.divRem width width
         (.product (store.read (cellRead cells.cursor.numerator))
           (store.read (cellRead cells.cursor.denominator))) := by
@@ -122,10 +125,11 @@ theorem nativeScan_candidateState_remainder {width : Nat}
     (different : cells.cursor.candidate.key ≠ division.key) (store : Store ctx)
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : CursorReads cells.cursor store cursor) :
-    ((candidateState cells division store).read (.second (cellRead division))).toNat =
+    ((candidateState (model := model) cells division store).read
+      (.second (cellRead division))).toNat =
       cursor.remainder := by
   have actual := congrArg (fun value => value.second.toNat)
-    (nativeScan_candidateState_division cells division different store)
+    (nativeScan_candidateState_division (model := model) cells division different store)
   refine actual.trans ?_
   rw [nativeCursorDivision_second_exact, reads.numerator, reads.denominator]
   rfl
@@ -142,7 +146,8 @@ theorem nativeScan_candidateState_source
     (divisionOne : division.key ∉ cells.one.storageKeys)
     (candidateBase : cells.cursor.candidate.key ∉ base.storageKeys)
     (store : Store ctx) (reads : ScanSourceReads spec input base cells store) :
-    ScanSourceReads spec input base cells (candidateState cells division store) := by
+    ScanSourceReads spec input base cells
+      (candidateState (model := model) cells division store) := by
   refine ⟨?_, ?_, ?_⟩
   · exact (nativeScan_candidateState_read_other cells division base divisionBase candidateBase
       store).trans reads.baseValue

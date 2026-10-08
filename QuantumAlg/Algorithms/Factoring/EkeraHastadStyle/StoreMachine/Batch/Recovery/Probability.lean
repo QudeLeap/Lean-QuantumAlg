@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Execution.Retained.Run
+import all QuantumAlg.Core.Execution.Retained.Distribution
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Batch.Recovery.Correctness
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Batch.Distribution
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Run.Probability
@@ -24,7 +24,7 @@ assuming independence from an arbitrary external reference.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchRecovery
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
@@ -48,9 +48,10 @@ private theorem map_eq_on_support {Source Target : Type} (distribution : PMF Sou
       simpa only [PMF.mem_support_iff, not_not] using supported
     simp only [zero, ite_self]
 
-private theorem result_mem_support {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (program : AlgorithmRun pre post shape)
-    {Reference : Register} (input : Execution.Input pre Reference) (record : program.Record)
+private theorem result_mem_support {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (program : AlgorithmRun model pre post shape)
+    {Reference : Register} (input : OracleInput model.classicalOracles pre Reference)
+    (record : program.Record)
     (supported : record ∈ (program.executionDistribution input).support) :
     program.result record ∈ (program.outputDistribution input).support := by
   rw [AlgorithmRun.outputDistribution, PMF.mem_support_map_iff]
@@ -101,7 +102,8 @@ private theorem sourceResult_parameter_read
 
 /-- A supported actual source record supplies the parameter needed by the recovery proof. -/
 theorem sourceRecord_parameter (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (record : (NativeBatch.run base noQuantum N).Record)
     (supported : record ∈
       ((NativeBatch.run base noQuantum N).executionDistribution input).support) :
@@ -116,15 +118,16 @@ theorem sourceRecord_parameter (specification : Input N)
 
 /-- The actual factor read equals the pure source projection on every supported source record. -/
 theorem nativeBatchRecovery_output_on_support (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (record : (NativeBatch.run base noQuantum N).Record)
     (supported : record ∈
       ((NativeBatch.run base noQuantum N).executionDistribution input).support) :
     (run base noQuantum specification).output.eval
-        (step base noQuantum specification record.1).1 =
+        (step base noQuantum specification (record.1, record.2.1)).1.1 =
       packedValue ((NativeBatch.run base noQuantum N).result record) := by
   exact (run_output base noQuantum specification
-    (decodeSource ((NativeBatch.run base noQuantum N).result record)) record.1
+    (decodeSource ((NativeBatch.run base noQuantum N).result record)) record.1 record.2.1
     (sourceRecord_parameter base noQuantum specification input record supported)).trans
       (packedValue_sourceOutput base noQuantum record.1).symm
 
@@ -132,8 +135,8 @@ theorem nativeBatchRecovery_output_on_support (specification : Input N)
 def recoveryRecord (specification : Input N)
     (record : (NativeBatch.run base noQuantum N).Record) :
     (run base noQuantum specification).Record :=
-  ((step base noQuantum specification record.1).1,
-    (record.2.1, (record.2.2, (step base noQuantum specification record.1).2)))
+  let actual := step base noQuantum specification (record.1, record.2.1)
+  (actual.1.1, (actual.1.2, (record.2.2.1, (record.2.2.2, actual.2))))
 
 -- The probability proof consumes the compiled record equations without expanding either program.
 attribute [local irreducible] code
@@ -151,31 +154,20 @@ theorem nativeBatchRecovery_run_execute (specification : Input N) :
 
 /-- Actual record probabilities are the deterministic map of the original source records. -/
 theorem nativeBatchRecovery_executionDistribution (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification).executionDistribution input =
       ((NativeBatch.run base noQuantum N).executionDistribution input).map
-        (recoveryRecord base noQuantum specification) := by
-  have actual : (run base noQuantum specification).executionDistribution input =
-      (((NativeBatch.run base noQuantum N).execute Reference input.state).mapClassical
-        (D := (run base noQuantum specification).Record)
-        (recoveryRecord base noQuantum specification)).toPMF
-          (ExecutionState.mapClassical_normalized _
-            ((NativeBatch.run base noQuantum N).execute_normalized input)
-            (recoveryRecord base noQuantum specification)) := by
-    apply PMF.ext
-    intro record
-    exact congrArg
-      (fun state : ExecutionState (run base noQuantum specification).Record
-          (Register.prod (context base noQuantum N).register Reference) =>
-        ENNReal.ofReal (state.block record).mass)
-      (nativeBatchRecovery_run_execute base noQuantum specification Reference input.state)
-  exact actual.trans (ExecutionState.toPMF_mapClassical _
-    ((NativeBatch.run base noQuantum N).execute_normalized input)
-    (recoveryRecord base noQuantum specification))
+        (recoveryRecord base noQuantum specification) :=
+  AlgorithmRun.RetainedRecord.executionDistribution_eq_map
+    (NativeBatch.run base noQuantum N) (run base noQuantum specification)
+    (recoveryRecord base noQuantum specification)
+    (nativeBatchRecovery_run_execute base noQuantum specification) input
 
 /-- The real source and recovery execution has the original same-source optional factor law. -/
 theorem nativeBatchRecovery_run_outputDistribution (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification).outputDistribution input =
       (sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue := by
   unfold AlgorithmRun.outputDistribution

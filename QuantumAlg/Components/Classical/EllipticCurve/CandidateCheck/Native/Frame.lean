@@ -26,16 +26,19 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- Each actual caller read outside the two verification destinations is bitwise unchanged. -/
-theorem verifyStep_preserves_read (spec : CurveSpec width)
+theorem verifyStep_preserves_read {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (store : Store ctx) {shape : CShape} (observed : CInputRef ctx shape)
+    (store : Store ctx) (hidden : model.HiddenState)
+    {shape : CShape} (observed : CInputRef ctx shape)
     (scalarFree : scalarResult.key ∉ observed.storageKeys)
     (acceptedFree : accepted.key ∉ observed.storageKeys) :
     (verifyStep spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted store).1.read observed = store.read observed := by
+      scalarResult accepted (store, hidden)).1.1.read observed =
+        store.read observed := by
   rw [verifyStep_store]
   exact (Store.read_applyOp_of_not_mem_storageKeys _
     (conjunctionOp reconstruction accepted) observed acceptedFree).trans
@@ -44,7 +47,7 @@ theorem verifyStep_preserves_read (spec : CurveSpec width)
       ((PointEquality.Native.compareInto_preserves_read _ target accepted _
         observed acceptedFree).trans
         (ScalarMul.Native.scalarStep_preserves_read spec (candidateBits candidate)
-          base scalarResult store observed scalarFree)))
+          base scalarResult (store, hidden) observed scalarFree)))
 
 end
 

@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Probability
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Execution
@@ -34,10 +36,10 @@ open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
 theorem outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput ClassicalOracleModel.empty pre Reference) :
     (run f).outputDistribution input =
       ((measurement n).outcomePMF
-        (evolvedState (WalshHadamard.circuit f) (WalshHadamard.Readout.circuit_physical_idx f))).map
+        (evolvedState f)).map
           CShape.Value.bits := by
   apply PMF.ext
   intro output
@@ -49,7 +51,8 @@ theorem outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code f).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code f).execute Reference
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef n).toCStorageRef))
       |>.block output).mass) = _
   rw [code_block_mass f _ (input.state.mapClassical_normalized input.normalized _)]
@@ -61,10 +64,9 @@ theorem outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
   apply Finset.sum_congr rfl
   intro basis _
   have evolved :
-      (evolvedState (WalshHadamard.circuit f)
-        (WalshHadamard.Readout.circuit_physical_idx f)).normalized =
+      (evolvedState f).normalized =
           WalshHadamard.finalJointState f :=
-    WalshHadamard.circuit_applyNormalized f
+    evolvedState_normalized f
   simp only [Function.comp_apply]
   by_cases matching : CShape.Value.bits ((measurement n).readout basis) = output
   · rw [if_pos matching, if_pos matching.symm]

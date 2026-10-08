@@ -7,334 +7,184 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Components.Encoded.BitGates.Basic
-import all QuantumAlg.Components.Encoded.BitGates.GateSpec
-import all QuantumAlg.Components.Encoded.BitGates.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Swap
-import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
-import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
-import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
-import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Suffix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Middle
 
 /-!
-# Actual-circuit register lifting
+# Canonical binary register lifting
 
-These operations lift actual circuits across product-register layouts.  They
-use Core tensor, reindex, and physical relabeling constructors directly; no
-gate-language certificate or inverse compilation path is introduced.
+These operations place an actual circuit on a prefix, suffix, or the two fields
+around an untouched middle register. The selected gate and oracle models are
+preserved, and Core's layout embeddings carry the physical placement proof.
 -/
 
-section
-
-namespace QuantumAlg
+namespace QuantumAlg.UnitaryCircuit
 
 noncomputable section
 
-namespace UnitaryCircuit
+variable {gates : GateModel} {oracles : OracleModel}
 
-/-- Extend an actual circuit with an untouched right qubit register. -/
-def prodLeft {m n : Nat} (program : UnitaryCircuit (Qubits m)) :
-    UnitaryCircuit (Qubits (m + n)) :=
-  UnitaryCircuit.tensorQubits program
-    (UnitaryCircuit.identity (Qubits n) [] List.nodup_nil)
-    { left_nodup := program.physical_idx_nodup
-      right_nodup := List.nodup_nil
-      disjoint := by
-        change program.physical_idx.Disjoint []
-        exact List.disjoint_nil_right program.physical_idx }
+/-- Execute an actual circuit on the canonical prefix and leave the appended
+suffix untouched. -/
+def prodLeft {m n : Nat}
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
+    UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (m + n)).canonicalPlacement.layout :=
+  onBinaryPrefix n program
 
-/-- Extend an actual circuit with an untouched left qubit register.  The body
-footprint is shifted past that register. -/
-def prodRight {m n : Nat} (program : UnitaryCircuit (Qubits n)) :
-    UnitaryCircuit (Qubits (m + n)) :=
-  UnitaryCircuit.tensorQubits
-    (UnitaryCircuit.identity (Qubits m) [] List.nodup_nil)
-    (UnitaryCircuit.shiftPhysicalIdx m program)
-    { left_nodup := List.nodup_nil
-      right_nodup := (UnitaryCircuit.shiftPhysicalIdx m program).physical_idx_nodup
-      disjoint := by
-        change [].Disjoint (List.map (fun index => m + index) program.physical_idx)
-        exact List.disjoint_nil_left
-          (List.map (fun index => m + index) program.physical_idx) }
-
-/-- Extending a circuit with an untouched right register preserves canonical
-physical-range containment. -/
-theorem prodLeft_physical_idx_subset_range {m n : Nat}
-    (program : UnitaryCircuit (Qubits m))
-    (contained : program.physical_idx ⊆ List.range m) :
-    (prodLeft (n := n) program).physical_idx ⊆ List.range (m + n) := by
-  unfold prodLeft
-  apply UnitaryCircuit.tensorQubits_physical_idx_subset
-  · intro index hindex
-    have indexLt : index < m := List.mem_range.mp (contained hindex)
-    exact List.mem_range.mpr (Nat.lt_of_lt_of_le indexLt (Nat.le_add_right _ _))
-  · simp [UnitaryCircuit.identity]
-
-/-- Extending a circuit with an untouched left register preserves canonical
-physical-range containment. -/
-theorem prodRight_physical_idx_subset_range {m n : Nat}
-    (program : UnitaryCircuit (Qubits n))
-    (contained : program.physical_idx ⊆ List.range n) :
-    (prodRight (m := m) program).physical_idx ⊆ List.range (m + n) := by
-  unfold prodRight
-  apply UnitaryCircuit.tensorQubits_physical_idx_subset
-  · simp [UnitaryCircuit.identity]
-  · exact UnitaryCircuit.shiftPhysicalIdx_physical_idx_subset_range m program contained
-
-/-! Strict event accounting is the production API for circuit lifting. -/
+/-- Execute an actual circuit on the canonical suffix and leave the preceding
+prefix untouched. -/
+def prodRight {m n : Nat}
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
+    UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (m + n)).canonicalPlacement.layout :=
+  onBinarySuffix m program
 
 @[simp] theorem prodLeft_eventTrace {m n : Nat}
-    (program : UnitaryCircuit (Qubits m)) :
-    (prodLeft (n := n) program).eventTrace = program.eventTrace := by
-  simp [prodLeft]
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
+    (prodLeft (n := n) program).eventTrace = program.eventTrace :=
+  unitaryCircuit_onBinaryPrefix_eventTrace n program
 
 @[simp] theorem prodRight_eventTrace {m n : Nat}
-    (program : UnitaryCircuit (Qubits n)) :
-    (prodRight (m := m) program).eventTrace = program.eventTrace := by
-  simp [prodRight]
-
-
-
-
-
-
-
-
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
+    (prodRight (m := m) program).eventTrace = program.eventTrace :=
+  unitaryCircuit_onBinarySuffix_eventTrace m program
 
 @[simp] theorem prodLeft_eventCost {m n : Nat}
-    (program : UnitaryCircuit (Qubits m)) :
-    (prodLeft (n := n) program).eventCost = program.eventCost := by
-  simp [prodLeft]
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
+    (prodLeft (n := n) program).eventCost = program.eventCost :=
+  unitaryCircuit_onBinaryPrefix_eventCost n program
 
 @[simp] theorem prodRight_eventCost {m n : Nat}
-    (program : UnitaryCircuit (Qubits n)) :
-    (prodRight (m := m) program).eventCost = program.eventCost := by
-  simp [prodRight]
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
+    (prodRight (m := m) program).eventCost = program.eventCost :=
+  unitaryCircuit_onBinarySuffix_eventCost m program
 
-/-- Extending a circuit with an untouched right register tensors its strict
-event critical path with the empty right path. -/
 @[simp] theorem prodLeft_eventDepth {m n : Nat}
-    (program : UnitaryCircuit (Qubits m)) :
-    (prodLeft (n := n) program).eventDepth = .tensor program.eventDepth .id := by
-  rfl
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
+    (prodLeft (n := n) program).eventDepth = program.eventDepth :=
+  unitaryCircuit_onBinaryPrefix_eventDepth n program
 
-/-- Extending a circuit with an untouched left register tensors its strict
-event critical path with the empty left path. -/
 @[simp] theorem prodRight_eventDepth {m n : Nat}
-    (program : UnitaryCircuit (Qubits n)) :
-    (prodRight (m := m) program).eventDepth = .tensor .id program.eventDepth := by
-  simp [prodRight]
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
+    (prodRight (m := m) program).eventDepth = program.eventDepth :=
+  unitaryCircuit_onBinarySuffix_eventDepth m program
 
 @[simp] theorem prodLeft_evaluatedEventDepth {m n : Nat}
-    (assign : Resource.Event .quantum → Nat)
-    (program : UnitaryCircuit (Qubits m)) :
+    (assign : Resource.Event (.quantum gates oracles) → Nat)
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).evaluatedEventDepth assign =
-      program.evaluatedEventDepth assign := by
-  unfold evaluatedEventDepth
-  rw [prodLeft_eventDepth]
-  simp
+      program.evaluatedEventDepth assign :=
+  unitaryCircuit_onBinaryPrefix_evaluatedEventDepth n assign program
 
 @[simp] theorem prodRight_evaluatedEventDepth {m n : Nat}
-    (assign : Resource.Event .quantum → Nat)
-    (program : UnitaryCircuit (Qubits n)) :
+    (assign : Resource.Event (.quantum gates oracles) → Nat)
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).evaluatedEventDepth assign =
-      program.evaluatedEventDepth assign := by
-  unfold evaluatedEventDepth
-  rw [prodRight_eventDepth]
-  simp
+      program.evaluatedEventDepth assign :=
+  unitaryCircuit_onBinarySuffix_evaluatedEventDepth m assign program
 
 @[simp] theorem prodLeft_eventQueryDepth {m n : Nat}
-    (focus : Resource.Event .quantum) (program : UnitaryCircuit (Qubits m)) :
+    (focus : Resource.Event (.quantum gates oracles))
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).eventQueryDepth focus =
-      program.eventQueryDepth focus := by
-  unfold eventQueryDepth
-  rw [prodLeft_eventDepth]
-  simp [DepthExpr.queryDepthEval]
+      program.eventQueryDepth focus :=
+  unitaryCircuit_onBinaryPrefix_eventQueryDepth n focus program
 
 @[simp] theorem prodRight_eventQueryDepth {m n : Nat}
-    (focus : Resource.Event .quantum) (program : UnitaryCircuit (Qubits n)) :
+    (focus : Resource.Event (.quantum gates oracles))
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).eventQueryDepth focus =
-      program.eventQueryDepth focus := by
-  unfold eventQueryDepth
-  rw [prodRight_eventDepth]
-  simp [DepthExpr.queryDepthEval]
+      program.eventQueryDepth focus :=
+  unitaryCircuit_onBinarySuffix_eventQueryDepth m focus program
 
 theorem prodLeft_resourcesFromEventDepth {m n : Nat}
-    (program : UnitaryCircuit (Qubits m)) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).resourcesFromEventDepth =
-      program.resourcesFromEventDepth := by
-  simp [prodLeft]
+      program.resourcesFromEventDepth :=
+  unitaryCircuit_onBinaryPrefix_resourcesFromEventDepth n program
 
 theorem prodRight_resourcesFromEventDepth {m n : Nat}
-    (program : UnitaryCircuit (Qubits n)) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).resourcesFromEventDepth =
-      program.resourcesFromEventDepth := by
-  simp [prodRight]
+      program.resourcesFromEventDepth :=
+  unitaryCircuit_onBinarySuffix_resourcesFromEventDepth m program
 
-
-
-
-
-
-/-- Logical basis permutation that moves an appended middle register between
-the original left and right fields. -/
-def insertMiddleIndexEquiv (leftWidth middleWidth rightWidth : Nat) :
-    Fin (2 ^ ((leftWidth + rightWidth) + middleWidth)) ≃
-      Fin (2 ^ ((leftWidth + middleWidth) + rightWidth)) where
-  toFun label :=
-    let sourceMiddle :=
-      (prodEquiv (m := leftWidth + rightWidth) (n := middleWidth)).symm label
-    let source :=
-      (prodEquiv (m := leftWidth) (n := rightWidth)).symm sourceMiddle.1
-    prodEquiv (m := leftWidth + middleWidth) (n := rightWidth)
-      (prodEquiv (m := leftWidth) (n := middleWidth)
-        (source.1, sourceMiddle.2), source.2)
-  invFun label :=
-    let leftMiddleRight :=
-      (prodEquiv (m := leftWidth + middleWidth) (n := rightWidth)).symm label
-    let leftMiddle :=
-      (prodEquiv (m := leftWidth) (n := middleWidth)).symm
-        leftMiddleRight.1
-    prodEquiv (m := leftWidth + rightWidth) (n := middleWidth)
-      (prodEquiv (m := leftWidth) (n := rightWidth)
-        (leftMiddle.1, leftMiddleRight.2), leftMiddle.2)
-  left_inv := by
-    intro label
-    simp
-  right_inv := by
-    intro label
-    simp
-
-/-- Shift every physical wire at or to the right of an insertion boundary. -/
-def insertMiddlePhysicalIndex (leftWidth middleWidth index : Nat) : Nat :=
-  if index < leftWidth then index else index + middleWidth
-
-theorem insertMiddlePhysicalIndex_injective (leftWidth middleWidth : Nat) :
-    Function.Injective (insertMiddlePhysicalIndex leftWidth middleWidth) := by
-  intro left right h
-  by_cases hleft : left < leftWidth <;>
-    by_cases hright : right < leftWidth <;>
-      simp [insertMiddlePhysicalIndex, hleft, hright] at h <;> omega
-
-/-- Insert an untouched middle qubit register into an actual circuit over an
-existing left/right product.  Logical basis transport and physical wire
-shifting are both explicit Core circuit operations. -/
+/-- Execute an actual circuit on the original left and right fields while an
+inserted canonical middle field remains untouched. -/
 def insertMiddle {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
-    UnitaryCircuit (Qubits (leftWidth + middleWidth + rightWidth)) :=
-  let extended := UnitaryCircuit.prodLeft (n := middleWidth) program
-  let transported := UnitaryCircuit.reindex
-    (insertMiddleIndexEquiv leftWidth middleWidth rightWidth) extended
-  UnitaryCircuit.relabel transported
-    { toFun := insertMiddlePhysicalIndex leftWidth middleWidth
-      map_layout := rfl
-      old_nodup := transported.physical_idx_nodup
-      new_nodup := transported.physical_idx_nodup.map
-        (insertMiddlePhysicalIndex_injective leftWidth middleWidth) }
-
-/-- Inserting an untouched middle register maps a canonical source footprint
-inside the correspondingly enlarged canonical carrier. -/
-theorem insertMiddle_physical_idx_subset_range
-    {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth)))
-    (contained : program.physical_idx ⊆ List.range (leftWidth + rightWidth)) :
-    (insertMiddle (middleWidth := middleWidth) program).physical_idx ⊆
-      List.range (leftWidth + middleWidth + rightWidth) := by
-  have extendedContained :
-      (UnitaryCircuit.prodLeft (n := middleWidth) program).physical_idx ⊆
-        List.range (leftWidth + rightWidth) := by
-    unfold UnitaryCircuit.prodLeft
-    apply UnitaryCircuit.tensorQubits_physical_idx_subset
-    · exact contained
-    · simp [UnitaryCircuit.identity]
-  have transportedContained :
-      (UnitaryCircuit.reindex
-        (R := Qubits (leftWidth + rightWidth + middleWidth))
-        (S := Qubits (leftWidth + middleWidth + rightWidth))
-        (insertMiddleIndexEquiv leftWidth middleWidth rightWidth)
-        (UnitaryCircuit.prodLeft (n := middleWidth) program)).physical_idx ⊆
-        List.range (leftWidth + rightWidth) := by
-    change (UnitaryCircuit.prodLeft (n := middleWidth) program).physical_idx ⊆
-      List.range (leftWidth + rightWidth)
-    exact extendedContained
-  unfold insertMiddle
-  dsimp
-  intro index hindex
-  rcases List.mem_map.mp hindex with ⟨source, hsource, rfl⟩
-  have sourceLt : source < leftWidth + rightWidth :=
-    List.mem_range.mp (transportedContained hsource)
-  unfold insertMiddlePhysicalIndex
-  by_cases hleft : source < leftWidth
-  · simp [hleft]
-    omega
-  · simp [hleft]
-    omega
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
+    UnitaryCircuit gates oracles
+      (QuantumSignature.qubits
+        (leftWidth + middleWidth + rightWidth)).canonicalPlacement.layout :=
+  onBinaryMiddle middleWidth program
 
 @[simp] theorem insertMiddle_eventTrace
     {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).eventTrace =
-      program.eventTrace := by
-  simp [insertMiddle]
+      program.eventTrace :=
+  unitaryCircuit_onBinaryMiddle_eventTrace middleWidth program
 
-
-
-
-
-/-- Inserting an untouched middle register preserves the strict event pool. -/
 @[simp] theorem insertMiddle_eventCost
     {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).eventCost =
-      program.eventCost := by
-  simp [insertMiddle]
+      program.eventCost :=
+  unitaryCircuit_onBinaryMiddle_eventCost middleWidth program
 
-/-- Inserting an untouched middle register tensors the strict event critical
-path with the empty middle path. -/
 @[simp] theorem insertMiddle_eventDepth
     {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).eventDepth =
-      .tensor program.eventDepth .id := by
-  simp [insertMiddle]
+      program.eventDepth :=
+  unitaryCircuit_onBinaryMiddle_eventDepth middleWidth program
 
 @[simp] theorem insertMiddle_evaluatedEventDepth
     {leftWidth middleWidth rightWidth : Nat}
-    (assign : Resource.Event .quantum → Nat)
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (assign : Resource.Event (.quantum gates oracles) → Nat)
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).evaluatedEventDepth assign =
-      program.evaluatedEventDepth assign := by
-  unfold evaluatedEventDepth
-  rw [insertMiddle_eventDepth]
-  simp
+      program.evaluatedEventDepth assign :=
+  unitaryCircuit_onBinaryMiddle_evaluatedEventDepth middleWidth assign program
 
 @[simp] theorem insertMiddle_eventQueryDepth
     {leftWidth middleWidth rightWidth : Nat}
-    (focus : Resource.Event .quantum)
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (focus : Resource.Event (.quantum gates oracles))
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).eventQueryDepth focus =
-      program.eventQueryDepth focus := by
-  unfold eventQueryDepth
-  rw [insertMiddle_eventDepth]
-  simp [DepthExpr.queryDepthEval]
+      program.eventQueryDepth focus :=
+  unitaryCircuit_onBinaryMiddle_eventQueryDepth middleWidth focus program
 
 theorem insertMiddle_resourcesFromEventDepth
     {leftWidth middleWidth rightWidth : Nat}
-    (program : UnitaryCircuit (Qubits (leftWidth + rightWidth))) :
+    (program : UnitaryCircuit gates oracles
+      (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
     (insertMiddle (middleWidth := middleWidth) program).resourcesFromEventDepth =
-      program.resourcesFromEventDepth := by
-  simp [insertMiddle]
-
-
-
-
-end UnitaryCircuit
+      program.resourcesFromEventDepth :=
+  unitaryCircuit_onBinaryMiddle_resourcesFromEventDepth middleWidth program
 
 end
 
-end QuantumAlg
-
-end
+end QuantumAlg.UnitaryCircuit

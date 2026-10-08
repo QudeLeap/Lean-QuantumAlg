@@ -22,7 +22,7 @@ import all QuantumAlg.Core.Algorithm.AlgorithmRun
 
 The elementary program has the complete source experiment's execution state.
 Summing its actual measured-result fiber preserves the original exact overlap
-formula [BCWdW01, main.tex:287-328].
+formula [BCWdW01, main.tex:287-329].
 -/
 
 namespace QuantumAlg.SwapTest
@@ -35,13 +35,14 @@ open Execution
 
 theorem code_one_mass {width : Nat} (left right : NormalizedVector (Qubits width))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre width) Reference History)
+    (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History))
     (promised : inputPromise left right state.quantumMarginal.marginalLeft) :
     ((((code width).execute Reference state).mapClassical
       (fun value => value.1.read
         (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))).block
       (.finite 1)).mass = probabilityOne left right := by
-  let observed (output : State (post width) Reference (History × (code width).Path)) : Real :=
+  let observed (output : State (post width) Reference
+      (ClassicalOracleModel.empty.HiddenState × (History × (code width).Path))) : Real :=
     ((output.mapClassical (fun value => value.1.read
       (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))).block (.finite 1)).mass
   have transfer := congrArg observed (code_execute width state)
@@ -75,8 +76,8 @@ theorem code_one_mass {width : Nat} (left right : NormalizedVector (Qubits width
 
 /-- The complete run reads its actual binary cell with exactly the source probability. -/
 theorem outputDistribution_one {width : Nat} (left right : NormalizedVector (Qubits width))
-    {Reference : Register} (input : Input (pre width) Reference)
-    (promised : inputPromise left right input.localState.quantumMarginal) :
+    {Reference : Register} (input : OracleInput .empty (pre width) Reference)
+    (promised : inputPromise left right input.caller.localState.quantumMarginal) :
     (run width).outputDistribution input (.finite 1) =
       ENNReal.ofReal (probabilityOne left right) := by
   have actual := congrArg (fun distribution : PMF (CShape.Value (.finite 2)) =>
@@ -87,19 +88,21 @@ theorem outputDistribution_one {width : Nat} (left right : NormalizedVector (Qub
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code width).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code width).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read
         (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))
       |>.block (.finite 1)).mass) = _
   apply congrArg ENNReal.ofReal
   apply code_one_mass left right
-  rw [ExecutionState.mapClassical_quantumMarginal, ← Input.localState_quantumMarginal]
+  rw [ExecutionState.mapClassical_quantumMarginal,
+    ← OracleInput.oracleInput_caller_quantumMarginal input, ← Input.localState_quantumMarginal]
   exact promised
 
 /-- The relational success event is the same exact measured one-result probability. -/
 theorem actual_success {width : Nat} (left right : NormalizedVector (Qubits width))
-    {Reference : Register} (input : Input (pre width) Reference)
-    (promised : inputPromise left right input.localState.quantumMarginal) :
+    {Reference : Register} (input : OracleInput .empty (pre width) Reference)
+    (promised : inputPromise left right input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (probabilityOne left right) =
       ((run width).relationalDistribution input).toOuterMeasure {pair | pair.2 = .finite 1} := by
   have projection :

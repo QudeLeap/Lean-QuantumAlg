@@ -22,7 +22,7 @@ manifest. The natural count chooses between the existing actual circuits.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
@@ -49,7 +49,7 @@ variable {N : Nat}
 
 /-- The finite entry executes exactly the existing actual circuit for its total batch count. -/
 def code (input : Input N) : (totalRounds : Nat) →
-    Circuit base (context base noQuantum N totalRounds)
+    Circuit RuntimeRound.model base (context base noQuantum N totalRounds)
   | 0 => NativeRetryEmpty.code base N
   | count + 1 => NativeRetrySelection.code base noQuantum input count
 
@@ -64,7 +64,7 @@ theorem code_succ (input : Input N) (count : Nat) :
 
 /-- The complete finite run preserves the original optional-factor result shape. -/
 def run (input : Input N) : (totalRounds : Nat) →
-    AlgorithmRun base (context base noQuantum N totalRounds)
+    AlgorithmRun RuntimeRound.model base (context base noQuantum N totalRounds)
       (LatticeBatchRecoveryOutput.OutputShape N)
   | 0 => NativeRetryEmpty.run base N
   | count + 1 => NativeRetrySelection.run base noQuantum input count
@@ -93,25 +93,28 @@ theorem output_listing (input : Input N) (totalRounds : Nat) :
 
 /-- Every finite actual execution jointly restores arbitrary borrowed resources and references. -/
 theorem code_borrowedRestored (input : Input N) (totalRounds : Nat) (Reference : Register)
-    {History : Type} [Fintype History] (state : State base Reference History) :
+    {History : Type} [Fintype History]
+    (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base noQuantum input totalRounds).BorrowedRestored Reference state
       ((code base noQuantum input totalRounds).execute Reference state) := by
   cases totalRounds with
   | zero =>
-      exact Circuit.borrowedRestored_retain base.canonicalFreshKey
+      exact Circuit.borrowedRestored_retain (model := RuntimeRound.model)
+        base.canonicalFreshKey
         (LatticeBatchRecoveryOutput.OutputShape N) base.canonicalFreshKey_fresh state
   | succ count =>
       exact NativeRetrySelection.code_borrowedRestored base noQuantum input count Reference state
 
 /-- The actual complete finite run preserves the same borrowed interface for every input state. -/
 theorem run_restoresBorrowed (specification : Input N) (totalRounds : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum specification totalRounds).RestoresBorrowed input := by
-  cases totalRounds with
-  | zero => exact NativeRetryEmpty.run_restoresBorrowed base N input
-  | succ count =>
-      exact NativeRetrySelection.code_borrowedRestored base noQuantum specification count Reference
-        (input.state.mapClassical (fun store => (store, store)))
+  apply AlgorithmRun.restoresBorrowed_of_circuit
+  intro reference history _ state
+  rw [run_code]
+  exact code_borrowedRestored base noQuantum specification totalRounds reference state
+
 
 end
 

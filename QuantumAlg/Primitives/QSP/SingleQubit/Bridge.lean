@@ -71,7 +71,6 @@ theorem qspO_to_fourier_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
   | append_singleton φs φ ih =>
       rw [qspO_concat, ih, List.foldl_append, List.foldl_cons, List.foldl_nil,
         signalO_eq_rotY_arccos hx]
-      rfl
 
 /-- YZZYZ-compatible naming of the same signal rewrite: Chebyshev products
 first enter the Fourier side through the `Y`-rotation signal before the

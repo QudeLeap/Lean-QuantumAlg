@@ -104,27 +104,35 @@ def copyResultOp (output : CWriteRef ctx (.unsignedWord width)) :
   .wordUnary .copy width (powerCtx ctx width)
     (wordRead (accumulatorCell ctx width)) (writeUnderPower output width)
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The full actual instruction body on the three lexical power cells. -/
 def powerBody (spec : ModulusSpec width) (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (powerCtx ctx width) (powerCtx ctx width) :=
-  .seq (.classical (unpackBaseOp base))
-    (.seq (ConstantWord.circuit (modulusCell ctx width) spec.modulus)
-      (.seq (.classical (initializeOp ctx width))
-        (.seq (exponentCircuit (wordRead (baseCell ctx width)) (underPower exponent width)
+    Circuit model (powerCtx ctx width) (powerCtx ctx width) :=
+  .seq (BitWord.instruction (execution := model) (unpackBaseOp base))
+    (.seq (ConstantWord.circuit (model := model) (modulusCell ctx width) spec.modulus)
+      (.seq (BitWord.instruction (execution := model) (initializeOp ctx width))
+        (.seq (exponentCircuit (model := model)
+          (wordRead (baseCell ctx width)) (underPower exponent width)
           (wordRead (modulusCell ctx width)) (accumulatorCell ctx width))
-          (.classical (copyResultOp output)))))
+          (BitWord.instruction (execution := model) (copyResultOp output)))))
 
 /-- Execute native modular power on actual existing inputs and write the supplied result word. -/
 def into (spec : ModulusSpec width) (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
     (.workspace (modulusCtx ctx width) (modulusCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (modulusCtx ctx width).canonicalFreshKey_fresh
       (.workspace (baseCtx ctx width) (baseCtx ctx width).canonicalFreshKey
         (.unsignedWord width) (baseCtx ctx width).canonicalFreshKey_fresh
-        (powerBody spec base exponent output)))
+        (powerBody (model := model) spec base exponent output)))
+
+end
 
 end QuantumAlg.ClassicalRoutines.Modular.NativePower

@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Prepared.Program
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Preparation.Resources
 
 /-!
 # Native resources of internally prepared unit multiplication
@@ -26,8 +27,10 @@ noncomputable section
 open Execution.OwnedQubits
 
 /-- Independent native event pool: the declared zero preparation plus the multiplier budget. -/
-def preparedNativeBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (auxiliaryPreparation width).event + nativeBudget width
+def preparedNativeBudget (width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ZeroPreparation.eventCost AlgorithmGate.model .empty (auxiliaryLayout width) +
+    nativeBudget width
 
 private theorem auxiliary_space (width : Nat) :
     SpacePool.ofQuantumLayout (auxiliaryLayout width) = space width := by
@@ -71,11 +74,12 @@ theorem gidneyPreparedCode_native_bound (width : Nat) (modulus : Fin (2 ^ width 
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).resourcePool path ≤ preparedNativeBudget width := by
   change ResourcePool.ofList
-    ([(auxiliaryPreparation width).event] ++
+    (ZeroPreparation.eventTrace AlgorithmGate.model .empty (auxiliaryLayout width) ++
       (preparedUnitary width modulus coefficient).eventTrace) ≤ _
   rw [ResourcePool.ofList_append, UnitaryCircuit.ofList_eventTrace_eq_eventCost,
     gidneyPreparedUnitary_eventCost]
-  exact add_le_add (le_refl (ResourcePool.singleton (auxiliaryPreparation width).event))
+  exact add_le_add
+    (le_refl (ZeroPreparation.eventCost AlgorithmGate.model .empty (auxiliaryLayout width)))
     (gidneyUnitMultiplication_native_bound width modulus coefficient)
 
 theorem gidneyPreparedCode_resident_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -100,13 +104,17 @@ theorem gidneyPreparedCode_auxiliary_bound (width : Nat) (modulus : Fin (2 ^ wid
   exact Nat.max_le.mpr ⟨input_space_le width axis,
     Nat.max_le.mpr ⟨le_rfl, Nat.max_le.mpr ⟨le_rfl, Nat.zero_le _⟩⟩⟩
 
-/-- The actual serial depth includes the preparation event even for an empty word. -/
+/-- The actual serial depth includes one preparation layer when the word is nonempty. -/
 theorem gidneyPreparedCode_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).depth (fun _ => 1) path ≤ 1 + eventBound width := by
-  change 1 + (preparedUnitary width modulus coefficient).evaluatedEventDepth (fun _ => 1) ≤ _
-  rw [gidneyPreparedUnitary_depth]
-  exact Nat.add_le_add_left (gidneyUnitMultiplication_depth_bound width modulus coefficient) 1
+  change DepthExpr.depthEval (fun _ => 1)
+      (ZeroPreparation.eventDepth AlgorithmGate.model .empty (auxiliaryLayout width)) +
+    (preparedUnitary width modulus coefficient).evaluatedEventDepth (fun _ => 1) ≤ _
+  rw [ZeroPreparation.zeroPreparation_uniform_unit_depth AlgorithmGate.model .empty
+      (auxiliaryLayout width) 2 (fun _ => rfl), gidneyPreparedUnitary_depth]
+  have actual := gidneyUnitMultiplication_depth_bound width modulus coefficient
+  split_ifs <;> omega
 
 end
 

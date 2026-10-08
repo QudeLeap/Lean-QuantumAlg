@@ -6,41 +6,29 @@ Authors: QudeLeap Team
 
 module
 
-import QuantumAlg.Init
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
+public import QuantumAlg.Components.GateModel.CliffordT
+public import QuantumAlg.Components.Gates.Rotation.Operator
 public import QuantumAlg.Core.Base.UnitaryCircuit.Realization
+import all QuantumAlg.Components.GateModel.CliffordT
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Components.Gates.Rotation.Operator
+import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Base.UnitaryCircuit.Realization
-import all QuantumAlg.Core.Base.Gate.OperatorNorm
-public import QuantumAlg.Components.Gates
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Core.Base.Gate.Placement.Canonical
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Base.Gate.OperatorNorm.Reindex
+import all QuantumAlg.Core.Base.Layout.Signature
+import all QuantumAlg.Core.Base.Accounting.ResourcePool
 
 /-!
-# Single-qubit Clifford+T words
+# Strict single-qubit Clifford+T words and exact-phase rotation certificates
 
-A word over the alphabet `{H, S, T}` denotes both a unitary (`evalOp`) and a
-circuit (`ofWord`), with the first letter acting first:
-`evalOp (a :: w) = evalOp w * a.op`. The circuit's T-count is the number of
-`t` letters.
-
-`RotationCertificate θ ε` records a word whose unitary is within operator-norm
-distance `ε` of the standard Z-rotation `rotZStdOp θ = diag(e^{-iθ/2}, e^{iθ/2})`,
-with no global-phase slack. The Clifford+T matrix group contains every scalar
-`e^{ikπ/4}` (`(S H)^3 = e^{iπ/4} · 1`), so an approximation that is only
-correct up to such a phase can always be completed to an exact-phase word; in
-particular gridsynth-style outputs are representable as certificates. The
-one-branch phase gate is `phaseGateOp θ = e^{iθ/2} • rotZStdOp θ`, so phase
-gates and controlled phases reduce to exact-phase Z-rotations.
-
-Certificates are the interface between rotation synthesis (which produces
-words) and circuit compilation (which consumes `ApproxRealization`s and
-T-counts). Checking a certificate and proving Clifford+T identities are
-separate concerns.
+Letters H, S and T execute their literal tokens in the strict H/S/T/CNOT
+model, on one fixed physical qubit. The oracle declaration is retained but
+no word emits a query. Counts and dependency depth come from these actual
+instructions. Basis transport preserves the original operator-norm error;
+rotation certificates never quotient out global phase.
 -/
-
-section
 
 namespace QuantumAlg.CliffordT
 
@@ -48,7 +36,21 @@ open Gate
 
 noncomputable section
 
-/-- A letter of the single-qubit Clifford+T alphabet. -/
+/-- One physical qubit with canonical identity zero. -/
+public def layout : QuantumLayout 1 := (QuantumSignature.qubits 1).canonicalPlacement.layout
+
+/-- Express a mathematical one-qubit operator in the physical layout's basis. -/
+public def physicalOperator (operator : UnitaryOperator (Qubits 1)) :
+    UnitaryOperator layout.register :=
+  UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 1).symm operator
+
+/-- Actual T-coordinate count in any strict target circuit. -/
+public def circuitTCount {oracles : OracleModel} {count : Nat} {ambient : QuantumLayout count}
+    (circuit : UnitaryCircuit CliffordTGate.model oracles ambient) : Nat :=
+  ResourcePool.count (model := .quantum CliffordTGate.model oracles)
+    (.gate CliffordTGate.Token.t) circuit.eventCost
+
+/-- The single-qubit subset of the literal strict target alphabet. -/
 public inductive Letter where
   | h
   | s
@@ -57,77 +59,67 @@ public inductive Letter where
 
 namespace Letter
 
-/-- The unitary of one letter. -/
+/-- The exact mathematical operator of one letter. -/
 public def op : Letter → UnitaryOperator (Qubits 1)
   | .h => HOp
   | .s => SOp
   | .t => TOp
 
-/-- The one-gate circuit of one letter, on the canonical placement `[0]`. -/
-public def circuit : Letter → UnitaryCircuit (Qubits 1)
-  | .h => H
-  | .s => S
-  | .t => T
+/-- One actual literal target instruction on the canonical physical qubit. -/
+public def circuit (oracles : OracleModel) :
+    Letter → UnitaryCircuit CliffordTGate.model oracles layout
+  | .h => .native (GateModel.Application.canonical CliffordTGate.model .hadamard)
+  | .s => .native (GateModel.Application.canonical CliffordTGate.model .s)
+  | .t => .native (GateModel.Application.canonical CliffordTGate.model .t)
 
-/-- The strict event of one letter. -/
-public def event : Letter → Resource.Event .quantum
-  | .h => atomicEvent (.builtin "hadamard")
-  | .s => atomicEvent (.builtin "s")
-  | .t => tEvent
+/-- The literal event emitted by the actual target letter. -/
+public def event (oracles : OracleModel) :
+    Letter → Resource.Event (.quantum CliffordTGate.model oracles)
+  | .h => .gate .hadamard
+  | .s => .gate .s
+  | .t => .gate .t
 
 @[simp] theorem op_h : Letter.h.op = HOp := rfl
 @[simp] theorem op_s : Letter.s.op = SOp := rfl
 @[simp] theorem op_t : Letter.t.op = TOp := rfl
 
-@[simp] theorem circuit_h : Letter.h.circuit = H := rfl
-@[simp] theorem circuit_s : Letter.s.circuit = S := rfl
-@[simp] theorem circuit_t : Letter.t.circuit = T := rfl
+theorem circuit_matrix (oracles : OracleModel) (a : Letter) :
+    (a.circuit oracles).matrix = physicalOperator a.op := by
+  cases a
+  · exact (UnitaryCircuit.native_matrix _).trans
+      (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .hadamard)
+  · exact (UnitaryCircuit.native_matrix _).trans
+      (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .s)
+  · exact (UnitaryCircuit.native_matrix _).trans
+      (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .t)
 
-@[simp] theorem event_t : Letter.t.event = tEvent := rfl
+theorem circuit_eventTrace (oracles : OracleModel) (a : Letter) :
+    (a.circuit oracles).eventTrace = [a.event oracles] := by cases a <;> rfl
 
-@[simp]
-theorem circuit_matrix (a : Letter) : a.circuit.matrix = a.op := by
+theorem circuit_eventCost (oracles : OracleModel) (a : Letter) :
+    (a.circuit oracles).eventCost = ResourcePool.singleton (a.event oracles) := by
   cases a <;> rfl
 
-@[simp]
-theorem circuit_physical_idx (a : Letter) : a.circuit.physical_idx = [0] := by
-  cases a <;> rfl
+theorem circuit_unit_event_depth (oracles : OracleModel) (a : Letter) :
+    (a.circuit oracles).evaluatedEventDepth (fun _ => 1) = 1 := by cases a <;> rfl
 
-@[simp]
-theorem circuit_eventTrace (a : Letter) : a.circuit.eventTrace = [a.event] := by
-  cases a <;> rfl
+theorem event_injective (oracles : OracleModel) : Function.Injective (event oracles) := by
+  intro a b same
+  cases a <;> cases b <;> simp_all [event]
 
-@[simp]
-theorem circuit_eventCost (a : Letter) : a.circuit.eventCost = ResourcePool.singleton a.event := by
-  cases a <;> rfl
+theorem event_inj (oracles : OracleModel) (a b : Letter) :
+    a.event oracles = b.event oracles ↔ a = b := (event_injective oracles).eq_iff
 
-@[simp]
-theorem circuit_unit_event_depth (a : Letter) :
-    a.circuit.evaluatedEventDepth (fun _ => 1) = 1 := by
-  cases a <;> rfl
+theorem count_event_circuit (oracles : OracleModel) (a b : Letter) :
+    ResourcePool.count (b.event oracles) (a.circuit oracles).eventCost =
+      if a = b then 1 else 0 := by
+  simp only [circuit_eventCost, ResourcePool.count_singleton, event_inj]
 
-theorem event_injective : Function.Injective Letter.event := by
-  intro a b hab
-  cases a <;> cases b <;> first | rfl | exact absurd hab (by decide)
-
-@[simp]
-theorem event_inj (a b : Letter) : a.event = b.event ↔ a = b :=
-  event_injective.eq_iff
-
-/-- Not a simp lemma: `simp` already reaches the right-hand side through
-`circuit_eventCost`, `ResourcePool.count_singleton`, and `event_inj`. -/
-theorem count_event_circuit (a b : Letter) :
-    ResourcePool.count b.event a.circuit.eventCost = if a = b then 1 else 0 := by
-  rw [circuit_eventCost, ResourcePool.count_singleton]
-  simp
-
-@[simp]
-theorem circuit_tCount (a : Letter) : a.circuit.tCount = if a = .t then 1 else 0 :=
-  count_event_circuit a .t
+theorem circuit_tCount (oracles : OracleModel) (a : Letter) :
+    circuitTCount (a.circuit oracles) = if a = .t then 1 else 0 :=
+  count_event_circuit oracles a .t
 
 end Letter
-
-/-! ## Words -/
 
 /-- The unitary of a word; the first letter acts first. -/
 public def evalOp : List Letter → UnitaryOperator (Qubits 1)
@@ -153,64 +145,65 @@ theorem evalOp_replicate (n : Nat) (a : Letter) : evalOp (List.replicate n a) = 
   | zero => simp
   | succ n ih => rw [List.replicate_succ, evalOp_cons, ih, pow_succ a.op n]
 
-/-- The circuit of a word: letters sequenced in time order on the canonical
-placement `[0]`. -/
-public def ofWord : List Letter → UnitaryCircuit (Qubits 1)
-  | [] => UnitaryCircuit.identity (Qubits 1) [0] (by simp)
-  | a :: w => UnitaryCircuit.seq a.circuit (ofWord w)
+/-- Execute a word in time order, retaining its literal strict target model. -/
+public def ofWord (oracles : OracleModel) : List Letter →
+    UnitaryCircuit CliffordTGate.model oracles layout
+  | [] => UnitaryCircuit.identity CliffordTGate.model oracles layout
+  | a :: w => (a.circuit oracles).seq (ofWord oracles w)
 
-@[simp] theorem ofWord_nil : ofWord [] = UnitaryCircuit.identity (Qubits 1) [0] (by simp) := rfl
+@[simp] theorem ofWord_nil (oracles : OracleModel) :
+    ofWord oracles [] = UnitaryCircuit.identity CliffordTGate.model oracles layout := rfl
 
-@[simp] theorem ofWord_cons (a : Letter) (w : List Letter) :
-    ofWord (a :: w) = UnitaryCircuit.seq a.circuit (ofWord w) := rfl
+@[simp] theorem ofWord_cons (oracles : OracleModel) (a : Letter) (w : List Letter) :
+    ofWord oracles (a :: w) = (a.circuit oracles).seq (ofWord oracles w) := rfl
 
-@[simp]
-theorem ofWord_matrix (w : List Letter) : (ofWord w).matrix = evalOp w := by
+theorem ofWord_matrix (oracles : OracleModel) (w : List Letter) :
+    (ofWord oracles w).matrix = physicalOperator (evalOp w) := by
+  induction w with
+  | nil => exact (UnitaryOperator.unitaryOperator_reindex_one _).symm
+  | cons a w ih =>
+      rw [ofWord_cons, UnitaryCircuit.seq_matrix, ih, Letter.circuit_matrix, evalOp_cons]
+      exact (UnitaryOperator.unitaryOperator_reindex_mul _ _ _).symm
+
+theorem ofWord_eventTrace (oracles : OracleModel) (w : List Letter) :
+    (ofWord oracles w).eventTrace = w.map (Letter.event oracles) := by
   induction w with
   | nil => rfl
   | cons a w ih =>
-      apply Subtype.ext
-      rw [ofWord_cons, UnitaryCircuit.seq_matrix, ih, Letter.circuit_matrix, evalOp_cons]
+      rw [ofWord_cons, UnitaryCircuit.seq_eventTrace, Letter.circuit_eventTrace, ih]
       rfl
 
-@[simp]
-theorem ofWord_eventTrace (w : List Letter) : (ofWord w).eventTrace = w.map Letter.event := by
-  induction w with
-  | nil => rfl
-  | cons a w ih => simp [ih]
-
-theorem ofWord_eventCost (w : List Letter) :
-    (ofWord w).eventCost = ResourcePool.ofList (w.map Letter.event) := by
+theorem ofWord_eventCost (oracles : OracleModel) (w : List Letter) :
+    (ofWord oracles w).eventCost = ResourcePool.ofList (w.map (Letter.event oracles)) := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, ofWord_eventTrace]
 
-/-- The number of occurrences of a letter's event is the letter count. -/
-theorem ofWord_count_event (w : List Letter) (b : Letter) :
-    ResourcePool.count b.event (ofWord w).eventCost = w.count b := by
+/-- Actual target-event multiplicity equals the corresponding source-letter multiplicity. -/
+theorem ofWord_count_event (oracles : OracleModel) (w : List Letter) (b : Letter) :
+    ResourcePool.count (b.event oracles) (ofWord oracles w).eventCost = w.count b := by
   induction w with
-  | nil => simp
+  | nil => rfl
   | cons a w ih =>
       rw [ofWord_cons, UnitaryCircuit.seq_eventCost, ResourcePool.count_add, ih,
         Letter.count_event_circuit, List.count_cons]
-      by_cases hab : a = b
-      · subst hab
+      by_cases same : a = b
+      · subst b
         simp [add_comm]
-      · simp [hab]
+      · simp [same]
 
-@[simp]
-theorem ofWord_tCount (w : List Letter) : (ofWord w).tCount = w.count .t :=
-  ofWord_count_event w .t
+theorem ofWord_tCount (oracles : OracleModel) (w : List Letter) :
+    circuitTCount (ofWord oracles w) = w.count .t := ofWord_count_event oracles w .t
 
-theorem ofWord_unit_event_depth (w : List Letter) :
-    (ofWord w).evaluatedEventDepth (fun _ => 1) = w.length := by
+theorem ofWord_unit_event_depth (oracles : OracleModel) (w : List Letter) :
+    (ofWord oracles w).evaluatedEventDepth (fun _ => 1) = w.length := by
   induction w with
   | nil => rfl
-  | cons a w ih => simp [ih, add_comm]
+  | cons a w ih =>
+      rw [ofWord_cons, UnitaryCircuit.evaluatedEventDepth_seq,
+        Letter.circuit_unit_event_depth, ih, List.length_cons, Nat.add_comm]
 
-theorem ofWord_eventDepth_le (w : List Letter) :
-    (ofWord w).evaluatedEventDepth (fun _ => 1) ≤ w.length :=
-  (ofWord_unit_event_depth w).le
-
-/-! ## Rotation certificates -/
+theorem ofWord_eventDepth_le (oracles : OracleModel) (w : List Letter) :
+    (ofWord oracles w).evaluatedEventDepth (fun _ => 1) ≤ w.length :=
+  (ofWord_unit_event_depth oracles w).le
 
 /-- A word whose unitary is within operator-norm distance `ε` of the standard
 Z-rotation `rotZStdOp θ`, with no global-phase slack. -/
@@ -226,25 +219,25 @@ namespace RotationCertificate
 
 variable {θ ε : ℝ}
 
-/-- The certified circuit as an approximate realization of `rotZStdOp θ`. -/
-public def toApproxRealization (c : RotationCertificate θ ε) :
-    UnitaryCircuit.ApproxRealization (rotZStdOp θ) ε where
-  circuit := ofWord c.word
+/-- The actual strict target word has the certificate's unchanged exact-phase error bound. -/
+public def toApproxRealization (c : RotationCertificate θ ε) (oracles : OracleModel) :
+    UnitaryCircuit.ApproxRealization CliffordTGate.model oracles layout
+      (physicalOperator (rotZStdOp θ)) ε where
+  circuit := ofWord oracles c.word
   error_le := by
     rw [ofWord_matrix]
-    exact c.close
+    exact (HilbertOperator.opNorm_reindex_sub
+      (QuantumSignature.qubitsIndexEquiv 1).symm (evalOp c.word) (rotZStdOp θ)).le.trans c.close
 
-@[simp]
-theorem toApproxRealization_circuit (c : RotationCertificate θ ε) :
-    c.toApproxRealization.circuit = ofWord c.word := rfl
+theorem toApproxRealization_circuit (c : RotationCertificate θ ε) (oracles : OracleModel) :
+    (c.toApproxRealization oracles).circuit = ofWord oracles c.word := rfl
 
-/-- The T-count of the certified word. -/
-public def tCount (c : RotationCertificate θ ε) : Nat :=
-  c.word.count .t
+/-- Count actual T letters in the certified word. -/
+public def tCount (c : RotationCertificate θ ε) : Nat := c.word.count .t
 
-theorem toApproxRealization_tCount (c : RotationCertificate θ ε) :
-    c.toApproxRealization.circuit.tCount = c.tCount :=
-  ofWord_tCount c.word
+theorem toApproxRealization_tCount (c : RotationCertificate θ ε) (oracles : OracleModel) :
+    circuitTCount (c.toApproxRealization oracles).circuit = c.tCount :=
+  ofWord_tCount oracles c.word
 
 /-- Any bound at least as large is also a valid bound. -/
 public def weaken (c : RotationCertificate θ ε) {ε' : ℝ} (h : ε ≤ ε') : RotationCertificate θ ε' :=
@@ -262,9 +255,10 @@ public def exact (w : List Letter) (h : evalOp w = rotZStdOp θ) : RotationCerti
 theorem exact_word (w : List Letter) (h : evalOp w = rotZStdOp θ) : (exact w h).word = w := rfl
 
 /-- A zero-error certificate realizes `rotZStdOp θ` exactly. -/
-public def toExactRealization (c : RotationCertificate θ 0) :
-    UnitaryCircuit.ExactRealization (rotZStdOp θ) :=
-  c.toApproxRealization.toExact
+public def toExactRealization (c : RotationCertificate θ 0) (oracles : OracleModel) :
+    UnitaryCircuit.ExactRealization CliffordTGate.model oracles layout
+      (physicalOperator (rotZStdOp θ)) :=
+  (c.toApproxRealization oracles).toExact
 
 theorem evalOp_eq_of_zero (c : RotationCertificate θ 0) : evalOp c.word = rotZStdOp θ := by
   apply Subtype.ext
@@ -306,5 +300,3 @@ theorem RotationCertificate.sPowFour_tCount : RotationCertificate.sPowFour.tCoun
 end
 
 end QuantumAlg.CliffordT
-
-end

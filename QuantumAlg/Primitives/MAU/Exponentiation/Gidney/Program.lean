@@ -29,8 +29,10 @@ open QuantumAlg.Nat.FixedWidth.UnitExponentiation Nat.FixedWidth
 /-- Execute a static list of addressed exponent stages in its actual order. -/
 def programForBits (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) :
-    List (Fin exponentWidth) → UnitaryCircuit (Qubits (encoding exponentWidth width).width)
-  | [] => UnitaryCircuit.identity (Qubits (encoding exponentWidth width).width) [] (by simp)
+    List (Fin exponentWidth) → UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding exponentWidth width).width).toQuantum
+  | [] => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding exponentWidth width).width).toQuantum
   | bit :: bits => (stageProgram exponentWidth width modulus base bit).seq
       (programForBits exponentWidth width modulus base bits)
 
@@ -49,7 +51,8 @@ theorem gidneyExponentBits_realizes (exponentWidth width : Nat)
       (programForBits exponentWidth width modulus base bits) (outputForBits modulus base bits) := by
   induction bits with
   | nil =>
-      exact UnitaryCircuit.Realizes.identity (encoding exponentWidth width)
+      exact UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        (encoding exponentWidth width) (QubitLayout.canonical _)
   | cons bit bits ih =>
       exact (gidneyExponentStage_realizes exponentWidth width modulus base bit).seq ih
 
@@ -58,11 +61,15 @@ private theorem stage_unit_word (exponentWidth width : Nat)
     (base seed : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth)
     (exponent : Fin (2 ^ exponentWidth)) :
     (stageProgram exponentWidth width modulus base bit).applyNormalized
-        (NormalizedVector.ket ((encoding exponentWidth width).encode
-          (exponent, unitResidueWord modulus positive seed, 0))) =
-      NormalizedVector.ket ((encoding exponentWidth width).encode
-        (exponent, unitResidueWord modulus positive (selectedUnit base exponent.val bit * seed),
-          0)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+            ((encoding exponentWidth width).encode
+              (exponent, unitResidueWord modulus positive seed, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+          ((encoding exponentWidth width).encode
+            (exponent, unitResidueWord modulus positive
+              (selectedUnit base exponent.val bit * seed), 0))) := by
   have actual := gidneyExponentStage_clean exponentWidth width modulus positive base bit exponent
     (unitResidueWord modulus positive seed) (unitResidueWord_valid modulus positive seed)
   cases selected : exponent.val.testBit bit.val
@@ -75,17 +82,21 @@ theorem gidneyExponentBits_unit_word (exponentWidth width : Nat)
     (base : (ZMod modulus.val)ˣ) (bits : List (Fin exponentWidth))
     (exponent : Fin (2 ^ exponentWidth)) (seed : (ZMod modulus.val)ˣ) :
     (programForBits exponentWidth width modulus base bits).applyNormalized
-        (NormalizedVector.ket ((encoding exponentWidth width).encode
-          (exponent, unitResidueWord modulus positive seed, 0))) =
-      NormalizedVector.ket ((encoding exponentWidth width).encode
-        (exponent, unitResidueWord modulus positive
-          (scheduledUnit base exponent.val bits * seed), 0)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+            ((encoding exponentWidth width).encode
+              (exponent, unitResidueWord modulus positive seed, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+          ((encoding exponentWidth width).encode
+            (exponent, unitResidueWord modulus positive
+              (scheduledUnit base exponent.val bits * seed), 0))) := by
   induction bits generalizing seed with
   | nil =>
-      simpa only [programForBits, scheduledUnit, List.map_nil, List.prod_nil, one_mul] using
-        (UnitaryCircuit.applyNormalized_identity (Qubits (encoding exponentWidth width).width)
-          [] (by simp) (NormalizedVector.ket ((encoding exponentWidth width).encode
-            (exponent, unitResidueWord modulus positive seed, 0))))
+      simpa [programForBits, scheduledUnit] using
+        ((UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+          (encoding exponentWidth width) (QubitLayout.canonical _)).apply_encoded_ket
+          (exponent, unitResidueWord modulus positive seed, 0))
   | cons bit bits ih =>
       have selected := stage_unit_word exponentWidth width modulus positive base seed bit exponent
       have remaining := ih (selectedUnit base exponent.val bit * seed)
@@ -95,75 +106,55 @@ theorem gidneyExponentBits_unit_word (exponentWidth width : Nat)
         simp only [scheduledUnit, List.map_cons, List.prod_cons]
         ac_rfl
       have sameState := congrArg (fun unit : (ZMod modulus.val)ˣ =>
-        NormalizedVector.ket (R := Qubits (encoding exponentWidth width).width)
-          ((encoding exponentWidth width).encode
-          (exponent, unitResidueWord modulus positive unit, 0))) sameUnit
+        NormalizedVector.ket
+          ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+            ((encoding exponentWidth width).encode
+              (exponent, unitResidueWord modulus positive unit, 0)))) sameUnit
       exact (UnitaryCircuit.applyNormalized_seq
         (stageProgram exponentWidth width modulus base bit)
         (programForBits exponentWidth width modulus base bits) _).trans
           ((congrArg (programForBits exponentWidth width modulus base bits).applyNormalized
             selected).trans (remaining.trans sameState))
 
-theorem gidneyExponentBits_physical_range (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
-    (bits : List (Fin exponentWidth)) :
-    (programForBits exponentWidth width modulus base bits).physical_idx ⊆
-      List.range (exponentWidth + 2 * width) := by
-  induction bits with
-  | nil => exact List.nil_subset _
-  | cons bit bits ih =>
-      exact UnitaryCircuit.seq_physical_idx_subset _ _
-        (gidneyExponentStage_physical_range exponentWidth width modulus base bit) ih
-
-/-- Schedule each exponent position once and retain the complete existing physical carrier. -/
+/-- Schedule each exponent position once on the complete existing physical carrier. -/
 def program (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (base : (ZMod modulus.val)ˣ) :
-    UnitaryCircuit (Qubits (encoding exponentWidth width).width) :=
-  (programForBits exponentWidth width modulus base (List.ofFn fun bit => bit)).seq
-    (UnitaryCircuit.identity (Qubits (encoding exponentWidth width).width)
-      (List.range (exponentWidth + 2 * width)) List.nodup_range)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding exponentWidth width).width).toQuantum :=
+  programForBits exponentWidth width modulus base (List.ofFn fun bit => bit)
 
 /-- Exact total action of the complete increasing-bit program, without a workspace premise. -/
 theorem gidneyExponent_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (encoding exponentWidth width)
       (program exponentWidth width modulus base)
-      (outputForBits modulus base (List.ofFn fun bit => bit)) := by
-  apply ((gidneyExponentBits_realizes exponentWidth width modulus base
-    (List.ofFn fun bit => bit)).seq
-      (UnitaryCircuit.Realizes.identityAt (encoding exponentWidth width)
-        (List.range (exponentWidth + 2 * width)) List.nodup_range)).congrStep
-  intro state
-  rfl
+      (outputForBits modulus base (List.ofFn fun bit => bit)) :=
+  gidneyExponentBits_realizes exponentWidth width modulus base _
 
 /-- Canonical initialization computes the exact power and returns the shared auxiliary to zero. -/
 theorem gidneyExponent_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth)) :
     (program exponentWidth width modulus base).applyNormalized
-        (NormalizedVector.ket ((encoding exponentWidth width).encode
-          (exponent, unitResidueWord modulus positive 1, 0))) =
-      NormalizedVector.ket ((encoding exponentWidth width).encode
-        (exponent, unitResidueWord modulus positive (base ^ exponent.val), 0)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+            ((encoding exponentWidth width).encode
+              (exponent, unitResidueWord modulus positive 1, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
+          ((encoding exponentWidth width).encode
+            (exponent, unitResidueWord modulus positive (base ^ exponent.val), 0))) := by
   have actual := gidneyExponentBits_unit_word exponentWidth width modulus positive base
     (List.ofFn fun bit => bit) exponent 1
   rw [scheduledUnit_all_eq_pow, mul_one] at actual
-  exact (UnitaryCircuit.applyNormalized_seq
-    (programForBits exponentWidth width modulus base (List.ofFn fun bit => bit))
-    (UnitaryCircuit.identity (Qubits (encoding exponentWidth width).width)
-      (List.range (exponentWidth + 2 * width)) List.nodup_range) _).trans
-        ((UnitaryCircuit.applyNormalized_identity (Qubits (encoding exponentWidth width).width)
-          (List.range (exponentWidth + 2 * width)) List.nodup_range _).trans actual)
+  exact actual
 
-theorem gidneyExponent_physical (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (program exponentWidth width modulus base).physical_idx =
-      List.range (exponentWidth + 2 * width) := by
-  change (programForBits exponentWidth width modulus base
-    (List.ofFn fun bit => bit)).physical_idx ∪
-      List.range (exponentWidth + 2 * width) = List.range (exponentWidth + 2 * width)
-  exact (gidneyExponentBits_physical_range exponentWidth width modulus base
-    (List.ofFn fun bit => bit)).union_eq_right
+/-- The selected full program occupies the declared exponent and two-word layout. -/
+theorem gidneyExponent_interface (exponentWidth width : Nat) :
+    (encoding exponentWidth width).width = exponentWidth + 2 * width ∧
+      (QubitLayout.canonical (encoding exponentWidth width).width).systemIdx =
+        List.range (exponentWidth + 2 * width) :=
+  gidneyExponentStage_interface exponentWidth width
 
 end
 

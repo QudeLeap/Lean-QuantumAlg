@@ -24,8 +24,11 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent chronological formula for both selected samples and the original native basis. -/
-def decodeBasisTrace (N : Nat) (firstBits secondBits : List Bool) : List (Resource.Event kind) :=
+def decodeBasisTrace (N : Nat) (firstBits secondBits : List Bool) : List (Resource.Event model) :=
   (BatchMachine.decodeTrace N firstBits ++ BatchMachine.decodeTrace N secondBits) ++
     LatticeBasis.basisTrace N (shortLogBits N) (tradeoffBits N) (Width N)
 
@@ -45,7 +48,7 @@ theorem decodeBasisInto_resourcePool (refs : Refs ctx N) (path : (decodeBasisInt
   congrArg ResourcePool.ofList (decodeBasisInto_events refs path)
 
 /-- Independent complete coordinatewise budget for both samples and the actual native basis. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   (BatchMachine.eventEnvelope N + BatchMachine.eventEnvelope N) +
     LatticeBasis.basisEventEnvelope N (shortLogBits N) (tradeoffBits N) (Width N)
 
@@ -92,7 +95,8 @@ theorem decodeBasisInto_depth_le (refs : Refs ctx N) (path : (decodeBasisInto re
 
 /-- Complete actual wide initialization restores every borrowed-reference correlation jointly. -/
 theorem decodeBasisInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodeBasisInto refs).BorrowedRestored Reference state
       ((decodeBasisInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -102,7 +106,8 @@ theorem decodeBasisInto_borrowedRestored (refs : Refs ctx N) (Reference : Regist
 
 /-- All actual wide-prefix instructions retain the complete original context. -/
 theorem decodeBasisInto_visited (refs : Refs ctx N) (path : (decodeBasisInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (decodeBasisInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (decodeBasisInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ _ ++ _ at present
   exact (List.mem_append.mp present).elim

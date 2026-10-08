@@ -8,98 +8,103 @@ module
 
 public import QuantumAlg.Core.Base.UnitaryCircuit
 public import QuantumAlg.Core.Execution.Preparation
-public import QuantumAlg.Core.Execution.Classical.Call
+public import QuantumAlg.Core.Execution.Classical.Native
+public import QuantumAlg.Core.Execution.Classical.Query
 public import QuantumAlg.Core.Execution.Store
-import all QuantumAlg.Core.Execution.Classical.Call
+import all QuantumAlg.Core.Execution.Classical.Native
+import all QuantumAlg.Core.Execution.Classical.Query
 import all QuantumAlg.Core.Execution.Preparation
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
-# Typed circuits with classical storage and intermediate Z measurement
+# Model-relative complete classical and quantum executions
 
-Every instruction is indexed by its exact live input and output contexts.
-Quantum operations act on the single register derived from that context's
-physical wires and dimensions. Z measurement writes its actual outcome into
-an existing finite classical register and preserves every quantum wire.
-Classical branching reads an existing shaped value before selecting a body.
-
-The same syntax determines execution, paths, native events, and live-space
-visits. Only classical workspace has lexical release. Preparing fresh quantum
-systems grows the live context; subsequent measurement does not undo that
-allocation.
+Every instruction has exact live input and output contexts and the same chosen
+execution language. Native classical operations and classical queries require
+tokens of the selected declarations, including randomized operations. Quantum
+instructions use the context's physical layout. Preparation creates only zero
+states. Z measurement retains all wires and writes its actual bounded outcome
+before classical feedback chooses subsequent operations.
 -/
 
 namespace QuantumAlg
 
-/-- The instruction language for one exact finite classical or quantum computation. -/
-public inductive Circuit : {kind : ProblemKind} → RuntimeCtx kind → RuntimeCtx kind → Type 1 where
-  /-- Perform no operation and keep the live context. -/
-  | id {kind : ProblemKind} (ctx : RuntimeCtx kind) : Circuit ctx ctx
-  /-- Read the atomic operation's typed inputs and write its computed output. -/
-  | classical {kind : ProblemKind} {ctx : RuntimeCtx kind} {input output : CShape}
-      (op : ClassicalOp input output ctx ctx) : Circuit ctx ctx
-  /-- Execute a declaration-owned classical subroutine at its actual references. -/
-  | declaredCall {kind : ProblemKind} {ctx : RuntimeCtx kind} {input output : CShape}
-      (call : DeclaredClassicalCall ctx input output) : Circuit ctx ctx
-  /-- Apply a certified pure circuit on exactly the live register and placement. -/
-  | unitary {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit ctx.register)
-      (placement : program.physical_idx = ctx.physicalIdx) : Circuit ctx ctx
-  /-- Measure one wire and store its observed finite value, retaining all wires. -/
-  | measureZ {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
+/-- Actual execution syntax sharing its operation model with the surrounding specification. -/
+public inductive Circuit : (model : ExecutionModel) →
+    RuntimeCtx model.kind → RuntimeCtx model.kind → Type 1 where
+  /-- Preserve the exact live context. -/
+  | id {model : ExecutionModel} (ctx : RuntimeCtx model.kind) : Circuit model ctx ctx
+  /-- Execute one granted classical native operation at its actual references. -/
+  | classical {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+      (application : model.classicalOperations.Application ctx) : Circuit model ctx ctx
+  /-- Query the selected classical service using its current persistent hidden state. -/
+  | classicalQuery {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+      (application : model.classicalOracles.Application ctx) : Circuit model ctx ctx
+  /-- Execute the selected language on exactly the complete live physical layout. -/
+  | unitary {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+      {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      (program : UnitaryCircuit gates oracles ctx.quantumLayout) :
+      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx
+  /-- Measure one actual wire and retain its quantum system and classical outcome. -/
+  | measureZ {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+      {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      (wire : Fin ctx.systemCount)
       (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
-      Circuit ctx ctx
-  /-- Generate uniformly random bits and write them into the actual output cell. -/
-  | randomBits {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat)
-      (output : CWriteRef ctx (.bits width)) : Circuit ctx ctx
-  /-- Allocate one retained classical cell with the shape's canonical initial encoding. -/
-  | retain {kind : ProblemKind} (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
-      (fresh : key ∉ ctx.keys) : Circuit ctx (ctx.addRetained key shape fresh)
-  /-- Allocate and prepare fresh physical systems beside the complete existing register. -/
-  | prepare (ctx : RuntimeCtx .quantum) (key : StorageKey)
-      {systemCount : Nat} (layout : QuantumLayout systemCount)
-      (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-      (preparation : BasisPreparation layout) :
-      Circuit ctx (ctx.addOwnedLayout key layout fresh disjoint)
-  /-- Execute the second instruction after the first, matching their exact contexts. -/
-  | seq {kind : ProblemKind} {pre mid post : RuntimeCtx kind}
-      (first : Circuit pre mid) (second : Circuit mid post) : Circuit pre post
-  /-- Read one actual classical value and execute its corresponding branch. -/
-  | branch {kind : ProblemKind} {pre post : RuntimeCtx kind} {shape : CShape}
-      (input : CInputRef pre shape) (body : shape.Value → Circuit pre post) : Circuit pre post
-  /-- Repeat a context-preserving body an exact finite number of times. -/
-  | iterate {kind : ProblemKind} {ctx : RuntimeCtx kind}
-      (count : Nat) (body : Circuit ctx ctx) : Circuit ctx ctx
-  /-- Allocate classical workspace, execute the body, and release that exact head cell. -/
-  | workspace {kind : ProblemKind} (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
-      (fresh : key ∉ ctx.keys)
-      (body : Circuit (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh)) :
-      Circuit ctx ctx
+      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx
+  /-- Allocate retained classical storage with its canonical initial encoding. -/
+  | retain {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (key : StorageKey)
+      (shape : CShape) (fresh : key ∉ ctx.keys) :
+      Circuit model ctx (ctx.addRetained key shape fresh)
+  /-- Allocate distinct fresh quantum systems and prepare every one in zero. -/
+  | prepareZero {gates : GateModel} {oracles : OracleModel}
+      {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      (ctx : RuntimeCtx .quantum) (key : StorageKey) {systemCount : Nat}
+      (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
+      (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+      Circuit (.quantum gates oracles operations classicalOracles) ctx
+        (ctx.addOwnedLayout key layout fresh disjoint)
+  /-- Exact intermediate contexts and the operation model agree at composition. -/
+  | seq {model : ExecutionModel} {pre mid post : RuntimeCtx model.kind}
+      (first : Circuit model pre mid) (second : Circuit model mid post) : Circuit model pre post
+  /-- Read a shaped classical value before executing its selected branch. -/
+  | branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
+      (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post) :
+      Circuit model pre post
+  /-- Execute a context-preserving body an exact finite number of times. -/
+  | iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+      (count : Nat) (body : Circuit model ctx ctx) : Circuit model ctx ctx
+  /-- Allocate, execute with and release the same lexical classical work cell. -/
+  | workspace {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+      (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
+      (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh)) :
+      Circuit model ctx ctx
 
 namespace Circuit
 
-/-- Finite execution records preserve observed outcomes and selected branch bodies.
-These mathematical records do not introduce physical runtime storage. -/
+/-- Complete finite histories record actual measurement outcomes and classical branch selections. -/
 @[expose, implicit_reducible]
-public def Path {kind : ProblemKind} {pre post : RuntimeCtx kind} : Circuit pre post → Type
+public def Path {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
+    Circuit model pre post → Type
   | .id _ => Unit
-  | .classical _ => Unit
-  | .declaredCall _ => Unit
-  | .unitary _ _ => Unit
+  | .classical (model := model) application =>
+      (model.classicalOperations.outputShape application.token).Value
+  | .classicalQuery (model := model) application =>
+      (model.classicalOracles.outputShape application.query).Value
+  | .unitary _ => Unit
   | .measureZ (ctx := ctx) wire _ => Fin (ctx.quantumLayout.wire wire).dimension
-  | .randomBits width _ => Fin (2 ^ width)
   | .retain _ _ _ _ => Unit
-  | .prepare _ _ _ _ _ _ => Unit
+  | .prepareZero _ _ _ _ _ => Unit
   | .seq first second => first.Path × second.Path
   | .branch (shape := shape) _ body => (value : shape.Value) × (body value).Path
   | .iterate count body => Fin count → body.Path
   | .workspace _ _ _ _ body => body.Path
 
-/-- Each exact finite circuit has a finite type of complete execution records. -/
-public noncomputable instance pathFintype {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) : Fintype code.Path := by
+/-- Mathematical execution histories are finite and allocate no physical runtime storage. -/
+public noncomputable instance pathFintype {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} (code : Circuit model pre post) : Fintype code.Path := by
   induction code with
-  | id | classical | declaredCall | unitary | measureZ | randomBits | retain | prepare =>
+  | id | classical | classicalQuery | unitary | measureZ | retain | prepareZero =>
       dsimp [Path]
       infer_instance
   | seq first second firstIH secondIH =>

@@ -24,7 +24,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- One complete real visit follows exactly the source decision for its materialized candidate. -/
 theorem nativeScan_visit_source_decision
@@ -45,19 +46,25 @@ theorem nativeScan_visit_source_decision
     (fits : cursor.candidate.denominator < 2 ^ (phaseBits + 1)) :
     if ClassicalAlgorithms.OrderRecovery.validateCandidate spec input
         cursor.candidate.denominator then
-      ChosenCursorReads cells (visitWithDivisionStep spec.modulusSpec base cells division store).1
+      ChosenCursorReads cells
+        (visitWithDivisionStep (model := model) spec.modulusSpec base cells division store).1
         cursor.candidate.denominator
     else
-      PendingCursorReads cells (visitWithDivisionStep spec.modulusSpec base cells division store).1
+      PendingCursorReads cells
+        (visitWithDivisionStep (model := model) spec.modulusSpec base cells division store).1
         cursor.advance := by
-  let materialized := candidateState cells division store
-  let validated := (validateStep spec.modulusSpec base (cellRead cells.cursor.candidate)
+  let materialized := candidateState (model := model) cells division store
+  let validated := (validateStep (model := model) spec.modulusSpec base
+    (cellRead cells.cursor.candidate)
     cells.zero cells.one cells.power cells.positive cells.valid materialized).1
-  have candidateAtPrefix := nativeScan_candidateState_candidate cells division divisionFree
+  have candidateAtPrefix := nativeScan_candidateState_candidate (model := model)
+    cells division divisionFree
     store cursor pending.toCursorReads fits
-  have cursorAtPrefix := nativeScan_candidateState_cursor cells separated division divisionFree
+  have cursorAtPrefix := nativeScan_candidateState_cursor (model := model)
+    cells separated division divisionFree
     store cursor pending.toCursorReads
-  have sourceAtPrefix := nativeScan_candidateState_source spec input base cells separated division
+  have sourceAtPrefix := nativeScan_candidateState_source (model := model)
+    spec input base cells separated division
     divisionBase divisionZero divisionOne (baseFree _ (by simp [ScanCells.writeKeys])) store source
   have validValue : validated.read (cellRead cells.valid) =
       .bit (ClassicalAlgorithms.OrderRecovery.validateCandidate spec input
@@ -101,17 +108,19 @@ theorem nativeScan_visit_source_decision
       (fun present => nativeScan_separated_keys cells separated 10 7 (by decide)
         (List.mem_singleton.mp present)) materialized).trans acceptedAtPrefix
   have selectedStore :
-      (visitWithDivisionStep spec.modulusSpec base cells division store).1 =
-        (selectionChoiceStep cells (.second (cellRead division))
+      (visitWithDivisionStep (model := model) spec.modulusSpec base cells division store).1 =
+        (selectionChoiceStep (model := model) cells (.second (cellRead division))
           (.bit (ClassicalAlgorithms.OrderRecovery.validateCandidate spec input
             cursor.candidate.denominator)) validated).1 :=
-    congrArg (fun value => (selectionChoiceStep cells (.second (cellRead division)) value
+    congrArg (fun value => (selectionChoiceStep (model := model) cells
+      (.second (cellRead division)) value
       validated).1) validValue
   cases choice : ClassicalAlgorithms.OrderRecovery.validateCandidate spec input
       cursor.candidate.denominator with
   | false =>
       change PendingCursorReads cells
-        (visitWithDivisionStep spec.modulusSpec base cells division store).1 cursor.advance
+        (visitWithDivisionStep (model := model) spec.modulusSpec base cells division store).1
+        cursor.advance
       rw [choice] at selectedStore
       rw [selectedStore]
       apply nativeScan_advance_pending cells separated (.second (cellRead division))
@@ -124,7 +133,7 @@ theorem nativeScan_visit_source_decision
       exact fun present => divisionFree key persistent (List.mem_singleton.mp present).symm
   | true =>
       change ChosenCursorReads cells
-        (visitWithDivisionStep spec.modulusSpec base cells division store).1
+        (visitWithDivisionStep (model := model) spec.modulusSpec base cells division store).1
         cursor.candidate.denominator
       rw [choice] at selectedStore validValue
       rw [selectedStore]

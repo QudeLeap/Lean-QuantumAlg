@@ -8,6 +8,11 @@ module
 
 import all QuantumAlg.Primitives.AmplitudeAmplification.Execution
 import all QuantumAlg.Primitives.AmplitudeAmplification.Program.Laws
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Layout.Quantum.Append
+import all QuantumAlg.Util.FinPow.BinaryBasis
+import all QuantumAlg.Util.FinPow.BinaryBasis.Zero
 import all QuantumAlg.Core.Execution.Preparation.Empty
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.State.Preservation
@@ -45,6 +50,67 @@ private theorem preparedInput_eq (n k : Nat) :
       (congrArg (NormalizedVector.ket (R := Qubits (ZeroReflection.Workspace.totalQubits n k)))
         zeroBasis)).symm
 
+private theorem preparedLayoutEquiv_eq_wireBasis (n k : Nat) :
+    preparedLayoutEquiv n k =
+      basisOfEqualWires
+        (QuantumSignature.qubits
+          (ZeroReflection.Workspace.totalQubits n k)).canonicalPlacement.layout
+        (post n k).quantumLayout (post_canonical_wires n k) := by
+  apply Equiv.ext
+  intro basis
+  funext target
+  let layout :=
+    (QuantumSignature.qubits
+          (ZeroReflection.Workspace.totalQubits n k)).canonicalPlacement.layout
+  obtain ⟨index, rfl⟩ :=
+    (positionsOfEqualWires layout (post n k).quantumLayout (post_canonical_wires n k)).surjective
+      target
+  apply Fin.ext
+  have position :
+      positionsOfEqualWires layout (post n k).quantumLayout (post_canonical_wires n k) index =
+        pre.addOwnedLayoutPositionEquiv ⟨0⟩ (runtimeLayout n k) preparationFresh
+          (preparationDisjoint n k) (Fin.castAdd pre.systemCount index) := by
+    apply Fin.ext
+    rfl
+  have prepared :
+      (preparedLayoutEquiv n k basis
+        (positionsOfEqualWires layout (post n k).quantumLayout
+          (post_canonical_wires n k) index)).val = (basis index).val := by
+    rw [position]
+    exact (pre.addOwnedLayout_basis_value_preserved ⟨0⟩ (runtimeLayout n k)
+      preparationFresh (preparationDisjoint n k) _ (Fin.castAdd pre.systemCount index)).trans
+        (QuantumLayout.appendJoinBasis_left_value _ _ _ basis
+          (emptyContextBasis pre pre_systemCount) index)
+  exact prepared.trans
+    (basisOfEqualWires_value layout (post n k).quantumLayout
+      (post_canonical_wires n k) basis index).symm
+
+private theorem nativeProgram_matrix {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
+    (k : Nat) :
+    (nativeProgram M k).matrix =
+      UnitaryOperator.reindex (preparedBasisEquiv n k).symm
+        (Native.program M.preparation M.good k).binaryMatrix := by
+  rw [nativeProgram, unitaryOfEqualWires_matrix, UnitaryCircuit.binaryMatrix,
+    UnitaryOperator.unitaryOperator_reindex_trans]
+  rw [preparedBasisEquiv, preparedLayoutEquiv_eq_wireBasis]
+  exact congrArg (fun equivalence => UnitaryOperator.reindex equivalence
+    (Native.program M.preparation M.good k).matrix) (by
+      apply Equiv.ext
+      intro basis
+      simp only [Equiv.symm_trans_apply, Equiv.trans_apply]
+      apply congrArg (basisOfEqualWires
+        (QuantumSignature.qubits
+          (ZeroReflection.Workspace.totalQubits n k)).canonicalPlacement.layout
+        (post n k).quantumLayout (post_canonical_wires n k))
+      exact ((QuantumSignature.qubitsIndexEquiv
+        (ZeroReflection.Workspace.totalQubits n k)).symm_apply_apply basis).symm)
+
+private theorem zeroPreparation_eq (n k : Nat) :
+    BasisPreparation.zero (runtimeLayout n k) = inputPreparation n k := by
+  apply congrArg BasisPreparation.mk
+  exact (BinaryBasis.bigEndianEquiv_symm_zero
+    (ZeroReflection.Workspace.totalQubits n k)).symm
+
 private theorem nativeProgram_input {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     (k : Nat) :
     DensityOperator.applyUnitary (nativeProgram M k).matrix
@@ -52,33 +118,33 @@ private theorem nativeProgram_input {n : Nat} (M : IntrinsicAmplitudeAmplificati
         (S := (post n k).register) (preparedBasisEquiv n k).symm) =
       (DensityOperator.ofPure (Native.outputVector M k)).reindex
         (S := (post n k).register) (preparedBasisEquiv n k).symm := by
-  rw [nativeProgram, UnitaryCircuit.reindex_matrix, ← DensityOperator.applyUnitary_reindex,
-    ← DensityOperator.ofPure_apply, preparedInput_eq]
-  change (DensityOperator.ofPure
-    ((Native.program M.preparation M.good k).applyNormalized (Native.inputVector n k))).reindex
-      (S := (post n k).register) (preparedBasisEquiv n k).symm = _
-  rw [Native.program_applyNormalized_input]
+  rw [nativeProgram_matrix, ← DensityOperator.applyUnitary_reindex,
+    ← DensityOperator.ofPure_apply, preparedInput_eq, Native.program_applyNormalized_input]
 
 /-- The sole interpreter's local output is the independent exact amplified pure state. -/
 theorem code_localDensity {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) :
     ((code M k).execute Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (Native.outputVector M k)).reindex
         (S := (post n k).register) (preparedBasisEquiv n k).symm := by
   have prepared :
-      ((preparationCode n k).execute Reference state).quantumMarginal.marginalLeft =
+      ((preparationCode M k).execute Reference state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure (preparedInput n k)).reindex
-          (S := (post n k).register) (preparedBasisEquiv n k).symm :=
-    (Circuit.prepare_empty_local_density state ⟨0⟩ (runtimeLayout n k)
-      preparationFresh (preparationDisjoint n k) (inputPreparation n k)
-      pre_systemCount normalized).trans (inputPreparation_density n k)
+          (S := (post n k).register) (preparedBasisEquiv n k).symm := by
+    have prepared := Circuit.prepareZero_empty_local_density
+      (gates := AlgorithmGate.model) (oracles := Native.oracles M.preparation M.good)
+      (operations := .empty) (classicalOracles := .empty) state ⟨0⟩ (runtimeLayout n k)
+      preparationFresh (preparationDisjoint n k) pre_systemCount normalized
+    rw [zeroPreparation_eq] at prepared
+    exact prepared.trans (inputPreparation_density n k)
   rw [code, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_localDensity, prepared, nativeProgram_input]
 
 /-- Summing the actual classical records and histories preserves that same output state. -/
 theorem final_localDensity {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    {Reference : Register} (supplied : Input pre Reference) :
+    {Reference : Register} (supplied : OracleInput (model M).classicalOracles pre Reference) :
     ((run M k).finalState Reference supplied.state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (Native.outputVector M k)).reindex
         (S := (post n k).register) (preparedBasisEquiv n k).symm := by
@@ -88,7 +154,7 @@ theorem final_localDensity {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n
         (ExecutionState.mapClassical_quantumMarginal
           ((run M k).execute Reference supplied.state) Prod.fst)
     _ = _ := code_localDensity M k
-      (supplied.state.mapClassical (fun store => (store, store)))
+      (supplied.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       ((supplied.state.mapClassical_mass _).trans supplied.normalized)
 
 end

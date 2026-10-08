@@ -70,12 +70,15 @@ theorem multiplication_cancels [Fact modulus.Prime]
     (outcome : Fin (2 ^ width)) :
     (program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
         (WalshHadamard.walshSign outcome (encoding.encode numerator) •
-          (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
             ((VariableGidney.encoding width).encode
-              (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0))).vec) =
-      (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-        ((VariableGidney.encoding width).encode
-          (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0))).vec := by
+              (encoding.encode denominator⁻¹,
+                encoding.encode (denominator * numerator), 0)))).vec) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+            ((VariableGidney.encoding width).encode
+          (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0)))).vec := by
   have actual := program_cancels width (encodedModulus encoding) outcome
     (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0)
   simpa only [encoded_multiplication_recompute encoding denominator numerator nonzero] using actual
@@ -87,12 +90,15 @@ theorem division_cancels [Fact modulus.Prime]
     (outcome : Fin (2 ^ width)) :
     (program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
         (WalshHadamard.walshSign outcome (encoding.encode numerator) •
-          (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
             ((VariableGidney.encoding width).encode
-              (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0))).vec) =
-      (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-        ((VariableGidney.encoding width).encode
-          (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0))).vec := by
+              (encoding.encode denominator,
+                encoding.encode (numerator * denominator⁻¹), 0)))).vec) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+            ((VariableGidney.encoding width).encode
+          (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0)))).vec := by
   have actual := program_cancels width (encodedModulus encoding) outcome
     (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0)
   simpa only [encoded_division_recompute encoding denominator numerator nonzero] using actual

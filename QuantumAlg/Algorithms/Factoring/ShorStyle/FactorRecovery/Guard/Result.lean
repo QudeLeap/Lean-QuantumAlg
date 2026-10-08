@@ -9,7 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Branches
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Guard.Correctness
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Encoding
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 
 /-!
 # Actual accepted-order reduction agrees with the source selector
@@ -27,13 +27,16 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem guardChoice_read (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    (guardChoiceStep source cells output store).1.read (.storage output.toCStorageRef) =
+    (guardChoiceStep (model := model) source cells output store).1.read (.storage
+      output.toCStorageRef) =
       if (store.read (activeRead cells)).toBool then
-        (reduceStep source cells output store).1.read (.storage output.toCStorageRef)
+        (reduceStep (model := model) source cells output store).1.read (.storage
+          output.toCStorageRef)
       else (store.applyOp (packOutputOp cells output)).read (.storage output.toCStorageRef) := by
   simp only [guardChoiceStep]
   cases store.read (activeRead cells) with
@@ -52,7 +55,8 @@ theorem checked_result (source : Input N) (cells : Cells ctx N)
       .canonicalResidue baseValue.toWord)
     (expandedValue : store.read (expandedRead cells) =
       .product (.bit accepted) (.unsignedWord orderValue)) :
-    (checkedStep source cells output store).1.read (.storage output.toCStorageRef) =
+    (checkedStep (model := model) source cells output store).1.read (.storage output.toCStorageRef)
+      =
       encodeOutput (N := N)
         (if accepted = true ∧ 0 < orderValue.val ∧ Even orderValue.val then
           factorFromHalfPowerValue N (baseValue.val ^ (orderValue.val / 2) % N)
@@ -77,11 +81,13 @@ theorem checked_result (source : Input N) (cells : Cells ctx N)
   have activeIff : (guarded.read (activeRead cells)).toBool = true ↔
       accepted = true ∧ 0 < orderValue.val ∧ Even orderValue.val :=
     (guard_accepts cells store separate).trans (by rw [expandedValue, originalOrder]; rfl)
-  change (guardChoiceStep source cells output guarded).1.read (.storage output.toCStorageRef) = _
+  change (guardChoiceStep (model := model) source cells output guarded).1.read (.storage
+    output.toCStorageRef) = _
   rw [guardChoice_read]
   by_cases active : (guarded.read (activeRead cells)).toBool = true
   · rw [if_pos active, if_pos (activeIff.mp active)]
-    exact reduce_result source cells output guarded baseValue orderValue guardedBase guardedOrder
+    exact reduce_result (model := model) source cells output guarded baseValue orderValue
+      guardedBase guardedOrder
   · rw [if_neg active, packOutput_result, if_neg active,
       if_neg (fun accepted => active (activeIff.mpr accepted))]
 

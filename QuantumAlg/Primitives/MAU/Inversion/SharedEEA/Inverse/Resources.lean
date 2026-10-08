@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Inverse.Runtime
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Native.Budget
 import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Preparation.Resources
 
 /-!
 # Actual prepared standalone inverse resources
@@ -42,13 +43,21 @@ def width (inputWidth : Nat) : Nat := 3 * inputWidth + 4 * inputWidth.size + 11
 /-- Native dimensions are counted directly; there is no classical storage or hidden reference. -/
 def space (inputWidth : Nat) : SpacePool .quantum := OwnedQubits.space (width inputWidth)
 
-/-- One fixed preparation coordinate and the independent complete native inverse envelope. -/
-def events (modulus : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (InputPreparation.preparation modulus).event +
-    NativeBudget.xor modulus.size
+/-- Independently count the set bits in the fixed mathematical seed. -/
+def seedEvents (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  EncodedBit.Word.BasisLoad.xCount (InputPreparation.loadConstant modulus) •
+    ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit)
 
-/-- The same sequential preparation and inverse meet this independent unit-duration bound. -/
-def depthBound (inputWidth : Nat) : Nat := 1 + ForwardResources.xorBound inputWidth
+/-- Every allocated zero wire, fixed-seed X and complete native inverse is charged. -/
+def events (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) +
+    seedEvents modulus + NativeBudget.xor modulus.size
+
+/-- Independent sequential duration allowance for zero allocation, X loading and inversion. -/
+def depthBound (inputWidth : Nat) : Nat :=
+  1 + InputPreparation.auxiliaryWidth inputWidth + ForwardResources.xorBound inputWidth
 
 private theorem auxiliary_space (inputWidth : Nat) :
     SpacePool.ofQuantumLayout (InputPreparation.auxiliaryLayout inputWidth) =
@@ -126,43 +135,65 @@ private theorem input_le (inputWidth : Nat) :
       · exact count
       · exact le_rfl
 
-/-- The actual path visits preparation's two contexts and the complete native unitary context. -/
+/-- The actual path visits the supplied words, zero allocation, seed loading and inverse. -/
 theorem visitedContexts (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).visitedContexts path =
-      [before modulus.size, after modulus.size, after modulus.size] := by
+      [before modulus.size, after modulus.size, after modulus.size,
+        after modulus.size] := by
   rfl
-
-private theorem prepend_pool (event : Resource.Event .quantum)
-    (trace : List (Resource.Event .quantum)) (bound : ResourcePool .quantum)
-    (bounded : ResourcePool.ofList trace ≤ bound) :
-    ResourcePool.ofList (event :: trace) ≤ ResourcePool.singleton event + bound := by
-  rw [ResourcePool.ofList_cons]
-  simpa only [add_comm] using add_le_add_left bounded (ResourcePool.singleton event)
 
 private theorem native_pool (modulus : Nat) :
     (InverseRuntime.nativeProgram modulus).eventCost ≤ NativeBudget.xor modulus.size := by
   by_cases nontrivial : 1 < modulus
-  · simpa only [InverseRuntime.nativeProgram, dif_pos nontrivial] using
+  · simpa only [InverseRuntime.nativeProgram, dif_pos nontrivial,
+      NativeInverse.nativeInverse_nativeProgram_eventCost] using
       NativeBudget.xor_bound modulus nontrivial
   · simp only [InverseRuntime.nativeProgram, dif_neg nontrivial,
       UnitaryCircuit.identity_eventCost]
     exact zero_le
 
-/-- Every actual event multiplicity is bounded at its native preparation or gate coordinate. -/
+private theorem load_pool (modulus : Nat) :
+    (InversePreparation.loadProgram modulus).eventCost = seedEvents modulus := by
+  have placed := Execution.PreparationLoaded.program_eventCost (before modulus.size)
+    auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (auxiliary_fresh modulus.size) (auxiliary_disjoint modulus.size)
+    (EncodedBit.Word.BasisLoad.program (InputPreparation.auxiliaryQubitLayout modulus.size)
+      .empty (InputPreparation.loadConstant modulus))
+  exact placed.trans (EncodedBit.Word.BasisLoad.basisLoad_eventCost
+    (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
+    (InputPreparation.loadConstant modulus))
+
+private theorem add_bound {left right : ResourcePool (.quantum AlgorithmGate.model .empty)}
+    (head : ResourcePool (.quantum AlgorithmGate.model .empty))
+    (bounded : left ≤ right) : head + left ≤ head + right :=
+  add_le_add_right bounded head
+
+/-- Every actual preparation, fixed X and native event is bounded independently. -/
 theorem resourcePool (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).resourcePool path ≤ events modulus := by
-  have native : ResourcePool.ofList (InverseRuntime.nativeProgram modulus).eventTrace ≤
-      NativeBudget.xor modulus.size :=
-    (UnitaryCircuit.ofList_eventTrace_eq_eventCost (InverseRuntime.nativeProgram modulus)).le.trans
-      (native_pool modulus)
-  have bounded := prepend_pool (InputPreparation.preparation modulus).event
-    (InverseRuntime.nativeProgram modulus).eventTrace (NativeBudget.xor modulus.size) native
-  exact (congrArg ResourcePool.ofList
-    (InverseRuntime.code_eventTrace modulus path)).le.trans bounded
+  change ResourcePool.ofList ((InverseRuntime.code modulus).eventTrace path) ≤ _
+  rw [InverseRuntime.code_eventTrace, ResourcePool.ofList_append,
+    ResourcePool.ofList_append]
+  change ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) +
+    ResourcePool.ofList (InversePreparation.loadProgram modulus).eventTrace +
+    ResourcePool.ofList (InverseRuntime.nativeProgram modulus).eventTrace ≤ _
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, load_pool,
+    UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+  change ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) + seedEvents modulus +
+        (InverseRuntime.nativeProgram modulus).eventCost ≤
+    ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) + seedEvents modulus +
+        NativeBudget.xor modulus.size
+  exact add_bound
+    (ZeroPreparation.eventCost AlgorithmGate.model .empty
+      (InputPreparation.auxiliaryLayout modulus.size) + seedEvents modulus)
+    (native_pool modulus)
 
-/-- Resident capacity is obtained from the same actual visited contexts. -/
+/-- Resident capacity is obtained from all actual visited contexts. -/
 theorem resident (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).peakResidentSpace path ≤ space modulus.size := by
@@ -172,7 +203,7 @@ theorem resident (modulus : Nat)
     SpacePool.max_zero, SpacePool.max_self, before_resident]
   exact SpacePool.max_le (input_le modulus.size) le_rfl
 
-/-- Owned auxiliary capacity is obtained from those same actual visited contexts. -/
+/-- Owned auxiliary capacity is obtained from those same actual contexts. -/
 theorem auxiliary (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).peakAuxiliarySpace path ≤ space modulus.size := by
@@ -182,44 +213,42 @@ theorem auxiliary (modulus : Nat)
     SpacePool.max_zero, SpacePool.max_self, before_auxiliary]
   exact SpacePool.max_le (input_le modulus.size) le_rfl
 
-private theorem prepared_depth {ctx : RuntimeCtx .quantum} {count : Nat}
-    (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
-    (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout)
-    (unitary : UnitaryCircuit (ctx.addOwnedLayout key layout fresh disjoint).register)
-    (placement : unitary.physical_idx =
-      (ctx.addOwnedLayout key layout fresh disjoint).physicalIdx)
-    (bound : Nat) (bounded : unitary.eventCost.card ≤ bound)
-    (path : ((Circuit.prepare ctx key layout fresh disjoint preparation).seq
-      (Circuit.unitary unitary placement)).Path) :
-    ((Circuit.prepare ctx key layout fresh disjoint preparation).seq
-      (Circuit.unitary unitary placement)).depth (fun _ => 1) path ≤ 1 + bound := by
-  change 1 + unitary.evaluatedEventDepth (fun _ => 1) ≤ 1 + bound
-  exact Nat.add_le_add_left ((ShiftResources.unitDepth_le_count unitary).trans bounded) 1
-
 private theorem native_count (modulus : Nat) :
     (InverseRuntime.nativeProgram modulus).eventCost.card ≤
       ForwardResources.xorBound modulus.size := by
   by_cases nontrivial : 1 < modulus
-  · simpa only [InverseRuntime.nativeProgram, dif_pos nontrivial] using
+  · simpa only [InverseRuntime.nativeProgram, dif_pos nontrivial,
+      NativeInverse.nativeInverse_nativeProgram_eventCost] using
       ForwardResources.xor_count modulus nontrivial
   · simp only [InverseRuntime.nativeProgram, dif_neg nontrivial,
       UnitaryCircuit.identity_eventCost, Multiset.card_zero]
     exact Nat.zero_le _
 
-/-- Preparation precedes the actual unitary; modulus one still pays its preparation event. -/
+/-- Zero allocation, literal seed loading and native arithmetic obey the same bound. -/
 theorem depth (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
-    (InverseRuntime.code modulus).depth (fun _ => 1) path ≤ depthBound modulus.size := by
-  have ledger : (InverseRuntime.program modulus).eventCost =
-      (InverseRuntime.nativeProgram modulus).eventCost :=
-    InverseRuntimeFrame.program_eventCost modulus.size (InverseRuntime.nativeProgram modulus)
-  have bounded := (congrArg Multiset.card ledger).le.trans (native_count modulus)
-  exact prepared_depth auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
-    (auxiliary_fresh modulus.size) (auxiliary_disjoint modulus.size)
-    (InputPreparation.preparation modulus) (InverseRuntime.program modulus)
-    (InverseRuntime.program_physical modulus) (ForwardResources.xorBound modulus.size)
-    bounded path
+    (InverseRuntime.code modulus).depth (fun _ => 1) path ≤
+      depthBound modulus.size := by
+  have zeroBound :
+      (if InputPreparation.auxiliaryWidth modulus.size = 0 then 0 else 1) ≤ 1 := by
+    split_ifs <;> omega
+  have loadBound := (InversePreparation.loadProgram_resources modulus).2
+  have nativeBound :
+      (InverseRuntime.program modulus).evaluatedEventDepth (fun _ => 1) ≤
+        ForwardResources.xorBound modulus.size := by
+    exact (ShiftResources.unitDepth_le_count (InverseRuntime.program modulus)).trans
+      ((congrArg Multiset.card (InverseRuntime.program_eventCost modulus)).le.trans
+        (native_count modulus))
+  change
+    DepthExpr.depthEval (fun _ => 1)
+        (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+          (InputPreparation.auxiliaryLayout modulus.size)) +
+      (InversePreparation.loadProgram modulus).evaluatedEventDepth (fun _ => 1) +
+      (InverseRuntime.program modulus).evaluatedEventDepth (fun _ => 1) ≤
+        depthBound modulus.size
+  rw [ZeroPreparation.zeroPreparation_unit_depth]
+  unfold depthBound
+  omega
 
 end
 

@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Guarded.Shift
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.LowShift.Increment
 import all QuantumAlg.Primitives.MAU.Addition.HRS.IncrementPlacement
 import all QuantumAlg.Primitives.MAU.Addition.HRS.Controlled.BorrowedIncrement.Resources
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint.Resources
 import all QuantumAlg.Core.Base.Depth.EventCount
 
 /-!
@@ -42,12 +43,25 @@ def incrementCount (width : Nat) : Nat :=
 def guardedBound (width : Nat) : Nat :=
   9 * (width + 2) + 3 * incrementCount (2 + width.size) + 10
 
-private theorem trace_count {R : Register} (body : UnitaryCircuit R) :
+private theorem trace_count {gates : GateModel} {oracles : OracleModel}
+    {count : Nat} {layout : QuantumLayout count}
+    (body : UnitaryCircuit gates oracles layout) :
     body.eventTrace.length = body.eventCost.card := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost]
   rfl
 
-private theorem unitDepth_le_count {R : Register} (body : UnitaryCircuit R) :
+private theorem dagger_trace_count {count : Nat} {layout : QuantumLayout count}
+    (body : UnitaryCircuit AlgorithmGate.model .empty layout) :
+    (body.dagger (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace.length =
+      body.eventTrace.length := by
+  rw [trace_count, trace_count,
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost]
+  change (Multiset.map (AlgorithmGate.oracleFreeEvent .empty) body.eventCost).card = _
+  exact Multiset.card_map _ _
+
+theorem unitDepth_le_count {gates : GateModel} {oracles : OracleModel}
+    {count : Nat} {layout : QuantumLayout count}
+    (body : UnitaryCircuit gates oracles layout) :
     body.evaluatedEventDepth (fun _ => 1) ≤ body.eventCost.card := by
   calc
     _ ≤ DepthExpr.costEval (fun _ => (1 : Nat)) body.eventDepth :=
@@ -92,9 +106,15 @@ theorem left_count (width : Nat) :
 theorem right_count (width : Nat) :
     (ControlledShift.rightProgram width).eventTrace.length =
       3 * (width + 2) + incrementCount (2 + width.size) := by
+  have inverseCount :
+      ((ControlledShift.incrementProgram width).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace.length =
+        incrementCount (2 + width.size) := by
+    rw [dagger_trace_count]
+    rw [ControlledShift.incrementProgram, ControlPlacement.place_eventTrace]
+    exact clock_count width
   rw [ControlledShift.right_eventTrace, List.length_append, List.length_map,
-    List.length_reverse, Work2PhaseRotation.rightGates, List.length_reverse,
-    word_count, clock_count]
+    Work2PhaseRotation.rightGates, List.length_reverse, word_count, inverseCount]
 
 /-- Exact counts distinguish the two emitted phase-guard lists without runtime branch discounts. -/
 theorem guarded_count (width : Nat) (selected : Bool) :

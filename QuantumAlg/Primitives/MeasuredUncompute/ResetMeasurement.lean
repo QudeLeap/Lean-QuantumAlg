@@ -30,7 +30,7 @@ noncomputable section
 /-- The selected literal reset maps the measured ket to zero and preserves its reference label. -/
 theorem storedWordReset_reference_ket {width : Nat} (outcome : Fin (2 ^ width))
     {Reference : Register} (reference : Reference.Index) :
-    (UnitaryOperator.prodTensor (StoredWordReset.program outcome).matrix
+    (UnitaryOperator.prodTensor (StoredWordReset.binaryProgram outcome)
       (1 : UnitaryOperator Reference)).applyVec
         (NormalizedVector.ket (R := Register.prod (Qubits width) Reference)
           (outcome, reference)).vec =
@@ -39,11 +39,11 @@ theorem storedWordReset_reference_ket {width : Nat} (outcome : Fin (2 ^ width))
   ext index
   rcases index with ⟨row, other⟩
   change HilbertOperator.applyVec
-    (UnitaryOperator.prodTensor (StoredWordReset.program outcome).matrix
+    (UnitaryOperator.prodTensor (StoredWordReset.binaryProgram outcome)
       (1 : UnitaryOperator Reference) : HilbertOperator (Register.prod (Qubits width) Reference))
     (NormalizedVector.ket (R := Register.prod (Qubits width) Reference)
       (outcome, reference)).vec (row, other) = _
-  rw [HilbertOperator.applyVec_ket, StoredWordReset.storedWordReset_reference_entry]
+  rw [HilbertOperator.applyVec_ket, StoredWordReset.storedWordReset_binary_reference_entry]
   by_cases selected : row = 0 ∧ other = reference
   · obtain ⟨rfl, rfl⟩ := selected
     simp [NormalizedVector.ket_apply]
@@ -56,7 +56,7 @@ theorem storedWordReset_reference_ket {width : Nat} (outcome : Fin (2 ^ width))
 /-- Actual Hadamard, Z projection and selected X reset retain the exact input-dependent phase. -/
 theorem measuredReset_reference_ket (width : Nat) {Reference : Register}
     (outcome value : Fin (2 ^ width)) (reference : Reference.Index) :
-    (UnitaryOperator.prodTensor (StoredWordReset.program outcome).matrix
+    (UnitaryOperator.prodTensor (StoredWordReset.binaryProgram outcome)
       (1 : UnitaryOperator Reference)).applyVec
         ((measuredOperator width Reference outcome).applyVec
           (NormalizedVector.ket (R := Register.prod (Qubits width) Reference)
@@ -71,7 +71,7 @@ theorem measuredReset_reference_ket (width : Nat) {Reference : Register}
 theorem measuredReset_coherent_reference (width : Nat) {Reference : Register}
     (outcome : Fin (2 ^ width)) (value : Reference.Index → Fin (2 ^ width))
     (amplitude : Reference.Index → ℂ) :
-    (UnitaryOperator.prodTensor (StoredWordReset.program outcome).matrix
+    (UnitaryOperator.prodTensor (StoredWordReset.binaryProgram outcome)
       (1 : UnitaryOperator Reference)).applyVec
         ((measuredOperator width Reference outcome).applyVec
           (∑ reference : Reference.Index, amplitude reference •
@@ -84,7 +84,7 @@ theorem measuredReset_coherent_reference (width : Nat) {Reference : Register}
               (0, reference)).vec := by
   rw [measuredHadamard_coherent_reference]
   change HilbertOperator.applyVec
-    (UnitaryOperator.prodTensor (StoredWordReset.program outcome).matrix
+    (UnitaryOperator.prodTensor (StoredWordReset.binaryProgram outcome)
       (1 : UnitaryOperator Reference) : HilbertOperator (Register.prod (Qubits width) Reference))
       _ = _
   rw [HilbertOperator.applyVec_sum]

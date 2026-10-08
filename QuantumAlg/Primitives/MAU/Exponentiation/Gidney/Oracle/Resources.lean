@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Oracle
 import all QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Resources
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint.Resources
 
 /-!
 # Actual resources of reversible modular exponentiation
@@ -24,11 +25,13 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 noncomputable section
 
 /-- Independent exact native CNOT budget for the literal result copy. -/
-def copyNativeBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.ofList (List.replicate width (.gate (.builtin "cnot")))
+def copyNativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.ofList (List.replicate width
+    (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty)))
 
 /-- Independent native coordinate budget for compute, copy, and uncompute. -/
-def oracleNativeBudget (exponentWidth width : Nat) : ResourcePool .quantum :=
+def oracleNativeBudget (exponentWidth width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   nativeBudget exponentWidth width +
     (copyNativeBudget width + nativeBudget exponentWidth width)
 
@@ -40,15 +43,29 @@ private theorem forward_eventCost (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (forwardProgram exponentWidth width modulus base).eventCost =
       (program exponentWidth width modulus base).eventCost :=
-  UnitaryCircuit.prodLeft_eventCost (n := width) (program exponentWidth width modulus base)
+  rfl
 
 private theorem forward_depth (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (forwardProgram exponentWidth width modulus base).evaluatedEventDepth (fun _ => 1) =
       (program exponentWidth width modulus base).eventCost.card :=
-  (UnitaryCircuit.prodLeft_evaluatedEventDepth (n := width)
+  (UnitaryCircuit.unitaryCircuit_onBinaryPrefix_evaluatedEventDepth width
     (fun _ => 1) (program exponentWidth width modulus base)).trans
       (gidneyExponent_depth_eq_events exponentWidth width modulus base)
+
+private theorem emptyOraclePool (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
+    AlgorithmGate.oracleFreePool .empty pool = pool := by
+  change Multiset.map (AlgorithmGate.oracleFreeEvent .empty) pool = pool
+  have identical : AlgorithmGate.oracleFreeEvent .empty = id := by
+    funext event
+    cases event with
+    | classicalOperation coordinate => cases coordinate
+    | classicalQuery coordinate => cases coordinate
+    | gate _ => rfl
+    | oracle coordinate => cases coordinate
+    | preparation _ => rfl
+    | measurement _ => rfl
+  rw [identical, Multiset.map_id]
 
 /-- Exact oracle ledger retains every forward, copy, and adjoint event coordinate. -/
 theorem gidneyExponentOracle_eventCost (exponentWidth width : Nat)
@@ -57,8 +74,8 @@ theorem gidneyExponentOracle_eventCost (exponentWidth width : Nat)
       (program exponentWidth width modulus base).eventCost +
         (copyNativeBudget width + (program exponentWidth width modulus base).eventCost) := by
   simp only [oracleProgram, oracleBody, UnitaryCircuit.seq_eventCost,
-    UnitaryCircuit.identity_eventCost, add_zero, UnitaryCircuit.dagger_eventCost,
-    forward_eventCost, gidneyExponentCopy_eventCost, copyNativeBudget]
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
+    emptyOraclePool, forward_eventCost, gidneyExponentCopy_eventCost, copyNativeBudget]
 
 /-- Every actual native coordinate obeys its independently specified oracle budget. -/
 theorem gidneyExponentOracle_native_bound (exponentWidth width : Nat)
@@ -94,10 +111,11 @@ theorem gidneyExponentOracle_depth_eq_events (exponentWidth width : Nat)
   change UnitaryCircuit.evaluatedEventDepth (fun _ => 1)
     ((forwardProgram exponentWidth width modulus base).seq
       ((copyProgram exponentWidth width).seq
-        (forwardProgram exponentWidth width modulus base).dagger)) + 0 = _
+        ((forwardProgram exponentWidth width modulus base).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty)))) = _
   simp only [UnitaryCircuit.evaluatedEventDepth_seq,
-    UnitaryCircuit.evaluatedEventDepth_dagger, forward_depth,
-    (gidneyExponentCopy_serial_resources exponentWidth width).2, Nat.add_zero]
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_unit_depth, forward_depth,
+    (gidneyExponentCopy_serial_resources exponentWidth width).2]
 
 theorem gidneyExponentOracle_depth_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
@@ -106,47 +124,13 @@ theorem gidneyExponentOracle_depth_bound (exponentWidth width : Nat)
   rw [gidneyExponentOracle_depth_eq_events]
   exact gidneyExponentOracle_event_count_bound exponentWidth width modulus base
 
-private theorem forward_physical_range (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (forwardProgram exponentWidth width modulus base).physical_idx ⊆
-      List.range (exponentWidth + 3 * width) := by
-  have computed : (program exponentWidth width modulus base).physical_idx ⊆
-      List.range (encoding exponentWidth width).width := by
-    rw [gidneyExponent_physical, (gidneyExponent_qubit_count exponentWidth width modulus base).1]
-    exact List.Subset.refl _
-  have actual := UnitaryCircuit.prodLeft_physical_idx_subset_range (n := width)
-    (program exponentWidth width modulus base) computed
-  have size : (encoding exponentWidth width).width + width = exponentWidth + 3 * width := by
-    change (exponentWidth + (width + width)) + width = exponentWidth + 3 * width
-    omega
-  simpa only [size, forwardProgram] using actual
-
 /-- The oracle's declared physical carrier has no quantum storage beyond its four named words. -/
-theorem gidneyExponentOracle_physical (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (oracleProgram exponentWidth width modulus base).physical_idx =
-      List.range (exponentWidth + 3 * width) := by
-  have forward := forward_physical_range exponentWidth width modulus base
-  have inverse : (forwardProgram exponentWidth width modulus base).dagger.physical_idx ⊆
-      List.range (exponentWidth + 3 * width) := by
-    rw [UnitaryCircuit.dagger_physical_idx]
-    exact forward
-  have body := UnitaryCircuit.seq_physical_idx_subset _ _ forward
-    (UnitaryCircuit.seq_physical_idx_subset _ _
-      (gidneyExponentCopy_physical_range exponentWidth width) inverse)
-  change (oracleBody exponentWidth width modulus base).physical_idx ∪
-    List.range (exponentWidth + 3 * width) = List.range (exponentWidth + 3 * width)
-  exact body.union_eq_right
-
-theorem gidneyExponentOracle_qubit_count (exponentWidth width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
+theorem gidneyExponentOracle_qubit_count (exponentWidth width : Nat) :
     (oracleEncoding exponentWidth width).width = exponentWidth + 3 * width ∧
-      (oracleProgram exponentWidth width modulus base).physical_idx.length =
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).systemIdx.length =
         exponentWidth + 3 * width := by
-  constructor
-  · change (exponentWidth + (width + width)) + width = exponentWidth + 3 * width
-    omega
-  · rw [gidneyExponentOracle_physical, List.length_range]
+  obtain ⟨size, physical⟩ := gidneyExponentCopy_interface exponentWidth width
+  exact ⟨size, by rw [physical, List.length_range]⟩
 
 end
 

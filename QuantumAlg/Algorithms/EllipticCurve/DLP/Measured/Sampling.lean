@@ -33,10 +33,11 @@ variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 def samplingPrefix (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    Circuit (Allocation.after p.size (2 * orderWidth problem))
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (Allocation.after p.size (2 * orderWidth problem))
       (Allocation.after p.size (2 * orderWidth problem)) :=
-  ((afterExponentCircuit p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem)).seq
+  ((afterExponentCircuit p (orderWidth problem)
+      (exponentPreparationCircuit problem)).seq
     (Encoding.placedConvertedCascade E points (List.finRange (2 * orderWidth problem))
       (Semantics.radixUnit p fieldTail.succ odd))).seq (afterExponentReadout p problem)
 
@@ -66,15 +67,15 @@ theorem samplingPrefix_budget (fieldTail : Nat) (odd : Odd p)
   rw [List.length_finRange] at scalar
   exact add_le_add (add_le_add
     (afterExponentCircuit_cost p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) path.1.1).le scalar)
+      path.1.1).le scalar)
     (afterExponentCircuit_cost p (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem) path.2).le
+      path.2).le
 
 /-- The original serial durations are charged on the same existing-workspace path. -/
 theorem samplingPrefix_duration (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (samplingPrefix E fieldTail odd problem points).Path) :
     (samplingPrefix E fieldTail odd problem points).depth duration path =
       (exponentPreparationCircuit problem).evaluatedEventDepth duration +
@@ -84,9 +85,9 @@ theorem samplingPrefix_duration (fieldTail : Nat) (odd : Odd p)
   change (_ + _) + _ = _
   exact congrArg₂ Nat.add (congrArg₂ Nat.add
     (afterExponentCircuit_depth p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) duration path.1.1) rfl)
+      duration path.1.1) rfl)
     (afterExponentCircuit_depth p (orderWidth problem) (exponentReadoutCircuit problem)
-      (exponentReadoutCircuit_physical_idx problem) duration path.2)
+      duration path.2)
 
 /-- The actual local prefix visits only its original complete allocated context. -/
 theorem samplingPrefix_visited (fieldTail : Nat) (odd : Odd p)

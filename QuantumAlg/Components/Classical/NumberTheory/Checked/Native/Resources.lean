@@ -29,21 +29,25 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.Modular SignedReduction XG
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original exact loader events followed by unchanged independent arithmetic allowances. -/
-def checkedInverseEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  ResourcePool.ofList (ConstantWord.loaderTrace kind (width + 1)
+def checkedInverseEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  ResourcePool.ofList (ConstantWord.loaderTrace model (width + 1)
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))) +
-      ((ResourcePool.ofList [.classicalOperation (.wordResize width (width + 1))] +
-        rawEnvelope kind (width + 1)) + checkedSelectionEnvelope kind width)
+      ((ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize width (width + 1)))] +
+        rawEnvelope model (width + 1)) + checkedSelectionEnvelope model width)
 
 /-- Original serial durations retain the exact compiled modulus loader and real decision. -/
 def checkedInverseDepthLimit (spec : ModulusSpec width)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  ((ConstantWord.loaderTrace kind (width + 1)
+    (duration : Resource.Event model → Nat) : Nat :=
+  ((ConstantWord.loaderTrace model (width + 1)
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))).map duration).sum +
-      ((duration (.classicalOperation (.wordResize width (width + 1))) +
+      ((duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize width (width + 1)))) +
         rawDepthLimit (width + 1) duration) + checkedSelectionDepthLimit width duration)
 
 /-- Widened XGCD and the later decision/signed phases have successive lexical lifetimes. -/
@@ -56,14 +60,18 @@ private theorem checked_body_pool_le (spec : ModulusSpec width)
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (checkedInverseBody spec denominator modulus outputs success inverse).Path) :
-    (checkedInverseBody spec denominator modulus outputs success inverse).resourcePool path ≤
-      checkedInverseEnvelope kind spec := by
+    (path : (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).Path) :
+    (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).resourcePool path ≤
+      checkedInverseEnvelope model spec := by
   have loaded := congrArg ResourcePool.ofList (ConstantWord.constantFold_eventTrace modulus
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus)) path.1)
-  change ResourcePool.ofList ((ConstantWord.circuit modulus spec.modulus).eventTrace path.1 ++
-    ((withWidenedXgcd denominator (decisionRead modulus) outputs).eventTrace path.2.1 ++
-      (checkedCoefficientSelection (decisionRead outputs.gcd)
+  change ResourcePool.ofList ((ConstantWord.circuit (model := model) modulus
+    spec.modulus).eventTrace path.1 ++
+    ((withWidenedXgcd (model := model) denominator (decisionRead modulus) outputs).eventTrace
+      path.2.1 ++
+      (checkedCoefficientSelection (model := model) (decisionRead outputs.gcd)
         (decisionRead outputs.rightCoefficient) (decisionRead modulus) success inverse).eventTrace
           path.2.2)) ≤ _
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append]
@@ -74,14 +82,15 @@ private theorem checked_body_pool_le (spec : ModulusSpec width)
 theorem withCheckedInverse_pool_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (withCheckedInverse spec denominator success inverse).Path) :
-    (withCheckedInverse spec denominator success inverse).resourcePool path ≤
-      checkedInverseEnvelope kind spec := by
+    (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
+    (withCheckedInverse (model := model) spec denominator success inverse).resourcePool path ≤
+      checkedInverseEnvelope model spec := by
   exact withCellsFrom_pool_le (Transport.id ctx) (checkedInverseShapes width)
-    (fun cells _ transport _ => checkedInverseBody spec (transport.liftInput denominator)
+    (fun cells _ transport _ => checkedInverseBody (model := model) spec (transport.liftInput
+      denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)
       (transport.liftWrite success) (transport.liftWrite inverse))
-    (checkedInverseEnvelope kind spec)
+    (checkedInverseEnvelope model spec)
     (fun cells _ transport _ selected => checked_body_pool_le _ _ _ _ _ _ selected) path
 
 private theorem checked_body_duration_trace (spec : ModulusSpec width)
@@ -89,10 +98,13 @@ private theorem checked_body_duration_trace (spec : ModulusSpec width)
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (duration : Resource.Event kind → Nat)
-    (path : (checkedInverseBody spec denominator modulus outputs success inverse).Path) :
-    (checkedInverseBody spec denominator modulus outputs success inverse).depth duration path =
-      (((checkedInverseBody spec denominator modulus outputs success inverse).eventTrace path).map
+    (duration : Resource.Event model → Nat)
+    (path : (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).Path) :
+    (checkedInverseBody (model := model) spec denominator modulus outputs success inverse).depth
+      duration path =
+      (((checkedInverseBody (model := model) spec denominator modulus outputs success
+        inverse).eventTrace path).map
         duration).sum := by
   have loaded := (ConstantWord.constantFold_depth modulus _ duration path.1).trans
     (congrArg (fun events => (events.map duration).sum)
@@ -101,15 +113,17 @@ private theorem checked_body_duration_trace (spec : ModulusSpec width)
     outputs duration path.2.1
   have selected := checkedCoefficientSelection_duration_eventTrace (decisionRead outputs.gcd)
     (decisionRead outputs.rightCoefficient) (decisionRead modulus) success inverse duration path.2.2
-  change (ConstantWord.circuit modulus spec.modulus).depth duration path.1 +
-    ((withWidenedXgcd denominator (decisionRead modulus) outputs).depth duration path.2.1 +
-      (checkedCoefficientSelection (decisionRead outputs.gcd)
+  change (ConstantWord.circuit (model := model) modulus spec.modulus).depth duration path.1 +
+    ((withWidenedXgcd (model := model) denominator (decisionRead modulus) outputs).depth duration
+      path.2.1 +
+      (checkedCoefficientSelection (model := model) (decisionRead outputs.gcd)
         (decisionRead outputs.rightCoefficient) (decisionRead modulus) success inverse).depth
           duration path.2.2) = _
   refine (congrArg₂ Nat.add loaded (congrArg₂ Nat.add widened selected)).trans ?_
-  change _ = (((ConstantWord.circuit modulus spec.modulus).eventTrace path.1 ++
-    ((withWidenedXgcd denominator (decisionRead modulus) outputs).eventTrace path.2.1 ++
-      (checkedCoefficientSelection (decisionRead outputs.gcd)
+  change _ = (((ConstantWord.circuit (model := model) modulus spec.modulus).eventTrace path.1 ++
+    ((withWidenedXgcd (model := model) denominator (decisionRead modulus) outputs).eventTrace
+      path.2.1 ++
+      (checkedCoefficientSelection (model := model) (decisionRead outputs.gcd)
         (decisionRead outputs.rightCoefficient) (decisionRead modulus) success inverse).eventTrace
           path.2.2)).map duration).sum
   simp only [List.map_append, List.sum_append]
@@ -119,13 +133,14 @@ private theorem checked_body_duration_trace (spec : ModulusSpec width)
 theorem withCheckedInverse_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (duration : Resource.Event kind → Nat)
-    (path : (withCheckedInverse spec denominator success inverse).Path) :
-    (withCheckedInverse spec denominator success inverse).depth duration path =
-      (((withCheckedInverse spec denominator success inverse).eventTrace path).map
+    (duration : Resource.Event model → Nat)
+    (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
+    (withCheckedInverse (model := model) spec denominator success inverse).depth duration path =
+      (((withCheckedInverse (model := model) spec denominator success inverse).eventTrace path).map
         duration).sum := by
   exact withCellsFrom_property (Transport.id ctx) (checkedInverseShapes width)
-    (fun cells _ transport _ => checkedInverseBody spec (transport.liftInput denominator)
+    (fun cells _ transport _ => checkedInverseBody (model := model) spec (transport.liftInput
+      denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)
       (transport.liftWrite success) (transport.liftWrite inverse))
     (fun _ code => ∀ selected, code.depth duration selected =
@@ -139,9 +154,11 @@ private theorem checked_body_depth_le (spec : ModulusSpec width)
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (duration : Resource.Event kind → Nat)
-    (path : (checkedInverseBody spec denominator modulus outputs success inverse).Path) :
-    (checkedInverseBody spec denominator modulus outputs success inverse).depth duration path ≤
+    (duration : Resource.Event model → Nat)
+    (path : (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).Path) :
+    (checkedInverseBody (model := model) spec denominator modulus outputs success inverse).depth
+      duration path ≤
       checkedInverseDepthLimit spec duration :=
   Nat.add_le_add (ConstantWord.constantFold_depth modulus _ duration path.1).le
     (Nat.add_le_add (withWidenedXgcd_depth_le _ _ _ duration path.2.1)
@@ -151,12 +168,13 @@ private theorem checked_body_depth_le (spec : ModulusSpec width)
 theorem withCheckedInverse_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (duration : Resource.Event kind → Nat)
-    (path : (withCheckedInverse spec denominator success inverse).Path) :
-    (withCheckedInverse spec denominator success inverse).depth duration path ≤
+    (duration : Resource.Event model → Nat)
+    (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
+    (withCheckedInverse (model := model) spec denominator success inverse).depth duration path ≤
       checkedInverseDepthLimit spec duration := by
   exact withCellsFrom_depth_le (Transport.id ctx) (checkedInverseShapes width)
-    (fun cells _ transport _ => checkedInverseBody spec (transport.liftInput denominator)
+    (fun cells _ transport _ => checkedInverseBody (model := model) spec (transport.liftInput
+      denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)
       (transport.liftWrite success) (transport.liftWrite inverse)) duration
     (checkedInverseDepthLimit spec duration)
@@ -167,9 +185,11 @@ private theorem checked_body_resident_le (spec : ModulusSpec width)
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (checkedInverseBody spec denominator modulus outputs success inverse).Path) :
-    (checkedInverseBody spec denominator modulus outputs success inverse).peakResidentSpace path ≤
-      checkedInverseActiveSpace kind width + ctx.residentSpace := by
+    (path : (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).Path) :
+    (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).peakResidentSpace path ≤
+      checkedInverseActiveSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (ConstantWord.constantWord_resident_le _ _ path.1).trans le_add_self
   · refine (Circuit.peakResidentSpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
@@ -183,9 +203,11 @@ private theorem checked_body_auxiliary_le (spec : ModulusSpec width)
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (checkedInverseBody spec denominator modulus outputs success inverse).Path) :
-    (checkedInverseBody spec denominator modulus outputs success inverse).peakAuxiliarySpace path ≤
-      checkedInverseActiveSpace kind width + ctx.auxiliarySpace := by
+    (path : (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).Path) :
+    (checkedInverseBody (model := model) spec denominator modulus outputs success
+      inverse).peakAuxiliarySpace path ≤
+      checkedInverseActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (ConstantWord.constantWord_auxiliary_le _ _ path.1).trans le_add_self
   · refine (Circuit.peakAuxiliarySpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
@@ -198,30 +220,32 @@ private theorem checked_body_auxiliary_le (spec : ModulusSpec width)
 theorem withCheckedInverse_resident_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (withCheckedInverse spec denominator success inverse).Path) :
-    (withCheckedInverse spec denominator success inverse).peakResidentSpace path ≤
+    (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
+    (withCheckedInverse (model := model) spec denominator success inverse).peakResidentSpace path ≤
       ((checkedInverseShapes width).map SpacePool.ofShape).sum +
-        checkedInverseActiveSpace kind width + ctx.residentSpace := by
+        checkedInverseActiveSpace model.kind width + ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (checkedInverseShapes width)
-    (fun cells _ transport _ => checkedInverseBody spec (transport.liftInput denominator)
+    (fun cells _ transport _ => checkedInverseBody (model := model) spec (transport.liftInput
+      denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)
       (transport.liftWrite success) (transport.liftWrite inverse))
-    (checkedInverseActiveSpace kind width)
+    (checkedInverseActiveSpace model.kind width)
     (fun cells _ transport _ selected => checked_body_resident_le _ _ _ _ _ _ selected) path
 
 /-- Auxiliary ownership includes the same real internal lifetimes and every caller context cell. -/
 theorem withCheckedInverse_auxiliary_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (path : (withCheckedInverse spec denominator success inverse).Path) :
-    (withCheckedInverse spec denominator success inverse).peakAuxiliarySpace path ≤
+    (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
+    (withCheckedInverse (model := model) spec denominator success inverse).peakAuxiliarySpace path ≤
       ((checkedInverseShapes width).map SpacePool.ofShape).sum +
-        checkedInverseActiveSpace kind width + ctx.auxiliarySpace := by
+        checkedInverseActiveSpace model.kind width + ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (checkedInverseShapes width)
-    (fun cells _ transport _ => checkedInverseBody spec (transport.liftInput denominator)
+    (fun cells _ transport _ => checkedInverseBody (model := model) spec (transport.liftInput
+      denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)
       (transport.liftWrite success) (transport.liftWrite inverse))
-    (checkedInverseActiveSpace kind width)
+    (checkedInverseActiveSpace model.kind width)
     (fun cells _ transport _ selected => checked_body_auxiliary_le _ _ _ _ _ _ selected) path
 
 end

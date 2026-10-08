@@ -24,9 +24,10 @@ noncomputable section
 
 /-- Actual recursive constant adder on the original word and one dirty bit. -/
 def oneDirtyProgram (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit (Qubits (oneDirtyEncoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oneDirtyEncoding width).width).toQuantum :=
   if _hbase : width ≤ 1 then
-    declareOneDirtyLayout width (oneDirtyBaseProgram width constant)
+    oneDirtyBaseProgram width constant
   else
     recursiveStepProgram width constant
       (oneDirtyProgram (lowWidth width) ((splitWord width) constant).1)
@@ -47,53 +48,43 @@ theorem hrsOneDirty_realizes (width : Nat) (constant : Fin (2 ^ width)) :
   | h width ih =>
       by_cases hbase : width ≤ 1
       · rw [oneDirtyProgram, dif_pos hbase]
-        exact hrsDeclareOneDirtyLayout_realizes width _ _
-          (hrsOneDirtyBase_realizes width hbase constant)
+        exact hrsOneDirtyBase_realizes width hbase constant
       · rw [oneDirtyProgram, dif_neg hbase]
         have hdecrease := hrsSplit_decreases width (by omega)
         exact hrsRecursiveStep_realizes width constant _ _
           (ih (lowWidth width) hdecrease.1 ((splitWord width) constant).1)
           (ih (highWidth width) hdecrease.2 ((splitWord width) constant).2)
 
-/-- The actual program declares exactly the original word and its single dirty bit. -/
-theorem hrsOneDirty_physical (width : Nat) (constant : Fin (2 ^ width)) :
-    (oneDirtyProgram width constant).physical_idx = List.range (width + 1) := by
-  induction width using Nat.strong_induction_on with
-  | h width ih =>
-      by_cases hbase : width ≤ 1
-      · rw [oneDirtyProgram, dif_pos hbase]
-        exact hrsDeclareOneDirtyLayout_physical width _
-          (hrsOneDirtyBase_interface width constant).2
-      · rw [oneDirtyProgram, dif_neg hbase]
-        have hdecrease := hrsSplit_decreases width (by omega)
-        apply hrsRecursiveStep_physical width constant
-        · intro index hindex
-          simpa only [ih (lowWidth width) hdecrease.1 ((splitWord width) constant).1] using hindex
-        · intro index hindex
-          simpa only [ih (highWidth width) hdecrease.2 ((splitWord width) constant).2] using hindex
-
-/-- The external carrier has exactly `width + 1` qubits and the same complete physical list. -/
-theorem hrsOneDirty_interface (width : Nat) (constant : Fin (2 ^ width)) :
+/-- The external carrier has exactly `width + 1` canonically addressed qubits. -/
+theorem hrsOneDirty_interface (width : Nat) (_constant : Fin (2 ^ width)) :
     (oneDirtyEncoding width).width = width + 1 ∧
-      (oneDirtyProgram width constant).physical_idx = List.range (width + 1) :=
-  ⟨rfl, hrsOneDirty_physical width constant⟩
+      (QubitLayout.canonical (oneDirtyEncoding width).width).systemIdx =
+        List.range (width + 1) := by
+  constructor
+  · rfl
+  · exact QubitLayout.canonical_systemIdx (width + 1)
 
 /-- Literal computational-basis action, with the dirty value restored and no relative phase. -/
 theorem hrsOneDirty_apply (width : Nat) (constant input : Fin (2 ^ width)) (dirty : Bool) :
     (oneDirtyProgram width constant).applyNormalized
-        (NormalizedVector.ket (R := Qubits (oneDirtyEncoding width).width)
-          ((oneDirtyEncoding width).encode (input, dirty))) =
-      NormalizedVector.ket (R := Qubits (oneDirtyEncoding width).width)
-        ((oneDirtyEncoding width).encode (addWord constant input, dirty)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv.symm
+            ((oneDirtyEncoding width).encode (input, dirty)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv.symm
+          ((oneDirtyEncoding width).encode (addWord constant input, dirty))) :=
   (hrsOneDirty_realizes width constant).apply_encoded_ket (input, dirty)
 
 /-- The same exact endpoint extends across an arbitrary encoded reference system. -/
 theorem hrsOneDirty_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (oneDirtyEncoding width) reference)
-      (UnitaryCircuit.prodLeft (n := reference.width) (oneDirtyProgram width constant))
+    UnitaryCircuit.Realizes
+      (layout := QubitLayout.canonical ((oneDirtyEncoding width).width + reference.width))
+      (BinaryLabelEncoding.prod (oneDirtyEncoding width) reference)
+      (UnitaryCircuit.onBinaryPrefix reference.width (oneDirtyProgram width constant))
       (fun state => (oneDirtyOutput constant state.1, state.2)) :=
-  (hrsOneDirty_realizes width constant).prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
+    (hrsOneDirty_realizes width constant)
 
 end
 

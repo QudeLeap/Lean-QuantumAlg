@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Classical.Model.BitWord.Selection
+public import QuantumAlg.Core.Base.Model
+public import QuantumAlg.Core.Execution.Circuit
+public import QuantumAlg.Util.Classical.Modular.Basic
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Native
 
 /-!
@@ -28,53 +32,77 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original three copies consume the actual selected status and payload components. -/
-def exposureCopyBody (success : CInputRef ctx .bit)
+def exposureCopyBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (success : CInputRef ctx .bit)
     (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.classical (.bit .copy ctx success inverseSuccess))
-    (.seq (.classical (.wordUnary .copy width ctx recoveredCandidate candidate))
-      (.classical (.bit .copy ctx verified reconstruction)))
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (.bit .copy ctx success inverseSuccess))
+    (.seq (BitWord.instruction (execution := model) (.wordUnary .copy width ctx
+      recoveredCandidate candidate))
+      (BitWord.instruction (execution := model) (.bit .copy ctx verified reconstruction)))
+
+/-- All three actual native outputs follow the original chronological copy stores. -/
+def exposureCopyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (success : CInputRef ctx .bit)
+    (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
+    (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
+    (reconstruction : CWriteRef ctx .bit) (before : Store ctx) :
+    Store ctx × (exposureCopyBody (model := model) success recoveredCandidate verified
+      inverseSuccess candidate reconstruction).Path :=
+  let first := BitWord.instructionStep (execution := model)
+    (.bit .copy ctx success inverseSuccess) before
+  let second := BitWord.instructionStep (execution := model)
+    (.wordUnary .copy width ctx recoveredCandidate candidate) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (.bit .copy ctx verified reconstruction) second.1
+  (third.1, (first.2, (second.2, third.2)))
 
 /-- Status-selected actual recovery precedes the original three chronological copy instructions. -/
-def exposureBody (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def exposureBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.branch success (selectedRecoveryChoice input modulus payload))
-    (exposureCopyBody success (.first (scaleRead payload)) (.second (scaleRead payload))
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (.branch success (selectedRecoveryChoice (model := model) input modulus payload))
+    (exposureCopyBody (model := model) success (.first (scaleRead payload)) (.second (scaleRead
+      payload))
       inverseSuccess candidate reconstruction)
 
 /-- Real payload initialization supplies the original zero candidate and false flag on failure. -/
-def withSelectedExposure (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def withSelectedExposure {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (FiniteCyclicDLP.OutputShape width)
     ctx.canonicalFreshKey_fresh
-    (exposureBody (underSelection input width) (underSelection modulus width)
+    (exposureBody (model := model) (underSelection input width) (underSelection modulus width)
       (underSelection success width) (selectionPayloadCell ctx width)
       (writeUnderSelection inverseSuccess width) (writeUnderSelection candidate width)
       (writeUnderSelection reconstruction width))
 
 /-- The real checked outputs feed recovery before all three original observations are copied. -/
-def checkedExposureBody (spec : ModulusSpec width)
+def checkedExposureBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (NumberTheory.Checked.Native.withCheckedInverse spec left success inverse)
-    (withSelectedExposure (.product left (.product negatedRight (scaleRead inverse)))
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (NumberTheory.Checked.Native.withCheckedInverse (model := model) spec left success inverse)
+    (withSelectedExposure (model := model) (.product left (.product negatedRight (scaleRead
+      inverse)))
       modulus (scaleRead success) inverseSuccess candidate reconstruction)
 
 /-- Two actual checked-output cells stay live through exposure and are then released. -/
-def withCheckedExposure (spec : ModulusSpec width) (refs : PreparationRefs ctx width)
+def withCheckedExposure {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width) (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   withCells ctx (checkedResultShapes width) fun cells _ transport _ =>
-    checkedExposureBody spec (transport.liftInput (scaleRead refs.left))
+    checkedExposureBody (model := model) spec (transport.liftInput (scaleRead refs.left))
       (transport.liftInput (scaleRead refs.negatedRight))
       (transport.liftInput (scaleRead refs.modulusWide))
       (checkedSuccessCell cells) (checkedInverseCell cells)
@@ -82,12 +110,13 @@ def withCheckedExposure (spec : ModulusSpec width) (refs : PreparationRefs ctx w
       (transport.liftWrite reconstruction)
 
 /-- Actual raw measured values produce the three caller observations without caller workspace. -/
-def singleIntoCells (spec : ModulusSpec width)
+public def singleIntoCells {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
-    (reconstruction : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  withPreparation spec input fun refs transport =>
-    withCheckedExposure spec refs (transport.liftWrite inverseSuccess)
+    (reconstruction : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  withPreparation (model := model) spec input fun refs transport =>
+    withCheckedExposure (model := model) spec refs (transport.liftWrite inverseSuccess)
       (transport.liftWrite candidate) (transport.liftWrite reconstruction)
 
 end

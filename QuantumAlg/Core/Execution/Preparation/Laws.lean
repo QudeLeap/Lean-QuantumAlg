@@ -149,46 +149,60 @@ open Execution
 
 noncomputable section
 
-variable {systemCount : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+  {systemCount : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
   {H : Type} [Fintype H]
 
-/-- The single interpreter's preparation case is the actual context-bound state update. -/
-theorem execute_prepare (state : State ctx Reference H)
+/-- The single interpreter's zero-preparation case is the actual context-bound state update. -/
+theorem execute_prepareZero (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
-    (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) :
-    (Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state =
-      state.prepare key layout fresh disjoint preparation := rfl
+    (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).execute
+      Reference state =
+      (state.prepare key layout fresh disjoint (BasisPreparation.zero layout)).mapHistory
+        (fun record => (record.1.1, (record.1.2, record.2))) := rfl
 
 /-- Every actual preparation output entry contains the complete old joint coherence. -/
-theorem prepare_joined_entry (state : State ctx Reference H)
+theorem prepareZero_joined_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) (newRow newColumn : layout.register.Index)
+    (newRow newColumn : layout.register.Index)
     (oldRow oldColumn : (Register.prod ctx.register Reference).Index) :
-    ((Circuit.prepare ctx key layout fresh disjoint preparation).execute
+    ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).execute
       Reference state).quantumMarginal.matrix
         (prepareContextBasisEquiv ctx Reference key layout fresh disjoint (newRow, oldRow))
         (prepareContextBasisEquiv ctx Reference key layout fresh disjoint (newColumn, oldColumn)) =
-      (preparation.normalized.vec newRow * star (preparation.normalized.vec newColumn)) *
+      ((BasisPreparation.zero layout).normalized.vec newRow *
+        star ((BasisPreparation.zero layout).normalized.vec newColumn)) *
         state.quantumMarginal.matrix oldRow oldColumn := by
-  rw [execute_prepare, State.prepare_quantumMarginal]
+  rw [execute_prepareZero]
+  simp only [State.mapHistory, ExecutionState.mapClassical_quantumMarginal,
+    State.prepare_quantumMarginal]
   exact prepareContext_quantumMarginal_joined_entry state key layout fresh disjoint
-    preparation.normalized newRow newColumn oldRow oldColumn
+    (BasisPreparation.zero layout).normalized newRow newColumn oldRow oldColumn
 
 /-- Actual preparation preserves every reference entry, including off-diagonal coherences. -/
-theorem prepare_reference_entry (state : State ctx Reference H)
+theorem prepareZero_reference_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) (refLeft refRight : Reference.Index) :
+    (refLeft refRight : Reference.Index) :
     (∑ basis : (ctx.addOwnedLayout key layout fresh disjoint).register.Index,
-      ((Circuit.prepare ctx key layout fresh disjoint preparation).execute
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+        ctx key layout fresh disjoint).execute
         Reference state).quantumMarginal.matrix (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
-  rw [execute_prepare, State.prepare_quantumMarginal]
-  exact prepareContext_reference_entry state key layout fresh disjoint preparation.normalized
-    refLeft refRight
+  rw [execute_prepareZero]
+  simp only [State.mapHistory, ExecutionState.mapClassical_quantumMarginal,
+    State.prepare_quantumMarginal]
+  exact prepareContext_reference_entry state key layout fresh disjoint
+    (BasisPreparation.zero layout).normalized refLeft refRight
 
 end
 

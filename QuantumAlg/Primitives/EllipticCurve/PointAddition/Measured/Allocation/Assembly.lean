@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Preparation
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Target.Basis
 import all QuantumAlg.Core.Execution.Context.Union.Preparation.Basis
 import all QuantumAlg.Core.Execution.Context.Permutation.Preparation

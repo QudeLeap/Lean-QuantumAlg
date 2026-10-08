@@ -60,6 +60,23 @@ theorem reverseValue_twice (length : Nat) (value : Fin (2 ^ length)) :
   change reverseValue length (reverseValue length (BitVec.equivFin word)) = BitVec.equivFin word
   rw [reverseValue_word, reverseValue_word, BitVec.reverse_reverse_eq]
 
+/-- A reflected coefficient operand reads the opposite bit of the original finite word. -/
+theorem reverseValue_testBit (length : Nat) (value : Fin (2 ^ length))
+    (index : Fin length) :
+    (reverseValue length value).val.testBit index.val =
+      value.val.testBit index.rev.val := by
+  obtain ⟨word, rfl⟩ := BitVec.equivFin.toEquiv.surjective value
+  change (reverseValue length (BitVec.equivFin word)).val.testBit index.val =
+    (BitVec.equivFin word).val.testBit index.rev.val
+  rw [reverseValue_word]
+  change word.reverse.getLsbD index.val = word.getLsbD index.rev.val
+  rw [BitVec.getLsbD_reverse, BitVec.getMsbD_eq_getLsbD]
+  have position : length - 1 - index.val = index.rev.val := by
+    rw [Fin.val_rev]
+    have within := index.isLt
+    omega
+  simp only [index.isLt, decide_true, Bool.true_and, position]
+
 /-- Swap source/target roles and read both actual windows in their coefficient bit order. -/
 def focus (length : Nat) :
     Addition.TTK.OverflowRegisters length ≃ Addition.TTK.OverflowRegisters length where

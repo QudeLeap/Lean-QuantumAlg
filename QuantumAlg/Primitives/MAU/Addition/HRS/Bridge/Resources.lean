@@ -62,17 +62,20 @@ theorem hrsCarry_event_count_le (width : Nat) (constant : Fin (2 ^ width)) :
 
 /-- X gates occur only in the two actual carry components. -/
 theorem hrsRecursiveBridge_x_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
-    ResourcePool.count (.gate (.builtin "x")) (recursiveBridgeProgram width constant).eventCost =
-      2 * ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (recursiveBridgeProgram width constant).eventCost =
+      2 * ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit)
         (carryProgram (lowWidth width) constant).eventCost := by
   rw [hrsRecursiveBridge_native_count, hrsControlledBorrowedIncrement_x_count]
-  simp [Resource.GateLabel.builtin]
+  simp
 
 /-- Two increments and two high-word complements supply six CNOTs per high bit. -/
 theorem hrsRecursiveBridge_cnot_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (recursiveBridgeProgram width constant).eventCost =
-      6 * highWidth width + 2 * ResourcePool.count (.gate (.builtin "cnot"))
+      6 * highWidth width + 2 * ResourcePool.count
+        (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (carryProgram (lowWidth width) constant).eventCost := by
   rw [hrsRecursiveBridge_native_count, hrsControlledBorrowedIncrement_cnot_count]
   simp only [ite_true, Nat.mul_one]
@@ -80,13 +83,14 @@ theorem hrsRecursiveBridge_cnot_count (width : Nat) (constant : Fin (2 ^ lowWidt
 
 /-- Every Toffoli is inherited from the lowered increment or the actual carry. -/
 theorem hrsRecursiveBridge_toffoli_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (recursiveBridgeProgram width constant).eventCost =
       2 * (2 * highWidth width + 20 * (highWidth width - 1) +
-        4 * (highWidth width - 2) + ResourcePool.count (.gate (.builtin "toffoli"))
+        4 * (highWidth width - 2) + ResourcePool.count
+          (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (carryProgram (lowWidth width) constant).eventCost) := by
   rw [hrsRecursiveBridge_native_count, hrsControlledBorrowedIncrement_toffoli_count]
-  simp [Resource.GateLabel.builtin]
+  simp
 
 /-- Balanced widths sharpen the actual linear bridge bound to 39 events per input bit. -/
 theorem hrsRecursiveBridge_event_count_le (width : Nat)

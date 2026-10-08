@@ -311,17 +311,9 @@ def loadGates : List (EncodedBit.GateSpec rawEncoding) :=
   EncodedBit.Word.xorIntoGates inverseSourceWord productTargetWord
     inverseSource_productTarget_ne
 
-/-- Literal low-word CNOT routing program. -/
-def loadProgram : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList loadGates
-
-/-- Total folded action of the low-word routing program. -/
+/-- Total folded action of the low-word routing gate list. -/
 def loadStep : RawRegisters → RawRegisters :=
   EncodedBit.GateSpec.stepList loadGates
-
-/-- The CNOT routing program realizes its literal folded action. -/
-theorem loadRealizes : UnitaryCircuit.Realizes rawEncoding loadProgram loadStep :=
-  EncodedBit.GateSpec.realizesList loadGates
 
 /-- Frame of the product carrier after erasing only its multiplicand word. -/
 structure ProductFrame where
@@ -527,21 +519,12 @@ def inverseProgramGates : List (EncodedBit.GateSpec rawEncoding) :=
   ModularInversion.gates.map
     (EncodedBit.GateSpec.prodLeft VariableModularMul.encoding)
 
-/-- Inversion program compiled from its complete lifted gate schedule. -/
-def inverseProgram : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList inverseProgramGates
-
 /-- Literal variable-multiplication schedule, relabeled to the named product
 carrier and lifted over the retained inversion carrier. -/
 def productProgramGates : List (EncodedBit.GateSpec rawEncoding) :=
   (VariableModularMulSchedule.gates.map
     (EncodedBit.GateSpec.relabel VariableModularMul.registersEquiv)).map
     (EncodedBit.GateSpec.prodRight ModularInversion.rawEncoding)
-
-/-- Variable modular multiplication compiled from its complete lifted gate
-schedule. -/
-def productProgram : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList productProgramGates
 
 /-- Complete inverse/load/product/unload/uncompute gate schedule. -/
 def gates : List (EncodedBit.GateSpec rawEncoding) :=
@@ -558,8 +541,8 @@ theorem inverseProgramGates_length :
 /-- The lifted inversion schedule preserves its ordered primitive-event
 trace. -/
 theorem inverseProgramGates_map_event :
-    inverseProgramGates.map EncodedBit.GateSpec.event =
-      ModularInversion.gates.map EncodedBit.GateSpec.event := by
+    inverseProgramGates.map (EncodedBit.GateSpec.event .empty) =
+      ModularInversion.gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold inverseProgramGates
   exact EncodedBit.GateSpec.map_event_prodLeft VariableModularMul.encoding _
 
@@ -572,12 +555,12 @@ theorem productProgramGates_length :
 
 /-- The lifted product schedule preserves its ordered primitive-event trace. -/
 theorem productProgramGates_map_event :
-    productProgramGates.map EncodedBit.GateSpec.event =
-      VariableModularMulSchedule.gates.map EncodedBit.GateSpec.event := by
+    productProgramGates.map (EncodedBit.GateSpec.event .empty) =
+      VariableModularMulSchedule.gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold productProgramGates
   exact
     (EncodedBit.GateSpec.map_event_prodRight ModularInversion.rawEncoding _).trans
-      (EncodedBit.GateSpec.map_event_relabel
+      (EncodedBit.GateSpec.map_event_relabel .empty
         VariableModularMul.registersEquiv _)
 
 /-- The low-word inverse router has one primitive gate per field bit. -/
@@ -693,9 +676,9 @@ theorem gates_xMultiplicity_sum :
         EncodedBit.GateSpec.xMultiplicity).sum +
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.xMultiplicity).sum := by
-  have hinverse := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  have hinverse := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     inverseProgramGates_map_event
-  have hproduct := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  have hproduct := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     productProgramGates_map_event
   simp only [gates, List.map_append, List.sum_append, List.map_reverse,
     List.sum_reverse]
@@ -730,9 +713,9 @@ theorem gates_cnotMultiplicity_sum :
       2 * params.width +
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum := by
-  have hinverse := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hinverse := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     inverseProgramGates_map_event
-  have hproduct := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hproduct := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     productProgramGates_map_event
   simp only [gates, List.map_append, List.sum_append, List.map_reverse,
     List.sum_reverse]
@@ -766,9 +749,9 @@ theorem gates_toffoliMultiplicity_sum :
         EncodedBit.GateSpec.toffoliMultiplicity).sum +
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  have hinverse := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hinverse := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     inverseProgramGates_map_event
-  have hproduct := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hproduct := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     productProgramGates_map_event
   simp only [gates, List.map_append, List.sum_append, List.map_reverse,
     List.sum_reverse]
@@ -796,13 +779,15 @@ theorem gates_toffoliMultiplicity_sum_le :
   omega
 
 /-- Actual division circuit compiled from its complete gate schedule. -/
-def circuit : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList gates
+def circuit : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
 /-- The literal public division circuit obeys its closed unit-depth bound. -/
 theorem circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
-  change (EncodedBit.GateSpec.programList gates).evaluatedEventDepth
+  change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    gates).evaluatedEventDepth
       (fun _ => 1) ≤ _
   rw [EncodedBit.GateSpec.programList_evaluatedEventDepth_unit]
   exact gates_length_le
@@ -826,22 +811,6 @@ theorem productProgramGates_stepList (state : RawRegisters) :
   rw [VariableModularMulSchedule.gates_stepList]
   rw [VariableModularMulSchedule.rawStep_registersEquiv]
   simp only [Equiv.symm_apply_apply]
-
-/-- Total raw realization of the lifted inversion stage. -/
-theorem inverseProgram_realizes : UnitaryCircuit.Realizes rawEncoding inverseProgram
-    (fun state : RawRegisters =>
-      (ModularInversion.rawStep state.1, state.2)) := by
-  unfold inverseProgram
-  exact EncodedBit.GateSpec.realizesList_congrStep inverseProgramGates
-    inverseProgramGates_stepList
-
-/-- Total raw realization of the lifted product stage. -/
-theorem productProgram_realizes : UnitaryCircuit.Realizes rawEncoding productProgram
-    (fun state : RawRegisters =>
-      (state.1, VariableModularMulSchedule.step state.2)) := by
-  unfold productProgram
-  exact EncodedBit.GateSpec.realizesList_congrStep productProgramGates
-    productProgramGates_stepList
 
 /-- The lifted inversion gate fold establishes the inverse-ready state. -/
 theorem inverseProgramGates_clean
@@ -885,97 +854,6 @@ theorem productProgramGates_productReady
   apply Prod.ext
   · rfl
   · exact hstep
-
-/-- Computing the inverse over any clean product accumulator establishes the
-inverse-ready state. -/
-theorem inverseProgram_clean
-    (x : MAU.Division.Data params.modulus.val)
-    (accumulator : ZMod params.modulus.val) :
-    inverseProgram.applyNormalized
-        (NormalizedVector.ket
-          (rawEncoding.encode (cleanRegistersWithAccumulator x accumulator))) =
-      NormalizedVector.ket
-        (rawEncoding.encode (inverseReadyRegisters x accumulator)) := by
-  have h := inverseProgram_realizes.apply_encoded_ket
-    (cleanRegistersWithAccumulator x accumulator)
-  have hstep :
-      ModularInversion.rawStep
-          (cleanRegistersWithAccumulator x accumulator).1 =
-        (inverseReadyRegisters x accumulator).1 := by
-    simpa only [cleanRegistersWithAccumulator, inverseReadyRegisters] using
-      (ModularInversion.rawStep_cleanEndpoint (inversionData x))
-  rw [hstep] at h
-  simpa only [cleanRegistersWithAccumulator, inverseReadyRegisters] using h
-
-/-- The actual CNOT loader establishes the product-ready state. -/
-theorem loadProgram_inverseReady
-    (x : MAU.Division.Data params.modulus.val)
-    (accumulator : ZMod params.modulus.val) :
-    loadProgram.applyNormalized
-        (NormalizedVector.ket
-          (rawEncoding.encode (inverseReadyRegisters x accumulator))) =
-      NormalizedVector.ket
-        (rawEncoding.encode (productReadyRegisters x accumulator)) := by
-  have h := loadRealizes.apply_encoded_ket (inverseReadyRegisters x accumulator)
-  rw [loadStep_inverseReady] at h
-  exact h
-
-/-- The lifted variable product adds `numerator * denominator⁻¹` into the
-selected accumulator while preserving both routed factors. -/
-theorem productProgram_productReady
-    (x : MAU.Division.Data params.modulus.val)
-    (accumulator : ZMod params.modulus.val) :
-    productProgram.applyNormalized
-        (NormalizedVector.ket
-          (rawEncoding.encode (productReadyRegisters x accumulator))) =
-      NormalizedVector.ket
-        (rawEncoding.encode
-          (productReadyRegisters x
-            (accumulator + MAU.Division.quotientResidue
-              x.denominator x.numerator))) := by
-  have h := productProgram_realizes.apply_encoded_ket
-    (productReadyRegisters x accumulator)
-  have hstep :
-      VariableModularMulSchedule.step
-          (productReadyRegisters x accumulator).2 =
-        (productReadyRegisters x
-          (accumulator + MAU.Division.quotientResidue
-            x.denominator x.numerator)).2 := by
-    simpa only [productReadyRegisters, productData,
-      VariableModularMul.Data.addProduct, MAU.Division.quotientResidue] using
-      (VariableModularMulSchedule.step_cleanEndpoint
-        (productData x (MAU.Inversion.inverseResidue x.denominator)
-          accumulator))
-  rw [hstep] at h
-  exact h
-
-/-- Reversing the same CNOT loader clears the routed inverse after the
-accumulator update. -/
-theorem loadProgram_dagger_productReady
-    (x : MAU.Division.Data params.modulus.val)
-    (accumulator : ZMod params.modulus.val) :
-    loadProgram.dagger.applyNormalized
-        (NormalizedVector.ket
-          (rawEncoding.encode (productReadyRegisters x accumulator))) =
-      NormalizedVector.ket
-        (rawEncoding.encode (inverseReadyRegisters x accumulator)) := by
-  have hload := loadProgram_inverseReady x accumulator
-  rw [← hload]
-  exact UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized loadProgram _
-
-/-- Reversing the lifted inversion stage clears its workspace after the
-product carrier has been restored. -/
-theorem inverseProgram_dagger_inverseReady
-    (x : MAU.Division.Data params.modulus.val)
-    (accumulator : ZMod params.modulus.val) :
-    inverseProgram.dagger.applyNormalized
-        (NormalizedVector.ket
-          (rawEncoding.encode (inverseReadyRegisters x accumulator))) =
-      NormalizedVector.ket
-        (rawEncoding.encode (cleanRegistersWithAccumulator x accumulator)) := by
-  have hinverse := inverseProgram_clean x accumulator
-  rw [← hinverse]
-  exact UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized inverseProgram _
 
 /-- The complete literal division schedule maps every clean public carrier to
 the corresponding clean quotient-updated carrier. -/
@@ -1029,25 +907,22 @@ theorem gates_cleanEndpoint
   simp only [result, cleanRegisters, cleanRegistersWithAccumulator,
     MAU.Division.Data.addQuotientIntoTarget, inversionData, productData]
 
-/-- Normalized computational-basis action of the complete actual division
-circuit. -/
-theorem circuit_applyNormalized_ket
-    (x : MAU.Division.Data params.modulus.val) :
-    circuit.applyNormalized
-        (NormalizedVector.ket (encoding.encode x)) =
-      NormalizedVector.ket
-        (encoding.encode x.addQuotientIntoTarget) := by
-  have hrealizes :=
-    (EncodedBit.GateSpec.realizesList gates).apply_encoded_ket
-      (cleanRegisters x)
-  rw [gates_cleanEndpoint] at hrealizes
-  simpa only [circuit, encoding] using hrealizes
-
 /-- The composed actual circuit realizes public unit-denominator modular
 division. -/
 theorem realizes : UnitaryCircuit.Realizes encoding circuit
     (MAU.Division.Data.addQuotientIntoTarget) where
-  apply_encoded_ket := circuit_applyNormalized_ket
+  apply_encoded_ket := by
+    intro x
+    have hrealizes :=
+      (EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates).apply_encoded_ket
+        (cleanRegisters x)
+    rw [gates_cleanEndpoint] at hrealizes
+    change circuit.applyNormalized
+        (NormalizedVector.ket ((QubitLayout.canonical rawEncoding.width).basisEquiv.symm
+          (rawEncoding.encode (cleanRegisters x)))) =
+      NormalizedVector.ket ((QubitLayout.canonical rawEncoding.width).basisEquiv.symm
+        (rawEncoding.encode (cleanRegisters x.addQuotientIntoTarget)))
+    exact hrealizes
 
 /-- Structured modular-division witness consumed by generic point addition. -/
 def witness : MAU.Division.StructuredCircuitWitness params.modulus.val where

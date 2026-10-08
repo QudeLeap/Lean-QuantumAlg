@@ -98,7 +98,8 @@ theorem nativeScan_chosenReads_popWorkspace
       (cellRead cells.cursor.active)).trans reads.inactive
 
 /-- A complete actual active visit follows the source decision with fresh division facts proved. -/
-theorem nativeScan_activeVisit_source_decision
+theorem nativeScan_activeVisit_source_decision {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -111,10 +112,11 @@ theorem nativeScan_activeVisit_source_decision
     (fits : cursor.candidate.denominator < 2 ^ (phaseBits + 1)) :
     if ClassicalAlgorithms.OrderRecovery.validateCandidate spec input
         cursor.candidate.denominator then
-      ChosenCursorReads cells (activeVisitStep spec.modulusSpec base cells store).1
+      ChosenCursorReads cells (activeVisitStep (model := model) spec.modulusSpec base cells store).1
         cursor.candidate.denominator
     else
-      PendingCursorReads cells (activeVisitStep spec.modulusSpec base cells store).1
+      PendingCursorReads cells
+        (activeVisitStep (model := model) spec.modulusSpec base cells store).1
         cursor.advance := by
   let key := ctx.canonicalFreshKey
   let shape := cursorDivisionShape (phaseBits + 1)
@@ -125,7 +127,7 @@ theorem nativeScan_activeVisit_source_decision
       written ∉ (base.underWorkspace key shape fresh).storageKeys := by
     simpa only [lifted, nativeScan_writeKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
       using baseFree
-  have actual := nativeScan_visit_source_decision spec input
+  have actual := nativeScan_visit_source_decision (model := model) spec input
     (base.underWorkspace key shape fresh) lifted
     (nativeScan_separated_underWorkspace cells separated key shape fresh)
     (scanDivisionCell ctx (phaseBits + 1))

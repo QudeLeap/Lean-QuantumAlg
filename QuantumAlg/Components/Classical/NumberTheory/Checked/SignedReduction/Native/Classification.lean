@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Trace.Composition
 import all QuantumAlg.Components.Classical.NumberTheory.Checked.SignedReduction.Word
@@ -53,13 +54,15 @@ def signNotOp (negative : CWriteRef ctx .bit) : ClassicalOp .bit .bit ctx ctx :=
   .bit .not ctx (signedRead negative) negative
 
 /-- The original five operations, in their original chronological order. -/
-def signClassification (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def signClassification {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.classical (signUnaryOp .complement work))
-    (.seq (.classical (signUnaryOp .shiftRight work))
-      (.seq (.classical (signUnaryOp .increment work))
-        (.seq (.classical (signCompareOp raw work negative)) (.classical (signNotOp negative)))))
+    (negative : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (signUnaryOp .complement work))
+    (.seq (BitWord.instruction (execution := model) (signUnaryOp .shiftRight work))
+      (.seq (BitWord.instruction (execution := model) (signUnaryOp .increment work))
+        (.seq (BitWord.instruction (execution := model) (signCompareOp raw work negative))
+            (BitWord.instruction (execution := model) (signNotOp negative)))))
 
 /-- Literal store update of those same five instructions. -/
 def signClassificationStore (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
@@ -70,25 +73,32 @@ def signClassificationStore (raw : CInputRef ctx (.unsignedWord (signedWidth wid
       (signCompareOp raw work negative)).applyOp (signNotOp negative)
 
 /-- The true store and native path are retained for later composition. -/
-def signClassificationStep (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def signClassificationStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
     (negative : CWriteRef ctx .bit) (store : Store ctx) :
-    Store ctx × (signClassification raw work negative).Path :=
-  (signClassificationStore raw work negative store, ((), ((), ((), ((), ())))))
+    Store ctx × (signClassification (model := model) raw work negative).Path :=
+  let first := BitWord.instructionStep (execution := model) (signUnaryOp .complement work) store
+  let second := BitWord.instructionStep (execution := model) (signUnaryOp .shiftRight work) first.1
+  let third := BitWord.instructionStep (execution := model) (signUnaryOp .increment work) second.1
+  let fourth := BitWord.instructionStep (execution := model) (signCompareOp raw work negative)
+      third.1
+  let fifth := BitWord.instructionStep (execution := model) (signNotOp negative) fourth.1
+  (fifth.1, (first.2, (second.2, (third.2, (fourth.2, fifth.2)))))
 
 /-- Every complete quantum-reference block and old history survives the actual classifier. -/
-theorem signClassification_execute (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
     (negative : CWriteRef ctx .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (signClassification raw work negative).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (signClassification (model := model) raw work negative).execute Reference state =
       state.mapClassical (fun entry =>
-        ((signClassificationStep raw work negative entry.1).1,
-          (entry.2, (signClassificationStep raw work negative entry.1).2))) := by
-  simp only [signClassification, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let result := signClassificationStep (model := model) raw work negative entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [signClassification, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem signUnary_read (opcode : Resource.WordUnaryOpcode)
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (store : Store ctx) :
@@ -165,56 +175,91 @@ theorem signClassification_values (raw : CInputRef ctx (.unsignedWord (signedWid
     rw [afterNot, afterCompare, incrementedValue]
 
 /-- Independent original five-operation sign list. -/
-def signClassificationEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordUnary .complement (signedWidth width)),
-    .classicalOperation (.wordUnary .shiftRight (signedWidth width)),
-    .classicalOperation (.wordUnary .increment (signedWidth width)),
-    .classicalOperation (.wordBinary .lessThan (signedWidth width)),
-    .classicalOperation (.bit .not)]
+def signClassificationEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+    List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .complement
+      (signedWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary
+        .shiftRight (signedWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .increment
+        (signedWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .lessThan
+        (signedWidth width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- The trace is precisely the original classifier, including the stored-bit negation. -/
-theorem signClassification_eventTrace (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).eventTrace path =
-      signClassificationEvents kind width := rfl
+    (negative : CWriteRef ctx .bit) (path : (signClassification (model := model) raw work
+        negative).Path) :
+    (signClassification (model := model) raw work negative).eventTrace path =
+      signClassificationEvents model width := by
+  change (BitWord.instruction (execution := model) (signUnaryOp .complement work)).eventTrace
+    path.1 ++ ((BitWord.instruction (execution := model) (signUnaryOp .shiftRight work)).eventTrace
+      path.2.1 ++ ((BitWord.instruction (execution := model) (signUnaryOp .increment
+          work)).eventTrace
+        path.2.2.1 ++ ((BitWord.instruction (execution := model)
+          (signCompareOp raw work negative)).eventTrace path.2.2.2.1 ++
+          (BitWord.instruction (execution := model) (signNotOp negative)).eventTrace
+            path.2.2.2.2))) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Actual resources count the same five instructions. -/
-theorem signClassification_resourcePool (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).resourcePool path =
-      ResourcePool.ofList (signClassificationEvents kind width) := rfl
+    (negative : CWriteRef ctx .bit) (path : (signClassification (model := model) raw work
+        negative).Path) :
+    (signClassification (model := model) raw work negative).resourcePool path =
+      ResourcePool.ofList (signClassificationEvents model width) :=
+  congrArg ResourcePool.ofList (signClassification_eventTrace raw work negative path)
 
 /-- All five operations are sequential for any native duration assignment. -/
-theorem signClassification_durationDepth
+theorem signClassification_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
-    (duration : Resource.Event kind → Nat) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).depth duration path =
-      ((signClassificationEvents kind width).map duration).sum := rfl
+    (duration : Resource.Event model → Nat) (path : (signClassification (model := model) raw
+        work negative).Path) :
+    (signClassification (model := model) raw work negative).depth duration path =
+      ((signClassificationEvents model width).map duration).sum := by
+  rcases path with ⟨first, second, third, fourth, fifth⟩
+  simp only [signClassification, Circuit.depth_seq, BitWord.bitWord_instruction_depth]
+  rfl
 
 /-- The literal classifier has five unit-duration operations. -/
-theorem signClassification_depth (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).depth (fun _ => 1) path = 5 := rfl
+    (negative : CWriteRef ctx .bit) (path : (signClassification (model := model) raw work
+        negative).Path) :
+    (signClassification (model := model) raw work negative).depth (fun _ => 1) path = 5 := rfl
 
 /-- The unplaced classifier retains exactly its complete resident context. -/
-theorem signClassification_resident (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_resident {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).peakResidentSpace path = ctx.residentSpace := by
+    (negative : CWriteRef ctx .bit) (path : (signClassification (model := model) raw work
+        negative).Path) :
+    (signClassification (model := model) raw work negative).peakResidentSpace path =
+        ctx.residentSpace := by
   change SpacePool.max ctx.residentSpace (SpacePool.max ctx.residentSpace
     (SpacePool.max ctx.residentSpace (SpacePool.max ctx.residentSpace
       (SpacePool.max ctx.residentSpace 0)))) = _
   simp only [SpacePool.max_zero, SpacePool.max_self]
 
 /-- The unplaced classifier retains exactly its complete auxiliary context. -/
-theorem signClassification_auxiliary (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signClassification_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width)))
-    (negative : CWriteRef ctx .bit) (path : (signClassification raw work negative).Path) :
-    (signClassification raw work negative).peakAuxiliarySpace path = ctx.auxiliarySpace := by
+    (negative : CWriteRef ctx .bit) (path : (signClassification (model := model) raw work
+        negative).Path) :
+    (signClassification (model := model) raw work negative).peakAuxiliarySpace path =
+        ctx.auxiliarySpace := by
   change SpacePool.max ctx.auxiliarySpace (SpacePool.max ctx.auxiliarySpace
     (SpacePool.max ctx.auxiliarySpace (SpacePool.max ctx.auxiliarySpace
       (SpacePool.max ctx.auxiliarySpace 0)))) = _

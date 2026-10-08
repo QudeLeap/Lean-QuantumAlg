@@ -89,14 +89,17 @@ def lowRippleGates (n : Nat) : List (EncodedBit.GateSpec (encoding n)) :=
     descendingUncomputeGates n ++ ascendingXorGates n ++ finalXorGates n
 
 /-- Compile the low-word list on exactly the two operand words. -/
-def lowRippleProgram (n : Nat) : UnitaryCircuit (Qubits (encoding n).width) :=
-  programList (lowRippleGates n)
+def lowRippleProgram (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (lowRippleGates n)
 
 /-- Direct compilation realizes the literal low-word gate fold. The separate
 word-level proof must identify this fold with `lowOutput`. -/
 theorem ttkLowRipple_realizes_fold (n : Nat) :
     UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n)
-      (stepList (lowRippleGates n)) := realizesList _
+      (stepList (lowRippleGates n)) :=
+  realizesList (QubitLayout.canonical _) .empty _
 
 /-- The top CNOT in stage two targets the explicit overflow output. -/
 def overflowPreGate (n : Nat) : EncodedBit.GateSpec (overflowEncoding (n + 1)) :=
@@ -129,13 +132,16 @@ def overflowGates : (n : Nat) → List (EncodedBit.GateSpec (overflowEncoding n)
       (finalXorGates (n + 2)).map withOverflowGate
 
 /-- Compile the overflow list on exactly two operands and its output bit. -/
-def overflowProgram (n : Nat) : UnitaryCircuit (Qubits (overflowEncoding n).width) :=
-  programList (overflowGates n)
+def overflowProgram (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (overflowEncoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (overflowGates n)
 
 /-- Direct compilation realizes the literal overflow gate fold. -/
 theorem ttkOverflow_realizes_fold (n : Nat) :
     UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n)
-      (stepList (overflowGates n)) := realizesList _
+      (stepList (overflowGates n)) :=
+  realizesList (QubitLayout.canonical _) .empty _
 
 end
 

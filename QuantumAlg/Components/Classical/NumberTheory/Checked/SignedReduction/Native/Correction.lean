@@ -60,46 +60,53 @@ def correctionSubtractOp (modulus : CInputRef ctx (.unsignedWord (width + 1)))
   .wordBinary .sub (width + 1) ctx (.product modulus (reductionRead extended)) extended
 
 /-- The original two-instruction prefix precedes the second real modular reduction. -/
-def correctionBody (remainder : CInputRef ctx (.unsignedWord width))
+def correctionBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (correctionResizeOp remainder extended))
-    (.seq (.classical (correctionSubtractOp modulus extended))
-      (reduceWord (reductionRead extended) modulus output))
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (correctionResizeOp remainder extended))
+    (.seq (BitWord.instruction (execution := model) (correctionSubtractOp modulus extended))
+      (reduceWord (model := model) (reductionRead extended) modulus output))
 
 /-- Actual chronological store updates and the true nested division path. -/
-def correctionBodyStep (remainder : CInputRef ctx (.unsignedWord width))
+def correctionBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (correctionBody remainder modulus extended output).Path :=
-  let subtracted := (store.applyOp (correctionResizeOp remainder extended)).applyOp
-    (correctionSubtractOp modulus extended)
-  let result := reduceWordStep (reductionRead extended) modulus output subtracted
-  (result.1, ((), ((), result.2)))
+    Store ctx × (correctionBody (model := model) remainder modulus extended output).Path :=
+  let resized := BitWord.instructionStep (execution := model)
+    (correctionResizeOp remainder extended) store
+  let subtracted := BitWord.instructionStep (execution := model)
+    (correctionSubtractOp modulus extended) resized.1
+  let result := reduceWordStep (model := model) (reductionRead extended) modulus output subtracted.1
+  (result.1, (resized.2, (subtracted.2, result.2)))
 
 /-- The real negative arm uses the fresh extended word and original operand/result cells. -/
-def correctionPlaced (remainder : CInputRef ctx (.unsignedWord width))
+def correctionPlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (correctionCtx ctx width) (correctionCtx ctx width) :=
-  correctionBody (underCorrection remainder width) (underCorrection modulus width)
+    Circuit model (correctionCtx ctx width) (correctionCtx ctx width) :=
+  correctionBody (model := model) (underCorrection remainder width) (underCorrection modulus width)
     (correctionExtendedCell ctx width) (writeUnderCorrection output width)
 
 /-- Allocate the original extended word, run all four native operations, and release it. -/
-def withNegativeCorrection (remainder : CInputRef ctx (.unsignedWord width))
+def withNegativeCorrection {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
-    (correctionPlaced remainder modulus output)
+    (correctionPlaced (model := model) remainder modulus output)
 
 /-- Actual caller-store result and native path after both scratch scopes are released. -/
-def withNegativeCorrectionStep (remainder : CInputRef ctx (.unsignedWord width))
+def withNegativeCorrectionStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (withNegativeCorrection remainder modulus output).Path :=
-  let result := correctionBodyStep (underCorrection remainder width)
+    Store ctx × (withNegativeCorrection (model := model) remainder modulus output).Path :=
+  let result := correctionBodyStep (model := model) (underCorrection remainder width)
     (underCorrection modulus width) (correctionExtendedCell ctx width)
     (writeUnderCorrection output width) (store.pushWorkspace ctx.canonicalFreshKey
       (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh)

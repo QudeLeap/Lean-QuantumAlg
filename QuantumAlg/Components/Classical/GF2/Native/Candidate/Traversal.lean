@@ -26,7 +26,8 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem rows_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
@@ -35,14 +36,14 @@ private theorem rows_other
     (column : Fin width) (count : Nat) (indices : Fin count → Fin rowCount) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : candidate.key ∉ other.storageKeys) :
-    (Circuit.forRangeRecord count
+    (Circuit.forRangeStoreRecord count
       (fun index => candidatePivotRow matrix rows free candidate zero (indices index) column)
       (fun index => candidatePivotRowStep matrix rows free candidate zero (indices index) column)
       store).1.read other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _
+      change (Circuit.forRangeStoreRecord count _ _
         (candidatePivotRowStep matrix rows free candidate zero (indices 0) column store).1).1.read
           other = _
       exact (ih (fun index => indices index.succ) _).trans
@@ -56,16 +57,16 @@ private theorem columns_other
     (count : Nat) (indices : Fin count → Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : candidate.key ∉ other.storageKeys) :
-    (Circuit.forRangeRecord count
+    (Circuit.forRangeStoreRecord count
       (fun index => Circuit.forRange rowCount (fun row =>
         candidatePivotRow matrix rows free candidate zero row (indices index)))
-      (fun index => Circuit.forRangeRecord rowCount _ (fun row =>
+      (fun index => Circuit.forRangeStoreRecord rowCount _ (fun row =>
         candidatePivotRowStep matrix rows free candidate zero row (indices index))) store).1.read
           other = store.read other := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (Circuit.forRangeRecord count _ _ (Circuit.forRangeRecord rowCount _
+      change (Circuit.forRangeStoreRecord count _ _ (Circuit.forRangeStoreRecord rowCount _
         (fun row => candidatePivotRowStep matrix rows free candidate zero row (indices 0))
           store).1).1.read other = _
       exact (ih (fun index => indices index.succ) _).trans
@@ -85,6 +86,7 @@ theorem gf2BuildCandidate_read_other
   exact Store.read_applyOp_of_not_mem_storageKeys store (candidateCopyOp free candidate)
     other separate
 
+omit [BitWord.Selected model] in
 private def sources
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -101,11 +103,13 @@ private def sources
     .unsignedWord (ClassicalAlgorithms.GF2.freeColumnMask result)) ∧
   (store.read (.storage zero.toCStorageRef) = CShape.wordOfNat width 0)
 
+omit [BitWord.Selected model] in
 private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
+omit [BitWord.Selected model] in
 private theorem word_vector_ne {size count : Nat} {shape : CShape}
     (word : CWriteRef ctx (.unsignedWord size))
     (vector : CWriteRef ctx (.fixedVector count shape)) : word.key ≠ vector.key := by
@@ -114,6 +118,7 @@ private theorem word_vector_ne {size count : Nat} {shape : CShape}
     vector.toCStorageRef same
   cases impossible
 
+omit [BitWord.Selected model] in
 private theorem sources_after
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -129,11 +134,13 @@ private theorem sources_after
     (same _ (avoids candidate free freeSeparate)).trans freeValue,
     (same _ (avoids candidate zero zeroSeparate)).trans zeroValue⟩
 
+omit [BitWord.Selected model] in
 private theorem and_value (left right : ClassicalAlgorithms.Word width) :
     (CShape.wordBitAnd width (.unsignedWord left) (.unsignedWord right)).toNat =
       left.val &&& right.val :=
   Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt Nat.and_le_left left.isLt)
 
+omit [BitWord.Selected model] in
 private theorem power_bit (column target : Fin width) :
     Nat.testBit (2 ^ (Fin.rev column).val) (Fin.rev target).val = decide (target = column) := by
   rw [Nat.testBit_two_pow]
@@ -199,7 +206,7 @@ private theorem rows_bit
     (zeroSeparate : candidate.key ≠ zero.key)
     (column target : Fin width) (count : Nat) (indices : Fin count → Fin rowCount)
     (store : Store ctx) (represented : sources matrix rows free zero result store) :
-    Nat.testBit ((Circuit.forRangeRecord count
+    Nat.testBit ((Circuit.forRangeStoreRecord count
       (fun index => candidatePivotRow matrix rows free candidate zero (indices index) column)
       (fun index => candidatePivotRowStep matrix rows free candidate zero (indices index) column)
       store).1.read (.storage candidate.toCStorageRef)).toNat (Fin.rev target).val =
@@ -213,7 +220,7 @@ private theorem rows_bit
   induction count generalizing store with
   | zero =>
       cases lookup : ClassicalAlgorithms.GF2.pivotForColumn? result column <;>
-        simp only [Circuit.forRangeRecord, List.ofFn_zero, List.not_mem_nil, decide_false,
+        simp only [Circuit.forRangeStoreRecord, List.ofFn_zero, List.not_mem_nil, decide_false,
           Bool.false_and, Bool.and_false, Bool.or_false]
   | succ count ih =>
       let first := (candidatePivotRowStep matrix rows free candidate zero
@@ -222,7 +229,7 @@ private theorem rows_bit
         sources_after matrix rows free candidate zero result store first represented
           freeSeparate zeroSeparate
           (gf2CandidatePivotRow_read_other matrix rows free candidate zero (indices 0) column store)
-      change Nat.testBit ((Circuit.forRangeRecord count _ _ first).1.read _).toNat _ = _
+      change Nat.testBit ((Circuit.forRangeStoreRecord count _ _ first).1.read _).toNat _ = _
       rw [ih (fun index => indices index.succ) first firstSources,
         row_bit matrix rows free candidate zero result selected choice store represented,
         List.ofFn_succ]
@@ -248,7 +255,7 @@ private theorem all_rows_bit
     (zeroSeparate : candidate.key ≠ zero.key)
     (column target : Fin width) (store : Store ctx)
     (represented : sources matrix rows free zero result store) :
-    Nat.testBit ((Circuit.forRangeRecord rowCount
+    Nat.testBit ((Circuit.forRangeStoreRecord rowCount
       (fun row => candidatePivotRow matrix rows free candidate zero row column)
       (fun row => candidatePivotRowStep matrix rows free candidate zero row column)
       store).1.read (.storage candidate.toCStorageRef)).toNat (Fin.rev target).val =
@@ -274,10 +281,10 @@ private theorem columns_bit
     (zeroSeparate : candidate.key ≠ zero.key)
     (target : Fin width) (count : Nat) (indices : Fin count → Fin width)
     (store : Store ctx) (represented : sources matrix rows free zero result store) :
-    Nat.testBit ((Circuit.forRangeRecord count
+    Nat.testBit ((Circuit.forRangeStoreRecord count
       (fun index => Circuit.forRange rowCount (fun row =>
         candidatePivotRow matrix rows free candidate zero row (indices index)))
-      (fun index => Circuit.forRangeRecord rowCount _ (fun row =>
+      (fun index => Circuit.forRangeStoreRecord rowCount _ (fun row =>
         candidatePivotRowStep matrix rows free candidate zero row (indices index))) store).1.read
           (.storage candidate.toCStorageRef)).toNat (Fin.rev target).val =
       (Nat.testBit (store.read (.storage candidate.toCStorageRef)).toNat
@@ -289,17 +296,17 @@ private theorem columns_bit
               ClassicalAlgorithms.GF2.testBit (result.reduced pivot.row) selected)) := by
   induction count generalizing store with
   | zero =>
-      simp only [Circuit.forRangeRecord, List.ofFn_zero, List.not_mem_nil, decide_false,
+      simp only [Circuit.forRangeStoreRecord, List.ofFn_zero, List.not_mem_nil, decide_false,
         Bool.false_and, Bool.or_false]
   | succ count ih =>
-      let first := (Circuit.forRangeRecord rowCount
+      let first := (Circuit.forRangeStoreRecord rowCount
         (fun row => candidatePivotRow matrix rows free candidate zero row (indices 0))
         (fun row => candidatePivotRowStep matrix rows free candidate zero row (indices 0)) store).1
       have firstSources : sources matrix rows free zero result first :=
         sources_after matrix rows free candidate zero result store first represented
           freeSeparate zeroSeparate
           (rows_other matrix rows free candidate zero (indices 0) rowCount id store)
-      change Nat.testBit ((Circuit.forRangeRecord count _ _ first).1.read _).toNat _ = _
+      change Nat.testBit ((Circuit.forRangeStoreRecord count _ _ first).1.read _).toNat _ = _
       rw [ih (fun index => indices index.succ) first firstSources,
         all_rows_bit matrix rows free candidate zero result selected choice
           freeSeparate zeroSeparate (indices 0) target store represented, List.ofFn_succ]

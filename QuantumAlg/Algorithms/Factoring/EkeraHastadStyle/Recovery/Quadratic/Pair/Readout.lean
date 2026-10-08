@@ -23,7 +23,8 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Both real checks and selectors implement exactly the original ordered divisor decisions. -/
 theorem nativeQuadratic_checked_pair_latches (inputs : Operands ctx width)
@@ -42,7 +43,7 @@ theorem nativeQuadratic_checked_pair_latches (inputs : Operands ctx width)
       (store.read (underRead (FirstAccepted.cellRead inputs.selection.accepted) width)).toBool
     let oldSelected :=
       store.read (underRead (FirstAccepted.cellRead inputs.selection.selected) width)
-    let final := (Pair.step (pairRefs inputs) store).1
+    let final := (Pair.step (model := model) (pairRefs inputs) store).1
     (final.read (FirstAccepted.cellRead (pairRefs inputs).selection.accepted)).toBool =
         ((oldAccepted || firstValid) || secondValid) ∧
       final.read (FirstAccepted.cellRead (pairRefs inputs).selection.selected) =
@@ -80,7 +81,7 @@ theorem nativeQuadratic_checked_pair_latches (inputs : Operands ctx width)
   have secondBefore : checked.read (Pair.selectedInputs (pairRefs inputs).second).candidate =
       store.read (underRead inputs.second width) :=
     nativeQuadratic_checks_read_original inputs inputs.second operands.remainderSecond store
-  have actual := Selection.nativeQuadratic_selection_latches
+  have actual := Selection.nativeQuadratic_selection_latches (model := model)
     (Pair.selectedInputs (pairRefs inputs).first) (Pair.selectedInputs (pairRefs inputs).second)
     (pairRefs inputs).selection (nativeQuadratic_checked_selection_separated inputs separated)
     checked

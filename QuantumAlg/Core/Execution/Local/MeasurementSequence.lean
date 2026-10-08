@@ -20,9 +20,14 @@ certificate follows the literal sequence syntax
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 /-- The existing ordered measurement sequence allocates or releases no live resource. -/
 theorem measurementSequence_isLocal {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) : (measurementSequence readouts).IsLocal := by
+    (readouts : List (ZReadout ctx)) :
+    (measurementSequence (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts).IsLocal := by
   induction readouts with
   | nil => trivial
   | cons head tail ih => exact ⟨trivial, ih⟩

@@ -62,7 +62,7 @@ theorem idealEventWeight_le_originalRunProbability_add
     ENNReal.ofReal (ideal.weight (DensityOperator.ofPure
       (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))) ≤
       ((exponentRun E fieldTail odd problem points).outputDistribution
-        (AlgorithmRun.pureInput stored
+        (AlgorithmRun.pureInput (stored, ())
           (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))).map
             (fun value => event (QubitReadouts.mask value)) true +
         ENNReal.ofReal (4 * Real.sqrt (preparedExceptionalMass problem points seed)) := by
@@ -105,7 +105,7 @@ theorem exists_fixedOffset_originalRunProbability_bound
         ENNReal.ofReal ((ideal seed).weight (DensityOperator.ofPure
           (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))) ≤
           ((exponentRun E fieldTail odd problem points).outputDistribution
-            (AlgorithmRun.pureInput stored
+            (AlgorithmRun.pureInput (stored, ())
               (originalMontgomeryInputVector problem fieldTail sameWidth fits
                 seed reference))).map
                   (fun value => event (QubitReadouts.mask value)) true +

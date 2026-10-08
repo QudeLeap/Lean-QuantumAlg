@@ -24,17 +24,19 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width resultWidth : Nat}
 
 private theorem candidate_store_projection
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (store : Store (LocalLayout.candidateContext ctx width)) :
-    (candidateBodyStep input modulus original store).1 =
+    (candidateBodyStep (model := model) input modulus original store).1 =
       (CheckLayout.scopeStep (RSA.quadraticWordWidth width)
-        (checkedBody modulus original) (checkedBodyStep modulus original)
-        (Initialized.step (LocalLayout.arithmeticRead input width)
+        (checkedBody (model := model) modulus original)
+        (checkedBodyStep (model := model) modulus original)
+        (Initialized.step (model := model) (LocalLayout.arithmeticRead input width)
           (LocalLayout.arithmeticRead modulus width)
           (LocalLayout.arithmeticRefs ctx width) store).1).1 := rfl
 
@@ -45,19 +47,21 @@ theorem nativeQuadratic_candidateBodyStep_read
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) {shape : CShape}
     (other : CInputRef ctx shape) (store : Store (LocalLayout.candidateContext ctx width)) :
-    (candidateBodyStep input modulus original store).1.read
+    (candidateBodyStep (model := model) input modulus original store).1.read
         (LocalLayout.arithmeticRead other width) =
-      (checkedBodyStep modulus original (CheckLayout.pushStore (RSA.quadraticWordWidth width)
-        (Initialized.step (LocalLayout.arithmeticRead input width)
+      (checkedBodyStep (model := model) modulus original
+        (CheckLayout.pushStore (RSA.quadraticWordWidth width)
+        (Initialized.step (model := model) (LocalLayout.arithmeticRead input width)
           (LocalLayout.arithmeticRead modulus width)
           (LocalLayout.arithmeticRefs ctx width) store).1)).1.read
         (LocalLayout.underRead other width) := by
-  have released := CheckLayout.nativeQuadratic_checkScopeStep_store
-    (RSA.quadraticWordWidth width) (checkedBody modulus original)
-    (checkedBodyStep modulus original)
-    (Initialized.step (LocalLayout.arithmeticRead input width)
+  have released := CheckLayout.nativeQuadratic_checkScopeStep_store (model := model)
+    (RSA.quadraticWordWidth width) (checkedBody (model := model) modulus original)
+    (checkedBodyStep (model := model) modulus original)
+    (Initialized.step (model := model) (LocalLayout.arithmeticRead input width)
       (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width) store).1
-  have finalStore := (candidate_store_projection input modulus original store).trans released
+  have finalStore :=
+    (candidate_store_projection (model := model) input modulus original store).trans released
   exact (congrArg (fun current : Store (LocalLayout.candidateContext ctx width) =>
     current.read (LocalLayout.arithmeticRead other width)) finalStore).trans
     (CheckLayout.nativeQuadratic_checkLayout_pop_read
@@ -76,7 +80,7 @@ theorem nativeQuadratic_program_latches
       (store.read modulus).toNat % source.1 = 0)
     let secondValid := decide (1 < source.2 ∧ source.2 < (store.read modulus).toNat ∧
       (store.read modulus).toNat % source.2 = 0)
-    let final := (programStep input modulus original store).1
+    let final := (programStep (model := model) input modulus original store).1
     (final.read (FirstAccepted.cellRead original.accepted)).toBool =
         ((store.read (FirstAccepted.cellRead original.accepted)).toBool ||
           (firstValid || secondValid)) ∧
@@ -87,18 +91,18 @@ theorem nativeQuadratic_program_latches
         else if secondValid then CShape.wordOfNat resultWidth source.2
         else store.read (FirstAccepted.cellRead original.selected) := by
   let checked : Store (LocalLayout.context ctx width) :=
-    (checkedBodyStep modulus original
+    (checkedBodyStep (model := model) modulus original
       (CheckLayout.pushStore (RSA.quadraticWordWidth width)
-        (LocalLayout.initializedStore input modulus store))).1
-  have acceptedExit := (nativeQuadratic_programStep_read input modulus original
+        (LocalLayout.initializedStore (model := model) input modulus store))).1
+  have acceptedExit := (nativeQuadratic_programStep_read (model := model) input modulus original
     (FirstAccepted.cellRead original.accepted) store).trans
-    (nativeQuadratic_candidateBodyStep_read input modulus original
+    (nativeQuadratic_candidateBodyStep_read (model := model) input modulus original
       (FirstAccepted.cellRead original.accepted) (LocalLayout.entryStore width store))
-  have selectedExit := (nativeQuadratic_programStep_read input modulus original
+  have selectedExit := (nativeQuadratic_programStep_read (model := model) input modulus original
     (FirstAccepted.cellRead original.selected) store).trans
-    (nativeQuadratic_candidateBodyStep_read input modulus original
+    (nativeQuadratic_candidateBodyStep_read (model := model) input modulus original
       (FirstAccepted.cellRead original.selected) (LocalLayout.entryStore width store))
-  have actual := LocalLayout.nativeQuadratic_persistent_checked_values
+  have actual := LocalLayout.nativeQuadratic_persistent_checked_values (model := model)
     input modulus original unique store
   have acceptedReference := congrArg (fun ref : CInputRef (LocalLayout.context ctx width) .bit =>
     checked.read ref)
@@ -123,7 +127,7 @@ theorem nativeQuadratic_allocated_program_latches
       (store.read modulus).toNat % source.1 = 0)
     let secondValid := decide (1 < source.2 ∧ source.2 < (store.read modulus).toNat ∧
       (store.read modulus).toNat % source.2 = 0)
-    let final := (programStep input modulus original store).1
+    let final := (programStep (model := model) input modulus original store).1
     (final.read (FirstAccepted.cellRead original.accepted)).toBool =
         ((store.read (FirstAccepted.cellRead original.accepted)).toBool ||
           (firstValid || secondValid)) ∧
@@ -133,7 +137,8 @@ theorem nativeQuadratic_allocated_program_latches
         else if firstValid then CShape.wordOfNat resultWidth source.1
         else if secondValid then CShape.wordOfNat resultWidth source.2
         else store.read (FirstAccepted.cellRead original.selected) :=
-  nativeQuadratic_program_latches input modulus (SelectionLayout.refs ctx resultWidth)
+  nativeQuadratic_program_latches (model := model) input modulus
+    (SelectionLayout.refs ctx resultWidth)
     (SelectionLayout.nativeRecovery_selection_nodup ctx resultWidth) store
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic

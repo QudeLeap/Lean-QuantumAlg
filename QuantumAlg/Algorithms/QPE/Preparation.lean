@@ -16,6 +16,7 @@ import all QuantumAlg.Core.Execution.Preparation.Laws
 import all QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Core.Base.State.Density
 import all QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Util.FinPow.BinaryBasis.Zero
 
 /-!
 # The actual phase-prefix preparation on the promised borrowed eigenstate
@@ -36,8 +37,12 @@ private theorem preparation_basis_value (t : Nat) (basis : (phaseRuntimeLayout t
     (inputPreparation t).normalized basis =
       NormalizedVector.ket (R := Qubits t) (0 : Fin (2 ^ t))
         ((OwnedBorrowedQubits.wordLayout t).binaryIndexEquiv basis) := by
-  change NormalizedVector.ket
-    ((OwnedBorrowedQubits.wordLayout t).binaryIndexEquiv.symm (0 : Fin (2 ^ t))) basis = _
+  have physicalZero : (OwnedBorrowedQubits.wordLayout t).binaryIndexEquiv.symm
+      (0 : Fin (2 ^ t)) = (inputPreparation t).value :=
+    BinaryBasis.bigEndianEquiv_symm_zero t
+  change NormalizedVector.ket (R := (phaseRuntimeLayout t).register)
+    (inputPreparation t).value basis = _
+  rw [← physicalZero]
   rw [NormalizedVector.ket_apply, NormalizedVector.ket_apply]
   simp only [Equiv.eq_symm_apply]
 
@@ -89,9 +94,10 @@ private theorem source_input_entry {n : Nat} (P : QPEEigenstateInput n) (t : Nat
 
 /-- The actual phase preparation yields precisely the original zero-phase/eigenstate input. -/
 theorem preparationCode_localDensity {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State (pre t n) Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (pre t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise P t state.quantumMarginal.marginalLeft) :
-    ((preparationCode t n).execute Reference state).quantumMarginal.marginalLeft =
+    ((preparationCode P t).execute Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (qpeInput P t)).reindex
         (S := (preparedContext t n).register) (preparedBasisEquiv t n).symm := by
   apply DensityOperator.ext
@@ -102,7 +108,7 @@ theorem preparationCode_localDensity {n : Nat} (P : QPEEigenstateInput n) (t : N
   rw [source_input_entry]
   calc
     _ = ∑ reference : Reference.Index,
-        ((preparationCode t n).execute Reference state).quantumMarginal.matrix
+        ((preparationCode P t).execute Reference state).quantumMarginal.matrix
           (OwnedBorrowedQubits.preparationBasisEquiv t n (newRow, oldRow), reference)
           (OwnedBorrowedQubits.preparationBasisEquiv t n (newColumn, oldColumn), reference) :=
       DensityOperator.marginalLeft_matrix _ _ _
@@ -112,8 +118,10 @@ theorem preparationCode_localDensity {n : Nat} (P : QPEEigenstateInput n) (t : N
           state.quantumMarginal.matrix (oldRow, reference) (oldColumn, reference) := by
       apply Finset.sum_congr rfl
       intro reference _
-      exact Circuit.prepare_joined_entry state ⟨0⟩ (phaseRuntimeLayout t)
-        (preparationFresh t n) (preparationDisjoint t n) (inputPreparation t)
+      exact Circuit.prepareZero_joined_entry (gates := AlgorithmGate.model)
+        (oracles := UnitarySource.model P.unitary true) (operations := BitWord.model)
+        (classicalOracles := .empty) state ⟨0⟩ (phaseRuntimeLayout t)
+        (preparationFresh t n) (preparationDisjoint t n)
         newRow newColumn (oldRow, reference) (oldColumn, reference)
     _ = ((inputPreparation t).normalized newRow *
           star ((inputPreparation t).normalized newColumn)) *

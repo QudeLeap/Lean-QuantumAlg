@@ -83,8 +83,10 @@ def subtractionGates (n : Nat) : List (EncodedBit.GateSpec (encoding n)) :=
   (lowRippleGates n).reverse
 
 /-- Compile the inverse sequence on the same two operand words. -/
-def subtractionProgram (n : Nat) : UnitaryCircuit (Qubits (encoding n).width) :=
-  programList (subtractionGates n)
+def subtractionProgram (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (subtractionGates n)
 
 /-- The actual inverse sequence on two operand words and the explicit borrow output. -/
 def overflowSubtractionGates (n : Nat) :
@@ -93,8 +95,9 @@ def overflowSubtractionGates (n : Nat) :
 
 /-- Compile subtraction with the explicit borrow output on exactly `2n+1` qubits. -/
 def overflowSubtractionProgram (n : Nat) :
-    UnitaryCircuit (Qubits (overflowEncoding n).width) :=
-  programList (overflowSubtractionGates n)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (overflowEncoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (overflowSubtractionGates n)
 
 /-- Reversing the real low-word gates implements subtraction at every width. -/
 theorem ttkSubtraction_step (n : Nat) (s : Registers n) :
@@ -114,24 +117,28 @@ theorem ttkOverflowSubtraction_step (n : Nat) (s : OverflowRegisters n) :
 /-- Exact basis amplitudes realize subtraction, including relative phases. -/
 theorem ttkSubtraction_realizes (n : Nat) :
     UnitaryCircuit.Realizes (encoding n) (subtractionProgram n) subtractionOutput :=
-  realizesList_congrStep (subtractionGates n) (ttkSubtraction_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (subtractionGates n) (ttkSubtraction_step n)
 
 /-- Exact subtraction with arbitrary initial borrow output has no input restriction. -/
 theorem ttkOverflowSubtraction_realizes (n : Nat) :
     UnitaryCircuit.Realizes (overflowEncoding n) (overflowSubtractionProgram n)
       overflowSubtractionOutput :=
-  realizesList_congrStep (overflowSubtractionGates n) (ttkOverflowSubtraction_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (overflowSubtractionGates n) (ttkOverflowSubtraction_step n)
 
 /-- Reversal preserves every actual native count, so the independent low-word
 resource formulas apply unchanged. -/
-theorem ttkSubtraction_native_count (n : Nat) (focus : Resource.Event .quantum) :
+theorem ttkSubtraction_native_count (n : Nat)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (subtractionProgram n).eventCost =
       ResourcePool.count focus (lowRippleProgram n).eventCost := by
   simp only [subtractionProgram, subtractionGates, lowRippleProgram,
     programList_event_count_eq_sum_eventMultiplicity, List.map_reverse, List.sum_reverse]
 
 /-- Borrow-output subtraction has exactly the native counts of overflow addition. -/
-theorem ttkOverflowSubtraction_native_count (n : Nat) (focus : Resource.Event .quantum) :
+theorem ttkOverflowSubtraction_native_count (n : Nat)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (overflowSubtractionProgram n).eventCost =
       ResourcePool.count focus (overflowProgram n).eventCost := by
   simp only [overflowSubtractionProgram, overflowSubtractionGates, overflowProgram,

@@ -7,7 +7,6 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Util.Nat.FixedWidth
-import all QuantumAlg.Components.Control
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
@@ -19,8 +18,6 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.Controlled.Xor
 import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
-import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
-import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
 
 /-! # Value semantics for encoded-word copies -/

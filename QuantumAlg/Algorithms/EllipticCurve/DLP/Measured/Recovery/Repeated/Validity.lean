@@ -46,23 +46,29 @@ private theorem selected_word_eq_secret (problem : KnownOrderProblem E.GroupPoin
       exact decoded
 
 /-- Every actual returned word is the original secret when the established invariants hold. -/
-theorem packBatchResult_supported_secret (problem : KnownOrderProblem E.GroupPoint)
+theorem packBatchResult_supported_secret {model : ExecutionModel}
+    {placement : RuntimeCtx model.kind}
+    [BitWord.Selected model]
+    (problem : KnownOrderProblem E.GroupPoint)
     (input : SecretInput problem) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx (Canonical.Layout.fieldWidth E) (orderWidth problem))
-      Reference H)
+    (state : State (persistentCtx placement (Canonical.Layout.fieldWidth E) (orderWidth problem))
+      Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass →
-      (entry.1.read (.storage (persistentAccepted ctx (Canonical.Layout.fieldWidth E)
+      (entry.1.read (.storage (persistentAccepted placement (Canonical.Layout.fieldWidth E)
         (orderWidth problem)).toCStorageRef)).toBool = true →
-      let selected := entry.1.read (.storage (persistentSelected ctx
+      let selected := entry.1.read (.storage (persistentSelected placement
         (Canonical.Layout.fieldWidth E) (orderWidth problem)).toCStorageRef)
       selected.toNat < problem.order ∧
         selected.toNat • problem.generator.toMathlib = problem.target.toMathlib)
-    (result : Store (batchResultCtx ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)) ×
-      (H × (packBatchResult ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)).Path))
-    (positive : 0 < (((packBatchResult ctx (Canonical.Layout.fieldWidth E)
+    (result : Store
+      (batchResultCtx placement (Canonical.Layout.fieldWidth E) (orderWidth problem)) ×
+      (model.HiddenState ×
+        (H × (packBatchResult placement (Canonical.Layout.fieldWidth E)
+          (orderWidth problem)).Path)))
+    (positive : 0 < (((packBatchResult placement (Canonical.Layout.fieldWidth E)
       (orderWidth problem)).execute Reference state).block result).mass)
     (value : (CShape.unsignedWord (orderWidth problem)).Value)
-    (output : result.1.read (batchResultRead ctx (Canonical.Layout.fieldWidth E)
+    (output : result.1.read (batchResultRead placement (Canonical.Layout.fieldWidth E)
       (orderWidth problem)) = .optionSome value) :
     value = CShape.wordOfNat (orderWidth problem) input.secret.val := by
   refine packBatchResult_supported_property

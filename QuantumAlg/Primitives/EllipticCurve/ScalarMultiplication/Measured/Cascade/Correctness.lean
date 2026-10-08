@@ -53,15 +53,28 @@ def cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 theorem cascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (readyContext p.size count) Reference H)
+    (original : State (readyContext p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order original.quantumMarginal) :
     ((cascade E points order).execute Reference original).quantumMarginal =
       DensityOperator.applyUnitary (cascadeTarget E points Reference order)
         original.quantumMarginal := by
   induction order generalizing H with
   | nil =>
-      rw [cascade, Circuit.execute_id, State.skip_quantumMarginal,
-        cascadeTarget, DensityOperator.applyUnitary_one]
+      have executed := congrArg
+        (fun state : State (readyContext p.size count) Reference
+          (ClassicalOracleModel.empty.HiddenState × (H × Unit)) => state.quantumMarginal)
+        (Circuit.execute_id (model := .quantum AlgorithmGate.model .empty) original)
+      have unchanged := executed.trans
+        (ExecutionState.mapClassical_quantumMarginal original _)
+      calc
+        ((cascade E points []).execute Reference original).quantumMarginal =
+            ((Circuit.id (model := .quantum AlgorithmGate.model .empty)
+              (readyContext p.size count)).execute Reference original).quantumMarginal := rfl
+        _ = original.quantumMarginal := unchanged
+        _ = DensityOperator.applyUnitary (cascadeTarget E points Reference [])
+            original.quantumMarginal :=
+          (DensityOperator.applyUnitary_one original.quantumMarginal).symm
   | cons active remaining ih =>
       have first := step_density E (points active) active original support.1
       have remainingSupport : cascadeSupport E points Reference remaining

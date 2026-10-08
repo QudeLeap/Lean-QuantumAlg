@@ -46,11 +46,12 @@ def signedWorkCell (cells : Cells ctx (signedReductionShapes width)) :
   (cellAt cells ⟨2, by change 2 < 3; decide⟩).ref
 
 /-- Complete original signed reduction with three genuine persistent scratch allocations. -/
-def withSignedReduction (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def withSignedReduction {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   withCells ctx (signedReductionShapes width) fun cells _ transport _ =>
-    signedReductionBody (transport.liftInput raw) (transport.liftInput modulus)
+    signedReductionBody (model := model) (transport.liftInput raw) (transport.liftInput modulus)
       (signedWorkCell cells) (signedNegativeCell cells) (signedRemainderCell cells)
       (transport.liftWrite output)
 

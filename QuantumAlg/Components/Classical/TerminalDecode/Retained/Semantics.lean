@@ -32,31 +32,33 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The real retained allocation followed by the actual decoder's store and path. -/
-def retainedStep {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : Nat)
+def retainedStep {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat)
     (order : BitOrder) (input : CInputRef ctx (InputShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (store : Store ctx) :
     Store (ResultCtx ctx width key fresh) ×
-      (routine ctx width order input key fresh).Path :=
-  let decoded := foldStep (CWriteRef.retainedHead ctx key (OutputShape width) fresh)
+      (routine (model := model) ctx width order input key fresh).Path :=
+  let decoded := foldStep (model := model)
+    (CWriteRef.retainedHead ctx key (OutputShape width) fresh)
     (List.ofFn (fun index => .bitsGet
       (input.underRetained key (OutputShape width) fresh) (sourceIndex order index)))
     (store.pushRetained key (OutputShape width) fresh)
   (decoded.1, ((), decoded.2))
 
-/-- Every complete quantum-reference block follows the actual retained store update. -/
-theorem terminalDecode_routine_execute {kind : ProblemKind} (ctx : RuntimeCtx kind)
-    (width : Nat) (order : BitOrder) (input : CInputRef ctx (InputShape width))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (routine ctx width order input key fresh).execute Reference state =
+/-- Retained decoding preserves the complete service/history/quantum-reference record. -/
+theorem terminalDecode_routine_execute {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
+    (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (routine (model := model) ctx width order input key fresh).execute Reference state =
       state.mapClassical (fun entry =>
-        ((retainedStep ctx width order input key fresh entry.1).1,
-          (entry.2, (retainedStep ctx width order input key fresh entry.1).2))) := by
+        let result := retainedStep (model := model) ctx width order input key fresh entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   simp only [routine, Circuit.execute_seq, Circuit.execute_retain, into, intoFromBitRefs,
     terminalDecode_fold_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def, retainedStep]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Fresh allocation derives the source separation required by the internal fold. -/
 private theorem lifted_source_separate {kind : ProblemKind} (ctx : RuntimeCtx kind)
@@ -67,15 +69,15 @@ private theorem lifted_source_separate {kind : ProblemKind} (ctx : RuntimeCtx ki
   CInputRef.fresh_not_mem_storageKeys_underRetained input key (OutputShape width) fresh
 
 /-- The actual freshly retained word equals the pure decoder of the original stored source. -/
-theorem terminalDecode_retainedStep_read_output {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) (width : Nat) (order : BitOrder)
+theorem terminalDecode_retainedStep_read_output {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (store : Store ctx) :
-    decodeOutput ((retainedStep ctx width order input key fresh store).1.read
+    decodeOutput ((retainedStep (model := model) ctx width order input key fresh store).1.read
       (resultRef ctx width key fresh)) = eval (decodeInput order (store.read input)) := by
   apply Fin.ext
   rw [terminalDecode_decodeOutput_val]
-  have decoded := terminalDecode_intoFromBitRefs_read_output order
+  have decoded := terminalDecode_intoFromBitRefs_read_output (model := model) order
     (fun index => CInputRef.bitsGet (input.underRetained key (OutputShape width) fresh) index)
     (CWriteRef.retainedHead ctx key (OutputShape width) fresh)
     (store.pushRetained key (OutputShape width) fresh)
@@ -96,60 +98,71 @@ theorem terminalDecode_retainedStep_read_output {kind : ProblemKind}
   exact congrArg (fun value => (eval value).val) source
 
 /-- Every original structural read survives the complete retained decoder. -/
-theorem terminalDecode_retainedStep_read_original {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) (width : Nat) (order : BitOrder)
+theorem terminalDecode_retainedStep_read_original {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (store : Store ctx) {shape : CShape} (observed : CInputRef ctx shape) :
-    (retainedStep ctx width order input key fresh store).1.read
+    (retainedStep (model := model) ctx width order input key fresh store).1.read
       (observed.underRetained key (OutputShape width) fresh) = store.read observed := by
-  change (foldStep _ _ (store.pushRetained key (OutputShape width) fresh)).1.read _ = _
+  change (foldStep (model := model) _ _
+    (store.pushRetained key (OutputShape width) fresh)).1.read _ = _
   rw [terminalDecode_fold_read_other _ _ _ _
     (CInputRef.fresh_not_mem_storageKeys_underRetained observed key (OutputShape width) fresh)]
   exact Store.read_pushRetained_underRetained store key (OutputShape width) fresh observed
 
-private theorem appendStep_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private theorem appendStep_borrowed {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (store : Store ctx) :
-    (appendStep input output store).1.readBorrowedClassical = store.readBorrowedClassical := by
+    (appendStep (model := model) input output store).1.readBorrowedClassical =
+      store.readBorrowedClassical := by
   rw [appendStep_store]
   split <;> simp only [Store.readBorrowedClassical_applyOp]
 
 /-- The actual addressed-bit fold preserves every borrowed classical value. -/
-theorem terminalDecode_foldStep_borrowed_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem terminalDecode_foldStep_borrowed_values {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) (store : Store ctx) :
-    (foldStep output inputs store).1.readBorrowedClassical = store.readBorrowedClassical := by
+    (foldStep (model := model) output inputs store).1.readBorrowedClassical =
+      store.readBorrowedClassical := by
   induction inputs generalizing store with
   | nil => rfl
   | cons input rest ih =>
-      change (foldStep output rest (appendStep input output store).1).1.readBorrowedClassical = _
+      change (foldStep (model := model) output rest
+        (appendStep (model := model) input output store).1).1.readBorrowedClassical = _
       rw [ih, appendStep_borrowed]
 
-private theorem fold_borrowedRestored {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private theorem fold_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (foldBitRefs output inputs).BorrowedRestored Reference state
-      ((foldBitRefs output inputs).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (foldBitRefs (model := model) output inputs).BorrowedRestored Reference state
+      ((foldBitRefs (model := model) output inputs).execute Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext,
     terminalDecode_fold_execute]
-  refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
-    (H := History) (K := History × (foldBitRefs output inputs).Path) state
-    (fun entry => ((foldStep output inputs entry.1).1,
-      (entry.2, (foldStep output inputs entry.1).2)))
-    (fun entry => terminalDecode_foldStep_borrowed_values output inputs entry.1))
-  congr 1
-  congr 1
-  exact Subsingleton.elim _ _
+  have observed := observeBorrowed_mapClassical state
+    (fun entry =>
+      let result := foldStep (model := model) output inputs entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2))))
+    (fun entry => terminalDecode_foldStep_borrowed_values (model := model) output inputs entry.1)
+  refine Eq.trans ?_ observed
+  apply congrArg (observeBorrowed Reference)
+  exact congrArg (fun decision => @ExecutionState.mapClassical _ _ _ _
+    (Register.prod ctx.register Reference) decision state
+    (fun entry =>
+      let result := foldStep (model := model) output inputs entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2))))) (Subsingleton.elim _ _)
 
 /-- Classical decoding restores all borrowed storage jointly with the external reference. -/
-theorem terminalDecode_routine_borrowedRestored {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) (width : Nat) (order : BitOrder)
+theorem terminalDecode_routine_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (routine ctx width order input key fresh).BorrowedRestored Reference state
-      ((routine ctx width order input key fresh).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (routine (model := model) ctx width order input key fresh).BorrowedRestored Reference state
+      ((routine (model := model) ctx width order input key fresh).execute Reference state) := by
   unfold routine
   apply Circuit.borrowedRestored_seq
   · exact Circuit.borrowedRestored_retain key (OutputShape width) fresh state

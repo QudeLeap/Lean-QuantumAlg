@@ -7,7 +7,8 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Fold.Registers
-import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.BitGates.WirePlacement
+import all QuantumAlg.Util.FinPow.BinaryBasis.Append
 
 /-!
 # Place the actual comparison in word/Iter/Ctrl order
@@ -19,7 +20,7 @@ order. This owner changes its exact logical basis and each native physical
 address together to word/flag/helper order, ready for insertion of the
 remaining source fields.
 
-No new permutation gate is declared. Reindexing gives the same addressed
+No new permutation gate is declared. Physical placement gives the same addressed
 comparison its desired coordinates; the original ordered native events,
 full arbitrary flag/helper behavior, and exact amplitudes are retained.
 -/
@@ -96,16 +97,151 @@ private theorem physicalIndex_within (width index : Nat) (within : index < width
   · omega
   · split <;> omega
 
+private theorem widths (width : Nat) :
+    (Addition.Gidney.encoding width).width = (encoding width).width := by
+  change 1 + (width + 1) = width + (1 + 1)
+  omega
+
+private def inversePhysicalIndex (width index : Nat) : Nat :=
+  if index < width then index + 1 else if index = width then 0 else index
+
+/-- All three field segments are permuted on actual finite physical wires. -/
+def wires (width : Nat) :
+    Fin (Addition.Gidney.encoding width).width ≃ Fin (encoding width).width where
+  toFun index := ⟨physicalIndex width index.val, by
+    change physicalIndex width index.val < width + (1 + 1)
+    have bound : index.val < width + 2 := by
+      have actual := index.isLt
+      change index.val < 1 + (width + 1) at actual
+      omega
+    exact physicalIndex_within width index.val bound⟩
+  invFun index := ⟨inversePhysicalIndex width index.val, by
+    have bound := index.isLt
+    change index.val < width + (1 + 1) at bound
+    change inversePhysicalIndex width index.val < 1 + (width + 1)
+    unfold inversePhysicalIndex
+    split_ifs <;> omega⟩
+  left_inv index := by
+    apply Fin.ext
+    have bound := index.isLt
+    change index.val < 1 + (width + 1) at bound
+    change inversePhysicalIndex width (physicalIndex width index.val) = index.val
+    unfold inversePhysicalIndex physicalIndex
+    split_ifs <;> omega
+  right_inv index := by
+    apply Fin.ext
+    have bound := index.isLt
+    change index.val < width + (1 + 1) at bound
+    change physicalIndex width (inversePhysicalIndex width index.val) = index.val
+    by_cases low : index.val < width
+    · have nonzero : index.val + 1 ≠ 0 := by omega
+      have inside : index.val + 1 < width + 1 := by omega
+      simp only [inversePhysicalIndex, if_pos low, physicalIndex,
+        if_neg nonzero, if_pos inside]
+      omega
+    · by_cases middle : index.val = width
+      · simp [inversePhysicalIndex, physicalIndex, middle]
+      · have last : index.val = width + 1 := by omega
+        have nonzero : index.val ≠ 0 := by omega
+        have outside : ¬index.val < width + 1 := by omega
+        simp [inversePhysicalIndex, physicalIndex, low, middle, nonzero, outside]
+
+private theorem field_coordinates (width : Nat) (state : Data width)
+    (index : Fin (Addition.Gidney.encoding width).width) :
+    (BinaryBasis.bigEndianEquiv (encoding width).width).symm
+        ((encoding width).encode state) (wires width index) =
+      (BinaryBasis.bigEndianEquiv (Addition.Gidney.encoding width).width).symm
+        ((Addition.Gidney.encoding width).encode ((fieldEquiv width).symm state)) index := by
+  rcases state with ⟨word, flag, helper⟩
+  let flagLabel : Fin (2 ^ 1) := BinaryLabelEncoding.bool.encode flag
+  let helperLabel : Fin (2 ^ 1) := BinaryLabelEncoding.bool.encode helper
+  change finTwoEquiv.symm
+      ((prodEquiv (m := width) (n := 1 + 1)
+        (word, prodEquiv (m := 1) (n := 1) (flagLabel, helperLabel))).val.testBit
+          (wires width index).rev.val) =
+    finTwoEquiv.symm
+      ((prodEquiv (m := 1) (n := width + 1)
+        (flagLabel, prodEquiv (m := width) (n := 1) (word, helperLabel))).val.testBit
+          index.rev.val)
+  congr 1
+  have bound : index.val < width + 2 := by
+    have actual := index.isLt
+    change index.val < 1 + (width + 1) at actual
+    omega
+  simp only [Fin.val_rev, wires, Equiv.coe_fn_mk]
+  have targetWidth : (encoding width).width = width + 2 := by
+    change width + (1 + 1) = width + 2
+    omega
+  have sourceWidth : (Addition.Gidney.encoding width).width = width + 2 := by
+    change 1 + (width + 1) = width + 2
+    omega
+  rw [targetWidth]
+  conv_rhs => arg 2; arg 1; rw [sourceWidth]
+  by_cases leading : index.val = 0
+  · have targetBit := prodEquiv_testBit_right word
+        (prodEquiv (m := 1) (n := 1) (flagLabel, helperLabel)) (⟨1, by decide⟩ : Fin (1 + 1))
+    have targetFlag := prodEquiv_testBit_left flagLabel helperLabel (⟨0, by decide⟩ : Fin 1)
+    have sourceFlag := prodEquiv_testBit_left flagLabel
+      (prodEquiv (m := width) (n := 1) (word, helperLabel)) (⟨0, by decide⟩ : Fin 1)
+    have address : physicalIndex width index.val = width := by simp [physicalIndex, leading]
+    have targetPosition : width + 2 - (physicalIndex width index.val + 1) = 1 := by
+      rw [address]
+      omega
+    have sourcePosition : width + 2 - (index.val + 1) = width + 1 := by omega
+    rw [targetPosition, sourcePosition]
+    exact (targetBit.trans targetFlag).trans sourceFlag.symm
+  · by_cases inWord : index.val < width + 1
+    · let wordBit : Fin width := ⟨width - index.val, by omega⟩
+      have targetBit := prodEquiv_testBit_left word
+        (prodEquiv (m := 1) (n := 1) (flagLabel, helperLabel)) wordBit
+      have sourceOuter := prodEquiv_testBit_right flagLabel
+        (prodEquiv (m := width) (n := 1) (word, helperLabel))
+        (⟨1 + wordBit.val, by omega⟩ : Fin (width + 1))
+      have sourceWord := prodEquiv_testBit_left word helperLabel wordBit
+      have address : physicalIndex width index.val = index.val - 1 := by
+        simp [physicalIndex, leading, inWord]
+      have targetPosition : width + 2 - (physicalIndex width index.val + 1) =
+          2 + wordBit.val := by
+        rw [address]
+        dsimp [wordBit]
+        omega
+      have sourcePosition : width + 2 - (index.val + 1) =
+          1 + wordBit.val := by
+        dsimp [wordBit]
+        omega
+      rw [targetPosition, sourcePosition]
+      exact targetBit.trans (sourceOuter.trans sourceWord).symm
+    · have last : index.val = width + 1 := by omega
+      have targetOuter := prodEquiv_testBit_right word
+        (prodEquiv (m := 1) (n := 1) (flagLabel, helperLabel)) (⟨0, by decide⟩ : Fin (1 + 1))
+      have targetHelper := prodEquiv_testBit_right flagLabel helperLabel (⟨0, by decide⟩ : Fin 1)
+      have sourceOuter := prodEquiv_testBit_right flagLabel
+        (prodEquiv (m := width) (n := 1) (word, helperLabel))
+        (⟨0, by omega⟩ : Fin (width + 1))
+      have sourceHelper := prodEquiv_testBit_right word helperLabel (⟨0, by decide⟩ : Fin 1)
+      have address : physicalIndex width index.val = index.val := by
+        simp [physicalIndex, leading, inWord]
+      have targetPosition : width + 2 - (physicalIndex width index.val + 1) = 0 := by
+        rw [address, last]
+        omega
+      have sourcePosition : width + 2 - (index.val + 1) = 0 := by rw [last]; omega
+      rw [targetPosition, sourcePosition]
+      exact (targetOuter.trans targetHelper).trans
+        (sourceOuter.trans sourceHelper).symm
+
+/-- The semantic field permutation is induced by the actual physical wires. -/
+def placement (width : Nat) :
+    EncodedBit.FullPlacement (Addition.Gidney.encoding width) (encoding width) :=
+  EncodedBit.FullPlacement.ofGrouping _ _ (fieldEquiv width).symm (wires width)
+    (field_coordinates width)
+
 /-- Transport an existing program's logical basis and each native physical address together. -/
 def place (width : Nat)
-    (body : UnitaryCircuit (Qubits (Addition.Gidney.encoding width).width)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  let transported := UnitaryCircuit.reindex (indexEquiv width) body
-  UnitaryCircuit.relabel transported
-    { toFun := physicalIndex width
-      map_layout := rfl
-      old_nodup := transported.physical_idx_nodup
-      new_nodup := transported.physical_idx_nodup.map (physicalIndex_injective width) }
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding width).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (placement width).place body
 
 /-- The exact field action accompanying the existing program's coordinate transport. -/
 def placeStep {width : Nat}
@@ -115,56 +251,31 @@ def placeStep {width : Nat}
 
 /-- The transport preserves exact amplitudes for every action certified by the original program. -/
 theorem place_realizes (width : Nat)
-    {body : UnitaryCircuit (Qubits (Addition.Gidney.encoding width).width)}
+    {body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding width).width).toQuantum}
     {action : Addition.Gidney.Registers width → Addition.Gidney.Registers width}
     (realizes : UnitaryCircuit.Realizes (Addition.Gidney.encoding width) body action) :
-    UnitaryCircuit.Realizes (encoding width) (place width body) (placeStep action) where
-  apply_encoded_ket := by
-    intro state
-    let original := (fieldEquiv width).symm state
-    have originalAction := realizes.apply_encoded_ket original
-    have placed := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-      (R := Qubits (1 + (width + 1))) (S := Qubits (width + (1 + 1)))
-      (indexEquiv width) body _ _ originalAction
-    rw [indexEquiv_encode, indexEquiv_encode,
-      show fieldEquiv width original = state from (fieldEquiv width).apply_symm_apply state]
-      at placed
-    unfold place
-    rw [UnitaryCircuit.Realizes.applyNormalized_relabel]
-    exact placed
-
-/-- Every declared original address remains inside the same word and its two existing bits. -/
-theorem place_physical_range (width : Nat)
-    (body : UnitaryCircuit (Qubits (Addition.Gidney.encoding width).width))
-    (within : body.physical_idx ⊆ List.range (width + 2)) :
-    (place width body).physical_idx ⊆ List.range (width + 2) := by
-  intro index present
-  change index ∈ body.physical_idx.map (physicalIndex width) at present
-  rcases List.mem_map.mp present with ⟨old, oldPresent, rfl⟩
-  exact List.mem_range.mpr
-    (physicalIndex_within width old (List.mem_range.mp (within oldPresent)))
+    UnitaryCircuit.Realizes (encoding width) (place width body) (placeStep action) := by
+  exact (placement width).place_realizes realizes
 
 /-- Reordering the coordinates retains the original actual native event sequence. -/
 theorem place_eventTrace (width : Nat)
-    (body : UnitaryCircuit (Qubits (Addition.Gidney.encoding width).width)) :
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding width).width).toQuantum) :
     (place width body).eventTrace = body.eventTrace := by
-  simp only [place, UnitaryCircuit.relabel_eventTrace]
-  exact UnitaryCircuit.reindex_eventTrace
-    (R := Qubits (1 + (width + 1))) (S := Qubits (width + (1 + 1)))
-    (indexEquiv width) body
+  exact (placement width).place_eventTrace body
 
 /-- The same actual program retains its complete native resource pool. -/
 theorem place_eventCost (width : Nat)
-    (body : UnitaryCircuit (Qubits (Addition.Gidney.encoding width).width)) :
+    (body : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding width).width).toQuantum) :
     (place width body).eventCost = body.eventCost := by
-  simp only [place, UnitaryCircuit.relabel_eventCost]
-  exact UnitaryCircuit.reindex_eventCost
-    (R := Qubits (1 + (width + 1))) (S := Qubits (width + (1 + 1)))
-    (indexEquiv width) body
+  exact UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
 /-- The actual comparison, with its logical basis and primitive addresses transformed together. -/
 def program (width : Nat) (pivot : Fin (2 ^ width + 1)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   place width (Addition.Gidney.comparisonProgram width pivot)
 
 /-- Exact arithmetic in word-first order, with the helper retained for every input value. -/
@@ -181,14 +292,6 @@ theorem program_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (encoding width) (program width pivot) (step pivot.val) :=
   (place_realizes width (Addition.Gidney.gidneyComparison_realizes width pivot)).congrStep
     (by rintro ⟨word, flag, helper⟩; rfl)
-
-/-- All rewritten native addresses stay within the same word and its two existing bits. -/
-theorem program_physical_range (width : Nat) (pivot : Fin (2 ^ width + 1)) :
-    (program width pivot).physical_idx ⊆ List.range (width + 2) :=
-  place_physical_range width (Addition.Gidney.comparisonProgram width pivot)
-    (by
-      rw [Addition.Gidney.gidneyComparison_physical]
-      exact List.Subset.refl _)
 
 /-- Reordering coordinates preserves every actual native event in its original order. -/
 theorem program_eventTrace (width : Nat) (pivot : Fin (2 ^ width + 1)) :

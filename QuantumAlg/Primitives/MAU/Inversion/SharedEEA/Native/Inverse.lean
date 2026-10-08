@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.CorrectedSchedule
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Output.Copy
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Util.NumberTheory.SharedEEA.InverseOutput
 
 /-!
@@ -35,14 +37,17 @@ open NumberTheory.SharedEEA
 
 /-- The complete actual forward computation acts before the separate original-width XOR target. -/
 def forwardProgram (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (OutputCopy.encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (OutputCopy.encoding modulus.size).width).toQuantum :=
   UnitaryCircuit.prodLeft (n := modulus.size) (CorrectedSchedule.program modulus nontrivial)
 
 /-- Execute, copy by the actual CNOT list, then reverse every emitted forward operation. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (OutputCopy.encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (OutputCopy.encoding modulus.size).width).toQuantum :=
   (forwardProgram modulus nontrivial).seq
-    ((OutputCopy.program modulus.size).seq (forwardProgram modulus nontrivial).dagger)
+    ((OutputCopy.program modulus.size).seq
+      ((forwardProgram modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 private theorem copied_value (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
@@ -66,30 +71,38 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (positive : 0 < input.val)
     (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (OutputCopy.encoding modulus.size).width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode
+              (InitialFrame.initial modulus input, target)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
           ((OutputCopy.encoding modulus.size).encode
-            (InitialFrame.initial modulus input, target))) =
-      NormalizedVector.ket (R := Qubits (OutputCopy.encoding modulus.size).width)
-        ((OutputCopy.encoding modulus.size).encode
-          (InitialFrame.initial modulus input,
-            output modulus input.val positive bounded target)) := by
+            (InitialFrame.initial modulus input,
+              output modulus input.val positive bounded target))) := by
   let initial := InitialFrame.initial modulus input
   let computed := CorrectedSchedule.result modulus input.val positive bounded
   let toggled := output modulus input.val positive bounded target
   have forward (value : Fin (2 ^ modulus.size)) :
       (forwardProgram modulus nontrivial).applyNormalized
           (NormalizedVector.ket
-            ((OutputCopy.encoding modulus.size).encode (initial, value))) =
-        NormalizedVector.ket ((OutputCopy.encoding modulus.size).encode (computed, value)) :=
-    UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+            ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+              ((OutputCopy.encoding modulus.size).encode (initial, value)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode (computed, value))) :=
+    UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
       (encoding modulus.size) (BinaryLabelEncoding.finIdentity modulus.size)
       (CorrectedSchedule.program modulus nontrivial) initial computed value
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have copied :
       (OutputCopy.program modulus.size).applyNormalized
           (NormalizedVector.ket
-            ((OutputCopy.encoding modulus.size).encode (computed, target))) =
-        NormalizedVector.ket ((OutputCopy.encoding modulus.size).encode (computed, toggled)) := by
+            ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+              ((OutputCopy.encoding modulus.size).encode (computed, target)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode (computed, toggled))) := by
     rw [(OutputCopy.program_realizes modulus.size).apply_encoded_ket]
     have value := copied_value modulus input.val positive bounded
     change OutputCopy.value computed =
@@ -101,15 +114,24 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
         exact congrArg (fun word : Fin (2 ^ modulus.size) => target.val ^^^ word.val) value
     rw [fields]
   have restored :
-      (forwardProgram modulus nontrivial).dagger.applyNormalized
+      ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
           (NormalizedVector.ket
-            ((OutputCopy.encoding modulus.size).encode (computed, toggled))) =
-        NormalizedVector.ket ((OutputCopy.encoding modulus.size).encode (initial, toggled)) :=
-    (congrArg (forwardProgram modulus nontrivial).dagger.applyNormalized
+            ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+              ((OutputCopy.encoding modulus.size).encode (computed, toggled)))) =
+        NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode (initial, toggled))) :=
+    (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
       (forward toggled)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
-        (NormalizedVector.ket ((OutputCopy.encoding modulus.size).encode (initial, toggled))))
+        ((forwardProgram modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode (initial, toggled)))))
   exact UnitaryCircuit.applyNormalized_seq_of_eq (forward target)
     (UnitaryCircuit.applyNormalized_seq_of_eq copied restored)
 
@@ -118,12 +140,15 @@ theorem program_initial_zero (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (OutputCopy.encoding modulus.size).width)
-          ((OutputCopy.encoding modulus.size).encode (InitialFrame.initial modulus input, 0))) =
-      NormalizedVector.ket (R := Qubits (OutputCopy.encoding modulus.size).width)
-        ((OutputCopy.encoding modulus.size).encode
-          (InitialFrame.initial modulus input,
-            InverseOutput.word modulus input.val positive bounded)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+            ((OutputCopy.encoding modulus.size).encode
+              (InitialFrame.initial modulus input, 0)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
+          ((OutputCopy.encoding modulus.size).encode
+            (InitialFrame.initial modulus input,
+              InverseOutput.word modulus input.val positive bounded))) := by
   have actual := program_initial modulus nontrivial input 0 coprime positive bounded
   have zero : output modulus input.val positive bounded 0 =
       InverseOutput.word modulus input.val positive bounded := by
@@ -137,22 +162,13 @@ theorem program_eventTrace (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace ++
         ((OutputCopy.program modulus.size).eventTrace ++
-          (CorrectedSchedule.program modulus nontrivial).eventTrace.reverse) := by
+          ((forwardProgram modulus nontrivial).dagger
+            (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace) := by
   have forward : (forwardProgram modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace :=
     UnitaryCircuit.prodLeft_eventTrace (n := modulus.size)
       (CorrectedSchedule.program modulus nontrivial)
-  have backward : (forwardProgram modulus nontrivial).dagger.eventTrace =
-      (CorrectedSchedule.program modulus nontrivial).eventTrace.reverse :=
-    (UnitaryCircuit.dagger_eventTrace (forwardProgram modulus nontrivial)).trans
-      (congrArg List.reverse forward)
-  have suffix := UnitaryCircuit.seq_eventTrace (OutputCopy.program modulus.size)
-    (forwardProgram modulus nontrivial).dagger
-  have suffixTrace := suffix.trans
-    (congrArg (fun events => (OutputCopy.program modulus.size).eventTrace ++ events) backward)
-  exact (UnitaryCircuit.seq_eventTrace (forwardProgram modulus nontrivial)
-    ((OutputCopy.program modulus.size).seq (forwardProgram modulus nontrivial).dagger)).trans
-      (congrArg₂ List.append forward suffixTrace)
+  rw [program, UnitaryCircuit.seq_eventTrace, UnitaryCircuit.seq_eventTrace, forward]
 
 end
 

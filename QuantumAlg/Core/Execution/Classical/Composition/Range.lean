@@ -6,6 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Composition.Record
+public import QuantumAlg.Core.Execution.Circuit.Restoration
+public import QuantumAlg.Core.Execution.Borrowed.State
+public import QuantumAlg.Core.Execution.Trace
+public import QuantumAlg.Core.Execution.Trace.Bounds
 import all QuantumAlg.Core.Execution.Classical.Composition.Record
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 import all QuantumAlg.Core.Execution.Trace.Bounds
@@ -27,53 +32,95 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
 /-- Compose the supplied actual circuits in increasing finite-index order. -/
-def forRange : (count : Nat) → (Fin count → Circuit ctx ctx) → Circuit ctx ctx
-  | 0, _body => .id ctx
+@[expose] public def forRange :
+    (count : Nat) → (Fin count → Circuit model ctx ctx) → Circuit model ctx ctx
+  | 0, _body => .id (model := model) ctx
   | count + 1, body => .seq (body 0) (forRange count (fun index => body index.succ))
 
-/-- Record each actual component on the store returned by its predecessor. -/
-def forRangeRecord : (count : Nat) → (body : Fin count → Circuit ctx ctx) →
-    (records : ∀ index, Store ctx → Store ctx × (body index).Path) →
-      Store ctx → Store ctx × (forRange count body).Path
-  | 0, _body, _records, store => (store, ())
-  | count + 1, body, records, store =>
+/-- Record each component on the actual store and service state returned by its predecessor. -/
+@[expose] public def forRangeRecord : (count : Nat) → (body : Fin count → Circuit model ctx ctx) →
+    (records : ∀ index, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body index).Path) →
+      Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (forRange count body).Path
+  | 0, _body, _records, entry => (entry, ())
+  | count + 1, body, records, entry =>
       sequenceRecord (body 0) (forRange count (fun index => body index.succ))
         (records 0) (forRangeRecord count (fun index => body index.succ)
+          (fun index => records index.succ)) entry
+
+/-- The chronological fold retains both the actual caller store and persistent service state. -/
+public theorem forRangeRecord_state (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body index).Path)
+    (entry : Store ctx × model.HiddenState) :
+    (forRangeRecord count body records entry).1 =
+      (List.ofFn (fun index => fun current => (records index current).1)).foldl
+        (fun current update => update current) entry := by
+  induction count generalizing entry with
+  | zero => rfl
+  | succ count ih =>
+      change (forRangeRecord count (fun index => body index.succ)
+        (fun index => records index.succ) (records 0 entry).1).1 = _
+      rw [ih, List.ofFn_succ, List.foldl_cons]
+
+/-- Caller storage is the store projection of that same chronological state fold. -/
+public theorem forRangeRecord_store (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body index).Path)
+    (entry : Store ctx × model.HiddenState) :
+    (forRangeRecord count body records entry).1.1 =
+      ((List.ofFn (fun index => fun current => (records index current).1)).foldl
+        (fun current update => update current) entry).1 :=
+  congrArg Prod.fst (forRangeRecord_state count body records entry)
+
+/-- Record a range of caller-store updates that retain the selected model's service state. -/
+@[expose] public def forRangeStoreRecord (count : Nat)
+    (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx → Store ctx × (body index).Path) :
+    Store ctx → Store ctx × (forRange count body).Path :=
+  match count with
+  | 0 => fun store => (store, ())
+  | count + 1 => fun store =>
+      sequenceStoreRecord (body 0) (forRange count (fun index => body index.succ))
+        (records 0) (forRangeStoreRecord count (fun index => body index.succ)
           (fun index => records index.succ)) store
 
-/-- The recorded final store is the chronological fold of the actual component store updates. -/
-theorem forRangeRecord_store (count : Nat) (body : Fin count → Circuit ctx ctx)
+/-- Store-only range records have the same chronological caller-store fold. -/
+public theorem forRangeStoreRecord_store (count : Nat)
+    (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path) (store : Store ctx) :
-    (forRangeRecord count body records store).1 =
+    (forRangeStoreRecord count body records store).1 =
       (List.ofFn (fun index => fun current => (records index current).1)).foldl
         (fun current update => update current) store := by
   induction count generalizing store with
   | zero => rfl
   | succ count ih =>
-      change (forRangeRecord count (fun index => body index.succ)
+      change (forRangeStoreRecord count (fun index => body index.succ)
         (fun index => records index.succ) (records 0 store).1).1 = _
       rw [ih, List.ofFn_succ, List.foldl_cons]
 
-/-- Component execution equations determine the complete actual ordered-sequence record. -/
-theorem execute_forRangeRecord (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (records : ∀ index, Store ctx → Store ctx × (body index).Path)
+/-- Component equations determine the complete record and current service state at each slot. -/
+theorem execute_forRangeRecord (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body index).Path)
     (equations : ∀ index (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (body index).execute Reference state = state.mapClassical (fun entry =>
-        ((records index entry.1).1, (entry.2, (records index entry.1).2))))
+        let result := records index (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (forRange count body).execute Reference state = state.mapClassical (fun entry =>
-      ((forRangeRecord count body records entry.1).1,
-        (entry.2, (forRangeRecord count body records entry.1).2))) := by
+      let result := forRangeRecord count body records (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   induction count generalizing Reference History with
   | zero =>
-      refine (execute_id_mapClassical Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact (execute_id_mapClassical (model := model) Reference state).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
   | succ count ih =>
       exact execute_sequenceRecord (body 0)
         (forRange count (fun index => body index.succ)) (records 0)
@@ -81,9 +128,35 @@ theorem execute_forRangeRecord (count : Nat) (body : Fin count → Circuit ctx c
         (equations 0) (fun reference {_} _ current =>
           ih _ _ (fun index => equations index.succ) reference current) Reference state
 
-/-- Every actual native coordinate meets the uniform independent allowance per invocation. -/
-theorem forRange_pool_le (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (budget : ResourcePool kind) (bounds : ∀ index path, (body index).resourcePool path ≤ budget)
+/-- Store-only component equations determine a range while preserving service state. -/
+theorem execute_forRangeStoreRecord (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx → Store ctx × (body index).Path)
+    (equations : ∀ index (Reference : Register) {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
+      (body index).execute Reference state = state.mapClassical (fun entry =>
+        let result := records index entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (forRange count body).execute Reference state = state.mapClassical (fun entry =>
+      let result := forRangeStoreRecord count body records entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  induction count generalizing Reference History with
+  | zero =>
+      exact (execute_id_mapClassical (model := model) Reference state).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  | succ count ih =>
+      exact execute_sequenceStoreRecord (body 0)
+        (forRange count (fun index => body index.succ)) (records 0)
+        (forRangeStoreRecord count (fun index => body index.succ)
+          (fun index => records index.succ))
+        (equations 0) (fun reference {_} _ current =>
+          ih (fun index => body index.succ) (fun index => records index.succ)
+            (fun index => equations index.succ) reference current) Reference state
+
+/-- Every actual resource coordinate meets the uniform independent allowance per invocation. -/
+public theorem forRange_pool_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (budget : ResourcePool model) (bounds : ∀ index path, (body index).resourcePool path ≤ budget)
     (path : (forRange count body).Path) :
     (forRange count body).resourcePool path ≤ ResourcePool.scale count budget := by
   induction count with
@@ -95,8 +168,9 @@ theorem forRange_pool_le (count : Nat) (body : Fin count → Circuit ctx ctx)
       exact add_le_add (bounds 0 path.1)
         (ih _ (fun index => bounds index.succ) path.2)
 
-/-- The actual native count adds the independent allowance of every indexed invocation. -/
-theorem forRange_eventCount_le (count : Nat) (body : Fin count → Circuit ctx ctx) (budget : Nat)
+/-- The event count adds each indexed invocation's independent allowance. -/
+public theorem forRange_eventCount_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (budget : Nat)
     (bounds : ∀ index path, ((body index).eventTrace path).length ≤ budget)
     (path : (forRange count body).Path) :
     ((forRange count body).eventTrace path).length ≤ count * budget := by
@@ -110,7 +184,8 @@ theorem forRange_eventCount_le (count : Nat) (body : Fin count → Circuit ctx c
         (ih _ (fun index => bounds index.succ) path.2)
 
 /-- Every actual path includes all indexed dependency depths in their original order. -/
-theorem forRange_depth_le (count : Nat) (body : Fin count → Circuit ctx ctx) (budget : Nat)
+public theorem forRange_depth_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (budget : Nat)
     (bounds : ∀ index path, (body index).depth (fun _ => 1) path ≤ budget)
     (path : (forRange count body).Path) :
     (forRange count body).depth (fun _ => 1) path ≤ count * budget := by
@@ -124,8 +199,8 @@ theorem forRange_depth_le (count : Nat) (body : Fin count → Circuit ctx ctx) (
         (ih _ (fun index => bounds index.succ) path.2)
 
 /-- A common resident allowance includes the entry context and every actual component scope. -/
-theorem forRange_resident_le (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (budget : SpacePool kind) (entry : ctx.residentSpace ≤ budget)
+public theorem forRange_resident_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (budget : SpacePool model.kind) (entry : ctx.residentSpace ≤ budget)
     (bounds : ∀ index path, (body index).peakResidentSpace path ≤ budget)
     (path : (forRange count body).Path) :
     (forRange count body).peakResidentSpace path ≤ budget := by
@@ -142,8 +217,8 @@ theorem forRange_resident_le (count : Nat) (body : Fin count → Circuit ctx ctx
         (ih _ (fun index => bounds index.succ) path.2)
 
 /-- A common auxiliary allowance includes the entry roles and every actual component scope. -/
-theorem forRange_auxiliary_le (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (budget : SpacePool kind) (entry : ctx.auxiliarySpace ≤ budget)
+public theorem forRange_auxiliary_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (budget : SpacePool model.kind) (entry : ctx.auxiliarySpace ≤ budget)
     (bounds : ∀ index path, (body index).peakAuxiliarySpace path ≤ budget)
     (path : (forRange count body).Path) :
     (forRange count body).peakAuxiliarySpace path ≤ budget := by
@@ -160,18 +235,18 @@ theorem forRange_auxiliary_le (count : Nat) (body : Fin count → Circuit ctx ct
         (ih _ (fun index => bounds index.succ) path.2)
 
 /-- Actual component restoration composes jointly with an arbitrary external reference. -/
-theorem forRange_borrowedRestored (count : Nat) (body : Fin count → Circuit ctx ctx)
+public theorem forRange_borrowedRestored (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (Reference : Register)
-    (restored : ∀ index {History : Type} [Fintype History] (state : State ctx Reference History),
+    (restored : ∀ index {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
       (body index).BorrowedRestored Reference state ((body index).execute Reference state))
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (forRange count body).BorrowedRestored Reference state
       ((forRange count body).execute Reference state) := by
   induction count generalizing History with
   | zero =>
-      change (Circuit.id ctx).BorrowedRestored Reference state _
-      rw [BorrowedRestored, observeBorrowedAfter_sameContext, forRange, execute_id]
-      exact observeBorrowed_mapHistory state _
+      exact borrowedRestored_id (model := model) (ctx := ctx)
+        (Reference := Reference) (H := History) state
   | succ count ih =>
       apply borrowedRestored_seq
       · exact restored 0 state

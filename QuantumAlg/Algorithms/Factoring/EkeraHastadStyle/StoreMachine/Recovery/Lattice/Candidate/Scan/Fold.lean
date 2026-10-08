@@ -51,7 +51,8 @@ structure Outcome {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Actual finite scan execution composes the unchanged source checks in their original order. -/
-theorem scanOffsetsInto_correct {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem scanOffsetsInto_correct {N m ell : Nat} {model : ExecutionModel}
+    [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (items : List NumberTheory.IntegerPoint3)
@@ -63,23 +64,26 @@ theorem scanOffsetsInto_correct {N m ell : Nat} {kind : ProblemKind} {ctx : Runt
     (frameSeparation : FrameSeparation refs) (store : Store ctx)
     (initial : LatticeCandidateSlotOutcome.InitialConditions input generator samples refs store) :
     Outcome input generator samples items refs store
-      (LatticeCandidateScan.scanOffsetsStep (LatticeCandidateModularSetup.modulusSpec input)
+      (LatticeCandidateScan.scanOffsetsStep (model := model)
+        (LatticeCandidateModularSetup.modulusSpec input)
         refs items store).1 := by
   induction items generalizing store with
   | nil => exact ⟨initial, rfl, fun _ _ => rfl⟩
   | cons offset tail inductionHypothesis =>
-    have first := LatticeCandidateSlotSemantics.candidateSlotInto_correct input generator samples
+    have first := LatticeCandidateSlotSemantics.candidateSlotInto_correct (model := model)
+      input generator samples
       offset (inWindow offset (List.mem_cons_self)) refs separation frameSeparation store initial
     have rest := inductionHypothesis
       (fun candidate present => inWindow candidate (List.mem_cons_of_mem offset present))
-      (LatticeCandidateSlotMachine.candidateSlotStep
+      (LatticeCandidateSlotMachine.candidateSlotStep (model := model)
         (LatticeCandidateModularSetup.modulusSpec input) offset refs store).1 first.initial
     refine ⟨rest.initial, ?_, fun other avoids =>
       (rest.callerFrame other avoids).trans (first.callerFrame other avoids)⟩
     exact rest.selected.trans (by rw [List.map_cons, List.foldl_cons, first.selected])
 
 /-- The actual canonical scan realizes the original ordered first-success fold from any latch. -/
-theorem scanInto_correct {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem scanInto_correct {N m ell : Nat} {model : ExecutionModel}
+    [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeCandidateSlotMachine.Refs ctx
@@ -88,10 +92,11 @@ theorem scanInto_correct {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx 
     (frameSeparation : FrameSeparation refs) (store : Store ctx)
     (initial : LatticeCandidateSlotOutcome.InitialConditions input generator samples refs store) :
     Outcome input generator samples LatticeCandidateScan.offsets.toList refs store
-      (LatticeCandidateScan.scanStep
+      (LatticeCandidateScan.scanStep (model := model)
         (LatticeCandidateModularSetup.modulusSpec input) refs store).1 := by
   unfold LatticeCandidateScan.scanStep
-  exact scanOffsetsInto_correct input generator samples LatticeCandidateScan.offsets.toList
+  exact scanOffsetsInto_correct (model := model)
+    input generator samples LatticeCandidateScan.offsets.toList
     (fun _ present => by
       simpa only [LatticeCandidateScan.offsets, NumberTheory.toList_coefficientOffsetVector3]
         using present) refs separation frameSeparation store initial

@@ -17,18 +17,22 @@ Borrowed restoration includes arbitrary external references.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticeCross
 
+open ClassicalRoutines.NumberTheory.SignedWord
 open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- The complete actual cross product preserves every borrowed correlation. -/
 theorem pointCrossInto_borrowedRestored (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pointCrossInto left right output productLeft productRight).BorrowedRestored Reference state
-      ((pointCrossInto left right output productLeft productRight).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (pointCrossInto (model := model) left right output productLeft productRight).BorrowedRestored
+      Reference state
+      ((pointCrossInto (model := model) left right output productLeft productRight).execute
+        Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact coordinateCross_borrowedRestored _ _ _ _ _ _ _ Reference state
   · exact Circuit.borrowedRestored_seq _ _ _
@@ -38,36 +42,54 @@ theorem pointCrossInto_borrowedRestored (left right output : LatticeState.PointR
 /-- Every actual path has the same explicit nine native instructions. -/
 theorem pointCrossInto_events (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (pointCrossInto left right output productLeft productRight).Path) :
-    (pointCrossInto left right output productLeft productRight).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width)] := rfl
+    (path : (pointCrossInto (model := model) left right output productLeft productRight).Path) :
+    (pointCrossInto (model := model) left right output productLeft productRight).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width))] := by
+  unfold pointCrossInto coordinateCross at path
+  unfold pointCrossInto coordinateCross
+  change _ ++ (_ ++ _) = _
+  rw [ProductDifference.computeInto_events, ProductDifference.computeInto_events,
+    ProductDifference.computeInto_events]
+  rfl
 
 /-- All nine native instructions contribute their unit duration in the actual dependency order. -/
 theorem pointCrossInto_depth (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (pointCrossInto left right output productLeft productRight).Path) :
-    (pointCrossInto left right output productLeft productRight).depth (fun _ => 1) path = 9 := rfl
+    (path : (pointCrossInto (model := model) left right output productLeft productRight).Path) :
+    (pointCrossInto (model := model) left right output productLeft productRight).depth
+      (fun _ => 1) path = 9 := rfl
 
 /-- Every actual instruction uses the original caller context. -/
 theorem pointCrossInto_visited (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (pointCrossInto left right output productLeft productRight).Path) :
-    (pointCrossInto left right output productLeft productRight).visitedContexts path =
+    (path : (pointCrossInto (model := model) left right output productLeft productRight).Path) :
+    (pointCrossInto (model := model) left right output productLeft productRight).visitedContexts
+      path =
       [ctx, ctx, ctx, ctx, ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- Resident space counts all original classical cells and quantum systems. -/
 theorem pointCrossInto_resident_le (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (pointCrossInto left right output productLeft productRight).Path) :
-    (pointCrossInto left right output productLeft productRight).peakResidentSpace path ≤
+    (path : (pointCrossInto (model := model) left right output productLeft productRight).Path) :
+    (pointCrossInto (model := model) left right output productLeft productRight).peakResidentSpace
+      path ≤
       ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
@@ -79,8 +101,9 @@ theorem pointCrossInto_resident_le (left right output : LatticeState.PointRefs c
 /-- Auxiliary roles remain those of the caller's supplied storage. -/
 theorem pointCrossInto_auxiliary_le (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
-    (path : (pointCrossInto left right output productLeft productRight).Path) :
-    (pointCrossInto left right output productLeft productRight).peakAuxiliarySpace path ≤
+    (path : (pointCrossInto (model := model) left right output productLeft productRight).Path) :
+    (pointCrossInto (model := model) left right output productLeft productRight).peakAuxiliarySpace
+      path ≤
       ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

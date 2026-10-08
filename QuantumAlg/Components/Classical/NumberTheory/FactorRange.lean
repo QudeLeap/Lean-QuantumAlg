@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Store.Read
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual nontrivial-factor comparison of a stored GCD word
@@ -48,24 +49,41 @@ def combineOp (refs : Refs ctx width) : ClassicalOp (.product .bit .bit) .bit ct
   .bit .and ctx (.product (.storage refs.lower.toCStorageRef)
     (.storage refs.upper.toCStorageRef)) refs.lower
 
-/-- Execute both stored-word comparisons and materialize their actual conjunction. -/
-def code (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (lowerOp refs))
-    (.seq (.classical (upperOp refs)) (.classical (combineOp refs)))
-
 /-- The real complete store produced by those three closed instructions. -/
 def storeStep (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   ((store.applyOp (lowerOp refs)).applyOp (upperOp refs)).applyOp (combineOp refs)
 
-/-- The same three native writes preserve all complete quantum-reference blocks. -/
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Execute both stored-word comparisons and materialize their actual conjunction. -/
+def code (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (lowerOp refs))
+    (.seq (BitWord.instruction (execution := model) (upperOp refs))
+      (BitWord.instruction (execution := model) (combineOp refs)))
+
+/-- Complete returned record of the real comparisons and conjunction. -/
+def executionStep (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (code (model := model) refs).Path :=
+  let lower := BitWord.instructionStep (execution := model) (lowerOp refs) store
+  let upper := BitWord.instructionStep (execution := model) (upperOp refs) lower.1
+  let combined := BitWord.instructionStep (execution := model) (combineOp refs) upper.1
+  (combined.1, (lower.2, (upper.2, combined.2)))
+
+/-- The actual native record has the original chronological comparison store. -/
+theorem executionStep_store (refs : Refs ctx width) (store : Store ctx) :
+    (executionStep (model := model) refs store).1 = storeStep refs store := rfl
+
+/-- The same three native writes preserve all history, service and quantum-reference blocks. -/
 theorem code_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (code refs).execute Reference state =
-      state.mapClassical (fun entry => (storeStep refs entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [code, Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def, storeStep]
-  congr 1
-  exact Subsingleton.elim _ _
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      let actual := executionStep (model := model) refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [code, executionStep, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The stored result is precisely the two comparisons on the original actual operand values. -/
 theorem result (refs : Refs ctx width) (store : Store ctx)

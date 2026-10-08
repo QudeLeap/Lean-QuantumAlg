@@ -34,7 +34,7 @@ public structure ModExpOracleAccess (N x t m : Nat) where
   register_fits : N ≤ 2 ^ m
 
 /-- Target update `y -> y xor (x^a mod N)`. -/
-def modExpOracleTarget {N x t m : Nat} (A : ModExpOracleAccess N x t m)
+public def modExpOracleTarget {N x t m : Nat} (A : ModExpOracleAccess N x t m)
     (a : Fin (2 ^ t)) (y : Fin (2 ^ m)) : Fin (2 ^ m) :=
   ⟨Nat.xor y.val (x ^ a.val % N),
     Nat.xor_lt_two_pow y.isLt
@@ -47,7 +47,7 @@ theorem modExpOracleTarget_val {N x t m : Nat} (A : ModExpOracleAccess N x t m)
   rfl
 
 /-- Basis permutation underlying the modular-exponentiation oracle. -/
-def modExpOraclePerm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
+public def modExpOraclePerm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
     Equiv.Perm (Fin (2 ^ t) × Fin (2 ^ m)) where
   toFun p := (p.1, modExpOracleTarget A p.1 p.2)
   invFun p := (p.1, modExpOracleTarget A p.1 p.2)
@@ -68,7 +68,7 @@ theorem modExpOraclePerm_symm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
   rfl
 
 /-- Metadata-free unitary oracle from the public access equation. -/
-def modExpOracle {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
+public def modExpOracle {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
     UnitaryOperator (Qubits (t + m)) :=
   UnitaryOperator.ofPerm (prodEquiv.permCongr (modExpOraclePerm A))
 

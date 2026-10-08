@@ -165,7 +165,8 @@ def windowGates (half N : Nat)
 /-- Program for one exact radix-four window. -/
 def windowProgram (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) (window : Fin half) :
-    UnitaryCircuit (Qubits (FullLayout.encoding (width half)).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FullLayout.encoding (width half)).width).toQuantum :=
   FullLayout.qromWindowProgram (width half) N
     (rowConstant half N coefficient window 1)
     (rowConstant half N coefficient window 2)
@@ -241,7 +242,8 @@ theorem windowStep_cleanEndpoint (half N : Nat)
 /-- Ordered one-add QROM programs, one for each two-bit window. -/
 def windowPrograms (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
-    List (UnitaryCircuit (Qubits (FullLayout.encoding (width half)).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FullLayout.encoding (width half)).width).toQuantum) :=
   List.ofFn fun window : Fin half => windowProgram half N coefficient window
 
 /-- Semantic steps aligned entry-for-entry with `windowPrograms`. -/
@@ -268,8 +270,9 @@ def macStep (half N : Nat)
 list. -/
 def macProgram (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
-    UnitaryCircuit (Qubits (FullLayout.encoding (width half)).width) :=
-  EncodedBit.GateSpec.programList (macGates half N coefficient)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FullLayout.encoding (width half)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty (macGates half N coefficient)
 
 private theorem stepList_flatMap_windowGates (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
@@ -308,7 +311,8 @@ theorem mac_realizes (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
     UnitaryCircuit.Realizes (FullLayout.encoding (width half))
       (macProgram half N coefficient) (macStep half N coefficient) := by
-  apply UnitaryCircuit.Realizes.congrStep (EncodedBit.GateSpec.realizesList _)
+  apply UnitaryCircuit.Realizes.congrStep (EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty _)
   exact macStep_eq_gateList half N coefficient
 
 /-- Prefix of the actual two-bit-window semantic schedule. -/
@@ -470,15 +474,17 @@ def macInverseStep (half N : Nat)
 /-- Circuit compiled from the same reverse physical gate list. -/
 def macInverseProgram (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
-    UnitaryCircuit (Qubits (FullLayout.encoding (width half)).width) :=
-  EncodedBit.GateSpec.programList (macInverseGates half N coefficient)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FullLayout.encoding (width half)).width).toQuantum :=
+  EncodedBit.GateSpec.programList
+    (QubitLayout.canonical _) .empty (macInverseGates half N coefficient)
 
 theorem macInverse_realizes (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
     UnitaryCircuit.Realizes (FullLayout.encoding (width half))
       (macInverseProgram half N coefficient)
       (macInverseStep half N coefficient) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- Reversing the actual flattened gate list restores every physical state. -/
 theorem macInverseStep_after_macStep (half N : Nat)
@@ -594,7 +600,8 @@ private theorem flatMap_windowGates_toffoliMultiplicity_sum
 
 theorem macProgram_toffoli_count_eq (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (macProgram half N coefficient).eventCost =
       macToffoliCount half N coefficient := by
   rw [macProgram, EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
@@ -634,7 +641,8 @@ theorem macToffoliCount_le (half N : Nat)
 /-- The same closed bound projected from the actual MAC circuit. -/
 theorem macProgram_toffoli_count_le (half N : Nat)
     (coefficient : PlainAdder.Word (width half)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (macProgram half N coefficient).eventCost ≤
       64 * half ^ 2 + 2 * half := by
   rw [macProgram_toffoli_count_eq]
@@ -661,8 +669,9 @@ def multiplicationGates (half N : Nat) (u : (ZMod N)ˣ) :
 
 /-- Complete exact windowed multiplication circuit. -/
 def multiplicationProgram (half N : Nat) (u : (ZMod N)ˣ) :
-    UnitaryCircuit (Qubits (FullLayout.encoding (width half)).width) :=
-  EncodedBit.GateSpec.programList (multiplicationGates half N u)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (FullLayout.encoding (width half)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty (multiplicationGates half N u)
 
 /-- Folded action of the complete physical gate list. -/
 def multiplicationStep (half N : Nat) (u : (ZMod N)ˣ) :
@@ -672,15 +681,10 @@ def multiplicationStep (half N : Nat) (u : (ZMod N)ˣ) :
 theorem multiplication_realizes (half N : Nat) (u : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (FullLayout.encoding (width half))
       (multiplicationProgram half N u) (multiplicationStep half N u) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
-/-- Every primitive addressed by the complete program lies in its declared
-physical encoding. -/
-theorem multiplicationProgram_physical_idx_subset_range
-    (half N : Nat) (u : (ZMod N)ˣ) :
-    (multiplicationProgram half N u).physical_idx ⊆
-      List.range (FullLayout.encoding (width half)).width :=
-  EncodedBit.GateSpec.programList_physical_idx_subset_range _
+/- The circuit carrier and every native application fix the full canonical
+physical layout; the former detached physical-index projection is redundant. -/
 
 /-- Clean physical endpoint of the single composed windowed circuit. -/
 theorem multiplicationStep_cleanEndpoint (half N : Nat)
@@ -717,13 +721,15 @@ theorem multiplicationProgram_applyNormalized_cleanEndpoint (half N : Nat)
     (hNpos : 0 < N) (hN : N < 2 ^ width half) :
     (multiplicationProgram half N u).applyNormalized
         (NormalizedVector.ket
+          ((QubitLayout.canonical (FullLayout.encoding (width half)).width).basisEquiv.symm
+            ((FullLayout.encoding (width half)).encode
+              (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding
+                (width half) N (MAU.Multiplication.cleanInput x))))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (FullLayout.encoding (width half)).width).basisEquiv.symm
           ((FullLayout.encoding (width half)).encode
             (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding
-              (width half) N (MAU.Multiplication.cleanInput x)))) =
-      NormalizedVector.ket
-        ((FullLayout.encoding (width half)).encode
-          (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding
-            (width half) N (MAU.Multiplication.cleanOutput u x))) := by
+              (width half) N (MAU.Multiplication.cleanOutput u x)))) := by
   simpa only [multiplicationStep_cleanEndpoint half N u x hNpos hN] using
     (multiplication_realizes half N u).apply_encoded_ket
       (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding
@@ -786,7 +792,8 @@ theorem multiplicationGates_toffoliMultiplicity_sum
 proof. -/
 theorem multiplicationProgram_toffoli_count_eq
     (half N : Nat) (u : (ZMod N)ˣ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (multiplicationProgram half N u).eventCost =
       multiplicationToffoliCount half N u := by
   rw [multiplicationProgram,
@@ -804,7 +811,8 @@ theorem multiplicationToffoliCount_le (half N : Nat) (u : (ZMod N)ˣ) :
 
 theorem multiplicationProgram_toffoli_count_le
     (half N : Nat) (u : (ZMod N)ˣ) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (multiplicationProgram half N u).eventCost ≤
       128 * half ^ 2 + 4 * half := by
   rw [multiplicationProgram_toffoli_count_eq]
@@ -820,14 +828,17 @@ theorem encoding_width (half : Nat) :
 the exact Toffoli count of the former VBE multiplication circuit. -/
 theorem multiplicationProgram_toffoli_count_lt_vbe
     (half N : Nat) (u : (ZMod N)ˣ) (hhalf : 0 < half) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (multiplicationProgram half N u).eventCost <
-      ResourcePool.count (.gate (.builtin "toffoli"))
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate .toffoli)
         (MAU.Multiplication.VBECircuit.multiplicationProgram
           (width half) N u).eventCost := by
   rw [MAU.Multiplication.VBECircuit.multiplicationProgram_toffoli_count_eq]
   calc
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli)
         (multiplicationProgram half N u).eventCost ≤
         128 * half ^ 2 + 4 * half :=
       multiplicationProgram_toffoli_count_le half N u

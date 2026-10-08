@@ -65,20 +65,31 @@ private theorem readout_read_value (width : Nat) (store : Store (post width)) :
   transported_read_value (controlWire_dimension width) _ store
 
 /-- Reading the retained cell after its real Z write gives the exact source control outcome. -/
-theorem measured_value (width : Nat) (store : Store (post width))
+theorem measured_value {width : Nat} (unitary : UnitaryOperator (Qubits width))
+    (store : Store (post width))
     (basis : (post width).register.Index) :
-    (Circuit.writeMeasurementPath [readout width] store
-      (Circuit.measurementBasisPath [readout width] basis)).read
+    (Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (classicalOracles := .empty) [readout width] store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (classicalOracles := .empty) [readout width] basis)).read
         (.storage (resultRef width).toCStorageRef) =
       CShape.Value.finite (cardinality := 2)
         ((prodEquiv (m := 1) (n := width)).symm (outputBasisEquiv width basis)).1 := by
-  have actual := Circuit.writeMeasurementBasis_read [readout width]
+  have actual := Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model)
+    (oracles := UnitarySource.model unitary true) (operations := .empty)
+    (services := .empty) [readout width]
     (List.nodup_singleton _) (readout width) (List.mem_singleton_self _) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
   change _ = (basis (controlWire width)).val at numeric
   rw [readout_read_value, controlWire_value] at numeric
-  generalize valueEq : (Circuit.writeMeasurementPath [readout width] store
-    (Circuit.measurementBasisPath [readout width] basis)).read
+  generalize valueEq : (Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (classicalOracles := .empty) [readout width] store
+    (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (classicalOracles := .empty) [readout width] basis)).read
       (.storage (resultRef width).toCStorageRef) = value at numeric ⊢
   cases value with
   | finite result => exact congrArg CShape.Value.finite (Fin.ext numeric)

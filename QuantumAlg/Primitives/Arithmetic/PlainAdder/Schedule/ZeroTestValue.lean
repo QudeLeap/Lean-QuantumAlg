@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.Word.ZeroTest
 /-! # Value-level helpers for clean encoded-word zero tests -/
 
 section

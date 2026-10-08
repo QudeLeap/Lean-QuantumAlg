@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 
 /-!
 # Original source selection in the real stored-guard form

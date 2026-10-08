@@ -25,13 +25,16 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent native formula of both original common-width scaled preimages. -/
-def preimagesTrace (m ell width : Nat) : List (Resource.Event kind) :=
+def preimagesTrace (m ell width : Nat) : List (Resource.Event model) :=
   Word.PowerOfTwo.Scale.scaleTrace ell width m ++ Word.PowerOfTwo.Scale.scaleTrace ell width m
 
 /-- Independent native formula of both preimages followed by both selected centered coordinates. -/
 def targetTrace (m ell width : Nat) (firstNegates secondNegates : Bool) :
-    List (Resource.Event kind) :=
+    List (Resource.Event model) :=
   preimagesTrace m ell width ++ LatticeTargetPoint.pointTrace width firstNegates secondNegates
 
 /-- Both actual preimage paths emit precisely the independent resize-and-shift formula. -/
@@ -57,7 +60,7 @@ theorem loadTargetInto_resourcePool (refs : Refs ctx m ell width)
   congrArg ResourcePool.ofList (loadTargetInto_events refs path)
 
 /-- Placement-independent coordinate envelope of both preimages and centered target calls. -/
-def eventEnvelope (m ell width : Nat) : ResourcePool kind :=
+def eventEnvelope (m ell width : Nat) : ResourcePool model :=
   ResourcePool.ofList (preimagesTrace m ell width) + LatticeTargetPoint.eventEnvelope width
 
 /-- Every actual wide-target pool lies in the independently specified native coordinate envelope. -/
@@ -111,7 +114,8 @@ theorem loadTargetInto_depth_le (refs : Refs ctx m ell width) (path : (loadTarge
 
 /-- Both actual preimages restore every borrowed system jointly with the external reference. -/
 theorem preimagesInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (preimagesInto refs).BorrowedRestored Reference state
       ((preimagesInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -120,7 +124,8 @@ theorem preimagesInto_borrowedRestored (refs : Refs ctx m ell width) (Reference 
 
 /-- The complete actual wide-target call restores all borrowed-reference correlations. -/
 theorem loadTargetInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetInto refs).BorrowedRestored Reference state
       ((loadTargetInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (preimagesInto_borrowedRestored refs Reference state)
@@ -128,7 +133,8 @@ theorem loadTargetInto_borrowedRestored (refs : Refs ctx m ell width) (Reference
 
 /-- Every original context entry remains live throughout both actual preimages. -/
 theorem preimagesInto_visited (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (preimagesInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (preimagesInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim
@@ -137,7 +143,8 @@ theorem preimagesInto_visited (refs : Refs ctx m ell width) (path : (preimagesIn
 
 /-- The actual preimage and centering calls retain the entire original supplied context. -/
 theorem loadTargetInto_visited (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (loadTargetInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (loadTargetInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim (preimagesInto_visited refs path.1 visited)

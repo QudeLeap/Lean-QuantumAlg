@@ -40,14 +40,19 @@ theorem sub_represents (refs : Refs ctx width) (left right : CInputRef ctx (.uns
   exact rawSignedWordRepresents_sub (store.read left) (store.read right) _ _
     (rawRepresents_toNat _) (rawRepresents_toNat _)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual native complement/increment represents the negative of the original source word. -/
 theorem negate_represents (refs : Refs ctx width) (store : Store ctx) :
     RawSignedRepresents ((negateStep refs store).1.read (writeInput refs.output))
       (-(store.read refs.a).toNat : Int) := by
-  simp only [negateStep, Store.applyOp, complementOp, Word.PowerOfTwo.incrementOp,
+  simp only [negateStep, BitWord.instructionStep, Store.applyOp, complementOp,
+    Word.PowerOfTwo.incrementOp,
     ClassicalOp.outputRef, Store.read_write_same, ClassicalOp.inputRef, ClassicalOp.eval_wordUnary]
   exact rawSignedWordRepresents_negate (store.read refs.a) _ (rawRepresents_toNat _)
 
+omit [BitWord.Selected model] in
 /-- An actual subtraction retains every read outside the original centered output. -/
 theorem sub_callerFrame (refs : Refs ctx width) (left right : CInputRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)

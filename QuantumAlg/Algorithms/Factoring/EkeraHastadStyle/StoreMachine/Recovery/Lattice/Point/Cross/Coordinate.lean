@@ -36,8 +36,10 @@ def subtractProductsOp (output productLeft productRight : CWriteRef ctx (.unsign
   ProductDifference.subtractProductsOp output productLeft productRight
 
 /-- Native multiplication, multiplication and subtraction for one cross-product coordinate. -/
-def coordinateCross (a b c d : CInputRef ctx (.unsignedWord width))
-    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+def coordinateCross {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) :
+    Circuit model ctx ctx :=
   ProductDifference.computeInto a b c d output productLeft productRight
 
 /-- The three actual chronological writes of one cross-product coordinate. -/
@@ -46,13 +48,34 @@ def coordinateStore (a b c d : CInputRef ctx (.unsignedWord width))
     (store : Store ctx) : Store ctx :=
   ProductDifference.computedStore a b c d output productLeft productRight store
 
+/-- Actual selected stores and operation paths of one cross-product coordinate. -/
+def coordinateStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) :
+    Store ctx × (coordinateCross (model := model) a b c d output productLeft productRight).Path :=
+  ProductDifference.computationStep (model := model) a b c d output productLeft productRight
+    store
+
+theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
+    (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
+    (store : Store ctx) :
+    (coordinateStep (model := model) a b c d output productLeft productRight store).1 =
+      coordinateStore a b c d output productLeft productRight store := rfl
+
 /-- The complete coordinate interpreter retains the original history and quantum-reference block. -/
-theorem coordinateCross_execute (a b c d : CInputRef ctx (.unsignedWord width))
+theorem coordinateCross_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (coordinateCross a b c d output productLeft productRight).execute Reference state =
-      state.mapClassical (fun entry => (coordinateStore a b c d output productLeft productRight
-        entry.1, (entry.2, ((), ((), ()))))) :=
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (coordinateCross (model := model) a b c d output productLeft productRight).execute
+      Reference state =
+      state.mapClassical (fun entry =>
+        let actual := coordinateStep (model := model) a b c d output productLeft productRight
+          entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   ProductDifference.computeInto_execute a b c d output productLeft productRight Reference state
 
 /-- All reads outside the three actual output keys remain unchanged. -/
@@ -83,11 +106,15 @@ theorem coordinateCross_correct (a b c d : CInputRef ctx (.unsignedWord width))
     cAvoidsLeft dAvoidsLeft productsDifferent av bv cv dv aRep bRep cRep dRep
 
 /-- All borrowed classical and quantum correlations survive the three actual coordinate writes. -/
-theorem coordinateCross_borrowedRestored (a b c d : CInputRef ctx (.unsignedWord width))
+theorem coordinateCross_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (coordinateCross a b c d output productLeft productRight).BorrowedRestored Reference state
-      ((coordinateCross a b c d output productLeft productRight).execute Reference state) :=
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (coordinateCross (model := model) a b c d output productLeft productRight).BorrowedRestored
+      Reference state
+      ((coordinateCross (model := model) a b c d output productLeft productRight).execute
+        Reference state) :=
   ProductDifference.computeInto_borrowedRestored a b c d output productLeft productRight
     Reference state
 

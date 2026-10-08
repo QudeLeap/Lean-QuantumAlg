@@ -29,13 +29,14 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {pre post : RuntimeCtx kind} {outputShape : CShape}
+variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+  {outputShape : CShape}
 
 /-- Exact actual block masses determine the execution distribution of a mapped record. -/
 theorem executionDistribution_eq_map_of_block_mass
-    (run : AlgorithmRun pre post outputShape) {Reference : Register}
-    (input : Execution.Input pre Reference)
-    (record : Execution.Store pre → run.Record)
+    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference)
+    (record : Execution.Store pre × model.HiddenState → run.Record)
     (blocks : ∀ value,
       ((run.execute Reference input.state).block value).mass =
         ((input.state.mapClassical record).block value).mass) :
@@ -49,20 +50,20 @@ theorem executionDistribution_eq_map_of_block_mass
 
 /-- Read the actual run's retained initial store and complete Output after mapping its records. -/
 theorem relationalDistribution_eq_map_of_block_mass
-    (run : AlgorithmRun pre post outputShape) {Reference : Register}
-    (input : Execution.Input pre Reference)
-    (record : Execution.Store pre → run.Record)
+    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference)
+    (record : Execution.Store pre × model.HiddenState → run.Record)
     (blocks : ∀ value,
       ((run.execute Reference input.state).block value).mass =
         ((input.state.mapClassical record).block value).mass) :
     run.relationalDistribution input =
       (input.state.toPMF input.normalized).map
-        (fun store => ((record store).2.1, run.result (record store))) := by
+        (fun store => ((record store).2.2.1, run.result (record store))) := by
   change (run.executionDistribution input).map
-    (fun value => (value.2.1, run.result value)) = _
+    (fun value => (value.2.2.1, run.result value)) = _
   exact (congrArg
     (fun distribution : PMF run.Record =>
-      distribution.map (fun value => (value.2.1, run.result value)))
+      distribution.map (fun value => (value.2.2.1, run.result value)))
     (executionDistribution_eq_map_of_block_mass run input record blocks)).trans
       (PMF.map_comp _ _ _)
 

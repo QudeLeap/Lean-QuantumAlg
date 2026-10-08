@@ -27,14 +27,15 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Load, scan, decide and pack within the real eleven-cell sampler context. -/
 def inner (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) :
-    Circuit (Layout.context ctx (modulusBits N)) (Layout.context ctx (modulusBits N)) :=
-  .seq (Scan.circuit N sample)
-    (Decision.circuit (Layout.shared ctx (modulusBits N))
+    Circuit model (Layout.context ctx (modulusBits N)) (Layout.context ctx (modulusBits N)) :=
+  .seq (Scan.circuit (model := model) N sample)
+    (Decision.circuit (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N)))
 
@@ -42,9 +43,9 @@ def inner (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
 def innerStep (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (store : Store (Layout.context ctx (modulusBits N))) :
-    Store (Layout.context ctx (modulusBits N)) × (inner N sample output).Path :=
-  let scanned := Scan.step N sample store
-  let prepared := Decision.step (Layout.shared ctx (modulusBits N))
+    Store (Layout.context ctx (modulusBits N)) × (inner (model := model) N sample output).Path :=
+  let scanned := Scan.step (model := model) N sample store
+  let prepared := Decision.step (model := model) (Layout.shared ctx (modulusBits N))
     (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
     (Layout.underWrite output (modulusBits N)) scanned.1
   (prepared.1, (scanned.2, prepared.2))
@@ -53,23 +54,30 @@ def innerStep (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
 theorem samplerInner_execute (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (Layout.context ctx (modulusBits N)) Reference History) :
-    (inner N sample output).execute Reference state =
-      state.mapClassical (fun entry => ((innerStep N sample output entry.1).1,
-        (entry.2, (innerStep N sample output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (Scan.circuit N sample) _ (Scan.step N sample)
-    (Decision.step (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))
-      (Layout.gcdResultCell ctx (modulusBits N)) (Layout.underWrite output (modulusBits N)))
+    (state : State (Layout.context ctx (modulusBits N)) Reference (model.HiddenState × History)) :
+    (inner (model := model) N sample output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := innerStep (model := model) N sample output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical (Scan.circuit (model := model) N sample) _
+    (fun entry =>
+      let result := Scan.step (model := model) N sample entry.1
+      ((result.1, entry.2), result.2))
+    (fun entry =>
+      let result := Decision.step (model := model) (Layout.shared ctx (modulusBits N))
+        (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
+        (Layout.underWrite output (modulusBits N)) entry.1
+      ((result.1, entry.2), result.2))
     (Scan.samplerScan_execute N sample)
     (Decision.decision_execute (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N))) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Enclose an actual inner program in precisely the layout's eleven workspace constructors. -/
-def scopes (ctx : RuntimeCtx kind) (width : Nat)
-    (body : Circuit (Layout.context ctx width) (Layout.context ctx width)) : Circuit ctx ctx :=
+def scopes (ctx : RuntimeCtx model.kind) (width : Nat)
+    (body : Circuit model (Layout.context ctx width) (Layout.context ctx width)) :
+    Circuit model ctx ctx :=
   let stage10 := Circuit.workspace (Layout.availableCtx ctx width)
     (Layout.availableCtx ctx width).canonicalFreshKey .bit
     (Layout.availableCtx ctx width).canonicalFreshKey_fresh body
@@ -105,14 +113,15 @@ def scopes (ctx : RuntimeCtx kind) (width : Nat)
 
 /-- The actual scoped residue program takes a stored sample and writes its complete parameter. -/
 def circuit (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
-    (output : CWriteRef ctx (ParameterShape (modulusBits N))) : Circuit ctx ctx :=
-  scopes ctx (modulusBits N) (inner N sample output)
+    (output : CWriteRef ctx (ParameterShape (modulusBits N))) : Circuit model ctx ctx :=
+  scopes (model := model) ctx (modulusBits N) (inner (model := model) N sample output)
 
 /-- Enter all real cells, execute the inner program and remove exactly those cells. -/
 def step (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx) :
-    Store ctx × (circuit N sample output).Path :=
-  let prepared := innerStep N sample output (Layout.pushStore (modulusBits N) store)
+    Store ctx × (circuit (model := model) N sample output).Path :=
+  let prepared := innerStep (model := model) N sample output
+    (Layout.pushStore (modulusBits N) store)
   (Layout.popStore (modulusBits N) prepared.1, prepared.2)
 
 end

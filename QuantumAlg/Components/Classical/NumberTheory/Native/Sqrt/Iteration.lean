@@ -53,28 +53,31 @@ structure LoopInvariant (input : CInputRef ctx (.unsignedWord (width + width)))
   /-- The actual increment cell contains the next binary place. -/
   half : (store.read (.storage refs.half.toCStorageRef)).toNat = initialHalf remaining
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- One real round preserves the complete internal invariant with one fewer remaining bit. -/
 theorem nativeSqrt_round_invariant
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (original remaining : Nat) (store : Store ctx)
     (ready : LoopInvariant input refs original (remaining + 1) store) :
-    LoopInvariant input refs original remaining (roundStep input refs store).1 := by
+    LoopInvariant input refs original remaining (roundStep (model := model) input refs store).1 :=
+      by
   have halfValue : (store.read (.storage refs.half.toCStorageRef)).toNat = 2 ^ remaining :=
     ready.half.trans (nativeSqrt_initialHalf_succ remaining)
   have fits : (store.read (.storage refs.root.toCStorageRef)).toNat +
       (store.read (.storage refs.half.toCStorageRef)).toNat < 2 ^ width := by
     rw [halfValue]
     exact Nat.BinarySqrt.midpoint_lt_capacity ready.capacity
-  have rootValue := nativeSqrt_round_root input refs separated store fits
+  have rootValue := nativeSqrt_round_root (model := model) input refs separated store fits
   rw [ready.source, halfValue] at rootValue
   refine ⟨?_, ?_, ?_, ?_⟩
   · exact (congrArg CShape.Value.toNat
-      (nativeSqrt_round_input input refs separated store)).trans ready.source
+      (nativeSqrt_round_input (model := model) input refs separated store)).trans ready.source
   · rw [rootValue]
     exact Nat.BinarySqrt.refine_interval ready.interval
   · rw [rootValue]
     exact Nat.BinarySqrt.refine_capacity ready.capacity
-  · exact (nativeSqrt_round_half input refs separated store).trans
+  · exact (nativeSqrt_round_half (model := model) input refs separated store).trans
       ((congrArg (fun value : Nat => value / 2) halfValue).trans
         (nativeSqrt_initialHalf_div remaining))
 
@@ -85,8 +88,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 /-- Actual final store and finite path vector from repeating the real round. -/
 def iteratedRoundStep (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : RoundRefs ctx width) (count : Nat) (store : Store ctx) :
-    Store ctx × (Circuit.iterate count (round input refs)).Path :=
-  let step := roundStep input refs
+    Store ctx × (Circuit.iterate count (round (model := model) input refs)).Path :=
+  let step := roundStep (model := model) input refs
   ((fun current => (step current).1)^[count] store,
     fun index => (step ((fun current => (step current).1)^[index.val] store)).2)
 
@@ -94,39 +97,47 @@ def iteratedRoundStep (input : CInputRef ctx (.unsignedWord (width + width)))
 theorem nativeSqrt_iteration_execute
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (count : Nat) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.iterate count (round input refs)).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.iterate count (round (model := model) input refs)).execute Reference state =
       state.mapClassical (fun entry =>
-        ((iteratedRoundStep input refs count entry.1).1,
-          (entry.2, (iteratedRoundStep input refs count entry.1).2))) := by
-  refine (Circuit.execute_iterate_mapClassical (round input refs) (roundStep input refs)
-    (nativeSqrt_round_execute input refs) count Reference state).trans ?_
-  let update : Store ctx × History → Store ctx ×
-      (History × (Circuit.iterate count (round input refs)).Path) :=
-    fun entry => ((iteratedRoundStep input refs count entry.1).1,
-      (entry.2, (iteratedRoundStep input refs count entry.1).2))
-  exact congrArg
-    (fun decision : DecidableEq (Store ctx ×
-        (History × (Circuit.iterate count (round input refs)).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
-        decision state update)
-    (Subsingleton.elim _ _)
+        ((iteratedRoundStep (model := model) input refs count entry.1).1,
+          (entry.2.1, (entry.2.2, (iteratedRoundStep (model := model) input refs count
+            entry.1).2)))) := by
+  let jointStep := fun before : Store ctx × model.HiddenState =>
+    let actual := roundStep (model := model) input refs before.1
+    ((actual.1, before.2), actual.2)
+  have iterateJoint (steps : Nat) (store : Store ctx) (hidden : model.HiddenState) :
+      (fun before => (jointStep before).1)^[steps] (store, hidden) =
+        ((fun current => (roundStep (model := model) input refs current).1)^[steps] store,
+          hidden) := by
+    induction steps with
+    | zero => rfl
+    | succ steps inductionHypothesis =>
+        rw [Function.iterate_succ_apply', Function.iterate_succ_apply', inductionHypothesis]
+  refine (Circuit.execute_iterate_mapClassical (round (model := model) input refs) jointStep
+    (fun reference _history _ current => nativeSqrt_round_execute input refs reference current)
+    count Reference state).trans ?_
+  apply ExecutionState.executionState_mapClassical_congr
+  funext entry
+  simp only [iteratedRoundStep, iterateJoint, jointStep]
 
 /-- Exhausting the actual remaining rounds leaves exactly the natural square root. -/
 theorem nativeSqrt_iteration_root
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (original remaining : Nat) (store : Store ctx)
     (ready : LoopInvariant input refs original remaining store) :
-    ((iteratedRoundStep input refs remaining store).1.read
+    ((iteratedRoundStep (model := model) input refs remaining store).1.read
       (.storage refs.root.toCStorageRef)).toNat = Nat.sqrt original := by
-  change (((fun current => (roundStep input refs current).1)^[remaining] store).read
+  change (((fun current => (roundStep (model := model) input refs current).1)^[remaining]
+    store).read
     (.storage refs.root.toCStorageRef)).toNat = Nat.sqrt original
   induction remaining generalizing store with
   | zero => exact ready.interval.finished
   | succ remaining inductionHypothesis =>
       rw [Function.iterate_succ_apply]
       exact inductionHypothesis _
-        (nativeSqrt_round_invariant input refs separated original remaining store ready)
+        (nativeSqrt_round_invariant (model := model) input refs separated original remaining store
+          ready)
 
 /-- Repetition retains every original structural value outside the five actual write keys. -/
 theorem nativeSqrt_iteration_read_unchanged
@@ -134,8 +145,10 @@ theorem nativeSqrt_iteration_read_unchanged
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys)
     (count : Nat) (store : Store ctx) :
-    (iteratedRoundStep input refs count store).1.read other = store.read other := by
-  change (((fun current => (roundStep input refs current).1)^[count] store).read other) = _
+    (iteratedRoundStep (model := model) input refs count store).1.read other = store.read other :=
+      by
+  change (((fun current => (roundStep (model := model) input refs current).1)^[count] store).read
+    other) = _
   induction count generalizing store with
   | zero => rfl
   | succ count inductionHypothesis =>

@@ -23,6 +23,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 noncomputable section
 
 open Execution
+open ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -31,7 +32,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 /-- The actual complete Output has the source PMF's finite weight in each full reference entry. -/
 theorem nativeBatch_output_weighted_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (weight : (resultShape N).Value → ℂ)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (weight : (resultShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
         (fun entry _ => weight ((run base noQuantum N).output.eval entry.1)) leftRef rightRef =
@@ -48,7 +50,8 @@ theorem nativeBatch_output_weighted_reference (input : Input N)
 /-- Each real output fiber has the exact original source point mass in every reference entry. -/
 theorem nativeBatch_output_indicator_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (selected : (resultShape N).Value)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (selected : (resultShape N).Value)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
         (fun entry _ => if (run base noQuantum N).output.eval entry.1 = selected then 1 else 0)

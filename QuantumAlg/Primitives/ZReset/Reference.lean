@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Primitives.ZReset.Semantics
 import all QuantumAlg.Primitives.ZReset.Semantics
+import all QuantumAlg.Components.QuditShift.Reset.Circuit.Semantics
 import all QuantumAlg.Core.Execution.Borrowed.Empty
 import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Core.Execution.Borrowed.State
@@ -47,29 +48,35 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual reset execution preserves every external reference matrix entry,
 including off-diagonal correlations, after tracing out the live local systems. -/
-public theorem zReset_reference_entry {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
+public theorem zReset_reference_entry {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H)
+    (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((circuit wire output).execute Reference state).quantumMarginal.matrix
+      ((circuit wire output realizations).execute Reference state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
-  rw [circuit_quantumMarginal]
+  rw [circuit, QuditShift.resetCircuit_execute, ExecutionState.mapClassical_quantumMarginal]
   refine (ExecutionState.applyLocalUnitary_reference_entry
     (R := ctx.register) (Reference := Reference) _ _ refLeft refRight).trans ?_
   exact ExecutionState.measureZ_reference_entry ctx.quantumLayout wire state refLeft refRight
 
 /-- In a context with no borrowed cells or wires, the reset circuit restores
 the actual joint borrowed observation, which includes the full reference. -/
-theorem zReset_borrowedRestored_noBorrowed {ctx : RuntimeCtx .quantum}
+theorem zReset_borrowedRestored_noBorrowed {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = []) (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    (circuit wire output).BorrowedRestored Reference state
-      ((circuit wire output).execute Reference state) := by
+    (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H)) :
+    (circuit wire output realizations).BorrowedRestored Reference state
+      ((circuit wire output realizations).execute Reference state) := by
   rw [Circuit.BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
   intro value
@@ -79,7 +86,7 @@ theorem zReset_borrowedRestored_noBorrowed {ctx : RuntimeCtx .quantum}
   rcases column with ⟨right, refRight⟩
   rw [Execution.observeBorrowed_empty_entry noClassical noQuantum,
     Execution.observeBorrowed_empty_entry noClassical noQuantum]
-  exact zReset_reference_entry wire output state refLeft refRight
+  exact zReset_reference_entry wire output realizations state refLeft refRight
 
 end
 

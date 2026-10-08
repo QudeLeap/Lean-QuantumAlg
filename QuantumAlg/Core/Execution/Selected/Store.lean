@@ -23,6 +23,9 @@ there is no second execution definition or supplied state transformation.
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 noncomputable section
 
 open Execution
@@ -35,20 +38,22 @@ variable {ctx : RuntimeCtx .quantum} {shape : CShape}
 /-- The actual selected operation conjugates each block
 and records that same stored-value branch. -/
 theorem selectedUnitary_execute (input : CInputRef ctx shape)
-    (program : shape.Value → UnitaryCircuit ctx.register)
-    (placed : ∀ value, (program value).physical_idx = ctx.physicalIdx)
+    (program : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    ((Circuit.branch input (fun value => .unitary (program value) (placed value))).execute
+    (state : State ctx Reference (classicalOracles.HiddenState × History)) :
+    ((Circuit.branch input (fun value => .unitary
+      (operations := operations) (classicalOracles := classicalOracles)
+      (program value))).execute
       Reference state) =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
         (program (entry.1.read input)).matrix (1 : UnitaryOperator Reference)).mapClassical
-          (fun entry => (entry.1, (entry.2, ⟨entry.1.read input, ()⟩))) := by
+          (fun entry => (entry.1,
+            (entry.2.1, (entry.2.2, ⟨entry.1.read input, ()⟩)))) := by
   apply ExecutionState.ext
   intro result
   apply DensityOperator.ext
   rw [execute_branch_block_matrix]
-  simp only [execute_unitary, State.unitary, State.mapHistory,
+  simp only [execute_unitary, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   simp only [ExecutionState.mapClassical_block_matrix, ExecutionState.applyUnitary_block]
   rw [Finset.sum_comm]
@@ -65,26 +70,31 @@ theorem selectedUnitary_execute (input : CInputRef ctx shape)
 
 /-- One complete actual store selects one exact unitary on its full reference-correlated block. -/
 theorem selectedUnitary_store_matrix (input : CInputRef ctx shape)
-    (program : shape.Value → UnitaryCircuit ctx.register)
-    (placed : ∀ value, (program value).physical_idx = ctx.physicalIdx)
+    (program : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx) :
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (original : Store ctx) :
     (ExecutionState.filterClassical
-      ((Circuit.branch input (fun value => .unitary (program value) (placed value))).execute
+      ((Circuit.branch input (fun value => .unitary
+        (operations := operations) (classicalOracles := classicalOracles)
+        (program value))).execute
         Reference state) (fun entry => entry.1 = original)).quantumMarginal.matrix =
       (DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor (program (original.read input)).matrix
           (1 : UnitaryOperator Reference))
         (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal).matrix := by
-  let code := Circuit.branch input (fun value => .unitary (program value) (placed value))
-  let update : Store ctx × History → Store ctx × (History × code.Path) :=
-    fun entry => (entry.1, (entry.2, ⟨entry.1.read input, ()⟩))
+  let code := Circuit.branch input (fun value => .unitary
+    (operations := operations) (classicalOracles := classicalOracles) (program value))
+  let update : Store ctx × (classicalOracles.HiddenState × History) →
+      Store ctx × (classicalOracles.HiddenState × (History × code.Path)) :=
+    fun entry => (entry.1, (entry.2.1, (entry.2.2, ⟨entry.1.read input, ()⟩)))
   let acted := state.applyUnitary fun entry => UnitaryOperator.prodTensor
     (program (entry.1.read input)).matrix (1 : UnitaryOperator Reference)
   have executed := congrArg
-    (fun result : State ctx Reference (History × code.Path) =>
+    (fun result : State ctx Reference
+        (classicalOracles.HiddenState × (History × code.Path)) =>
       ((result.mapClassical (fun entry => entry.1)).block original).matrix)
-    (selectedUnitary_execute input program placed state)
+    (selectedUnitary_execute input program state)
   have composition := congrArg
     (fun result : ExecutionState (Store ctx) (Register.prod ctx.register Reference) =>
       (result.block original).matrix)
@@ -95,9 +105,9 @@ theorem selectedUnitary_store_matrix (input : CInputRef ctx shape)
   let chosen := UnitaryOperator.prodTensor (program (original.read input)).matrix
     (1 : UnitaryOperator Reference)
   have fixed :
-      (∑ entry : Store ctx × History,
+      (∑ entry : Store ctx × (classicalOracles.HiddenState × History),
         if entry.1 = original then (acted.block entry).matrix else 0) =
-        ∑ entry : Store ctx × History,
+        ∑ entry : Store ctx × (classicalOracles.HiddenState × History),
           (DensityOperator.applyUnitary chosen (part.block entry)).matrix := by
     apply Finset.sum_congr rfl
     intro entry _

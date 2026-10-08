@@ -6,6 +6,21 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Basic
+import all QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Components.Kets
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Util.FinPow
+
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
+import all QuantumAlg.Primitives.WalshHadamard.Uniform
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+import all QuantumAlg.Primitives.WalshHadamard.Initialization
+import all QuantumAlg.Primitives.WalshHadamard.Initialization.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+
 public import QuantumAlg.Primitives.WalshHadamard
 import all QuantumAlg.Primitives.WalshHadamard
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
@@ -46,7 +61,7 @@ open WalshHadamard WalshHadamard.Readout
 /-- The Bernstein-Vazirani oracle for hidden string `s`: the inner-product
 function `x ↦ x · s mod 2` [dW19, qcnotes.tex:1283], queried through
 `Gate.xorOracle` like any Deutsch-Jozsa oracle. -/
-def oracle (s : Fin (2 ^ n)) : WalshHadamard.Oracle n := fun x => dotParity x s
+public def oracle (s : Fin (2 ^ n)) : WalshHadamard.Oracle n := fun x => dotParity x s
 
 /-! ### Walsh-sign algebra -/
 
@@ -269,25 +284,15 @@ private theorem measurementOutcome_fiber (s : Fin (2 ^ n)) :
     change prodEquiv (s, target) = basis at htarget
     rw [← htarget, Equiv.symm_apply_apply]
 
-/-- The normalized state produced by the actual shared circuit on the
-canonical input, packaged with the canonical physical layout. -/
-def evolvedState (s : Fin (2 ^ n)) : QubitLayout.State (layout n) where
-  state := PureState.ofNormalized
-    (UnitaryCircuit.applyNormalized (WalshHadamard.circuit (oracle s))
-      (inputState n).normalized)
-    (layout n).systemIdx
-  system_idx_eq := rfl
+/-- The original mathematical final joint state on the canonical physical wires. -/
+def evolvedState (s : Fin (2 ^ n)) : QubitLayout.State (layout n) :=
+  WalshHadamard.Readout.evolvedState (oracle s)
 
-/-- The evolved typed state is exactly the Bernstein-Vazirani final joint
-state `|s⟩ ⊗ |−⟩`. -/
+/-- The original final state is exactly the recovered string tensored with the minus target. -/
 @[simp] theorem evolvedState_normalized (s : Fin (2 ^ n)) :
     (evolvedState s).normalized =
-      NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s)
-        ketMinus := by
-  change UnitaryCircuit.applyNormalized (WalshHadamard.circuit (oracle s))
-    (inputState n).normalized = _
-  rw [inputState_normalized, WalshHadamard.circuit_applyNormalized,
-    finalJointState_oracle]
+      NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s) ketMinus :=
+  finalJointState_oracle s
 
 /-- Each basis point in the recovered-string fiber has the target-qubit
 amplitude of `|−⟩`. -/
@@ -311,29 +316,26 @@ theorem measurementOutcome_probability_one (s : Fin (2 ^ n)) :
     norm_num
   rw [htarget]
 
-/-- **Bernstein-Vazirani correctness and exact resources**: running one
-concrete circuit with the inner-product oracle of hidden string `s` leaves the
-joint register in exactly `|s⟩ ⊗ |−⟩` [dW19, qcnotes.tex:1296], so a single query recovers
-the hidden string (Bernstein and Vazirani 1997). Correctness, exact event counts,
-and event depth all refer to the same `circuit` binder. This descriptive theorem is
-retained while `main` becomes the canonical endpoint theorem. -/
+/-- One actual zero-input native word yields the complete recovered-string state
+[dW19, qcnotes.tex:1296], with its own gate, query and dependency counts. -/
 theorem circuitMain (s : Fin (2 ^ n)) :
-    ∃ circuit : UnitaryCircuit (Qubits (n + 1)),
-      UnitaryCircuit.applyNormalized circuit (WalshHadamard.input n) =
-          NormalizedVector.tensor
-            (NormalizedVector.ket (R := Qubits n) s) ketMinus ∧
-      circuit.eventCost = WalshHadamard.eventPool n ∧
-      ResourcePool.count WalshHadamard.hadamardEvent circuit.eventCost = 2 * n + 1 ∧
-      ResourcePool.count (WalshHadamard.xorOracleEvent n) circuit.eventCost = 1 ∧
-      circuit.evaluatedEventDepth (fun _event => 1) = if n = 0 then 2 else 3 := by
-  refine ⟨WalshHadamard.circuit (oracle s), ?_,
-    WalshHadamard.circuit_eventCost (oracle s),
-    WalshHadamard.circuit_eventCost_hadamard_count (oracle s),
-    WalshHadamard.circuit_eventCost_xorOracle_count (oracle s), ?_⟩
-  · rw [WalshHadamard.circuit_applyNormalized]
-    exact finalJointState_oracle s
-  · rw [UnitaryCircuit.evaluatedEventDepth, WalshHadamard.circuit_eventDepth]
-    exact WalshHadamard.eventCriticalPath_unit_depth n
+    ∃ body : UnitaryCircuit AlgorithmGate.model (XorOracle.model (oracle s))
+        (Gate.HadamardLayer.layout (n + 1)),
+      body.binaryMatrix.apply (NormalizedVector.ket (R := Qubits (n + 1)) 0) =
+        NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s) ketMinus ∧
+      body.eventCost =
+        (2 * n + 2) • ResourcePool.singleton
+          (model := .quantum AlgorithmGate.model (XorOracle.model (oracle s)))
+          (.gate AlgorithmGate.Coordinate.singleQubit) +
+          ResourcePool.singleton
+            (model := .quantum AlgorithmGate.model (XorOracle.model (oracle s)))
+            (.oracle XorOracle.Coordinate.xor) ∧
+      body.evaluatedEventDepth (fun _ => 1) = if n = 0 then 3 else 4 := by
+  refine ⟨WalshHadamard.Native.zeroInputProgram (oracle s), ?_,
+    WalshHadamard.Native.walshNative_zeroInputProgram_eventCost (oracle s),
+    WalshHadamard.Native.walshNative_zeroInputProgram_unit_depth (oracle s)⟩
+  rw [WalshHadamard.Native.walshNative_zeroInputProgram_apply_zero]
+  exact finalJointState_oracle s
 
 end BernsteinVazirani
 

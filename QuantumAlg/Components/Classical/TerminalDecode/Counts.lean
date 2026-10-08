@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Components.Classical.TerminalDecode.Resources
+import all QuantumAlg.Components.Classical.TerminalDecode.Trace
 import all QuantumAlg.Core.Execution.Trace
 
 /-!
@@ -22,66 +22,71 @@ namespace QuantumAlg.ClassicalRoutines.TerminalDecode
 open ClassicalAlgorithms.TerminalDecode
 
 /-- One actual append always shifts, independently of its stored bit value. -/
-theorem terminalDecode_bitRef_shiftCount {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem terminalDecode_bitRef_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (bitRefRoutine input output).Path) :
-    ResourcePool.count (shiftEvent width) ((bitRefRoutine input output).resourcePool path) = 1 := by
-  rcases path with ⟨shiftPath, value, branchPath⟩
-  cases value with
-  | bit value =>
-      cases value
-      · change ResourcePool.count (shiftEvent width) (ResourcePool.ofList [shiftEvent width]) = 1
-        simp
-      · change ResourcePool.count (shiftEvent width)
-          (ResourcePool.ofList [shiftEvent width, incrementEvent width]) = 1
-        simp [shiftEvent, incrementEvent]
+    (path : (bitRefRoutine (model := model) input output).Path) :
+    ResourcePool.count (shiftEvent (model := model) width)
+      ((bitRefRoutine (model := model) input output).resourcePool path) = 1 := by
+  change ResourcePool.count (shiftEvent (model := model) width)
+    (ResourcePool.ofList ((bitRefRoutine (model := model) input output).eventTrace path)) = _
+  rw [bitRef_events]
+  have distinct : Resource.ClassicalOpLabel.wordUnary .increment width ≠
+      .wordUnary .shiftLeft width := by
+    intro same
+    cases same
+  cases path.2.1.toBool <;>
+    simp [bitTrace, shiftEvent, incrementEvent, BitWord.selectedCoordinate, distinct]
 
 /-- The actual ordered fold contains exactly one shift for each original source reference. -/
-theorem terminalDecode_fold_shiftCount {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem terminalDecode_fold_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) :
-    ∀ path : (foldBitRefs output inputs).Path,
-      ResourcePool.count (shiftEvent width) ((foldBitRefs output inputs).resourcePool path) =
+    ∀ path : (foldBitRefs (model := model) output inputs).Path,
+      ResourcePool.count (shiftEvent (model := model) width)
+          ((foldBitRefs (model := model) output inputs).resourcePool path) =
         inputs.length := by
   induction inputs with
   | nil =>
       intro path
-      change ResourcePool.count (shiftEvent width) 0 = 0
+      change ResourcePool.count (shiftEvent (model := model) width) 0 = 0
       exact ResourcePool.count_zero _
   | cons input rest ih =>
       intro path
-      change ResourcePool.count (shiftEvent width) (ResourcePool.ofList
-        ((bitRefRoutine input output).eventTrace path.1 ++
-          (foldBitRefs output rest).eventTrace path.2)) = _
+      change ResourcePool.count (shiftEvent (model := model) width) (ResourcePool.ofList
+        ((bitRefRoutine (model := model) input output).eventTrace path.1 ++
+          (foldBitRefs (model := model) output rest).eventTrace path.2)) = _
       rw [ResourcePool.ofList_append, ResourcePool.count_add]
-      change ResourcePool.count (shiftEvent width)
-        ((bitRefRoutine input output).resourcePool path.1) +
-        ResourcePool.count (shiftEvent width) ((foldBitRefs output rest).resourcePool path.2) = _
+      change ResourcePool.count (shiftEvent (model := model) width)
+        ((bitRefRoutine (model := model) input output).resourcePool path.1) +
+        ResourcePool.count (shiftEvent (model := model) width)
+          ((foldBitRefs (model := model) output rest).resourcePool path.2) = _
       rw [terminalDecode_bitRef_shiftCount, ih]
       simp only [List.length_cons, Nat.add_comm]
 
 /-- Both actual bit orders visit exactly the declared source width. -/
-theorem terminalDecode_intoFromBitRefs_shiftCount {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} {width : Nat} (order : BitOrder)
+theorem terminalDecode_intoFromBitRefs_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (intoFromBitRefs order inputs output).Path) :
-    ResourcePool.count (shiftEvent width)
-      ((intoFromBitRefs order inputs output).resourcePool path) = width := by
+    (path : (intoFromBitRefs (model := model) order inputs output).Path) :
+    ResourcePool.count (shiftEvent (model := model) width)
+      ((intoFromBitRefs (model := model) order inputs output).resourcePool path) = width := by
   simpa only [List.length_ofFn, intoFromBitRefs] using
     terminalDecode_fold_shiftCount output
       (List.ofFn (fun index => inputs (sourceIndex order index))) path
 
 /-- Retaining the output adds no arithmetic event to the exact-width shift count. -/
-theorem terminalDecode_routine_shiftCount {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) (width : Nat) (order : BitOrder)
+theorem terminalDecode_routine_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
-    (path : (routine ctx width order input key fresh).Path) :
-    ResourcePool.count (shiftEvent width)
-      ((routine ctx width order input key fresh).resourcePool path) = width := by
-  change ResourcePool.count (shiftEvent width)
-    ((intoFromBitRefs order
+    (path : (routine (model := model) ctx width order input key fresh).Path) :
+    ResourcePool.count (shiftEvent (model := model) width)
+      ((routine (model := model) ctx width order input key fresh).resourcePool path) = width := by
+  change ResourcePool.count (shiftEvent (model := model) width)
+    ((intoFromBitRefs (model := model) order
       (fun bit => .bitsGet (input.underRetained key (OutputShape width) fresh) bit)
       (CWriteRef.retainedHead ctx key (OutputShape width) fresh)).resourcePool path.2) = width
   exact terminalDecode_intoFromBitRefs_shiftCount order _ _ path.2

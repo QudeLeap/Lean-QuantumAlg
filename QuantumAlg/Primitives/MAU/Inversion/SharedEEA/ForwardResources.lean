@@ -76,7 +76,7 @@ theorem corrected_count (modulus : Nat) (nontrivial : 1 < modulus) :
   have correction := correction_count modulus
   rw [CorrectedSchedule.program, DecodedSchedule.program,
     UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
-    Multiset.card_add, Multiset.card_add]
+    OutputCorrection.outputCorrection_nativeProgram_eventCost, Multiset.card_add, Multiset.card_add]
   unfold correctedBound
   omega
 
@@ -105,9 +105,13 @@ theorem inPlace_depth (modulus : Nat) (nontrivial : 1 < modulus) :
 
 /-- Replacing the large workspace port does not remove any event from the same complete dagger. -/
 theorem inPlace_dagger_count (modulus : Nat) (nontrivial : 1 < modulus) :
-    (InPlaceForward.program modulus nontrivial).dagger.eventCost.card ≤
+    ((InPlaceForward.program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).eventCost.card ≤
       inPlaceBound modulus.size := by
-  rw [UnitaryCircuit.dagger_eventCost]
+  rw [AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost]
+  change (Multiset.map (AlgorithmGate.oracleFreeEvent .empty)
+    (InPlaceForward.program modulus nontrivial).eventCost).card ≤ _
+  rw [Multiset.card_map]
   exact inPlace_count modulus nontrivial
 
 /-- The separate clean-XOR inverse charges both full passes and the actual n CNOT copy. -/
@@ -115,9 +119,15 @@ theorem xor_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (NativeInverse.program modulus nontrivial).eventCost.card ≤ xorBound modulus.size := by
   have corrected := corrected_count modulus nontrivial
   have copy := (OutputCopy.program_serial_resources modulus.size).1
-  rw [← ShiftResources.trace_count, NativeInverse.program_eventTrace,
-    List.length_append, List.length_append, List.length_reverse,
-    ShiftResources.trace_count, ShiftResources.trace_count]
+  have forward : (NativeInverse.forwardProgram modulus nontrivial).eventCost.card =
+      (CorrectedSchedule.program modulus nontrivial).eventCost.card := by
+    rfl
+  rw [NativeInverse.program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
+    Multiset.card_add, Multiset.card_add,
+    AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost]
+  change _ + (_ + (Multiset.map (AlgorithmGate.oracleFreeEvent .empty)
+    (NativeInverse.forwardProgram modulus nontrivial).eventCost).card) ≤ _
+  rw [Multiset.card_map, forward]
   unfold xorBound
   omega
 

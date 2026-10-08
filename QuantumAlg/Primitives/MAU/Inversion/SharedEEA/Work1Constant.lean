@@ -97,14 +97,16 @@ theorem gates_step (width : Nat) (constant : Fin (2 ^ (width + 3))) (state : Reg
 
 /-- Execute precisely the selected native X list on the original source frame. -/
 def program (width : Nat) (constant : Fin (2 ^ (width + 3))) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width constant)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width constant)
 
 /-- Exact complete-data semantics of the native constant load or unload. -/
 theorem program_realizes (width : Nat) (constant : Fin (2 ^ (width + 3))) :
     UnitaryCircuit.Realizes (encoding width) (program width constant)
       (fun state => { state with firstWord := state.firstWord ^^^ BitVec.ofFin constant }) :=
-  GateSpec.realizesList_congrStep _ (gates_step width constant)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (gates_step width constant)
 
 /-- Exactly one X is emitted per selected bit of the fixed numerical constant. -/
 theorem gates_length (width : Nat) (constant : Fin (2 ^ (width + 3))) :

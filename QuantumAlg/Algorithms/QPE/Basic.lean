@@ -17,7 +17,9 @@ import all QuantumAlg.Core.Base.State.Basic
 import all QuantumAlg.Core.Base.State.Normalized
 import all QuantumAlg.Util.Complex
 import all QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Primitives.QFT.Construction
+public import QuantumAlg.Algorithms.QPE.Readout
+import all QuantumAlg.Algorithms.QPE.Readout
+import all QuantumAlg.Primitives.QFT.Mathematics
 import all QuantumAlg.Components.Control
 import all QuantumAlg.Components.Kets
 
@@ -215,59 +217,19 @@ def phaseRegisterGeometricAmplitude (t : Nat) (φ : Real) (j : Fin (2 ^ t)) : �
 superposition is exactly `QFT t |j>`. -/
 theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
     phaseState t ((j.val : Real) / (2 : Real) ^ t) =
-      UnitaryCircuit.applyNormalized (QFTCircuit t)
-        (NormalizedVector.ket (R := Qubits t) j) := by
+      (QFTOperator t).apply (NormalizedVector.ket (R := Qubits t) j) := by
   apply NormalizedVector.ext
   intro k
-  rw [phaseState_apply, QFT_apply_ket, ω, ← Complex.exp_nat_mul]
+  change phaseState t ((j.val : Real) / (2 : Real) ^ t) k =
+    (QFTOperator t).applyVec (NormalizedVector.ket (R := Qubits t) j).vec k
+  rw [phaseState_apply, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
+    QFTOperator_entry, ω, ← Complex.exp_nat_mul]
   congr 1
   congr 1
   push_cast
   ring
 
 /-! ### Inverse-QFT readout -/
-
-/-- The inverse-QFT readout as the dagger of the same typed QFT circuit. -/
-def qpeReadoutCircuit (t : Nat) : UnitaryCircuit (Qubits t) :=
-  UnitaryCircuit.dagger (QFTCircuit t)
-
-/-- The metadata-free inverse quantum Fourier transform derived from the
-readout circuit. -/
-def invQFT (t : Nat) : UnitaryOperator (Qubits t) :=
-  (qpeReadoutCircuit t).matrix
-
-
-
-
-
-/-- Daggering the QFT readout preserves its strict event pool. -/
-@[simp]
-theorem qpeReadoutCircuit_eventCost (t : Nat) :
-    (qpeReadoutCircuit t).eventCost = (QFTCircuit t).eventCost := rfl
-
-/-- Exact strict gate-coordinate multiplicities of QPE's shared inverse-QFT
-readout, derived by daggering the same `QFTCircuit` ledger. -/
-theorem qpeReadoutCircuit_exact_event_gate_counts (t : Nat) :
-    ResourcePool.count (.gate (.builtin "hadamard"))
-        (qpeReadoutCircuit t).eventCost = t ∧
-      ResourcePool.count (.gate qftControlledPhaseLabel)
-          (qpeReadoutCircuit t).eventCost = t * (t - 1) / 2 ∧
-      ResourcePool.count (.gate (.builtin "swap"))
-          (qpeReadoutCircuit t).eventCost = t / 2 := by
-  rw [qpeReadoutCircuit_eventCost]
-  exact QFTCircuit_exact_event_gate_counts t
-
-/-- Daggering the QFT readout records the inverse strict event critical path. -/
-@[simp]
-theorem qpeReadoutCircuit_eventDepth (t : Nat) :
-    (qpeReadoutCircuit t).eventDepth = .inverse (QFTCircuit t).eventDepth := rfl
-
-/-- Inversion preserves every evaluated strict-event critical-path length. -/
-@[simp]
-theorem qpeReadoutCircuit_evaluatedEventDepth
-    (t : Nat) (assign : Resource.Event .quantum → Nat) :
-    (qpeReadoutCircuit t).evaluatedEventDepth assign =
-      (QFTCircuit t).evaluatedEventDepth assign := rfl
 
 theorem invQFT_phaseState_term_eq (t : Nat) (φ : Real)
     (j k : Fin (2 ^ t)) :
@@ -305,18 +267,15 @@ theorem invQFT_phaseState_apply_geometricSum (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     (invQFT t).apply (phaseState t φ) j =
       phaseRegisterGeometricAmplitude t φ j := by
-  change UnitaryCircuit.applyVec (qpeReadoutCircuit t)
-      (phaseState t φ : HilbertVector (Qubits t)) j = _
+  change (invQFT t).applyVec (phaseState t φ : HilbertVector (Qubits t)) j = _
   rw [phaseRegisterGeometricAmplitude]
   calc
-    UnitaryCircuit.applyVec (qpeReadoutCircuit t)
-        (phaseState t φ : HilbertVector (Qubits t)) j =
+    (invQFT t).applyVec (phaseState t φ : HilbertVector (Qubits t)) j =
         ∑ k : Fin (2 ^ t),
           star (invSqrtN t * ω t ^ (k.val * j.val)) *
             (invSqrtN t * Complex.exp (2 * Real.pi * φ * k.val * Complex.I)) := by
-      rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec_apply]
-      simp [qpeReadoutCircuit, QFTCircuit_matrix, QFTOperator_entry, phaseState,
-        Matrix.conjTranspose_apply]
+      rw [UnitaryOperator.applyVec_apply, qpeReadout_binary_matrix]
+      simp [QFTOperator_entry, phaseState]
     _ = ∑ k : Fin (2 ^ t),
         (((2 : ℝ) ^ t : ℂ))⁻¹ *
           Complex.exp (2 * Real.pi *
@@ -331,28 +290,19 @@ theorem invQFT_phaseState_apply_geometricSum (t : Nat) (φ : Real)
 
 /-- The inverse-QFT readout preserves normalization in its public contract. -/
 theorem qpe_readoutNormalized (t : Nat) (j : Fin (2 ^ t)) :
-    UnitaryCircuit.applyNormalized (qpeReadoutCircuit t)
-        (UnitaryCircuit.applyNormalized (QFTCircuit t)
-          (NormalizedVector.ket (R := Qubits t) j)) =
+    (invQFT t).apply ((QFTOperator t).apply
+      (NormalizedVector.ket (R := Qubits t) j)) =
       NormalizedVector.ket (R := Qubits t) j := by
   apply NormalizedVector.ext
   intro i
-  have hunitary := (QFTCircuit t).matrix.property
-  have hcancel :
-      HilbertOperator.applyVec
-          ((QFTCircuit t).matrix : HilbertOperator (Qubits t)).conjTranspose
-          (HilbertOperator.applyVec
-            ((QFTCircuit t).matrix : HilbertOperator (Qubits t))
-            (NormalizedVector.ket (R := Qubits t) j :
-              HilbertVector (Qubits t))) =
-        (NormalizedVector.ket (R := Qubits t) j : HilbertVector (Qubits t)) := by
-    rw [← HilbertOperator.mul_applyVec]
-    rw [show ((QFTCircuit t).matrix : HilbertOperator (Qubits t)).conjTranspose *
-        ((QFTCircuit t).matrix : HilbertOperator (Qubits t)) = 1 by
-      rw [← Matrix.star_eq_conjTranspose]
-      exact Matrix.mem_unitaryGroup_iff'.mp hunitary]
-    exact HilbertOperator.one_applyVec _
-  exact congrArg (fun ψ : HilbertVector (Qubits t) => ψ i) hcancel
+  rw [qpeReadout_binary_matrix]
+  change HilbertOperator.applyVec
+    (star (QFTOperator t : HilbertOperator (Qubits t)))
+    (HilbertOperator.applyVec (QFTOperator t : HilbertOperator (Qubits t))
+      (NormalizedVector.ket (R := Qubits t) j).vec) i = _
+  rw [← HilbertOperator.mul_applyVec,
+    Matrix.mem_unitaryGroup_iff'.mp (QFTOperator t).property,
+    HilbertOperator.one_applyVec]
 
 /-! ### Exact QPE -/
 
@@ -361,7 +311,7 @@ theorem qpe_readoutNormalized (t : Nat) (j : Fin (2 ^ t)) :
 the computational-basis vector `|j>` exactly. -/
 theorem QuantumPhaseEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t))
     (φ : Real) (hphi : φ = (j.val : Real) / (2 : Real) ^ t) :
-    UnitaryCircuit.applyNormalized (qpeReadoutCircuit t) (phaseState t φ) =
+    (invQFT t).apply (phaseState t φ) =
       NormalizedVector.ket (R := Qubits t) j := by
   subst hphi
   rw [phaseState_eq_qftApplyKet]

@@ -8,7 +8,7 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Guard.Result
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics.Selection
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 
 /-!
 # The actual sampler-priority dispatch has the original source result
@@ -24,21 +24,25 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem dispatch_read (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    (dispatchStep source parameter cells output store).1.read (.storage output.toCStorageRef) =
+    (dispatchStep (model := model) source parameter cells output store).1.read (.storage
+      output.toCStorageRef) =
       if (store.read parameter).second.first.toBool then
         (store.applyOp (packEarlyOp parameter output)).read (.storage output.toCStorageRef)
-      else (checkedStep source cells output store).1.read (.storage output.toCStorageRef) := by
+      else (checkedStep (model := model) source cells output store).1.read (.storage
+        output.toCStorageRef) := by
   simp only [dispatchStep]
-  change (dispatchArmStep source parameter cells output
+  change (dispatchArmStep (model := model) source parameter cells output
     (store.read (.first (.second parameter))) store).1.read (.storage output.toCStorageRef) =
     if (store.read (.first (.second parameter))).toBool then
       (store.applyOp (packEarlyOp parameter output)).read (.storage output.toCStorageRef)
-    else (checkedStep source cells output store).1.read (.storage output.toCStorageRef)
+    else (checkedStep (model := model) source cells output store).1.read (.storage
+      output.toCStorageRef)
   cases store.read (.first (.second parameter)) with
   | bit value => cases value <;> rfl
 
@@ -57,7 +61,8 @@ theorem dispatch_result (source : Input N)
     (baseProjection : baseValue.val = (store.read parameter).first.toNat)
     (expandedValue : store.read (expandedRead cells) =
       .product (.bit accepted) (.unsignedWord orderValue)) :
-    (dispatchStep source parameter cells output store).1.read (.storage output.toCStorageRef) =
+    (dispatchStep (model := model) source parameter cells output store).1.read (.storage
+      output.toCStorageRef) =
       encodeOutput (N := N) (outputOfResidue (store.read parameter) accepted orderValue) := by
   rw [dispatch_read, outputOfResidue_guard _ _ _ ordinary]
   by_cases early : (store.read parameter).second.first.toBool = true
@@ -65,7 +70,8 @@ theorem dispatch_result (source : Input N)
     rw [packEarly_result]
     simp only [if_pos early]
   · simp only [if_neg early]
-    rw [checked_result source cells output store separate zeroBase activeBase positiveBase
+    rw [checked_result (model := model) source cells output store separate zeroBase activeBase
+      positiveBase
       baseValue orderValue accepted baseRead expandedValue, baseProjection]
 
 end

@@ -90,13 +90,17 @@ theorem updateGates_step (width : Nat) (state : Registers width) :
   cases phase1 <;> cases phase2 <;> cases sign <;> cases control <;> rfl
 
 /-- Compile the actual controlled XOR list; no permutation is declared as an opaque gate. -/
-def updateProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (updateGates width)
+def updateProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (updateGates width)
 
 /-- Exact basis-vector semantics of the same native program used for accounting. -/
 theorem updateProgram_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (updateProgram width) updateStep :=
-  GateSpec.realizesList_congrStep (updateGates width) (updateGates_step width)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (updateProgram width) updateStep :=
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (updateGates width) (updateGates_step width)
 
 /-- All non-target fields are preserved, including the independent source Ctrl bit. -/
 theorem updateStep_retained {width : Nat} (state : Registers width) :
@@ -119,18 +123,18 @@ theorem updateGates_reverse {width : Nat} (state : Registers width) :
 /-- The actual program emits precisely three Toffoli events, even when Ctrl is false. -/
 theorem updateProgram_eventTrace (width : Nat) :
     (updateProgram width).eventTrace =
-      [.gate (.builtin "toffoli"), .gate (.builtin "toffoli"),
-        .gate (.builtin "toffoli")] := by
+      [.gate .toffoli, .gate .toffoli, .gate .toffoli] := by
   rw [updateProgram, GateSpec.programList_eventTrace]
   rfl
 
 theorem updateProgram_eventCost_card (width : Nat) :
     (updateProgram width).eventCost.card = 3 :=
-  GateSpec.programList_eventCost_card (updateGates width)
+  GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty (updateGates width)
 
 theorem updateProgram_unitDepth (width : Nat) :
     (updateProgram width).evaluatedEventDepth (fun _ => 1) = 3 :=
-  GateSpec.programList_evaluatedEventDepth_unit (updateGates width)
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty
+    (updateGates width)
 
 /-- The zero-shift phase-complement kernel uses two actual CNOT gates controlled by Ctrl. -/
 def complementGates (width : Nat) : List (GateSpec (encoding width)) :=
@@ -150,12 +154,16 @@ theorem complementGates_step (width : Nat) (state : Registers width) :
     ⟨phase1, phase2, sign, iteration⟩, control⟩
   cases control <;> rfl
 
-def complementProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (complementGates width)
+def complementProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (complementGates width)
 
 theorem complementProgram_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (complementProgram width) complementStep :=
-  GateSpec.realizesList_congrStep (complementGates width) (complementGates_step width)
+    UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
+      (encoding width) (complementProgram width) complementStep :=
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (complementGates width) (complementGates_step width)
 
 theorem complementGates_reverse {width : Nat} (state : Registers width) :
     GateSpec.stepList (complementGates width).reverse (complementStep state) = state := by
@@ -165,17 +173,19 @@ theorem complementGates_reverse {width : Nat} (state : Registers width) :
 /-- Both physical CNOT events remain in the trace for every input control value. -/
 theorem complementProgram_eventTrace (width : Nat) :
     (complementProgram width).eventTrace =
-      [.gate (.builtin "cnot"), .gate (.builtin "cnot")] := by
+      [.gate .cnot, .gate .cnot] := by
   rw [complementProgram, GateSpec.programList_eventTrace]
   rfl
 
 theorem complementProgram_eventCost_card (width : Nat) :
     (complementProgram width).eventCost.card = 2 :=
-  GateSpec.programList_eventCost_card (complementGates width)
+  GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty
+    (complementGates width)
 
 theorem complementProgram_unitDepth (width : Nat) :
     (complementProgram width).evaluatedEventDepth (fun _ => 1) = 2 :=
-  GateSpec.programList_evaluatedEventDepth_unit (complementGates width)
+  GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty
+    (complementGates width)
 
 end
 

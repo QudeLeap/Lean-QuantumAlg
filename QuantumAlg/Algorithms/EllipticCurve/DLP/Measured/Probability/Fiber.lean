@@ -39,23 +39,23 @@ def sourceFourierIndex {G : Type} [Group G] (problem : KnownOrderProblem G)
 theorem exponentReadout_pair_entry {G : Type} [Group G]
     (problem : KnownOrderProblem G)
     (frequency branch : Fin (2 ^ orderWidth problem) × Fin (2 ^ orderWidth problem)) :
-    (exponentReadoutCircuit problem).matrix (prodEquiv frequency) (prodEquiv branch) =
+    (exponentReadoutCircuit problem).binaryMatrix (prodEquiv frequency) (prodEquiv branch) =
       star (invSqrtN (orderWidth problem) *
         ω (orderWidth problem) ^ (branch.1.val * frequency.1.val)) *
       star (invSqrtN (orderWidth problem) *
         ω (orderWidth problem) ^ (branch.2.val * frequency.2.val)) := by
-  simp only [exponentReadoutCircuit, pairConsecutiveCircuit,
-    UnitaryCircuit.tensorQubits_matrix, UnitaryCircuit.shiftPhysicalIdx_matrix,
-    UnitaryOperator.tensor_apply, Equiv.symm_apply_apply,
-    UnitaryCircuit.dagger_matrix, QFTCircuit_matrix, Matrix.conjTranspose_apply,
-    QFTOperator_entry]
+  rw [exponentReadoutCircuit_binaryMatrix, UnitaryOperator.tensor_apply]
+  simp only [Equiv.symm_apply_apply]
+  change star (QFTOperator (orderWidth problem) branch.1 frequency.1) *
+    star (QFTOperator (orderWidth problem) branch.2 frequency.2) = _
+  simp only [QFTOperator_entry]
 
 /-- Each original in-range prepared branch contributes precisely the source fiber term. -/
 theorem preparedReadout_fiberTerm {G : Type} [Group G]
     (problem : KnownOrderProblem G) (input : SecretInput problem)
     (frequency : Fin (2 ^ orderWidth problem) × Fin (2 ^ orderWidth problem))
     (tail right : Fin problem.order) :
-    (exponentReadoutCircuit problem).matrix (prodEquiv frequency)
+    (exponentReadoutCircuit problem).binaryMatrix (prodEquiv frequency)
         (prodEquiv (sourceFourierIndex problem (fiberLeft problem input tail right),
           sourceFourierIndex problem right)) *
       preparedBranchAmplitude problem
@@ -116,7 +116,7 @@ def idealFiberAmplitude (problem : KnownOrderProblem E.GroupPoint) (seed : Affin
     (frequency : (idealBranchRegister problem).Index)
     (output : (idealGroupRegister problem seed).Index) : ℂ :=
   ∑ right : Fin (2 ^ orderWidth problem), ∑ left : Fin (2 ^ orderWidth problem),
-    (exponentReadoutCircuit problem).matrix (prodEquiv frequency) (prodEquiv (left, right)) *
+    (exponentReadoutCircuit problem).binaryMatrix (prodEquiv frequency) (prodEquiv (left, right)) *
       (if idealGroupLabel problem seed (left, right) = output then
         preparedBranchAmplitude problem (left, right) else 0)
 
@@ -213,7 +213,8 @@ theorem idealReadout_extension_entry (problem : KnownOrderProblem E.GroupPoint)
         (Effect.extensionVector (idealOracleEmbedding problem seed Reference) vector)
           ((prodEquiv frequency, output), reference) =
       ∑ right : Fin (2 ^ orderWidth problem), ∑ left : Fin (2 ^ orderWidth problem),
-        (exponentReadoutCircuit problem).matrix (prodEquiv frequency) (prodEquiv (left, right)) *
+        (exponentReadoutCircuit problem).binaryMatrix
+          (prodEquiv frequency) (prodEquiv (left, right)) *
           (if idealGroupLabel problem seed (left, right) = output then
             vector ((left, right), reference) else 0) := by
   change HilbertOperator.applyVec _ (Effect.extensionVector _ vector) _ = _
@@ -223,7 +224,7 @@ theorem idealReadout_extension_entry (problem : KnownOrderProblem E.GroupPoint)
     UnitaryOperator.prodTensor_apply, idealOracleEmbedding]
   change (∑ branch : ((Fin (2 ^ orderWidth problem) × Fin (2 ^ orderWidth problem)) ×
       Reference.Index), vector branch *
-        ((exponentReadoutCircuit problem).matrix (prodEquiv frequency) (prodEquiv branch.1) *
+        ((exponentReadoutCircuit problem).binaryMatrix (prodEquiv frequency) (prodEquiv branch.1) *
           (if output = idealGroupLabel problem seed branch.1 then 1 else 0) *
           (if reference = branch.2 then 1 else 0))) = _
   simp only [Fintype.sum_prod_type]

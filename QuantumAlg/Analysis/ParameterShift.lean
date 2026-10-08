@@ -8,7 +8,10 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.Operator
 import all QuantumAlg.Core.Base
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.Gate.Unitary
 public import QuantumAlg.Util.Polynomial.Trigonometric
 import all QuantumAlg.Util.Polynomial.Trigonometric
 
@@ -74,53 +77,48 @@ theorem ParamShiftModel.parameter_shift (M : ParamShiftModel) (θ : ℝ) :
 /-- Real expectation of an observable in one normalized state. -/
 def observableExpectation {R : Register} (ψ : NormalizedVector R)
     (observable : HilbertOperator R) : ℝ :=
-  (inner ℂ (ψ : HilbertVector R) (observable.applyVec ψ)).re
+  (inner ℂ (ψ : HilbertVector R)
+    (HilbertOperator.applyVec observable (ψ : HilbertVector R))).re
 
 /-- The single-qubit `R_Y(θ)` variational cost with observable `O` on input `ψ`:
 `C(θ) = ⟨ψ| R_Y(θ)† O R_Y(θ) |ψ⟩`. -/
 def varCost (ψ : NormalizedVector (Qubits 1))
     (O : HilbertOperator (Qubits 1)) (θ : ℝ) : ℝ :=
-  observableExpectation ((rotY θ).applyNormalized ψ) O
+  observableExpectation ((rotYOp θ).apply ψ) O
 
 /-- `R_Y(θ) |0⟩ = cos(θ/2) |0⟩ + sin(θ/2) |1⟩`. -/
 theorem rotY_apply_ket0 (θ : ℝ) :
-    ((rotY θ).applyNormalized ket0 : HilbertVector (Qubits 1))
-      = (Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1 := by
-  apply WithLp.ofLp_injective
-  funext i
-  fin_cases i
-  · change HilbertOperator.applyVec
-      (rotYOp θ : HilbertOperator (Qubits 1))
-      (ket0 : HilbertVector (Qubits 1)) 0 = _
-    simp [rotYOp, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
-  · change HilbertOperator.applyVec
-      (rotYOp θ : HilbertOperator (Qubits 1))
-      (ket0 : HilbertVector (Qubits 1)) 1 = _
-    simp [rotYOp, ket0, ket1, ket_apply, PiLp.smul_apply, PiLp.add_apply]
+    (rotYOp θ).applyVec (ket0 : HilbertVector (Qubits 1))
+      = (Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
+        + (Real.sin (θ / 2) : ℂ) • (ket1 : HilbertVector (Qubits 1)) := by
+  exact (rotYOp_applyVec_ket0 θ)
 
 /-- Inner product of two single-qubit states in the computational basis. -/
 theorem inner_ket01_combo (a b c d : ℂ) :
-    inner ℂ ((a • ket0 + b • ket1 : HilbertVector (Qubits 1)))
-      ((c • ket0 + d • ket1 : HilbertVector (Qubits 1)))
+    inner ℂ (a • (ket0 : HilbertVector (Qubits 1))
+        + b • (ket1 : HilbertVector (Qubits 1)))
+      (c • (ket0 : HilbertVector (Qubits 1))
+        + d • (ket1 : HilbertVector (Qubits 1)))
       = starRingEnd ℂ a * c + starRingEnd ℂ b * d := by
-  simp [PiLp.inner_apply, RCLike.inner_apply, Fin.sum_univ_two, ket0, ket1,
-    NormalizedVector.ket, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
-  ring
+  simp [EuclideanSpace.inner_eq_star_dotProduct,
+    NormalizedVector.ket0, NormalizedVector.ket1,
+    NormalizedVector.ket_apply]
 
 /-- The `R_Y(θ)` ansatz cost with observable `Z` on `|0⟩` equals `cos θ`. -/
-theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
-  have hZ : HilbertOperator.applyVec (Z.matrix : HilbertOperator (Qubits 1))
-      ((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
-      = (Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1 := by
-    rw [Z_matrix]
+theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ := by
+  have hZ : HilbertOperator.applyVec (Gate.ZOp : HilbertOperator (Qubits 1))
+      ((Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
+        + (Real.sin (θ / 2) : ℂ) • (ket1 : HilbertVector (Qubits 1)))
+      = (Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
+        + (-(Real.sin (θ / 2)) : ℂ) • (ket1 : HilbertVector (Qubits 1)) := by
     apply WithLp.ofLp_injective
     funext i
     fin_cases i
-    · change HilbertOperator.applyVec (ZOp : HilbertOperator (Qubits 1)) _ 0 = _
-      simp [ZOp, ket0, ket1, NormalizedVector.ket, PiLp.smul_apply, PiLp.add_apply,
+    · change HilbertOperator.applyVec (Gate.ZOp : HilbertOperator (Qubits 1)) _ 0 = _
+      simp [Gate.ZOp, ket0, ket1, NormalizedVector.ket, PiLp.smul_apply, PiLp.add_apply,
         smul_eq_mul, HilbertOperator.applyVec]
-    · change HilbertOperator.applyVec (ZOp : HilbertOperator (Qubits 1)) _ 1 = _
-      simp [ZOp, ket0, ket1, NormalizedVector.ket, PiLp.smul_apply, PiLp.add_apply,
+    · change HilbertOperator.applyVec (Gate.ZOp : HilbertOperator (Qubits 1)) _ 1 = _
+      simp [Gate.ZOp, ket0, ket1, NormalizedVector.ket, PiLp.smul_apply, PiLp.add_apply,
         smul_eq_mul, HilbertOperator.applyVec]
   have htrig : Real.cos (θ / 2) * Real.cos (θ / 2) - Real.sin (θ / 2) * Real.sin (θ / 2)
       = Real.cos θ := by
@@ -129,12 +127,14 @@ theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
       conv_lhs => rw [show θ = 2 * (θ / 2) from by ring]
       rw [Real.cos_two_mul]
     rw [h2]; nlinarith [hsc]
-  rw [varCost, observableExpectation, rotY_apply_ket0, hZ]
+  rw [varCost, observableExpectation, UnitaryOperator.apply_coe,
+    rotY_apply_ket0, hZ]
   change (inner ℂ
-      (((Real.cos (θ / 2) : ℂ) • ket0 + (Real.sin (θ / 2) : ℂ) • ket1)
-        : HilbertVector (Qubits 1))
-      (((Real.cos (θ / 2) : ℂ) • ket0 + (-(Real.sin (θ / 2)) : ℂ) • ket1)
-        : HilbertVector (Qubits 1))).re = Real.cos θ
+      ((Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
+        + (Real.sin (θ / 2) : ℂ) • (ket1 : HilbertVector (Qubits 1)))
+      ((Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
+        + (-(Real.sin (θ / 2)) : ℂ) • (ket1 : HilbertVector (Qubits 1)))).re
+      = Real.cos θ
   rw [inner_ket01_combo]
   simp only [Complex.conj_ofReal, ← Complex.ofReal_neg, ← Complex.ofReal_mul,
     ← Complex.ofReal_add, Complex.ofReal_re]
@@ -142,7 +142,7 @@ theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Z θ = Real.cos θ := by
 
 /-- A concrete variational model: the `R_Y` / `Z` / `|0⟩` cost `cos θ`. -/
 def rotYZModel : ParamShiftModel where
-  cost := varCost ket0 Z
+  cost := varCost ket0 Gate.ZOp
   a := 0
   b := 1
   c := 0
@@ -150,8 +150,9 @@ def rotYZModel : ParamShiftModel where
 
 /-- **Parameter-shift rule for the `R_Y` / `Z` / `|0⟩` ansatz.** -/
 theorem varCost_ket0_Z_parameter_shift (θ : ℝ) :
-    deriv (varCost ket0 Z) θ
-      = (varCost ket0 Z (θ + Real.pi / 2) - varCost ket0 Z (θ - Real.pi / 2)) / 2 :=
+    deriv (varCost ket0 Gate.ZOp) θ
+      = (varCost ket0 Gate.ZOp (θ + Real.pi / 2)
+          - varCost ket0 Gate.ZOp (θ - Real.pi / 2)) / 2 :=
   rotYZModel.parameter_shift θ
 
 namespace ParameterShiftRule
@@ -169,13 +170,14 @@ theorem main_trig_identity (a b c θ : ℝ) :
   trig_parameter_shift a b c θ
 
 /-- Public supporting theorem: the concrete `R_Y` / `Z` / `|0⟩` cost. -/
-theorem main_ry_z_example (θ : ℝ) : varCost ket0 Z θ = Real.cos θ :=
+theorem main_ry_z_example (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ :=
   varCost_ket0_Z θ
 
 /-- Public supporting theorem: parameter shift for the concrete `R_Y` / `Z` / `|0⟩` cost. -/
 theorem main_ry_z_parameter_shift (θ : ℝ) :
-    deriv (varCost ket0 Z) θ
-      = (varCost ket0 Z (θ + Real.pi / 2) - varCost ket0 Z (θ - Real.pi / 2)) / 2 :=
+    deriv (varCost ket0 Gate.ZOp) θ
+      = (varCost ket0 Gate.ZOp (θ + Real.pi / 2)
+          - varCost ket0 Gate.ZOp (θ - Real.pi / 2)) / 2 :=
   varCost_ket0_Z_parameter_shift θ
 
 end ParameterShiftRule

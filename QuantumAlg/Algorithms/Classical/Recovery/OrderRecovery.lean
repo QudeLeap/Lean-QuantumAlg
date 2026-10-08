@@ -7,6 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.Classical.Endpoint
+public import QuantumAlg.Components.Classical.Model.BitWord.Execution
+import all QuantumAlg.Core.Algorithm.Borrowed
+import all QuantumAlg.Core.Execution.Borrowed.Support
+import all QuantumAlg.Core.Execution.Circuit.Restoration
+import all QuantumAlg.Core.Execution.Circuit.Weighted
 public import QuantumAlg.Util.Classical.Modular.Basic
 public import QuantumAlg.Util.Classical.OrderRecovery
 public import QuantumAlg.Components.Classical.OrderRecovery.Native.Encoding
@@ -35,6 +40,10 @@ below are implementation refinements, without a least-order claim for every samp
 -/
 
 namespace QuantumAlg.ClassicalEndpoints.Recovery.OrderRecovery
+
+noncomputable section
+
+local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open ClassicalRoutines.OrderRecovery.Native
 
@@ -99,30 +108,37 @@ public def inputRef (modulusWidth phaseBits : Nat) :
 -/
 @[expose] public def problem {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) :
-    Problem .classical (Standard.pre (inputShape modulusWidth phaseBits))
+    Problem (.classical BitWord.model .empty) (Standard.pre (inputShape modulusWidth phaseBits))
       (Standard.post (inputShape modulusWidth phaseBits) (outputShape phaseBits))
       (outputShape phaseBits) where
   valid := valid (phaseBits := phaseBits) spec
+  initialization := fun _ => True
   accepts := accepts (phaseBits := phaseBits) spec
   successLB := ⟨1, le_rfl⟩
   states := []
   resources :=
-    { events := eventEnvelope .classical modulusWidth phaseBits
+    { events := eventEnvelope (.classical BitWord.model .empty) modulusWidth phaseBits
       resident := fun .classicalBits => modulusWidth + phaseBits + (phaseBits + 2) +
         (9 * (phaseBits + 1) + 2 * modulusWidth + 4 +
           max (phaseBits + 1) (8 * modulusWidth + 2))
       auxiliary := fun .classicalBits => phaseBits + 2 +
         (9 * (phaseBits + 1) + 2 * modulusWidth + 4 +
           max (phaseBits + 1) (8 * modulusWidth + 2)) }
-  depth := .classical
+  depth :=
+    { duration := Resource.Event.classicalOperationWeight
+      limit := 4 * (phaseBits + 1) + 4 +
+        2 * (phaseBits + 1) * (2 * modulusWidth + 18 + 6 * (phaseBits + 1))
+      classicalQuery_unit := by intro coordinate; cases coordinate
+      quantumQuery_unit := by intro coordinate; cases coordinate }
 
 /-- Retain one option cell, execute actual native recovery, and seal the complete output. -/
 public def algorithm {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) :
-    Algorithm .classical (Standard.pre (inputShape modulusWidth phaseBits))
+    Algorithm (.classical BitWord.model .empty) (Standard.pre (inputShape modulusWidth phaseBits))
       (Standard.post (inputShape modulusWidth phaseBits) (outputShape phaseBits))
       (outputShape phaseBits) where
-  run := Standard.run (retainedCircuit ⟨spec⟩ (inputRef modulusWidth phaseBits)
+  run := Standard.run (retainedCircuit (model := .classical BitWord.model .empty) ⟨spec⟩ (inputRef
+    modulusWidth phaseBits)
     Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)))
 
 /-- The complete output contains every final live input and result key. -/
@@ -140,16 +156,18 @@ public theorem orderRecoveryEndpoint_classical_operations_le {modulusWidth phase
       ((algorithm (phaseBits := phaseBits) spec).run.code.resourcePool path) ≤
       4 * (phaseBits + 1) + 4 +
         2 * (phaseBits + 1) * (2 * modulusWidth + 18 + 6 * (phaseBits + 1)) := by
-  have bounded := nativeRecovery_retained_pool_le ⟨spec⟩ (inputRef modulusWidth phaseBits)
+  have bounded := nativeRecovery_retained_pool_le (model := .classical BitWord.model .empty)
+    ⟨spec⟩ (inputRef modulusWidth phaseBits)
     Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)) path
   have counted : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((algorithm (phaseBits := phaseBits) spec).run.code.resourcePool path) ≤
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (eventEnvelope .classical modulusWidth phaseBits) := by
+        (eventEnvelope (.classical BitWord.model .empty) modulusWidth phaseBits) := by
     obtain ⟨rest, same⟩ := Multiset.le_iff_exists_add.mp bounded
     rw [same, ResourcePool.weightedCount_add]
     exact Nat.le_add_right _ _
-  exact counted.trans_eq (eventEnvelope_classicalCount .classical modulusWidth phaseBits)
+  exact counted.trans_eq (eventEnvelope_classicalCount (.classical BitWord.model .empty)
+    modulusWidth phaseBits)
 
 private def code {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) :=
@@ -160,7 +178,8 @@ private noncomputable def finalStore {modulusWidth phaseBits : Nat}
     (store : Execution.Store (Standard.pre (inputShape modulusWidth phaseBits))) :
     Execution.Store
       (Standard.post (inputShape modulusWidth phaseBits) (outputShape phaseBits)) :=
-  (retainedStep ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
+  (retainedStep (model := .classical BitWord.model .empty) ⟨spec⟩ (inputRef modulusWidth
+    phaseBits) Standard.resultKey
     (Standard.resultFresh (inputShape modulusWidth phaseBits)) store).1
 
 private theorem finalStore_accepts {modulusWidth phaseBits : Nat}
@@ -183,7 +202,8 @@ private theorem finalStore_accepts {modulusWidth phaseBits : Nat}
             (⟨spec⟩ : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits) :=
           ⟨base, good.1, good.2, bits⟩
         refine ⟨source, stored, ?_⟩
-        have result := nativeRecovery_retained_result ⟨spec⟩ source
+        have result := nativeRecovery_retained_result (model := .classical BitWord.model .empty)
+          ⟨spec⟩ source
           (inputRef modulusWidth phaseBits) Standard.resultKey
           (Standard.resultFresh (inputShape modulusWidth phaseBits)) store stored
         change (finalStore (phaseBits := phaseBits) spec store).read
@@ -198,7 +218,8 @@ private theorem actual_resident {modulusWidth phaseBits : Nat}
     (path : (code (phaseBits := phaseBits) spec).Path) :
     (code (phaseBits := phaseBits) spec).peakResidentSpace path ≤
       (problem (phaseBits := phaseBits) spec).resources.resident := by
-  refine (nativeRecovery_retained_resident_le ⟨spec⟩ (inputRef modulusWidth phaseBits)
+  refine (nativeRecovery_retained_resident_le (model := .classical BitWord.model .empty) ⟨spec⟩
+    (inputRef modulusWidth phaseBits)
     Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)) path).trans ?_
   intro axis
   cases axis
@@ -210,56 +231,63 @@ private theorem actual_auxiliary {modulusWidth phaseBits : Nat}
     (path : (code (phaseBits := phaseBits) spec).Path) :
     (code (phaseBits := phaseBits) spec).peakAuxiliarySpace path ≤
       (problem (phaseBits := phaseBits) spec).resources.auxiliary := by
-  refine (nativeRecovery_retained_auxiliary_le ⟨spec⟩ (inputRef modulusWidth phaseBits)
+  refine (nativeRecovery_retained_auxiliary_le (model := .classical BitWord.model .empty) ⟨spec⟩
+    (inputRef modulusWidth phaseBits)
     Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)) path).trans ?_
   intro axis
   cases axis
   simp [problem, Standard.pre, SpacePool.ofShape, extraClassicalBits]
   omega
 
-noncomputable section
-
-local instance {α : Type} : DecidableEq α := Classical.decEq α
-
 private def finalRecord {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
-    (store : Execution.Store (Standard.pre (inputShape modulusWidth phaseBits))) :
+    (entry : Execution.Store (Standard.pre (inputShape modulusWidth phaseBits)) ×
+      ClassicalOracleModel.empty.HiddenState) :
     (algorithm (phaseBits := phaseBits) spec).run.Record :=
-  (finalStore (phaseBits := phaseBits) spec store,
-    (store, (retainedStep ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
-      (Standard.resultFresh (inputShape modulusWidth phaseBits)) store).2))
+  let result := retainedStep (model := .classical BitWord.model .empty)
+    ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
+    (Standard.resultFresh (inputShape modulusWidth phaseBits)) entry.1
+  (result.1, (entry.2, (entry.1, result.2)))
 
 private theorem execution_eq_map {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) (Reference : Register)
     (state : ExecutionState
-      (Execution.Store (Standard.pre (inputShape modulusWidth phaseBits)))
+      (Execution.Store (Standard.pre (inputShape modulusWidth phaseBits)) ×
+        ClassicalOracleModel.empty.HiddenState)
       (Register.prod (Standard.pre (inputShape modulusWidth phaseBits)).register Reference)) :
     (algorithm (phaseBits := phaseBits) spec).run.execute Reference state =
       state.mapClassical (finalRecord (phaseBits := phaseBits) spec) := by
-  change (retainedCircuit ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
+  change (retainedCircuit (model := .classical BitWord.model .empty)
+    ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
     (Standard.resultFresh (inputShape modulusWidth phaseBits))).execute Reference
-      (state.mapClassical (fun store => (store, store))) = _
+      (state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))) = _
   rw [nativeRecovery_retained_execute]
   simp only [ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  rfl
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem relational_distribution {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) {Reference : Register}
-    (input : Execution.Input (Standard.pre (inputShape modulusWidth phaseBits)) Reference) :
+    (input : Execution.OracleInput .empty (Standard.pre (inputShape modulusWidth phaseBits))
+      Reference) :
     (algorithm (phaseBits := phaseBits) spec).relationalDistribution input =
-      (input.state.toPMF input.normalized).map (fun store => (store,
-        (finalStore (phaseBits := phaseBits) spec store).read
+      (input.state.toPMF input.normalized).map (fun store => (store.1,
+        (finalStore (phaseBits := phaseBits) spec store.1).read
           (Standard.resultRef (inputShape modulusWidth phaseBits) (outputShape phaseBits)))) := by
-  apply AlgorithmRun.relationalDistribution_eq_map_of_block_mass
-    (algorithm (phaseBits := phaseBits) spec).run input (finalRecord (phaseBits := phaseBits) spec)
-  intro record
-  exact congrArg (fun state => (state.block record).mass)
-    (execution_eq_map (phaseBits := phaseBits) spec Reference input.state)
+  have actual := AlgorithmRun.relationalDistribution_eq_map_of_block_mass
+    (algorithm (phaseBits := phaseBits) spec).run input
+    (finalRecord (phaseBits := phaseBits) spec) (by
+      intro record
+      rw [execution_eq_map]
+      rfl)
+  change (algorithm (phaseBits := phaseBits) spec).run.relationalDistribution input = _
+  rw [actual]
+  congr 1
 
 private theorem success_probability {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) {Reference : Register}
-    (input : Execution.Input (Standard.pre (inputShape modulusWidth phaseBits)) Reference)
-    (inputValid : valid (phaseBits := phaseBits) spec input.localState) :
+    (input : Execution.OracleInput .empty (Standard.pre (inputShape modulusWidth phaseBits))
+      Reference)
+    (inputValid : valid (phaseBits := phaseBits) spec input.caller.localState) :
     (1 : ENNReal) ≤
       ((algorithm (phaseBits := phaseBits) spec).relationalDistribution input).toOuterMeasure
       {pair | accepts (phaseBits := phaseBits) spec pair.1 pair.2} := by
@@ -269,34 +297,44 @@ private theorem success_probability {modulusWidth phaseBits : Nat}
   apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
   intro pair supported
   obtain ⟨store, inputSupported, rfl⟩ := (PMF.mem_support_map_iff _ _ _).mp supported
-  have localSupported : 0 < (input.localState.block store).mass := by
-    rw [Execution.Input.localState_block_mass]
-    exact (ExecutionState.mem_support_toPMF_iff input.state input.normalized store).mp
-      inputSupported
-  exact finalStore_accepts (phaseBits := phaseBits) spec store (inputValid store localSupported)
+  have localSupported := input.caller_local_mass_pos_of_joint store
+    ((ExecutionState.mem_support_toPMF_iff input.state input.normalized store).mp inputSupported)
+  exact finalStore_accepts (phaseBits := phaseBits) spec store.1
+    (inputValid store.1 localSupported)
 
 /-- The named native algorithm meets the independent source contract for every raw sample. -/
 public theorem main {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth) :
     (algorithm (phaseBits := phaseBits) spec).Solves (problem (phaseBits := phaseBits) spec) := by
   constructor
-  · intro Reference input inputValid
+  · intro Reference input inputValid _initialization
     exact success_probability (phaseBits := phaseBits) spec input inputValid
-  · intro _Reference _input _valid _requirement impossible
+  · intro _Reference _input _valid _initialization _requirement impossible
     cases impossible
-  · intro Reference input _valid
-    exact nativeRecovery_retained_borrowedRestored ⟨spec⟩ (inputRef modulusWidth phaseBits)
-      Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)) Reference
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
-    exact nativeRecovery_retained_pool_le ⟨spec⟩ (inputRef modulusWidth phaseBits)
+  · intro Reference input _valid _initialization
+    apply AlgorithmRun.restoresBorrowed_of_circuit
+    intro reference history _ state
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum
+      (code (phaseBits := phaseBits) spec) (by rfl) reference state
+  · intro _Reference _input _valid _initialization path _supported
+    exact nativeRecovery_retained_pool_le (model := .classical BitWord.model .empty) ⟨spec⟩
+      (inputRef modulusWidth phaseBits)
       Standard.resultKey (Standard.resultFresh (inputShape modulusWidth phaseBits)) path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_resident (phaseBits := phaseBits) spec path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_auxiliary (phaseBits := phaseBits) spec path
-  · intro _Reference _input _valid _path _supported
-    trivial
+  · intro _Reference _input _valid _initialization path _supported
+    change (code (phaseBits := phaseBits) spec).depth Resource.Event.classicalOperationWeight
+      path ≤ 4 * (phaseBits + 1) + 4 +
+        2 * (phaseBits + 1) * (2 * modulusWidth + 18 + 6 * (phaseBits + 1))
+    exact (Circuit.depth_le_weightedCount_of_pool_le
+      (code (phaseBits := phaseBits) spec) Resource.Event.classicalOperationWeight
+      (eventEnvelope (.classical BitWord.model .empty) modulusWidth phaseBits) path
+      (nativeRecovery_retained_pool_le (model := .classical BitWord.model .empty)
+        ⟨spec⟩ (inputRef modulusWidth phaseBits) Standard.resultKey
+        (Standard.resultFresh (inputShape modulusWidth phaseBits)) path)).trans_eq
+      (eventEnvelope_classicalCount (.classical BitWord.model .empty) modulusWidth phaseBits)
 
 end
 

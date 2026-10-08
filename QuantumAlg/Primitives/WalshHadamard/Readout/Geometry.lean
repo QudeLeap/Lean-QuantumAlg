@@ -6,12 +6,13 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.WalshHadamard
 import all QuantumAlg.Core.Base.Layout.Qubit
 import all QuantumAlg.Core.Measure
 import all QuantumAlg.Core.Measure.Distribution
-import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
 # Physical query geometry and mathematical Walsh-Hadamard readout
@@ -110,30 +111,15 @@ theorem measurement_readout_eq_outcome_iff
   · intro h
     exact hself.trans (congrArg (measurementOutcome n) h)
 
-/-- The shared Walsh-Hadamard circuit has the canonical layout used by the
-terminal measurement descriptor. -/
-theorem circuit_physical_idx (f : Oracle n) :
-    (WalshHadamard.circuit f).physical_idx = (layout n).systemIdx := by
-  rw [WalshHadamard.circuit_physical_idx, layout_systemIdx]
+/-- The original final joint vector in the fixed mathematical measurement layout.
+Its equality with the actual zero-input native word is proved by the implementation layer. -/
+def evolvedState (function : Oracle n) : QubitLayout.State (layout n) where
+  state := PureState.ofNormalized (WalshHadamard.finalJointState function) (layout n).systemIdx
+  system_idx_eq := rfl
 
-/-- Evolve the canonical input by the very circuit whose resources are later
-projected. -/
-def evolvedState (circuit : UnitaryCircuit (Qubits (n + 1)))
-    (circuit_layout : circuit.physical_idx = (layout n).systemIdx) :
-    QubitLayout.State (layout n) :=
-  { state := PureState.ofNormalized
-      (UnitaryCircuit.applyNormalized circuit (WalshHadamard.input n))
-      circuit.physical_idx
-    system_idx_eq := circuit_layout }
-
-/-- The terminally measured normalized state is exactly the vector produced by
-the same circuit witness. -/
-@[simp] theorem evolvedState_normalized_coe
-    (circuit : UnitaryCircuit (Qubits (n + 1)))
-    (circuit_layout : circuit.physical_idx = (layout n).systemIdx) :
-    (evolvedState circuit circuit_layout).state.state.vec =
-      UnitaryCircuit.applyVec circuit
-        (WalshHadamard.input n : HilbertVector (Qubits (n + 1))) := rfl
+/-- The Born observation uses exactly the original complete final vector. -/
+@[simp] theorem evolvedState_normalized (function : Oracle n) :
+    (evolvedState function).normalized = WalshHadamard.finalJointState function := rfl
 
 end
 

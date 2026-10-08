@@ -157,11 +157,13 @@ theorem leadingOneGates_step
 theorem leadingOneGates_realizes
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList
-      (layout.leadingOneGates position expected))
+    UnitaryCircuit.Realizes encoding (layout := QubitLayout.canonical encoding.width)
+      (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
+        (layout.leadingOneGates position expected))
       (fun state => if layout.PrefixLeading position expected state
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep _ (layout.leadingOneGates_step position expected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical encoding.width) .empty _
+    (layout.leadingOneGates_step position expected)
 
 /-- Every actual borrowed-work bit returns unchanged, without an initialization condition. -/
 theorem leadingOneGates_work

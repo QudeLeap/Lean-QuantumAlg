@@ -24,15 +24,17 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 open FiniteCyclicDLP.RawRecovery.Native
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The actual complete attempt retains the original public numerical event ceiling. -/
-theorem attemptEnvelope_card_le (kind : ProblemKind) (curve : CurveSpec width)
+theorem attemptEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+    (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) :
-    (attemptEnvelope kind curve modulus).card ≤
+    (attemptEnvelope model curve modulus).card ≤
       42 * scalarWidth + scalarWidth * (248 * width + 644) + 119 := by
-  have recovery := singleExposureEnvelope_card_le kind modulus
-  have verification := verificationEnvelope_card_le kind curve scalarWidth
+  have recovery := singleExposureEnvelope_card_le model modulus
+  have verification := verificationEnvelope_card_le model curve scalarWidth
   rw [attemptEnvelope, Multiset.card_add, Multiset.card_add,
     FirstAccepted.firstAccepted_nativeEnvelope_card]
   omega
@@ -52,6 +54,6 @@ theorem attemptInto_eventCount_le (curve : CurveSpec width) (modulus : ModulusSp
         42 * scalarWidth + scalarWidth * (248 * width + 644) + 119 :=
   (Multiset.card_le_card (attemptInto_pool_le curve modulus sample base target inverseSuccess
     candidate reconstruction scalarResult targetAccepted accepted selected path)).trans
-      (attemptEnvelope_card_le kind curve modulus)
+      (attemptEnvelope_card_le model curve modulus)
 
 end QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native

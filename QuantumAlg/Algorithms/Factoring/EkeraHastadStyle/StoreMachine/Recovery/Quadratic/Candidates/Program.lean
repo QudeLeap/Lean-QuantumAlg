@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Quadratic.Candidates.Layout
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Quadratic.Candidates.Prefix.Program
 import all QuantumAlg.Components.Classical.NumberTheory.Nat.Sub.Program
+import all QuantumAlg.Core.Execution.Classical.Composition.Record
 
 /-!
 # Actual construction of the two original natural factor candidates
@@ -24,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Resize the actual computed center into the original extra-bit candidate cell. -/
 def centerOp (refs : Refs ctx shortWidth) :=
@@ -42,44 +44,50 @@ def secondOp (refs : Refs ctx shortWidth) :=
     (.product (writeInput refs.centerWide) (writeInput refs.rootWide)) refs.second
 
 /-- Actual center resize, root resize, truncated first subtraction and second addition. -/
-def suffixInto (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
-  .seq (.classical (centerOp refs)) (.seq (.classical (rootOp refs))
-    (.seq (NatSub.into refs.first) (.classical (secondOp refs))))
+def suffixInto (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (centerOp refs))
+    (.seq (BitWord.instruction (execution := model) (rootOp refs))
+      (.seq (NatSub.into refs.first)
+        (BitWord.instruction (execution := model) (secondOp refs))))
 
 /-- The suffix record follows the true intermediate stores and natural-subtraction branch. -/
 def suffixStep (refs : Refs ctx shortWidth) (store : Store ctx) :
     Store ctx × (suffixInto refs).Path :=
-  let afterCenter := store.applyOp (centerOp refs)
-  let afterRoot := afterCenter.applyOp (rootOp refs)
-  let firstResult := NatSub.step refs.first afterRoot
-  (firstResult.1.applyOp (secondOp refs), ((), ((), (firstResult.2, ()))))
+  let center := BitWord.instructionStep (execution := model) (centerOp refs) store
+  let root := BitWord.instructionStep (execution := model) (rootOp refs) center.1
+  let firstResult := NatSub.step refs.first root.1
+  let second := BitWord.instructionStep (execution := model) (secondOp refs) firstResult.1
+  (second.1, (center.2, (root.2, (firstResult.2, second.2))))
 
 /-- The actual suffix preserves incoming history and every external quantum-reference block. -/
 theorem suffixInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (suffixInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((suffixStep refs entry.1).1, (entry.2, (suffixStep refs entry.1).2))) := by
+      let actual := suffixStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [suffixInto, suffixStep, Circuit.execute_seq, NatSub.into_execute,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual quadratic prefix followed by the original two-candidate construction. -/
-def into (refs : Refs ctx shortWidth) : Circuit ctx ctx :=
+def into (refs : Refs ctx shortWidth) : Circuit model ctx ctx :=
   .seq (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
 
 /-- One actual record includes the discriminant branch, all root rounds and both candidates. -/
 def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into refs).Path :=
-  Circuit.sequenceRecord (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
+  Circuit.sequenceStoreRecord (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
     (QuadraticPrefix.step refs.quadraticPrefix) (suffixStep refs) store
 
 /-- Complete actual execution preserves original history and arbitrary quantum correlations. -/
 theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) :=
-  Circuit.execute_sequenceRecord (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
     (QuadraticPrefix.step refs.quadraticPrefix) (suffixStep refs)
     (QuadraticPrefix.into_execute refs.quadraticPrefix) (suffixInto_execute refs) Reference state
 

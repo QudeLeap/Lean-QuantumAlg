@@ -55,10 +55,12 @@ private theorem decrement_read (refs : BodyRefs ctx width) (store : Store ctx)
   rw [split, Nat.add_mod_right]
   exact Nat.mod_eq_of_lt ((Nat.sub_le value 1).trans_lt bounded)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem correction_frame (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : refs.wideNumerator.key ∉ other.storageKeys) :
-    ((correctionStep refs flag store).1).read other = store.read other := by
+    ((correctionStep (model := model) refs flag store).1).read other = store.read other := by
   cases flag with
   | bit flag =>
       cases flag
@@ -67,7 +69,8 @@ private theorem correction_frame (refs : BodyRefs ctx width) (flag : CShape.Valu
 
 private theorem correction_value (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) (positive : 0 < (store.read (writeInput refs.wideNumerator)).toNat) :
-    (((correctionStep refs flag store).1).read (writeInput refs.wideNumerator)).toNat =
+    (((correctionStep (model := model) refs flag store).1).read (writeInput
+      refs.wideNumerator)).toNat =
       if flag.toBool then (store.read (writeInput refs.wideNumerator)).toNat - 1
       else (store.read (writeInput refs.wideNumerator)).toNat := by
   cases flag with
@@ -81,8 +84,9 @@ theorem rounding_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsNumerator : refs.wideNumerator.key ∉ other.storageKeys)
     (avoidsDenominator : refs.wideDenominator.key ∉ other.storageKeys) :
-    ((roundingStep refs store).1).read other = store.read other := by
+    ((roundingStep (model := model) refs store).1).read other = store.read other := by
   unfold roundingStep
+  dsimp only [BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsDenominator,
     correction_frame _ _ _ _ avoidsNumerator,
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsNumerator]
@@ -96,13 +100,16 @@ theorem rounding_values (refs : BodyRefs ctx width) (separation : Separation ref
     (denominatorPositive : 0 < denominator)
     (dividendFits : 2 * magnitude + denominator < CShape.wordModulus (width + 1))
     (divisorFits : 2 * denominator < CShape.wordModulus (width + 1)) :
-    (((roundingStep refs store).1).read (writeInput refs.wideNumerator)).toNat =
+    (((roundingStep (model := model) refs store).1).read (writeInput refs.wideNumerator)).toNat =
         (if negative then 2 * magnitude + denominator - 1 else 2 * magnitude + denominator) ∧
-      (((roundingStep refs store).1).read (writeInput refs.wideDenominator)).toNat =
+      (((roundingStep (model := model) refs store).1).read (writeInput
+        refs.wideDenominator)).toNat =
         2 * denominator ∧
-      (((roundingStep refs store).1).read (writeInput refs.negative)).toBool = negative := by
+      (((roundingStep (model := model) refs store).1).read (writeInput refs.negative)).toBool =
+        negative := by
   let added := store.applyOp (addDenominatorOp refs)
-  let corrected := (correctionStep refs (added.read (writeInput refs.negative)) added).1
+  let corrected := (correctionStep (model := model) refs (added.read (writeInput refs.negative))
+    added).1
   have sumValue : (added.read (writeInput refs.wideNumerator)).toNat =
       2 * magnitude + denominator := by
     rw [add_read refs store (by rw [numeratorValue, denominatorValue]; exact dividendFits)]

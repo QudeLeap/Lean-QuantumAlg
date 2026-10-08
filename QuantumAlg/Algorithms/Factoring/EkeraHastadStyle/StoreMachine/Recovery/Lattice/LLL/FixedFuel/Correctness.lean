@@ -31,14 +31,19 @@ private theorem bit_value (actual : CShape.Value .bit) (expected : Bool)
   cases actual with
   | bit value => exact congrArg CShape.Value.bit equal
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual terminal and phase reads select exactly one original mathematical LLL step. -/
 theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
-    StoreInvariant refs input (step refs store).1 (NumberTheory.lllStep3 state) := by
+    StoreInvariant refs input (step (model := model) refs store).1
+      (NumberTheory.lllStep3 state) := by
   have represented := invariant.phase
   change StoreInvariant refs input
-    (stepArmStep refs (store.read (.storage refs.machine.done.toCStorageRef)) store).1 _
+    (stepArmStep (model := model) refs
+      (store.read (.storage refs.machine.done.toCStorageRef)) store).1 _
   cases phase : state.phase with
   | first =>
     rw [phase] at represented
@@ -46,7 +51,8 @@ theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     have pairRead := bit_value _ false represented.1
     rw [doneRead]
     change StoreInvariant refs input
-      (nonDoneArmStep refs (store.read (.storage refs.machine.secondPhase.toCStorageRef)) store).1 _
+      (nonDoneArmStep (model := model) refs
+        (store.read (.storage refs.machine.secondPhase.toCStorageRef)) store).1 _
     rw [pairRead]
     exact firstStepInto_correct refs separation input store state invariant phase
   | second =>
@@ -55,7 +61,8 @@ theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     have pairRead := bit_value _ true represented.1
     rw [doneRead]
     change StoreInvariant refs input
-      (nonDoneArmStep refs (store.read (.storage refs.machine.secondPhase.toCStorageRef)) store).1 _
+      (nonDoneArmStep (model := model) refs
+        (store.read (.storage refs.machine.secondPhase.toCStorageRef)) store).1 _
     rw [pairRead]
     exact secondStepInto_correct refs separation input store state invariant phase
   | done =>
@@ -76,9 +83,10 @@ theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
 theorem fixedFuelInto_correct (fuel : Nat) (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
-    StoreInvariant refs input (fixedFuelStep fuel refs store).1
+    StoreInvariant refs input (fixedFuelStep (model := model) fuel refs store).1
       (NumberTheory.lllRun3 fuel state) := by
-  change StoreInvariant refs input ((fun current => (step refs current).1)^[fuel] store) _
+  change StoreInvariant refs input
+    ((fun current => (step (model := model) refs current).1)^[fuel] store) _
   induction fuel generalizing store state with
   | zero => exact invariant
   | succ fuel ih =>

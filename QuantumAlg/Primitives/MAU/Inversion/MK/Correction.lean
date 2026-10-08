@@ -10,13 +10,11 @@ import all QuantumAlg.Primitives.MAU.Inversion.Layout
 import all QuantumAlg.Primitives.MAU.Multiplication.VBECircuit
 import QuantumAlg.Init
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Addition.VBE.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.MK.StructuredWitness
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Physical
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.VBECircuit.Resource
 
 /-!
 # Static inverse correction circuit
@@ -782,22 +780,28 @@ private theorem swapStep_preserves_projection
 
 /-- Lift a fixed-round raw program over the VBE workspace and public target. -/
 def liftFixedProgram (tail counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (MK.Circuit.encoding tail.succ counterWidth).width)) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := (wordEncoding tail.succ).width)
-    (UnitaryCircuit.prodLeft
-      (n := (MAU.Multiplication.VBECircuit.encoding tail.succ).width)
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (MK.Circuit.encoding tail.succ counterWidth).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (wordEncoding tail.succ).width
+    (UnitaryCircuit.onBinaryPrefix
+      (MAU.Multiplication.VBECircuit.encoding tail.succ).width
       program)
 
 /-- Lift a VBE-workspace raw program over the fixed fold and public target. -/
 def liftWorkProgram (tail counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits
-      (MAU.Multiplication.VBECircuit.encoding tail.succ).width)) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := (wordEncoding tail.succ).width)
-    (UnitaryCircuit.prodRight
-      (m := (MK.Circuit.encoding tail.succ counterWidth).width)
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (MAU.Multiplication.VBECircuit.encoding tail.succ).width).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (wordEncoding tail.succ).width
+    (UnitaryCircuit.onBinarySuffix
+      (MK.Circuit.encoding tail.succ counterWidth).width
       program)
 
 /-- Lift a fixed-register semantic step while preserving VBE work and target. -/
@@ -908,8 +912,9 @@ theorem liftedWorkModularAddStep_eq_liftWorkStep
 
 /-- Realization transport for a fixed-register actual circuit. -/
 theorem liftFixed_realizes (tail counterWidth : Nat)
-    {program : UnitaryCircuit (Qubits
-      (MK.Circuit.encoding tail.succ counterWidth).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (MK.Circuit.encoding tail.succ counterWidth).width).toQuantum}
     {step : MK.Circuit.RegistersWithRouteHistory tail.succ counterWidth ->
       MK.Circuit.RegistersWithRouteHistory tail.succ counterWidth}
     (h : UnitaryCircuit.Realizes (MK.Circuit.encoding tail.succ counterWidth)
@@ -917,15 +922,16 @@ theorem liftFixed_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (liftFixedProgram tail counterWidth program)
       (liftFixedStep tail counterWidth step) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := wordEncoding tail.succ)
-    (UnitaryCircuit.Realizes.prodLeft
+    (UnitaryCircuit.Realizes.onBinaryPrefix
       (right := MAU.Multiplication.VBECircuit.encoding tail.succ) h)
 
 /-- Realization transport for a VBE-workspace actual circuit. -/
 theorem liftWork_realizes (tail counterWidth : Nat)
-    {program : UnitaryCircuit (Qubits
-      (MAU.Multiplication.VBECircuit.encoding tail.succ).width)}
+    {program : UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (MAU.Multiplication.VBECircuit.encoding tail.succ).width).toQuantum}
     {step : MAU.Multiplication.VBECircuit.Registers tail.succ ->
       MAU.Multiplication.VBECircuit.Registers tail.succ}
     (h : UnitaryCircuit.Realizes
@@ -933,9 +939,9 @@ theorem liftWork_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (liftWorkProgram tail counterWidth program)
       (liftWorkStep tail counterWidth step) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := wordEncoding tail.succ)
-    (UnitaryCircuit.Realizes.prodRight
+    (UnitaryCircuit.Realizes.onBinarySuffix
       (left := MK.Circuit.encoding tail.succ counterWidth) h)
 
 /-- Complete fixed-round payload lifted into the correction layout. -/
@@ -950,8 +956,10 @@ def fixedComputeGates (tail counterWidth : Nat)
 def fixedComputeProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fixedComputeGates tail counterWidth comparisonIndex workIndex)
 
 /-- Folded action of the complete lifted fixed-round gate schedule. -/
@@ -991,7 +999,7 @@ theorem fixedCompute_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (fixedComputeProgram tail counterWidth comparisonIndex workIndex)
       (fixedComputeStep tail counterWidth comparisonIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fixedComputeGates tail counterWidth comparisonIndex workIndex)
 
 /-- The lifted fixed-round program reaches one physical clean endpoint that
@@ -1336,8 +1344,10 @@ def rawPseudoResidueLoadGates (tail counterWidth p : Nat) :
 `p`, copy the canonical low word into correction scratch, and reverse the
 reducer.  The program depends only on layout and modulus. -/
 def rawPseudoResidueLoadProgram (tail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (rawPseudoResidueLoadGates tail counterWidth p)
 
 /-- Folded action of the complete raw-loader gate schedule. -/
@@ -1351,7 +1361,7 @@ theorem rawPseudoResidueLoad_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (rawPseudoResidueLoadProgram tail counterWidth p)
       (rawPseudoResidueLoadStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (rawPseudoResidueLoadGates tail counterWidth p)
 
 /-- The static raw loader reduces the complete runtime coefficient once,
@@ -1572,8 +1582,10 @@ def liftedUnitMultiplicationGates
 /-- Whole lifted modular-multiplication program for one static unit. -/
 def liftedUnitMultiplicationProgram
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (liftedUnitMultiplicationGates tail counterWidth p unit)
 
 /-- Folded action of one lifted unit-multiplication gate schedule. -/
@@ -1613,7 +1625,7 @@ theorem liftedUnitMultiplication_realizes
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (liftedUnitMultiplicationProgram tail counterWidth p unit)
       (liftedUnitMultiplicationStep tail counterWidth p unit) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (liftedUnitMultiplicationGates tail counterWidth p unit)
 
 /-- A lifted unit-multiplication payload updates only the correction value and
@@ -1880,8 +1892,10 @@ def counterCorrectionBitGates
 def counterCorrectionBitProgram
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (counterCorrectionBitGates tail counterWidth p hpOdd bit)
 
 /-- Semantic action of one exact clean-work controlled multiplication list. -/
@@ -1909,6 +1923,7 @@ theorem counterCorrectionBit_realizes
   simpa only [counterCorrectionBitProgram, counterCorrectionBitGates,
     counterCorrectionBitStep] using
     EncodedBit.GateSpec.controlledListWithWorkWitness
+      (QubitLayout.canonical _) .empty
       (paddingCounterBit tail counterWidth bit)
       (correctionControlWorkBit tail counterWidth)
       (counterCorrectionBitPayloadGates tail counterWidth p hpOdd bit)
@@ -2078,8 +2093,10 @@ private theorem counterCorrectionGates_stepList
 /-- Exact counter-driven correction program. -/
 def counterCorrectionProgram
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (counterCorrectionGates tail counterWidth p hpOdd)
 
 /-- Folded action of every physical runtime-counter control. -/
@@ -2095,7 +2112,7 @@ theorem counterCorrection_realizes
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (counterCorrectionProgram tail counterWidth p hpOdd)
       (counterCorrectionStep tail counterWidth p hpOdd) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (counterCorrectionGates tail counterWidth p hpOdd)
 
 /-- The complete counter-controlled program multiplies the clean correction
@@ -2166,8 +2183,10 @@ def signCorrectionGates (tail counterWidth p : Nat) :
 
 /-- Static modular sign-correction circuit compiled from its complete gate list. -/
 def signCorrectionProgram (tail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (signCorrectionGates tail counterWidth p)
 
 /-- Folded action of the static sign-correction gate schedule. -/
@@ -2181,7 +2200,7 @@ theorem signCorrection_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (signCorrectionProgram tail counterWidth p)
       (signCorrectionStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (signCorrectionGates tail counterWidth p)
 
 /-- The static sign segment negates the correction value and returns every VBE
@@ -2215,8 +2234,10 @@ def correctionComputeGates
 /-- Concatenate the three static correction segments from one gate schedule. -/
 def correctionComputeProgram
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (correctionComputeGates tail counterWidth p hpOdd)
 
 /-- Folded action of the complete correction-compute gate schedule. -/
@@ -2232,7 +2253,7 @@ theorem correctionCompute_realizes
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (correctionComputeProgram tail counterWidth p hpOdd)
       (correctionComputeStep tail counterWidth p hpOdd) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (correctionComputeGates tail counterWidth p hpOdd)
 
 /-- The correction-compute gate list executes its three constituent stages in
@@ -2821,8 +2842,10 @@ def stagedTargetAddGates (tail counterWidth p : Nat) :
 /-- Swap the public target into the shared VBE target, add corrected scratch
 modulo `p`, clear the staged source, and swap the result back out. -/
 def stagedTargetAddProgram (tail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits (encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (stagedTargetAddGates tail counterWidth p)
 
 /-- Folded action of the complete staged target-add gate schedule. -/
@@ -2836,7 +2859,7 @@ theorem stagedTargetAdd_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
       (stagedTargetAddProgram tail counterWidth p)
       (stagedTargetAddStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (stagedTargetAddGates tail counterWidth p)
 
 /-- The staged transfer adds correction scratch into the public target while

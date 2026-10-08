@@ -92,23 +92,21 @@ theorem prepared_diagonal (modulus : Nat) {Reference : Register}
 
 /-- Both actual allocations produce precisely the independent prepared full joint matrix. -/
 theorem actual_density (modulus : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (before modulus.size) Reference H) :
+    (state : State (before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     ((NumeratorMeasurement.allocate modulus.size).execute Reference
       ((InPlacePreparation.circuit modulus).execute Reference state)).quantumMarginal =
       (density modulus Reference state.quantumMarginal).reindex
         (MeasurementCells.jointBasisEquiv (after modulus.size) 2 modulus.size Reference) := by
-  refine (MeasurementCells.allocate_quantumMarginal (after modulus.size) 2 modulus.size
+  refine (MeasurementCells.allocate_quantumMarginal
+    (model := .quantum AlgorithmGate.model .empty)
+    (after modulus.size) 2 modulus.size
     ((InPlacePreparation.circuit modulus).execute Reference state)).trans ?_
   apply congrArg (fun value :
     DensityOperator (Register.prod (after modulus.size).register Reference) =>
       value.reindex
         (MeasurementCells.jointBasisEquiv (after modulus.size) 2 modulus.size Reference))
-  unfold InPlacePreparation.circuit
-  erw [Circuit.execute_prepare]
-  erw [State.prepare_quantumMarginal]
-  exact prepareContext_quantumMarginal_eq_preparedDensity state auxiliaryKey
-    (InputPreparation.auxiliaryLayout modulus.size) (auxiliary_fresh modulus.size)
-    (auxiliary_disjoint modulus.size) (InPlacePreparation.preparation modulus).normalized
+  exact InPlacePreparation.execute_preparedDensity modulus state
 
 /-- The actual pre-body state has the required support in every full reference coordinate. -/
 theorem actual_joint_diagonal (modulus : Nat) {Reference : Register}
@@ -118,7 +116,7 @@ theorem actual_joint_diagonal (modulus : Nat) {Reference : Register}
     (outside : ¬admissible modulus basis.1) :
     ((NumeratorMeasurement.allocate modulus.size).execute Reference
       ((InPlacePreparation.circuit modulus).execute Reference
-        (input.state.mapClassical (fun stored => (stored, ()))))).quantumMarginal.matrix
+        (input.state.mapClassical (fun stored => (stored, ((), ())))))).quantumMarginal.matrix
         basis basis = 0 := by
   rw [actual_density, ExecutionState.mapClassical_quantumMarginal]
   erw [DensityOperator.reindex_entry]

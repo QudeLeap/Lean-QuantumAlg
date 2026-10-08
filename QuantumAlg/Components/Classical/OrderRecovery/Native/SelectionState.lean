@@ -112,13 +112,15 @@ theorem nativeScan_advance_pending
         (List.mem_singleton.mp present)
 
 /-- Every remaining actual slot preserves the complete store once a candidate has been selected. -/
-theorem nativeScan_chosen_frozen
+theorem nativeScan_chosen_frozen {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (store : Store ctx) (candidate : Nat)
     (chosen : ChosenCursorReads cells store candidate) (fuel : Nat) :
     ChosenCursorReads cells
-      ((fun initial => (scanSlotStep spec base cells initial).1)^[fuel] store) candidate := by
+      ((fun initial => (scanSlotStep (model := model) spec base cells initial).1)^[fuel]
+        store) candidate := by
   rw [nativeScan_iterate_of_inactive spec base cells store chosen.inactive fuel]
   exact chosen
 

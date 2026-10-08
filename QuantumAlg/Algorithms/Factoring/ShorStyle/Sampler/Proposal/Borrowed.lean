@@ -25,37 +25,40 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width count : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- Each real decoded prefix preserves all borrowed classical values. -/
 theorem proposalPrefix_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (store : Store ctx) :
-    (prefixStep sample proposal shared scratch store).1.readBorrowedClassical =
+    (prefixStep (model := model) sample proposal shared scratch store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
-  simp only [prefixStep, comparisonStore, Store.readBorrowedClassical_applyOp]
-  exact TerminalDecode.terminalDecode_foldStep_borrowed_values scratch.candidate _ store
+  simp only [prefixStep, proposalComparison_step_store, comparisonStore,
+    Store.readBorrowedClassical_applyOp]
+  exact TerminalDecode.terminalDecode_foldStep_borrowed_values (model := model)
+    scratch.candidate _ store
 
 /-- The actual first-accepted writes preserve the same complete borrowed values. -/
 theorem proposalSlot_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (store : Store ctx) :
-    (slotStep sample proposal shared scratch store).1.readBorrowedClassical =
+    (slotStep (model := model) sample proposal shared scratch store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
-  exact (FirstAccepted.firstAccepted_step_borrowed_values (selectorInputs scratch)
-    shared.selector (prefixStep sample proposal shared scratch store).1).trans
+  exact (FirstAccepted.firstAccepted_step_borrowed_values (model := model) (selectorInputs scratch)
+    shared.selector (prefixStep (model := model) sample proposal shared scratch store).1).trans
       (proposalPrefix_borrowed_values sample proposal shared scratch store)
 
 /-- Every finite actual scan preserves borrowed values in the original proposal order. -/
 theorem proposalFold_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) (store : Store ctx) :
-    (foldSteps sample shared scratch proposals store).1.readBorrowedClassical =
+    (foldSteps (model := model) sample shared scratch proposals store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   induction proposals generalizing store with
   | nil => rfl
   | cons proposal remaining ih =>
-      exact (ih (slotStep sample proposal shared scratch store).1).trans
+      exact (ih (slotStep (model := model) sample proposal shared scratch store).1).trans
         (proposalSlot_borrowed_values sample proposal shared scratch store)
 
 end

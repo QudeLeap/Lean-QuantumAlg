@@ -39,7 +39,8 @@ def bodyStep {width : Nat} (window : Window width) (operation : Operation)
   else ArithmeticWindowProgram.step window operation
 
 private def controlledBody {width : Nat} (window : Window width) (operation : Operation)
-    (coefficient : Bool) : UnitaryCircuit (Qubits (encoding width).width) :=
+    (coefficient : Bool) : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   if coefficient then CoefficientWindowProgram.controlledProgram window operation
   else ArithmeticWindowControl.program window operation
 
@@ -106,10 +107,11 @@ private theorem bodyStep_xorControl {width : Nat} (window : Window width) (opera
 /-- Literal compute/use/uncompute of the fixed actual source equality and native arithmetic. -/
 def program {width : Nat} (window : Window width) (operation : Operation) (coefficient : Bool)
     (selected : Key width (readsSign operation)) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
   (ArithmeticSelectionPredicate.program width (readsSign operation) selected).seq
     ((controlledBody window operation coefficient).seq
-      (GateSpec.programList
+      (GateSpec.programList (QubitLayout.canonical _) .empty
         (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).reverse))
 
 /-- Exact full-frame result, including both possible incoming Ctrl values. -/
@@ -149,6 +151,7 @@ theorem program_realizes {width : Nat} (window : Window width) (operation : Oper
     (ArithmeticSelectionPredicate.program_realizes width (readsSign operation) selected).seq
       ((controlledBody_realizes window operation coefficient).seq
         (GateSpec.realizesList_congrStep
+          (QubitLayout.canonical _) .empty
           (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).reverse
           (ArithmeticSelectionPredicate.reverse_step width (readsSign operation) selected)))
   exact actual.congrStep (cleanup window operation coefficient selected)
@@ -203,10 +206,10 @@ theorem program_eventTrace {width : Nat} (window : Window width) (operation : Op
     (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (program window operation coefficient selected).eventTrace =
       (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).map
-        GateSpec.event ++
-      (ArithmeticWindowControl.gates window operation).map GateSpec.event ++
+        (GateSpec.event .empty) ++
+      (ArithmeticWindowControl.gates window operation).map (GateSpec.event .empty) ++
       (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).reverse.map
-        GateSpec.event := by
+        (GateSpec.event .empty) := by
   cases coefficient <;> simp only [program, controlledBody, Bool.false_eq_true, if_false, if_true,
     UnitaryCircuit.seq_eventTrace, GateSpec.programList_eventTrace,
     ArithmeticSelectionPredicate.program, ArithmeticWindowControl.program_eventTrace,

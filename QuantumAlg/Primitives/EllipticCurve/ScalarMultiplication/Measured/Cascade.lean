@@ -27,7 +27,8 @@ open Execution
 /-- Execute the prescribed indexed point calls in order using one actual shared workspace. -/
 def cascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) : List (Fin count) →
-    Circuit (readyContext p.size count) (readyContext p.size count)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext p.size count) (readyContext p.size count)
   | [] => .id _
   | active :: remaining => (step E (points active) active).seq (cascade E points remaining)
 
@@ -42,7 +43,8 @@ theorem cascade_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Pri
 /-- Invoke every indexed exponent exactly once in increasing index order. -/
 def fullCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) :
-    Circuit (readyContext p.size count) (readyContext p.size count) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (readyContext p.size count) (readyContext p.size count) :=
   cascade E points (List.finRange count)
 
 end

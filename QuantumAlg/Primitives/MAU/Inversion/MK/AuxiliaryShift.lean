@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Conditions
 
 /-!
@@ -42,10 +43,10 @@ def liftedUEvenBranchCodeToScratchStep
 /-- Actual circuit for the lifted `uEven` branch-code staging slice. -/
 def liftedUEvenBranchCodeToScratchProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (uEvenBranchCodeToScratchProgram n counterWidth bit)
 
 /-- The lifted `uEven` circuit realizes the product action. -/
@@ -55,7 +56,7 @@ theorem liftedUEvenBranchCodeToScratch_realizes
       (registersWithComparisonWorkEncoding n counterWidth)
       (liftedUEvenBranchCodeToScratchProgram n counterWidth bit)
       (liftedUEvenBranchCodeToScratchStep n counterWidth bit) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := comparisonWorkEncoding n)
     (uEvenBranchCodeToScratch_realizes n counterWidth bit)
 
@@ -170,10 +171,10 @@ def liftedVEvenBranchCodeToScratchStep
 /-- Actual circuit for the lifted `vEven` branch-code staging slice. -/
 def liftedVEvenBranchCodeToScratchProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (vEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex)
 
 /-- The lifted `vEven` circuit realizes the product action. -/
@@ -183,7 +184,7 @@ theorem liftedVEvenBranchCodeToScratch_realizes
       (registersWithComparisonWorkEncoding n counterWidth)
       (liftedVEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex)
       (liftedVEvenBranchCodeToScratchStep n counterWidth uIndex vIndex) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := comparisonWorkEncoding n)
     (vEvenBranchCodeToScratch_realizes n counterWidth uIndex vIndex)
 
@@ -300,8 +301,9 @@ def coeffWorkUEvenBranchCodeToScratchStep
 /-- Actual circuit for coefficient-work-lifted `uEven` branch-code staging. -/
 def coeffWorkUEvenBranchCodeToScratchProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (liftedUEvenBranchCodeToScratchProgram n counterWidth bit)
 
@@ -326,8 +328,9 @@ def coeffWorkVEvenBranchCodeToScratchStep
 /-- Actual circuit for coefficient-work-lifted `vEven` branch-code staging. -/
 def coeffWorkVEvenBranchCodeToScratchProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (liftedVEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex)
 
@@ -530,9 +533,10 @@ def coeffWorkOddOddCompareBranchCodeToScratchGates
 /-- Base-gate program for active odd-odd comparison branch-code staging. -/
 def coeffWorkOddOddCompareBranchCodeToScratchProgram
     (n counterWidth : Nat) (uIndex vIndex tempIndex : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkOddOddCompareBranchCodeToScratchGates
       n counterWidth uIndex vIndex tempIndex)
 
@@ -557,13 +561,13 @@ theorem coeffWorkOddOddCompareBranchCodeToScratch_realizes
         n counterWidth uIndex vIndex tempIndex) := by
   change UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coeffWorkOddOddCompareBranchCodeToScratchGates
           n counterWidth uIndex vIndex tempIndex))
       (EncodedBit.GateSpec.stepList
         (coeffWorkOddOddCompareBranchCodeToScratchGates
           n counterWidth uIndex vIndex tempIndex))
-  exact EncodedBit.GateSpec.realizesList
+  exact EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkOddOddCompareBranchCodeToScratchGates
       n counterWidth uIndex vIndex tempIndex)
 
@@ -1578,9 +1582,10 @@ def coeffWorkSelectedBranchCodeToScratchGates
 /-- Base-gate program for active selected branch-code staging. -/
 def coeffWorkSelectedBranchCodeToScratchProgram
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkSelectedBranchCodeToScratchGates
       tail counterWidth tempIndex)
 
@@ -1605,13 +1610,13 @@ theorem coeffWorkSelectedBranchCodeToScratch_realizes
         tail counterWidth tempIndex) := by
   change UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding tail.succ counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (coeffWorkSelectedBranchCodeToScratchGates
           tail counterWidth tempIndex))
       (EncodedBit.GateSpec.stepList
         (coeffWorkSelectedBranchCodeToScratchGates
           tail counterWidth tempIndex))
-  exact EncodedBit.GateSpec.realizesList
+  exact EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coeffWorkSelectedBranchCodeToScratchGates
       tail counterWidth tempIndex)
 
@@ -2111,9 +2116,10 @@ def coeffWorkOddOddSelectorToCarryGates
 /-- Base-gate program for latching the active-nonzero odd-odd selector. -/
 def coeffWorkOddOddSelectorToCarryProgram
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkOddOddSelectorToCarryGates
       tail counterWidth selectorIndex)
 
@@ -2147,6 +2153,7 @@ theorem coeffWorkOddOddSelectorToCarry_realizes
       (coeffWorkOddOddSelectorToCarryStep
         tail counterWidth selectorIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkOddOddSelectorToCarryGates tail counterWidth selectorIndex)
     (coeffWorkOddOddSelectorToCarryStep_eq_gateList
       tail counterWidth selectorIndex)
@@ -3136,8 +3143,9 @@ def coeffWorkUEvenBranchCodeThenAuxShiftDispatchStep
 shift dispatch. -/
 def coeffWorkUEvenBranchCodeThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUEvenBranchCodeToScratchProgram n counterWidth bit)
     (coeffWorkAuxActiveShiftDispatchProgram n counterWidth)
@@ -3189,8 +3197,9 @@ def coeffWorkVEvenBranchCodeThenAuxShiftDispatchStep
 shift dispatch. -/
 def coeffWorkVEvenBranchCodeThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVEvenBranchCodeToScratchProgram
       n counterWidth uIndex vIndex)
@@ -3386,10 +3395,10 @@ def liftedActiveScratchBToHistoryStep
 /-- Actual circuit for the lifted active/scratchB-to-history atom. -/
 def liftedActiveScratchBToHistoryProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (activeScratchBToHistoryProgram n counterWidth historyIndex)
 
 /-- The lifted history-write circuit realizes the product action. -/
@@ -3399,7 +3408,7 @@ theorem liftedActiveScratchBToHistory_realizes
       (registersWithComparisonWorkEncoding n counterWidth)
       (liftedActiveScratchBToHistoryProgram n counterWidth historyIndex)
       (liftedActiveScratchBToHistoryStep n counterWidth historyIndex) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := comparisonWorkEncoding n)
     (activeScratchBToHistory_realizes n counterWidth historyIndex)
 
@@ -3424,9 +3433,10 @@ def coeffWorkActiveScratchBToHistoryGates
 /-- Base-gate program for the coefficient-work-lifted history-write atom. -/
 def coeffWorkActiveScratchBToHistoryProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkActiveScratchBToHistoryGates n counterWidth historyIndex)
 
 /-- The explicit coefficient-work-lifted history-write gate list has the
@@ -3457,6 +3467,7 @@ theorem coeffWorkActiveScratchBToHistory_realizes
       (coeffWorkActiveScratchBToHistoryProgram n counterWidth historyIndex)
       (coeffWorkActiveScratchBToHistoryStep n counterWidth historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkActiveScratchBToHistoryGates n counterWidth historyIndex)
     (coeffWorkActiveScratchBToHistoryStep_eq_gateList n counterWidth
       historyIndex)
@@ -3473,9 +3484,9 @@ theorem coeffWorkActiveScratchBToHistoryGates_length
 private theorem coeffWorkActiveScratchBToHistoryGates_events
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     (coeffWorkActiveScratchBToHistoryGates n counterWidth historyIndex).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       [activeScratchBToHistoryGate n counterWidth historyIndex].map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   unfold coeffWorkActiveScratchBToHistoryGates
     registersWithCoeffAdderWorkEncoding registersWithComparisonWorkEncoding
   rw [EncodedBit.GateSpec.map_event_prodLeft,
@@ -3492,6 +3503,7 @@ theorem coeffWorkActiveScratchBToHistoryGates_cnotMultiplicity_sum
         ([activeScratchBToHistoryGate n counterWidth historyIndex].map
           EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (coeffWorkActiveScratchBToHistoryGates_events
           n counterWidth historyIndex)
     _ = 0 := by simp [activeScratchBToHistoryGate]
@@ -3507,6 +3519,7 @@ theorem coeffWorkActiveScratchBToHistoryGates_toffoliMultiplicity_sum
         ([activeScratchBToHistoryGate n counterWidth historyIndex].map
           EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (coeffWorkActiveScratchBToHistoryGates_events
           n counterWidth historyIndex)
     _ = 1 := by simp [activeScratchBToHistoryGate]
@@ -3837,10 +3850,10 @@ def liftedActiveBranchCodeToScratchStep
 /-- Actual circuit for lifted active-guarded carried branch-code staging. -/
 def liftedActiveBranchCodeToScratchProgram
     (n counterWidth : Nat) (branch : Branch) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (activeBranchCodeToScratchProgram n counterWidth branch)
 
 /-- The lifted carried-code circuit realizes the product action. -/
@@ -3850,7 +3863,7 @@ theorem liftedActiveBranchCodeToScratch_realizes
       (registersWithComparisonWorkEncoding n counterWidth)
       (liftedActiveBranchCodeToScratchProgram n counterWidth branch)
       (liftedActiveBranchCodeToScratchStep n counterWidth branch) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := comparisonWorkEncoding n)
     (activeBranchCodeToScratch_realizes n counterWidth branch)
 
@@ -3922,8 +3935,9 @@ def coeffWorkActiveBranchCodeToScratchStep
 /-- Actual circuit for coefficient-work-lifted carried branch-code staging. -/
 def coeffWorkActiveBranchCodeToScratchProgram
     (n counterWidth : Nat) (branch : Branch) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (liftedActiveBranchCodeToScratchProgram n counterWidth branch)
 
@@ -4236,9 +4250,10 @@ def coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchGates
 /-- Base-gate program for history write followed by auxiliary shift dispatch. -/
 def coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchGates
       n counterWidth historyIndex)
 
@@ -4269,6 +4284,7 @@ theorem coeffWorkActiveScratchBToHistoryThenAuxShiftDispatch_realizes
       (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchStep
         n counterWidth historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchGates
       n counterWidth historyIndex)
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchStep_eq_gateList
@@ -4491,8 +4507,9 @@ theorem
 and auxiliary shift dispatch. -/
 def coeffWorkActiveBranchCodeThenHistoryThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (branch : Branch) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkActiveBranchCodeToScratchProgram n counterWidth branch)
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchProgram
@@ -4546,9 +4563,10 @@ def coeffWorkCompareConditionedCarriedBranchDispatchGates
 history write, and auxiliary shift dispatch. -/
 def coeffWorkCompareConditionedCarriedBranchDispatchProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareConditionedCarriedBranchDispatchGates
       n counterWidth historyIndex)
 
@@ -4579,6 +4597,7 @@ theorem coeffWorkCompareConditionedCarriedBranchDispatch_realizes
       (coeffWorkCompareConditionedCarriedBranchDispatchStep
         n counterWidth historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareConditionedCarriedBranchDispatchGates
       n counterWidth historyIndex)
     (coeffWorkCompareConditionedCarriedBranchDispatchStep_eq_gateList
@@ -4668,9 +4687,10 @@ compare-conditioned carried branch-code/history/aux-shift dispatch. -/
 def coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchProgram
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth bit historyIndex)
 
@@ -4705,6 +4725,7 @@ theorem
       (coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep
         tail counterWidth bit historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth bit historyIndex)
     (coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep_eq_gateList
@@ -6488,9 +6509,10 @@ auxiliary shift dispatch. -/
 def coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchProgram
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex)
 
@@ -6522,6 +6544,7 @@ theorem coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
       (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep
         tail counterWidth tempIndex historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex)
     (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_eq_gateList
@@ -6922,8 +6945,9 @@ def coeffWorkUEvenBranchCodeThenHistoryThenAuxShiftDispatchStep
 shift dispatch. -/
 def coeffWorkUEvenBranchCodeThenHistoryThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUEvenBranchCodeToScratchProgram n counterWidth bit)
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchProgram
@@ -7270,8 +7294,9 @@ shift dispatch. -/
 def coeffWorkVEvenBranchCodeThenHistoryThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex)
     (coeffWorkActiveScratchBToHistoryThenAuxShiftDispatchProgram
@@ -7637,8 +7662,9 @@ def coeffWorkUGreaterSubAddBranchCodeThenAuxShiftDispatchStep
 followed by the auxiliary shift dispatch. -/
 def coeffWorkUGreaterSubAddBranchCodeThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUGreaterSubAddBranchCodeToScratchProgram
       n counterWidth bit historyIndex)
@@ -7777,8 +7803,9 @@ def coeffWorkVLeSubAddBranchCodeThenAuxShiftDispatchStep
 followed by the auxiliary shift dispatch. -/
 def coeffWorkVLeSubAddBranchCodeThenAuxShiftDispatchProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVLeSubAddBranchCodeToScratchProgram
       n counterWidth bit historyIndex)
@@ -7905,8 +7932,9 @@ def coeffWorkUEvenBranchHistoryWriteStep
 slice. -/
 def coeffWorkUEvenBranchHistoryWriteProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (liftedUEvenBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
@@ -7937,8 +7965,9 @@ slice. -/
 def coeffWorkVEvenBranchHistoryWriteProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (liftedVEvenBranchHistoryWriteProgram
       n counterWidth uIndex vIndex historyIndex)
@@ -8267,8 +8296,9 @@ def coeffWorkUEvenSelectorThenShiftPairStep
 selector-plus-shift data path. -/
 def coeffWorkUEvenSelectorThenShiftPairProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUEvenBranchHistoryWriteProgram
       n counterWidth bit historyIndex)
@@ -8311,8 +8341,9 @@ selector-plus-shift data path. -/
 def coeffWorkVEvenSelectorThenShiftPairProgram
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVEvenBranchHistoryWriteProgram
       n counterWidth uIndex vIndex historyIndex)
@@ -8356,8 +8387,9 @@ def coeffWorkUGreaterSelectorThenAddRIntoSThenShiftPairStep
 selector-plus-add-plus-shift data path. -/
 def coeffWorkUGreaterSelectorThenAddRIntoSThenShiftPairProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUGreaterSelectorThenAddRIntoSProgram
       n counterWidth bit historyIndex)
@@ -8400,8 +8432,9 @@ def coeffWorkVLeSelectorThenAddSIntoRThenShiftPairStep
 selector-plus-add-plus-shift data path. -/
 def coeffWorkVLeSelectorThenAddSIntoRThenShiftPairProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVLeSelectorThenAddSIntoRProgram
       n counterWidth bit historyIndex)
@@ -8442,8 +8475,9 @@ def coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRThenShiftPairStep
 selector-plus-subtract-plus-add-plus-shift data path. -/
 def coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRThenShiftPairProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRProgram
       n counterWidth bit historyIndex)
@@ -8487,8 +8521,9 @@ def coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSThenShiftPairStep
 selector-plus-subtract-plus-add-plus-shift data path. -/
 def coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSThenShiftPairProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSProgram
       n counterWidth bit historyIndex)
@@ -9420,8 +9455,10 @@ def selectedEvenBranchCodeToScratchStep
 
 def selectedEvenBranchCodeToScratchProgram
     (n counterWidth : Nat) (low tempIndex : Fin n) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (selectedEvenBranchCodeToScratchGates n counterWidth low tempIndex)
 
 theorem selectedEvenBranchCodeToScratch_realizes
@@ -9429,7 +9466,7 @@ theorem selectedEvenBranchCodeToScratch_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (selectedEvenBranchCodeToScratchProgram n counterWidth low tempIndex)
       (selectedEvenBranchCodeToScratchStep n counterWidth low tempIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (selectedEvenBranchCodeToScratchGates n counterWidth low tempIndex)
 
 @[simp] theorem selectedEvenBranchCodeToScratchGates_length
@@ -9810,8 +9847,10 @@ def selectedBranchCodeToScratchStep
 
 def selectedBranchCodeToScratchProgram
     (n counterWidth : Nat) (low tempIndex : Fin n) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (selectedBranchCodeToScratchGates n counterWidth low tempIndex)
 
 theorem selectedBranchCodeToScratch_realizes
@@ -9819,7 +9858,7 @@ theorem selectedBranchCodeToScratch_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (selectedBranchCodeToScratchProgram n counterWidth low tempIndex)
       (selectedBranchCodeToScratchStep n counterWidth low tempIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (selectedBranchCodeToScratchGates n counterWidth low tempIndex)
 
 theorem selectedBranchCodeToScratchGates_length
@@ -10399,8 +10438,10 @@ def selectedBranchCodeThenHistoryThenShiftStep
 def selectedBranchCodeThenHistoryThenShiftProgram
     (n counterWidth : Nat) (low tempIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (selectedBranchCodeThenHistoryThenShiftGates
       n counterWidth low tempIndex historyIndex)
 
@@ -10413,6 +10454,7 @@ theorem selectedBranchCodeThenHistoryThenShift_realizes
       (selectedBranchCodeThenHistoryThenShiftStep
         n counterWidth low tempIndex historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (selectedBranchCodeThenHistoryThenShiftGates
       n counterWidth low tempIndex historyIndex) (by
         intro x
@@ -10850,15 +10892,17 @@ def oddBranchCodeToScratchStep (n counterWidth : Nat) :
     (oddBranchCodeToScratchGates n counterWidth)
 
 def oddBranchCodeToScratchProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (oddBranchCodeToScratchGates n counterWidth)
 
 theorem oddBranchCodeToScratch_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (oddBranchCodeToScratchProgram n counterWidth)
       (oddBranchCodeToScratchStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (oddBranchCodeToScratchGates n counterWidth)
 
 @[simp] theorem oddBranchCodeToScratchGates_length
@@ -11106,8 +11150,10 @@ def oddBranchCodeThenHistoryThenShiftStep
 
 def oddBranchCodeThenHistoryThenShiftProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (oddBranchCodeThenHistoryThenShiftGates n counterWidth historyIndex)
 
 theorem oddBranchCodeThenHistoryThenShift_realizes
@@ -11116,6 +11162,7 @@ theorem oddBranchCodeThenHistoryThenShift_realizes
       (oddBranchCodeThenHistoryThenShiftProgram n counterWidth historyIndex)
       (oddBranchCodeThenHistoryThenShiftStep n counterWidth historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (oddBranchCodeThenHistoryThenShiftGates n counterWidth historyIndex) (by
       intro x
       unfold oddBranchCodeThenHistoryThenShiftGates
@@ -11449,8 +11496,10 @@ def selectedOddDataThenBranchHistoryShiftStep
 
 def selectedOddDataThenBranchHistoryShiftProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (selectedOddDataThenBranchHistoryShiftGates
       n counterWidth historyIndex)
 
@@ -11462,6 +11511,7 @@ theorem selectedOddDataThenBranchHistoryShift_realizes
       (selectedOddDataThenBranchHistoryShiftStep
         n counterWidth historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (selectedOddDataThenBranchHistoryShiftGates
       n counterWidth historyIndex) (by
         intro x
@@ -11664,15 +11714,17 @@ def branchCodePathCleanupStep (n counterWidth : Nat) :
     (branchCodePathCleanupGates n counterWidth)
 
 def branchCodePathCleanupProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (branchCodePathCleanupGates n counterWidth)
 
 theorem branchCodePathCleanup_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (branchCodePathCleanupProgram n counterWidth)
       (branchCodePathCleanupStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (branchCodePathCleanupGates n counterWidth)
 
 @[simp] theorem branchCodePathCleanupGates_length (n counterWidth : Nat) :
@@ -11876,8 +11928,10 @@ def branchResidueCleanupStep
 
 def branchResidueCleanupProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates n counterWidth historyIndex)
 
 theorem branchResidueCleanup_realizes
@@ -11885,7 +11939,7 @@ theorem branchResidueCleanup_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (branchResidueCleanupProgram n counterWidth historyIndex)
       (branchResidueCleanupStep n counterWidth historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates n counterWidth historyIndex)
 
 @[simp] theorem branchResidueCleanupGates_length
@@ -12819,8 +12873,10 @@ theorem activeBranchBodyStep_eq_self_of_inactive_clean
 def activeBranchBodyProgram
     (n counterWidth : Nat) (low finalBit tempIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeBranchBodyGates n counterWidth low finalBit tempIndex historyIndex)
 
 theorem activeBranchBody_realizes
@@ -12831,7 +12887,7 @@ theorem activeBranchBody_realizes
         n counterWidth low finalBit tempIndex historyIndex)
       (activeBranchBodyStep
         n counterWidth low finalBit tempIndex historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeBranchBodyGates n counterWidth low finalBit tempIndex historyIndex)
 
 theorem activeBranchBodyGates_length
@@ -12908,7 +12964,8 @@ theorem activeBranchBodyGates_toffoliMultiplicity_sum
 theorem activeBranchBodyProgram_x_count
     (n counterWidth : Nat) (low finalBit tempIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (activeBranchBodyProgram
           n counterWidth low finalBit tempIndex historyIndex).eventCost =
       8 * n + 8 := by
@@ -12919,7 +12976,8 @@ theorem activeBranchBodyProgram_x_count
 theorem activeBranchBodyProgram_cnot_count
     (n counterWidth : Nat) (low finalBit tempIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (activeBranchBodyProgram
           n counterWidth low finalBit tempIndex historyIndex).eventCost = 5 := by
   rw [activeBranchBodyProgram,
@@ -12929,7 +12987,8 @@ theorem activeBranchBodyProgram_cnot_count
 theorem activeBranchBodyProgram_toffoli_count
     (n counterWidth : Nat) (low finalBit tempIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (activeBranchBodyProgram
           n counterWidth low finalBit tempIndex historyIndex).eventCost =
       45 * (n - 1) + 65 * n + 22 := by

@@ -7,6 +7,10 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.ExtendedClock.Placement
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Width
+import all QuantumAlg.Core.Base.UnitaryCircuit.Adjoint
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
+import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
 
 /-!
 # Actual HRS increment and inverse on existing high and low clock bits
@@ -36,43 +40,72 @@ noncomputable section
 
 open ExtendedClockRegisters NumberTheory.SharedEEA
 
+private theorem focusedWidth (width : Nat) :
+    (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+      (clockWidth width)).width =
+      (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width := by
+  rw [Addition.HRS.hrsBridgeEncoding_width, Addition.HRS.hrsBridgeEncoding_width,
+    extra_add_clockWidth]
+
 private def sourceInput (width : Nat)
     (state : Addition.HRS.BridgeRegisters (Fin (2 ^ (width + 3))) (clockWidth width)) :
-    Addition.HRS.BridgeRegisters (Fin (2 ^ (extra width + clockWidth width)))
-      (clockWidth width) :=
-  ((finCongr (congrArg (fun count => 2 ^ count) (extra_add_clockWidth width).symm) state.1.1,
-    state.1.2), state.2)
+    Addition.HRS.BridgeRegisters
+      (Fin (2 ^ (extra width + clockWidth width))) (clockWidth width) :=
+  ((finCongr (congrArg (fun count => 2 ^ count)
+    (extra_add_clockWidth width).symm) state.1.1, state.1.2), state.2)
 
-private def sourceIndex (width : Nat) :
-    (Qubits (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
-      (clockWidth width)).width).Index ≃
-      (Qubits (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).Index :=
-  finCongr (congrArg (fun count : Nat => 2 ^ count)
-    (congrArg (fun count => count + clockWidth width + 1) (extra_add_clockWidth width)))
-
-private theorem sourceIndex_input (width : Nat)
-    (state : Addition.HRS.BridgeRegisters (Fin (2 ^ (width + 3))) (clockWidth width)) :
-    sourceIndex width
-      ((Addition.HRS.bridgeEncoding (extra width + clockWidth width) (clockWidth width)).encode
-        (sourceInput width state)) =
-      (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).encode state := by
-  apply Fin.ext
+private theorem bridgeEncoding_cast {low target high : Nat} (same : low = target)
+    (sameWidth : (Addition.HRS.bridgeEncoding low high).width =
+      (Addition.HRS.bridgeEncoding target high).width)
+    (state : Addition.HRS.BridgeRegisters (Fin (2 ^ target)) high) :
+    UnitaryCircuit.castQubitWidthIndex sameWidth
+      ((Addition.HRS.bridgeEncoding low high).encode
+        ((finCongr (congrArg (fun count => 2 ^ count) same.symm) state.1.1,
+          state.1.2), state.2)) =
+      (Addition.HRS.bridgeEncoding target high).encode state := by
+  cases same
+  cases sameWidth
   rfl
 
-private theorem sourceIndex_output (width : Nat)
+private theorem bridgeOutput_cast {low target high : Nat} (same : low = target)
+    (sameWidth : (Addition.HRS.bridgeEncoding low high).width =
+      (Addition.HRS.bridgeEncoding target high).width)
+    (state : Addition.HRS.BridgeRegisters (Fin (2 ^ target)) high) :
+    UnitaryCircuit.castQubitWidthIndex sameWidth
+      ((Addition.HRS.bridgeEncoding low high).encode
+        (Addition.HRS.bridgeIncrementStep
+          ((finCongr (congrArg (fun count => 2 ^ count) same.symm) state.1.1,
+            state.1.2), state.2))) =
+      (Addition.HRS.bridgeEncoding target high).encode
+        (Addition.HRS.bridgeIncrementStep state) := by
+  cases same
+  cases sameWidth
+  rfl
+
+private theorem sourceInput_encode (width : Nat)
     (state : Addition.HRS.BridgeRegisters (Fin (2 ^ (width + 3))) (clockWidth width)) :
-    sourceIndex width
-      ((Addition.HRS.bridgeEncoding (extra width + clockWidth width) (clockWidth width)).encode
-        (Addition.HRS.bridgeIncrementStep (sourceInput width state))) =
+    UnitaryCircuit.castQubitWidthIndex (focusedWidth width)
+      ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+        (clockWidth width)).encode (sourceInput width state)) =
+      (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).encode state := by
+  exact bridgeEncoding_cast (extra_add_clockWidth width) (focusedWidth width) state
+
+private theorem sourceOutput_encode (width : Nat)
+    (state : Addition.HRS.BridgeRegisters (Fin (2 ^ (width + 3))) (clockWidth width)) :
+    UnitaryCircuit.castQubitWidthIndex (focusedWidth width)
+      ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+        (clockWidth width)).encode
+          (Addition.HRS.bridgeIncrementStep (sourceInput width state))) =
       (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).encode
         (Addition.HRS.bridgeIncrementStep state) := by
-  rcases state with ⟨⟨work, target⟩, control⟩
-  cases control <;> apply Fin.ext <;> rfl
+  exact bridgeOutput_cast (extra_add_clockWidth width) (focusedWidth width) state
 
 /-- Actual HRS controlled arithmetic with only a proved equality of the borrowed-word width. -/
 def focusedProgram (width : Nat) :
-    UnitaryCircuit (Qubits (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width) :=
-  UnitaryCircuit.reindex (sourceIndex width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).toQuantum :=
+  UnitaryCircuit.castCanonicalQubitWidth (focusedWidth width)
     (Addition.HRS.placedIncrementProgram (extra width) (clockWidth width))
 
 private theorem focused_realizes (width : Nat) :
@@ -82,48 +115,88 @@ private theorem focused_realizes (width : Nat) :
     intro state
     have original := (Addition.HRS.hrsPlacedIncrement_realizes
       (extra width) (clockWidth width)).apply_encoded_ket (sourceInput width state)
-    have transported := UnitaryCircuit.Realizes.applyNormalized_reindex_ket_of_eq
-      (R := Qubits ((extra width + clockWidth width) + clockWidth width + 1))
-      (S := Qubits ((width + 3) + clockWidth width + 1))
-      (sourceIndex width) (Addition.HRS.placedIncrementProgram (extra width) (clockWidth width))
-        _ _ original
-    have inputKet := congrArg
-      (fun label : (Qubits ((width + 3) + clockWidth width + 1)).Index =>
-        NormalizedVector.ket (R := Qubits ((width + 3) + clockWidth width + 1)) label)
-      (sourceIndex_input width state)
-    have outputKet := congrArg
-      (fun label : (Qubits ((width + 3) + clockWidth width + 1)).Index =>
-        NormalizedVector.ket (R := Qubits ((width + 3) + clockWidth width + 1)) label)
-      (sourceIndex_output width state)
-    exact (congrArg (focusedProgram width).applyNormalized inputKet.symm).trans
-      (transported.trans outputKet)
-
-private theorem focused_range (width : Nat) :
-    (focusedProgram width).physical_idx ⊆ List.range (width + 3 + clockWidth width + 1) := by
-  have original := Addition.HRS.hrsPlacedIncrement_physical_range (extra width) (clockWidth width)
-  change (Addition.HRS.placedIncrementProgram (extra width) (clockWidth width)).physical_idx ⊆ _
-  simpa only [extra_add_clockWidth] using original
+    have inputKet :
+        focusedWidth width ▸ NormalizedVector.ket
+          ((QubitLayout.canonical
+            (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).width).basisEquiv.symm
+            ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).encode (sourceInput width state))) =
+          NormalizedVector.ket
+            ((QubitLayout.canonical
+              (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).basisEquiv.symm
+              ((Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).encode state)) := by
+      rw [UnitaryCircuit.castCanonicalQubitWidth_ket]
+      exact congrArg (fun label => NormalizedVector.ket
+        ((QubitLayout.canonical
+          (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).basisEquiv.symm
+          label)) (sourceInput_encode width state)
+    have outputKet :
+        focusedWidth width ▸ NormalizedVector.ket
+          ((QubitLayout.canonical
+            (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).width).basisEquiv.symm
+            ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).encode
+                (Addition.HRS.bridgeIncrementStep (sourceInput width state)))) =
+          NormalizedVector.ket
+            ((QubitLayout.canonical
+              (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).basisEquiv.symm
+              ((Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).encode
+                (Addition.HRS.bridgeIncrementStep state))) := by
+      rw [UnitaryCircuit.castCanonicalQubitWidth_ket]
+      exact congrArg (fun label => NormalizedVector.ket
+        ((QubitLayout.canonical
+          (Addition.HRS.bridgeEncoding (width + 3) (clockWidth width)).width).basisEquiv.symm
+          label)) (sourceOutput_encode width state)
+    calc
+      _ = (focusedProgram width).applyNormalized
+          (focusedWidth width ▸ NormalizedVector.ket
+            ((QubitLayout.canonical
+              (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+                (clockWidth width)).width).basisEquiv.symm
+              ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+                (clockWidth width)).encode (sourceInput width state)))) :=
+        congrArg (focusedProgram width).applyNormalized inputKet.symm
+      _ = focusedWidth width ▸
+          (Addition.HRS.placedIncrementProgram (extra width) (clockWidth width)).applyNormalized
+            (NormalizedVector.ket
+              ((QubitLayout.canonical
+                (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+                  (clockWidth width)).width).basisEquiv.symm
+                ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+                  (clockWidth width)).encode (sourceInput width state)))) :=
+        UnitaryCircuit.castCanonicalQubitWidth_applyNormalized _ _ _
+      _ = focusedWidth width ▸ NormalizedVector.ket
+          ((QubitLayout.canonical
+            (Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).width).basisEquiv.symm
+            ((Addition.HRS.bridgeEncoding (extra width + clockWidth width)
+              (clockWidth width)).encode
+                (Addition.HRS.bridgeIncrementStep (sourceInput width state)))) :=
+        congrArg (fun vector => focusedWidth width ▸ vector) original
+      _ = _ := outputKet
 
 private def groupedProgram (width : Nat) :
-    UnitaryCircuit (Qubits (ExtendedClockPlacement.groupedEncoding width).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (ExtendedClockPlacement.groupedEncoding width).width).toQuantum :=
   UnitaryCircuit.prodLeft (n := (ExtendedClockPlacement.remainderEncoding width).width)
     (focusedProgram width)
 
-private theorem grouped_range (width : Nat) :
-    (groupedProgram width).physical_idx ⊆
-      List.range (ExtendedClockPlacement.groupedEncoding width).width := by
-  unfold groupedProgram UnitaryCircuit.prodLeft
-  apply UnitaryCircuit.tensorQubits_physical_idx_subset
-  · intro wire present
-    have bound := List.mem_range.mp (focused_range width present)
-    apply List.mem_range.mpr
-    rw [ExtendedClockPlacement.grouped_width]
-    omega
-  · simp only [UnitaryCircuit.identity, List.nil_subset]
+private theorem grouped_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (ExtendedClockPlacement.groupedEncoding width)
+      (groupedProgram width)
+      (fun pair => (Addition.HRS.bridgeIncrementStep pair.1, pair.2)) := by
+  simpa only [groupedProgram, UnitaryCircuit.prodLeft,
+    ExtendedClockPlacement.groupedEncoding] using
+    (focused_realizes width).onBinaryPrefix
+      (right := ExtendedClockPlacement.remainderEncoding width)
 
 /-- The same actual HRS program placed on all original source fields. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (ExtendedClockPlacement.placement width).place (groupedProgram width) (grouped_range width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (ExtendedClockPlacement.placement width).place (groupedProgram width)
 
 /-- Complete finite increment of the two physical high bits and low counter under Phase2. -/
 def step {width : Nat} (state : Registers width) : Registers width :=
@@ -177,10 +250,12 @@ private theorem placed_step (width : Nat) (state : Registers width) :
 
 /-- Exact full-frame action preserves all borrowed and complementary amplitudes and correlations. -/
 theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  ((ExtendedClockPlacement.placement width).place_realizes (grouped_range width)
-    ((focused_realizes width).prodLeft
-      (right := ExtendedClockPlacement.remainderEncoding width))).congrStep (placed_step width)
+    UnitaryCircuit.Realizes (encoding width) (program width) step := by
+  apply ((ExtendedClockPlacement.placement width).place_realizes
+    (grouped_realizes width)).congrStep
+  intro state
+  simpa only [EncodedBit.FullPlacement.step,
+    ExtendedClockPlacement.placement_grouping_eq] using placed_step width state
 
 /-- The inverse finite assignment uses exactly the same retained control and physical clock. -/
 def inverseStep {width : Nat} (state : Registers width) : Registers width :=
@@ -201,28 +276,22 @@ private theorem step_inverseStep (width : Nat) (state : Registers width) :
 
 /-- The literal native dagger implements the full physical decrement and restores borrowed Work2. -/
 theorem inverse_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width).dagger inverseStep :=
-  (program_realizes width).dagger_of_rightInverse (step_inverseStep width)
-
-/-- The physical footprint is exactly the original frame, with no added high-counter workspace. -/
-theorem program_physical (width : Nat) :
-    (program width).physical_idx = List.range (encoding width).width :=
-  (ExtendedClockPlacement.placement width).place_physical
-    (groupedProgram width) (grouped_range width)
+    UnitaryCircuit.Realizes (encoding width)
+      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) inverseStep := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes width)
+  · rw [UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · exact step_inverseStep width
 
 /-- Every real HRS elementary event is retained in its literal original order. -/
 theorem program_eventTrace (width : Nat) :
     (program width).eventTrace =
       (Addition.HRS.placedIncrementProgram (extra width) (clockWidth width)).eventTrace := by
-  rw [program, EncodedBit.FullPlacement.place_eventTrace, groupedProgram,
-    UnitaryCircuit.prodLeft_eventTrace, focusedProgram, UnitaryCircuit.reindex_eventTrace]
-
-/-- The inverse executes the actual reversed HRS elementary-event list. -/
-theorem inverse_eventTrace (width : Nat) :
-    (program width).dagger.eventTrace =
-      (Addition.HRS.placedIncrementProgram (extra width)
-        (clockWidth width)).eventTrace.reverse := by
-  rw [UnitaryCircuit.dagger_eventTrace, program_eventTrace]
+  calc
+    _ = (groupedProgram width).eventTrace :=
+      EncodedBit.FullPlacement.place_eventTrace _ _
+    _ = (focusedProgram width).eventTrace := by rfl
+    _ = _ := UnitaryCircuit.castCanonicalQubitWidth_eventTrace _ _
 
 end
 

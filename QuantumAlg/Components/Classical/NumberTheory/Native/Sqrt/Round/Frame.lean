@@ -28,10 +28,12 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 def writeKeys (refs : RoundRefs ctx width) : List StorageKey :=
   [refs.candidate.key, refs.square.key, refs.tooLarge.key, refs.root.key, refs.half.key]
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem copy_preserves {shape : CShape} (refs : RoundRefs ctx width)
     (other : CInputRef ctx shape) (separate : refs.root.key ∉ other.storageKeys)
     (store : Store ctx) :
-    ((selectStep refs store).1).read other = store.read other := by
+    ((selectStep (model := model) refs store).1).read other = store.read other := by
   unfold selectStep
   cases flagRead : store.read (.storage refs.tooLarge.toCStorageRef) with
   | bit flag =>
@@ -45,14 +47,14 @@ theorem nativeSqrt_round_read_unchanged
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :
-    ((roundStep input refs store).1).read other = store.read other := by
+    ((roundStep (model := model) input refs store).1).read other = store.read other := by
   let added := store.applyOp (addOp refs)
   let squared := added.applyOp (squareOp refs)
   let compared := squared.applyOp (compareOp input refs)
-  let selected := selectStep refs compared
+  let selected := selectStep (model := model) refs compared
   have afterShift := Store.read_applyOp_of_not_mem_storageKeys selected.1
     (shiftOp refs) other (separate refs.half.key (by simp [writeKeys]))
-  have afterCopy := copy_preserves refs other
+  have afterCopy := copy_preserves (model := model) refs other
     (separate refs.root.key (by simp [writeKeys])) compared
   have afterCompare := Store.read_applyOp_of_not_mem_storageKeys squared
     (compareOp input refs) other (separate refs.tooLarge.key (by simp [writeKeys]))

@@ -25,47 +25,70 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native operation formula for the original binary-refinement round. -/
-def roundTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.addCarry width),
-    .classicalOperation (.mulFull width width),
-    .classicalOperation (.wordBinary .lessThan (width + width)),
-    .classicalOperation (.bit .not),
-    .classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .shiftRight width)]
+def roundTrace (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.addCarry width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.mulFull width width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .lessThan (width + width))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.bit .not)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .shiftRight width))]
 
 /-- Every actual branch path emits exactly the original six native operations. -/
 theorem roundInto_events (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).eventTrace path = roundTrace width := rfl
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).eventTrace path = roundTrace (model := model) width :=
+      by
+  rcases path with ⟨prefixPath, ⟨flag, selected⟩, shifted⟩
+  change (BitWord.instruction (execution := model) (rootOp refs flag.toBool)).Path at selected
+  change (BitWord.instruction (execution := model) (addOp refs)).eventTrace prefixPath.1 ++
+    ((BitWord.instruction (execution := model) (squareOp refs)).eventTrace prefixPath.2.1 ++
+      ((BitWord.instruction (execution := model) (compareOp input refs)).eventTrace
+        prefixPath.2.2.1 ++
+        (BitWord.instruction (execution := model) (takeOp refs)).eventTrace prefixPath.2.2.2)) ++
+    ((BitWord.instruction (execution := model) (rootOp refs flag.toBool)).eventTrace selected ++
+      (BitWord.instruction (execution := model) (halfOp refs)).eventTrace shifted) = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Native multiplicities come from that same actual path and independent operation formula. -/
 theorem roundInto_resourcePool (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).resourcePool path = ResourcePool.ofList (roundTrace width) :=
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).resourcePool path = ResourcePool.ofList (roundTrace
+      (model := model) width) :=
   congrArg ResourcePool.ofList (roundInto_events input refs path)
 
 /-- Each actual binary-refinement round performs exactly six native instructions. -/
 theorem roundInto_eventCount (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    ((roundInto input refs).eventTrace path).length = 6 := rfl
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    ((roundInto (model := model) input refs).eventTrace path).length = 6 := by
+  rw [roundInto_events]
+  rfl
 
 /-- The exact native unit-duration depth includes all six original dependent operations. -/
 theorem roundInto_depth (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).depth (fun _ => 1) path = 6 := rfl
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).depth (fun _ => 1) path = 6 := rfl
 
 /-- The original context stays live through every actual operation, including the selected copy. -/
 theorem roundInto_visited (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx, ctx] := rfl
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx, ctx]
+      := rfl
 
 /-- All original classical entries and quantum dimensions remain counted throughout the round. -/
 theorem roundInto_resident_le (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).peakResidentSpace path ≤ ctx.residentSpace := by
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   simp only [roundInto_visited, List.mem_cons, List.not_mem_nil, or_false, or_self] at present
@@ -73,8 +96,8 @@ theorem roundInto_resident_le (input : CInputRef ctx (.unsignedWord (width + wid
 
 /-- All original auxiliary roles remain counted through the complete actual round. -/
 theorem roundInto_auxiliary_le (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : Refs ctx width) (path : (roundInto input refs).Path) :
-    (roundInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+    (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
+    (roundInto (model := model) input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   simp only [roundInto_visited, List.mem_cons, List.not_mem_nil, or_false, or_self] at present
@@ -83,22 +106,28 @@ theorem roundInto_auxiliary_le (input : CInputRef ctx (.unsignedWord (width + wi
 /-- Every actual prefix, selected copy and shift restores borrowed correlations jointly. -/
 theorem roundInto_borrowedRestored (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (roundInto input refs).BorrowedRestored Reference state
-      ((roundInto input refs).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (roundInto (model := model) input refs).BorrowedRestored Reference state
+      ((roundInto (model := model) input refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
   · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical (addOp refs) _
+    · exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (addOp refs)) _
     · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical (squareOp refs) _
+      · exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (squareOp refs)) _
       · exact Circuit.borrowedRestored_seq _ _ _
-          (Circuit.borrowedRestored_classical (compareOp input refs) _)
-          (Circuit.borrowedRestored_classical (takeOp refs) _)
+          (Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (compareOp input refs)) _)
+          (Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (takeOp refs)) _)
   · apply Circuit.borrowedRestored_seq
     · apply Circuit.borrowedRestored_branch
-      intro value history _ current
-      exact Circuit.borrowedRestored_classical (rootOp refs value.toBool) current
-    · exact Circuit.borrowedRestored_classical (halfOp refs) _
+      intro value _history _ current
+      exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (rootOp refs value.toBool)) current
+    · exact Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (halfOp refs)) _
 
 end
 

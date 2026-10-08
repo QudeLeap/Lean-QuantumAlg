@@ -82,7 +82,8 @@ theorem initializedDensity_entry (modulus : Nat) (Reference : Register)
 
 /-- Actual initialization equals the independent full-reference preparation target exactly. -/
 theorem initialize_density (modulus : Nat) {Reference : Register} {History : Type}
-    [Fintype History] (state : State (before modulus.size) Reference History) :
+    [Fintype History] (state : State (before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     ((initializeWork modulus).execute Reference state).quantumMarginal =
       initializedDensity modulus Reference state.quantumMarginal := by
   apply DensityOperator.ext

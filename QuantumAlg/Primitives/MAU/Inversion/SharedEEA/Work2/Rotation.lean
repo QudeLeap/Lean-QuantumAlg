@@ -54,12 +54,16 @@ def rightGates (width : Nat) : List (GateSpec (encoding width)) :=
   Word.adjacentShiftRightGates (word width) (word_distinct width)
 
 /-- The left rotation is the circuit compiled from the same literal gate list. -/
-def leftProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (leftGates width)
+def leftProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (leftGates width)
 
 /-- The right rotation is the circuit compiled from the literal inverse gate list. -/
-def rightProgram (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (rightGates width)
+def rightProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (rightGates width)
 
 private def withoutWord {width : Nat} (state : Registers width) : Registers width :=
   { state with secondWord := 0#(width + 3) }
@@ -161,13 +165,15 @@ theorem right_step (width : Nat) (state : Registers width) :
 theorem left_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (leftProgram width)
       (fun state => { state with secondWord := state.secondWord.rotateLeft 1 }) :=
-  GateSpec.realizesList_congrStep (leftGates width) (left_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (leftGates width) (left_step width)
 
 /-- Exact full-frame realization by the actual inverse CNOT circuit. -/
 theorem right_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (rightProgram width)
       (fun state => { state with secondWord := state.secondWord.rotateRight 1 }) :=
-  GateSpec.realizesList_congrStep (rightGates width) (right_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (rightGates width) (right_step width)
 
 /-- The actual left event trace has three native CNOT events per adjacent Work2 pair. -/
 theorem left_eventTrace_length (width : Nat) :

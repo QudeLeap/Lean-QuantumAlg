@@ -27,7 +27,7 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
-open Execution.OwnedQubits
+open Execution.SuppliedQubits
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -39,11 +39,11 @@ private def preparedTarget (m width : Nat) (modulus : Fin (2 ^ width + 1))
   DensityOperator.observeSelectionWithReference (preparedContext m width).quantumLayout
     Finset.univ Reference
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor (nativeOperator m width modulus base)
+      (UnitaryOperator.prodTensor (arithmeticNativeOperator m width modulus positive base)
         (1 : UnitaryOperator Reference))
       (Execution.preparedDensity workKey (workLayout m width)
         (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
-        (workPreparation m width modulus positive).normalized Reference
+        (workPreparation m width).normalized Reference
           input.state.quantumMarginal))
 
 private theorem preparedTarget_normalized (m width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -53,14 +53,14 @@ private theorem preparedTarget_normalized (m width : Nat) (modulus : Fin (2 ^ wi
   let initial : DensityOperator (Register.prod (preparedContext m width).register Reference) :=
     Execution.preparedDensity workKey (workLayout m width)
       (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
-      (workPreparation m width modulus positive).normalized Reference input.state.quantumMarginal
+      (workPreparation m width).normalized Reference input.state.quantumMarginal
   let operator : UnitaryOperator (Register.prod (preparedContext m width).register Reference) :=
-    UnitaryOperator.prodTensor (nativeOperator m width modulus base)
+    UnitaryOperator.prodTensor (arithmeticNativeOperator m width modulus positive base)
       (1 : UnitaryOperator Reference)
   have preparedMass : initial.mass = input.state.quantumMarginal.mass :=
     Execution.preparedDensity_mass (ctx := context (m + width)) workKey (workLayout m width)
       (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
-      (workPreparation m width modulus positive).normalized Reference input.state.quantumMarginal
+      (workPreparation m width).normalized Reference input.state.quantumMarginal
   exact (DensityOperator.observeSelectionWithReference_mass
     (preparedContext m width).quantumLayout Finset.univ Reference
     (DensityOperator.applyUnitary operator initial)).trans
@@ -80,10 +80,11 @@ def preparedRequirement (m width : Nat) (modulus : Fin (2 ^ width + 1))
 theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (base : (ZMod modulus.val)ˣ) {shape : CShape}
     (output : Output (preparedContext m width) shape) {Reference : Register}
-    (input : Execution.Input (context (m + width)) Reference) :
-    (preparedRequirement m width modulus positive base).Holds input
-      (({ code := nativeCode m width modulus positive base, output := output } :
-        AlgorithmRun (context (m + width)) (preparedContext m width) shape).finalState
+    (input : Execution.OracleInput .empty (context (m + width)) Reference) :
+    (preparedRequirement m width modulus positive base).Holds input.caller
+      (({ code := arithmeticNativeCode m width modulus positive base, output := output } :
+        AlgorithmRun (.quantum AlgorithmGate.model .empty)
+          (context (m + width)) (preparedContext m width) shape).finalState
           Reference input.state) := by
   intro value
   cases value with
@@ -91,24 +92,45 @@ theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (
       let initial : DensityOperator (Register.prod (preparedContext m width).register Reference) :=
         Execution.preparedDensity workKey (workLayout m width)
           (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
-          (workPreparation m width modulus positive).normalized Reference
-            input.state.quantumMarginal
-      let result := ({ code := nativeCode m width modulus positive base, output := output } :
-        AlgorithmRun (context (m + width)) (preparedContext m width) shape).finalState
+          (workPreparation m width).normalized Reference
+            input.caller.state.quantumMarginal
+      let result :=
+        ({ code := arithmeticNativeCode m width modulus positive base, output := output } :
+        AlgorithmRun (.quantum AlgorithmGate.model .empty)
+          (context (m + width)) (preparedContext m width) shape).finalState
           Reference input.state
-      have actual : result.quantumMarginal = DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor (nativeUnitary m width modulus base).matrix
-            (1 : UnitaryOperator Reference)) initial :=
+      have actualWithService : result.quantumMarginal = DensityOperator.applyUnitary
+          (UnitaryOperator.prodTensor (arithmeticNativeUnitary m width modulus positive base).matrix
+            (1 : UnitaryOperator Reference))
+          (Execution.preparedDensity workKey (workLayout m width)
+            (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
+            (workPreparation m width).normalized Reference input.state.quantumMarginal) :=
         Execution.preparedUnitary_finalState_quantumMarginal (ctx := context (m + width))
           workKey (workLayout m width) (gidneyExponentWork_fresh m width)
-          (gidneyExponentWork_disjoint m width) (workPreparation m width modulus positive)
-          (nativeUnitary m width modulus base)
-          (gidneyExponentNativeUnitary_physical m width modulus base) output Reference input.state
+          (gidneyExponentWork_disjoint m width)
+          (arithmeticNativeUnitary m width modulus positive base) output Reference input.state
+      have actual : result.quantumMarginal = DensityOperator.applyUnitary
+          (UnitaryOperator.prodTensor (arithmeticNativeUnitary m width modulus positive base).matrix
+            (1 : UnitaryOperator Reference)) initial :=
+        actualWithService.trans (congrArg
+          (fun density : DensityOperator
+              (Register.prod (preparedContext m width).register Reference) =>
+            DensityOperator.applyUnitary
+              (UnitaryOperator.prodTensor
+                (arithmeticNativeUnitary m width modulus positive base).matrix
+                (1 : UnitaryOperator Reference)) density)
+          (congrArg
+            (fun density : DensityOperator
+                (Register.prod (context (m + width)).register Reference) =>
+              Execution.preparedDensity workKey (workLayout m width)
+                (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
+                (workPreparation m width).normalized Reference density)
+            input.oracleInput_caller_quantumMarginal.symm))
       have semantic := actual.trans
         (congrArg (fun operator : UnitaryOperator (preparedContext m width).register =>
           DensityOperator.applyUnitary
             (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)) initial)
-          (gidneyExponentNativeUnitary_semantics m width modulus base))
+          (arithmeticNativeUnitary_semantics m width modulus positive base))
       have observed := congrArg
         (fun density :
             DensityOperator (Register.prod (preparedContext m width).register Reference) =>
@@ -117,17 +139,17 @@ theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (
         ((ExecutionState.executionState_mapClassical_const_block result CShape.Value.unit).trans
           semantic)
       have targetHolds :
-          (StatePromise.mixed (preparedTarget m width modulus positive base Reference input)
-            (preparedTarget_normalized m width modulus positive base Reference input)).Holds
-              (preparedTarget m width modulus positive base Reference input) := by
-        change (preparedTarget m width modulus positive base Reference input).matrix =
-          ((preparedTarget m width modulus positive base Reference input).mass : ℝ) •
-            (preparedTarget m width modulus positive base Reference input).matrix
+          (StatePromise.mixed (preparedTarget m width modulus positive base Reference input.caller)
+            (preparedTarget_normalized m width modulus positive base Reference input.caller)).Holds
+              (preparedTarget m width modulus positive base Reference input.caller) := by
+        change (preparedTarget m width modulus positive base Reference input.caller).matrix =
+          ((preparedTarget m width modulus positive base Reference input.caller).mass : ℝ) •
+            (preparedTarget m width modulus positive base Reference input.caller).matrix
         rw [preparedTarget_normalized]
         simp only [one_smul]
       exact (congrArg
-        (StatePromise.mixed (preparedTarget m width modulus positive base Reference input)
-          (preparedTarget_normalized m width modulus positive base Reference input)).Holds
+        (StatePromise.mixed (preparedTarget m width modulus positive base Reference input.caller)
+          (preparedTarget_normalized m width modulus positive base Reference input.caller)).Holds
         observed).mpr targetHolds
 
 end

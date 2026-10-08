@@ -7,20 +7,20 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Components.Gates
-import all QuantumAlg.Components.Gates
-import all QuantumAlg.Components.Oracle.Common
+public import QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.Tensor.Basic
+import all QuantumAlg.Core.Base.State.Normalized
 
 /-!
-# Reflection oracle constructors
+# Certified projector reflection operators
 
-Reusable Components-layer reflection constructors expose metadata-free
-`UnitaryOperator`s first, with sealed oracle circuits where implementation
-placement and query labels are available. Prepared reflections are
-conjugates of a basis reflection by a preparation operator.
-This module also carries projector-controlled NOT gates `C_P NOT`, which are
-the projector oracles used by QSVT-style statements.  Block-encoding predicates
-and their encoded targets live separately in `Oracle.BlockEncoding`.
+These mathematical operators carry exact phase and tensor semantics without
+assigning native instructions or oracle access. Executable callers must provide
+an implementation in their chosen gate model or an explicit oracle contract.
+Projector-controlled NOT uses the same independent projector specification.
 -/
 
 section
@@ -29,42 +29,18 @@ namespace QuantumAlg
 
 noncomputable section
 
-/-- Strict event coordinate for projector reflections at width `n`. -/
-def reflectionSubroutineLabel (n : Nat) : Resource.SubroutineLabel :=
-  { family := "QuantumAlg.Components.Oracle.Reflection"
-    name := "reflection"
-    parameters := [n] }
-
-/-- Stable query-coordinate name for projector reflections on `n` qubits. It
-reuses the canonical subroutine coordinate shared by projectors of that width. -/
-def reflectionOracleLabel (n : Nat) : Resource.SubroutineLabel :=
-  reflectionSubroutineLabel n
-
-/-- Strict event coordinate for projector-controlled NOT at width `n`. -/
-def controlledNotSubroutineLabel (n : Nat) : Resource.SubroutineLabel :=
-  { family := "QuantumAlg.Components.Oracle.Reflection"
-    name := "projector-controlled-not"
-    parameters := [n] }
-
-/-- Stable query-coordinate name for projector-controlled NOT on an `n`-qubit
-target. It reuses the canonical subroutine coordinate for that width. -/
-def controlledNotOracleLabel (n : Nat) : Resource.SubroutineLabel :=
-  controlledNotSubroutineLabel n
-
 namespace Gate
 
 theorem X_conjTranspose :
-    (Gate.X.matrix : HilbertOperator (Qubits 1)).conjTranspose =
-      (Gate.X.matrix : HilbertOperator (Qubits 1)) := by
-  rw [Gate.X_matrix]
+    (Gate.XOp : HilbertOperator (Qubits 1)).conjTranspose =
+      (Gate.XOp : HilbertOperator (Qubits 1)) := by
   change ((Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ).conjTranspose =
     (Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ
   rw [Matrix.conjTranspose_permMatrix, Equiv.swap_inv]
 
 theorem X_mul_X :
-    (Gate.X.matrix : HilbertOperator (Qubits 1)) *
-      (Gate.X.matrix : HilbertOperator (Qubits 1)) = 1 := by
-  rw [Gate.X_matrix]
+    (Gate.XOp : HilbertOperator (Qubits 1)) *
+      (Gate.XOp : HilbertOperator (Qubits 1)) = 1 := by
   change (Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ *
       (Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ = 1
   rw [← Matrix.permMatrix_mul, Equiv.swap_mul_self, Matrix.permMatrix_one]
@@ -202,44 +178,6 @@ theorem reflectionOp_sq {n : Nat} (P : OrthogonalProjector n) :
     P.idempotent]
   module
 
-/-- Sealed declaration of one projector-reflection subroutine at a caller-supplied
-physical placement. -/
-def reflectionLeafAt {n : Nat} (P : OrthogonalProjector n)
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits n) :=
-  UnitaryLeaf.subroutine (reflectionSubroutineLabel n) systemIdx (reflectionOp P)
-
-/-- Sealed declaration of one projector-reflection subroutine on its canonical
-register placement. -/
-def reflectionLeaf {n : Nat} (P : OrthogonalProjector n) :
-    UnitaryLeaf (Qubits n) :=
-  reflectionLeafAt P (List.range n)
-
-/-- Bundle the projector reflection at a caller-supplied duplicate-free placement. -/
-def reflectionAt {n : Nat} (P : OrthogonalProjector n) (systemIdx : List Nat)
-    (systemIdxNodup : systemIdx.Nodup) : UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (reflectionLeafAt P systemIdx) systemIdxNodup
-
-/-- Bundle the projector reflection as an oracle circuit. -/
-def reflection {n : Nat} (P : OrthogonalProjector n) : UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (reflectionLeaf P) List.nodup_range
-
-
-
-
-
-@[simp]
-theorem reflection_eventCost {n : Nat} (P : OrthogonalProjector n) :
-    (reflection P).eventCost =
-      ResourcePool.singleton
-        (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem reflection_eventDepth {n : Nat} (P : OrthogonalProjector n) :
-    (reflection P).eventDepth =
-      .atom (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
 /-- The complementary orthogonal projector `I - P`. -/
 def complement {n : Nat} (P : OrthogonalProjector n) : HilbertOperator (Qubits n) :=
   1 - P.op
@@ -278,83 +216,10 @@ def rankOneReflectionOp {n : Nat} (ψ : NormalizedVector (Qubits n)) :
     UnitaryOperator (Qubits n) :=
   reflectionOp (rankOne ψ)
 
-/-- Circuit reflection through a normalized vector, inheriting its sealed
-operator and query label from the generic projector reflection. -/
-def rankOneReflection {n : Nat} (ψ : NormalizedVector (Qubits n)) :
-    UnitaryCircuit (Qubits n) :=
-  reflection (rankOne ψ)
-
-@[simp]
-theorem rankOneReflection_system_idx {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOneReflection ψ).physical_idx = List.range n := rfl
-
-
-
-
-
-@[simp]
-theorem rankOneReflection_eventCost {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOneReflection ψ).eventCost =
-      ResourcePool.singleton
-        (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem rankOneReflection_eventDepth {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOneReflection ψ).eventDepth =
-      .atom (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem rankOneReflection_matrix {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    ((rankOneReflection ψ).matrix : HilbertOperator (Qubits n)) =
-      (rankOneReflectionOp ψ : HilbertOperator (Qubits n)) :=
-  rfl
-
 /-- Phase reflection about a normalized vector: `I - 2|psi><psi|`. -/
-def rankOnePhaseReflectionOp {n : Nat} (ψ : NormalizedVector (Qubits n)) :
+public def rankOnePhaseReflectionOp {n : Nat} (ψ : NormalizedVector (Qubits n)) :
     UnitaryOperator (Qubits n) :=
   phaseReflectionOp (rankOne ψ)
-
-/-- Circuit reflection for the phase reflection about a normalized vector. -/
-def rankOnePhaseReflection {n : Nat} (ψ : NormalizedVector (Qubits n)) :
-    UnitaryCircuit (Qubits n) :=
-  reflection (complementProjector (rankOne ψ))
-
-@[simp]
-theorem rankOnePhaseReflection_system_idx {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOnePhaseReflection ψ).physical_idx = List.range n := rfl
-
-
-
-
-
-@[simp]
-theorem rankOnePhaseReflection_eventCost {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOnePhaseReflection ψ).eventCost =
-      ResourcePool.singleton
-        (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem rankOnePhaseReflection_eventDepth {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    (rankOnePhaseReflection ψ).eventDepth =
-      .atom (.quantumSubroutine (reflectionSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem rankOnePhaseReflection_matrix {n : Nat}
-    (ψ : NormalizedVector (Qubits n)) :
-    ((rankOnePhaseReflection ψ).matrix : HilbertOperator (Qubits n)) =
-      (rankOnePhaseReflectionOp ψ : HilbertOperator (Qubits n)) :=
-  rfl
 
 /-- A projector reflection acts as `2P psi - psi` on every vector. -/
 theorem reflectionOp_applyVec {n : Nat} (P : OrthogonalProjector n)
@@ -463,10 +328,10 @@ theorem reflectionOp_applyVec_of_projector_applyVec_eq_zero {n : Nat}
 
 /-- Projector-controlled NOT:
 `C_P NOT = X ⊗ P + I ⊗ (I-P)`, flipping the leading qubit on the image of `P`. -/
-def controlledNotOp {n : Nat} (P : OrthogonalProjector n) :
+public def controlledNotOp {n : Nat} (P : OrthogonalProjector n) :
     UnitaryOperator (Qubits (1 + n)) :=
   UnitaryOperator.ofMatrix
-    (HilbertOperator.tensor (Gate.X.matrix : HilbertOperator (Qubits 1)) P.op
+    (HilbertOperator.tensor (Gate.XOp : HilbertOperator (Qubits 1)) P.op
       + HilbertOperator.tensor (1 : HilbertOperator (Qubits 1)) (complement P))
     (by
       rw [Matrix.mem_unitaryGroup_iff, Matrix.star_eq_conjTranspose]
@@ -484,95 +349,9 @@ def controlledNotOp {n : Nat} (P : OrthogonalProjector n) :
         simp [complement]
       rw [hsum, HilbertOperator.one_tensor_one])
 
-/-- Sealed declaration of one projector-controlled NOT subroutine at a
-caller-supplied physical placement. -/
-def controlledNotLeafAt {n : Nat} (P : OrthogonalProjector n)
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits (1 + n)) :=
-  UnitaryLeaf.subroutine (controlledNotSubroutineLabel n) systemIdx
-    (controlledNotOp P)
-
-/-- Sealed declaration of one projector-controlled NOT subroutine on its
-canonical register placement. -/
-def controlledNotLeaf {n : Nat} (P : OrthogonalProjector n) :
-    UnitaryLeaf (Qubits (1 + n)) :=
-  controlledNotLeafAt P (List.range (1 + n))
-
-/-- Projector-controlled NOT at a caller-supplied duplicate-free placement. -/
-def controlledNotAt {n : Nat} (P : OrthogonalProjector n)
-    (systemIdx : List Nat) (systemIdxNodup : systemIdx.Nodup) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.ofLeaf (controlledNotLeafAt P systemIdx) systemIdxNodup
-
-/-- Projector-controlled NOT as an oracle circuit. -/
-def controlledNot {n : Nat} (P : OrthogonalProjector n) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.ofLeaf (controlledNotLeaf P) List.nodup_range
-
-
-
-
-
-@[simp]
-theorem controlledNot_eventCost {n : Nat} (P : OrthogonalProjector n) :
-    (controlledNot P).eventCost =
-      ResourcePool.singleton
-        (.quantumSubroutine (controlledNotSubroutineLabel n).quantum) :=
-  rfl
-
-@[simp]
-theorem controlledNot_eventDepth {n : Nat} (P : OrthogonalProjector n) :
-    (controlledNot P).eventDepth =
-      .atom (.quantumSubroutine (controlledNotSubroutineLabel n).quantum) :=
-  rfl
-
 end OrthogonalProjector
 
-namespace Gate
 
-variable {n : Nat}
-
-/-- The computational-basis reflection that fixes `|j>` and phases every other
-basis ket by `-1`.  This is the `2|j><j| - I` convention packaged as a gate. -/
-def basisReflection (j : Fin (2 ^ n)) : UnitaryCircuit (Qubits n) :=
-  phaseOracle (fun k => k != j)
-
-@[simp]
-theorem basisReflection_applyNormalized_ket_self (j : Fin (2 ^ n)) :
-    (basisReflection j).applyNormalized (NormalizedVector.ket (R := Qubits n) j) =
-      NormalizedVector.ket (R := Qubits n) j := by
-  apply NormalizedVector.ext
-  intro i
-  have h := phaseOracle_apply_ket (fun k => k != j) j
-  have hi := congrArg (fun ψ : HilbertVector (Qubits n) => ψ i) h
-  simpa [basisReflection, UnitaryCircuit.applyNormalized, UnitaryCircuit.applyVec] using hi
-
-theorem basisReflection_applyNormalized_ket_ne (j k : Fin (2 ^ n)) (hk : k != j) :
-    ((basisReflection j).applyNormalized (NormalizedVector.ket (R := Qubits n) k) :
-        HilbertVector (Qubits n)) =
-      (-(NormalizedVector.ket (R := Qubits n) k : HilbertVector (Qubits n))) := by
-  simpa [basisReflection, UnitaryCircuit.applyVec, hk] using
-    phaseOracle_apply_ket (fun x => x != j) k
-
-/-- The reflection through the all-zero computational basis state. -/
-def zeroReflection (n : Nat) : UnitaryCircuit (Qubits n) :=
-  basisReflection (0 : Fin (2 ^ n))
-
-/-- Reflection through the prepared basis state `V |j>`, written as
-`V (2|j><j| - I) V†`. -/
-def preparedReflection (V : UnitaryCircuit (Qubits n)) (j : Fin (2 ^ n)) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.seq (UnitaryCircuit.seq V.dagger (basisReflection j)) V
-
-@[simp]
-theorem preparedReflection_zero (V : UnitaryCircuit (Qubits n)) :
-    ((preparedReflection V (0 : Fin (2 ^ n))).matrix :
-        HilbertOperator (Qubits n)) =
-      (V.matrix : HilbertOperator (Qubits n)) *
-        ((zeroReflection n).matrix : HilbertOperator (Qubits n)) *
-        (V.dagger.matrix : HilbertOperator (Qubits n)) := by
-  simp [preparedReflection, zeroReflection, mul_assoc]
-
-end Gate
 
 end
 

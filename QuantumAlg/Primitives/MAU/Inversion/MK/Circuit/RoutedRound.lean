@@ -60,8 +60,10 @@ def spillWorkingPathStep (tail counterWidth : Nat)
 /-- Base-gate program that spills the working path into one route slot. -/
 def spillWorkingPathProgram (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (spillWorkingPathGates tail counterWidth roundIndex)
 
 theorem spillWorkingPath_realizes (tail counterWidth : Nat)
@@ -69,7 +71,7 @@ theorem spillWorkingPath_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (spillWorkingPathProgram tail counterWidth roundIndex)
       (spillWorkingPathStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (spillWorkingPathGates tail counterWidth roundIndex)
 
 /-- Reset the working path from the just-written route slot. -/
@@ -99,8 +101,10 @@ def resetWorkingPathStep (tail counterWidth : Nat)
 /-- Base-gate program that resets the working path from its route slot. -/
 def resetWorkingPathProgram (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (resetWorkingPathGates tail counterWidth roundIndex)
 
 theorem resetWorkingPath_realizes (tail counterWidth : Nat)
@@ -108,7 +112,7 @@ theorem resetWorkingPath_realizes (tail counterWidth : Nat)
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (resetWorkingPathProgram tail counterWidth roundIndex)
       (resetWorkingPathStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (resetWorkingPathGates tail counterWidth roundIndex)
 
 theorem spillWorkingPathStep_get_path

@@ -26,8 +26,9 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
-  (sampleCode : Circuit ctx ctx) (supported : sampleCode.IsLocal)
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
+  (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
   (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
   (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
   (base target : CInputRef ctx (PointShape width))

@@ -6,8 +6,15 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Preparation
+public import QuantumAlg.Primitives.QFT.Construction
 import all QuantumAlg.Primitives.QFT.Construction
+public import QuantumAlg.Primitives.QFT.Mathematics
+import all QuantumAlg.Primitives.QFT.Mathematics
+public import Mathlib.Analysis.SpecialFunctions.Complex.Log
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+public import QuantumAlg.Util.Complex
 import all QuantumAlg.Util.Complex
 public import QuantumAlg.Util.FiniteCyclicDLP
 import all QuantumAlg.Util.FiniteCyclicDLP
@@ -51,9 +58,31 @@ public structure SecretInput (P : KnownOrderProblem G) where
   /-- The advertised scalar generates the problem target. -/
   target_eq_generator_pow : P.generator ^ secret.val = P.target
 
+/-- The source-scoped target membership and known finite generator order
+supply a bounded secret witness for the probability proof. This is a proof
+parameter, not an executable input or an enumeration of group elements. -/
+public noncomputable def SecretInput.ofKnownOrderProblem
+    (P : KnownOrderProblem G) : SecretInput P := by
+  classical
+  have finiteGenerator : IsOfFinOrder P.generator :=
+    orderOf_ne_zero_iff.mp (by
+      rw [← P.order_eq_orderOf]
+      exact P.order_ne_zero)
+  have existsN : ∃ n : Nat, n ∈ Finset.range (orderOf P.generator) ∧
+      P.generator ^ n = P.target := Finset.mem_image.mp
+    (finiteGenerator.mem_zpowers_iff_mem_range_orderOf.mp P.target_mem_zpowers)
+  let n := Classical.choose existsN
+  have ⟨nRange, hpow⟩ := Classical.choose_spec existsN
+  have bounded : n < P.order := by
+    rw [P.order_eq_orderOf]
+    exact Finset.mem_range.mp nRange
+  let _ : NeZero P.order := ⟨P.order_ne_zero⟩
+  exact ⟨(n : ZMod P.order), by
+    simpa only [ZMod.val_natCast_of_lt bounded] using hpow⟩
+
 /-- The canonical bounded natural representative of a residue modulo the
 problem order. -/
-def residueIndex (P : KnownOrderProblem G) (value : ZMod P.order) :
+@[expose] public def residueIndex (P : KnownOrderProblem G) (value : ZMod P.order) :
     Fin P.order :=
   ⟨value.val, by
     let _ : NeZero P.order := ⟨P.order_ne_zero⟩
@@ -61,11 +90,11 @@ def residueIndex (P : KnownOrderProblem G) (value : ZMod P.order) :
 
 /-- The oversampled Fourier index selected by a residue modulo the problem
 order. -/
-def selectedIndex (P : KnownOrderProblem G) (value : ZMod P.order) :
+@[expose] public def selectedIndex (P : KnownOrderProblem G) (value : ZMod P.order) :
     Fin (2 ^ orderWidth P) :=
   selectedRawFrequency P (residueIndex P value)
 
-theorem selectedIndex_injective (P : KnownOrderProblem G) :
+public theorem selectedIndex_injective (P : KnownOrderProblem G) :
     Function.Injective (selectedIndex P) := by
   let _ : NeZero P.order := ⟨P.order_ne_zero⟩
   intro left right h
@@ -77,12 +106,12 @@ theorem selectedIndex_injective (P : KnownOrderProblem G) :
 
 
 /-- Left source index in the fibre determined by a hidden-line sample. -/
-def fiberLeft (P : KnownOrderProblem G) (input : SecretInput P)
+@[expose] public def fiberLeft (P : KnownOrderProblem G) (input : SecretInput P)
     (k b : Fin P.order) : Fin P.order :=
   ⟨(k.val + input.secret.val * b.val) % P.order,
     Nat.mod_lt _ P.order_pos⟩
 
-theorem oracleMultiplier_fiber (P : KnownOrderProblem G)
+public theorem oracleMultiplier_fiber (P : KnownOrderProblem G)
     (input : SecretInput P) (k b : Fin P.order) :
     P.toSourceScope.oracleMultiplier (fiberLeft P input k b).val b.val =
       P.generator ^ k.val := by
@@ -96,7 +125,7 @@ theorem oracleMultiplier_fiber (P : KnownOrderProblem G)
   rw [← input.target_eq_generator_pow, ← pow_mul, hleft, pow_add]
   simp [mul_assoc]
 
-theorem oracleMultiplier_eq_generator_pow_iff
+public theorem oracleMultiplier_eq_generator_pow_iff
     (P : KnownOrderProblem G) (input : SecretInput P)
     (a b k : Fin P.order) :
     P.toSourceScope.oracleMultiplier a.val b.val = P.generator ^ k.val ↔
@@ -130,7 +159,7 @@ theorem oracleMultiplier_eq_generator_pow_iff
     exact oracleMultiplier_fiber P input k b
 
 
-theorem sum_fin_fourierModulus_if_sourceRange
+public theorem sum_fin_fourierModulus_if_sourceRange
     (P : KnownOrderProblem G) (f : Fin P.order → ℂ) :
     (∑ i : Fin (2 ^ orderWidth P),
       if hi : i.val < P.order then f ⟨i.val, hi⟩ else 0) =
@@ -161,7 +190,7 @@ theorem sum_fin_fourierModulus_if_sourceRange
     simp [hge]
 
 /-- Complex contribution of one source pair to a selected Fourier fibre. -/
-def selectedFiberTerm {P : KnownOrderProblem G}
+@[expose] public def selectedFiberTerm {P : KnownOrderProblem G}
     (input : SecretInput P) (left right : Fin (2 ^ orderWidth P))
     (k b : Fin P.order) : ℂ :=
   star (invSqrtN (orderWidth P) *
@@ -251,7 +280,7 @@ private theorem fiber_mod_add_order_mul_quotient
     (Nat.mod_add_div (tail.val + input.secret.val * b.val) P.order)
 
 /-- Integer phase residual appearing in the public selected-fiber phase law. -/
-def phaseError (P : KnownOrderProblem G) (input : SecretInput P)
+public def phaseError (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) : Nat :=
   (fiberLeft P input tail b).val *
       ((selectedRawFrequency P
@@ -360,7 +389,7 @@ private theorem hiddenLine_phase_nat_identity
       ring
 
 /-- Unit-modulus phase attached to one selected Fourier-fibre term. -/
-def selectedFiberPhase (P : KnownOrderProblem G)
+@[expose] public def selectedFiberPhase (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (tail b : Fin P.order) : ℂ :=
   star (ω (orderWidth P) ^
@@ -373,7 +402,7 @@ def selectedFiberPhase (P : KnownOrderProblem G)
 /-- Common unit-modulus phase contributed by the observed group-element tail.
 It is independent of the source summation variable and hence does not affect
 the selected outcome probability.  [Sho95, source.tex:1742-1775] -/
-def selectedTailPhase (P : KnownOrderProblem G)
+@[expose] public def selectedTailPhase (P : KnownOrderProblem G)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) : ℂ :=
   Complex.exp
     (-(2 * Real.pi *
@@ -381,7 +410,7 @@ def selectedTailPhase (P : KnownOrderProblem G)
         (P.order : ℝ))) * Complex.I)
 
 /-- Residual selected-fibre phase after removing the common tail phase. -/
-def selectedErrorPhase (P : KnownOrderProblem G)
+@[expose] public def selectedErrorPhase (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (tail b : Fin P.order) : ℂ :=
   Complex.exp
@@ -443,7 +472,8 @@ theorem selectedFiberPhase_eq_tail_mul_error
           b.val *
             (selectedIndex P
               (-input.secret * (unit : ZMod P.order))).val)) = _
-  rw [map_pow, ω, conj_exp_I, ← Complex.exp_nat_mul,
+  unfold ω
+  rw [map_pow, conj_exp_I, ← Complex.exp_nat_mul,
     ← Complex.exp_add]
   rw [Complex.exp_eq_exp_iff_exists_int]
   refine ⟨
@@ -556,7 +586,7 @@ private theorem one_half_le_re_selectedErrorPhase (P : KnownOrderProblem G)
   rw [selectedTailPhase, Complex.norm_exp]
   simp
 
-theorem half_order_le_norm_sum_selectedFiberPhase
+public theorem half_order_le_norm_sum_selectedFiberPhase
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) :
     (P.order : ℝ) / 2 ≤
@@ -593,11 +623,11 @@ private theorem invSqrtOrder_mul_self (P : KnownOrderProblem G) :
     Real.mul_self_sqrt (by positivity : (0 : ℝ) ≤ P.order)]
 
 /-- Common amplitude scale shared by every selected fibre term. -/
-def amplitudeScale (P : KnownOrderProblem G) : ℂ :=
+@[expose] public def amplitudeScale (P : KnownOrderProblem G) : ℂ :=
   ((((2 : ℝ) ^ orderWidth P : ℂ))⁻¹) *
     (((P.order : ℝ) : ℂ))⁻¹
 
-theorem selectedFiberTerm_eq_scale_mul_phase
+public theorem selectedFiberTerm_eq_scale_mul_phase
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) :
     selectedFiberTerm input

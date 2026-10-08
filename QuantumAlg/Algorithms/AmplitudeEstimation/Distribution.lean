@@ -35,7 +35,7 @@ open QuantumAlg.Execution
 /-- The actual complete run has the original mathematical query-readout distribution. -/
 theorem outputDistribution_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (empty : Elementary.helperWidth t n = 0)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput (model E).classicalOracles pre Reference) :
     (run E t).outputDistribution input =
       (outcomeDistribution E t).map CShape.Value.bits := by
   apply PMF.ext
@@ -48,7 +48,8 @@ theorem outputDistribution_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n) 
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code E t).execute Reference (input.state.mapClassical (fun store => (store, store)))
+    (((code E t).execute Reference
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))
       |>.block output).mass) = _
   rw [code_block_mass E t empty _ (input.state.mapClassical_normalized input.normalized _)]
@@ -85,7 +86,7 @@ theorem actual_success {n : Nat} (E : GeneralAmplitudeEstimationInput n) (eps η
     (positiveWidth : 0 < selectedPhaseQubits eps η)
     (positivePrecision : 0 < eps) (precisionAtMostOne : eps ≤ 1)
     (positiveFailure : 0 < η) (failureAtMostOne : η ≤ 1)
-    {Reference : Register} (input : Input pre Reference) :
+    {Reference : Register} (input : OracleInput (model E).classicalOracles pre Reference) :
     ENNReal.ofReal (1 - η) ≤
       ((run E (selectedPhaseQubits eps η)).relationalDistribution input).toOuterMeasure
         {pair | accepts E eps pair.1 pair.2} := by
@@ -98,7 +99,7 @@ theorem actual_success {n : Nat} (E : GeneralAmplitudeEstimationInput n) (eps η
       PMF.toOuterMeasure_map_apply]
     congr 1
     ext record
-    exact accepts_iff_encoded E eps record.2.1
+    exact accepts_iff_encoded E eps record.2.2.1
       ((run E (selectedPhaseQubits eps η)).result record)
   have empty := Elementary.selected_helperWidth_eq_zero n positivePrecision precisionAtMostOne
     positiveFailure failureAtMostOne

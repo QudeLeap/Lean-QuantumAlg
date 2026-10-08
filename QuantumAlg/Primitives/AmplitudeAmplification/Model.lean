@@ -7,10 +7,13 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.Rotation.Operator
+import all QuantumAlg.Components.Kets
 import all QuantumAlg.Components.Oracle.Reflection
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Core.Base.Gate.Basic
+import all QuantumAlg.Core.Base.State.Normalized
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 
 /-!

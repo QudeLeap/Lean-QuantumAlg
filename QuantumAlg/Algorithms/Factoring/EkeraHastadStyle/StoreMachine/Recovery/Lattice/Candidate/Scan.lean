@@ -48,12 +48,13 @@ theorem offsetAt_mem (index : Fin Work) :
   rw [← NumberTheory.mem_coefficientOffsetList3]
   exact offsetAt_mem_list index
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 /-- Execute the original candidate instructions in the supplied finite offset order. -/
 def scanOffsetsInto (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth) :
-    List NumberTheory.IntegerPoint3 → Circuit ctx ctx
+    List NumberTheory.IntegerPoint3 → Circuit model ctx ctx
   | [] => .id ctx
   | offset :: tail => .seq (LatticeCandidateSlotMachine.candidateSlotInto spec offset refs)
       (scanOffsetsInto spec refs tail)
@@ -73,30 +74,36 @@ def scanOffsetsStep (spec : ModulusSpec modulusWidth)
 theorem scanOffsetsInto_execute (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scanOffsetsInto spec refs items).execute Reference state = state.mapClassical (fun entry =>
-      ((scanOffsetsStep spec refs items entry.1).1,
-        (entry.2, (scanOffsetsStep spec refs items entry.1).2))) := by
+      let actual := scanOffsetsStep spec refs items entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   induction items generalizing Reference History with
   | nil =>
     refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   | cons offset tail inductionHypothesis =>
     refine (Circuit.execute_seq_mapClassical
       (LatticeCandidateSlotMachine.candidateSlotInto spec offset refs)
       (scanOffsetsInto spec refs tail)
-      (LatticeCandidateSlotMachine.candidateSlotStep spec offset refs)
-      (scanOffsetsStep spec refs tail)
-      (LatticeCandidateSlotMachine.candidateSlotInto_execute spec offset refs)
-      (fun Reference History _ state => inductionHypothesis (Reference := Reference) state)
+      (fun before =>
+        let actual := LatticeCandidateSlotMachine.candidateSlotStep spec offset refs before.1
+        ((actual.1, before.2), actual.2))
+      (fun before =>
+        let actual := scanOffsetsStep spec refs tail before.1
+        ((actual.1, before.2), actual.2))
+      (fun Reference _history _ current =>
+        LatticeCandidateSlotMachine.candidateSlotInto_execute spec offset refs
+          Reference current)
+      (fun Reference _history _ current => inductionHypothesis (Reference := Reference) current)
       Reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Run one actual candidate slot for every offset in the original canonical finite order. -/
 def scanInto (spec : ModulusSpec modulusWidth)
-    (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth) : Circuit ctx ctx :=
+    (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth) :
+    Circuit model ctx ctx :=
   scanOffsetsInto spec refs offsets.toList
 
 /-- The actual complete output and path of the canonical candidate scan.
@@ -111,9 +118,11 @@ Keep the canonical 404685-slot record folded during downstream elaboration;
 theorem scanInto_execute (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scanInto spec refs).execute Reference state = state.mapClassical (fun entry =>
-      ((scanStep spec refs entry.1).1, (entry.2, (scanStep spec refs entry.1).2))) :=
+      let actual := scanStep spec refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   by
     unfold scanStep
     exact scanOffsetsInto_execute spec refs offsets.toList Reference state

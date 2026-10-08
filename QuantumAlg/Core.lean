@@ -11,6 +11,7 @@ public import QuantumAlg.Core.Base
 public import QuantumAlg.Core.ResourceModel
 public import QuantumAlg.Core.Measure
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Core.Execution.Measurement.Ownership
 
 /-!
 # QuantumAlg core layer

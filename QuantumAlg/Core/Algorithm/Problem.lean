@@ -15,7 +15,7 @@ import all QuantumAlg.Core.Execution.State.Requirement
 # Independent problems for complete circuit executions
 
 A problem owns its input domain, accepted classical outputs, success threshold,
-state requirements, and explicit native resource limits. Its type contains no
+state requirements, oracle initialization and explicit native resource limits. Its type contains no
 implementation from which to obtain those limits. Input validity sees only the
 local classical and quantum state; it cannot exclude an external reference
 extension of that same input.
@@ -35,37 +35,42 @@ public structure ProbabilityLowerBound where
   le_one : value ≤ 1
 
 /-- Independently supplied native event and live-storage limits. -/
-public structure ResourceBudget (kind : ProblemKind) where
+public structure ResourceBudget (model : ExecutionModel) where
   /-- A separate bound at each declaration-owned native event coordinate. -/
-  events : ResourcePool kind
+  events : ResourcePool model
   /-- Peak number of live classical bits and systems at each actual dimension. -/
-  resident : SpacePool kind
+  resident : SpacePool model.kind
   /-- Peak live storage whose declared role is auxiliary. -/
-  auxiliary : SpacePool kind
+  auxiliary : SpacePool model.kind
 
-/-- Only quantum specifications contain event durations and a depth limit. -/
-public inductive DepthBudget : ProblemKind → Type where
-  /-- Classical specifications carry no quantum depth data. -/
-  | classical : DepthBudget .classical
-  /-- Native event durations and an independently stated critical-path bound. -/
-  | quantum (duration : Resource.Event .quantum → Nat) (limit : Nat) : DepthBudget .quantum
+/-- Independent abstract timing for native operations and granted queries. -/
+public structure DepthBudget (model : ExecutionModel) where
+  /-- Duration of an actual event in the chosen abstract computation model. -/
+  duration : Resource.Event model → Nat
+  /-- Independently stated bound on the actual dependency path. -/
+  limit : Nat
+  /-- One classical query is one abstract access step, separate from its internal implementation. -/
+  classicalQuery_unit : ∀ coordinate, duration (.classicalQuery coordinate) = 1
+  /-- One quantum query has the same unit abstract access convention. -/
+  quantumQuery_unit : ∀ coordinate, duration (.oracle coordinate) = 1
 
 namespace DepthBudget
 
 /-- Evaluate the circuit's actual path under the specification's event durations. -/
-public def Holds {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (budget : DepthBudget kind) (code : Circuit pre post) (path : code.Path) : Prop :=
-  match kind, budget, pre, post, code, path with
-  | .classical, .classical, _, _, _, _ => True
-  | .quantum, .quantum duration limit, _, _, code, path => code.depth duration path ≤ limit
+public def Holds {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (budget : DepthBudget model) (code : Circuit model pre post) (path : code.Path) : Prop :=
+  code.depth budget.duration path ≤ budget.limit
 
 end DepthBudget
 
 /-- An implementation-independent contract on exact input and output contexts. -/
-public structure Problem (kind : ProblemKind) (pre post : RuntimeCtx kind)
+public structure Problem (model : ExecutionModel) (pre post : RuntimeCtx model.kind)
     (outputShape : CShape) : Type 1 where
   /-- Input admissibility depends only on the reference marginal, retaining classical blocks. -/
   valid : ExecutionState (Execution.Store pre) pre.register → Prop
+  /-- Admissible local joint caller/service initialization, independent of the implementation.
+  Every external reference extension of an admitted joint input is still quantified. -/
+  initialization : ExecutionState (Execution.Store pre × model.HiddenState) pre.register → Prop
   /-- Acceptance relates the actual initial classical value to the actual final result. -/
   accepts : Execution.Store pre → outputShape.Value → Prop
   /-- Required probability of that relational event. -/
@@ -73,35 +78,39 @@ public structure Problem (kind : ProblemKind) (pre post : RuntimeCtx kind)
   /-- Pure, mixed, marginal, joint or dirty state obligations on actual final observations. -/
   states : List (StateRequirement pre post)
   /-- Explicit native event and space limits supplied by the specification. -/
-  resources : ResourceBudget kind
-  /-- Quantum event-duration interpretation and limit, absent for classical problems. -/
-  depth : DepthBudget kind
+  resources : ResourceBudget model
+  /-- Abstract event durations and a dependency limit, for classical and hybrid execution. -/
+  depth : DepthBudget model
 
 /-- One complete run, without independently cached execution or accounting data. -/
-public structure Algorithm (kind : ProblemKind) (pre post : RuntimeCtx kind)
+public structure Algorithm (model : ExecutionModel) (pre post : RuntimeCtx model.kind)
     (outputShape : CShape) : Type 1 where
   /-- The sole source of quantum/classical semantics, outputs, paths and resource use. -/
-  run : AlgorithmRun pre post outputShape
+  run : AlgorithmRun model pre post outputShape
 
 namespace Algorithm
 
 noncomputable section
 
-variable {kind : ProblemKind} {pre post : RuntimeCtx kind} {outputShape : CShape}
+variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {outputShape : CShape}
 
 /-- The algorithm's actual normalized execution distribution. -/
-public def executionDistribution (algorithm : Algorithm kind pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference) : PMF algorithm.run.Record :=
+public def executionDistribution (algorithm : Algorithm model pre post outputShape)
+    {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference) :
+    PMF algorithm.run.Record :=
   algorithm.run.executionDistribution input
 
 /-- The actual final output distribution, projected from the same complete execution. -/
-public def outputDistribution (algorithm : Algorithm kind pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference) : PMF outputShape.Value :=
+public def outputDistribution (algorithm : Algorithm model pre post outputShape)
+    {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference) : PMF outputShape.Value :=
   algorithm.run.outputDistribution input
 
 /-- Initial classical input and actual output are observed jointly for success events. -/
-public def relationalDistribution (algorithm : Algorithm kind pre post outputShape)
-    {Reference : Register} (input : Execution.Input pre Reference) :
+public def relationalDistribution (algorithm : Algorithm model pre post outputShape)
+    {Reference : Register}
+    (input : Execution.OracleInput model.classicalOracles pre Reference) :
     PMF (Execution.Store pre × outputShape.Value) :=
   algorithm.run.relationalDistribution input
 

@@ -26,11 +26,12 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width : Nat}
 
 private theorem trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (store : Store ctx) :
-    ((trimStep output store).1.read (read output)).toNat =
+    ((trimStep (model := model) output store).1.read (read output)).toNat =
       if (store.read (highBit output)).toBool then 0 else (store.read (read output)).toNat := by
   simp only [trimStep]
   cases store.read (highBit output) with
@@ -38,7 +39,7 @@ private theorem trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 
       cases value
       · simp only [trimArmStep, CShape.Value.toBool, Bool.false_eq_true,
           if_false]
-      · simp only [trimArmStep, CShape.Value.toBool, if_true]
+      · simp only [trimArmStep, BitWord.instructionStep, CShape.Value.toBool, if_true]
         exact (congrArg CShape.Value.toNat
           (Store.read_applyOp_output store (clearOp output))).trans
           (selfXor_toNat (store.read (read output)))
@@ -46,7 +47,7 @@ private theorem trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 
 /-- The real adjacent program returns exactly the original natural successor or predecessor. -/
 theorem result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    ((step successor input output store).1.read (read output)).toNat =
+    ((step (model := model) successor input output store).1.read (read output)).toNat =
       if successor then (store.read input).toNat + 1 else (store.read input).toNat - 1 := by
   let resized := store.applyOp (resizeOp input output)
   have resizedRead : resized.read (read output) =
@@ -67,7 +68,7 @@ theorem result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord wi
         (decrement_highBit (store.read input))
     have number := (congrArg CShape.Value.toNat decrementedRead).trans
       (decrement_toNat (store.read input))
-    change ((trimStep output decremented).1.read (read output)).toNat =
+    change ((trimStep (model := model) output decremented).1.read (read output)).toNat =
       (store.read input).toNat - 1
     rw [trim_read_toNat, high, number]
     by_cases zero : (store.read input).toNat = 0
@@ -83,7 +84,7 @@ theorem result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord wi
 private theorem trim_read_other (output : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (trimStep output store).1.read other = store.read other := by
+    (trimStep (model := model) output store).1.read other = store.read other := by
   simp only [trimStep]
   cases store.read (highBit output) with
   | bit value =>
@@ -97,11 +98,11 @@ theorem read_other (successor : Bool) (input : CInputRef ctx (.unsignedWord widt
     (output : CWriteRef ctx (.unsignedWord (width + 1))) {shape : CShape}
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (step successor input output store).1.read other = store.read other := by
+    (step (model := model) successor input output store).1.read other = store.read other := by
   have resized := Store.read_applyOp_of_not_mem_storageKeys store
     (resizeOp input output) other separate
   cases successor
-  · exact (trim_read_other output other separate
+  · exact (trim_read_other (model := model) output other separate
       ((store.applyOp (resizeOp input output)).applyOp (adjacentOp false output))).trans
       ((Store.read_applyOp_of_not_mem_storageKeys (store.applyOp (resizeOp input output))
         (adjacentOp false output) other separate).trans resized)

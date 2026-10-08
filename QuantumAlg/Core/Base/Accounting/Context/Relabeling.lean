@@ -74,6 +74,7 @@ def relabel (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) :
     RuntimeEntry kind → RuntimeEntry kind
   | .storage key role shape => .storage (keys key) role shape
   | .borrowedLayout key layout => .borrowedLayout (keys key) (layout.relabel physical)
+  | .suppliedLayout key layout => .suppliedLayout (keys key) (layout.relabel physical)
   | .ownedLayout key layout => .ownedLayout (keys key) (layout.relabel physical)
   | .ownedCopies key bank => .ownedCopies (keys key) (bank.relabel physical)
 
@@ -90,6 +91,7 @@ theorem relabel_quantumWires (keys : StorageKey ↪ StorageKey) (physical : Nat 
   cases entry with
   | storage => rfl
   | borrowedLayout => exact QuantumLayout.relabel_wires _ _
+  | suppliedLayout => exact QuantumLayout.relabel_wires _ _
   | ownedLayout => exact QuantumLayout.relabel_wires _ _
   | ownedCopies => exact OwnedCopyBank.relabel_quantumWires _ _
 
@@ -100,6 +102,7 @@ theorem relabel_residentSpace (keys : StorageKey ↪ StorageKey) (physical : Nat
   cases entry with
   | storage => rfl
   | borrowedLayout => rfl
+  | suppliedLayout => rfl
   | ownedLayout => rfl
   | ownedCopies => exact OwnedCopyBank.relabel_space _ _
 
@@ -110,6 +113,7 @@ theorem relabel_auxiliarySpace (keys : StorageKey ↪ StorageKey) (physical : Na
   cases entry with
   | storage key role shape => cases role <;> rfl
   | borrowedLayout => rfl
+  | suppliedLayout => rfl
   | ownedLayout => rfl
   | ownedCopies => exact OwnedCopyBank.relabel_space _ _
 

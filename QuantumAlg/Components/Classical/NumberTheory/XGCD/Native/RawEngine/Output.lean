@@ -39,15 +39,17 @@ def copyRawOutputsStore (cells : Cells ctx (stateShapes width))
       (GCD.cellRead (secondRightCell cells)) outputs.rightCoefficient)
 
 /-- Each complete quantum-reference block carries the actual three-copy store and path. -/
-theorem xgcdNativeCopyRawOutputs_execute (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeCopyRawOutputs_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (copyRawOutputs cells outputs).execute Reference state = state.mapClassical (fun entry =>
-      (copyRawOutputsStore cells outputs entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [copyRawOutputs, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (copyRawOutputs (model := model) cells outputs).execute Reference state =
+      state.mapClassical (fun entry =>
+      let result := copyRawOutputsStep (model := model) cells outputs entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [copyRawOutputs, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The copied values are the literal pre-copy state words, in original output order. -/
 def rawResultStore (cells : Cells ctx (stateShapes width))

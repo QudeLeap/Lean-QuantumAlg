@@ -27,19 +27,25 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual native resize followed by precisely the prescribed original preimage shifts. -/
-def scaleKInto (refs : PreimageRefs ctx m ell width) : Circuit ctx ctx :=
-  Word.PowerOfTwo.Scale.into m refs.k refs.scaled
+def scaleKInto (refs : PreimageRefs ctx m ell width) : Circuit model ctx ctx :=
+  Word.PowerOfTwo.Scale.into (model := model) m refs.k refs.scaled
 
 /-- Actual common-width preimage store and native chronological path. -/
 def scaleKStep (refs : PreimageRefs ctx m ell width) (store : Store ctx) :
-    Store ctx × (scaleKInto refs).Path := Word.PowerOfTwo.Scale.step m refs.k refs.scaled store
+    Store ctx × (scaleKInto refs).Path :=
+  Word.PowerOfTwo.Scale.step (model := model) m refs.k refs.scaled store
 
 /-- Actual preimage loading retains all incoming state blocks, histories and correlations. -/
 theorem scaleKInto_execute (refs : PreimageRefs ctx m ell width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scaleKInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((scaleKStep refs entry.1).1, (entry.2, (scaleKStep refs entry.1).2))) :=
+      let actual := scaleKStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   Word.PowerOfTwo.Scale.into_execute m refs.k refs.scaled Reference state
 
 /-- Native scaling gives exactly the original integer preimage when its word fits. -/
@@ -56,7 +62,7 @@ theorem scaleKInto_callerFrame (refs : PreimageRefs ctx m ell width) (store : St
   Word.PowerOfTwo.Scale.into_callerFrame m refs.k refs.scaled store other avoids
 
 /-- The two original preimage calls execute in their original chronological order. -/
-def preimagesInto (refs : Refs ctx m ell width) : Circuit ctx ctx :=
+def preimagesInto (refs : Refs ctx m ell width) : Circuit model ctx ctx :=
   .seq (scaleKInto refs.first) (scaleKInto refs.second)
 
 /-- Both actual preimage stores and their complete native paths. -/
@@ -68,17 +74,25 @@ def preimagesStep (refs : Refs ctx m ell width) (store : Store ctx) :
 
 /-- Both actual preimages preserve every quantum-reference block and incoming history. -/
 theorem preimagesInto_execute (refs : Refs ctx m ell width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (preimagesInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((preimagesStep refs entry.1).1, (entry.2, (preimagesStep refs entry.1).2))) := by
+      let actual := preimagesStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (scaleKInto refs.first) (scaleKInto refs.second)
-    (scaleKStep refs.first) (scaleKStep refs.second) (scaleKInto_execute refs.first)
-    (scaleKInto_execute refs.second) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := scaleKStep refs.first before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := scaleKStep refs.second before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => scaleKInto_execute refs.first reference current)
+    (fun reference _history _ current => scaleKInto_execute refs.second reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual scaling of both original sample components precedes actual target centering. -/
-def loadTargetInto (refs : Refs ctx m ell width) : Circuit ctx ctx :=
+def loadTargetInto (refs : Refs ctx m ell width) : Circuit model ctx ctx :=
   .seq (preimagesInto refs) (LatticeTargetPoint.loadTargetPointInto refs.target)
 
 /-- The actual scaled preimage store feeds both actual centered-coordinate calls. -/
@@ -90,15 +104,24 @@ def targetStep (refs : Refs ctx m ell width) (store : Store ctx) :
 
 /-- Actual wide-target loading retains the complete incoming execution state and correlations. -/
 theorem loadTargetInto_execute (refs : Refs ctx m ell width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((targetStep refs entry.1).1, (entry.2, (targetStep refs entry.1).2))) := by
+      let actual := targetStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (preimagesInto refs)
-    (LatticeTargetPoint.loadTargetPointInto refs.target) (preimagesStep refs)
-    (LatticeTargetPoint.targetPointStep refs.target) (preimagesInto_execute refs)
-    (LatticeTargetPoint.loadTargetPointInto_execute refs.target) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (LatticeTargetPoint.loadTargetPointInto refs.target)
+    (fun before =>
+      let actual := preimagesStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeTargetPoint.targetPointStep (model := model) refs.target before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => preimagesInto_execute refs reference current)
+    (fun reference _history _ current =>
+      LatticeTargetPoint.loadTargetPointInto_execute refs.target reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

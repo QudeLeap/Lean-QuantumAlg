@@ -28,14 +28,14 @@ open Execution ShortDLP.CompiledMAU
 attribute [local irreducible] NativeBatchRecovery.context NativeBatchReuseRecovery.context
 
 /-- Independent native-coordinate allowance for exactly the requested later batches. -/
-def suffixEventEnvelope (N count : Nat) : ResourcePool .quantum :=
+def suffixEventEnvelope (N count : Nat) : ResourcePool RuntimeRound.model :=
   count • NativeBatchReuseRecovery.eventEnvelope N
 
 /-- Independent serial allowance for the actual later sampled and recovered batches. -/
 def suffixDepthBound (N count : Nat) : Nat := count * NativeBatchReuseRecovery.depthBound N
 
 /-- The first batch is paid once before the actual repeated continuation. -/
-def eventEnvelope (N count : Nat) : ResourcePool .quantum :=
+def eventEnvelope (N count : Nat) : ResourcePool RuntimeRound.model :=
   NativeBatchRecovery.eventEnvelope N + suffixEventEnvelope N count
 
 /-- The first batch precedes all actual later-batch dependencies. -/
@@ -43,17 +43,12 @@ def depthBound (N count : Nat) : Nat :=
   NativeBatchRecovery.depthBound N + suffixDepthBound N count
 
 private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
-    (first : Circuit pre middle) (second : Circuit middle post)
+    (first : Circuit RuntimeRound.model pre middle)
+    (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).resourcePool path =
       first.resourcePool path.1 + second.resourcePool path.2 :=
   ResourcePool.ofList_append _ _
-
-private theorem sequence_depth {pre middle post : RuntimeCtx .quantum}
-    (first : Circuit pre middle) (second : Circuit middle post)
-    (path : (Circuit.seq first second).Path) :
-    (Circuit.seq first second).depth (fun _ => 1) path =
-      first.depth (fun _ => 1) path.1 + second.depth (fun _ => 1) path.2 := rfl
 
 variable {N : Nat}
 
@@ -100,11 +95,11 @@ theorem suffixCode_depth_le (input : Input N) (start : RuntimeCtx .quantum)
         ((NativeBatchReuseRecovery.context_base_wires start N).trans wires)
         (fun index => reuseWrite N (originalCells index)) path.2
       have combined := Nat.add_le_add first later
-      have actual := sequence_depth
+      have actual := Circuit.depth_seq
         (NativeBatchReuseRecovery.code start wires originalCells input)
         (suffixCode input (NativeBatchReuseRecovery.context start N)
           ((NativeBatchReuseRecovery.context_base_wires start N).trans wires)
-          (fun index => reuseWrite N (originalCells index)) count) path
+          (fun index => reuseWrite N (originalCells index)) count) (fun _ => 1) path.1 path.2
       refine actual.le.trans ?_
       simpa only [suffixDepthBound, Nat.succ_mul, Nat.add_comm] using combined
 

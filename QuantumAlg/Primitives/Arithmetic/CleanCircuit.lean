@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 
@@ -427,8 +428,9 @@ def compareGates (n : Nat) : List (EncodedBit.GateSpec (encoding n)) :=
   borrowGates n ++ [copyFlagGate n] ++ (borrowGates n).reverse
 
 /-- Concrete fixed-layout base-gate comparator program. -/
-def compareProgram (n : Nat) : UnitaryCircuit (Qubits (encoding n).width) :=
-  EncodedBit.GateSpec.programList (compareGates n)
+def compareProgram (n : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding n).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty (compareGates n)
 
 /-- Exact semantic action of the comparator program. -/
 def compareStep (n : Nat) : Carrier n → Carrier n :=
@@ -437,7 +439,7 @@ def compareStep (n : Nat) : Carrier n → Carrier n :=
 /-- The folded comparator gate list realizes its exact semantic action. -/
 theorem compareProgram_realizes (n : Nat) :
     UnitaryCircuit.Realizes (encoding n) (compareProgram n) (compareStep n) :=
-  EncodedBit.GateSpec.realizesList (compareGates n)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty (compareGates n)
 
 theorem borrowGates_flag_disjoint (n : Nat) :
     ∀ gate, gate ∈ borrowGates n →
@@ -549,39 +551,44 @@ theorem compareStep_clean (n : Nat) (x : Data n) :
           cases flag <;> simp_all [compareIntoFlag]
 
 /-- Typed circuit folded from the exact comparator program. -/
-def compareCircuit (n : Nat) : UnitaryCircuit (Qubits (encoding n).width) :=
+def compareCircuit (n : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding n).width).toQuantum :=
   compareProgram n
 
 /-- Clean encoded-ket endpoint of the exact comparator circuit. -/
 theorem compareCircuit_applyNormalized_clean_ket (n : Nat) (x : Data n) :
     (compareCircuit n).applyNormalized
-        (NormalizedVector.ket ((encoding n).encode (x, cleanWork n))) =
+        (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+          ((encoding n).encode (x, cleanWork n)))) =
       NormalizedVector.ket
-        ((encoding n).encode (compareIntoFlag x, cleanWork n)) := by
+        ((QubitLayout.canonical _).basisEquiv.symm
+          ((encoding n).encode (compareIntoFlag x, cleanWork n))) := by
   have h := (compareProgram_realizes n).apply_encoded_ket (x, cleanWork n)
   rw [compareStep_clean] at h
   exact h
 
 /-- Ordered strict execution events derived from the exact comparator circuit. -/
-def compareEventTrace (n : Nat) : List (Resource.Event .quantum) :=
+def compareEventTrace (n : Nat) : List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (compareCircuit n).eventTrace
 
 /-- Strict event pool derived from the exact comparator circuit. -/
-def compareEventCost (n : Nat) : ResourcePool .quantum :=
+def compareEventCost (n : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (compareCircuit n).eventCost
 
 /-- Strict symbolic event critical path of the exact comparator circuit. -/
-def compareEventDepth (n : Nat) : DepthExpr (Resource.Event .quantum) :=
+def compareEventDepth (n : Nat) :
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (compareCircuit n).eventDepth
 
 /-- Literal event-coordinate depth of the exact comparator circuit. -/
 def compareEventQueryDepth (n : Nat)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   (compareCircuit n).eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the comparator event pool. -/
-def compareEventGateCount (n : Nat) (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) (compareCircuit n).eventCost
+def compareEventGateCount (n : Nat) (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
+    (compareCircuit n).eventCost
 
 /-- Linearizing comparator event depth recovers the exact strict event pool. -/
 theorem compareCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :

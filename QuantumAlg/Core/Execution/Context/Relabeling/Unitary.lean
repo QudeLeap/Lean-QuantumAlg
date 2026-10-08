@@ -23,61 +23,66 @@ namespace QuantumAlg.Execution.ContextRelabeling
 
 noncomputable section
 
-variable (ctx : RuntimeCtx .quantum) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-  (program : UnitaryCircuit ctx.register) (placed : program.physical_idx = ctx.physicalIdx)
+variable {gates : GateModel} {oracles : OracleModel}
+  (ctx : RuntimeCtx .quantum) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
+  (program : UnitaryCircuit gates oracles ctx.quantumLayout)
 
-private def nativePlacement :
-    PhysicalLayout.Relabeling program.physical_idx (ctx.relabel keys physical).physicalIdx where
-  toFun := physical
-  map_layout := by rw [placed, RuntimeCtx.relabel_physicalIdx]
-  old_nodup := program.physical_idx_nodup
-  new_nodup := (ctx.relabel keys physical).identitiesNodup
+private def placement : QuantumLayout.Embedding (ctx.quantumLayout.relabel physical)
+    (ctx.relabel keys physical).quantumLayout where
+  position := (positions ctx keys physical).toEmbedding
+  wire_eq := positions_wire ctx keys physical
 
-/-- Place the actual native gates and express their original operator in the mapped basis. -/
-def unitaryProgram : UnitaryCircuit (ctx.relabel keys physical).register :=
-  UnitaryCircuit.reindex (basis ctx keys physical)
-    (program.relabel (nativePlacement ctx keys physical program placed))
+private theorem placement_basis (value : (ctx.relabel keys physical).register.Index) :
+    ((placement ctx keys physical).splitBasis value).1 =
+      (basis ctx keys physical).symm value := by
+  funext index
+  apply Fin.ext
+  have unchanged := basis_value ctx keys physical ((basis ctx keys physical).symm value) index
+  rw [Equiv.apply_symm_apply] at unchanged
+  exact (QuantumLayout.Embedding.embedding_splitBasis_selected_value
+    (placement ctx keys physical) value index).trans unchanged.symm
 
-/-- The emitted instruction occupies exactly the complete mapped physical context. -/
-theorem unitaryProgram_physical :
-    (unitaryProgram ctx keys physical program placed).physical_idx =
-      (ctx.relabel keys physical).physicalIdx := rfl
+/-- Move every actual native and query placement into the complete mapped context layout. -/
+def unitaryProgram : UnitaryCircuit gates oracles (ctx.relabel keys physical).quantumLayout :=
+  UnitaryCircuit.embed (placement ctx keys physical) (program.relabel physical)
 
 /-- Every matrix entry follows the original finite values on the mapped actual wires. -/
 theorem unitaryProgram_matrix (row column : (ctx.relabel keys physical).register.Index) :
-    (unitaryProgram ctx keys physical program placed).matrix row column =
+    (unitaryProgram ctx keys physical program).matrix row column =
       program.matrix ((basis ctx keys physical).symm row)
         ((basis ctx keys physical).symm column) := by
-  change (program.relabel (nativePlacement ctx keys physical program placed)).matrix
-    ((basis ctx keys physical).symm row) ((basis ctx keys physical).symm column) = _
-  exact congrArg (fun matrix : HilbertOperator ctx.register =>
-    matrix ((basis ctx keys physical).symm row) ((basis ctx keys physical).symm column))
-    (UnitaryCircuit.relabel_matrix program (nativePlacement ctx keys physical program placed))
+  change (placement ctx keys physical).liftOperator (program.relabel physical).matrix
+    row column = _
+  rw [QuantumLayout.Embedding.liftOperator_entry_of_surjective
+    (placement ctx keys physical) (positions ctx keys physical).surjective,
+    placement_basis, placement_basis, UnitaryCircuit.relabel_matrix]
 
 /-- The entire emitted native event list retains its exact original order. -/
-theorem unitaryProgram_trace :
-    (unitaryProgram ctx keys physical program placed).eventTrace = program.eventTrace := by
-  rw [unitaryProgram, UnitaryCircuit.reindex_eventTrace, UnitaryCircuit.relabel_eventTrace]
+theorem unitaryProgram_trace (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (unitaryProgram ctx keys physical program).eventTrace operations services =
+      program.eventTrace operations services :=
+  UnitaryCircuit.relabel_eventTrace program physical operations services
 
 /-- Actual physical placement leaves every native event count unchanged. -/
-theorem unitaryProgram_cost :
-    (unitaryProgram ctx keys physical program placed).eventCost = program.eventCost := by
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, unitaryProgram_trace,
-    UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+theorem unitaryProgram_cost (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (unitaryProgram ctx keys physical program).eventCost operations services =
+      program.eventCost operations services :=
+  UnitaryCircuit.relabel_eventCost program physical operations services
 
 /-- Every native duration assignment gives exactly the original evaluated dependency depth. -/
-theorem unitaryProgram_depth (duration : Resource.Event .quantum → Nat) :
-    (unitaryProgram ctx keys physical program placed).evaluatedEventDepth duration =
-      program.evaluatedEventDepth duration := by
-  change (program.relabel (nativePlacement ctx keys physical program placed)).evaluatedEventDepth
-    duration = program.evaluatedEventDepth duration
-  exact UnitaryCircuit.evaluatedEventDepth_relabel _ _ _
+theorem unitaryProgram_depth (operations : ClassicalOpModel) (services : ClassicalOracleModel)
+    (duration : Resource.Event (.quantum gates oracles operations services) → Nat) :
+    DepthExpr.depthEval duration
+        ((unitaryProgram ctx keys physical program).eventDepth operations services) =
+      DepthExpr.depthEval duration (program.eventDepth operations services) :=
+  congrArg (DepthExpr.depthEval duration)
+    (UnitaryCircuit.relabel_eventDepth program physical operations services)
 
 /-- An arbitrary reference keeps every original joint operator entry under the same coordinates. -/
 theorem unitaryProgram_joint_entry (Reference : Register)
     (row column : (ctx.relabel keys physical).register.Index)
     (referenceRow referenceColumn : Reference.Index) :
-    (UnitaryOperator.prodTensor (unitaryProgram ctx keys physical program placed).matrix
+    (UnitaryOperator.prodTensor (unitaryProgram ctx keys physical program).matrix
       (1 : UnitaryOperator Reference)) (row, referenceRow) (column, referenceColumn) =
         (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
           ((basis ctx keys physical).symm row, referenceRow)

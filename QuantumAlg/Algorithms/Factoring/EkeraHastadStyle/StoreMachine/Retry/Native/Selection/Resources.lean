@@ -22,17 +22,17 @@ one classical scratch peak. Quantum capacity is independent of batch count.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 open ClassicalRoutines.FirstAccepted.Direct
 
 noncomputable section
 
 /-- Independent events for every chronological option and the sole final paid pack. -/
-def selectionEnvelope (N length : Nat) : ResourcePool .quantum :=
-  Optional.Allocation.eventEnvelope .quantum (modulusBits N) length
+def selectionEnvelope (N length : Nat) : ResourcePool RuntimeRound.model :=
+  Optional.Allocation.eventEnvelope RuntimeRound.model (modulusBits N) length
 
 /-- The entire actual chain precedes the independent final selection ledger. -/
-def eventEnvelope (N count : Nat) : ResourcePool .quantum :=
+def eventEnvelope (N count : Nat) : ResourcePool RuntimeRound.model :=
   NativeRetryChain.eventEnvelope N count + selectionEnvelope N (count + 1)
 
 /-- All batch dependencies precede optional unpack, direct selection and final packing. -/
@@ -90,7 +90,8 @@ theorem context_auxiliary (source : RuntimeCtx .quantum) (N : Nat) :
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
 
 private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
-    (first : Circuit pre middle) (second : Circuit middle post)
+    (first : Circuit RuntimeRound.model pre middle)
+    (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).resourcePool path =
       first.resourcePool path.1 + second.resourcePool path.2 :=
@@ -103,7 +104,7 @@ theorem tail_pool_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).resourcePool path ≤ selectionEnvelope N length :=
-  Optional.Allocation.into_pool_le _ _ path.2
+  Optional.Allocation.into_pool_le (model := RuntimeRound.model) _ _ path.2
 
 /-- Every actual tail path contains at most three events per source and one final pack. -/
 theorem tail_eventCount_le
@@ -111,14 +112,16 @@ theorem tail_eventCount_le
     (path : (tail inputs).Path) :
     ((tail inputs).eventTrace path).length ≤ 3 * length + 1 := by
   have bounded := Multiset.card_le_card (tail_pool_le inputs path)
-  exact bounded.trans_eq (Optional.Allocation.eventEnvelope_card .quantum (modulusBits N) length)
+  exact bounded.trans_eq
+    (Optional.Allocation.eventEnvelope_card RuntimeRound.model (modulusBits N) length)
 
 /-- The actual serial tail obeys the same unpack/copy/pack duration formula. -/
 theorem tail_depth_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).depth (fun _ => 1) path ≤ 3 * length + 1 :=
-  (Nat.zero_add _).le.trans (Optional.Allocation.into_depth_le _ _ path.2)
+  (Nat.zero_add _).le.trans
+    (Optional.Allocation.into_depth_le (model := RuntimeRound.model) _ _ path.2)
 
 /-- Every tail resident peak includes the original source, selected output and lexical scratch. -/
 theorem tail_resident_le
@@ -135,7 +138,7 @@ theorem tail_resident_le
       source.residentSpace axis + (outputSpace N axis +
         Optional.Allocation.scratchSpace .quantum (modulusBits N) axis)
     omega
-  · have bounded := Optional.Allocation.into_resident_le
+  · have bounded := Optional.Allocation.into_resident_le (model := RuntimeRound.model)
       (fun index => liftInput source N (inputs index)) (resultRef source N) path.2
     rw [context_resident] at bounded
     exact bounded.trans_eq (by unfold tailAdditionalSpace; ac_rfl)
@@ -155,7 +158,7 @@ theorem tail_auxiliary_le
       source.auxiliarySpace axis + (outputSpace N axis +
         Optional.Allocation.scratchSpace .quantum (modulusBits N) axis)
     omega
-  · have bounded := Optional.Allocation.into_auxiliary_le
+  · have bounded := Optional.Allocation.into_auxiliary_le (model := RuntimeRound.model)
       (fun index => liftInput source N (inputs index)) (resultRef source N) path.2
     rw [context_auxiliary] at bounded
     exact bounded.trans_eq (by unfold tailAdditionalSpace; ac_rfl)

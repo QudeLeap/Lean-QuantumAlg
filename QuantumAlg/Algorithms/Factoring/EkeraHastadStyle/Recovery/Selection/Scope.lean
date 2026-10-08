@@ -26,8 +26,8 @@ open ClassicalRoutines
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Execute an actual recovery body inside precisely its four lexical selector cells. -/
-def scopes (ctx : RuntimeCtx kind) (width : Nat)
-    (body : Circuit (context ctx width) (context ctx width)) : Circuit ctx ctx :=
+def scopes {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat)
+    (body : Circuit model (context ctx width) (context ctx width)) : Circuit model ctx ctx :=
   let takeScope := Circuit.workspace (availableCtx ctx width)
     (availableCtx ctx width).canonicalFreshKey .bit
     (availableCtx ctx width).canonicalFreshKey_fresh body
@@ -137,6 +137,9 @@ theorem nativeRecovery_selection_push_parameter {N : Nat}
 
 noncomputable section
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Fresh scope entry and actual selection give the original early-factor flag and payload. -/
 theorem nativeRecovery_selection_early_entry {N : Nat}
     (original : Inputs ctx N) (store : Store ctx) :
@@ -148,7 +151,8 @@ theorem nativeRecovery_selection_early_entry {N : Nat}
         if (store.read original.parameter).second.first.toBool then
           (store.read original.parameter).second.second
         else CShape.wordOfNat (modulusBits N) 0 := by
-  have actual := nativeRecovery_early_latches (inputs original) (refs ctx (modulusBits N))
+  have actual := nativeRecovery_early_latches (model := model) (inputs original)
+    (refs ctx (modulusBits N))
     (nativeRecovery_selection_early_separated original) (pushStore (modulusBits N) store)
   have clear : ((pushStore (modulusBits N) store).read
       (FirstAccepted.cellRead (refs ctx (modulusBits N)).accepted)).toBool = false :=

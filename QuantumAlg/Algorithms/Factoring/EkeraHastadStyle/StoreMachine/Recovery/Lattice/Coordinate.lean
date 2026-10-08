@@ -11,6 +11,7 @@ import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Core.Execution.Trace.Bounds
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Components.Classical.NumberTheory.SignedWord
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.State
 
 /-!
@@ -67,10 +68,13 @@ def coordinateSubtractOp (target product : CWriteRef ctx (.unsignedWord width)) 
   .wordBinary .sub width ctx (.product (writeInput target) (writeInput product)) target
 
 /-- Replace the target by target minus coefficient times source modulo the raw width. -/
-def coordinateReduce (coefficient source : CInputRef ctx (.unsignedWord width))
-    (target product : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (coordinateProductOp coefficient source product))
-    (.classical (coordinateSubtractOp target product))
+def coordinateReduce {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient source : CInputRef ctx (.unsignedWord width))
+    (target product : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model)
+    (coordinateProductOp coefficient source product))
+    (BitWord.instruction (execution := model) (coordinateSubtractOp target product))
 
 /-- The two actual instruction updates on the classical store. -/
 def coordinateStore (coefficient source : CInputRef ctx (.unsignedWord width))
@@ -79,24 +83,56 @@ def coordinateStore (coefficient source : CInputRef ctx (.unsignedWord width))
     (coordinateSubtractOp target product)
 
 /-- The complete incoming quantum-reference blocks follow these actual store updates. -/
-theorem coordinateReduce_execute (coefficient source : CInputRef ctx (.unsignedWord width))
+def coordinateStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient source : CInputRef ctx (.unsignedWord width))
+    (target product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (coordinateReduce (model := model) coefficient source target product).Path :=
+  let multiplied := BitWord.instructionStep (execution := model)
+    (coordinateProductOp coefficient source product) store
+  let subtracted := BitWord.instructionStep (execution := model)
+    (coordinateSubtractOp target product) multiplied.1
+  (subtracted.1, (multiplied.2, subtracted.2))
+
+theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient source : CInputRef ctx (.unsignedWord width))
+    (target product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (coordinateStep (model := model) coefficient source target product store).1 =
+      coordinateStore coefficient source target product store := rfl
+
+theorem coordinateReduce_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : Execution.State ctx Reference History) :
-    (coordinateReduce coefficient source target product).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : Execution.State ctx Reference (model.HiddenState × History)) :
+    (coordinateReduce (model := model) coefficient source target product).execute Reference state =
       state.mapClassical (fun entry =>
-        (coordinateStore coefficient source target product entry.1, (entry.2, ((), ())))) := by
-  simp only [coordinateReduce, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+        let actual := coordinateStep (model := model) coefficient source target product entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [coordinateReduce, coordinateStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual coordinate path contains exactly the native multiply and subtraction. -/
-theorem coordinateReduce_events (coefficient source : CInputRef ctx (.unsignedWord width))
+theorem coordinateReduce_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width))
-    (path : (coordinateReduce coefficient source target product).Path) :
-    (coordinateReduce coefficient source target product).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width)] := rfl
+    (path : (coordinateReduce (model := model) coefficient source target product).Path) :
+    (coordinateReduce (model := model) coefficient source target product).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width))] := by
+  change (BitWord.instruction (execution := model)
+      (coordinateProductOp coefficient source product)).eventTrace path.1 ++
+    (BitWord.instruction (execution := model)
+      (coordinateSubtractOp target product)).eventTrace path.2 = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Reads outside the two actual writes are preserved, with no operand-separation premise. -/
 theorem coordinateReduce_callerFrame
@@ -198,12 +234,17 @@ structure PointReduceSeparation {kind : ProblemKind}
     target.second.toCStorageRef.key ∉ (writeInput target.third).storageKeys
 
 /-- Three real coordinate updates reuse the same caller-owned product word. -/
-def pointReduce (coefficient : CInputRef ctx (.unsignedWord width))
+def pointReduce {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
-    (product : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (coordinateReduce coefficient (writeInput source.first) target.first product)
-    (.seq (coordinateReduce coefficient (writeInput source.second) target.second product)
-      (coordinateReduce coefficient (writeInput source.third) target.third product))
+    (product : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (coordinateReduce (model := model) coefficient
+    (writeInput source.first) target.first product)
+    (.seq (coordinateReduce (model := model) coefficient
+      (writeInput source.second) target.second product)
+      (coordinateReduce (model := model) coefficient
+        (writeInput source.third) target.third product))
 
 /-- The three chronological native coordinate updates of the actual point circuit. -/
 def pointStore (coefficient : CInputRef ctx (.unsignedWord width))
@@ -213,33 +254,69 @@ def pointStore (coefficient : CInputRef ctx (.unsignedWord width))
     (coordinateStore coefficient (writeInput source.second) target.second product
       (coordinateStore coefficient (writeInput source.first) target.first product store))
 
+/-- Actual intermediate records follow the same three chronological store updates. -/
+def pointStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
+    (source target : LatticeState.PointRefs ctx width)
+    (product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (pointReduce (model := model) coefficient source target product).Path :=
+  let first := coordinateStep (model := model) coefficient
+    (writeInput source.first) target.first product store
+  let second := coordinateStep (model := model) coefficient
+    (writeInput source.second) target.second product first.1
+  let third := coordinateStep (model := model) coefficient
+    (writeInput source.third) target.third product second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
+    (source target : LatticeState.PointRefs ctx width)
+    (product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (pointStep (model := model) coefficient source target product store).1 =
+      pointStore coefficient source target product store := rfl
+
 /-- The complete point execution retains every incoming quantum-reference block and history. -/
-theorem pointReduce_execute (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : Execution.State ctx Reference History) :
-    (pointReduce coefficient source target product).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : Execution.State ctx Reference (model.HiddenState × History)) :
+    (pointReduce (model := model) coefficient source target product).execute Reference state =
       state.mapClassical (fun entry =>
-        (pointStore coefficient source target product entry.1,
-          (entry.2, (((), ()), (((), ()), ((), ())))))) := by
-  simp only [pointReduce, coordinateReduce, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+        let actual := pointStep (model := model) coefficient source target product entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [pointReduce, pointStep, Circuit.execute_seq, coordinateReduce_execute,
+    State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The point path contains the same two actual word instructions for each of three coordinates. -/
-theorem pointReduce_events (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointReduce coefficient source target product).Path) :
-    (pointReduce coefficient source target product).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .sub width)] := rfl
+    (path : (pointReduce (model := model) coefficient source target product).Path) :
+    (pointReduce (model := model) coefficient source target product).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .sub width))] := by
+  change _ ++ (_ ++ _) = _
+  rw [coordinateReduce_events, coordinateReduce_events, coordinateReduce_events]
+  rfl
 
 /-- Actual point arithmetic and preservation of reads outside the four writable cells. -/
 def PointReduceRelation (coefficient : CInputRef ctx (.unsignedWord width))
@@ -419,23 +496,33 @@ theorem pointReduce_callerFrame (coefficient : CInputRef ctx (.unsignedWord widt
 
 /-- The coordinate circuit restores the complete borrowed interface, including correlations. -/
 theorem coordinateReduce_borrowedRestored
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : Execution.State ctx Reference History) :
-    (coordinateReduce coefficient source target product).BorrowedRestored Reference state
-      ((coordinateReduce coefficient source target product).execute Reference state) :=
-  Circuit.borrowedRestored_seq (.classical (coordinateProductOp coefficient source product))
-    (.classical (coordinateSubtractOp target product)) state
-    (Circuit.borrowedRestored_classical (coordinateProductOp coefficient source product) state)
-    (Circuit.borrowedRestored_classical (coordinateSubtractOp target product) _)
+    {History : Type} [Fintype History]
+    (state : Execution.State ctx Reference (model.HiddenState × History)) :
+    (coordinateReduce (model := model) coefficient source target product).BorrowedRestored
+      Reference state
+      ((coordinateReduce (model := model) coefficient source target product).execute
+        Reference state) :=
+  Circuit.borrowedRestored_seq
+    (BitWord.instruction (execution := model) (coordinateProductOp coefficient source product))
+    (BitWord.instruction (execution := model) (coordinateSubtractOp target product)) state
+    (Circuit.borrowedRestored_classical _ state)
+    (Circuit.borrowedRestored_classical _ _)
 
 /-- Reusing the product word preserves the entire borrowed interface after all three updates. -/
-theorem pointReduce_borrowedRestored (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_borrowedRestored
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : Execution.State ctx Reference History) :
-    (pointReduce coefficient source target product).BorrowedRestored Reference state
-      ((pointReduce coefficient source target product).execute Reference state) := by
+    {History : Type} [Fintype History]
+    (state : Execution.State ctx Reference (model.HiddenState × History)) :
+    (pointReduce (model := model) coefficient source target product).BorrowedRestored
+      Reference state
+      ((pointReduce (model := model) coefficient source target product).execute
+        Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact coordinateReduce_borrowedRestored coefficient (writeInput source.first)
       target.first product Reference state
@@ -446,19 +533,24 @@ theorem pointReduce_borrowedRestored (coefficient : CInputRef ctx (.unsignedWord
         target.third product Reference _
 
 /-- All six actual instructions visit the same existing context. -/
-theorem pointReduce_visited (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_visited
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointReduce coefficient source target product).Path) :
-    (pointReduce coefficient source target product).visitedContexts path =
+    (path : (pointReduce (model := model) coefficient source target product).Path) :
+    (pointReduce (model := model) coefficient source target product).visitedContexts path =
       [ctx, ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- The resident bound counts the entire caller context, including the shared product word. -/
-theorem pointReduce_resident_le (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_resident_le
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointReduce coefficient source target product).Path) :
-    (pointReduce coefficient source target product).peakResidentSpace path ≤ ctx.residentSpace := by
+    (path : (pointReduce (model := model) coefficient source target product).Path) :
+    (pointReduce (model := model) coefficient source target product).peakResidentSpace path ≤
+      ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   have same : visited = ctx := by
@@ -468,11 +560,13 @@ theorem pointReduce_resident_le (coefficient : CInputRef ctx (.unsignedWord widt
   exact le_rfl
 
 /-- The same original auxiliary cells suffice for every actual instruction. -/
-theorem pointReduce_auxiliary_le (coefficient : CInputRef ctx (.unsignedWord width))
+theorem pointReduce_auxiliary_le
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width))
-    (path : (pointReduce coefficient source target product).Path) :
-    (pointReduce coefficient source target product).peakAuxiliarySpace path ≤
+    (path : (pointReduce (model := model) coefficient source target product).Path) :
+    (pointReduce (model := model) coefficient source target product).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

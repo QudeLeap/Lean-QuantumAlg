@@ -38,109 +38,120 @@ recovery. -/
 def quadraticGuardedCardBound (shortWidth : Nat) : Nat :=
   38 + natSqrtCardBound (QuadraticPrefix.discriminantWidth shortWidth)
 
-private theorem max_card_le_add {kind : ProblemKind} (left right : ResourcePool kind) :
+private theorem max_card_le_add {model : ExecutionModel}
+    (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card := by
   rw [← Multiset.card_add]
   exact Multiset.card_le_card (ResourcePool.max_le
     (le_add_of_nonneg_right zero_le) (le_add_of_nonneg_left zero_le))
 
-private theorem natSubEventEnvelope_card_le {kind : ProblemKind} (width : Nat) :
-    (NatSub.eventEnvelope (kind := kind) width).card ≤ 3 := by
+private theorem natSubEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+    (width : Nat) :
+    (NatSub.eventEnvelope (model := model) width).card ≤ 3 := by
   have branchBound := max_card_le_add
     (ResourcePool.singleton
-      (.classicalOperation (.wordBinary .bitXor width)))
+      (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .bitXor width))))
     (ResourcePool.singleton
-      (.classicalOperation (.wordBinary .sub width)) : ResourcePool kind)
+      (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .sub width))) : ResourcePool model)
   unfold NatSub.eventEnvelope
   rw [Multiset.card_add]
   simp only [ResourcePool.singleton, Multiset.card_replicate] at branchBound ⊢
   omega
 
-private theorem natSqrtEventEnvelope_card_le {kind : ProblemKind}
+private theorem natSqrtEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (inputWidth : Nat) :
-    (NatSqrt.eventEnvelope (kind := kind) inputWidth).card ≤
+    (NatSqrt.eventEnvelope (model := model) inputWidth).card ≤
       natSqrtCardBound inputWidth := by
   simp [NatSqrt.eventEnvelope, NatSqrt.initializationEventEnvelope,
     IntegerSqrt.roundTrace, ResourcePool.ofList, ResourcePool.singleton,
     ResourcePool.scale, natSqrtCardBound]
   omega
 
-private theorem quadraticPrefixEventEnvelope_card_le {kind : ProblemKind}
+private theorem quadraticPrefixEventEnvelope_card_le
+    {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
-    (QuadraticPrefix.eventEnvelope (kind := kind) shortWidth).card ≤
+    (QuadraticPrefix.eventEnvelope (model := model) shortWidth).card ≤
       natSqrtCardBound (QuadraticPrefix.discriminantWidth shortWidth) + 6 := by
   have subtractBound := natSubEventEnvelope_card_le
-    (kind := kind) (QuadraticPrefix.discriminantWidth shortWidth)
+    (model := model) (QuadraticPrefix.discriminantWidth shortWidth)
   have sqrtBound := natSqrtEventEnvelope_card_le
-    (kind := kind) (QuadraticPrefix.discriminantWidth shortWidth)
+    (model := model) (QuadraticPrefix.discriminantWidth shortWidth)
   unfold QuadraticPrefix.eventEnvelope QuadraticPrefix.discriminantEnvelope
   simp only [Multiset.card_add]
   simp only [ResourcePool.ofList, QuadraticPrefix.prepareTrace, Multiset.coe_card,
     List.length_cons, List.length_nil]
   omega
 
-private theorem quadraticCandidatesEventEnvelope_card_le {kind : ProblemKind}
+private theorem quadraticCandidatesEventEnvelope_card_le
+    {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
-    (QuadraticCandidates.eventEnvelope (kind := kind) shortWidth).card ≤
+    (QuadraticCandidates.eventEnvelope (model := model) shortWidth).card ≤
       natSqrtCardBound (QuadraticPrefix.discriminantWidth shortWidth) + 12 := by
   have prefixBound := quadraticPrefixEventEnvelope_card_le
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   have subtractBound := natSubEventEnvelope_card_le
-    (kind := kind) (QuadraticCandidates.candidateWidth shortWidth)
+    (model := model) (QuadraticCandidates.candidateWidth shortWidth)
   unfold QuadraticCandidates.eventEnvelope QuadraticCandidates.suffixEnvelope
   simp only [Multiset.card_add]
   simp only [ResourcePool.singleton, Multiset.card_replicate, ResourcePool.ofList,
     QuadraticCandidates.resizeTrace, Multiset.coe_card, List.length_cons, List.length_nil]
   omega
 
-private theorem selectionStepEventEnvelope_card_eq {kind : ProblemKind}
+private theorem selectionStepEventEnvelope_card_eq {model : ExecutionModel} [BitWord.Selected model]
     (width : Nat) :
-    (FirstAccepted.nativeEnvelope kind width).card = 4 :=
-  FirstAccepted.firstAccepted_nativeEnvelope_card kind width
+    (FirstAccepted.nativeEnvelope model width).card = 4 :=
+  FirstAccepted.firstAccepted_nativeEnvelope_card model width
 
-private theorem candidatePositiveEventEnvelope_card_eq {kind : ProblemKind}
+private theorem candidatePositiveEventEnvelope_card_eq
+    {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
     (QuadraticCandidateCheck.positiveEventEnvelope
-      (kind := kind) shortWidth).card = 5 := by
+      (model := model) shortWidth).card = 5 := by
   simp [QuadraticCandidateCheck.positiveEventEnvelope,
     NatModCheck.eventEnvelope, ResourcePool.singleton]
 
-private theorem candidateCheckEventEnvelope_card_le {kind : ProblemKind}
+private theorem candidateCheckEventEnvelope_card_le
+    {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
     (QuadraticCandidateCheck.eventEnvelope
-      (kind := kind) shortWidth).card ≤ 7 := by
+      (model := model) shortWidth).card ≤ 7 := by
   have branchBound := max_card_le_add
     (QuadraticCandidateCheck.positiveEventEnvelope
-      (kind := kind) shortWidth)
-    (ResourcePool.singleton (.classicalOperation (.bit .xor)))
+      (model := model) shortWidth)
+    (ResourcePool.singleton (.classicalOperation
+      (BitWord.selectedCoordinate (execution := model) (.bit .xor))))
   have positiveCard := candidatePositiveEventEnvelope_card_eq
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   unfold QuadraticCandidateCheck.eventEnvelope
   rw [Multiset.card_add]
   simp only [ResourcePool.singleton, Multiset.card_replicate] at branchBound ⊢
   omega
 
-private theorem candidateSelectEventEnvelope_card_le {kind : ProblemKind}
+private theorem candidateSelectEventEnvelope_card_le
+    {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
     (QuadraticCandidateSelect.eventEnvelope
-      (kind := kind) shortWidth).card ≤ 11 := by
+      (model := model) shortWidth).card ≤ 11 := by
   have checkBound := candidateCheckEventEnvelope_card_le
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   have selectionCard := selectionStepEventEnvelope_card_eq
-    (kind := kind) (QuadraticCandidateCheck.CandidateWidth shortWidth)
+    (model := model) (QuadraticCandidateCheck.CandidateWidth shortWidth)
   unfold QuadraticCandidateSelect.eventEnvelope
   rw [Multiset.card_add]
   omega
 
 private theorem quadraticRecoveryMachineEventEnvelope_card_le
-    {kind : ProblemKind} (shortWidth : Nat) :
+    {model : ExecutionModel} [BitWord.Selected model]
+    (shortWidth : Nat) :
     (QuadraticRecoveryMachine.eventEnvelope
-      (kind := kind) shortWidth).card ≤
+      (model := model) shortWidth).card ≤
       natSqrtCardBound (QuadraticPrefix.discriminantWidth shortWidth) + 34 := by
   have candidatesBound := quadraticCandidatesEventEnvelope_card_le
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   have selectBound := candidateSelectEventEnvelope_card_le
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   unfold QuadraticRecoveryMachine.eventEnvelope
     QuadraticCandidatePairSelect.eventEnvelope
   simp only [Multiset.card_add]
@@ -148,13 +159,13 @@ private theorem quadraticRecoveryMachineEventEnvelope_card_le
 
 /-- The actual guarded quadratic branch is bounded without adding an
 unselected branch execution to the run. -/
-theorem quadraticGuardedEventEnvelope_card_le {kind : ProblemKind}
+theorem quadraticGuardedEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (shortWidth : Nat) :
     (QuadraticRecoveryGuarded.eventEnvelope
-      (kind := kind) shortWidth).card ≤
+      (model := model) shortWidth).card ≤
       quadraticGuardedCardBound shortWidth := by
   have recoveryBound := quadraticRecoveryMachineEventEnvelope_card_le
-    (kind := kind) shortWidth
+    (model := model) shortWidth
   unfold QuadraticRecoveryGuarded.eventEnvelope
     QuadraticRecoveryReset.resetEventEnvelope QuadraticRecoveryReset.nativeTrace
     quadraticGuardedCardBound
@@ -163,7 +174,8 @@ theorem quadraticGuardedEventEnvelope_card_le {kind : ProblemKind}
   omega
 
 /-- The actual selected guarded execution satisfies the independent finite event-count bound. -/
-theorem quadraticGuarded_eventCount_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem quadraticGuarded_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {shortWidth : Nat} (refs : QuadraticRecoveryGuarded.Refs ctx shortWidth)
     (path : (QuadraticRecoveryGuarded.into refs).Path) :
     ((QuadraticRecoveryGuarded.into refs).eventTrace path).length ≤

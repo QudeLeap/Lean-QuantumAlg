@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Interpret.Laws
+import QuantumAlg.Core.Execution.Classical.Pushforward
 import all QuantumAlg.Core.Algorithm.ExecutionState
 
 /-!
@@ -29,23 +30,28 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A proved deterministic tail maps the actual preceding execution and its original history. -/
-theorem execute_seq_retained_mapClassical_tail {kind : ProblemKind}
-    {pre middle : RuntimeCtx kind} (key : StorageKey) (shape : CShape) (fresh : key ∉ middle.keys)
-    (first : Circuit pre middle) (second : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × second.Path)
+theorem execute_seq_retained_mapClassical_tail {model : ExecutionModel}
+    {pre middle : RuntimeCtx model.kind} (key : StorageKey) (shape : CShape)
+    (fresh : key ∉ middle.keys)
+    (first : Circuit model pre middle)
+    (second : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × second.Path)
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State middle Reference History),
+      (state : State middle Reference (model.HiddenState × History)),
       second.execute Reference state = state.mapClassical (fun entry =>
-        ((step entry.1).1, (entry.2, (step entry.1).2))))
+        let result := step (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State pre Reference History) :
+    (state : State pre Reference (model.HiddenState × History)) :
     (Circuit.seq first second).execute Reference state =
       (first.execute Reference state).mapClassical (fun entry =>
-        ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2)))) := by
-  simp only [execute_seq, secondEquation, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+        let result := step (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2))))) := by
+  rw [execute_seq, secondEquation]
+  dsimp only [State.mapHistory]
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

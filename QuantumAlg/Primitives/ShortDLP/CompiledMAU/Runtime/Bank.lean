@@ -9,6 +9,10 @@ module
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Source
 import all QuantumAlg.Core.Execution.Preparation.Empty
 import all QuantumAlg.Core.Execution.Context.Layout
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Core.Base.Accounting.Context
@@ -17,11 +21,12 @@ import all QuantumAlg.Core.Base.Accounting.Space
 /-!
 # Prepare the short-DLP owned bank once around a classical frame
 
-One actual Circuit.prepare adds one owned layout with the source seed. The
-old context may contain arbitrary classical values and their reference
-correlations, but supplies no quantum system. This is an internal allocation
-boundary for the surrounding factoring program, not a condition on later
-rounds. Its resulting physical bank remains present during those rounds.
+Actual zero preparation adds one owned layout, then the literal X reload
+constructs its source seed. The old context may contain arbitrary classical
+values and their reference correlations, but supplies no quantum system.
+This is an internal allocation boundary for the surrounding factoring
+program, not a condition on later rounds. Its resulting physical bank remains
+present during those rounds.
 
 The bank's ordered wire equality and actual owned-layout entry establish its
 reset boundary. Later reset and reload instructions do not use this allocation
@@ -50,11 +55,6 @@ private theorem allocationDisjoint (m ell width : Nat) :
 def context (m ell width : Nat) : RuntimeCtx .quantum :=
   ctx.addOwnedLayout ctx.canonicalFreshKey (runtimeLayout m ell width)
     ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
-
-/-- The only quantum allocation in this component prepares the actual source seed. -/
-def prepare (m ell width N : Nat) : Circuit ctx (context ctx noQuantum m ell width) :=
-  .prepare ctx ctx.canonicalFreshKey (runtimeLayout m ell width) ctx.canonicalFreshKey_fresh
-    (allocationDisjoint ctx noQuantum m ell width) (seedPreparation m ell width N)
 
 /-- The new live bank has the owned role assigned by the actual preparation constructor. -/
 theorem shortDLP_runtimeBank_ownedEntry (m ell width : Nat) :
@@ -107,11 +107,119 @@ def basisEquiv (m ell width : Nat) :
     (input_systemCount ctx noQuantum)).symm.trans
       (ShortDLP.layout (registerParameters m ell width)).binaryIndexEquiv
 
-/-- The actual allocation emits exactly one instance of its declared source preparation. -/
+/-- The same literal X loading word acts on every actual bank wire. -/
+def loadProgram (m ell width N : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (context ctx noQuantum m ell width).quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout m ell width)
+    (context ctx noQuantum m ell width).quantumLayout
+    (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)
+    (reloadProgram m ell width N)
+
+/-- Exact loading semantics uses the correspondence of complete ordered physical wires. -/
+theorem shortDLP_runtimeBank_load_matrix (m ell width N : Nat) :
+    (loadProgram ctx noQuantum m ell width N).matrix =
+      UnitaryOperator.reindex
+        (Execution.basisOfEqualWires (runtimeLayout m ell width)
+          (context ctx noQuantum m ell width).quantumLayout
+          (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width))
+        (reloadProgram m ell width N).matrix :=
+  Execution.unitaryOfEqualWires_matrix _ _ _ _
+
+/-- The placed loading word takes the corresponding zero vector to the exact source seed. -/
+theorem shortDLP_runtimeBank_load_seed (m ell width N : Nat) :
+    let corresponding := Execution.basisOfEqualWires (runtimeLayout m ell width)
+      (context ctx noQuantum m ell width).quantumLayout
+      (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)
+    (loadProgram ctx noQuantum m ell width N).applyVec
+        (HilbertVector.reindex corresponding
+          (ZeroPreparation.normalized (runtimeLayout m ell width)).vec) =
+      HilbertVector.reindex corresponding (seedState m ell width N).vec := by
+  dsimp only
+  change (loadProgram ctx noQuantum m ell width N).matrix.applyVec _ = _
+  rw [shortDLP_runtimeBank_load_matrix]
+  refine (UnitaryOperator.reindex_applyVec
+    (R := (runtimeLayout m ell width).register)
+    (S := (context ctx noQuantum m ell width).register)
+    (Execution.basisOfEqualWires (runtimeLayout m ell width)
+      (context ctx noQuantum m ell width).quantumLayout
+      (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width))
+    (reloadProgram m ell width N).matrix
+    (ZeroPreparation.normalized (runtimeLayout m ell width)).vec).trans ?_
+  exact congrArg (HilbertVector.reindex
+    (R := (runtimeLayout m ell width).register)
+    (S := (context ctx noQuantum m ell width).register)
+    (Execution.basisOfEqualWires (runtimeLayout m ell width)
+      (context ctx noQuantum m ell width).quantumLayout
+      (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)))
+    (congrArg (NormalizedVector.vec (R := (runtimeLayout m ell width).register))
+      (shortDLP_reload_seedState m ell width N))
+
+variable {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
+/-- Allocate the sole quantum bank and prepare every actual wire in zero. -/
+def allocateZero (m ell width : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty operations services)
+      ctx (context ctx noQuantum m ell width) :=
+  .prepareZero ctx ctx.canonicalFreshKey (runtimeLayout m ell width)
+    ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
+
+/-- Initialize the source by actual zero allocation followed by its literal X loading word. -/
+def prepare (m ell width N : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty operations services)
+      ctx (context ctx noQuantum m ell width) :=
+  .seq (allocateZero ctx noQuantum m ell width)
+    (.unitary (loadProgram ctx noQuantum m ell width N))
+
+/-- Every allocated qubit emits one preparation event; the subsequent native X word is retained. -/
 theorem shortDLP_runtimeBank_prepare_eventTrace (m ell width N : Nat)
-    (path : (prepare ctx noQuantum m ell width N).Path) :
-    (prepare ctx noQuantum m ell width N).eventTrace path =
-      [(seedPreparation m ell width N).event] := rfl
+    (path : (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).Path) :
+    (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).eventTrace path =
+      List.replicate (totalQubits (registerParameters m ell width))
+        (.preparation (model := .quantum AlgorithmGate.model .empty operations services)
+          (2 : ℕ+)) ++
+        (reloadProgram m ell width N).eventTrace operations services := by
+  change ZeroPreparation.eventTrace AlgorithmGate.model .empty
+      (runtimeLayout m ell width) operations services ++
+      (loadProgram ctx noQuantum m ell width N).eventTrace operations services = _
+  refine congrArg₂ List.append ?_
+    (Execution.unitaryOfEqualWires_trace (runtimeLayout m ell width)
+      (context ctx noQuantum m ell width).quantumLayout
+      (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)
+      (reloadProgram m ell width N) operations services)
+  change List.ofFn (fun _ : Fin (totalQubits (registerParameters m ell width)) =>
+    (Resource.Event.preparation (model :=
+      .quantum AlgorithmGate.model .empty operations services) (2 : ℕ+))) = _
+  exact List.ofFn_const _ _
+
+/-- The exact initialization pool includes all zero preparations and every actual seed-loading X. -/
+theorem shortDLP_runtimeBank_prepare_resourcePool (m ell width N : Nat)
+    (path : (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).Path) :
+    (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).resourcePool path =
+      totalQubits (registerParameters m ell width) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model .empty operations services)
+        (.preparation (2 : ℕ+)) +
+        reloadXCount m ell width N • ResourcePool.singleton
+          (model := .quantum AlgorithmGate.model .empty operations services)
+          (.gate AlgorithmGate.Coordinate.singleQubit) := by
+  simp only [Circuit.resourcePool, shortDLP_runtimeBank_prepare_eventTrace,
+    ResourcePool.ofList_append, ResourcePool.ofList_replicate,
+    UnitaryCircuit.ofList_eventTrace_eq_eventCost,
+    shortDLP_reload_eventCost_classical_context, ResourcePool.scale]
+
+/-- Loading depends on completion of the zero preparation on the same physical bank. -/
+theorem shortDLP_runtimeBank_prepare_eventDepth (m ell width N : Nat)
+    (path : (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).Path) :
+    (prepare (operations := operations) (services := services)
+      ctx noQuantum m ell width N).eventDepth path =
+      .seq (ZeroPreparation.eventDepth AlgorithmGate.model .empty
+        (runtimeLayout m ell width) operations services)
+        ((reloadProgram m ell width N).eventDepth operations services) := rfl
 
 /-- Actual resident accounting contains the original frame and exactly one source bank. -/
 theorem shortDLP_runtimeBank_resident (m ell width : Nat) :

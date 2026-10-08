@@ -28,8 +28,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- A pass keeps the basis; a failure exchanges the second and third rows. -/
-def selectArm (refs : Refs ctx width) : CShape.Value .bit → Circuit ctx ctx
+def selectArm (refs : Refs ctx width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit true => .id ctx
   | .bit false => LatticeSwap.pointSwap refs.basis.second refs.basis.third refs.swapScratch
 
@@ -38,12 +41,11 @@ def selectArmStep (refs : Refs ctx width) (flag : CShape.Value .bit) (store : St
     Store ctx × (selectArm refs flag).Path :=
   match flag with
   | .bit true => (store, ())
-  | .bit false =>
-      (LatticeSwap.pointSwapStore refs.basis.second refs.basis.third refs.swapScratch store,
-        (((), ((), ())), ((), ((), ())), ((), ((), ()))))
+  | .bit false => LatticeSwap.pointSwapStep (model := model)
+      refs.basis.second refs.basis.third refs.swapScratch store
 
 /-- Read the actual Lovasz bit before choosing the executed row-exchange arm. -/
-def selectInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def selectInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   .branch (writeInput refs.lovasz.passes) (selectArm refs)
 
 /-- The actual selected store and the actual observed branch path. -/
@@ -53,53 +55,70 @@ def selectStep (refs : Refs ctx width) (store : Store ctx) : Store ctx × (selec
 
 private theorem selectArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (selectArm refs flag).execute Reference state = state.mapClassical (fun entry =>
-      ((selectArmStep refs flag entry.1).1, (entry.2, (selectArmStep refs flag entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (selectArm (model := model) refs flag).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := selectArmStep (model := model) refs flag entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
-    · refine (LatticeSwap.pointSwap_execute _ _ _ Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+    · exact LatticeSwap.pointSwap_execute _ _ _ Reference state
     · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Full actual selection uses the stored flag and preserves complete quantum-reference blocks. -/
 theorem selectInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (selectInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((selectStep refs entry.1).1, (entry.2, (selectStep refs entry.1).2))) :=
-  Circuit.execute_branch_mapClassical _ _ _ (selectArm_execute refs) Reference state
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (selectInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := selectStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_branch_mapClassical (writeInput refs.lovasz.passes)
+    (selectArm (model := model) refs)
+    (fun flag before =>
+      let actual := selectArmStep (model := model) refs flag before.1
+      ((actual.1, before.2), actual.2))
+    (fun flag reference _history _ current =>
+      selectArm_execute refs flag reference current) Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Compute the actual second Lovasz decision and then execute its stored selection. -/
-def branchInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def branchInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeLovasz.secondLovaszInto refs.lovasz) (selectInto refs)
 
 /-- The actual compared store feeds the actual row-selection branch. -/
 def branchStep (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (branchInto refs).Path :=
-  let compared := LatticeLovasz.secondLovaszStore refs.lovasz store
-  let selected := selectStep refs compared
-  (selected.1, (((), ((), ())), selected.2))
+  let compared := ClassicalRoutines.Comparison.Doubled.executionStep (model := model)
+    (LatticeLovasz.secondComparisonRefs refs.lovasz) store
+  let selected := selectStep (model := model) refs compared.1
+  (selected.1, (compared.2, selected.2))
 
 /-- The actual decision and selection compose chronologically in the full interpreter. -/
 theorem branchInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (branchInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((branchStep refs entry.1).1, (entry.2, (branchStep refs entry.1).2))) := by
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (branchInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := branchStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
-    (LatticeLovasz.secondLovaszInto refs.lovasz) (selectInto refs)
-    (fun store => (LatticeLovasz.secondLovaszStore refs.lovasz store, ((), ((), ()))))
-    (selectStep refs) (by
-      intro Reference History _ state
-      refine (LatticeLovasz.secondLovaszInto_execute refs.lovasz
-        Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) (selectInto_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (LatticeLovasz.secondLovaszInto (model := model) refs.lovasz)
+    (selectInto (model := model) refs)
+    (fun before =>
+      let actual := ClassicalRoutines.Comparison.Doubled.executionStep (model := model)
+        (LatticeLovasz.secondComparisonRefs refs.lovasz) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := selectStep (model := model) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeLovasz.secondLovaszInto_execute refs.lovasz reference current)
+    (fun reference _history _ current => selectInto_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

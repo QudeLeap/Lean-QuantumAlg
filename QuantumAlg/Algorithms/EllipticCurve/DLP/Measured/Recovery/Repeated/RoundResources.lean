@@ -33,17 +33,101 @@ variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
 
 /-- The complete reset branch allowance precedes all original sampling and readout events. -/
-def samplingRoundBudget : ResourcePool .quantum :=
-  samplingResetBudget E fieldTail (orderWidth problem) sameWidth fits seed +
+def samplingRoundBudget : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  samplingResetBudget E (orderWidth problem) +
     ((exponentPreparationCircuit problem).eventCost +
       (ResourcePool.scale 4 (MAU.Multiplication.Gidney.nativeBudget p.size) +
         ResourcePool.scale (2 * orderWidth problem) (MeasuredPointAddition.events p.size)) +
       (exponentReadoutCircuit problem).eventCost +
       (2 * orderWidth problem) • ResourcePool.singleton (Circuit.zEvent 2))
 
-/-- Unit depth uses the true three-operation reset, independently of the branch pool cardinality. -/
+omit [Fact p.Prime] in
+/-- Exact cardinality of the independent round allowance, keeping the actual
+range-preparation and arithmetic pools instead of the former two-event shortcut. -/
+theorem samplingRoundBudget_card :
+    (samplingRoundBudget E problem).card =
+      2 * (PublicInput.terminal E (orderWidth problem)).systemCount +
+      (exponentPreparationCircuit problem).eventCost.card +
+      4 * (MAU.Multiplication.Gidney.nativeBudget p.size).card +
+      (2 * orderWidth problem) * (MeasuredPointAddition.events p.size).card +
+      (exponentReadoutCircuit problem).eventCost.card +
+      2 * orderWidth problem := by
+  simp only [samplingRoundBudget, Multiset.card_add, ResourcePool.scale,
+    Multiset.card_nsmul, samplingResetBudget_card, ResourcePool.singleton,
+    Multiset.card_replicate]
+  omega
+
+omit [Fact p.Prime] in
+/-- Project the actual complete-round allowance onto any one native event coordinate. -/
+theorem samplingRoundBudget_count
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
+    ResourcePool.count focus (samplingRoundBudget E problem) =
+      ResourcePool.count focus (samplingResetBudget E (orderWidth problem)) +
+      ResourcePool.count focus (exponentPreparationCircuit problem).eventCost +
+      4 * ResourcePool.count focus (MAU.Multiplication.Gidney.nativeBudget p.size) +
+      (2 * orderWidth problem) *
+        ResourcePool.count focus (MeasuredPointAddition.events p.size) +
+      ResourcePool.count focus (exponentReadoutCircuit problem).eventCost +
+      (2 * orderWidth problem) * ResourcePool.count focus
+        (ResourcePool.singleton (Circuit.zEvent 2)) := by
+  simp only [samplingRoundBudget, ResourcePool.count_add, ResourcePool.count_scale,
+    ResourcePool.count_nsmul]
+  omega
+
+omit [Fact p.Prime] in
+/-- Terminal Z measurements contribute no single-qubit gates to the native round. -/
+theorem samplingRoundBudget_singleQubit_count :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) (samplingRoundBudget E problem) =
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (samplingResetBudget E (orderWidth problem)) +
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (exponentPreparationCircuit problem).eventCost +
+      4 * ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (MAU.Multiplication.Gidney.nativeBudget p.size) +
+      (2 * orderWidth problem) *
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (MeasuredPointAddition.events p.size) +
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+        (exponentReadoutCircuit problem).eventCost := by
+  rw [samplingRoundBudget_count]
+  simp [ResourcePool.count_singleton, Circuit.zEvent]
+
+omit [Fact p.Prime] in
+/-- Reset and terminal Z measurements contribute no CNOT gates to a native round. -/
+theorem samplingRoundBudget_cnot_count :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (samplingRoundBudget E problem) =
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+        (exponentPreparationCircuit problem).eventCost +
+      4 * ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+        (MAU.Multiplication.Gidney.nativeBudget p.size) +
+      (2 * orderWidth problem) *
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+          (MeasuredPointAddition.events p.size) +
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+        (exponentReadoutCircuit problem).eventCost := by
+  rw [samplingRoundBudget_count]
+  simp [samplingResetBudget_cnot_count, ResourcePool.count_singleton, Circuit.zEvent]
+
+omit [Fact p.Prime] in
+/-- Only the multiplier and point-addition allowances contribute native Toffoli gates. -/
+theorem samplingRoundBudget_toffoli_count :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) (samplingRoundBudget E problem) =
+      4 * ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+        (.gate .toffoli) (MAU.Multiplication.Gidney.nativeBudget p.size) +
+      (2 * orderWidth problem) *
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+          (.gate .toffoli) (MeasuredPointAddition.events p.size) := by
+  rw [samplingRoundBudget_count]
+  simp [samplingResetBudget_toffoli_count,
+    exponentPreparationCircuit_toffoli_count,
+    exponentReadoutCircuit_toffoli_count, ResourcePool.count_singleton, Circuit.zEvent]
+
+/-- Unit depth allows the actual measurement and optional native X on each reset wire. -/
 def samplingRoundUnitDepth : Nat :=
-  3 * (PublicInput.terminal E (orderWidth problem)).systemCount +
+  2 * (PublicInput.terminal E (orderWidth problem)).systemCount +
     ((exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
       (4 * MAU.Multiplication.Gidney.eventBound p.size +
         (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size) +
@@ -54,7 +138,7 @@ def samplingRoundUnitDepth : Nat :=
 theorem samplingRound_pool_le
     (path : (samplingRound E fieldTail sameWidth fits odd problem points seed).Path) :
     (samplingRound E fieldTail sameWidth fits odd problem points seed).resourcePool path ≤
-      samplingRoundBudget E fieldTail sameWidth fits problem seed := by
+      samplingRoundBudget E problem := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add
@@ -62,11 +146,16 @@ theorem samplingRound_pool_le
     (samplingReadout_budget E fieldTail odd problem points path.2)
 
 /-- The same selected reset history and scalar execution path determine arbitrary duration. -/
-theorem samplingRound_duration (duration : Resource.Event .quantum → Nat)
+theorem samplingRound_duration
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (samplingRound E fieldTail sameWidth fits odd problem points seed).Path) :
     (samplingRound E fieldTail sameWidth fits odd problem points seed).depth duration path =
-      (((samplingReset E fieldTail (orderWidth problem) sameWidth fits seed).eventTrace
-        path.1).map duration).sum +
+      (∑ wire, (QuditShift.resetWireToBasis wire
+        (samplingResetImplementations E (orderWidth problem) wire)
+        (samplingResetCells E (orderWidth problem) wire)
+        (samplingResetLabel E (orderWidth problem) fieldTail sameWidth fits seed wire)).depth
+          duration (Circuit.forRangeComponentPath
+            (PublicInput.terminal E (orderWidth problem)).systemCount _ path.1 wire)) +
         ((exponentPreparationCircuit problem).evaluatedEventDepth duration +
           (Encoding.placedConvertedCascade E points (List.finRange (2 * orderWidth problem))
             (Semantics.radixUnit p fieldTail.succ odd)).depth duration
@@ -83,7 +172,7 @@ theorem samplingRound_unitDepth_le
     (samplingRound E fieldTail sameWidth fits odd problem points seed).depth (fun _ => 1) path ≤
       samplingRoundUnitDepth E problem :=
   Nat.add_le_add
-    (samplingReset_unitDepth E fieldTail (orderWidth problem) sameWidth fits seed path.1).le
+    (samplingReset_unitDepth_le E fieldTail (orderWidth problem) sameWidth fits seed path.1)
     (samplingReadout_depth E fieldTail odd problem points path.2)
 
 /-- Both stages reuse exactly the complete original terminal resident context. -/

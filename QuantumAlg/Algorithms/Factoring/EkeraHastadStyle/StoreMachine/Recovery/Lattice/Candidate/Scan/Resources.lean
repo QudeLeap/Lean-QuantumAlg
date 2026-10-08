@@ -19,15 +19,17 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 /-- Independent sum of the original per-offset instruction allowances. -/
-def offsetsEventEnvelope (kind : ProblemKind) (coordinateWidth modulusWidth : Nat) :
-    List NumberTheory.IntegerPoint3 → ResourcePool kind
+def offsetsEventEnvelope (execution : ExecutionModel) [BitWord.Selected execution]
+    (coordinateWidth modulusWidth : Nat) :
+    List NumberTheory.IntegerPoint3 → ResourcePool execution
   | [] => 0
   | offset :: tail =>
-      LatticeCandidateSlotMachine.candidateSlotEventEnvelope kind coordinateWidth modulusWidth
-        offset + offsetsEventEnvelope kind coordinateWidth modulusWidth tail
+      LatticeCandidateSlotMachine.candidateSlotEventEnvelope execution coordinateWidth
+        modulusWidth offset + offsetsEventEnvelope execution coordinateWidth modulusWidth tail
 
 /-- Independent chronological sum of the original per-offset unit-duration bounds. -/
 def offsetsDepthBound (coordinateWidth modulusWidth : Nat) :
@@ -42,7 +44,7 @@ theorem scanOffsetsInto_pool_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).resourcePool path ≤
-      offsetsEventEnvelope kind coordinateWidth modulusWidth items := by
+      offsetsEventEnvelope model coordinateWidth modulusWidth items := by
   induction items with
   | nil => exact le_rfl
   | cons offset tail inductionHypothesis =>
@@ -67,15 +69,13 @@ theorem scanOffsetsInto_depth_le (spec : ModulusSpec modulusWidth)
 theorem scanOffsetsInto_borrowedRestored (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (scanOffsetsInto spec refs items).BorrowedRestored Reference state
       ((scanOffsetsInto spec refs items).execute Reference state) := by
   induction items generalizing History with
   | nil =>
-    change (Circuit.id ctx).BorrowedRestored Reference state
-      ((Circuit.id ctx).execute Reference state)
-    rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, Circuit.execute_id]
-    exact observeBorrowed_mapHistory state _
+    exact Circuit.borrowedRestored_id (model := model) (ctx := ctx) state
   | cons offset tail inductionHypothesis =>
     exact Circuit.borrowedRestored_seq _ _ state
       (LatticeCandidateSlotMachine.candidateSlotInto_borrowedRestored spec offset refs
@@ -87,7 +87,7 @@ theorem scanOffsetsInto_resident_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).peakResidentSpace path ≤ ctx.residentSpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind modulusWidth := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind modulusWidth := by
   induction items with
   | nil =>
     refine le_trans ?_ (le_add_of_nonneg_right zero_le)
@@ -107,7 +107,7 @@ theorem scanOffsetsInto_auxiliary_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
-      ClassicalRoutines.Modular.NativePower.powerSpace kind modulusWidth := by
+      ClassicalRoutines.Modular.NativePower.powerSpace model.kind modulusWidth := by
   induction items with
   | nil =>
     refine le_trans ?_ (le_add_of_nonneg_right zero_le)
@@ -123,9 +123,9 @@ theorem scanOffsetsInto_auxiliary_le (spec : ModulusSpec modulusWidth)
       spec offset refs path.1) (inductionHypothesis path.2)
 
 /-- Independent complete canonical scan allowance from its original public offset order. -/
-def scanEventEnvelope (kind : ProblemKind) (coordinateWidth modulusWidth : Nat) :
-    ResourcePool kind :=
-  offsetsEventEnvelope kind coordinateWidth modulusWidth offsets.toList
+def scanEventEnvelope (execution : ExecutionModel) [BitWord.Selected execution]
+    (coordinateWidth modulusWidth : Nat) : ResourcePool execution :=
+  offsetsEventEnvelope execution coordinateWidth modulusWidth offsets.toList
 
 /-- Independent complete canonical scan unit-duration bound. -/
 def scanDepthBound (coordinateWidth modulusWidth : Nat) : Nat :=
@@ -135,7 +135,8 @@ def scanDepthBound (coordinateWidth modulusWidth : Nat) : Nat :=
 theorem scanInto_pool_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (path : (scanInto spec refs).Path) :
-    (scanInto spec refs).resourcePool path ≤ scanEventEnvelope kind coordinateWidth modulusWidth :=
+    (scanInto spec refs).resourcePool path ≤ scanEventEnvelope model coordinateWidth
+      modulusWidth :=
   scanOffsetsInto_pool_le spec refs offsets.toList path
 
 /-- The actual canonical scan meets its independent chronological depth bound. -/

@@ -78,36 +78,40 @@ theorem nativeQuadratic_persistent_local_key_free {shape : CShape}
   exact fun present => SelectionLayout.original_free input
     (RSA.quadraticWordWidth width) index (support ▸ present)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual initialized arithmetic preserves each original persistent source value. -/
 theorem nativeQuadratic_persistent_initialized_read
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     {shape : CShape} (other : CInputRef ctx shape) (store : Store ctx) :
-    (initializedStore input modulus store).read (arithmeticRead other width) =
+    (initializedStore (model := model) input modulus store).read (arithmeticRead other width) =
       store.read other :=
-  (nativeQuadratic_initialized_read_other (arithmeticRead input width)
+  (nativeQuadratic_initialized_read_other (model := model) (arithmeticRead input width)
     (arithmeticRead modulus width) (arithmeticRefs ctx width) (arithmeticRead other width)
     (writes_free (SelectionLayout.underRead other (RSA.quadraticWordWidth width)) width)
     (entryStore width store)).trans (nativeQuadratic_local_entry_read other width store)
 
-private theorem pair_preserves_read {current : RuntimeCtx kind} {pairWidth : Nat}
+private theorem pair_preserves_read {current : RuntimeCtx model.kind} {pairWidth : Nat}
     (refs : Pair.Refs current pairWidth) {shape : CShape} (other : CInputRef current shape)
     (availableFree : refs.selection.available.key ∉ other.storageKeys)
     (takeFree : refs.selection.take.key ∉ other.storageKeys)
     (acceptedFree : refs.selection.accepted.key ∉ other.storageKeys)
     (selectedFree : refs.selection.selected.key ∉ other.storageKeys) (store : Store current)
     (checks : (Pair.checkedStore refs store).read other = store.read other) :
-    (Pair.step refs store).1.read other = store.read other :=
-  (Selection.nativeQuadratic_selection_read_other
+    (Pair.step (model := model) refs store).1.read other = store.read other :=
+  (Selection.nativeQuadratic_selection_read_other (model := model)
     (Pair.selectedInputs refs.first) (Pair.selectedInputs refs.second) refs.selection other
-    availableFree takeFree acceptedFree selectedFree (Pair.checkedStore refs store)).trans checks
+    availableFree takeFree acceptedFree selectedFree
+    (Pair.checkedStore refs store)).trans checks
 
 set_option maxHeartbeats 800000 in -- Match pair inputs beneath eight outer and five check cells.
 /-- Both complete checks and both local selectors leave every original read unchanged. -/
 theorem nativeQuadratic_persistent_pair_read
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     {shape : CShape} (other : CInputRef ctx shape) (store : Store (context ctx width)) :
-    (Pair.step (pairRefs modulus) store).1.read (underRead other width) =
+    (Pair.step (model := model) (pairRefs modulus) store).1.read (underRead other width) =
       store.read (underRead other width) := by
   have remainderFree : (operands modulus).remainder.key ∉
       (arithmeticRead other width).storageKeys :=
@@ -116,7 +120,7 @@ theorem nativeQuadratic_persistent_pair_read
       (arithmeticRefs ctx width).root.key
       (List.get_mem (Layout.internalKeys (selectionContext ctx width) width)
         ⟨2, by change 2 < 4; decide⟩)
-  exact pair_preserves_read (pairRefs modulus) (underRead other width)
+  exact pair_preserves_read (model := model) (pairRefs modulus) (underRead other width)
     (nativeQuadratic_persistent_local_key_free other width 1)
     (nativeQuadratic_persistent_local_key_free other width 0)
     (nativeQuadratic_persistent_local_key_free other width 3)
@@ -129,12 +133,13 @@ theorem nativeQuadratic_persistent_checked_entry_read
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     {shape : CShape} (other : CInputRef ctx shape) (store : Store ctx) :
-    (Pair.step (pairRefs modulus) (CheckLayout.pushStore (RSA.quadraticWordWidth width)
-      (initializedStore input modulus store))).1.read (underRead other width) =
+    (Pair.step (model := model) (pairRefs modulus)
+      (CheckLayout.pushStore (RSA.quadraticWordWidth width)
+      (initializedStore (model := model) input modulus store))).1.read (underRead other width) =
       store.read other :=
-  (nativeQuadratic_persistent_pair_read modulus other _).trans
+  (nativeQuadratic_persistent_pair_read (model := model) modulus other _).trans
     ((CheckLayout.nativeQuadratic_checkLayout_push_read (arithmeticRead other width)
-      (RSA.quadraticWordWidth width) (initializedStore input modulus store)).trans
-      (nativeQuadratic_persistent_initialized_read input modulus other store))
+      (RSA.quadraticWordWidth width) (initializedStore (model := model) input modulus store)).trans
+      (nativeQuadratic_persistent_initialized_read (model := model) input modulus other store))
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic.LocalLayout

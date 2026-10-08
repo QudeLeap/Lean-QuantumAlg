@@ -14,7 +14,8 @@ import all QuantumAlg.Core.Execution.Interpret.Laws
 # History naturality of the single circuit interpreter
 
 Every existing circuit commutes with an arbitrary function on its finite
-input history. The final store, quantum/reference matrix and newly recorded
+input history while retaining the oracle state independently. The final store,
+quantum/reference matrix, current oracle state and newly recorded
 execution path are unchanged. Noninjective history functions retain the
 actual sum of the identified density blocks. The proof follows the original
 interpreter, including real allocation, branch selection and workspace exit.
@@ -29,25 +30,29 @@ open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem branch_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit pre post)
+private theorem branch_history {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
     (Reference : Register)
     (natural : ∀ value {H K : Type} [Fintype H] [Fintype K]
-      (state : State pre Reference H) (update : H → K),
-      (body value).execute Reference (state.mapHistory update) =
+      (state : State pre Reference (model.HiddenState × H)) (update : H → K),
+      (body value).execute Reference
+        (state.mapHistory (fun record => (record.1, update record.2))) =
         ((body value).execute Reference state).mapHistory
-          (fun record => (update record.1, record.2)))
+          (fun record => (record.1, (update record.2.1, record.2.2))))
     {H K : Type} [Fintype H] [Fintype K]
-    (state : State pre Reference H) (update : H → K) :
-    (Circuit.branch input body).execute Reference (state.mapHistory update) =
+    (state : State pre Reference (model.HiddenState × H)) (update : H → K) :
+    (Circuit.branch input body).execute Reference
+      (state.mapHistory (fun record => (record.1, update record.2))) =
       ((Circuit.branch input body).execute Reference state).mapHistory
-        (fun record => (update record.1, record.2)) := by
-  let parts (value : shape.Value) : State post Reference (H × (Circuit.branch input body).Path) :=
+        (fun record => (record.1, (update record.2.1, record.2.2))) := by
+  let parts (value : shape.Value) :
+      State post Reference (model.HiddenState × (H × (Circuit.branch input body).Path)) :=
     ((body value).execute Reference
       (state.selectClassical (fun record => record.1.read input) value)).mapHistory
-        (fun record => (record.1, ⟨value, record.2⟩))
-  let resultMap : H × (Circuit.branch input body).Path →
-      K × (Circuit.branch input body).Path := fun record => (update record.1, record.2)
+        (fun record => (record.1, (record.2.1, ⟨value, record.2.2⟩)))
+  let resultMap : model.HiddenState × (H × (Circuit.branch input body).Path) →
+      model.HiddenState × (K × (Circuit.branch input body).Path) :=
+    fun record => (record.1, (update record.2.1, record.2.2))
   have total : ∑ value, (parts value).mass ≤ 1 := by
     simp only [parts, State.mapHistory_mass, execute_mass, ExecutionState.sum_selectClassical_mass]
     exact state.mass_le_one
@@ -56,7 +61,8 @@ private theorem branch_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
     rfl
   have mappedTotal : ∑ value, ((parts value).mapHistory resultMap).mass ≤ 1 := by
     simpa only [State.mapHistory_mass] using total
-  have mapped : (Circuit.branch input body).execute Reference (state.mapHistory update) =
+  have mapped : (Circuit.branch input body).execute Reference
+        (state.mapHistory (fun record => (record.1, update record.2))) =
       ExecutionState.finiteSum (fun value => (parts value).mapHistory resultMap) mappedTotal := by
     apply ExecutionState.ext
     intro result
@@ -65,14 +71,17 @@ private theorem branch_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
     apply Finset.sum_congr rfl
     intro value _
     have actual :=
-      (congrArg (fun selected : State pre Reference K => (body value).execute Reference selected)
-        (State.mapHistory_selectClassical state update input value)).trans
+      (congrArg (fun selected : State pre Reference (model.HiddenState × K) =>
+        (body value).execute Reference selected)
+        (State.mapHistory_selectClassical state
+          (fun record => (record.1, update record.2)) input value)).trans
           (natural value
             (state.selectClassical (fun record => record.1.read input) value) update)
     have contribution := congrArg
-      (fun output : State post Reference (K × (body value).Path) =>
+      (fun output : State post Reference (model.HiddenState × (K × (body value).Path)) =>
         ((output.mapHistory (fun record =>
-          (record.1, (⟨value, record.2⟩ : (Circuit.branch input body).Path)))).block result).matrix)
+          (record.1, (record.2.1,
+            (⟨value, record.2.2⟩ : (Circuit.branch input body).Path))))).block result).matrix)
       actual
     simpa only [parts, resultMap, State.mapHistory_comp, Function.comp_def] using contribution
   calc
@@ -94,43 +103,73 @@ private theorem branch_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
       split_ifs <;> rfl
     _ = _ := congrArg (fun output => output.mapHistory resultMap) original.symm
 
-private theorem iterate_history {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (body : Circuit ctx ctx) (Reference : Register)
+private theorem iterate_history {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (body : Circuit model ctx ctx) (Reference : Register)
     (natural : ∀ {H K : Type} [Fintype H] [Fintype K]
-      (state : State ctx Reference H) (update : H → K),
-      body.execute Reference (state.mapHistory update) =
-        (body.execute Reference state).mapHistory (fun record => (update record.1, record.2)))
+      (state : State ctx Reference (model.HiddenState × H)) (update : H → K),
+      body.execute Reference (state.mapHistory (fun record => (record.1, update record.2))) =
+        (body.execute Reference state).mapHistory
+          (fun record => (record.1, (update record.2.1, record.2.2))))
     (count : Nat) {H K : Type} [Fintype H] [Fintype K]
-    (state : State ctx Reference H) (update : H → K) :
-    (Circuit.iterate count body).execute Reference (state.mapHistory update) =
+    (state : State ctx Reference (model.HiddenState × H)) (update : H → K) :
+    (Circuit.iterate count body).execute Reference
+      (state.mapHistory (fun record => (record.1, update record.2))) =
       ((Circuit.iterate count body).execute Reference state).mapHistory
-        (fun record => (update record.1, record.2)) := by
+        (fun record => (record.1, (update record.2.1, record.2.2))) := by
   induction count generalizing H K with
   | zero =>
       rw [execute_iterate_zero, execute_iterate_zero]
       simp only [State.mapHistory_comp, Function.comp_def]
   | succ count ih =>
-      rw [execute_iterate_succ, natural, ih, execute_iterate_succ]
+      rw [execute_iterate_succ, natural,
+        ih (body.execute Reference state) (fun record => (update record.1, record.2)),
+        execute_iterate_succ]
       simp only [State.mapHistory_comp, Function.comp_def]
 
 /-- Existing execution commutes with any finite history map, preserving its full actual path. -/
-theorem execute_mapHistory {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
-    (state : State pre Reference H) (update : H → K) :
-    code.execute Reference (state.mapHistory update) =
-      (code.execute Reference state).mapHistory (fun record => (update record.1, record.2)) := by
+theorem execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
+    (state : State pre Reference (model.HiddenState × H)) (update : H → K) :
+    code.execute Reference (state.mapHistory (fun record => (record.1, update record.2))) =
+      (code.execute Reference state).mapHistory
+        (fun record => (record.1, (update record.2.1, record.2.2))) := by
   induction code generalizing H K with
-  | id => exact State.mapHistory_skip state update
-  | classical operation => exact State.mapHistory_classicalStep state update operation
-  | declaredCall call => exact State.mapHistory_declaredStep state update call
-  | unitary program _ => exact State.mapHistory_unitary state update program
-  | measureZ wire output => exact State.mapHistory_measureZ state update wire output
-  | randomBits width output => exact State.mapHistory_randomBits state update width output
-  | retain _ key shape fresh => exact State.mapHistory_retain state update key shape fresh
-  | prepare _ key layout fresh disjoint preparation =>
-      exact State.mapHistory_prepare state update key layout fresh disjoint preparation
+  | id =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_skip]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | classical application =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_nativeStep]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | classicalQuery application =>
+      exact State.mapHistory_queryStep application state update
+  | unitary program =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_unitary]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | measureZ wire output =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_measureZ]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | retain _ key shape fresh =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_retain]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | prepareZero _ key layout fresh disjoint =>
+      dsimp only [execute, interpret, preserveService]
+      rw [State.mapHistory_prepare]
+      simp only [State.mapHistory_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
   | seq first second firstIH secondIH =>
-      rw [execute_seq, firstIH, secondIH, execute_seq]
+      rw [execute_seq, firstIH,
+        secondIH (first.execute Reference state) (fun record => (update record.1, record.2)),
+        execute_seq]
       simp only [State.mapHistory_comp, Function.comp_def]
   | branch input body bodyIH =>
       exact branch_history input body Reference
@@ -141,10 +180,12 @@ theorem execute_mapHistory {kind : ProblemKind} {pre post : RuntimeCtx kind}
         count state update
   | workspace _ key shape fresh body bodyIH =>
       change State.popWorkspace key shape fresh
-          (body.execute Reference ((state.mapHistory update).pushWorkspace key shape fresh)) =
+          (body.execute Reference
+            ((state.mapHistory (fun record => (record.1, update record.2))).pushWorkspace
+              key shape fresh)) =
         (State.popWorkspace key shape fresh
           (body.execute Reference (state.pushWorkspace key shape fresh))).mapHistory
-            (fun record => (update record.1, record.2))
+            (fun record => (record.1, (update record.2.1, record.2.2)))
       rw [State.mapHistory_pushWorkspace, bodyIH,
         State.mapHistory_popWorkspace]
 

@@ -45,110 +45,121 @@ theorem xgcdNativeInitialization_ready {outer : RuntimeCtx kind}
       input zero store initialized zeroValue
 
 /-- One actual loop record follows initialization and preserves every transported caller read. -/
-theorem xgcdNativeInitializedLoop_actualRecord {outer : RuntimeCtx kind}
+theorem xgcdNativeInitializedLoop_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef outer (.unsignedWord width)) :
-    ∃ record : Store ctx → Store ctx ×
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-          (guardedActive cells (transport.liftInput zero))).Path,
+          (guardedActive (model := model) cells (transport.liftInput zero))).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-          (guardedActive cells (transport.liftInput zero))).execute Reference state =
+          (guardedActive (model := model) cells (transport.liftInput zero))).execute
+            Reference state =
             state.mapClassical (fun entry =>
-              ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+              let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         let initial := initializationStore cells
-          (transport.liftInput input) (transport.liftInput zero) before
+          (transport.liftInput input) (transport.liftInput zero) before.1
         (∀ {shape : CShape} (other : CInputRef outer shape),
-          ((record initial).1).read (transport.liftInput other) =
-            before.read (transport.liftInput other)) ∧
-        (cells.Initialized before →
-          (before.read (transport.liftInput zero)).toNat = 0 →
-          storedReady cells (transport.liftInput zero) (record initial).1 ∧
-            storedState cells (record initial).1 =
+          ((record (initial, before.2)).1.1).read (transport.liftInput other) =
+            before.1.read (transport.liftInput other)) ∧
+        (cells.Initialized before.1 →
+          (before.1.read (transport.liftInput zero)).toNat = 0 →
+          storedReady cells (transport.liftInput zero) (record (initial, before.2)).1.1 ∧
+            storedState cells (record (initial, before.2)).1.1 =
               PureXGCD.run (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
                 (PureXGCD.initialState
-                  (GCD.decodeOperands (before.read (transport.liftInput input))))) := by
-  obtain ⟨record, equation, correct⟩ := xgcdNativeLoop_actualRecord cells distinct
+                  (GCD.decodeOperands (before.1.read (transport.liftInput input))))) := by
+  obtain ⟨record, equation, correct⟩ := xgcdNativeLoop_actualRecord (model := model) cells distinct
     (transport.liftInput zero)
     (xgcdNativeState_input_separated cells transport separated zero)
     (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
   refine ⟨record, equation, ?_⟩
   intro before
   let initial := initializationStore cells
-    (transport.liftInput input) (transport.liftInput zero) before
+    (transport.liftInput input) (transport.liftInput zero) before.1
   constructor
   · intro shape other
-    exact ((correct initial).1 (transport.liftInput other)
+    exact ((correct (initial, before.2)).1 (transport.liftInput other)
       (xgcdNativeState_input_separated cells transport separated other)).trans
         (xgcdNativeInitialization_read_caller cells transport separated
-          (transport.liftInput input) (transport.liftInput zero) other before)
+          (transport.liftInput input) (transport.liftInput zero) other before.1)
   · intro initialized zeroValue
-    exact (correct initial).2 (GCD.decodeOperands (before.read (transport.liftInput input)))
+    exact (correct (initial, before.2)).2
+      (GCD.decodeOperands (before.1.read (transport.liftInput input)))
       (xgcdNativeInitialization_ready cells distinct transport separated
-        input zero before initialized zeroValue)
+        input zero before.1 initialized zeroValue)
       (xgcdNativeInitialization_state cells distinct transport separated
-        input zero before initialized zeroValue) le_rfl
+        input zero before.1 initialized zeroValue) le_rfl
 
 /-- Combine the real initialization store with a proved actual loop record. -/
-def initializedLoopRecord (cells : Cells ctx (stateShapes width))
+def initializedLoopRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (record : Store ctx → Store ctx ×
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).Path) : Store ctx → Store ctx ×
-      (Circuit.seq (initializationBody cells input zero)
+        (guardedActive (model := model) cells zero)).Path) :
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (Circuit.seq (initializationBody (model := model) cells input zero)
         (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-          (guardedActive cells zero))).Path :=
-  Circuit.sequenceRecord (initializationBody cells input zero)
+          (guardedActive (model := model) cells zero))).Path :=
+  Circuit.sequenceRecord (initializationBody (model := model) cells input zero)
     (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedActive cells zero))
-    (fun before => (initializationStore cells input zero before,
-      ((), ((), ((), ((), ((), ()))))))) record
+      (guardedActive (model := model) cells zero))
+    (fun before =>
+      let result := initializationStep (model := model) cells input zero before.1
+      ((result.1, before.2), result.2)) record
 
 /-- The initialized loop record returns precisely the actual loop's post-initialization store. -/
-theorem xgcdNativeInitializedLoop_record_store (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitializedLoop_record_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (record : Store ctx → Store ctx ×
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).Path) (store : Store ctx) :
-    (initializedLoopRecord cells input zero record store).1 =
-      (record (initializationStore cells input zero store)).1 := rfl
+        (guardedActive (model := model) cells zero)).Path) (store : Store ctx × model.HiddenState) :
+    (initializedLoopRecord (model := model) cells input zero record store).1 =
+      (record (initializationStore cells input zero store.1, store.2)).1 := rfl
 
 /-- The existing sequential interpreter retains every quantum-reference block and both paths. -/
-theorem xgcdNativeInitializedLoop_execute (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeInitializedLoop_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
-    (record : Store ctx → Store ctx ×
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).Path)
+        (guardedActive (model := model) cells zero)).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).execute Reference state =
+        (guardedActive (model := model) cells zero)).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2))))
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Circuit.seq (initializationBody cells input zero)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (initializationBody (model := model) cells input zero)
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero))).execute Reference state =
+        (guardedActive (model := model) cells zero))).execute Reference state =
       state.mapClassical (fun entry =>
-        ((initializedLoopRecord cells input zero record entry.1).1,
-          (entry.2, (initializedLoopRecord cells input zero record entry.1).2))) := by
-  exact Circuit.execute_sequenceRecord (initializationBody cells input zero)
+        let result := initializedLoopRecord (model := model) cells input zero record
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
+  exact Circuit.execute_sequenceRecord (initializationBody (model := model) cells input zero)
     (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedActive cells zero))
-    (fun before => (initializationStore cells input zero before,
-      ((), ((), ((), ((), ((), ()))))))) record
+      (guardedActive (model := model) cells zero))
+    (fun before =>
+      let result := initializationStep (model := model) cells input zero before.1
+      ((result.1, before.2), result.2)) record
     (fun reference {_} _ initial => by
       refine (xgcdNativeInitialization_execute cells input zero reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
+      exact ExecutionState.executionState_mapClassical_congr _ rfl)
     equation Reference state
 
 end

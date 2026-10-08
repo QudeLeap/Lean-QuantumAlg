@@ -75,30 +75,35 @@ def packOp (cells : Cells ctx N)
   .packOption ctx (.product (.storage cells.accepted.toCStorageRef)
     (.storage cells.selected.toCStorageRef)) result
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The actual unpack is followed by the one existing first-accepted selector. -/
 def selection (cells : Cells ctx N)
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (.classical (unpackOp cells result))
-    (FirstAccepted.circuit (selectorInputs cells) (selectorRefs cells))
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (unpackOp cells result))
+    (FirstAccepted.circuit (model := model) (selectorInputs cells) (selectorRefs cells))
 
 /-- Each visit executes full native factor recovery on those same original stored operands. -/
 def visit (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (FactorRecovery.NativeFactorScope.code source inputs.parameter inputs.phase result)
-    (selection cells result)
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (FactorRecovery.NativeFactorScope.code (model := model) source inputs.parameter inputs.phase
+    result)
+    (selection (model := model) cells result)
 
 /-- Compile the actual finite input-reference list into its ordered sequence of real visits. -/
 def scan (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    List (Inputs ctx N) → Circuit ctx ctx
+    List (Inputs ctx N) → Circuit model ctx ctx
   | [] => .id ctx
-  | inputs :: rest => .seq (visit source inputs cells result) (scan source cells result rest)
+  | inputs :: rest => .seq (visit (model := model) source inputs cells result) (scan source cells
+    result rest)
 
 /-- The true complete scan initializes its latch and finally packs the first accepted factor. -/
 def code (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (.classical (clearAcceptedOp cells))
-    (.seq (scan source cells result inputs) (.classical (packOp cells result)))
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearAcceptedOp cells))
+    (.seq (scan (model := model) source cells result inputs) (BitWord.instruction (execution :=
+      model) (packOp cells result)))
 
 end
 

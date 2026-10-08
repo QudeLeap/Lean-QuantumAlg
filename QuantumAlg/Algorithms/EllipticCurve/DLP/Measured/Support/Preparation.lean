@@ -40,31 +40,40 @@ def preparedBranchAmplitude {G : Type u} [Group G]
   FiniteCyclicDLP.Concrete.BornBridge.exponentState problem branch.1 *
     FiniteCyclicDLP.Concrete.BornBridge.exponentState problem branch.2
 
-private theorem rangePreparation_zero_entry {G : Type u} [Group G]
-    (problem : FiniteCyclicDLP.KnownOrderProblem G)
-    (row : Fin (2 ^ FiniteCyclicDLP.orderWidth problem)) :
-    (FiniteCyclicDLP.rangePreparationCircuit problem).matrix row 0 =
-      FiniteCyclicDLP.Concrete.BornBridge.exponentState problem row := by
-  have prepared := congrArg (fun vector => vector row)
-    (FiniteCyclicDLP.rangePreparationOperator_apply_zero problem.order
-      (FiniteCyclicDLP.orderWidth problem) problem.order_pos
-      (FiniteCyclicDLP.order_le_fourierModulus problem))
-  rw [FiniteCyclicDLP.rangePreparationCircuit_matrix]
-  exact (HilbertOperator.applyVec_ket
-    (R := Qubits (FiniteCyclicDLP.orderWidth problem)) _ 0 row).symm.trans prepared
-
 /-- The actual original double preparation has precisely the original product-amplitude column. -/
 theorem exponentPreparation_zero_entry {G : Type u} [Group G]
     (problem : FiniteCyclicDLP.KnownOrderProblem G)
     (branch : Fin (2 ^ FiniteCyclicDLP.orderWidth problem) ×
       Fin (2 ^ FiniteCyclicDLP.orderWidth problem)) :
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem).matrix
+    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem).binaryMatrix
       (prodEquiv branch) (prodEquiv (0, 0)) = preparedBranchAmplitude problem branch := by
-  simp only [FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit,
-    FiniteCyclicDLP.ConcreteCircuitAccess.pairConsecutiveCircuit,
-    UnitaryCircuit.tensorQubits_matrix, UnitaryCircuit.shiftPhysicalIdx_matrix,
-    UnitaryOperator.tensor_apply, Equiv.symm_apply_apply,
-    rangePreparation_zero_entry, preparedBranchAmplitude]
+  have prepared := congrArg (fun vector => vector (prodEquiv branch))
+    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_apply_zero problem)
+  have zeroPair : prodEquiv
+      ((0 : Fin (2 ^ FiniteCyclicDLP.orderWidth problem)), 0) =
+        (0 : Fin (2 ^ (FiniteCyclicDLP.orderWidth problem +
+          FiniteCyclicDLP.orderWidth problem))) :=
+    Fin.ext (by simp [UnitaryCircuit.prodEquiv_value])
+  change (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit
+      problem).binaryMatrix.applyVec
+        (NormalizedVector.ket (R := Qubits
+          (FiniteCyclicDLP.orderWidth problem + FiniteCyclicDLP.orderWidth problem)) 0)
+        (prodEquiv branch) =
+      (FiniteCyclicDLP.OrderPreparation.state problem).tensor
+        (FiniteCyclicDLP.OrderPreparation.state problem) (prodEquiv branch) at prepared
+  rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at prepared
+  have right :
+      (FiniteCyclicDLP.OrderPreparation.state problem).tensor
+        (FiniteCyclicDLP.OrderPreparation.state problem) (prodEquiv branch) =
+      preparedBranchAmplitude problem branch := by
+    exact (NormalizedVector.tensor_apply_prod
+      (FiniteCyclicDLP.OrderPreparation.state problem)
+      (FiniteCyclicDLP.OrderPreparation.state problem) branch.1 branch.2).trans (by
+        simp only [FiniteCyclicDLP.OrderPreparation.state_apply,
+          FiniteCyclicDLP.Concrete.BornBridge.exponentState_apply,
+          preparedBranchAmplitude, FiniteCyclicDLP.OrderPreparation.invSqrtOrder,
+          FiniteCyclicDLP.invSqrtOrder])
+  simpa only [zeroPair] using prepared.trans right
 
 /-- Original paired exponent labels remain distinct beside the supplied coordinate words. -/
 theorem preparedInputLabel_injective (modulus exponentWidth : Nat)
@@ -105,9 +114,7 @@ def preparedInputVector {G : Type u} [Group G] (modulus : Nat)
     (problem : FiniteCyclicDLP.KnownOrderProblem G) (x y : Fin (2 ^ modulus.size)) :
     NormalizedVector (before modulus.size (2 * FiniteCyclicDLP.orderWidth problem)).register :=
   ((beforeExponentProgram modulus (FiniteCyclicDLP.orderWidth problem)
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx
-      problem)).matrix).apply
+    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)).matrix).apply
     (NormalizedVector.ket (inputLabel modulus.size
       (2 * FiniteCyclicDLP.orderWidth problem)
       (pairedExponentInput modulus (FiniteCyclicDLP.orderWidth problem) (0, 0)) x y))
@@ -123,16 +130,13 @@ private theorem preparedInputVector_entry {G : Type u} [Group G] (modulus : Nat)
   have column := HilbertOperator.applyVec_ket
     (R := (before modulus.size (2 * FiniteCyclicDLP.orderWidth problem)).register)
     ((beforeExponentProgram modulus (FiniteCyclicDLP.orderWidth problem)
-      (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-      (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx
-        problem)).matrix)
+      (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)).matrix)
     (inputLabel modulus.size (2 * FiniteCyclicDLP.orderWidth problem)
       (pairedExponentInput modulus (FiniteCyclicDLP.orderWidth problem) (0, 0)) x y)
     (inputLabel modulus.size (2 * FiniteCyclicDLP.orderWidth problem)
       (pairedExponentInput modulus (FiniteCyclicDLP.orderWidth problem) branch) rowX rowY)
   have entry := beforeExponentProgram_paired_entry modulus (FiniteCyclicDLP.orderWidth problem)
     (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-    (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx problem)
     branch (0, 0) rowX rowY x y
   rw [exponentPreparation_zero_entry] at entry
   exact column.trans entry
@@ -220,7 +224,6 @@ theorem preparedMontgomeryVector_actual {p : Nat} {E : PrimeFieldShortWeierstras
     (seed : AffinePoint E) {Reference : Register} (reference : NormalizedVector Reference) :
     (beforeExponentOperator p (FiniteCyclicDLP.orderWidth problem)
       (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-      (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx problem)
       Reference).applyVec
         (normalizedReferenceFrame (NormalizedVector.ket (pairedMontgomeryInput fieldTail
           (FiniteCyclicDLP.orderWidth problem) sameWidth fits seed (0, 0))) reference).vec =
@@ -235,7 +238,6 @@ theorem preparedMontgomeryVector_density {p : Nat} {E : PrimeFieldShortWeierstra
     DensityOperator.applyUnitary
       (beforeExponentOperator p (FiniteCyclicDLP.orderWidth problem)
         (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit problem)
-        (FiniteCyclicDLP.ConcreteCircuitAccess.exponentPreparationCircuit_physical_idx problem)
         Reference)
       (DensityOperator.ofPure (normalizedReferenceFrame
         (NormalizedVector.ket (pairedMontgomeryInput fieldTail

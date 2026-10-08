@@ -29,96 +29,248 @@ namespace QuantumAlg.Execution.ContextUnion
 
 noncomputable section
 
-variable (left right : RuntimeCtx .quantum)
+variable {gates : GateModel} {oracles : OracleModel} (left right : RuntimeCtx .quantum)
   (disjoint : RuntimeCtx.StorageDisjoint left right)
-  (program : UnitaryCircuit left.register) (placed : program.physical_idx = left.physicalIdx)
+  (program : UnitaryCircuit gates oracles left.quantumLayout)
 
-private def frameIdentity : UnitaryCircuit right.register :=
-  UnitaryCircuit.identity right.register right.physicalIdx right.identitiesNodup
+private def leftPlacement : QuantumLayout.Embedding left.quantumLayout
+    (left.disjointUnion right disjoint).quantumLayout where
+  position :=
+    { toFun := leftPosition left right disjoint
+      inj' := fun _ _ same =>
+        Sum.inl.inj ((unionPositionEquiv left right disjoint).injective same) }
+  wire_eq := contextUnion_left_wire left right disjoint
 
-include disjoint placed in
-private theorem frameMerge :
-    PhysicalLayout.DisjointMerge program.physical_idx (frameIdentity right).physical_idx := by
-  refine ⟨program.physical_idx_nodup, right.identitiesNodup, ?_⟩
-  change List.Disjoint program.physical_idx right.physicalIdx
-  rw [placed]
-  exact (RuntimeCtx.physicallyDisjoint_iff_listDisjoint left right).mp disjoint.2
+private def rightPlacement : QuantumLayout.Embedding right.quantumLayout
+    (left.disjointUnion right disjoint).quantumLayout where
+  position :=
+    { toFun := rightPosition left right disjoint
+      inj' := fun _ _ same =>
+        Sum.inr.inj ((unionPositionEquiv left right disjoint).injective same) }
+  wire_eq := contextUnion_right_wire left right disjoint
+
+private theorem placements_disjoint :
+    Disjoint (leftPlacement left right disjoint).selection
+      (rightPlacement left right disjoint).selection := by
+  apply Finset.disjoint_left.mpr
+  intro wire inLeft inRight
+  obtain ⟨first, _, first_eq⟩ := Finset.mem_map.mp inLeft
+  obtain ⟨second, _, second_eq⟩ := Finset.mem_map.mp inRight
+  exact contextUnion_positions_ne left right disjoint first second (first_eq.trans second_eq.symm)
+
+private theorem right_not_left (index : Fin right.systemCount) :
+    rightPosition left right disjoint index ∉ (leftPlacement left right disjoint).selection := by
+  intro member
+  obtain ⟨first, _, equal⟩ := Finset.mem_map.mp member
+  exact contextUnion_positions_ne left right disjoint first index equal
+
+private def rightComplement (index : Fin right.systemCount) :
+    QuantumLayout.SelectedPosition (leftPlacement left right disjoint).selectionᶜ :=
+  ⟨rightPosition left right disjoint index,
+    Finset.mem_compl.mpr (right_not_left left right disjoint index)⟩
+
+private theorem selected_basis
+    (value : (left.disjointUnion right disjoint).register.Index) :
+    ((leftPlacement left right disjoint).splitBasis value).1 =
+      (unionBasisEquiv left right disjoint value).1 := by
+  funext index
+  apply Fin.ext
+  exact (QuantumLayout.Embedding.embedding_splitBasis_selected_value
+    (leftPlacement left right disjoint) value index).trans
+      (contextUnion_split_left_value left right disjoint value index)
+
+private theorem complement_eq_iff
+    (row column : (left.disjointUnion right disjoint).register.Index) :
+    ((leftPlacement left right disjoint).splitBasis row).2 =
+        ((leftPlacement left right disjoint).splitBasis column).2 ↔
+      (unionBasisEquiv left right disjoint row).2 =
+        (unionBasisEquiv left right disjoint column).2 := by
+  constructor
+  · intro equal
+    funext index
+    apply Fin.ext
+    have value := congrArg Fin.val (congrFun equal (rightComplement left right disjoint index))
+    exact (contextUnion_split_right_value left right disjoint row index).symm.trans
+      (value.trans (contextUnion_split_right_value left right disjoint column index))
+  · intro equal
+    funext index
+    apply Fin.ext
+    obtain ⟨position, position_eq⟩ := (unionPositionEquiv left right disjoint).surjective index.val
+    cases position with
+    | inl first =>
+        have absent := Finset.mem_compl.mp index.property
+        exact False.elim (absent
+          (position_eq ▸ Finset.mem_map_of_mem _ (Finset.mem_univ first)))
+    | inr second =>
+        have value := congrArg (fun basis : right.register.Index => (basis second).val) equal
+        change (row index.val).val = (column index.val).val
+        rw [← position_eq]
+        exact (contextUnion_split_right_value left right disjoint row second).trans
+          (value.trans (contextUnion_split_right_value left right disjoint column second).symm)
 
 /-- The original instruction and the real identity frame, on their exact union basis. -/
 public def frameUnitary :
-    UnitaryCircuit (RuntimeCtx.disjointUnion left right disjoint).register :=
-  UnitaryCircuit.reindex (unionBasisEquiv left right disjoint).symm
-    (UnitaryCircuit.tensor program (frameIdentity right)
-      (frameMerge left right disjoint program placed))
-
-/-- The placed instruction advertises every actual union wire in the correct order. -/
-public theorem contextUnion_frameUnitary_physical :
-    (frameUnitary left right disjoint program placed).physical_idx =
-      (RuntimeCtx.disjointUnion left right disjoint).physicalIdx := by
-  change program.physical_idx ++ right.physicalIdx = _
-  rw [placed, RuntimeCtx.physicalIdx_disjointUnion]
+    UnitaryCircuit gates oracles (RuntimeCtx.disjointUnion left right disjoint).quantumLayout :=
+  UnitaryCircuit.parallel program (UnitaryCircuit.identity gates oracles right.quantumLayout)
+    (leftPlacement left right disjoint) (rightPlacement left right disjoint)
+    (placements_disjoint left right disjoint)
 
 private theorem frameUnitary_matrix :
-    (frameUnitary left right disjoint program placed).matrix =
-      UnitaryOperator.reindex (unionBasisEquiv left right disjoint).symm
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator right.register)) := by
-  rfl
+    (frameUnitary left right disjoint program).matrix =
+      (leftPlacement left right disjoint).liftOperator program.matrix := by
+  change (rightPlacement left right disjoint).liftOperator 1 *
+    (leftPlacement left right disjoint).liftOperator program.matrix = _
+  rw [QuantumLayout.Embedding.embedding_liftOperator_one, one_mul]
 
 /-- Every matrix entry contains the unchanged identity on the full right-context basis. -/
 public theorem contextUnion_frameUnitary_entry
     (row column : (RuntimeCtx.disjointUnion left right disjoint).register.Index) :
-    (frameUnitary left right disjoint program placed).matrix row column =
+    (frameUnitary left right disjoint program).matrix row column =
       program.matrix (unionBasisEquiv left right disjoint row).1
         (unionBasisEquiv left right disjoint column).1 *
           (if (unionBasisEquiv left right disjoint row).2 =
             (unionBasisEquiv left right disjoint column).2 then 1 else 0) := by
-  rw [frameUnitary_matrix]
-  change (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator right.register))
-    (unionBasisEquiv left right disjoint row)
-    (unionBasisEquiv left right disjoint column) = _
-  rw [UnitaryOperator.prodTensor_apply]
-  rfl
+  rw [frameUnitary_matrix, QuantumLayout.Embedding.liftOperator_entry,
+    selected_basis, selected_basis]
+  simp only [complement_eq_iff]
 
-/-- Literal tensor/reindex syntax adds no native event to the original ordered trace. -/
-theorem contextUnion_frameUnitary_eventTrace :
-    (frameUnitary left right disjoint program placed).eventTrace = program.eventTrace := by
-  change program.eventTrace ++ (frameIdentity right).eventTrace = program.eventTrace
-  exact (congrArg (List.append program.eventTrace)
-    (UnitaryCircuit.identity_eventTrace right.register right.physicalIdx
-      right.identitiesNodup)).trans
-      (List.append_nil program.eventTrace)
+private theorem selected_basis_right
+    (value : (left.disjointUnion right disjoint).register.Index) :
+    ((rightPlacement left right disjoint).splitBasis value).1 =
+      (unionBasisEquiv left right disjoint value).2 := by
+  funext index
+  apply Fin.ext
+  exact (QuantumLayout.Embedding.embedding_splitBasis_selected_value
+    (rightPlacement left right disjoint) value index).trans
+      (contextUnion_split_right_value left right disjoint value index)
+
+private def leftComplement (index : Fin left.systemCount) :
+    QuantumLayout.SelectedPosition (rightPlacement left right disjoint).selectionᶜ :=
+  ⟨leftPosition left right disjoint index, Finset.mem_compl.mpr (by
+    intro member
+    obtain ⟨second, _, equal⟩ := Finset.mem_map.mp member
+    exact contextUnion_positions_ne left right disjoint index second equal.symm)⟩
+
+private theorem complement_eq_iff_right
+    (row column : (left.disjointUnion right disjoint).register.Index) :
+    ((rightPlacement left right disjoint).splitBasis row).2 =
+        ((rightPlacement left right disjoint).splitBasis column).2 ↔
+      (unionBasisEquiv left right disjoint row).1 =
+        (unionBasisEquiv left right disjoint column).1 := by
+  constructor
+  · intro equal
+    funext index
+    apply Fin.ext
+    have value := congrArg Fin.val (congrFun equal (leftComplement left right disjoint index))
+    exact (contextUnion_split_left_value left right disjoint row index).symm.trans
+      (value.trans (contextUnion_split_left_value left right disjoint column index))
+  · intro equal
+    funext index
+    apply Fin.ext
+    obtain ⟨position, position_eq⟩ := (unionPositionEquiv left right disjoint).surjective index.val
+    cases position with
+    | inl first =>
+        have value := congrArg (fun basis : left.register.Index => (basis first).val) equal
+        change (row index.val).val = (column index.val).val
+        rw [← position_eq]
+        exact (contextUnion_split_left_value left right disjoint row first).trans
+          (value.trans (contextUnion_split_left_value left right disjoint column first).symm)
+    | inr second =>
+        have absent := Finset.mem_compl.mp index.property
+        exact False.elim (absent
+          (position_eq ▸ Finset.mem_map_of_mem _ (Finset.mem_univ second)))
+
+/-- Frame an actual right-context instruction with identity on every left wire. -/
+public def frameRightUnitary
+    (rightProgram : UnitaryCircuit gates oracles right.quantumLayout) :
+    UnitaryCircuit gates oracles (left.disjointUnion right disjoint).quantumLayout :=
+  UnitaryCircuit.parallel (UnitaryCircuit.identity gates oracles left.quantumLayout)
+    rightProgram (leftPlacement left right disjoint) (rightPlacement left right disjoint)
+    (placements_disjoint left right disjoint)
+
+/-- The right instruction acts on exactly the right union basis and fixes the left basis. -/
+public theorem contextUnion_frameRightUnitary_entry
+    (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
+    (row column : (left.disjointUnion right disjoint).register.Index) :
+    (frameRightUnitary left right disjoint rightProgram).matrix row column =
+      (if (unionBasisEquiv left right disjoint row).1 =
+        (unionBasisEquiv left right disjoint column).1 then 1 else 0) *
+        rightProgram.matrix (unionBasisEquiv left right disjoint row).2
+          (unionBasisEquiv left right disjoint column).2 := by
+  have matrix : (frameRightUnitary left right disjoint rightProgram).matrix =
+      (rightPlacement left right disjoint).liftOperator rightProgram.matrix := by
+    change (rightPlacement left right disjoint).liftOperator rightProgram.matrix *
+      (leftPlacement left right disjoint).liftOperator 1 = _
+    rw [QuantumLayout.Embedding.embedding_liftOperator_one, mul_one]
+  rw [matrix, QuantumLayout.Embedding.liftOperator_entry,
+    selected_basis_right, selected_basis_right]
+  simp only [complement_eq_iff_right]
+  split_ifs <;> ring
+
+/-- Identity framing adds no native or query occurrence. -/
+public theorem contextUnion_frameRightUnitary_eventTrace
+    (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (frameRightUnitary left right disjoint rightProgram).eventTrace operations services =
+      rightProgram.eventTrace operations services := by
+  exact List.nil_append _
+
+/-- Identity framing retains every resource coordinate of the right instruction. -/
+public theorem contextUnion_frameRightUnitary_eventCost
+    (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (frameRightUnitary left right disjoint rightProgram).eventCost operations services =
+      rightProgram.eventCost operations services := by
+  exact zero_add _
+
+/-- Identity framing leaves the right instruction's evaluated depth unchanged. -/
+public theorem contextUnion_frameRightUnitary_evaluatedEventDepth
+    (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel)
+    (weight : Resource.Event (.quantum gates oracles operations services) → Nat) :
+    DepthExpr.depthEval weight
+      ((frameRightUnitary left right disjoint rightProgram).eventDepth operations services) =
+    DepthExpr.depthEval weight (rightProgram.eventDepth operations services) := by
+  change max 0 (DepthExpr.depthEval weight
+    (rightProgram.eventDepth operations services)) = _
+  exact Nat.zero_max _
+
+/-- The actual parallel identity adds no native or query event to the original trace. -/
+theorem contextUnion_frameUnitary_eventTrace
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (frameUnitary left right disjoint program).eventTrace operations services =
+      program.eventTrace operations services :=
+  List.append_nil _
 
 /-- Every native resource coordinate has exactly its original multiplicity. -/
-public theorem contextUnion_frameUnitary_eventCost :
-    (frameUnitary left right disjoint program placed).eventCost = program.eventCost := by
-  change program.eventCost + (frameIdentity right).eventCost = program.eventCost
-  exact (congrArg (fun cost => program.eventCost + cost)
-    (UnitaryCircuit.identity_eventCost right.register right.physicalIdx
-      right.identitiesNodup)).trans
-      (add_zero program.eventCost)
+public theorem contextUnion_frameUnitary_eventCost
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (frameUnitary left right disjoint program).eventCost operations services =
+      program.eventCost operations services :=
+  add_zero _
 
 /-- The symbolic tree records the actual parallel identity factor. -/
-public theorem contextUnion_frameUnitary_eventDepth :
-    (frameUnitary left right disjoint program placed).eventDepth =
-      .tensor program.eventDepth .id := by
-  change DepthExpr.tensor program.eventDepth (frameIdentity right).eventDepth =
-    DepthExpr.tensor program.eventDepth .id
-  exact congrArg (DepthExpr.tensor program.eventDepth)
-    (UnitaryCircuit.identity_eventDepth right.register right.physicalIdx right.identitiesNodup)
+public theorem contextUnion_frameUnitary_eventDepth
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+    (frameUnitary left right disjoint program).eventDepth operations services =
+      .tensor (program.eventDepth operations services) .id := by
+  rfl
 
 /-- The true framed instruction has the original depth for every event duration assignment. -/
 public theorem contextUnion_frameUnitary_evaluatedEventDepth
-    (weight : Resource.Event .quantum → Nat) :
-    (frameUnitary left right disjoint program placed).evaluatedEventDepth weight =
-      program.evaluatedEventDepth weight := by
-  simp only [UnitaryCircuit.evaluatedEventDepth, contextUnion_frameUnitary_eventDepth,
+    (operations : ClassicalOpModel) (services : ClassicalOracleModel)
+    (weight : Resource.Event (.quantum gates oracles operations services) → Nat) :
+    DepthExpr.depthEval weight ((frameUnitary left right disjoint program).eventDepth
+      operations services) =
+        DepthExpr.depthEval weight (program.eventDepth operations services) := by
+  simp only [contextUnion_frameUnitary_eventDepth,
     DepthExpr.depthEval, Nat.max_zero]
 
 /-- The real right frame and an arbitrary external reference retain their matrix coordinates. -/
 public theorem contextUnion_frameUnitary_reference_entry {Reference : Register}
     (row column : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (refRow refColumn : Reference.Index) :
-    (UnitaryOperator.prodTensor (frameUnitary left right disjoint program placed).matrix
+    (UnitaryOperator.prodTensor (frameUnitary left right disjoint program).matrix
       (1 : UnitaryOperator Reference)) (row, refRow) (column, refColumn) =
         (program.matrix (unionBasisEquiv left right disjoint row).1
           (unionBasisEquiv left right disjoint column).1 *

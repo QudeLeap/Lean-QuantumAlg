@@ -6,9 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Layout
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Native.Control
+import all QuantumAlg.Primitives.MeasuredUncompute.Native.Product.Gates
+import all QuantumAlg.Primitives.MeasuredUncompute.Native.Frame.Controlled
 import all QuantumAlg.Components.Encoded.BitGates.WirePlacement
-import all QuantumAlg.Components.Encoded.BitGates.Control
 import all QuantumAlg.Primitives.MAU.Addition.Gidney.ModularOffset
 import all QuantumAlg.Primitives.MAU.Addition.Gidney.Comparison
 import all QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Program
@@ -27,7 +28,11 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
-open MeasuredUncompute MAU.Inversion
+open MeasuredUncompute MAU.Inversion EncodedBit GateSpec BinaryLabelEncoding
+
+/-- The complete physical frame, including both actual control coordinates. -/
+abbrev NativeCircuit (width : Nat) :=
+  UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (encoding width).width).toQuantum
 
 private def prefixAddress (count index : Nat) : Nat :=
   if index < count then if index = 0 then count - 1 else index - 1 else index
@@ -89,16 +94,6 @@ private def wordWires (total width start : Nat) (separate : width ≤ start)
     change wordAddress width start (wordAddress width start index.val) = index.val
     unfold wordAddress
     split_ifs <;> omega
-
-/-- The only controlled offset sectors used by the concrete point-addition schedule. -/
-inductive OffsetControl where
-  | supplied
-  | exceptional
-  deriving DecidableEq
-
-@[reducible] private def controlWidth : OffsetControl → Nat
-  | .supplied => 1
-  | .exceptional => 2
 
 private theorem total_width (width : Nat) :
     (encoding width).width = 3 * width + 4 * width.size + 13 := by
@@ -189,92 +184,127 @@ private def offsetPlacement (width : Nat) (control : OffsetControl)
   EncodedBit.FullPlacement.ofWires _ _ (offset_total width control) (raw_total width)
     (arithmeticWires width control coordinate)
 
-private def prefixControl {bodyWidth : Nat} (count : Nat) (active : Fin (2 ^ count))
-    (body : UnitaryCircuit (Qubits bodyWidth)) :
-    UnitaryCircuit (Qubits (count + bodyWidth)) :=
-  UnitaryCircuit.reindex prodEquiv
-    (UnitaryCircuit.controlAt (Qubits count) (List.range count)
-      (UnitaryCircuit.shiftPhysicalIdx count body)
-      { left_nodup := List.nodup_range
-        right_nodup := (UnitaryCircuit.shiftPhysicalIdx count body).physical_idx_nodup
-        disjoint := by
-          apply List.disjoint_left.mpr
-          intro wire leading shifted
-          have bound := List.mem_range.mp leading
-          obtain ⟨original, _, same⟩ := List.mem_map.mp shifted
-          omega }
-      active)
+private theorem rawBit_wire (width : Nat) (index : Fin (finIdentity width).width) :
+    (finIdentityBit width index).wire = index := rfl
 
-private theorem prefixControl_within {bodyWidth : Nat} (count : Nat)
-    (active : Fin (2 ^ count)) (body : UnitaryCircuit (Qubits bodyWidth))
-    (within : body.physical_idx ⊆ List.range bodyWidth) :
-    (prefixControl count active body).physical_idx ⊆ List.range (count + bodyWidth) := by
-  intro wire present
-  change wire ∈ List.range count ++ (UnitaryCircuit.shiftPhysicalIdx count body).physical_idx
-    at present
-  rcases List.mem_append.mp present with leading | shifted
-  · exact List.mem_range.mpr (by have bound := List.mem_range.mp leading; omega)
-  · exact UnitaryCircuit.shiftPhysicalIdx_physical_idx_subset_range count body within shifted
+private theorem boolBit_wire (index : Fin BinaryLabelEncoding.bool.width) :
+    BinaryLabelEncoding.boolBit.wire = index := by
+  change (0 : Fin 1) = index
+  exact Subsingleton.elim _ _
 
-private def activeValue : (control : OffsetControl) → Fin (2 ^ controlWidth control)
-  | .supplied => 1
-  | .exceptional => 2
+private def gidneyBits (width : Nat) :
+    Fin (MAU.Addition.Gidney.encoding width).width →
+      EncodedBit (MAU.Addition.Gidney.encoding width) :=
+  productBit (fun _ => boolBit) (productBit (finIdentityBit width) (fun _ => boolBit))
 
-/-- Place an actual Gidney member under C, or jointly under C=true and N=false. -/
+private theorem gidneyBits_wire (width : Nat)
+    (index : Fin (MAU.Addition.Gidney.encoding width).width) :
+    (gidneyBits width index).wire = index :=
+  productBit_wire (left := BinaryLabelEncoding.bool)
+    (right := prod (finIdentity width) BinaryLabelEncoding.bool) _ _
+    boolBit_wire
+    (productBit_wire (left := finIdentity width) (right := BinaryLabelEncoding.bool)
+      _ _ (rawBit_wire width) boolBit_wire) index
+
+private def arithmeticBits (width : Nat) (control : OffsetControl) :=
+  productBit (left := MAU.Addition.Gidney.encoding width)
+    (right := finIdentity (retainedWidth width control))
+    (gidneyBits width) (finIdentityBit (retainedWidth width control))
+
+private theorem arithmeticBits_wire (width : Nat) (control : OffsetControl)
+    (index : Fin ((MAU.Addition.Gidney.encoding width).prod
+      (finIdentity (retainedWidth width control))).width) :
+    (arithmeticBits width control index).wire = index :=
+  productBit_wire (left := MAU.Addition.Gidney.encoding width)
+    (right := finIdentity (retainedWidth width control))
+    _ _ (gidneyBits_wire width) (rawBit_wire (retainedWidth width control)) index
+
+private theorem arithmetic_capacity (width : Nat) (control : OffsetControl) :
+    4 ≤ (MAU.Addition.Gidney.encoding width).width + retainedWidth width control := by
+  change 4 ≤ 1 + (width + 1) + retainedWidth width control
+  unfold retainedWidth
+  rw [total_width]
+  cases control <;> simp only [controlWidth] <;> omega
+
+private def arithmeticControlGates (width : Nat) (control : OffsetControl)
+    (source : List (GateSpec (MAU.Addition.Gidney.encoding width))) :
+    List (GateSpec (offsetEncoding width control)) :=
+  prefixControlGates _ (arithmeticBits width control)
+    (arithmeticBits_wire width control)
+    (arithmetic_capacity width control) control
+    (source.map (GateSpec.prodLeft (finIdentity (retainedWidth width control))))
+
+/-- Expand the real source list, then retain its original complete physical placement. -/
+def placedArithmeticGates (width : Nat) (control : OffsetControl) (coordinate : Coordinate)
+    (source : List (GateSpec (MAU.Addition.Gidney.encoding width))) :
+    List (GateSpec (encoding width)) :=
+  (arithmeticControlGates width control source).map
+    (offsetPlacement width control coordinate).placeGate
+
+/-- Physical arithmetic is compiled solely from actual native instructions. -/
 def placedArithmetic (width : Nat) (control : OffsetControl) (coordinate : Coordinate)
-    (body : UnitaryCircuit (Qubits (MAU.Addition.Gidney.encoding width).width))
-    (within : body.physical_idx ⊆ List.range (MAU.Addition.Gidney.encoding width).width) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (offsetPlacement width control coordinate).place
-    (prefixControl (controlWidth control) (activeValue control)
-      (UnitaryCircuit.prodLeft (n := retainedWidth width control) body))
-    (prefixControl_within _ _ _ (UnitaryCircuit.prodLeft_physical_idx_subset_range body within))
+    (source : List (GateSpec (MAU.Addition.Gidney.encoding width))) : NativeCircuit width :=
+  programList (QubitLayout.canonical _) .empty
+    (placedArithmeticGates width control coordinate source)
 
-theorem placedArithmetic_physical (width : Nat) (control : OffsetControl)
-    (coordinate : Coordinate)
-    (body : UnitaryCircuit (Qubits (MAU.Addition.Gidney.encoding width).width))
-    (within : body.physical_idx ⊆ List.range (MAU.Addition.Gidney.encoding width).width) :
-    (placedArithmetic width control coordinate body within).physical_idx =
-      List.range (encoding width).width :=
-  EncodedBit.FullPlacement.place_physical _ _ _
-
-/-- Every controlled event is derived from the actual supplied native member. -/
+/-- Placement preserves the exact expanded instruction order. -/
 theorem placedArithmetic_trace (width : Nat) (control : OffsetControl)
-    (coordinate : Coordinate)
-    (body : UnitaryCircuit (Qubits (MAU.Addition.Gidney.encoding width).width))
-    (within : body.physical_idx ⊆ List.range (MAU.Addition.Gidney.encoding width).width) :
-    (placedArithmetic width control coordinate body within).eventTrace =
-      body.eventTrace.map (fun event => event.controlForDimension (2 ^ controlWidth control)) := by
-  rw [placedArithmetic, EncodedBit.FullPlacement.place_eventTrace]
-  simp only [prefixControl, UnitaryCircuit.reindex_eventTrace,
-    UnitaryCircuit.controlAt_eventTrace, UnitaryCircuit.shiftPhysicalIdx_eventTrace,
-    UnitaryCircuit.prodLeft_eventTrace, Fintype.card_fin]
+    (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width))) :
+    (placedArithmetic width control coordinate source).eventTrace =
+      (arithmeticControlGates width control source).map (event .empty) :=
+  FullPlacement.placeGates_eventTrace _ _ _ _
+
+/-- All-label native action follows the complete grouping and restores all retained bits. -/
+theorem pointPlacedArithmetic_gates_step (width : Nat) (control : OffsetControl)
+    (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width)))
+    (sourceStep : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
+    (runs : ∀ state, stepList source state = sourceStep state) (state : Raw width) :
+    stepList (placedArithmeticGates width control coordinate source) state =
+      (offsetPlacement width control coordinate).step
+        (fun grouped => (grouped.1, if grouped.1 = activeValue control then
+          (sourceStep grouped.2.1, grouped.2.2) else grouped.2)) state := by
+  rw [placedArithmeticGates, FullPlacement.placeGates_step]
+  unfold FullPlacement.step
+  apply congrArg (offsetPlacement width control coordinate).grouping.symm
+  rw [arithmeticControlGates, pointPrefixControlGates_step]
+  simp only [stepList_prodLeft, runs]
+
+/-- Exact phase and arbitrary dirty restoration use the original FullPlacement without a premise. -/
+theorem pointPlacedArithmetic_realizes (width : Nat) (control : OffsetControl)
+    (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width)))
+    (sourceStep : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
+    (runs : ∀ state, stepList source state = sourceStep state) :
+    UnitaryCircuit.Realizes (encoding width) (placedArithmetic width control coordinate source)
+      ((offsetPlacement width control coordinate).step
+        (fun grouped => (grouped.1, if grouped.1 = activeValue control then
+          (sourceStep grouped.2.1, grouped.2.2) else grouped.2))) :=
+  realizesList_congrStep _ _ _
+    (pointPlacedArithmetic_gates_step width control coordinate source sourceStep runs)
 
 private def fittedConstant (modulus : Nat) (constant : Fin (modulus + 1)) :
     Fin ((InPlaceArithmetic.modulusWord modulus).val + 1) :=
   ⟨constant.val, constant.isLt⟩
 
-/-- Add the fixed canonical residue on the original X or Y under its actual quantum controls. -/
-def offset (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
-    (constant : Fin (modulus + 1)) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  placedArithmetic modulus.size control coordinate
-    (MAU.Addition.Gidney.modularOffsetProgram modulus.size
+/-- The literal controlled modular-offset word on the original X or Y coordinates. -/
+def offsetGates (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
+    (constant : Fin (modulus + 1)) : List (GateSpec (encoding modulus.size)) :=
+  placedArithmeticGates modulus.size control coordinate
+    (MAU.Addition.Gidney.modularOffsetGates modulus.size
       (InPlaceArithmetic.modulusWord modulus) (fittedConstant modulus constant))
-    (by rw [MAU.Addition.Gidney.gidneyModularOffset_physical]
-        change List.range (modulus.size + 2) ⊆ List.range (1 + (modulus.size + 1))
-        have same : modulus.size + 2 = 1 + (modulus.size + 1) := by omega
-        rw [same]
-        exact List.Subset.refl _)
+
+/-- Add the fixed canonical residue under the original quantum controls. -/
+def offset (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
+    (constant : Fin (modulus + 1)) : NativeCircuit modulus.size :=
+  programList (QubitLayout.canonical _) .empty (offsetGates modulus control coordinate constant)
+
+/-- The literal controlled pivot reflection on the original X word. -/
+def reflectGates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
+  placedArithmeticGates modulus.size .supplied .x
+    (MAU.Addition.Gidney.pivotGates modulus.size (InPlaceArithmetic.modulusWord modulus))
 
 /-- The original X word receives the actual canonical pivot reflection. -/
-def reflect (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  placedArithmetic modulus.size .supplied .x
-    (MAU.Addition.Gidney.pivotProgram modulus.size (InPlaceArithmetic.modulusWord modulus))
-    (by rw [MAU.Addition.Gidney.gidneyPivot_physical]
-        change List.range (modulus.size + 2) ⊆ List.range (1 + (modulus.size + 1))
-        have same : modulus.size + 2 = 1 + (modulus.size + 1) := by omega
-        rw [same]
-        exact List.Subset.refl _)
+def reflect (modulus : Nat) : NativeCircuit modulus.size :=
+  programList (QubitLayout.canonical _) .empty (reflectGates modulus)
 
 private def controlBit (width : Nat) : EncodedBit (encoding width) :=
   BinaryLabelEncoding.prodLeftBit
@@ -296,13 +326,13 @@ private theorem controls_separate (width : Nat) :
     (ProductPlacement.frameEncoding width).width + 1 at values
   omega
 
-/-- A literal three-CNOT exchange moves N to the frozen measured body's real control address. -/
-def exchangeControls (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  EncodedBit.swapProgram (controlBit width) (selectorBit width) (controls_separate width)
+/-- A literal three-CNOT exchange of the two resident control coordinates. -/
+def exchangeControlGates (width : Nat) : List (GateSpec (encoding width)) :=
+  swapGates (controlBit width) (selectorBit width) (controls_separate width)
 
-theorem exchangeControls_within (width : Nat) :
-    (exchangeControls width).physical_idx ⊆ List.range (encoding width).width :=
-  EncodedBit.swapProgram_physical_idx_subset_range _ _ _
+/-- The actual control exchange uses no new wire. -/
+def exchangeControls (width : Nat) : NativeCircuit width :=
+  programList (QubitLayout.canonical _) .empty (exchangeControlGates width)
 
 private def frameWord (width : Nat)
     (word : EncodedBit.Word (ProductPlacement.frameEncoding width) width) :
@@ -322,14 +352,14 @@ private theorem copy_separate (width : Nat) (index : Fin width) :
     ((FramePorts.accumulator width).bit index).wire.val at values
   exact (FramePorts.accumulator_numerator_ne width index index).symm (Fin.ext values)
 
-/-- The existing clean A temporarily copies Y using exactly n actual CNOTs. -/
-def squareCopy (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  EncodedBit.Word.xorIntoProgram (frameWord width (FramePorts.numerator width))
+/-- XOR Y into the original A word; no clean premise is needed for the literal list. -/
+def squareCopyGates (width : Nat) : List (GateSpec (encoding width)) :=
+  Word.xorIntoGates (frameWord width (FramePorts.numerator width))
     (frameWord width (FramePorts.accumulator width)) (copy_separate width)
 
-theorem squareCopy_within (width : Nat) :
-    (squareCopy width).physical_idx ⊆ List.range (encoding width).width :=
-  EncodedBit.Word.xorIntoProgram_physical_idx_subset_range _ _ _
+/-- The same XOR word is used on both sides of the product adjoint. -/
+def squareCopy (width : Nat) : NativeCircuit width :=
+  programList (QubitLayout.canonical _) .empty (squareCopyGates width)
 
 @[reducible] private def squareEncoding (width : Nat) :=
   BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity 1)
@@ -351,24 +381,33 @@ private def squarePlacement (width : Nat) :
       ((controlWires width .supplied).trans
         ((coordinateWires width .x).trans (coordinateWires width .y))))
 
-/-- The same actual VariableGidney adjoint subtracts Y*A into X while C is true. -/
-def squareSubtract (modulus : Nat) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  (squarePlacement modulus.size).place
-    (prefixControl 1 1 (UnitaryCircuit.prodLeft (n := 1)
-      (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)).dagger))
-    (prefixControl_within _ _ _ (UnitaryCircuit.prodLeft_physical_idx_subset_range _
-      (by rw [UnitaryCircuit.dagger_physical_idx,
-          NativeProductFrame.program, EncodedBit.FullPlacement.place_physical]
-          exact List.Subset.refl _)))
+private theorem square_capacity (width : Nat) :
+    4 ≤ (NativeFrameControl.encoding width).width := by
+  change 4 ≤ (ProductPlacement.frameEncoding width).width + 1
+  rw [ProductPlacement.frame_width]
+  unfold ProductWires.width ProductPlacement.tailWidth
+  omega
 
-theorem squareSubtract_physical (modulus : Nat) :
-    (squareSubtract modulus).physical_idx = List.range (encoding modulus.size).width :=
-  EncodedBit.FullPlacement.place_physical _ _ _
+/-- Control the literal reversed product word at the original full square placement. -/
+def squareSubtractGates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
+  (prefixControlGates _ (NativeFrameControl.bits modulus.size)
+    (NativeFrameControl.nativeFrameControl_bits_wire modulus.size)
+    (square_capacity modulus.size) .supplied
+    ((NativeProductFrame.gates modulus.size (InPlaceArithmetic.modulusWord modulus)).reverse.map
+      (GateSpec.prodLeft BinaryLabelEncoding.bool))).map
+        (squarePlacement modulus.size).placeGate
+
+/-- The actual product adjoint subtracts Y*A into X while C is true. -/
+def squareSubtract (modulus : Nat) : NativeCircuit modulus.size :=
+  programList (QubitLayout.canonical _) .empty (squareSubtractGates modulus)
 
 /-- The copied word is uncomputed after the actual controlled product adjoint. -/
-def subtractSquare (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  (squareCopy modulus.size).seq ((squareSubtract modulus).seq (squareCopy modulus.size))
+def subtractSquareGates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
+  squareCopyGates modulus.size ++ squareSubtractGates modulus ++ squareCopyGates modulus.size
+
+/-- Literal XOR, controlled inverse multiplication, and XOR execute on the same frame. -/
+def subtractSquare (modulus : Nat) : NativeCircuit modulus.size :=
+  programList (QubitLayout.canonical _) .empty (subtractSquareGates modulus)
 
 private def comparisonPlacement (width : Nat) :
     EncodedBit.FullPlacement (offsetEncoding width .supplied) (encoding width) :=
@@ -377,95 +416,75 @@ private def comparisonPlacement (width : Nat) :
       (Equiv.swap ⟨width, by rw [total_width]; omega⟩
         (selectorBit width).wire))
 
-private def compareZero (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (comparisonPlacement width).place
-    (prefixControl 1 1 (UnitaryCircuit.prodLeft (n := retainedWidth width .supplied)
-      (MAU.Addition.Gidney.comparisonProgram width ⟨1, by have := Nat.two_pow_pos width; omega⟩)))
-    (prefixControl_within _ _ _ (UnitaryCircuit.prodLeft_physical_idx_subset_range _
-      (by rw [MAU.Addition.Gidney.gidneyComparison_physical]
-          change List.range (width + 2) ⊆ List.range (1 + (width + 1))
-          have same : width + 2 = 1 + (width + 1) := by omega
-          rw [same]
-          exact List.Subset.refl _)))
+private def compareZeroGates (width : Nat) : List (GateSpec (encoding width)) :=
+  (arithmeticControlGates width .supplied
+    (MAU.Addition.Gidney.comparisonGates width
+      ⟨1, by have := Nat.two_pow_pos width; omega⟩)).map (comparisonPlacement width).placeGate
 
-/-- N receives C xor (C and X=0), using its actual comparison target and a resident helper. -/
-def selectNormal (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (EncodedBit.GateSpec.cnot (controlBit width) (selectorBit width)
-    (controls_separate width)).program |>.seq (compareZero width)
+private def compareZero (width : Nat) : NativeCircuit width :=
+  programList (QubitLayout.canonical _) .empty (compareZeroGates width)
 
-theorem selectNormal_within (width : Nat) :
-    (selectNormal width).physical_idx ⊆ List.range (encoding width).width := by
-  apply UnitaryCircuit.seq_physical_idx_subset
-  · exact EncodedBit.GateSpec.program_physical_idx_subset_range _
-  · rw [compareZero, EncodedBit.FullPlacement.place_physical]
-    exact List.Subset.refl _
+/-- N receives C xor (C and X=0), using the actual comparison target and resident helper. -/
+def selectNormalGates (width : Nat) : List (GateSpec (encoding width)) :=
+  [.cnot (controlBit width) (selectorBit width) (controls_separate width)] ++ compareZeroGates width
 
-private theorem offset_within (modulus : Nat) (control : OffsetControl)
-    (coordinate : Coordinate) (constant : Fin (modulus + 1)) :
-    (offset modulus control coordinate constant).physical_idx ⊆
-      List.range (encoding modulus.size).width := by
-  rw [offset, placedArithmetic_physical]
-  exact List.Subset.refl _
-
-private theorem reflect_within (modulus : Nat) :
-    (reflect modulus).physical_idx ⊆ List.range (encoding modulus.size).width := by
-  rw [reflect, placedArithmetic_physical]
-  exact List.Subset.refl _
-
-private theorem subtractSquare_within (modulus : Nat) :
-    (subtractSquare modulus).physical_idx ⊆ List.range (encoding modulus.size).width := by
-  apply UnitaryCircuit.seq_physical_idx_subset _ _ (squareCopy_within _)
-  apply UnitaryCircuit.seq_physical_idx_subset
-  · rw [squareSubtract_physical]
-    exact List.Subset.refl _
-  · exact squareCopy_within _
+/-- The selector executes the concrete CNOT and controlled comparison lists. -/
+def selectNormal (width : Nat) : NativeCircuit width :=
+  programList (QubitLayout.canonical _) .empty (selectNormalGates width)
 
 private def constantWord {p : Nat} [Fact p.Prime] (value : ZMod p) : Fin (p + 1) :=
   ⟨value.val, (ZMod.val_lt value).trans (Nat.lt_succ_self p)⟩
 
 /-- Actual controlled coordinate differences prepare the first measured division. -/
+def beforeDivisionGates {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+    (Q : AffinePoint E) : List (GateSpec (encoding p.size)) :=
+  offsetGates p .supplied .x (constantWord (-Q.x)) ++
+    offsetGates p .supplied .y (constantWord (-Q.y))
+
 def beforeDivision {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) : UnitaryCircuit (Qubits (encoding p.size).width) :=
-  (offset p .supplied .x (constantWord (-Q.x))).seq
-    (offset p .supplied .y (constantWord (-Q.y)))
+    (Q : AffinePoint E) : NativeCircuit p.size :=
+  programList (QubitLayout.canonical _) .empty (beforeDivisionGates Q)
 
-theorem beforeDivision_within {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) : (beforeDivision Q).physical_idx ⊆ List.range (encoding p.size).width :=
-  UnitaryCircuit.seq_physical_idx_subset _ _ (offset_within _ _ _ _) (offset_within _ _ _ _)
+/-- Form D, compute its internally reachable selector, and exchange the resident controls. -/
+def beforeMultiplicationGates {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+    (Q : AffinePoint E) : List (GateSpec (encoding p.size)) :=
+  offsetGates p .supplied .x (constantWord (3 * Q.x)) ++ subtractSquareGates p ++
+    selectNormalGates p.size ++ exchangeControlGates p.size
 
-/-- Form D, compute its internally reachable selector, and execute the real C/N exchange. -/
 def beforeMultiplication {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) : UnitaryCircuit (Qubits (encoding p.size).width) :=
-  (offset p .supplied .x (constantWord (3 * Q.x))).seq
-    ((subtractSquare p).seq ((selectNormal p.size).seq (exchangeControls p.size)))
+    (Q : AffinePoint E) : NativeCircuit p.size :=
+  programList (QubitLayout.canonical _) .empty (beforeMultiplicationGates Q)
 
-theorem beforeMultiplication_within {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) :
-    (beforeMultiplication Q).physical_idx ⊆ List.range (encoding p.size).width :=
-  UnitaryCircuit.seq_physical_idx_subset _ _ (offset_within _ _ _ _)
-    (UnitaryCircuit.seq_physical_idx_subset _ _ (subtractSquare_within _)
-      (UnitaryCircuit.seq_physical_idx_subset _ _ (selectNormal_within _)
-        (exchangeControls_within _)))
+/-- Restore C, clean the exceptional slope, reverse N's list, and return both coordinates. -/
+def afterMultiplicationGates {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+    (Q : AffinePoint E) : List (GateSpec (encoding p.size)) :=
+  exchangeControlGates p.size ++
+    offsetGates p .exceptional .y (constantWord (-exceptionalSlope E Q)) ++
+      (selectNormalGates p.size).reverse ++ reflectGates p ++
+        offsetGates p .supplied .x (constantWord (Q.x + 1)) ++
+          offsetGates p .supplied .y (constantWord (-Q.y))
 
-/-- Restore C, clean the exceptional slope, uncompute N, and return the two affine coordinates. -/
 def afterMultiplication {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) : UnitaryCircuit (Qubits (encoding p.size).width) :=
-  (exchangeControls p.size).seq
-    ((offset p .exceptional .y (constantWord (-exceptionalSlope E Q))).seq
-      ((selectNormal p.size).dagger.seq ((reflect p).seq
-        ((offset p .supplied .x (constantWord (Q.x + 1))).seq
-          (offset p .supplied .y (constantWord (-Q.y)))))))
+    (Q : AffinePoint E) : NativeCircuit p.size :=
+  programList (QubitLayout.canonical _) .empty (afterMultiplicationGates E Q)
 
-theorem afterMultiplication_within {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+/-- The complete pre-division trace is the literal controlled native word. -/
+theorem beforeDivision_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) :
-    (afterMultiplication E Q).physical_idx ⊆ List.range (encoding p.size).width :=
-  UnitaryCircuit.seq_physical_idx_subset _ _ (exchangeControls_within _)
-    (UnitaryCircuit.seq_physical_idx_subset _ _ (offset_within _ _ _ _)
-      (UnitaryCircuit.seq_physical_idx_subset _ _
-        (UnitaryCircuit.dagger_physical_idx_subset _ (selectNormal_within _))
-        (UnitaryCircuit.seq_physical_idx_subset _ _ (reflect_within _)
-          (UnitaryCircuit.seq_physical_idx_subset _ _ (offset_within _ _ _ _)
-            (offset_within _ _ _ _)))))
+    (beforeDivision Q).eventTrace = (beforeDivisionGates Q).map (event .empty) :=
+  programList_eventTrace _ _ _
+
+/-- The complete middle trace includes both physical C/N exchange and selector computation. -/
+theorem beforeMultiplication_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+    (Q : AffinePoint E) :
+    (beforeMultiplication Q).eventTrace = (beforeMultiplicationGates Q).map (event .empty) :=
+  programList_eventTrace _ _ _
+
+/-- Cleanup preserves the exact reversed selector instruction order. -/
+theorem afterMultiplication_trace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+    (Q : AffinePoint E) :
+    (afterMultiplication E Q).eventTrace = (afterMultiplicationGates E Q).map (event .empty) :=
+  programList_eventTrace _ _ _
 
 end
 

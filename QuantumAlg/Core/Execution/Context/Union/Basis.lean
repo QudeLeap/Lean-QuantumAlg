@@ -30,8 +30,9 @@ variable {kind : ProblemKind} (left right : RuntimeCtx kind)
 include disjoint in
 private theorem layoutDisjoint :
     List.Disjoint left.quantumLayout.identities right.quantumLayout.identities := by
-  simpa only [RuntimeCtx.quantumLayout_identities] using
-    (RuntimeCtx.physicallyDisjoint_iff_listDisjoint left right).mp disjoint.2
+  simpa only [RuntimeCtx.runtimeCtx_quantumLayout_identities] using
+    (RuntimeCtx.physicallyDisjoint_iff_listDisjoint left right).mp
+      (RuntimeCtx.physicallyDisjoint_of_storageDisjoint disjoint)
 
 private theorem appendWires :
     (QuantumLayout.append left.quantumLayout right.quantumLayout

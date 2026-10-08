@@ -25,23 +25,25 @@ namespace QuantumAlg.EncodedBit
 noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 theorem controlledTwoWireZeroReflection_eventCost (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) :
-    (control.controlledTwoWireZeroReflection first second controlFirst controlSecond
-      firstSecond).eventCost =
-      4 • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      ResourcePool.singleton (.gate (.builtin "toffoli")) +
-      ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z")) := by
+    (control.controlledTwoWireZeroReflection physical oracles first second
+      controlFirst controlSecond firstSecond).eventCost =
+      7 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
+        (.gate .singleQubit) +
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli) := by
   rw [controlledTwoWireZeroReflection, UnitaryCircuit.seq_eventCost, pauliZ_eventCost,
     GateSpec.conjugateProgram, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost]
   have reversed : ([GateSpec.x first, .x second] : List (GateSpec encoding)).reverse =
       [.x second, .x first] := rfl
+  have nativeX (bit : EncodedBit encoding) :
+      GateSpec.event oracles (.x bit) = .gate .singleQubit := rfl
   rw [reversed]
-  simp only [GateSpec.programList_eventCost, List.map_cons, List.map_nil, GateSpec.event,
+  simp only [GateSpec.programList_eventCost, List.map_cons, List.map_nil, nativeX,
     ResourcePool.ofList_cons, ResourcePool.ofList_nil, add_zero, doubleControlledZ_eventCost]
   apply Multiset.ext.mpr
   intro event
@@ -52,8 +54,8 @@ theorem controlledTwoWireZeroReflection_unitDepth (control first second : Encode
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) :
-    (control.controlledTwoWireZeroReflection first second controlFirst controlSecond
-      firstSecond).evaluatedEventDepth (fun _ => 1) = 8 := by
+    (control.controlledTwoWireZeroReflection physical oracles first second
+      controlFirst controlSecond firstSecond).evaluatedEventDepth (fun _ => 1) = 8 := by
   simp only [controlledTwoWireZeroReflection, UnitaryCircuit.evaluatedEventDepth_seq,
     GateSpec.conjugateProgram_unitDepth, List.length_cons, List.length_nil,
     doubleControlledZ_unitDepth, pauliZ_unitDepth]
@@ -68,10 +70,11 @@ variable (workNe : control.wire ≠ layout.work.wire)
 
 /-- Complement only the reflected source, and charge the final Z on the actual control. -/
 theorem controlledZeroReflectionProgram_eventCost :
-    (layout.controlledZeroReflectionProgram control sourceNe outputNe workNe).eventCost =
-      (2 * (controls + 1)) • ResourcePool.singleton (.gate (.builtin "x")) +
-      2 • ResourcePool.singleton (.gate (.builtin "hadamard")) + gatePool (controls + 1) +
-      ResourcePool.singleton (.gate (.declared "QuantumAlg.Components.Gate" "pauli-z")) := by
+    (layout.controlledZeroReflectionProgram physical oracles control
+      sourceNe outputNe workNe).eventCost =
+      (2 * (controls + 1) + 3) •
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
+          (.gate .singleQubit) + gatePool oracles (controls + 1) := by
   simp only [controlledZeroReflectionProgram, controlledNegativeZeroPhase,
     UnitaryCircuit.seq_eventCost, complementGates_eventCost, complementGates_reverse_eventCost,
     phaseProgram_eventCost, pauliZ_eventCost]
@@ -82,7 +85,8 @@ theorem controlledZeroReflectionProgram_eventCost :
 
 /-- The controlled elementary sequence has exactly its independently counted gate depth. -/
 theorem controlledZeroReflectionProgram_unitDepth :
-    (layout.controlledZeroReflectionProgram control sourceNe outputNe workNe).evaluatedEventDepth
+    (layout.controlledZeroReflectionProgram physical oracles control
+      sourceNe outputNe workNe).evaluatedEventDepth
       (fun _ => 1) = 2 * (controls + 1) + gateCount (controls + 1) + 3 := by
   simp only [controlledZeroReflectionProgram, controlledNegativeZeroPhase,
     UnitaryCircuit.evaluatedEventDepth_seq, GateSpec.programList_evaluatedEventDepth_unit,

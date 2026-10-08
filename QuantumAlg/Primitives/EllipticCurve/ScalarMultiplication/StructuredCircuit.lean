@@ -8,6 +8,8 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.StructuredCircuit
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Endpoint
 
 /-!
@@ -133,8 +135,10 @@ structure StepLift (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   /-- Explicit embedding of the selected lower-level program into the scalar
   trace register. -/
   liftProgram :
-    UnitaryCircuit (Qubits controlledWitness.encoding.width) ->
-      UnitaryCircuit (Qubits encoding.width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical controlledWitness.encoding.width).toQuantum ->
+      UnitaryCircuit AlgorithmGate.model .empty
+        (QubitLayout.canonical encoding.width).toQuantum
   /-- The lifted lower-level program updates exactly the selected trace
   component. -/
   realizes :
@@ -151,12 +155,13 @@ variable {i : Fin schedule.length}
 
 /-- Lower-level controlled-ECADD program consumed by the scalar trace lift. -/
 def sourceProgram (w : StepLift E schedule encoding i) :
-    UnitaryCircuit (Qubits w.controlledWitness.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical w.controlledWitness.encoding.width).toQuantum :=
   w.controlledWitness.program
 
 /-- Lifted base-gate program acting on the full scalar trace register. -/
 def program (w : StepLift E schedule encoding i) :
-    UnitaryCircuit (Qubits encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical encoding.width).toQuantum :=
   w.liftProgram w.sourceProgram
 
 /-- The lifted scalar trace program is definitionally derived from the
@@ -169,9 +174,11 @@ theorem program_eq_lifted (w : StepLift E schedule encoding i) :
 theorem apply_ket (w : StepLift E schedule encoding i)
     (x : TraceData E schedule) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode x)) =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (TraceData.controlledEquivAt E schedule i x))) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm (encoding.encode x))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical encoding.width).basisEquiv.symm
+        (encoding.encode (TraceData.controlledEquivAt E schedule i x)))) :=
   w.realizes.apply_encoded_ket x
 
 end StepLift
@@ -195,14 +202,16 @@ variable {schedule : Schedule E}
 
 /-- Lifted step programs in schedule order. -/
 def stepPrograms (w : ScheduleCompositionWitness E schedule) :
-    List (UnitaryCircuit (Qubits w.encoding.width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum) :=
   (stepIndices schedule).map fun i => (w.stepLift i).program
 
 /-- Folded scalar trace program obtained by appending the lifted step programs. -/
 def program (w : ScheduleCompositionWitness E schedule) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical w.encoding.width).toQuantum :=
   w.stepPrograms.foldr UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits w.encoding.width) [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum)
 
 /-- The lifted step programs realize the schedule-ordered trace updates. -/
 theorem stepRealizes (w : ScheduleCompositionWitness E schedule) :
@@ -224,6 +233,7 @@ theorem sequential_realizes (w : ScheduleCompositionWitness E schedule) :
     UnitaryCircuit.Realizes w.encoding w.program (sequentialStep E schedule) := by
   dsimp [program, stepPrograms, sequentialStep]
   exact UnitaryCircuit.Realizes.appendList w.encoding
+    (QubitLayout.canonical _)
     w.stepPrograms (stepUpdates E schedule) w.stepRealizes
 
 /-- The folded actual circuit realizes the schedule-wide controlled-ECADD
@@ -237,9 +247,11 @@ theorem realizes (w : ScheduleCompositionWitness E schedule) :
 theorem apply_ket (w : ScheduleCompositionWitness E schedule)
     (x : TraceData E schedule) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (TraceData.controlledEquiv E schedule x))) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+        (w.encoding.encode (TraceData.controlledEquiv E schedule x)))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Certified-run form of the composed trace action: every schedule component
@@ -247,10 +259,12 @@ is advanced by its controlled-ECADD endpoint. -/
 theorem apply_certified_run (w : ScheduleCompositionWitness E schedule)
     (run : Run E schedule) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode run.controlledTraceData)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode run.updatedTraceData)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode run.controlledTraceData))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+        (w.encoding.encode run.updatedTraceData))) := by
   have htrace :
       TraceData.controlledEquiv E schedule run.controlledTraceData =
         run.updatedTraceData := by
@@ -361,8 +375,9 @@ structure Witness (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   traceWitness : TraceCircuitWitness.ScheduleCompositionWitness E schedule
   /-- Final target-write program over the composed endpoint state. -/
   targetProgram :
-    UnitaryCircuit (Qubits
-      (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding).width).toQuantum
   /-- Correctness of the final target-write program under the composed
   endpoint encoding. -/
   targetRealizes :
@@ -383,24 +398,25 @@ def encoding (w : Witness E schedule cert) :
 /-- Trace schedule circuit lifted over the endpoint/run half of the composed
 state. -/
 def traceLiftedProgram (w : Witness E schedule cert) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical w.encoding.width).toQuantum :=
   UnitaryCircuit.prodRight (m := w.endpointRunEncoding.width) w.traceWitness.program
 
 /-- The lifted trace circuit realizes the sequential schedule update. -/
 theorem traceLifted_realizes (w : Witness E schedule cert) :
     UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
       (traceSequentialStep E schedule cert) := by
-  have h := UnitaryCircuit.Realizes.prodRight
+  have h := UnitaryCircuit.Realizes.onBinarySuffix
     (left := w.endpointRunEncoding) (right := w.traceWitness.encoding)
     w.traceWitness.sequential_realizes
   have hstep := h.congrStep (second := traceSequentialStep E schedule cert) (by
     intro x
     rfl)
-  simpa [encoding, traceLiftedProgram] using hstep
+  simpa [encoding, traceLiftedProgram, UnitaryCircuit.prodRight,
+    UnitaryCircuit.onCanonicalBinarySuffix] using hstep
 
 /-- Folded composed scalar endpoint program. -/
 def program (w : Witness E schedule cert) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical w.encoding.width).toQuantum :=
   UnitaryCircuit.seq w.traceLiftedProgram w.targetProgram
 
 /-- The composed circuit realizes the endpoint before rewriting the trace fold
@@ -449,9 +465,11 @@ theorem realizes (w : Witness E schedule cert) :
 theorem apply_ket (w : Witness E schedule cert)
     (x : State E schedule cert) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode (fullStep E schedule cert x))) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+        (w.encoding.encode (fullStep E schedule cert x)))) :=
   w.realizes.apply_encoded_ket x
 
 /-- Clean encoded-basis correctness for a composed endpoint state whose run
@@ -460,11 +478,13 @@ theorem apply_clean_ket (w : Witness E schedule cert)
     (s : EndpointRunState E schedule cert)
     (houtput : s.run.outputPoint = s.data.outputPoint) :
     w.program.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (s, s.run.controlledTraceData))) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (s, s.run.controlledTraceData)))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode
-          ({ s with data := s.data.addIntoTarget }, s.run.updatedTraceData))) := by
+          ({ s with data := s.data.addIntoTarget }, s.run.updatedTraceData)))) := by
   simpa [fullStep_clean E schedule cert s houtput] using
     apply_ket (E := E) (schedule := schedule) (cert := cert) w
       (s, s.run.controlledTraceData)
@@ -481,14 +501,16 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
           run.controls i = bitControl schedule input.1.1 i) ∧
         run.outputPoint = cert.output input.1.1 input.1.2 ∧
         w.program.applyNormalized
-          (NormalizedVector.ket (R := Qubits w.encoding.width)
+          (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
               (({ data :=
                     ({ input := input, targetX := 0, targetY := 0, flag := false } :
                       Data E schedule cert)
                   run := run } : EndpointRunState E schedule cert),
-                run.controlledTraceData))) =
-          (NormalizedVector.ket (R := Qubits w.encoding.width)
+                run.controlledTraceData)))) =
+          (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
               (({ data :=
                     ({ input := input
@@ -496,7 +518,7 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
                        targetY := (cert.output input.1.1 input.1.2).y
                        flag := false } : Data E schedule cert)
                   run := run } : EndpointRunState E schedule cert),
-                run.updatedTraceData))) := by
+                run.updatedTraceData)))) := by
   rcases cert.exists_run input.1.1 input.1.2 input.2 with
     ⟨run, hstart, hcontrols, houtput⟩
   let initialData : Data E schedule cert :=
@@ -531,7 +553,8 @@ structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
   /-- Faithful encoding of certified scalar endpoint labels. -/
   encoding : BinaryLabelEncoding (Data E schedule cert)
   /-- Actual certified scalar circuit. -/
-  circuit : UnitaryCircuit (Qubits encoding.width)
+  circuit : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical encoding.width).toQuantum
   /-- Direct realization of the certified scalar endpoint. -/
   realizes : UnitaryCircuit.Realizes encoding circuit
     (encodedStep (E := E) (schedule := schedule) (cert := cert))
@@ -545,9 +568,11 @@ variable {schedule : Schedule E} {cert : CertifiedScalarAction E schedule}
 theorem apply_ket (w : StructuredCircuitWitness E schedule cert)
     (x : Data E schedule cert) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width) (w.encoding.encode x)) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
-        (w.encoding.encode x.addIntoTarget)) :=
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+        (w.encoding.encode x.addIntoTarget))) :=
   by
     simpa [encodedStep] using w.realizes.apply_encoded_ket x
 
@@ -557,16 +582,18 @@ theorem apply_clean_ket (w : StructuredCircuitWitness E schedule cert)
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
             ({ input := input, targetX := 0, targetY := 0, flag := false } :
-              Data E schedule cert))) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
+              Data E schedule cert)))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode
           ({ input := input
              targetX := (cert.output input.1.1 input.1.2).x
              targetY := (cert.output input.1.1 input.1.2).y
-             flag := false } : Data E schedule cert))) := by
+             flag := false } : Data E schedule cert)))) := by
   simpa [encodedStep, Data.addIntoTarget, Data.outputPoint, Data.scalar,
     Data.startPoint] using
     apply_ket (E := E) (schedule := schedule) (cert := cert) w
@@ -592,16 +619,18 @@ theorem apply_clean_ket_with_run
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
     w.circuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
             ({ input := input, targetX := 0, targetY := 0, flag := false } :
-              Data E schedule cert))) =
-      (NormalizedVector.ket (R := Qubits w.encoding.width)
+              Data E schedule cert)))) =
+      (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode
           ({ input := input
              targetX := (cert.output input.1.1 input.1.2).x
              targetY := (cert.output input.1.1 input.1.2).y
-             flag := false } : Data E schedule cert))) ∧
+             flag := false } : Data E schedule cert)))) ∧
     ∃ run : Run E schedule,
       run.startsAt = input.1.2 ∧
         (∀ i : Fin schedule.length,

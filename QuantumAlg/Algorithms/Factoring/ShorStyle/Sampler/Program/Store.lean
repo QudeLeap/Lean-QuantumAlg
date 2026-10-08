@@ -24,7 +24,8 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 open Execution
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual scoped program changes precisely its complete parameter cell. -/
 theorem samplerProgram_store (input : Input N)
@@ -32,11 +33,12 @@ theorem samplerProgram_store (input : Input N)
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
-    (step N sample output store).1 = store.write output (parameterValue input value) := by
+    (step (model := model)
+      N sample output store).1 = store.write output (parameterValue input value) := by
   apply Store.store_eq_write_of_read_frame
-  · exact samplerProgram_read input sample output store value sampled
+  · exact samplerProgram_read (model := model) input sample output store value sampled
   · intro shape other separate
-    exact samplerProgram_read_other N sample output (.storage other)
+    exact samplerProgram_read_other (model := model) N sample output (.storage other)
       (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separate) store
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

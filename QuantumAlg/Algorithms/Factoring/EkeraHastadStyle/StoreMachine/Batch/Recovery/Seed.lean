@@ -11,6 +11,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Seed
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Seed
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed.Record
 import all QuantumAlg.Core.Execution.Borrowed
+import all QuantumAlg.Core.Execution.Basis.Seeded.Allocation
 
 /-!
 # The first recovered batch leaves its owned bank seeded in every actual store
@@ -43,7 +44,8 @@ theorem seedWires (N : Nat) :
 /-- Actual classical allocation and recovery preserve every complete source seed block. -/
 theorem tail_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (NativeBatch.context base noQuantum N) Reference History)
+    (state : State (NativeBatch.context base noQuantum N) Reference
+      (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatch.nativeBatch_context_wires base noQuantum N) N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -58,12 +60,14 @@ theorem tail_seedBlocks (input : Input N)
 /-- The actual first recovered batch establishes the seed without an incoming seed premise. -/
 theorem code_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) :
+    (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (seedWires base noQuantum N) N ((code base noQuantum input).execute Reference state) := by
   have source := NativeBatch.nativeBatch_complete_seedBlocks base noQuantum N state
-  exact RuntimeRepetition.seq_seed (NativeBatch.code base noQuantum N) (tail base noQuantum input)
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N (seedWires base noQuantum N) state
+  exact BasisSeeded.seq (NativeBatch.code base noQuantum N) (tail base noQuantum input)
+    ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
+      (seedWires base noQuantum N)).symm
+      (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state
     (tail_seedBlocks base noQuantum input _ source)
 
 /-- The first owned bank contributes no borrowed quantum wire to the subsequent retry context. -/

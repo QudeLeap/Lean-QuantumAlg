@@ -26,11 +26,13 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original raw engine allowance followed by the actual five packing operations. -/
-def publicEnvelope (kind : ProblemKind) (width : Nat) : ResourcePool kind :=
-  rawEnvelope kind width + ResourcePool.ofList (packingEvents kind width)
+def publicEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) : ResourcePool
+  model :=
+  rawEnvelope model width + ResourcePool.ofList (packingEvents model width)
 
 /-- Only the maximum of raw-engine and packing scratch is simultaneously resident. -/
 def publicPhaseSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
@@ -44,10 +46,11 @@ def publicScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 private theorem publicBody_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicBody input outputs result).Path) :
-    (publicBody input outputs result).resourcePool path ≤ publicEnvelope kind width := by
-  change ResourcePool.ofList ((rawEngine input outputs).eventTrace path.1 ++
-    (packRawOutputs outputs result).eventTrace path.2) ≤ _
+    (path : (publicBody (model := model) input outputs result).Path) :
+    (publicBody (model := model) input outputs result).resourcePool path ≤ publicEnvelope model
+      width := by
+  change ResourcePool.ofList ((rawEngine (model := model) input outputs).eventTrace path.1 ++
+    (packRawOutputs (model := model) outputs result).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append, xgcdNativePackRawOutputs_eventTrace]
   exact add_le_add (xgcdNativeRawEngine_pool_le input outputs path.1) le_rfl
 
@@ -55,33 +58,35 @@ private theorem publicBody_pool_le
 theorem xgcdNativePublicIntoResult_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).resourcePool path ≤ publicEnvelope kind width := by
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).resourcePool path ≤ publicEnvelope model width
+      := by
   exact withCellsFrom_pool_le (Transport.id ctx) (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
-      (publicRawOutputs cells) (transport.liftWrite result)) (publicEnvelope kind width)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
+      (publicRawOutputs cells) (transport.liftWrite result)) (publicEnvelope model width)
     (fun cells _ transport _ selected => publicBody_pool_le _ _ _ selected) path
 
 private theorem publicBody_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
-    (duration : Resource.Event kind → Nat) (path : (publicBody input outputs result).Path) :
-    (publicBody input outputs result).depth duration path ≤
-      rawDepthLimit width duration + ((packingEvents kind width).map duration).sum := by
-  change (rawEngine input outputs).depth duration path.1 +
-    (packRawOutputs outputs result).depth duration path.2 ≤ _
+    (duration : Resource.Event model → Nat) (path : (publicBody (model := model) input outputs
+      result).Path) :
+    (publicBody (model := model) input outputs result).depth duration path ≤
+      rawDepthLimit width duration + ((packingEvents model width).map duration).sum := by
+  change (rawEngine (model := model) input outputs).depth duration path.1 +
+    (packRawOutputs (model := model) outputs result).depth duration path.2 ≤ _
   rw [xgcdNativePackRawOutputs_depth]
   exact Nat.add_le_add_right (xgcdNativeRawEngine_depth_le input outputs duration path.1) _
 
 /-- All original serial dependencies remain charged for arbitrary native durations. -/
 theorem xgcdNativePublicIntoResult_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).depth duration path ≤
-      rawDepthLimit width duration + ((packingEvents kind width).map duration).sum := by
+    (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).depth duration path ≤
+      rawDepthLimit width duration + ((packingEvents model width).map duration).sum := by
   exact withCellsFrom_depth_le (Transport.id ctx) (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
       (publicRawOutputs cells) (transport.liftWrite result)) duration _
     (fun cells _ transport _ selected => publicBody_depth_le _ _ _ duration selected) path
 
@@ -89,8 +94,8 @@ theorem xgcdNativePublicIntoResult_depth_le
 theorem xgcdNativePublicIntoResult_unitDepth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).depth (fun _ => 1) path ≤ 28 * width + 28 := by
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).depth (fun _ => 1) path ≤ 28 * width + 28 := by
   have bound := xgcdNativePublicIntoResult_depth_le input result (fun _ => 1) path
   rw [xgcdNativeRawDepthLimit_unit] at bound
   change _ ≤ 28 * width + 23 + 5 at bound
@@ -99,11 +104,11 @@ theorem xgcdNativePublicIntoResult_unitDepth_le
 private theorem publicBody_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicBody input outputs result).Path) :
-    (publicBody input outputs result).peakResidentSpace path ≤
-      publicPhaseSpace kind width + ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (rawEngine input outputs)
-    (packRawOutputs outputs result) path).le.trans ?_
+    (path : (publicBody (model := model) input outputs result).Path) :
+    (publicBody (model := model) input outputs result).peakResidentSpace path ≤
+      publicPhaseSpace model.kind width + ctx.residentSpace := by
+  refine (Circuit.peakResidentSpace_seq (rawEngine (model := model) input outputs)
+    (packRawOutputs (model := model) outputs result) path).le.trans ?_
   apply SpacePool.max_le
   · exact (xgcdNativeRawEngine_resident_le input outputs path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -114,22 +119,22 @@ private theorem publicBody_resident_le
 theorem xgcdNativePublicIntoResult_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).peakResidentSpace path ≤
-      publicScratchSpace kind width + ctx.residentSpace := by
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).peakResidentSpace path ≤
+      publicScratchSpace model.kind width + ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
-      (publicRawOutputs cells) (transport.liftWrite result)) (publicPhaseSpace kind width)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
+      (publicRawOutputs cells) (transport.liftWrite result)) (publicPhaseSpace model.kind width)
     (fun cells _ transport _ selected => publicBody_resident_le _ _ _ selected) path
 
 private theorem publicBody_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicBody input outputs result).Path) :
-    (publicBody input outputs result).peakAuxiliarySpace path ≤
-      publicPhaseSpace kind width + ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (rawEngine input outputs)
-    (packRawOutputs outputs result) path).le.trans ?_
+    (path : (publicBody (model := model) input outputs result).Path) :
+    (publicBody (model := model) input outputs result).peakAuxiliarySpace path ≤
+      publicPhaseSpace model.kind width + ctx.auxiliarySpace := by
+  refine (Circuit.peakAuxiliarySpace_seq (rawEngine (model := model) input outputs)
+    (packRawOutputs (model := model) outputs result) path).le.trans ?_
   apply SpacePool.max_le
   · exact (xgcdNativeRawEngine_auxiliary_le input outputs path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -140,12 +145,12 @@ private theorem publicBody_auxiliary_le
 theorem xgcdNativePublicIntoResult_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
-    (path : (publicIntoResult input result).Path) :
-    (publicIntoResult input result).peakAuxiliarySpace path ≤
-      publicScratchSpace kind width + ctx.auxiliarySpace := by
+    (path : (publicIntoResult (model := model) input result).Path) :
+    (publicIntoResult (model := model) input result).peakAuxiliarySpace path ≤
+      publicScratchSpace model.kind width + ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (publicRawShapes width)
-    (fun cells _ transport _ => publicBody (transport.liftInput input)
-      (publicRawOutputs cells) (transport.liftWrite result)) (publicPhaseSpace kind width)
+    (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
+      (publicRawOutputs cells) (transport.liftWrite result)) (publicPhaseSpace model.kind width)
     (fun cells _ transport _ selected => publicBody_auxiliary_le _ _ _ selected) path
 
 /-- The independent scratch formula counts the original widths and the actual lifetime maximum. -/

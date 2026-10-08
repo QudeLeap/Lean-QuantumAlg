@@ -24,17 +24,20 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original search and candidate scratch allowances share their sequential lifetime. -/
-def intoScratchSpace (kind : ProblemKind) (rowCount width : Nat) : SpacePool kind :=
-  SpacePool.max (pivotMaskSpace kind rowCount width +
+def intoScratchSpace (model : ExecutionModel)
+    (rowCount width : Nat) : SpacePool model.kind :=
+  SpacePool.max (pivotMaskSpace (model := model) rowCount width +
     (SpacePool.ofShape .bit + SpacePool.ofShape .bit))
       (SpacePool.ofShape (.unsignedWord width) +
         (SpacePool.ofShape .bit + SpacePool.ofShape (.unsignedWord width)))
 
-private theorem when_resident (success : CWriteRef ctx .bit) (body : Circuit ctx ctx)
-    (budget : SpacePool kind) (entry : ctx.residentSpace ≤ budget)
+omit [BitWord.Selected model] in
+private theorem when_resident (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+    (budget : SpacePool model.kind) (entry : ctx.residentSpace ≤ budget)
     (bound : ∀ path, body.peakResidentSpace path ≤ budget)
     (path : (whenSuccessful success body).Path) :
     (whenSuccessful success body).peakResidentSpace path ≤ budget := by
@@ -45,15 +48,18 @@ private theorem when_resident (success : CWriteRef ctx .bit) (body : Circuit ctx
       · exact (SpacePool.max_zero _).le.trans entry
       · exact bound path
 
-private theorem serial_resident (first second : Circuit ctx ctx) (budget : SpacePool kind)
+omit [BitWord.Selected model] in
+private theorem serial_resident (first second : Circuit model ctx ctx)
+    (budget : SpacePool model.kind)
     (left : ∀ path, first.peakResidentSpace path ≤ budget)
     (right : ∀ path, second.peakResidentSpace path ≤ budget)
     (path : (first.seq second).Path) : (first.seq second).peakResidentSpace path ≤ budget :=
   (Circuit.peakResidentSpace_seq first second path).le.trans
     (SpacePool.max_le (left path.1) (right path.2))
 
-private theorem when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit ctx ctx)
-    (budget : SpacePool kind) (entry : ctx.auxiliarySpace ≤ budget)
+omit [BitWord.Selected model] in
+private theorem when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+    (budget : SpacePool model.kind) (entry : ctx.auxiliarySpace ≤ budget)
     (bound : ∀ path, body.peakAuxiliarySpace path ≤ budget)
     (path : (whenSuccessful success body).Path) :
     (whenSuccessful success body).peakAuxiliarySpace path ≤ budget := by
@@ -64,7 +70,9 @@ private theorem when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit ct
       · exact (SpacePool.max_zero _).le.trans entry
       · exact bound path
 
-private theorem serial_auxiliary (first second : Circuit ctx ctx) (budget : SpacePool kind)
+omit [BitWord.Selected model] in
+private theorem serial_auxiliary (first second : Circuit model ctx ctx)
+    (budget : SpacePool model.kind)
     (left : ∀ path, first.peakAuxiliarySpace path ≤ budget)
     (right : ∀ path, second.peakAuxiliarySpace path ≤ budget)
     (path : (first.seq second).Path) : (first.seq second).peakAuxiliarySpace path ≤ budget :=
@@ -82,69 +90,69 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
 theorem gf2Into_resident_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).peakResidentSpace path ≤
-      intoScratchSpace kind rowCount width + ctx.residentSpace := by
-  have entry : ctx.residentSpace ≤ intoScratchSpace kind rowCount width + ctx.residentSpace :=
+      intoScratchSpace model rowCount width + ctx.residentSpace := by
+  have entry : ctx.residentSpace ≤ intoScratchSpace model rowCount width + ctx.residentSpace :=
     fun _axis => Nat.le_add_left _ _
   have search : ∀ current,
       (loadAndReduce input matrix used rows columns).peakResidentSpace current ≤
-      intoScratchSpace kind rowCount width + ctx.residentSpace := by
+      intoScratchSpace model rowCount width + ctx.residentSpace := by
     intro current
     refine (gf2LoadAndReduce_resident_le input matrix used rows columns current).trans ?_
     intro axis
-    change pivotMaskSpace kind rowCount width axis +
+    change pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.residentSpace axis)) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.residentSpace axis
     omega
   have decision : ∀ current, (selectUniqueFree columns zero success).peakResidentSpace current ≤
-      intoScratchSpace kind rowCount width + ctx.residentSpace := by
+      intoScratchSpace model rowCount width + ctx.residentSpace := by
     intro current
     refine (gf2UniqueFree_resident columns zero success current).le.trans ?_
     intro axis
     change SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.residentSpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.residentSpace axis
     omega
   have candidateBound : ∀ current,
       (buildCandidate matrix rows columns candidate zero).peakResidentSpace current ≤
-        intoScratchSpace kind rowCount width + ctx.residentSpace := by
+        intoScratchSpace model rowCount width + ctx.residentSpace := by
     intro current
     refine (gf2BuildCandidate_resident_le matrix rows columns candidate zero current).trans ?_
     intro axis
     change SpacePool.ofShape (.unsignedWord width) axis +
         (SpacePool.ofShape .bit axis +
           (SpacePool.ofShape (.unsignedWord width) axis + ctx.residentSpace axis)) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.residentSpace axis
     omega
   have nonzero : ∀ current,
       (checkCandidateNonzero candidate zero success).peakResidentSpace current ≤
-      intoScratchSpace kind rowCount width + ctx.residentSpace := by
+      intoScratchSpace model rowCount width + ctx.residentSpace := by
     intro current
     refine (gf2CandidateNonzero_resident candidate zero success current).le.trans ?_
     intro axis
     change SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.residentSpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.residentSpace axis
     omega
   have validation : ∀ current,
       (validateSamples input candidate success).peakResidentSpace current ≤
-      intoScratchSpace kind rowCount width + ctx.residentSpace := by
+      intoScratchSpace model rowCount width + ctx.residentSpace := by
     intro current
     refine (gf2ValidationSamples_resident_le input candidate success current).trans ?_
     intro axis
     change SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.residentSpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.residentSpace axis
@@ -164,69 +172,69 @@ theorem gf2Into_resident_le
 theorem gf2Into_auxiliary_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).peakAuxiliarySpace path ≤
-      intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
-  have entry : ctx.auxiliarySpace ≤ intoScratchSpace kind rowCount width + ctx.auxiliarySpace :=
+      intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
+  have entry : ctx.auxiliarySpace ≤ intoScratchSpace model rowCount width + ctx.auxiliarySpace :=
     fun _axis => Nat.le_add_left _ _
   have search : ∀ current,
       (loadAndReduce input matrix used rows columns).peakAuxiliarySpace current ≤
-      intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+      intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
     intro current
     refine (gf2LoadAndReduce_auxiliary_le input matrix used rows columns current).trans ?_
     intro axis
-    change pivotMaskSpace kind rowCount width axis +
+    change pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.auxiliarySpace axis)) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.auxiliarySpace axis
     omega
   have decision : ∀ current, (selectUniqueFree columns zero success).peakAuxiliarySpace current ≤
-      intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+      intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
     intro current
     refine (gf2UniqueFree_auxiliary columns zero success current).le.trans ?_
     intro axis
     change SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.auxiliarySpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.auxiliarySpace axis
     omega
   have candidateBound : ∀ current,
       (buildCandidate matrix rows columns candidate zero).peakAuxiliarySpace current ≤
-        intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+        intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
     intro current
     refine (gf2BuildCandidate_auxiliary_le matrix rows columns candidate zero current).trans ?_
     intro axis
     change SpacePool.ofShape (.unsignedWord width) axis +
         (SpacePool.ofShape .bit axis +
           (SpacePool.ofShape (.unsignedWord width) axis + ctx.auxiliarySpace axis)) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.auxiliarySpace axis
     omega
   have nonzero : ∀ current,
       (checkCandidateNonzero candidate zero success).peakAuxiliarySpace current ≤
-      intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+      intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
     intro current
     refine (gf2CandidateNonzero_auxiliary candidate zero success current).le.trans ?_
     intro axis
     change SpacePool.ofShape .bit axis +
         (SpacePool.ofShape (.unsignedWord width) axis + ctx.auxiliarySpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.auxiliarySpace axis
     omega
   have validation : ∀ current,
       (validateSamples input candidate success).peakAuxiliarySpace current ≤
-      intoScratchSpace kind rowCount width + ctx.auxiliarySpace := by
+      intoScratchSpace model rowCount width + ctx.auxiliarySpace := by
     intro current
     refine (gf2ValidationSamples_auxiliary_le input candidate success current).trans ?_
     intro axis
     change SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.auxiliarySpace axis) ≤
-      max (pivotMaskSpace kind rowCount width axis +
+      max (pivotMaskSpace (model := model) rowCount width axis +
         (SpacePool.ofShape .bit axis + SpacePool.ofShape .bit axis))
         (SpacePool.ofShape (.unsignedWord width) axis + (SpacePool.ofShape .bit axis +
           SpacePool.ofShape (.unsignedWord width) axis)) + ctx.auxiliarySpace axis

@@ -26,29 +26,32 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Each original initialization vector write consumes the same actual source word. -/
 def pivotRowsClearBodyStep
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (store : Store ctx) :
     Store ctx × (pivotRowsClearBody rows zero).Path :=
-  Circuit.forRangeRecord width (fun column => .classical (pivotRowWriteOp rows zero column))
-    (fun column current => (current.applyOp (pivotRowWriteOp rows zero column), ())) store
+  Circuit.forRangeStoreRecord width
+    (fun column => BitWord.instruction (execution := model) (pivotRowWriteOp rows zero column))
+    (fun column => BitWord.instructionStep (execution := model)
+      (pivotRowWriteOp rows zero column)) store
 
 /-- Ordered real vector writes preserve every complete quantum-reference and history block. -/
 theorem gf2PivotRowsClearBody_execute
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pivotRowsClearBody rows zero).execute Reference state = state.mapClassical (fun entry =>
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pivotRowsClearBody (model := model) rows zero).execute Reference state =
+      state.mapClassical (fun entry =>
       ((pivotRowsClearBodyStep rows zero entry.1).1,
-        (entry.2, (pivotRowsClearBodyStep rows zero entry.1).2))) :=
-  Circuit.execute_forRangeRecord width _ _ (fun column reference {_} _ current => by
-    refine (Circuit.execute_classical_mapClassical (pivotRowWriteOp rows zero column)
-      reference current).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _) Reference state
+        (entry.2.1, (entry.2.2, (pivotRowsClearBodyStep rows zero entry.1).2)))) :=
+  Circuit.execute_forRangeStoreRecord (model := model) width _ _
+    (fun column _ {_} _ current => BitWord.bitWord_instruction_execute (execution := model)
+      (pivotRowWriteOp rows zero column) current) Reference state
 
 /-- The actual fresh zero row word is allocated once and popped after all vector writes. -/
 def clearPivotRowsStep (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -65,11 +68,13 @@ def clearPivotRowsStep (rows : CWriteRef ctx (.fixedVector width (.unsignedWord 
 theorem gf2ClearPivotRows_execute
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (clearPivotRows rows).execute Reference state = state.mapClassical (fun entry =>
-      ((clearPivotRowsStep rows entry.1).1, (entry.2, (clearPivotRowsStep rows entry.1).2))) :=
-  Circuit.execute_workspace_mapClassical _ _ _ _ _
-    (gf2PivotRowsClearBody_execute _ _) Reference state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (clearPivotRows (model := model) rows).execute Reference state =
+      state.mapClassical (fun entry =>
+        ((clearPivotRowsStep rows entry.1).1,
+          (entry.2.1, (entry.2.2, (clearPivotRowsStep rows entry.1).2)))) :=
+  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+    (gf2PivotRowsClearBody_execute (model := model) _ _) Reference state
 
 variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (used : CWriteRef ctx (.unsignedWord rowCount))
@@ -79,57 +84,65 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 /-- Both real self-XORs and pivot-row initialization feed the complete actual column traversal. -/
 def reduceMatrixStep (store : Store ctx) :
     Store ctx × (reduceMatrix matrix used rows columns).Path :=
-  Circuit.sequenceRecord (.classical (Word.PowerOfTwo.clearOp used))
-    (.seq (.classical (Word.PowerOfTwo.clearOp columns))
-      (.seq (clearPivotRows rows) (Circuit.forRange width (reduceColumn matrix used rows columns))))
-    (fun current => (current.applyOp (Word.PowerOfTwo.clearOp used), ()))
-    (Circuit.sequenceRecord (.classical (Word.PowerOfTwo.clearOp columns))
-      (.seq (clearPivotRows rows) (Circuit.forRange width (reduceColumn matrix used rows columns)))
-      (fun current => (current.applyOp (Word.PowerOfTwo.clearOp columns), ()))
-      (Circuit.sequenceRecord (clearPivotRows rows)
-        (Circuit.forRange width (reduceColumn matrix used rows columns)) (clearPivotRowsStep rows)
-        (Circuit.forRangeRecord width (reduceColumn matrix used rows columns)
+  Circuit.sequenceStoreRecord
+    (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp used))
+    (.seq (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (.seq (clearPivotRows (model := model) rows)
+        (Circuit.forRange width
+          (reduceColumn (model := model) matrix used rows columns))))
+    (BitWord.instructionStep (execution := model) (Word.PowerOfTwo.clearOp used))
+    (Circuit.sequenceStoreRecord
+      (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (.seq (clearPivotRows (model := model) rows)
+        (Circuit.forRange width
+          (reduceColumn (model := model) matrix used rows columns)))
+      (BitWord.instructionStep (execution := model) (Word.PowerOfTwo.clearOp columns))
+      (Circuit.sequenceStoreRecord (clearPivotRows (model := model) rows)
+        (Circuit.forRange width (reduceColumn (model := model) matrix used rows columns))
+        (clearPivotRowsStep rows)
+        (Circuit.forRangeStoreRecord width
+          (reduceColumn (model := model) matrix used rows columns)
           (reduceColumnStep matrix used rows columns)))) store
 
 /-- Every complete actual column record follows the original real initialization stages. -/
 theorem gf2ReduceMatrix_execute (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (reduceMatrix matrix used rows columns).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (reduceMatrix (model := model) matrix used rows columns).execute Reference state =
       state.mapClassical (fun entry =>
       ((reduceMatrixStep matrix used rows columns entry.1).1,
-        (entry.2, (reduceMatrixStep matrix used rows columns entry.1).2))) :=
-  Circuit.execute_sequenceRecord _ _ _ _
-    (fun reference {_} _ current => by
-      refine (Circuit.execute_classical_mapClassical (Word.PowerOfTwo.clearOp used)
-        reference current).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (Circuit.execute_sequenceRecord _ _ _ _
-      (fun reference {_} _ current => by
-        refine (Circuit.execute_classical_mapClassical (Word.PowerOfTwo.clearOp columns)
-          reference current).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _)
-      (Circuit.execute_sequenceRecord _ _ _ _ (gf2ClearPivotRows_execute rows)
-        (Circuit.execute_forRangeRecord width _ _
-          (gf2ReduceColumn_execute matrix used rows columns)))) Reference state
+        (entry.2.1, (entry.2.2,
+          (reduceMatrixStep matrix used rows columns entry.1).2)))) :=
+  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (fun _ {_} _ current => BitWord.bitWord_instruction_execute (execution := model)
+      (Word.PowerOfTwo.clearOp used) current)
+    (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+      (fun _ {_} _ current => BitWord.bitWord_instruction_execute (execution := model)
+        (Word.PowerOfTwo.clearOp columns) current)
+      (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+        (gf2ClearPivotRows_execute (model := model) rows)
+        (Circuit.execute_forRangeStoreRecord (model := model) width _ _
+          (gf2ReduceColumn_execute (model := model) matrix used rows columns)))) Reference state
 
 /-- The actual matrix-loading record feeds the actual initialized reduction record. -/
 def loadAndReduceStep (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (store : Store ctx) : Store ctx × (loadAndReduce input matrix used rows columns).Path :=
-  Circuit.sequenceRecord (loadMatrix input matrix) (reduceMatrix matrix used rows columns)
-    (loadMatrixStep input matrix) (reduceMatrixStep matrix used rows columns) store
+  Circuit.sequenceStoreRecord (loadMatrix (model := model) input matrix)
+    (reduceMatrix (model := model) matrix used rows columns)
+    (loadMatrixStep (model := model) input matrix)
+    (reduceMatrixStep matrix used rows columns) store
 
 /-- The original loading and reduction prefix preserves arbitrary complete old correlations. -/
 theorem gf2LoadAndReduce_execute (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (loadAndReduce input matrix used rows columns).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (loadAndReduce (model := model) input matrix used rows columns).execute Reference state =
       state.mapClassical (fun entry =>
         ((loadAndReduceStep matrix used rows columns input entry.1).1,
-          (entry.2, (loadAndReduceStep matrix used rows columns input entry.1).2))) :=
-  Circuit.execute_sequenceRecord _ _ _ _ (gf2LoadMatrix_execute input matrix)
-    (gf2ReduceMatrix_execute matrix used rows columns) Reference state
+          (entry.2.1, (entry.2.2,
+            (loadAndReduceStep matrix used rows columns input entry.1).2)))) :=
+  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (gf2LoadMatrix_execute (model := model) input matrix)
+    (gf2ReduceMatrix_execute (model := model) matrix used rows columns) Reference state
 
 end
 

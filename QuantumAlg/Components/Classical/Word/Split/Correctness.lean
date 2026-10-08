@@ -25,6 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+section Descriptor
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width highWidth lowWidth : Nat}
 
 /-- A native shift preserves every read outside its actual working word. -/
@@ -98,10 +100,15 @@ private theorem low_work (refs : Refs ctx highWidth lowWidth) (separation : Sepa
     (by simpa only [lowOp, ClassicalOp.outputRef, CInputRef.storageKeys,
       List.mem_singleton] using separation.workNeLow.symm)
 
+end Descriptor
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {highWidth lowWidth : Nat}
+
 /-- The actual destructive working word ends at the exact original high quotient. -/
 theorem splitInto_work (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
-    ((splitStep refs store).1.read (.storage refs.work.toCStorageRef)).toNat =
+    ((splitStep (model := model) refs store).1.read (.storage refs.work.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat / 2 ^ lowWidth := by
   change (((shiftStore lowWidth refs.work (store.applyOp (lowOp refs))).applyOp
     (highOp refs)).read (.storage refs.work.toCStorageRef)).toNat = _
@@ -113,7 +120,7 @@ theorem splitInto_work (refs : Refs ctx highWidth lowWidth) (separation : Separa
 /-- The actual low output retains the original remainder through all later writes. -/
 theorem splitInto_low (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
-    ((splitStep refs store).1.read (.storage refs.low.toCStorageRef)).toNat =
+    ((splitStep (model := model) refs store).1.read (.storage refs.low.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat % 2 ^ lowWidth := by
   change (((shiftStore lowWidth refs.work (store.applyOp (lowOp refs))).applyOp
     (highOp refs)).read (.storage refs.low.toCStorageRef)).toNat = _
@@ -128,7 +135,7 @@ theorem splitInto_low (refs : Refs ctx highWidth lowWidth) (separation : Separat
 /-- The original combined-width capacity makes the actual high output the exact quotient. -/
 theorem splitInto_high (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
-    ((splitStep refs store).1.read (.storage refs.high.toCStorageRef)).toNat =
+    ((splitStep (model := model) refs store).1.read (.storage refs.high.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat / 2 ^ lowWidth := by
   have bound := CShape.Value.toNat_lt (store.read (.storage refs.work.toCStorageRef))
   have quotientFits : (store.read (.storage refs.work.toCStorageRef)).toNat / 2 ^ lowWidth <
@@ -144,7 +151,7 @@ theorem splitInto_callerFrame (refs : Refs ctx highWidth lowWidth) (store : Stor
     {shape : CShape} (other : CInputRef ctx shape)
     (work : refs.work.key ∉ other.storageKeys) (high : refs.high.key ∉ other.storageKeys)
     (low : refs.low.key ∉ other.storageKeys) :
-    (splitStep refs store).1.read other = store.read other := by
+    (splitStep (model := model) refs store).1.read other = store.read other := by
   change ((shiftStore lowWidth refs.work (store.applyOp (lowOp refs))).applyOp
     (highOp refs)).read other = _
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (highOp refs) other high,

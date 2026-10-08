@@ -28,7 +28,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The native product difference uses the output itself as first product scratch. -/
-def numeratorInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def numeratorInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
   LatticeCross.coordinateCross (writeInput refs.g11) (writeInput refs.targetDotSecond)
     (writeInput refs.g21) (writeInput refs.targetDotFirst)
     refs.numerator refs.numerator refs.numeratorProduct
@@ -39,11 +40,22 @@ def numeratorStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
     (writeInput refs.g21) (writeInput refs.targetDotFirst)
     refs.numerator refs.numerator refs.numeratorProduct store
 
+/-- The selected three-instruction path of the second numerator. -/
+def numeratorStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (numeratorInto refs).Path :=
+  LatticeCross.coordinateStep (writeInput refs.g11) (writeInput refs.targetDotSecond)
+    (writeInput refs.g21) (writeInput refs.targetDotFirst)
+    refs.numerator refs.numerator refs.numeratorProduct store
+
 /-- The complete actual numerator interpreter retains history and quantum-reference blocks. -/
-theorem numeratorInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem numeratorInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (numeratorInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (numeratorStore refs entry.1, (entry.2, ((), ((), ()))))) := by
+      let actual := numeratorStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   exact LatticeCross.coordinateCross_execute _ _ _ _ _ _ _ Reference state
 
 /-- Only the original two numerator words are modified. -/
@@ -92,14 +104,17 @@ theorem numeratorInto_correct (refs : Refs ctx width) (separation : PhaseSeparat
   · exact separation.phaseCellKey_ne .numeratorProduct .numerator (by decide)
 
 /-- The actual numerator restores all borrowed correlations for arbitrary incoming states. -/
-theorem numeratorInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem numeratorInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (numeratorInto refs).BorrowedRestored Reference state
       ((numeratorInto refs).execute Reference state) := by
   exact LatticeCross.coordinateCross_borrowedRestored _ _ _ _ _ _ _ Reference state
 
 /-- The actual numerator has exactly three native instruction dependencies. -/
-theorem numeratorInto_depth (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
+theorem numeratorInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
     (numeratorInto refs).depth (fun _ => 1) path = 3 := rfl
 
 end

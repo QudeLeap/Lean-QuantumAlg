@@ -34,14 +34,15 @@ noncomputable section
 open EncodedBit SelectionKey SelectionSchedule
 
 /-- The actual ordered list of native events emitted by all finite selectors. -/
-def events (width : Nat) : List (Resource.Event .quantum) :=
+def events (width : Nat) :
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (keys width).flatMap fun selected =>
-    (SelectionSwap.gates width selected).map GateSpec.event
+    (SelectionSwap.gates width selected).map (GateSpec.event .empty)
 
 private theorem indices_events (width : Nat) (indices : List (Key width)) :
-    (indices.flatMap (SelectionSwap.gates width)).map GateSpec.event =
+    (indices.flatMap (SelectionSwap.gates width)).map (GateSpec.event .empty) =
       indices.flatMap (fun selected =>
-        (SelectionSwap.gates width selected).map GateSpec.event) := by
+        (SelectionSwap.gates width selected).map (GateSpec.event .empty)) := by
   induction indices with
   | nil => rfl
   | cons selected rest ih =>

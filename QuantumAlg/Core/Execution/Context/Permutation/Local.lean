@@ -25,8 +25,9 @@ namespace QuantumAlg.Execution.ContextPermutation
 noncomputable section
 
 /-- Local execution keeps the same complete entries at its output. -/
-theorem postPermutation {kind : ProblemKind} {pre post target : RuntimeCtx kind}
-    (code : Circuit pre post) (supported : code.IsLocal)
+theorem postPermutation {model : ExecutionModel}
+    {pre post target : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (supported : code.IsLocal)
     (same : pre.entries.Perm target.entries) : post.entries.Perm target.entries :=
   code.isLocal_endpoints supported ▸ same
 
@@ -39,19 +40,19 @@ def measurement {source target : RuntimeCtx .quantum}
     (congrArg QuantumWire.dimension (positions_wire same wire)).symm) (writable same output)
 
 /-- Rebuild the original local circuit using the target's identical live cells and wires. -/
-def localCircuit : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) → (target : RuntimeCtx kind) →
-    (same : pre.entries.Perm target.entries) → Circuit target target
+def localCircuit : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
+    (target : RuntimeCtx model.kind) →
+    (same : pre.entries.Perm target.entries) → Circuit model target target
   | _, _, _, .id _, _, target, _ => .id target
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary program placed, _, _, same =>
-      .unitary (unitaryProgram same program) (unitaryProgram_physical same program placed)
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary program, _, _, same =>
+      .unitary (unitaryProgram same program)
   | _, _, _, .measureZ wire output, _, _, same =>
       .measureZ (positions same wire) (measurement same wire output)
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, target, same =>
       .seq (localCircuit first supported.1 target same)
         (localCircuit second supported.2 target (postPermutation first supported.1 same))
@@ -62,20 +63,20 @@ def localCircuit : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _ => False.elim supported
 
 /-- Original and rebuilt execution paths have exactly corresponding finite observations. -/
-def localPathEquiv : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) → (target : RuntimeCtx kind) →
+def localPathEquiv : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
+    (target : RuntimeCtx model.kind) →
     (same : pre.entries.Perm target.entries) →
     code.Path ≃ (localCircuit code supported target same).Path
   | _, _, _, .id _, _, _, _ => Equiv.refl Unit
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary _ _, _, _, _ => Equiv.refl Unit
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary _, _, _, _ => Equiv.refl Unit
   | _, _, _, .measureZ wire _, _, _, same =>
       finCongr (congrArg (fun dimension : ℕ+ => (dimension : Nat))
         (congrArg QuantumWire.dimension (positions_wire same wire)).symm)
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, target, same =>
       Equiv.prodCongr (localPathEquiv first supported.1 target same)
         (localPathEquiv second supported.2 target (postPermutation first supported.1 same))
@@ -87,18 +88,18 @@ def localPathEquiv : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
   | _, _, _, .workspace _ _ _ _ _, supported, _, _ => False.elim supported
 
 /-- Rebuilt instructions remain in the same local fragment of the original interpreter. -/
-theorem localCircuit_isLocal : {kind : ProblemKind} → {pre post : RuntimeCtx kind} →
-    (code : Circuit pre post) → (supported : code.IsLocal) → (target : RuntimeCtx kind) →
+theorem localCircuit_isLocal : {model : ExecutionModel} → {pre post : RuntimeCtx model.kind} →
+    (code : Circuit model pre post) → (supported : code.IsLocal) →
+    (target : RuntimeCtx model.kind) →
     (same : pre.entries.Perm target.entries) →
     (localCircuit code supported target same).IsLocal
   | _, _, _, .id _, _, _, _ => trivial
   | _, _, _, .classical _, supported, _, _ => False.elim supported
-  | _, _, _, .declaredCall _, supported, _, _ => False.elim supported
-  | _, _, _, .unitary _ _, _, _, _ => trivial
+  | _, _, _, .classicalQuery _, supported, _, _ => False.elim supported
+  | _, _, _, .unitary _, _, _, _ => trivial
   | _, _, _, .measureZ _ _, _, _, _ => trivial
-  | _, _, _, .randomBits _ _, supported, _, _ => False.elim supported
   | _, _, _, .retain _ _ _ _, supported, _, _ => False.elim supported
-  | _, _, _, .prepare _ _ _ _ _ _, supported, _, _ => False.elim supported
+  | _, _, _, .prepareZero _ _ _ _ _, supported, _, _ => False.elim supported
   | _, _, _, .seq first second, supported, target, same =>
       ⟨localCircuit_isLocal first supported.1 target same,
         localCircuit_isLocal second supported.2 target (postPermutation first supported.1 same)⟩

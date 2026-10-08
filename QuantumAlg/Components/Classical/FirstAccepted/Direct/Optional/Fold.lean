@@ -39,64 +39,75 @@ structure Avoids (refs : Optional.Refs ctx width) {shape : CShape}
 def InputsSeparated (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) : Prop := ∀ index, Avoids refs (inputs index)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Increasing finite indices determine the actual optional-unpack and selection sequence. -/
 def into (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (refs : Optional.Refs ctx width) : Circuit ctx ctx :=
-  Circuit.forRange count (fun index => Optional.into (inputs index) refs)
+    (refs : Optional.Refs ctx width) : Circuit model ctx ctx :=
+  Circuit.forRange count (fun index => Optional.into (model := model) (inputs index) refs)
 
-/-- Record the actual store and branch histories after each chronological candidate. -/
+/-- Record the actual store and service state through every chronological candidate. -/
 def step (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (refs : Optional.Refs ctx width) (store : Store ctx) : Store ctx × (into inputs refs).Path :=
-  Circuit.forRangeRecord count (fun index => Optional.into (inputs index) refs)
-    (fun index => Optional.step (inputs index) refs) store
+    (refs : Optional.Refs ctx width) (entry : Store ctx × model.HiddenState) :
+    (Store ctx × model.HiddenState) × (into (model := model) inputs refs).Path :=
+  Circuit.forRangeRecord count
+    (fun index => Optional.into (model := model) (inputs index) refs)
+    (fun index before =>
+      let actual := Optional.step (model := model) (inputs index) refs before.1
+      ((actual.1, before.2), actual.2)) entry
 
-/-- The complete actual loop changes only its classical record, retaining arbitrary
-reference blocks. -/
+/-- Every actual iteration retains arbitrary references and the persistent service record. -/
 theorem into_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (into inputs refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step inputs refs entry.1).1, (entry.2, (step inputs refs entry.1).2))) :=
-  Circuit.execute_forRangeRecord count (fun index => Optional.into (inputs index) refs)
-    (fun index => Optional.step (inputs index) refs)
-    (fun index => Optional.into_execute (inputs index) refs) Reference state
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) inputs refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := step (model := model) inputs refs (entry.1, entry.2.1)
+        (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) :=
+  Circuit.execute_forRangeRecord count
+    (fun index => Optional.into (model := model) (inputs index) refs)
+    (fun index before =>
+      let actual := Optional.step (model := model) (inputs index) refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun index reference _history _ state =>
+      Optional.into_execute (inputs index) refs reference state) Reference state
 
 /-- Every caller read outside the three destinations survives the complete actual loop. -/
 theorem into_callerFrame (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (refs : Optional.Refs ctx width) (store : Store ctx) {shape : CShape}
+    (refs : Optional.Refs ctx width) (entry : Store ctx × model.HiddenState) {shape : CShape}
     (other : CInputRef ctx shape) (avoids : Avoids refs other) :
-    (step inputs refs store).1.read other = store.read other := by
-  induction count generalizing store with
+    (step (model := model) inputs refs entry).1.1.read other = entry.1.read other := by
+  induction count generalizing entry with
   | zero => rfl
   | succ count induction =>
-      change (step (fun index : Fin count => inputs index.succ) refs
-        (Optional.step (inputs 0) refs store).1).1.read other = _
+      change (step (model := model) (fun index : Fin count => inputs index.succ) refs
+        ((Optional.step (model := model) (inputs 0) refs entry.1).1, entry.2)).1.1.read other = _
       exact (induction _ _).trans
-        (Optional.into_callerFrame (inputs 0) refs store other
+        (Optional.into_callerFrame (inputs 0) refs entry.1 other
           avoids.accepted avoids.selected avoids.unpacked)
 
 /-- Selection is exactly the first-success fold of the original chronological source values. -/
 theorem into_correct (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) (separated : Optional.Separation refs)
-    (sources : InputsSeparated inputs refs) (store : Store ctx) :
-    Optional.selectedValue refs.selection (step inputs refs store).1 =
-      (List.ofFn (fun index => store.read (inputs index))).foldl Optional.retainValue
-        (Optional.selectedValue refs.selection store) := by
-  induction count generalizing store with
+    (sources : InputsSeparated inputs refs) (entry : Store ctx × model.HiddenState) :
+    Optional.selectedValue refs.selection (step (model := model) inputs refs entry).1.1 =
+      (List.ofFn (fun index => entry.1.read (inputs index))).foldl Optional.retainValue
+        (Optional.selectedValue refs.selection entry.1) := by
+  induction count generalizing entry with
   | zero => rfl
   | succ count induction =>
       change Optional.selectedValue refs.selection
-        (step (fun index : Fin count => inputs index.succ) refs
-          (Optional.step (inputs 0) refs store).1).1 = _
+        (step (model := model) (fun index : Fin count => inputs index.succ) refs
+          ((Optional.step (model := model) (inputs 0) refs entry.1).1, entry.2)).1.1 = _
       rw [induction _ (fun index => sources index.succ)]
       have reads : (fun index : Fin count =>
-          (Optional.step (inputs 0) refs store).1.read (inputs index.succ)) =
-          (fun index => store.read (inputs index.succ)) := by
+          (Optional.step (model := model) (inputs 0) refs entry.1).1.read (inputs index.succ)) =
+          (fun index => entry.1.read (inputs index.succ)) := by
         funext index
-        exact Optional.into_callerFrame (inputs 0) refs store (inputs index.succ)
+        exact Optional.into_callerFrame (inputs 0) refs entry.1 (inputs index.succ)
           (sources index.succ).accepted (sources index.succ).selected
           (sources index.succ).unpacked
-      rw [reads, Optional.into_correct (inputs 0) refs separated store]
+      rw [reads, Optional.into_correct (inputs 0) refs separated entry.1]
       rw [List.ofFn_succ, List.foldl_cons]
 
 end

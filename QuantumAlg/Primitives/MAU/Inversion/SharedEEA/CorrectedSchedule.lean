@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.DecodedSchedule
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Output.Correction
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Output.Correction.Gates
 
 /-!
 # Actual fixed shared-EEA schedule produces the original-input inverse
@@ -68,8 +68,9 @@ private theorem decoded_value (modulus input : Nat)
 
 /-- Execute the same fixed forward schedule, physical decoder, and actual output reflection. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
-  (DecodedSchedule.program modulus nontrivial).seq (OutputCorrection.program modulus)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
+  (DecodedSchedule.program modulus nontrivial).seq (OutputCorrection.nativeProgram modulus)
 
 /-- The complete corrected physical frame keeps every non-output part of the forward history. -/
 def result (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
@@ -81,13 +82,15 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (result modulus input.val positive bounded)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (result modulus input.val positive bounded))) := by
   rw [program, UnitaryCircuit.applyNormalized_seq,
     DecodedSchedule.program_initial modulus nontrivial input coprime positive bounded,
-    (OutputCorrection.program_realizes modulus).apply_encoded_ket]
+    (OutputCorrection.outputCorrection_nativeProgram_realizes modulus).apply_encoded_ket]
   rfl
 
 /-- The actual Work2 value is precisely the original-input signed terminal coefficient. -/
@@ -136,11 +139,15 @@ theorem result_retained (modulus input : Nat) (positive : 0 < input) (bounded : 
 
 /-- The same complete forward circuit is reversed; no part of Gamma is discarded. -/
 theorem dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
-    (state : NormalizedVector (Qubits (encoding modulus.size).width)) :
-    (program modulus nontrivial).dagger.applyNormalized
+    (state : NormalizedVector
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum.register) :
+    ((program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
         ((program modulus nontrivial).applyNormalized state) =
       state :=
-  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial) state
+  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial)
+    ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
 
 end
 

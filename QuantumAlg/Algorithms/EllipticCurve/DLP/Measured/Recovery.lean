@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Run
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Probability.Recovery.Execution
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Native.Retained
+import all QuantumAlg.Components.Classical.Model.BitWord.Promotion
 
 /-!
 # Original measured exponent run followed by actual raw recovery
@@ -49,11 +50,12 @@ def exponentRecoveryRun (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
     (nontrivial : 2 ≤ problem.order) :
-    AlgorithmRun (before p.size (2 * orderWidth problem))
+    AlgorithmRun (.quantum AlgorithmGate.model .empty BitWord.model)
+      (before p.size (2 * orderWidth problem))
       (exponentRecoveryContext p (orderWidth problem))
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.OutputShape (orderWidth problem)) :=
   let ctx := exponentMeasurementContext p (orderWidth problem)
-  { code := .seq (exponentRun E fieldTail odd problem points).code
+  { code := .seq (BitWord.selectForCircuit (exponentRun E fieldTail odd problem points).code)
       (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native.retainedCircuit
         (recoveryModulusSpec problem nontrivial)
         (rawRecoveryInput problem (QubitReadouts.input

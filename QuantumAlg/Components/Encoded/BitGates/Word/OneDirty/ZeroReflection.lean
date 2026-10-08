@@ -15,13 +15,14 @@ import all QuantumAlg.Components.Encoded.BitGates.PauliZ
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
 import all QuantumAlg.Components.Encoded.Circuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Vector
 
 /-!
 # Elementary reflection through a zero word with arbitrary restored work
 
 Complementing every reflected wire converts its all-zero condition into the
 all-one phase condition. The reverse complement restores the complete input
-label. Four actual X/Z gates supply the final global minus, giving the exact
+label. One actual native minus-identity gate supplies the final global minus, giving the exact
 positive reflection `2|0><0| - I` rather than its negative. The work bit is
 arbitrary throughout and remains unchanged as part of the complete label.
 -/
@@ -32,6 +33,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- All reflected positions, starting at the phase target, then the original controls. -/
 def reflectionWord : Word encoding (controls + 1) :=
@@ -82,46 +84,55 @@ private theorem complemented_condition (state : Data) :
   simp only [complemented_source, complemented_output, notTrue, reflectedZero]
 
 private theorem list_applyVec (gates : List (GateSpec encoding)) (state : Data) :
-    (GateSpec.programList gates).applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (GateSpec.stepList gates state))).vec :=
-  congrArg NormalizedVector.vec ((GateSpec.realizesList gates).apply_encoded_ket state)
+    (GateSpec.programList physical oracles gates).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (encoding.encode (GateSpec.stepList gates state)))).vec :=
+  congrArg NormalizedVector.vec
+    ((GateSpec.realizesList physical oracles gates).apply_encoded_ket state)
 
 /-- Negative zero phase, with the full complement/uncomplement sequence retained. -/
-def negativeZeroPhase : UnitaryCircuit (Qubits encoding.width) :=
-  ((GateSpec.programList layout.reflectionWord.complementGates).seq layout.phaseProgram).seq
-    (GateSpec.programList layout.reflectionWord.complementGates.reverse)
+def negativeZeroPhase : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  ((GateSpec.programList physical oracles layout.reflectionWord.complementGates).seq
+    (layout.phaseProgram physical oracles)).seq
+    (GateSpec.programList physical oracles layout.reflectionWord.complementGates.reverse)
 
 /-- The negative zero phase restores the entire label, including arbitrary dirty work. -/
 theorem negativeZeroPhase_applyVec_encoded_ket (state : Data) :
-    layout.negativeZeroPhase.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (layout.negativeZeroPhase physical oracles).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       (if layout.reflectedZero state then (-1 : ℂ) else 1) •
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   simp only [negativeZeroPhase, UnitaryCircuit.applyVec_seq]
   rw [list_applyVec, phaseProgram_applyVec_encoded_ket]
   simp only [complemented_condition]
   by_cases zeroWord : layout.reflectedZero state
   · rw [if_pos zeroWord, if_pos zeroWord]
     rw [← neg_one_smul ℂ
-      (NormalizedVector.ket (R := Qubits encoding.width)
-        (encoding.encode (GateSpec.stepList layout.reflectionWord.complementGates state))).vec]
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm
+          (encoding.encode (GateSpec.stepList layout.reflectionWord.complementGates state)))).vec]
     rw [UnitaryCircuit.applyVec_smul, list_applyVec, complementGates_reverse_restore]
   · rw [if_neg zeroWord, if_neg zeroWord, list_applyVec, complementGates_reverse_restore,
       one_smul]
 
 /-- The exact positive zero reflection includes its physical global-minus correction. -/
-def zeroReflectionProgram : UnitaryCircuit (Qubits encoding.width) :=
-  layout.negativeZeroPhase.seq layout.output.globalMinus
+def zeroReflectionProgram : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  (layout.negativeZeroPhase physical oracles).seq (layout.output.globalMinus physical oracles)
 
 /-- Exact positive zero reflection on the complete encoded input, with no work-state premise. -/
 theorem zeroReflectionProgram_applyVec_encoded_ket (state : Data) :
-    layout.zeroReflectionProgram.applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (layout.zeroReflectionProgram physical oracles).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       if layout.reflectedZero state then
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec
-      else -(NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+      else -(NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   rw [zeroReflectionProgram, UnitaryCircuit.applyVec_seq,
     negativeZeroPhase_applyVec_encoded_ket, UnitaryCircuit.applyVec_smul,
     globalMinus_applyVec_encoded_ket]
@@ -129,8 +140,8 @@ theorem zeroReflectionProgram_applyVec_encoded_ket (state : Data) :
 
 /-- Every complement gate, phase gate, and global-minus gate is charged in this sequence. -/
 theorem zeroReflectionProgram_eventTrace_length :
-    layout.zeroReflectionProgram.eventTrace.length =
-      2 * (controls + 1) + layout.gates.length + 6 := by
+    (layout.zeroReflectionProgram physical oracles).eventTrace.length =
+      2 * (controls + 1) + layout.gates.length + 3 := by
   simp only [zeroReflectionProgram, negativeZeroPhase, UnitaryCircuit.seq_eventTrace,
     List.length_append, GateSpec.programList_eventTrace, List.length_map,
     List.length_reverse, complementGates_length, phaseProgram_eventTrace_length,
@@ -139,7 +150,7 @@ theorem zeroReflectionProgram_eventTrace_length :
 
 /-- The exact positive reflection retains a linear actual elementary gate bound. -/
 theorem zeroReflectionProgram_eventTrace_length_le :
-    layout.zeroReflectionProgram.eventTrace.length ≤ 10 * controls + 9 := by
+    (layout.zeroReflectionProgram physical oracles).eventTrace.length ≤ 10 * controls + 6 := by
   rw [zeroReflectionProgram_eventTrace_length]
   have actual := layout.gates_length_le
   omega

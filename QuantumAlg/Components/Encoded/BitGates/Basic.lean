@@ -125,25 +125,30 @@ def relabel {Other : Type} (bit : EncodedBit encoding) (layout : Other ≃ Data)
     intro x
     simpa [BinaryLabelEncoding.relabel] using bit.encode_flip (layout x)
 
+variable {layout : QubitLayout encoding.width} {oracles : OracleModel}
+
 /-- One addressed X/NOT gate realizes the semantic flip for an encoded bit. -/
 theorem x_realizes (bit : EncodedBit encoding) :
-    UnitaryCircuit.Realizes encoding (QubitPrimitive.x bit.wire).circuit bit.flip where
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.x bit.wire).circuit layout oracles) bit.flip where
   apply_encoded_ket := by
     intro x
     rw [QubitPrimitive.circuit_applyNormalized_ket]
-    congr 1
+    apply congrArg (fun label : Fin (2 ^ encoding.width) =>
+      NormalizedVector.ket (R := layout.toQuantum.register) (layout.basisEquiv.symm label))
     exact (bit.encode_flip x).symm
 
 /-- One addressed CNOT gate realizes semantic controlled flip for encoded bits. -/
 theorem cnot_realizes (control target : EncodedBit encoding)
     (hct : control.wire ≠ target.wire) :
-    UnitaryCircuit.Realizes encoding
-      (QubitPrimitive.cnot control.wire target.wire hct).circuit
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles)
       (cnotStep control target) where
   apply_encoded_ket := by
     intro x
     rw [QubitPrimitive.circuit_applyNormalized_ket]
-    congr 1
+    apply congrArg (fun label : Fin (2 ^ encoding.width) =>
+      NormalizedVector.ket (R := layout.toQuantum.register) (layout.basisEquiv.symm label))
     by_cases hcontrol : control.get x
     · simp [QubitPrimitive.applyLabel, WireAddress.cnotMap,
         control.get_eq x, cnotStep, hcontrol, target.encode_flip]
@@ -155,14 +160,15 @@ encoded bits. -/
 theorem toffoli_realizes (controlA controlB target : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire) (ha : controlA.wire ≠ target.wire)
     (hb : controlB.wire ≠ target.wire) :
-    UnitaryCircuit.Realizes encoding
-      (QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-        hab ha hb).circuit
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
+        hab ha hb).circuit layout oracles)
       (toffoliStep controlA controlB target) where
   apply_encoded_ket := by
     intro x
     rw [QubitPrimitive.circuit_applyNormalized_ket]
-    congr 1
+    apply congrArg (fun label : Fin (2 ^ encoding.width) =>
+      NormalizedVector.ket (R := layout.toQuantum.register) (layout.basisEquiv.symm label))
     by_cases hcontrols : controlA.get x && controlB.get x
     · simp [QubitPrimitive.applyLabel, WireAddress.toffoliMap,
         controlA.get_eq x, controlB.get_eq x, toffoliStep, hcontrols,
@@ -172,14 +178,15 @@ theorem toffoli_realizes (controlA controlB target : EncodedBit encoding)
 
 /-- Proof that the actual X circuit realizes the encoded semantic flip. -/
 theorem xWitness (bit : EncodedBit encoding) :
-    UnitaryCircuit.Realizes encoding (QubitPrimitive.x bit.wire).circuit bit.flip :=
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.x bit.wire).circuit layout oracles) bit.flip :=
   x_realizes bit
 
 /-- Proof that the actual CNOT circuit realizes semantic controlled flip. -/
 theorem cnotWitness (control target : EncodedBit encoding)
     (hct : control.wire ≠ target.wire) :
-    UnitaryCircuit.Realizes encoding
-      (QubitPrimitive.cnot control.wire target.wire hct).circuit
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles)
       (cnotStep control target) :=
   cnot_realizes control target hct
 
@@ -187,9 +194,9 @@ theorem cnotWitness (control target : EncodedBit encoding)
 theorem toffoliWitness (controlA controlB target : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire) (ha : controlA.wire ≠ target.wire)
     (hb : controlB.wire ≠ target.wire) :
-    UnitaryCircuit.Realizes encoding
-      (QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-        hab ha hb).circuit
+    UnitaryCircuit.Realizes (layout := layout) encoding
+      ((QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
+        hab ha hb).circuit layout oracles)
       (toffoliStep controlA controlB target) :=
   toffoli_realizes controlA controlB target hab ha hb
 

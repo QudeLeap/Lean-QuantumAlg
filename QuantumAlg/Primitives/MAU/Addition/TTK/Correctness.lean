@@ -105,7 +105,8 @@ theorem ttkLowRipple_step (n : Nat) (original : Registers n) :
 /-- The compiled no-workspace circuit realizes the independent low-word sum. -/
 theorem ttkLowRipple_realizes_addition (n : Nat) :
     UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n) lowOutput :=
-  realizesList_congrStep (lowRippleGates n) (ttkLowRipple_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (lowRippleGates n) (ttkLowRipple_step n)
 
 end
 

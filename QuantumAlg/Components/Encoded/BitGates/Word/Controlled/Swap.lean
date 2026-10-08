@@ -11,7 +11,6 @@ import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
 import all QuantumAlg.Components.Encoded.BitGates.Swap
 import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
-import all QuantumAlg.Components.Encoded.BitGates.Word.CyclicShift
 
 /-!
 # Controlled encoded-word swaps
@@ -30,6 +29,7 @@ namespace EncodedBit
 namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- Three-Toffoli controlled swaps for every bit of two encoded words. -/
 def controlledSwapGates (control : EncodedBit encoding)
@@ -48,8 +48,8 @@ def controlledSwapProgram (control : EncodedBit encoding)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  GateSpec.programList physical oracles
     (controlledSwapGates control left right
       hcontrolLeft hcontrolRight hleftRight)
 
@@ -516,11 +516,11 @@ theorem controlledSwap_realizes (control : EncodedBit encoding)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledSwapProgram control left right
+      (controlledSwapProgram physical oracles control left right
         hcontrolLeft hcontrolRight hleftRight)
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
-  GateSpec.realizesList
+  GateSpec.realizesList physical oracles
     (controlledSwapGates control left right
       hcontrolLeft hcontrolRight hleftRight)
 
@@ -531,11 +531,11 @@ theorem controlledSwapWitness (control : EncodedBit encoding)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledSwapProgram control left right
+      (controlledSwapProgram physical oracles control left right
         hcontrolLeft hcontrolRight hleftRight)
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
-  controlledSwap_realizes control left right
+  controlledSwap_realizes physical oracles control left right
     hcontrolLeft hcontrolRight hleftRight
 
 end Word

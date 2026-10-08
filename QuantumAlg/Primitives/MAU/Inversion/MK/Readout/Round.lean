@@ -316,8 +316,10 @@ theorem fullRoundWorkKaliskiRoundStep_not_realizable_clean_v_zero
     (x : Registers tail.succ counterWidth)
     (hcompare : x.compare = false) (hvZero : x.v.val = 0) :
     ¬ ∃ program :
-        UnitaryCircuit (Qubits
-          (registersWithFullRoundWorkEncoding tail.succ counterWidth).width),
+        UnitaryCircuit AlgorithmGate.model .empty
+          (QubitLayout.canonical
+            (registersWithFullRoundWorkEncoding
+              tail.succ counterWidth).width).toQuantum,
       UnitaryCircuit.Realizes
         (registersWithFullRoundWorkEncoding tail.succ counterWidth)
         program

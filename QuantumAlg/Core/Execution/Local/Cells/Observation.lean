@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Local.Cells.State
+import all QuantumAlg.Core.Execution.Context.Union.Preparation.Density
 import all QuantumAlg.Core.Execution.Measurement.Readout.Effect
 
 /-!
@@ -89,17 +90,21 @@ private theorem retainedReadoutBasis_value (ctx : RuntimeCtx .quantum) (key : St
 
 private theorem retainedSplit_marginal (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (ctx.addRetained key shape fresh) Reference H) :
+    {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (state : State (ctx.addRetained key shape fresh) Reference (Hidden × H)) :
     (underRetainedSplitState key shape fresh state).quantumMarginal =
       state.quantumMarginal.reindex (retainedReadoutBasis ctx key shape fresh Reference) := by
-  unfold underRetainedSplitState ContextUnion.splitState retainedUnionState retainedReadoutBasis
-  rw [marginal_reindex, ExecutionState.mapClassical_quantumMarginal, marginal_reindex,
-    ExecutionState.mapClassical_quantumMarginal, DensityOperator.reindex_trans]
+  unfold underRetainedSplitState retainedReadoutBasis
+  rw [ContextUnion.contextUnion_splitServiceState_quantumMarginal]
+  unfold retainedUnionState
+  erw [marginal_reindex]
+  simp only [ExecutionState.mapClassical_quantumMarginal, DensityOperator.reindex_trans]
 
 private theorem retained_eventEffectWeight (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys) {width : Nat}
     (wires : Fin width → Fin ctx.systemCount) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (ctx.addRetained key shape fresh) Reference H)
+    {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (state : State (ctx.addRetained key shape fresh) Reference (Hidden × H))
     (event : (Fin width → Bool) → Bool) :
     (QubitReadouts.eventEffect (ctx := ctx.addRetained key shape fresh) wires event
       Reference).weight
@@ -116,7 +121,8 @@ private theorem retained_eventEffectWeight (ctx : RuntimeCtx .quantum) (key : St
 /-- The actual readout event keeps its weight through all existing-cell coordinates. -/
 theorem underMeasurementCells_eventEffectWeight (ctx : RuntimeCtx .quantum) (count : Nat)
     {width : Nat} (wires : Fin width → Fin ctx.systemCount) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (MeasurementCells.context ctx 2 count) Reference H)
+    {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (state : State (MeasurementCells.context ctx 2 count) Reference (Hidden × H))
     (event : (Fin width → Bool) → Bool) :
     (QubitReadouts.eventEffect (fun index => MeasurementCells.wireEquiv ctx 2 count (wires index))
       event Reference).weight state.quantumMarginal =

@@ -58,6 +58,20 @@ def splitState (state : State (left.disjointUnion right separate) Reference Hist
   (state.mapClassical (recordEquiv left right separate History)).reindex
     (referenceBasis left right separate Reference)
 
+/-- Put the persistent service before the retained frame store, without discarding either. -/
+def serviceHistory (Hidden History : Type) :
+    Store right × (Hidden × History) ≃ Hidden × (Store right × History) where
+  toFun record := (record.2.1, (record.1, record.2.2))
+  invFun record := (record.2.1, (record.1, record.2.2))
+  left_inv _ := rfl
+  right_inv _ := rfl
+
+/-- The same joint frame coordinates with a distinct persistent service label. -/
+def splitServiceState {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (state : State (left.disjointUnion right separate) Reference (Hidden × H)) :
+    State left (Register.prod right.register Reference) (Hidden × (Store right × H)) :=
+  (splitState left right separate state).mapHistory (serviceHistory right Hidden H)
+
 /-- Reconstruct the actual union state without discarding any block or quantum coordinate. -/
 def joinState
     (state : State left (Register.prod right.register Reference) (Store right × History)) :

@@ -27,13 +27,17 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Independent ordered native formula for copying and splitting one original decoded word. -/
-def copySplitTrace (N : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordUnary .copy (measurementBits N))] ++
+def copySplitTrace (N : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .copy (measurementBits N)))] ++
     Word.Split.splitTrace (JWidth N) (KWidth N)
 
 /-- Independent ordered formula for a sample's selected bits and complete fixed extraction. -/
-def decodeTrace (N : Nat) (bits : List Bool) : List (Resource.Event kind) :=
+def decodeTrace (N : Nat) (bits : List Bool) : List (Resource.Event model) :=
   TerminalDecode.bitsTrace (measurementBits N) bits ++ copySplitTrace N
 
 /-- The ordered actual source bits carried by the complete decoder's selected path. -/
@@ -45,7 +49,8 @@ def decodeBits (refs : Refs ctx N) (path : (decodeInto refs).Path) : List Bool :
 /-- Every actual fixed extraction path emits exactly its independent native copy/split formula. -/
 theorem copySplitInto_events (refs : Refs ctx N) (path : (copySplitInto refs).Path) :
     (copySplitInto refs).eventTrace path = copySplitTrace N := by
-  exact congrArg₂ List.append rfl (Word.Split.splitInto_events (splitRefs refs) path.2)
+  exact congrArg₂ List.append (BitWord.bitWord_instruction_eventTrace (copyOp refs) path.1)
+    (Word.Split.splitInto_events (splitRefs refs) path.2)
 
 /-- Every actual complete decoder path emits the independent selected-bit and extraction formula. -/
 theorem decodeInto_events (refs : Refs ctx N) (path : (decodeInto refs).Path) :
@@ -60,7 +65,7 @@ theorem decodeInto_resourcePool (refs : Refs ctx N) (path : (decodeInto refs).Pa
   congrArg ResourcePool.ofList (decodeInto_events refs path)
 
 /-- An independent coordinatewise budget includes both bit arms and the complete fixed suffix. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   TerminalDecode.envelope (measurementBits N) + ResourcePool.ofList (copySplitTrace N)
 
 /-- Actual decoder resource multiplicities obey the complete independent coordinatewise envelope. -/
@@ -150,18 +155,20 @@ theorem decodePairInto_depth_le (refs : PairRefs ctx N) (path : (decodePairInto 
 
 /-- One complete actual decoder restores every borrowed correlation with the original reference. -/
 theorem decodeInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodeInto refs).BorrowedRestored Reference state
       ((decodeInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq (fullDecodeInto refs) (copySplitInto refs)
   · exact TerminalDecode.fold_borrowedRestored _ _ Reference state
-  · exact Circuit.borrowedRestored_seq (.classical (copyOp refs)) (splitFullInto refs) _
+  · exact Circuit.borrowedRestored_seq _ _ _
       (Circuit.borrowedRestored_classical _ _)
       (Word.Split.splitInto_borrowedRestored (splitRefs refs) Reference _)
 
 /-- Both actual sample decoders jointly restore every borrowed entry and external correlation. -/
 theorem decodePairInto_borrowedRestored (refs : PairRefs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodePairInto refs).BorrowedRestored Reference state
       ((decodePairInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq (decodeInto refs.first) (decodeInto refs.second) state
@@ -170,7 +177,8 @@ theorem decodePairInto_borrowedRestored (refs : PairRefs ctx N) (Reference : Reg
 
 /-- Actual bit decoding, copying and splitting visit only the complete supplied live context. -/
 theorem decodeInto_visited (refs : Refs ctx N) (path : (decodeInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (decodeInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (decodeInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (fullDecodeInto refs).visitedContexts path.1 ++
     ([ctx] ++ (splitFullInto refs).visitedContexts path.2.2) at present
@@ -182,7 +190,8 @@ theorem decodeInto_visited (refs : Refs ctx N) (path : (decodeInto refs).Path)
 
 /-- Both actual decoder invocations keep every original context entry live throughout. -/
 theorem decodePairInto_visited (refs : PairRefs ctx N) (path : (decodePairInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (decodePairInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (decodePairInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ _ ++ _ at present
   exact (List.mem_append.mp present).elim

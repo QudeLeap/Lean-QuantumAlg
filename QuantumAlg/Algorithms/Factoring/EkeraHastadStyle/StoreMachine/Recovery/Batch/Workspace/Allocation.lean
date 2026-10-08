@@ -33,16 +33,17 @@ structure Initialized {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   quadratic : cells.quadratic.Initialized store
 
 /-- Actual allocation supplies every entry value and returns the complete caller postcondition. -/
-theorem withWorkspaces_actualRecord_initialized_post {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) (N : Nat)
-    (body : ∀ {topCtx inner : RuntimeCtx kind}
+theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (N : Nat)
+    (body : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N), top.Distinct →
       (topTransport : Transport ctx topCtx) → top.TransportSeparated topTransport →
       (cells : LatticePairFactorWorkspaceSeparation.Cells inner N) →
       (pairTransport : Transport topCtx inner) →
-      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells → Circuit inner inner)
+      LatticePairFactorWorkspaceSeparation.Certificates pairTransport cells →
+        Circuit model inner inner)
     (Post : Store ctx → Store ctx → Prop)
-    (bodyContract : ∀ {topCtx inner : RuntimeCtx kind}
+    (bodyContract : ∀ {topCtx inner : RuntimeCtx model.kind}
       (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
       (topDistinct : top.Distinct) (topTransport : Transport ctx topCtx)
       (topSeparated : top.TransportSeparated topTransport)
@@ -52,28 +53,28 @@ theorem withWorkspaces_actualRecord_initialized_post {kind : ProblemKind}
       ∃ step : Store inner → Store inner ×
           (body top topDistinct topTransport topSeparated cells pairTransport certificates).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
-          (state : State inner Reference History),
+          (state : State inner Reference (model.HiddenState × History)),
           (body top topDistinct topTransport topSeparated cells pairTransport certificates).execute
               Reference state = state.mapClassical (fun entry =>
-                ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
+                ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
         ∀ before : Store inner, (transportCells pairTransport top).Initialized before →
           Initialized before cells →
           Post ((topTransport.compose pairTransport).restrict before)
             ((topTransport.compose pairTransport).restrict (step before).1)) :
     ∃ step : Store ctx → Store ctx × (withWorkspaces ctx N body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (withWorkspaces ctx N body).execute Reference state = state.mapClassical (fun entry =>
-          ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
+          ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, Post before (step before).1 := by
   unfold withWorkspaces
-  apply withCells_actualRecord_initialized_restricted_post _ _ _ Post
+  apply withCells_actualStoreRecord_initialized_restricted_post _ _ _ Post
   intro topCtx top topDistinct topTransport topSeparated
   apply LatticePairRecoveryWorkspace.withWorkspaces_actualRecord_initialized_post _ _ _
     (fun before after => top.Initialized before →
       Post (topTransport.restrict before) (topTransport.restrict after))
   intro pairCtx pair pairTransport pairCertificates
-  apply withCells_actualRecord_initialized_restricted_post _ _ _
+  apply withCells_actualStoreRecord_initialized_restricted_post _ _ _
     (fun before after => LatticePairRecoveryWorkspace.Initialized before pair →
       top.Initialized (pairTransport.restrict before) →
       Post (topTransport.restrict (pairTransport.restrict before))

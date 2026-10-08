@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
+public import QuantumAlg.Core.Algorithm.ClassicalOp
+public import QuantumAlg.Core.Base.Classical.Value
+public import QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Native.Exposure
 import all QuantumAlg.Core.Execution.Classical.Composition.Record
 import all QuantumAlg.Core.Execution.Store.Read
@@ -31,7 +35,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Three chronological destination writes preserve their actual overwrite behavior on aliases. -/
-def exposureWrite (inverseSuccess : CWriteRef ctx .bit)
+@[expose] public def exposureWrite (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
     (before : Store ctx)
     (value : CShape.Value (.product .bit (FiniteCyclicDLP.OutputShape width))) : Store ctx :=
@@ -48,19 +52,20 @@ def exposureCopyStore (success : CInputRef ctx .bit)
       (.bit .copy ctx verified reconstruction)
 
 /-- Complete actual three-copy execution preserves all quantum-reference blocks and history. -/
-theorem exposureCopyBody_execute (success : CInputRef ctx .bit)
+theorem exposureCopyBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (success : CInputRef ctx .bit)
     (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (exposureCopyBody success recoveredCandidate verified inverseSuccess candidate
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (exposureCopyBody (model := model) success recoveredCandidate verified inverseSuccess candidate
       reconstruction).execute Reference state = state.mapClassical (fun entry =>
-        (exposureCopyStore success recoveredCandidate verified inverseSuccess candidate
-          reconstruction entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [exposureCopyBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let result := exposureCopyStep (model := model) success recoveredCandidate verified
+          inverseSuccess candidate reconstruction entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [exposureCopyBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Source protection gives the exact three writes even when caller destinations alias. -/
 theorem exposureCopyStore_write (success : CInputRef ctx .bit)

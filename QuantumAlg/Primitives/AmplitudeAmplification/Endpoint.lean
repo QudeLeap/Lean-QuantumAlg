@@ -20,11 +20,14 @@ import all QuantumAlg.Primitives.AmplitudeAmplification.Space
 import all QuantumAlg.Primitives.AmplitudeAmplification.Restoration
 import all QuantumAlg.Primitives.AmplitudeAmplification.Specification
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Core.Execution.SelectionAll
 import all QuantumAlg.Core.Execution.MarginalLaws
 import all QuantumAlg.Core.Execution.State.Promise
 import all QuantumAlg.Core.Execution.State.Requirement
+import all QuantumAlg.Core.Execution.Borrowed.State
+import all QuantumAlg.Core.Execution.Borrowed.Classical
 import all QuantumAlg.Core.Execution.Reindex
 import all QuantumAlg.Core.Base.Accounting.Weighted
 
@@ -50,7 +53,9 @@ public theorem problem_valid {n : Nat} (M : IntrinsicAmplitudeAmplificationModel
 
 /-- Execute actual zero preparation, source amplification, and the explicit complete Output. -/
 public def algorithm {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    Algorithm .quantum pre (post n k) .unit where
+    Algorithm (.quantum AlgorithmGate.model
+      (AmplitudeAmplificationSource.model M.preparation M.good true false))
+      pre (post n k) .unit where
   run := run M k
 
 /-- The elementary gate count comes from the single actual complete execution. -/
@@ -64,7 +69,10 @@ public theorem algorithm_gateCount {n : Nat} (M : IntrinsicAmplitudeAmplificatio
 /-- Ordinary source preparation occurs initially and once in each actual iterate. -/
 public theorem algorithm_preparationCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     (k : Nat) (path : (algorithm M k).run.code.Path) :
-    ResourcePool.count (AmplitudeAmplificationSource.preparationEvent n)
+    ResourcePool.count
+      (model := .quantum AlgorithmGate.model
+        (AmplitudeAmplificationSource.model M.preparation M.good true false))
+      (.oracle .preparation)
       ((algorithm M k).run.code.resourcePool path) = k + 1 :=
   code_preparationCount M k path
 
@@ -72,7 +80,10 @@ public theorem algorithm_preparationCount {n : Nat} (M : IntrinsicAmplitudeAmpli
 public theorem algorithm_inversePreparationCount {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
     (path : (algorithm M k).run.code.Path) :
-    ResourcePool.count (AmplitudeAmplificationSource.inversePreparationEvent n)
+    ResourcePool.count
+      (model := .quantum AlgorithmGate.model
+        (AmplitudeAmplificationSource.model M.preparation M.good true false))
+      (.oracle .inversePreparation)
       ((algorithm M k).run.code.resourcePool path) = k :=
   code_inversePreparationCount M k path
 
@@ -80,20 +91,26 @@ public theorem algorithm_inversePreparationCount {n : Nat}
 public theorem algorithm_goodReflectionCount {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
     (path : (algorithm M k).run.code.Path) :
-    ResourcePool.count (AmplitudeAmplificationSource.goodReflectionEvent n)
+    ResourcePool.count
+      (model := .quantum AlgorithmGate.model
+        (AmplitudeAmplificationSource.model M.preparation M.good true false))
+      (.oracle .goodReflection)
       ((algorithm M k).run.code.resourcePool path) = k :=
   code_goodReflectionCount M k path
 
 private theorem final_observed_state {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) {Reference : Register} (supplied : Execution.Input pre Reference) :
+    (k : Nat) {Reference : Register}
+    (supplied : Execution.OracleInput (model M).classicalOracles pre Reference) :
     DensityOperator.observeSelection (post n k).quantumLayout Finset.univ Reference
       ((run M k).finalState Reference supplied.state).quantumMarginal = targetState M k := by
   rw [DensityOperator.observeSelection_all, final_localDensity, DensityOperator.reindex_trans]
   rfl
 
 private theorem actual_state {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    {Reference : Register} (supplied : Execution.Input pre Reference) :
-    (stateRequirement M k).Holds supplied ((run M k).finalState Reference supplied.state) := by
+    {Reference : Register}
+    (supplied : Execution.OracleInput (model M).classicalOracles pre Reference) :
+    (stateRequirement M k).Holds supplied.caller
+      ((run M k).finalState Reference supplied.state) := by
   intro value
   cases value with
   | unit =>
@@ -109,31 +126,42 @@ private theorem actual_state {n : Nat} (M : IntrinsicAmplitudeAmplificationModel
 
 /-- The actual complete run solves the original exact amplification problem at every angle and k. -/
 public theorem main {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
-    ∃ candidate : Algorithm .quantum pre (post n k) .unit,
+    ∃ candidate : Algorithm (.quantum AlgorithmGate.model
+      (AmplitudeAmplificationSource.model M.preparation M.good true false)) pre (post n k) .unit,
       Algorithm.Solves candidate (problem M k) := by
   refine ⟨algorithm M k, ?_⟩
   constructor
-  · intro Reference supplied _valid
+  · intro Reference supplied _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference supplied _valid requirement present
+  · intro Reference supplied _valid _initialized requirement present
     have same : requirement = stateRequirement M k := List.mem_singleton.mp present
     subst requirement
     exact actual_state M k supplied
-  · intro Reference supplied _valid
-    exact code_borrowedRestored M k
-      (supplied.state.mapClassical fun store => (store, store))
-  · intro _Reference _supplied _valid path _supported
+  · intro Reference supplied _valid _initialized
+    have restored := code_borrowedRestored M k
+      (supplied.state.mapClassical (fun value => (value.1, (value.2, value.1))))
+    have history := Execution.observeBorrowed_mapClassical supplied.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
+    change (code M k).BorrowedRestored _ supplied.state
+      ((code M k).execute _
+        (supplied.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
+    unfold Circuit.BorrowedRestored at restored ⊢
+    rw [restored]
+    refine Eq.trans ?_ history
+    apply congrArg (Execution.observeBorrowed _)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
+  · intro _Reference _supplied _valid _initialized path _supported
     exact le_of_eq (code_events M k path)
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact code_residentSpace M k path
-  · intro _Reference _supplied _valid path _supported
+  · intro _Reference _supplied _valid _initialized path _supported
     exact code_auxiliarySpace M k path
-  · intro _Reference _supplied _valid path _supported
-    exact le_of_eq (code_depth M k path)
+  · intro _Reference _supplied _valid _initialized path _supported
+    exact code_depth M k path
 
 end
 

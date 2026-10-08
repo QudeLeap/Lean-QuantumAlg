@@ -39,7 +39,8 @@ theorem selectedSamplingPrefix_mixed_weight_bound
       ExceptionalOffsetAveraging.pairedBigEndianAddend (orderWidth problem)
         problem.generator problem.target)
     (input : SecretInput problem) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (after p.size (2 * orderWidth problem)) Reference H)
+    (state : State (after p.size (2 * orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ basis :
         ((after p.size (2 * orderWidth problem)).register.prod Reference).Index,
       basis.1 ≠ initializedAssembly p (2 * orderWidth problem)
@@ -64,7 +65,8 @@ theorem selectedSamplingPrefix_mixed_weight_bound
         pairedMontgomeryInput fieldTail (orderWidth problem) sameWidth fits seed (0, 0)))
     (samplingInputVector problem fieldTail sameWidth fits seed)
     (samplingInputVector_entry problem fieldTail sameWidth fits seed)
-  · intro store reference
+  · intro store hidden reference
+    cases hidden
     have pure := selectedSamplingPrefix_weight_bound E fieldTail sameWidth fits odd problem
       points seed addends input reference store
     linarith

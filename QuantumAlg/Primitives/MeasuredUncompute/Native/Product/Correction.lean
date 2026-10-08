@@ -47,20 +47,24 @@ theorem targetWord_get (width : Nat) (index : Fin width)
 
 /-- Literal product, selected Z correction, and the same product's inverse. -/
 def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (mask : Fin width → Bool) :
-    UnitaryCircuit (Qubits (VariableGidney.encoding width).width) :=
-  Recompute.program (VariableGidney.program width modulus) (targetWord width) mask
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (VariableGidney.encoding width).width).toQuantum :=
+  Recompute.program (QubitLayout.canonical _) (VariableGidney.program width modulus)
+    (targetWord width) mask
 
 /-- Every complete input label retains precisely the recomputed product character. -/
 theorem program_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : VariableGidney.Registers width) :
     (program width modulus (fun index => outcome.val.testBit index.val)).applyVec
-        (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-          ((VariableGidney.encoding width).encode state)).vec =
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+            ((VariableGidney.encoding width).encode state))).vec =
       WalshHadamard.walshSign outcome
         (Nat.FixedWidth.variableWordPrefix modulus state.1 state.2.1 state.2.2 width) •
-          (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-            ((VariableGidney.encoding width).encode state)).vec := by
-  rw [program, Recompute.recompute_phase_ket _
+          (NormalizedVector.ket
+            ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+              ((VariableGidney.encoding width).encode state))).vec := by
+  rw [program, Recompute.recompute_phase_ket (QubitLayout.canonical _) _
     (VariableGidney.variableGidney_realizes width modulus)]
   rw [measuredCorrection_sign_walsh (targetWord width) _ _ outcome
     (fun index => targetWord_get width index _)]
@@ -72,27 +76,33 @@ theorem program_cancels (width : Nat) (modulus : Fin (2 ^ width + 1))
     (program width modulus (fun index => outcome.val.testBit index.val)).applyVec
         (WalshHadamard.walshSign outcome
           (Nat.FixedWidth.variableWordPrefix modulus state.1 state.2.1 state.2.2 width) •
-            (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-              ((VariableGidney.encoding width).encode state)).vec) =
-      (NormalizedVector.ket (R := Qubits (VariableGidney.encoding width).width)
-        ((VariableGidney.encoding width).encode state)).vec := by
+            (NormalizedVector.ket
+              ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+                ((VariableGidney.encoding width).encode state))).vec) =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+          ((VariableGidney.encoding width).encode state))).vec := by
   rw [UnitaryCircuit.applyVec_smul, program_ket, smul_smul,
     WalshHadamard.walshSign_mul_self, one_smul]
 
 /-- Every reference coordinate has the same exact complete-label phase correction. -/
 theorem program_reference_entry (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : VariableGidney.Registers width)
-    {Reference : Register} (row : Fin (2 ^ (VariableGidney.encoding width).width))
+    {Reference : Register}
+    (row : (QubitLayout.canonical (VariableGidney.encoding width).width).toQuantum.register.Index)
     (left right : Reference.Index) :
     UnitaryOperator.prodTensor
         (program width modulus (fun index => outcome.val.testBit index.val)).matrix
         (1 : UnitaryOperator Reference)
-        (row, left) ((VariableGidney.encoding width).encode state, right) =
-      if row = (VariableGidney.encoding width).encode state ∧ left = right then
+        (row, left)
+        ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+          ((VariableGidney.encoding width).encode state), right) =
+      if row = (QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
+          ((VariableGidney.encoding width).encode state) ∧ left = right then
         WalshHadamard.walshSign outcome
           (Nat.FixedWidth.variableWordPrefix modulus state.1 state.2.1 state.2.2 width)
       else 0 := by
-  rw [program, Recompute.recompute_reference_entry _
+  rw [program, Recompute.recompute_reference_entry (QubitLayout.canonical _) _
     (VariableGidney.variableGidney_realizes width modulus)]
   rw [measuredCorrection_sign_walsh (targetWord width) _ _ outcome
     (fun index => targetWord_get width index _)]

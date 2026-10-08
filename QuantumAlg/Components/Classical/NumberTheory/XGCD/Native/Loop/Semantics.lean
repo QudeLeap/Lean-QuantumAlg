@@ -29,32 +29,35 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual selected transitions follow every allowed prefix of the original mathematical run. -/
-theorem xgcdNativeLoop_state (cells : Cells ctx (stateShapes width))
+theorem xgcdNativeLoop_state {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
-    (record : Store ctx → Store ctx × (guardedActive cells zero).Path)
-    (transition : ∀ before : Store ctx, storedReady cells zero before →
-      ((storedState cells before).first ≠ 0 →
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (guardedActive
+      (model := model) cells zero).Path)
+    (transition : ∀ before : Store ctx × model.HiddenState, storedReady cells zero before.1 →
+      ((storedState cells before.1).first ≠ 0 →
         ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
           (PureXGCD.executionCoefficientWidth width)
-          (PureXGCD.step (storedState cells before)).firstLeftCoefficient ∧
+          (PureXGCD.step (storedState cells before.1)).firstLeftCoefficient ∧
         ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
           (PureXGCD.executionCoefficientWidth width)
-          (PureXGCD.step (storedState cells before)).firstRightCoefficient) →
-      storedReady cells zero (record before).1 ∧
-        storedState cells (record before).1 =
-          if (storedState cells before).first = 0 then storedState cells before
-          else PureXGCD.step (storedState cells before))
-    (count : Nat) (store : Store ctx) (input : PureXGCD.Input width)
-    (ready : storedReady cells zero store)
-    (initial : storedState cells store = PureXGCD.initialState input)
+          (PureXGCD.step (storedState cells before.1)).firstRightCoefficient) →
+      storedReady cells zero (record before).1.1 ∧
+        storedState cells (record before).1.1 =
+          if (storedState cells before.1).first = 0 then storedState cells before.1
+          else PureXGCD.step (storedState cells before.1))
+    (count : Nat) (store : Store ctx × model.HiddenState) (input : PureXGCD.Input width)
+    (ready : storedReady cells zero store.1)
+    (initial : storedState cells store.1 = PureXGCD.initialState input)
     (within : count ≤ ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width) :
-    storedReady cells zero (iteratedActiveRecord cells zero record count store).1 ∧
-      storedState cells (iteratedActiveRecord cells zero record count store).1 =
+    storedReady cells zero (iteratedActiveRecord (model := model) cells zero record count
+      store).1.1 ∧
+      storedState cells (iteratedActiveRecord (model := model) cells zero record count store).1.1 =
         PureXGCD.run count (PureXGCD.initialState input) := by
-  let update := fun before : Store ctx => (record before).1
+  let update := fun before : Store ctx × model.HiddenState => (record before).1
   have invariant : ∀ index : Nat, index ≤ count →
-      storedReady cells zero ((update^[index]) store) ∧
-        storedState cells ((update^[index]) store) =
+      storedReady cells zero ((update^[index]) store).1 ∧
+        storedState cells ((update^[index]) store).1 =
           PureXGCD.run index (PureXGCD.initialState input) := by
     intro index
     induction index with
@@ -82,29 +85,34 @@ theorem xgcdNativeLoop_state (cells : Cells ctx (stateShapes width))
   exact invariant count le_rfl
 
 /-- The actual loop record discharges all intermediate ranges from the original input and fuel. -/
-theorem xgcdNativeLoop_actualRecord
+theorem xgcdNativeLoop_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
     (stateZero : ∀ index : Fin 7, stateKey cells index ∉ zero.storageKeys) (count : Nat) :
-    ∃ record : Store ctx → Store ctx × (Circuit.iterate count (guardedActive cells zero)).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (Circuit.iterate
+      count (guardedActive (model := model) cells zero)).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (Circuit.iterate count (guardedActive cells zero)).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (Circuit.iterate count (guardedActive (model := model) cells zero)).execute Reference
+          state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape),
           (∀ index : Fin 7, stateKey cells index ∉ other.storageKeys) →
-            ((record before).1).read other = before.read other) ∧
-        (∀ input : PureXGCD.Input width, storedReady cells zero before →
-          storedState cells before = PureXGCD.initialState input →
+            ((record before).1.1).read other = before.1.read other) ∧
+        (∀ input : PureXGCD.Input width, storedReady cells zero before.1 →
+          storedState cells before.1 = PureXGCD.initialState input →
           count ≤ ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width →
-          storedReady cells zero (record before).1 ∧
-            storedState cells (record before).1 =
+          storedReady cells zero (record before).1.1 ∧
+            storedState cells (record before).1.1 =
               PureXGCD.run count (PureXGCD.initialState input)) := by
   obtain ⟨bodyRecord, equation, correct⟩ :=
-    xgcdNativeGuardedActive_actualRecord (width := width) cells distinct zero stateZero
-  refine ⟨iteratedActiveRecord cells zero bodyRecord count,
+    xgcdNativeGuardedActive_actualRecord (model := model) (width := width) cells distinct zero
+      stateZero
+  refine ⟨iteratedActiveRecord (model := model) cells zero bodyRecord count,
     xgcdNativeLoop_execute cells zero bodyRecord equation count, ?_⟩
   intro before
   constructor

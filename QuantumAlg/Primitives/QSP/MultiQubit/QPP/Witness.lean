@@ -38,13 +38,14 @@ structure QPP.CircuitProjectedBlockWitness (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ) where
   /-- The single typed circuit supplying both semantics and resource counts. -/
-  circuit : UnitaryCircuit (Qubits (1 + n))
+  circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout
   block_eq :
     projectedBlock 1 n
-      (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+      (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
       = unitaryLaurentPolynomial L U coeff
   resources_exact :
-    QPP.HasExactResourceCounts n (2 * L) circuit.eventCost
+    QPP.HasExactResourceCounts U (2 * L) circuit.eventCost
 
 /-- Build the same-circuit QPP witness from an explicit QPP-evolution
 certificate.  This is retained as an internal helper for source packages that
@@ -93,11 +94,12 @@ helper for source packages that already choose a circuit. -/
 theorem QPP.fromCircuitWitness (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.CircuitProjectedBlockWitness L U coeff) :
-    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-        QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+        QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
   exact ⟨h.circuit, h.block_eq, h.resources_exact⟩
 
 /-- Complement-conditioned projected-block endpoint retained as an internal
@@ -106,11 +108,12 @@ theorem QPP.projectedBlock_of_boundedLaurent (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
-    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+      QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfBoundedLaurent L U coeff h)
 
@@ -120,11 +123,12 @@ theorem QPP.projectedBlock_of_trigonometricBound
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.TrigonometricPolynomialBound L coeff) :
-    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+      QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfTrigonometricBound L U coeff h)
 
@@ -135,11 +139,12 @@ theorem QPP.projectedBlock_of_evolution (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (evolution : QPP.QppEvolutionCertificate L U coeff) :
-    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-        QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+        QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfEvolution L U coeff evolution)
 

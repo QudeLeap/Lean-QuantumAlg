@@ -42,7 +42,7 @@ def semiprimeOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
 
 /-- Every theorem-side key gives the same N-only executable assumption; its
 factors remain absent from the runtime input. -/
-theorem inputOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
+public theorem inputOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
     Input pair.modulus where
   modulus_gt_one := by
     unfold RSA.RSAKeyPairBits.modulus

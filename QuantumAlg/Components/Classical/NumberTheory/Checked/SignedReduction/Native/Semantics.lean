@@ -30,37 +30,49 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual lexical entry closes every internal scratch premise for the original signed residue. -/
-theorem withSignedReduction_actualRecord
+theorem withSignedReduction_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) :
-    ∃ record : Store ctx → Store ctx × (withSignedReduction raw modulus output).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (withSignedReduction (model := model) raw modulus output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withSignedReduction raw modulus output).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withSignedReduction (model := model) raw modulus output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef ctx shape), output.key ∉ other.storageKeys →
-          (record before).1.read other = before.read other) ∧
-        ((before.read modulus).toNat = spec.modulus →
-          ((record before).1.read (signedRead output)).toNat =
-            (reduceRawCoefficient spec (before.read raw)).val) := by
+          (record before).1.1.read other = before.1.read other) ∧
+        ((before.1.read modulus).toNat = spec.modulus →
+          ((record before).1.1.read (signedRead output)).toNat =
+            (reduceRawCoefficient spec (before.1.read raw)).val) := by
   let Post (before after : Store ctx) : Prop :=
     (∀ {shape : CShape} (other : CInputRef ctx shape), output.key ∉ other.storageKeys →
       after.read other = before.read other) ∧
     ((before.read modulus).toNat = spec.modulus →
       (after.read (signedRead output)).toNat = (reduceRawCoefficient spec (before.read raw)).val)
   refine withCells_actualRecord_initialized_restricted_post ctx (signedReductionShapes width)
-    (fun cells _ transport _ => signedReductionBody (transport.liftInput raw)
+    (fun cells _ transport _ => signedReductionBody (model := model) (transport.liftInput raw)
       (transport.liftInput modulus) (signedWorkCell cells) (signedNegativeCell cells)
       (signedRemainderCell cells) (transport.liftWrite output)) Post ?_
   intro inner cells distinct transport separated
-  let record := signedReductionBodyStep (transport.liftInput raw) (transport.liftInput modulus)
+  let record := signedReductionBodyStep (model := model) (transport.liftInput raw)
+    (transport.liftInput modulus)
     (signedWorkCell cells) (signedNegativeCell cells) (signedRemainderCell cells)
     (transport.liftWrite output)
-  refine ⟨record, signedReductionBody_execute _ _ _ _ _ _, ?_⟩
-  intro before initialized
+  refine ⟨(fun before =>
+    let result := record before.1
+    ((result.1, before.2), result.2)), ?_, ?_⟩
+  · intro reference history _ initial
+    exact (signedReductionBody_execute (model := model) (transport.liftInput raw)
+      (transport.liftInput modulus) (signedWorkCell cells) (signedNegativeCell cells)
+      (signedRemainderCell cells) (transport.liftWrite output) reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  rintro ⟨before, hidden⟩ initialized
+  change Post (transport.restrict before) (transport.restrict (record before).1)
   have entered : transport.ReadsAs (transport.restrict before) before :=
     transport.workspaceTransport_restrict_readsAs before
   have returned : transport.ReadsAs (transport.restrict (record before).1) (record before).1 :=

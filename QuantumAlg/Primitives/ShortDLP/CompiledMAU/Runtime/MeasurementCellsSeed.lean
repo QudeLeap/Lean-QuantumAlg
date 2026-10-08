@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Seed
-import all QuantumAlg.Core.Execution.Measurement.Cells
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed.Invariant
+import all QuantumAlg.Core.Execution.Basis.Seeded.Allocation
 
 /-!
 # Actual shared measurement-cell allocation retains the prepared bank seed
@@ -30,27 +30,27 @@ theorem shortDLP_runtimeMeasurementCells_seedBlocks {ctx : RuntimeCtx .quantum}
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
     (dimension : ℕ+) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state) :
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state) :
     HasSeedBlocks m ell width
       ((MeasurementCells.context_quantumWires ctx dimension count).trans sameWires) N
-      ((MeasurementCells.allocate ctx dimension count).execute Reference state) := by
-  induction count with
-  | zero =>
-      exact shortDLP_runtimeSeedBlocks_mapHistory m ell width sameWires N state seeded
-        (fun history => (history, ()))
-  | succ count induction =>
-      let allocationPrefix := MeasurementCells.allocate ctx dimension count
-      let middle := MeasurementCells.context ctx dimension count
-      let middleWires :=
-        (MeasurementCells.context_quantumWires ctx dimension count).trans sameWires
-      let retain := Circuit.retain middle middle.canonicalFreshKey (.finite dimension)
-        middle.canonicalFreshKey_fresh
-      have retained := shortDLP_runtimeSeedBlocks_retain m ell width middleWires N
-        middle.canonicalFreshKey (.finite dimension) middle.canonicalFreshKey_fresh
-        (allocationPrefix.execute Reference state) induction
-      exact RuntimeRepetition.seq_seed allocationPrefix retain m ell width N
-        ((MeasurementCells.context_quantumWires ctx dimension (count + 1)).trans sameWires)
-        state retained
+      ((MeasurementCells.allocate (model := model) ctx dimension count).execute
+        Reference state) := by
+  have corresponding :
+      (RuntimePlacement.basisEquiv m ell width
+        ((MeasurementCells.context_quantumWires ctx dimension count).trans sameWires)).symm
+          (CompiledMAU.reloadLabel m ell width N) =
+        MeasurementCells.basisEquiv ctx dimension count
+          ((RuntimePlacement.basisEquiv m ell width sameWires).symm
+            (CompiledMAU.reloadLabel m ell width N)) := by
+    induction count with
+    | zero => rfl
+    | succ count induction => exact induction
+  change BasisSeeded.Holds _ _
+  rw [corresponding]
+  exact MeasurementCells.allocate_seeded (model := model) ctx dimension count
+    ((RuntimePlacement.basisEquiv m ell width sameWires).symm
+      (CompiledMAU.reloadLabel m ell width N)) state seeded
 
 end
 

@@ -42,25 +42,29 @@ private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modu
   · rw [liftInput_keys]
     exact separate
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem body_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store (context ctx N)) :
-    (bodyStep halfPower output store).1.read (liftInput other) =
+    (bodyStep (model := model) halfPower output store).1.read (liftInput other) =
       store.read (liftInput other) :=
   (congrArg (fun final : Store (context ctx N) => final.read (liftInput other))
-    (body_store halfPower output store)).trans
-      ((NativeHalfFactor.read_other (liftInput halfPower) (cells ctx N) (liftWrite output)
-        (liftInput other) (frame_free output other separate) (initialized store)).trans
-          (initialized_read_original other store))
+    (body_store (model := model) halfPower output store)).trans
+      ((NativeHalfFactor.read_other (model := model) (liftInput halfPower) (cells ctx N)
+          (liftWrite output)
+        (liftInput other) (frame_free output other separate) (initialized (model := model)
+            store)).trans
+          (initialized_read_original (model := model) other store))
 
 /-- After actual release, only the declared output can change in the original classical frame. -/
 theorem read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step halfPower output store).1.read other = store.read other :=
-  (leave_read other (bodyStep halfPower output (enter N store)).1).trans
-    ((body_read_other halfPower output other separate (enter N store)).trans
+    (step (model := model) halfPower output store).1.read other = store.read other :=
+  (leave_read other (bodyStep (model := model) halfPower output (enter N store)).1).trans
+    ((body_read_other (model := model) halfPower output other separate (enter N store)).trans
       (enter_read other store))
 
 end

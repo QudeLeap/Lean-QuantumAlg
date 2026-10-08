@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Guarded.Shift
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Arithmetic.Blocks
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.SignQuotient
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Guarded.Shift.Gates
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Arithmetic.Blocks.Gates
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.SignQuotient.Gates
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Native.Control
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.ZeroShiftControl
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Terminal.Boundary
@@ -40,17 +40,20 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeMicrostep
 
 noncomputable section
 
-/-- The actual single native microstep, in the source's execution order. -/
+open EncodedBit GateSpec
+
+/-- The complete native instruction word in the original eight-block source order. -/
+def gates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (encoding width)) :=
+  GuardedShift.gates width false ++ ArithmeticBlocks.remainderGates width ++
+    SignQuotient.gates width ++ ArithmeticBlocks.coefficientGates width ++
+    GuardedShift.gates width true ++ NativeControl.gates width enough ++
+    ZeroShiftControl.gates width enough ++ TerminalBoundary.gates width enough
+
+/-- Execute the actual complete literal native word on the original register frame. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (GuardedShift.program width false).seq
-    ((ArithmeticBlocks.remainderProgram width).seq
-      ((SignQuotient.program width).seq
-        ((ArithmeticBlocks.coefficientProgram width).seq
-          ((GuardedShift.program width true).seq
-            ((NativeControl.program width enough).seq
-              ((ZeroShiftControl.program width enough).seq
-                (TerminalBoundary.program width enough)))))))
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Complete action of the same eight actual blocks, including arbitrary incoming Ctrl. -/
 def step (width : Nat) (state : Registers width) : Registers width :=
@@ -59,17 +62,20 @@ def step (width : Nat) (state : Registers width) : Registers width :=
       (SignQuotient.step width (ArithmeticBlocks.remainderStep width
         (GuardedShift.step false state)))))))
 
-/-- Full-label realization composes the actual subprograms without losing relative phases. -/
+/-- Every complete original frame follows all eight actual blocks without a work premise. -/
+theorem nativeMicrostep_gates_step (width : Nat) (enough : 2 ≤ width.size)
+    (state : Registers width) : stepList (gates width enough) state = step width state := by
+  simp only [gates, stepList_append, GuardedShift.guardedShift_gates_step,
+    ArithmeticBlocks.arithmeticBlocks_remainderGates_step, SignQuotient.signQuotient_gates_step,
+    ArithmeticBlocks.arithmeticBlocks_coefficientGates_step, NativeControl.gates_step,
+    ZeroShiftControl.gates_step, TerminalBoundary.gates_step]
+  rfl
+
+/-- Full-label realization of the literal native word preserves all amplitudes and phases. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough) (step width) :=
-  (GuardedShift.program_realizes width false).seq
-    ((ArithmeticBlocks.remainderProgram_realizes width).seq
-      ((SignQuotient.program_realizes width).seq
-        ((ArithmeticBlocks.coefficientProgram_realizes width).seq
-          ((GuardedShift.program_realizes width true).seq
-            ((NativeControl.program_realizes width enough).seq
-              ((ZeroShiftControl.program_realizes width enough).seq
-                (TerminalBoundary.program_realizes width enough)))))))
+  realizesList_congrStep (QubitLayout.canonical _) .empty _
+    (nativeMicrostep_gates_step width enough)
 
 /-- The actual finite microstep is injective on every complete original frame. -/
 theorem step_injective (width : Nat) (enough : 2 ≤ width.size) :
@@ -78,10 +84,13 @@ theorem step_injective (width : Nat) (enough : 2 ≤ width.size) :
 
 /-- The actual inverse circuit restores every normalized state, beyond individual basis labels. -/
 theorem dagger_after_forward (width : Nat) (enough : 2 ≤ width.size)
-    (state : NormalizedVector (Qubits (encoding width).width)) :
-    (program width enough).dagger.applyNormalized ((program width enough).applyNormalized state) =
+    (state : NormalizedVector (QubitLayout.canonical (encoding width).width).toQuantum.register) :
+    ((program width enough).dagger (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+      ((program width enough).applyNormalized state) =
       state :=
-  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program width enough) state
+  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program width enough)
+    ((program width enough).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
 
 /-- Every source block contributes its complete actual event list in the literal execution order. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
@@ -94,7 +103,23 @@ theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
                 (NativeControl.program width enough).eventTrace ++
                   (ZeroShiftControl.program width enough).eventTrace ++
                     (TerminalBoundary.program width enough).eventTrace := by
-  simp only [program, UnitaryCircuit.seq_eventTrace, List.append_assoc]
+  simp only [program, programList_eventTrace, gates, List.map_append,
+    GuardedShift.guardedShift_gates_trace, ArithmeticBlocks.arithmeticBlocks_remainderGates_trace,
+    SignQuotient.signQuotient_gates_trace,
+    ArithmeticBlocks.arithmeticBlocks_coefficientGates_trace,
+    NativeControl.program, ZeroShiftControl.program, TerminalBoundary.program, List.append_assoc]
+
+/-- Reversing the same actual primitive list restores every complete original input frame. -/
+theorem nativeMicrostep_reverseGates_restores (width : Nat) (enough : 2 ≤ width.size)
+    (state : Registers width) :
+    stepList (gates width enough).reverse (step width state) = state := by
+  rw [← nativeMicrostep_gates_step width enough state]
+  exact stepList_reverse_stepList _ state
+
+/-- The complete sequential native microstep has exactly one unit of depth per emitted gate. -/
+theorem nativeMicrostep_program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
+    (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length := by
+  rw [program, programList_evaluatedEventDepth_unit]
 
 end
 

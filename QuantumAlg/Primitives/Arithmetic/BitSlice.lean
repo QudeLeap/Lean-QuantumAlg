@@ -35,14 +35,17 @@ def targetAdd2Program {width : Nat}
     (srcLo tgtLo srcHi tgtHi : Fin width)
     (hSrcLoTgtLo : srcLo ≠ tgtLo) (hSrcLoTgtHi : srcLo ≠ tgtHi)
     (hTgtLoTgtHi : tgtLo ≠ tgtHi) (hSrcHiTgtHi : srcHi ≠ tgtHi) :
-    UnitaryCircuit (Qubits width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (width)).toQuantum :=
   UnitaryCircuit.seq
     (QubitPrimitive.circuit
       (.toffoli srcLo tgtLo tgtHi
-        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi))
+        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi)
+      (QubitLayout.canonical _) .empty)
     (UnitaryCircuit.seq
-      (QubitPrimitive.circuit (.cnot srcHi tgtHi hSrcHiTgtHi))
-      (QubitPrimitive.circuit (.cnot srcLo tgtLo hSrcLoTgtLo)))
+      (QubitPrimitive.circuit (.cnot srcHi tgtHi hSrcHiTgtHi)
+        (QubitLayout.canonical _) .empty)
+      (QubitPrimitive.circuit (.cnot srcLo tgtLo hSrcLoTgtLo)
+        (QubitLayout.canonical _) .empty))
 
 /-- Raw basis-label action of `targetAdd2Program`. -/
 def targetAdd2Step {width : Nat}
@@ -109,8 +112,9 @@ theorem sumGates_bitDisjoint
 /-- Base-gate program for the local two-control xor/sum block. -/
 def sumProgram (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (sumGates left carry target hlt hct)
+  UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (encoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (sumGates left carry target hlt hct)
 
 /-- Folded semantic action of the local two-control xor/sum block. -/
 def sumStep (left carry target : EncodedBit encoding)
@@ -161,7 +165,8 @@ theorem sum_realizes (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
     UnitaryCircuit.Realizes encoding (sumProgram left carry target hlt hct)
       (sumStep left carry target hlt hct) :=
-  EncodedBit.GateSpec.realizesList (sumGates left carry target hlt hct)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (sumGates left carry target hlt hct)
 
 /-- Three Toffoli gates that xor the pairwise-control products
 `left ∧ right`, `left ∧ carryIn`, and `right ∧ carryIn` into a separate
@@ -217,8 +222,8 @@ def carryOutProgram (left right carryIn carryOut : EncodedBit encoding)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
     (hrco : right.wire ≠ carryOut.wire)
     (hcico : carryIn.wire ≠ carryOut.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (encoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (carryOutGates left right carryIn carryOut
       hlr hlci hlco hrci hrco hcico)
 
@@ -384,8 +389,8 @@ def borrowOutProgram
     (hsbi : subtrahend.wire ≠ borrowIn.wire)
     (hsbo : subtrahend.wire ≠ borrowOut.wire)
     (hbibo : borrowIn.wire ≠ borrowOut.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (encoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (borrowOutGates minuend subtrahend borrowIn borrowOut
       hms hmbi hmbo hsbi hsbo hbibo)
 
@@ -417,7 +422,7 @@ theorem borrowOut_realizes
         hms hmbi hmbo hsbi hsbo hbibo)
       (borrowOutStep minuend subtrahend borrowIn borrowOut
         hms hmbi hmbo hsbi hsbo hbibo) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (borrowOutGates minuend subtrahend borrowIn borrowOut
       hms hmbi hmbo hsbi hsbo hbibo)
 
@@ -809,7 +814,7 @@ theorem carryOut_realizes (left right carryIn carryOut : EncodedBit encoding)
         hlr hlci hlco hrci hrco hcico)
       (carryOutStep left right carryIn carryOut
         hlr hlci hlco hrci hrco hcico) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (carryOutGates left right carryIn carryOut
       hlr hlci hlco hrci hrco hcico)
 
@@ -834,8 +839,8 @@ def targetAdd2Program (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
     (hSrcLoTgtHi : srcLo.wire ≠ tgtHi.wire)
     (hTgtLoTgtHi : tgtLo.wire ≠ tgtHi.wire)
     (hSrcHiTgtHi : srcHi.wire ≠ tgtHi.wire) :
-    UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical (encoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (targetAdd2Gates srcLo tgtLo srcHi tgtHi
       hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
 
@@ -862,7 +867,7 @@ theorem targetAdd2_realizes (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
         hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
       (targetAdd2Step srcLo tgtLo srcHi tgtHi
         hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (targetAdd2Gates srcLo tgtLo srcHi tgtHi
       hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
 
@@ -897,15 +902,19 @@ def unmajorityGates (left right carry : EncodedBit encoding)
 /-- Base-gate program for the local majority-style block. -/
 def majorityProgram (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    (hrc : right.wire ≠ carry.wire) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (majorityGates left right carry hlr hlc hrc)
 
 /-- Base-gate program for the reverse cleanup block. -/
 def unmajorityProgram (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
-    (hrc : right.wire ≠ carry.wire) : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList
+    (hrc : right.wire ≠ carry.wire) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (unmajorityGates left right carry hlr hlc hrc)
 
 /-- Folded semantic action of the local majority-style block. -/
@@ -929,7 +938,7 @@ theorem majority_realizes (left right carry : EncodedBit encoding)
     UnitaryCircuit.Realizes encoding
       (majorityProgram left right carry hlr hlc hrc)
       (majorityStep left right carry hlr hlc hrc) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (majorityGates left right carry hlr hlc hrc)
 
 /-- The reverse cleanup program realizes its folded bit semantics. -/
@@ -939,7 +948,7 @@ theorem unmajority_realizes (left right carry : EncodedBit encoding)
     UnitaryCircuit.Realizes encoding
       (unmajorityProgram left right carry hlr hlc hrc)
       (unmajorityStep left right carry hlr hlc hrc) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (unmajorityGates left right carry hlr hlc hrc)
 
 end Encoded

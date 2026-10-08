@@ -23,7 +23,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem test_read_word (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
@@ -34,6 +35,7 @@ private theorem test_read_word (reject : Bool)
     (avoids success word (shapes_ne success word (by intro same; cases same)))
     (avoids flag word (shapes_ne flag word (by intro same; cases same)))
 
+omit [BitWord.Selected model] in
 private theorem masked_read_other
     (free work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : work.key ∉ other.storageKeys) :

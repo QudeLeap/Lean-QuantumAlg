@@ -33,6 +33,9 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+-- Observe the mathematical full-path record through the generic composition laws.
+attribute [local irreducible] Circuit.sequenceStoreRecord
+
 /-- Caller-owned seed, indexed pair fold, and their shared factor selector. -/
 structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
   /-- Input reference for the parameter value. -/
@@ -103,17 +106,18 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   seed : LatticeEarlyFactorSeed.CallerFrameAvoids refs.seed other
   fold : LatticePairRecoveryFold.CallerFrameAvoids refs.fold other
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Seed the early factor and execute every unordered terminal pair. -/
-def into (input : Input N) (refs : Refs ctx N) : Circuit ctx ctx :=
+def into (input : Input N) (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold)
 
 /-- The complete actual store flows from seeding into the canonical pair sequence. -/
-def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     Store ctx × (into input refs).Path :=
-  Circuit.sequenceRecord (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
+  Circuit.sequenceStoreRecord (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold)
     (LatticeEarlyFactorSeed.step refs.parameter refs.seed)
     (LatticePairRecoveryFold.step input refs.fold) store
@@ -122,14 +126,16 @@ def step (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
 theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 = (LatticePairRecoveryFold.step input refs.fold
       (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1).1 :=
-  Circuit.sequenceRecord_store _ _ _ _ store
+  Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The seed-and-fold record executes on arbitrary histories and external references. -/
 theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input refs entry.1).1, (entry.2, (step input refs entry.1).2))) :=
-  Circuit.execute_sequenceRecord _ _ _ _
+      let actual := step input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord _ _ _ _
     (LatticeEarlyFactorSeed.into_execute refs.parameter refs.seed)
     (LatticePairRecoveryFold.into_execute input refs.fold) Reference state
 
@@ -250,14 +256,15 @@ theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N)
   rw [preparedSamples_afterSeed sample refs separation store]
 
 /-- The independent native allowance pays for the seed and every complete reusable pair. -/
-def eventEnvelope (N : Nat) : ResourcePool kind :=
+def eventEnvelope (N : Nat) : ResourcePool model :=
   LatticeEarlyFactorSeed.eventEnvelope N + LatticePairRecoveryFold.eventEnvelope N
 
 /-- The independent sequential depth includes seeding and the complete pair fold. -/
 def depthBound (N : Nat) : Nat := 5 + LatticePairRecoveryFold.depthBound N
 
-private theorem sequence_pool_le (first second : Circuit ctx ctx)
-    (firstBound secondBound : ResourcePool kind)
+omit [BitWord.Selected model] in
+private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+    (firstBound secondBound : ResourcePool model)
     (firstLe : ∀ path, first.resourcePool path ≤ firstBound)
     (secondLe : ∀ path, second.resourcePool path ≤ secondBound)
     (path : (Circuit.seq first second).Path) :
@@ -285,7 +292,7 @@ theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input 
 /-- Seeding and pair reuse retain the context plus the actual native-power resident peak. -/
 theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
-      ctx.residentSpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold) path).le.trans ?_
   exact SpacePool.max_le
@@ -296,7 +303,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
 /-- Auxiliary accounting follows the same actual scopes and retained context roles. -/
 theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + Modular.NativePower.powerSpace kind (modulusBits N) := by
+      ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
     (LatticePairRecoveryFold.into input refs.fold) path).le.trans ?_
   exact SpacePool.max_le
@@ -306,7 +313,8 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
 
 /-- Seed and full recovery jointly restore all borrowed systems with arbitrary references. -/
 theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
       ((into input refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state

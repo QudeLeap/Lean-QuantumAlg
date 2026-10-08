@@ -25,11 +25,14 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Actual signed nearest division preserves all caller reads outside its six mutable cells. -/
 theorem body_callerFrame (refs : BodyRefs ctx width) (store : Store ctx) :
-    CallerFrame refs store (bodyStep refs store).1 := by
+    CallerFrame refs store (bodyStep (model := model) refs store).1 := by
   intro shape other avoids
   unfold bodyStep
+  dsimp only [BitWord.instructionStep]
   rw [finish_callerFrame _ _ _ (avoids _ (by simp [mutableKeys])),
     Store.read_applyOp_of_not_mem_storageKeys _ _ _
       (avoids refs.division.key (by simp [mutableKeys])),
@@ -43,17 +46,18 @@ theorem body_callerFrame (refs : BodyRefs ctx width) (store : Store ctx) :
 theorem body_outputRepresents (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (widthPositive : 0 < width)
     (denominatorPositive : 0 < (store.read refs.denominator).toNat) :
-    RawSignedRepresents ((bodyStep refs store).1.read (writeInput refs.output))
+    RawSignedRepresents ((bodyStep (model := model) refs store).1.read (writeInput refs.output))
       (QuantumAlg.NumberTheory.nearestIntegerCoefficient
         (decodeRawSignedWord (store.read refs.numerator))
         ((store.read refs.denominator).toNat : Int)) := by
-  let prepared := (prepareStep refs store).1
-  let rounded := (roundingStep refs prepared).1
+  let prepared := (prepareStep (model := model) refs store).1
+  let rounded := (roundingStep (model := model) refs prepared).1
   let divided := rounded.applyOp (divideOp refs)
   obtain ⟨numeratorPrepared, denominatorPrepared, signPrepared⟩ :=
-    prepare_values refs separation store widthPositive
+    prepare_values (model := model) refs separation store widthPositive
   obtain ⟨numeratorRounded, denominatorRounded, signRounded⟩ :=
-    rounding_values refs separation prepared (rawMagnitude (store.read refs.numerator))
+    rounding_values (model := model) refs separation prepared (rawMagnitude (store.read
+      refs.numerator))
       (store.read refs.denominator).toNat (rawIsNegative (store.read refs.numerator))
       numeratorPrepared denominatorPrepared signPrepared denominatorPositive
       (roundedDividend_fits widthPositive _ _) (doubledDenominator_fits _)
@@ -61,9 +65,11 @@ theorem body_outputRepresents (refs : BodyRefs ctx width) (separation : Separati
       rawIsNegative (store.read refs.numerator) := by
     rw [read_other rounded (divideOp refs) refs.negative (Ne.symm separation.negativeNeDivision)]
     exact signRounded
-  have output := finish_represents refs divided (Ne.symm separation.negativeNeOutput)
+  have output := finish_represents (model := model) refs divided (Ne.symm
+    separation.negativeNeOutput)
   rw [signDivided, divide_quotient, numeratorRounded, denominatorRounded] at output
-  change RawSignedRepresents ((finishStep refs divided).1.read (writeInput refs.output)) _
+  change RawSignedRepresents ((finishStep (model := model) refs divided).1.read (writeInput
+    refs.output)) _
   rw [decodeRawSignedWord_eq_signedMagnitude widthPositive]
   cases flag : rawIsNegative (store.read refs.numerator) with
   | false =>
@@ -90,14 +96,14 @@ theorem body_outputRepresents_of_raw (refs : BodyRefs ctx width) (separation : S
     (denominatorRepresents :
       RawSignedRepresents (store.read refs.denominator) (denominatorValue : Int))
     (denominatorFits : denominatorValue < CShape.wordModulus width) :
-    RawSignedRepresents ((bodyStep refs store).1.read (writeInput refs.output))
+    RawSignedRepresents ((bodyStep (model := model) refs store).1.read (writeInput refs.output))
       (QuantumAlg.NumberTheory.nearestIntegerCoefficient
         numeratorValue (denominatorValue : Int)) := by
   have numeratorDecoded := rawSignedRepresents_decode_eq _ _ widthPositive
     numeratorRepresents numeratorRange
   have denominatorDecoded := rawSignedRepresents_toNat_eq_of_lt _
     denominatorRepresents denominatorFits
-  have actual := body_outputRepresents refs separation store widthPositive
+  have actual := body_outputRepresents (model := model) refs separation store widthPositive
     (by rw [denominatorDecoded]; exact denominatorPositive)
   rw [numeratorDecoded, denominatorDecoded] at actual
   exact actual

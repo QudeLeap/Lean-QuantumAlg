@@ -31,20 +31,25 @@ open NumberTheory.Checked.SignedReduction.Native
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original loader and independent raw-engine and signed-reduction syntax allowances. -/
-def coefficientEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  ResourcePool.ofList (ConstantWord.loaderTrace kind (width + 1)
+def coefficientEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  ResourcePool.ofList (ConstantWord.loaderTrace model (width + 1)
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))) +
-      ((ResourcePool.ofList [.classicalOperation (.wordResize width (width + 1))] +
-        rawEnvelope kind (width + 1)) + signedReductionEnvelope kind width)
+      ((ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordResize width (width + 1)))] +
+        rawEnvelope model (width + 1)) + signedReductionEnvelope model width)
 
 /-- Original serial allowance retains the real constant-loader and widening durations. -/
-def coefficientDepthLimit (spec : ModulusSpec width) (duration : Resource.Event kind → Nat) : Nat :=
-  ((ConstantWord.loaderTrace kind (width + 1)
+def coefficientDepthLimit {model : ExecutionModel} [BitWord.Selected model]
+    (spec : ModulusSpec width) (duration : Resource.Event model → Nat) : Nat :=
+  ((ConstantWord.loaderTrace model (width + 1)
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus))).map duration).sum +
-      ((duration (.classicalOperation (.wordResize width (width + 1))) +
+      ((duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordResize width (width + 1)))) +
         rawDepthLimit (width + 1) duration) + signedReductionDepthLimit width duration)
 
 /-- The original widened engine and signed reduction occupy disjoint successive lexical scopes. -/
@@ -57,7 +62,7 @@ private theorem coefficientBody_pool_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
     (coefficientBody spec denominator scratch output).resourcePool path ≤
-      coefficientEnvelope kind spec := by
+      coefficientEnvelope model spec := by
   have loaded := congrArg ResourcePool.ofList (ConstantWord.constantFold_eventTrace scratch.modulus
     (List.ofFn (ConstantWord.constantBits (width + 1) spec.modulus)) path.1)
   change ResourcePool.ofList
@@ -75,17 +80,17 @@ theorem coefficientIntoWord_pool_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientIntoWord spec denominator output).Path) :
     (coefficientIntoWord spec denominator output).resourcePool path ≤
-      coefficientEnvelope kind spec := by
+      coefficientEnvelope model spec := by
   exact withCellsFrom_property (Transport.id ctx) (coefficientShapes width)
     (fun cells _ transport _ => coefficientBody spec (transport.liftInput denominator)
       (coefficientScratch cells) (transport.liftWrite output))
-    (fun _ code => ∀ selected, code.resourcePool selected ≤ coefficientEnvelope kind spec)
+    (fun _ code => ∀ selected, code.resourcePool selected ≤ coefficientEnvelope model spec)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => coefficientBody_pool_le _ _ _ _ selected) path
 
 private theorem coefficientBody_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientBody spec denominator scratch output).Path) :
     (coefficientBody spec denominator scratch output).depth duration path =
       (((coefficientBody spec denominator scratch output).eventTrace path).map duration).sum := by
@@ -115,7 +120,7 @@ private theorem coefficientBody_duration_eventTrace (spec : ModulusSpec width)
 /-- Selected durations equal the same actual native trace through every persistent scope. -/
 theorem coefficientIntoWord_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientIntoWord spec denominator output).Path) :
     (coefficientIntoWord spec denominator output).depth duration path =
       (((coefficientIntoWord spec denominator output).eventTrace path).map duration).sum := by
@@ -130,7 +135,7 @@ theorem coefficientIntoWord_duration_eventTrace (spec : ModulusSpec width)
 
 private theorem coefficientBody_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientBody spec denominator scratch output).Path) :
     (coefficientBody spec denominator scratch output).depth duration path ≤
       coefficientDepthLimit spec duration :=
@@ -141,7 +146,7 @@ private theorem coefficientBody_depth_le (spec : ModulusSpec width)
 /-- The original independent serial allowance bounds every actual selected coefficient path. -/
 theorem coefficientIntoWord_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event kind → Nat)
+    (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientIntoWord spec denominator output).Path) :
     (coefficientIntoWord spec denominator output).depth duration path ≤
       coefficientDepthLimit spec duration := by
@@ -157,7 +162,7 @@ private theorem coefficientBody_resident_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
     (coefficientBody spec denominator scratch output).peakResidentSpace path ≤
-      coefficientActiveSpace kind width + ctx.residentSpace := by
+      coefficientActiveSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (ConstantWord.constantWord_resident_le _ _ path.1).trans le_add_self
   · refine (Circuit.peakResidentSpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
@@ -171,7 +176,7 @@ private theorem coefficientBody_auxiliary_le (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
     (coefficientBody spec denominator scratch output).peakAuxiliarySpace path ≤
-      coefficientActiveSpace kind width + ctx.auxiliarySpace := by
+      coefficientActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (ConstantWord.constantWord_auxiliary_le _ _ path.1).trans le_add_self
   · refine (Circuit.peakAuxiliarySpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
@@ -187,11 +192,11 @@ theorem coefficientIntoWord_resident_le (spec : ModulusSpec width)
     (path : (coefficientIntoWord spec denominator output).Path) :
     (coefficientIntoWord spec denominator output).peakResidentSpace path ≤
       ((coefficientShapes width).map SpacePool.ofShape).sum +
-        coefficientActiveSpace kind width + ctx.residentSpace := by
+        coefficientActiveSpace model.kind width + ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (coefficientShapes width)
     (fun cells _ transport _ => coefficientBody spec (transport.liftInput denominator)
       (coefficientScratch cells) (transport.liftWrite output))
-    (coefficientActiveSpace kind width)
+    (coefficientActiveSpace model.kind width)
     (fun cells _ transport _ selected => coefficientBody_resident_le _ _ _ _ selected) path
 
 /-- Auxiliary ownership counts those same original cells and all caller context entries. -/
@@ -201,11 +206,11 @@ theorem coefficientIntoWord_auxiliary_le (spec : ModulusSpec width)
     (path : (coefficientIntoWord spec denominator output).Path) :
     (coefficientIntoWord spec denominator output).peakAuxiliarySpace path ≤
       ((coefficientShapes width).map SpacePool.ofShape).sum +
-        coefficientActiveSpace kind width + ctx.auxiliarySpace := by
+        coefficientActiveSpace model.kind width + ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (coefficientShapes width)
     (fun cells _ transport _ => coefficientBody spec (transport.liftInput denominator)
       (coefficientScratch cells) (transport.liftWrite output))
-    (coefficientActiveSpace kind width)
+    (coefficientActiveSpace model.kind width)
     (fun cells _ transport _ selected => coefficientBody_auxiliary_le _ _ _ _ selected) path
 
 end

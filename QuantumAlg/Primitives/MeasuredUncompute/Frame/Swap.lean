@@ -28,12 +28,15 @@ private theorem separation (width : Nat) (index : Fin width) :
     ((accumulator width).bit index).wire ≠ ((numerator width).bit index).wire :=
   accumulator_numerator_ne width index index
 
-private def body (width : Nat) : UnitaryCircuit (Qubits (frameEncoding width).width) :=
-  Word.swapProgram (accumulator width) (numerator width) (separation width)
+private def body (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (frameEncoding width).width).toQuantum :=
+  Word.swapProgram (QubitLayout.canonical _) .empty
+    (accumulator width) (numerator width) (separation width)
 
 /-- The exact literal swap retains the complete original frame after its last actual CNOT. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (frameEncoding width).width) :=
-  (body width).seq (.identity _ (List.range (frameEncoding width).width) List.nodup_range)
+def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (frameEncoding width).width).toQuantum :=
+  body width
 
 /-- Complete action of the actual bitwise swap, including every complementary field. -/
 def step (width : Nat) : Frame width → Frame width :=
@@ -41,12 +44,9 @@ def step (width : Nat) : Frame width → Frame width :=
 
 /-- Full coherent basis semantics comes from the same actual three-CNOT gate list. -/
 theorem frameSwap_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (frameEncoding width) (program width) (step width) := by
-  apply ((Word.swap_realizes (accumulator width) (numerator width) (separation width)).seq
-    (UnitaryCircuit.Realizes.identityAt (frameEncoding width)
-      (List.range (frameEncoding width).width) List.nodup_range)).congrStep
-  intro state
-  rfl
+    UnitaryCircuit.Realizes (frameEncoding width) (program width) (step width) :=
+  Word.swap_realizes (QubitLayout.canonical _) .empty
+    (accumulator width) (numerator width) (separation width)
 
 /-- A receives each original Y bit at the matching physical word position. -/
 theorem frameSwap_accumulator (width : Nat) (index : Fin width) (state : Frame width) :
@@ -86,30 +86,28 @@ theorem frameSwap_other (width : Nat) (observed : EncodedBit (frameEncoding widt
 
 /-- The actual final swap retains all original large and small quantum fields. -/
 theorem frameSwap_physical (width : Nat) :
-    (program width).physical_idx = List.range (frameEncoding width).width :=
-  (Word.swapProgram_physical_idx_subset_range
-    (accumulator width) (numerator width) (separation width)).union_eq_right
+    (QubitLayout.canonical (frameEncoding width).width).systemIdx =
+      List.range (frameEncoding width).width :=
+  QubitLayout.canonical_systemIdx _
 
 /-- Every one of the three actual CNOTs per exchanged bit is charged. -/
 theorem frameSwap_cnot_count (width : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot")) (program width).eventCost = 3 * width := by
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
-  exact Word.swapCircuit_cnot_eventCount (accumulator width) (numerator width) (separation width)
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (program width).eventCost = 3 * width := by
+  exact Word.swapCircuit_cnot_eventCount (QubitLayout.canonical _) .empty
+    (accumulator width) (numerator width) (separation width)
 
 /-- No additional event is hidden beside the literal three-CNOT swaps. -/
 theorem frameSwap_event_count (width : Nat) : (program width).eventCost.card = 3 * width := by
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
-  change (GateSpec.programList
+  change (GateSpec.programList (QubitLayout.canonical _) .empty
     (Word.swapGates (accumulator width) (numerator width) (separation width))).eventCost.card = _
   rw [GateSpec.programList_eventCost_card, Word.swapGates_length]
 
 /-- Actual unit-duration serial depth includes the complete final word exchange. -/
 theorem frameSwap_depth (width : Nat) :
     (program width).evaluatedEventDepth (fun _ => 1) = 3 * width := by
-  rw [program, UnitaryCircuit.evaluatedEventDepth_seq]
-  change (body width).evaluatedEventDepth (fun _ => 1) + 0 = _
-  rw [Nat.add_zero]
-  exact Word.swapCircuit_unit_eventDepth (accumulator width) (numerator width) (separation width)
+  exact Word.swapCircuit_unit_eventDepth (QubitLayout.canonical _) .empty
+    (accumulator width) (numerator width) (separation width)
 
 end
 

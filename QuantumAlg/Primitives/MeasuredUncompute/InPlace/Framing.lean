@@ -36,14 +36,16 @@ variable (modulus : Nat) (prime : Nat.Prime modulus) (frame : RuntimeCtx .quantu
 
 /-- Execute the original measured division using its existing allocation in the real union. -/
 def division :
-    Circuit ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate)
       ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate) :=
   frameLocal (InPlaceDivision.body modulus prime)
     (inPlaceDivision_body_isLocal modulus prime) frame separate
 
 /-- Execute the original measured multiplication in that same actual union context. -/
 def multiplication :
-    Circuit ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate)
       ((NumeratorMeasurement.context modulus.size).disjointUnion frame separate) :=
   frameLocal (InPlaceMultiplication.body modulus prime)
     (inPlaceMultiplication_body_isLocal modulus prime) frame separate

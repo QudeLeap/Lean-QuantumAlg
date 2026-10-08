@@ -11,9 +11,8 @@ public import QuantumAlg.Components.Kets
 public import QuantumAlg.Components.Encoded.Circuit
 public import QuantumAlg.Components.QubitPrimitive
 public import QuantumAlg.Components.Gates
-public import QuantumAlg.Components.OneHotPermutation
+public import QuantumAlg.Components.GateModel
 public import QuantumAlg.Components.Encoded.BitGates
-public import QuantumAlg.Components.Encoded.ResidueGates
 public import QuantumAlg.Components.Oracle
 public import QuantumAlg.Components.Control
 public import QuantumAlg.Components.Encoded.BasisMap

@@ -8,6 +8,9 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.StructuredCircuit
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.Encoded.BitGates.CircuitLifting
 
 /-!
 # Clean scalar-multiplication circuits
@@ -61,17 +64,20 @@ def traceBackwardStep
 
 /-- The backward trace circuit is the adjoint of the actual forward circuit. -/
 def traceBackwardCircuit (w : Witness E schedule cert) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
-  w.traceLiftedProgram.dagger
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum :=
+  w.traceLiftedProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The adjoint trace circuit realizes the semantic inverse. -/
 theorem traceBackward_realizes (w : Witness E schedule cert) :
     UnitaryCircuit.Realizes w.encoding w.traceBackwardCircuit
-      (traceBackwardStep schedule cert) :=
-  UnitaryCircuit.Realizes.dagger_of_rightInverse w.traceForward_realizes (by
-    intro x
+      (traceBackwardStep schedule cert) := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse w.traceForward_realizes
+  · rw [traceBackwardCircuit, UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · intro x
     rcases x with ⟨endpointRun, trace⟩
-    simp [traceStep, traceBackwardStep])
+    simp [traceStep, traceBackwardStep]
 
 /-- Compute the scalar trace, write the certified target, and uncompute the
 same trace. -/
@@ -83,7 +89,8 @@ def cleanStep
 
 /-- Actual compute--copy--uncompute circuit. -/
 def cleanCircuit (w : Witness E schedule cert) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum :=
   UnitaryCircuit.seq w.program w.traceBackwardCircuit
 
 /-- The actual clean circuit realizes the compute--copy--uncompute action. -/
@@ -120,38 +127,42 @@ theorem cleanCircuit_apply_ket (w : Witness E schedule cert)
     (trace : TraceData E schedule)
     (houtput : endpointRun.run.outputPoint = endpointRun.data.outputPoint) :
     w.cleanCircuit.applyNormalized
-        (NormalizedVector.ket (R := Qubits w.encoding.width)
-          (w.encoding.encode (endpointRun, trace))) =
-      NormalizedVector.ket (R := Qubits w.encoding.width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
+          (w.encoding.encode (endpointRun, trace)))) =
+      NormalizedVector.ket
+          ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode
-          ({ endpointRun with data := endpointRun.data.addIntoTarget }, trace)) := by
+          ({ endpointRun with data := endpointRun.data.addIntoTarget }, trace))) := by
   have happly := w.clean_realizes.apply_encoded_ket (endpointRun, trace)
   rw [cleanStep_apply_of_output endpointRun trace houtput] at happly
   exact happly
 
 /-- Ordered strict events of the exact clean scalar-multiplication circuit. -/
 def cleanEventTrace (w : Witness E schedule cert) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.cleanCircuit.eventTrace
 
 /-- Strict event pool of the exact clean scalar-multiplication circuit. -/
-def cleanEventCost (w : Witness E schedule cert) : ResourcePool .quantum :=
+def cleanEventCost (w : Witness E schedule cert) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   w.cleanCircuit.eventCost
 
 /-- Strict symbolic event critical path of the exact clean circuit. -/
 def cleanEventDepth (w : Witness E schedule cert) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   w.cleanCircuit.eventDepth
 
 /-- Literal depth of one strict event coordinate in the exact clean circuit. -/
 def cleanEventQueryDepth (w : Witness E schedule cert)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   w.cleanCircuit.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the clean event pool. -/
 def cleanEventGateCount (w : Witness E schedule cert)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) w.cleanCircuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+    (.gate label) w.cleanCircuit.eventCost
 
 
 
@@ -198,15 +209,18 @@ def cleanUndoStep
 /-- The inverse clean scalar circuit is the adjoint of the exact forward
 circuit; no caller-supplied undo program is accepted. -/
 def cleanInverseCircuit (w : Witness E schedule cert) :
-    UnitaryCircuit (Qubits w.encoding.width) :=
-  w.cleanCircuit.dagger
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical w.encoding.width).toQuantum :=
+  w.cleanCircuit.dagger (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The adjoint clean circuit realizes the semantic undo action. -/
 theorem cleanInverse_realizes (w : Witness E schedule cert) :
     UnitaryCircuit.Realizes w.encoding w.cleanInverseCircuit
-      (cleanUndoStep schedule cert) :=
-  UnitaryCircuit.Realizes.dagger_of_rightInverse w.clean_realizes
-    cleanStep_cleanUndoStep
+      (cleanUndoStep schedule cert) := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse w.clean_realizes
+  · rw [cleanInverseCircuit, UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · exact cleanStep_cleanUndoStep
 
 end Witness
 
@@ -244,11 +258,11 @@ structure TwoScalarCompiler
   /-- Sealed circuit that copies the two computed results into the public
   workspace while preserving both source workspaces. -/
   combineProgram :
-    UnitaryCircuit (Qubits
-      (BinaryLabelEncoding.prod
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
         (BinaryLabelEncoding.prod
-          left.encoding right.encoding)
-        workspaceEncoding).width)
+          (BinaryLabelEncoding.prod left.encoding right.encoding)
+          workspaceEncoding).width).toQuantum
   /-- Basis correctness of the combine circuit on the exact common encoding. -/
   combineRealizes :
     UnitaryCircuit.Realizes
@@ -286,7 +300,8 @@ def encoding (compiler : Compiler) : BinaryLabelEncoding CompilerState :=
 
 /-- Lift the first clean scalar circuit over the second source and workspace. -/
 def leftComputeProgram (compiler : Compiler) :
-    UnitaryCircuit (Qubits compiler.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum :=
   UnitaryCircuit.prodLeft (n := compiler.workspaceEncoding.width)
     (UnitaryCircuit.prodLeft (n := compiler.right.encoding.width)
       compiler.left.cleanCircuit)
@@ -296,15 +311,16 @@ theorem leftCompute_realizes (compiler : Compiler) :
     UnitaryCircuit.Realizes compiler.encoding compiler.leftComputeProgram
       (fun x => ((Witness.cleanStep leftSchedule leftCert x.1.1, x.1.2),
         x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.prodLeft
+  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.right.encoding) compiler.left.clean_realizes
-  have hfull := UnitaryCircuit.Realizes.prodLeft
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.workspaceEncoding) hpair
-  simpa [encoding, leftComputeProgram] using hfull
+  simpa [encoding, leftComputeProgram, UnitaryCircuit.prodLeft] using hfull
 
 /-- Lift the second clean scalar circuit over the first source and workspace. -/
 def rightComputeProgram (compiler : Compiler) :
-    UnitaryCircuit (Qubits compiler.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum :=
   UnitaryCircuit.prodLeft (n := compiler.workspaceEncoding.width)
     (UnitaryCircuit.prodRight (m := compiler.left.encoding.width)
       compiler.right.cleanCircuit)
@@ -314,15 +330,17 @@ theorem rightCompute_realizes (compiler : Compiler) :
     UnitaryCircuit.Realizes compiler.encoding compiler.rightComputeProgram
       (fun x => ((x.1.1,
         Witness.cleanStep rightSchedule rightCert x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.prodRight
+  have hpair := UnitaryCircuit.Realizes.onBinarySuffix
     (left := compiler.left.encoding) compiler.right.clean_realizes
-  have hfull := UnitaryCircuit.Realizes.prodLeft
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.workspaceEncoding) hpair
-  simpa [encoding, rightComputeProgram] using hfull
+  simpa [encoding, rightComputeProgram, UnitaryCircuit.prodLeft,
+    UnitaryCircuit.prodRight, UnitaryCircuit.onCanonicalBinarySuffix] using hfull
 
 /-- Lift the inverse second scalar circuit over the first source and workspace. -/
 def rightUndoProgram (compiler : Compiler) :
-    UnitaryCircuit (Qubits compiler.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum :=
   UnitaryCircuit.prodLeft (n := compiler.workspaceEncoding.width)
     (UnitaryCircuit.prodRight (m := compiler.left.encoding.width)
       compiler.right.cleanInverseCircuit)
@@ -332,15 +350,17 @@ theorem rightUndo_realizes (compiler : Compiler) :
     UnitaryCircuit.Realizes compiler.encoding compiler.rightUndoProgram
       (fun x => ((x.1.1,
         Witness.cleanUndoStep rightSchedule rightCert x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.prodRight
+  have hpair := UnitaryCircuit.Realizes.onBinarySuffix
     (left := compiler.left.encoding) compiler.right.cleanInverse_realizes
-  have hfull := UnitaryCircuit.Realizes.prodLeft
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.workspaceEncoding) hpair
-  simpa [encoding, rightUndoProgram] using hfull
+  simpa [encoding, rightUndoProgram, UnitaryCircuit.prodLeft,
+    UnitaryCircuit.prodRight, UnitaryCircuit.onCanonicalBinarySuffix] using hfull
 
 /-- Lift the inverse first scalar circuit over the second source and workspace. -/
 def leftUndoProgram (compiler : Compiler) :
-    UnitaryCircuit (Qubits compiler.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum :=
   UnitaryCircuit.prodLeft (n := compiler.workspaceEncoding.width)
     (UnitaryCircuit.prodLeft (n := compiler.right.encoding.width)
       compiler.left.cleanInverseCircuit)
@@ -350,15 +370,16 @@ theorem leftUndo_realizes (compiler : Compiler) :
     UnitaryCircuit.Realizes compiler.encoding compiler.leftUndoProgram
       (fun x => ((Witness.cleanUndoStep leftSchedule leftCert x.1.1,
         x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.prodLeft
+  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.right.encoding) compiler.left.cleanInverse_realizes
-  have hfull := UnitaryCircuit.Realizes.prodLeft
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
     (right := compiler.workspaceEncoding) hpair
-  simpa [encoding, leftUndoProgram] using hfull
+  simpa [encoding, leftUndoProgram, UnitaryCircuit.prodLeft] using hfull
 
 /-- Fixed five-stage execution order of the clean two-scalar compiler. -/
 def twoScalarPrograms (compiler : Compiler) :
-    List (UnitaryCircuit (Qubits compiler.encoding.width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum) :=
   [compiler.leftComputeProgram,
     compiler.rightComputeProgram,
     compiler.combineProgram,
@@ -398,39 +419,44 @@ theorem twoScalarPrograms_realize (compiler : Compiler) :
 /-- One actual circuit implementing compute-left, compute-right, combine,
 uncompute-right, and uncompute-left in that order. -/
 def twoScalarCircuit (compiler : Compiler) :
-    UnitaryCircuit (Qubits compiler.encoding.width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum :=
   compiler.twoScalarPrograms.foldr UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits compiler.encoding.width) [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical compiler.encoding.width).toQuantum)
 
 /-- Ordered strict events of the exact five-stage two-scalar circuit. -/
 def twoScalarEventTrace (compiler : Compiler) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   compiler.twoScalarCircuit.eventTrace
 
 /-- Strict event pool of the exact five-stage two-scalar circuit. -/
-def twoScalarEventCost (compiler : Compiler) : ResourcePool .quantum :=
+def twoScalarEventCost (compiler : Compiler) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   compiler.twoScalarCircuit.eventCost
 
 /-- Strict symbolic event critical path of the five-stage circuit. -/
 def twoScalarEventDepth (compiler : Compiler) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   compiler.twoScalarCircuit.eventDepth
 
 /-- Literal depth of one strict event coordinate in the five-stage circuit. -/
 def twoScalarEventQueryDepth (compiler : Compiler)
-    (event : Resource.Event .quantum) : Nat :=
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   compiler.twoScalarCircuit.eventQueryDepth event
 
 /-- Exact multiplicity of one gate coordinate in the five-stage event pool. -/
 def twoScalarEventGateCount (compiler : Compiler)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) compiler.twoScalarCircuit.eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+    (.gate label) compiler.twoScalarCircuit.eventCost
 
 /-- The actual five-stage circuit realizes its folded semantic action. -/
 theorem twoScalar_realizes (compiler : Compiler) :
     UnitaryCircuit.Realizes compiler.encoding compiler.twoScalarCircuit
       compiler.twoScalarFullStep := by
   exact UnitaryCircuit.Realizes.appendList compiler.encoding
+    (QubitLayout.canonical _)
     compiler.twoScalarPrograms compiler.twoScalarSteps
     compiler.twoScalarPrograms_realize
 

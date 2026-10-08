@@ -341,15 +341,19 @@ def compareStep (constant : Fin (2 ^ params.width)) :
 
 /-- Direct circuit compilation of the literal mutable-X selector schedule. -/
 def compareProgram (constant : Fin (2 ^ params.width)) :
-    UnitaryCircuit (Qubits (Layout.rawEncoding (params := params)).width) :=
-  EncodedBit.GateSpec.programList (compareGates (params := params) constant)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Layout.rawEncoding (params := params)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (compareGates (params := params) constant)
 
 /-- The selector circuit realizes its exact literal gate-list action. -/
 theorem compareProgram_realizes (constant : Fin (2 ^ params.width)) :
     UnitaryCircuit.Realizes (Layout.rawEncoding (params := params))
       (compareProgram (params := params) constant)
       (compareStep (params := params) constant) :=
-  EncodedBit.GateSpec.realizesList (compareGates (params := params) constant)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (compareGates (params := params) constant)
 
 private theorem compareStep_eq_schedule
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :

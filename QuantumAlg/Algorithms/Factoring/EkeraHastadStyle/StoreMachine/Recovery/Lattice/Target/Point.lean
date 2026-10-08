@@ -70,30 +70,42 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Execute the two actual centered-coordinate loaders in their original order. -/
-def loadTargetPointInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def loadTargetPointInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeTarget.centeredTargetInto refs.first)
     (LatticeTarget.centeredTargetInto refs.second)
 
 /-- The actual first call's store feeds the actual second call and both native paths. -/
 def targetPointStep (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (loadTargetPointInto refs).Path :=
-  let first := LatticeTarget.centeredTargetStep refs.first store
-  let second := LatticeTarget.centeredTargetStep refs.second first.1
+  let first := LatticeTarget.centeredTargetStep (model := model) refs.first store
+  let second := LatticeTarget.centeredTargetStep (model := model) refs.second first.1
   (second.1, (first.2, second.2))
 
 /-- Both actual coordinate calls retain every state block and incoming history. -/
 theorem loadTargetPointInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetPointInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((targetPointStep refs entry.1).1, (entry.2, (targetPointStep refs entry.1).2))) := by
+      let actual := targetPointStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (LatticeTarget.centeredTargetInto refs.first) (LatticeTarget.centeredTargetInto refs.second)
-    (LatticeTarget.centeredTargetStep refs.first) (LatticeTarget.centeredTargetStep refs.second)
-    (LatticeTarget.centeredTargetInto_execute refs.first)
-    (LatticeTarget.centeredTargetInto_execute refs.second) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeTarget.centeredTargetStep (model := model) refs.first before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeTarget.centeredTargetStep (model := model) refs.second before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeTarget.centeredTargetInto_execute refs.first reference current)
+    (fun reference _history _ current =>
+      LatticeTarget.centeredTargetInto_execute refs.second reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

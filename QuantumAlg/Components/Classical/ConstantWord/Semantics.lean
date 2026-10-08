@@ -31,43 +31,46 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Store and exact path of the literal shift and compile-selected increment. -/
 def appendStep (output : CWriteRef ctx (.unsignedWord width)) :
-    (bit : Bool) → Store ctx → Store ctx × (append output bit).Path
-  | false, store => (store.applyOp (shiftOp output), ((), ()))
-  | true, store => ((store.applyOp (shiftOp output)).applyOp (incrementOp output), ((), ()))
+    (bit : Bool) → Store ctx → Store ctx × (append (model := model) output bit).Path
+  | false, store =>
+      let first := BitWord.instructionStep (execution := model) (shiftOp output) store
+      (first.1, (first.2, ()))
+  | true, store =>
+      let first := BitWord.instructionStep (execution := model) (shiftOp output) store
+      let last := BitWord.instructionStep (execution := model) (incrementOp output) first.1
+      (last.1, (first.2, last.2))
 
 /-- Every compiled bit follows its actual instruction sequence on the full joint state. -/
 theorem constantWord_append_execute (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (append output bit).execute Reference state = state.mapClassical (fun entry =>
-      ((appendStep output bit entry.1).1, (entry.2, (appendStep output bit entry.1).2))) := by
-  cases bit
-  · dsimp only [append, appendStep]
-    simp only [Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-      Circuit.execute_id_mapClassical, State.mapHistory,
-      ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-    congr 1
-    exact Subsingleton.elim _ _
-  · dsimp only [append, appendStep]
-    simp only [Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-      State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-    congr 1
-    exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (append (model := model) output bit).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := appendStep (model := model) output bit entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  cases bit <;>
+    simp only [append, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+      Circuit.execute_id_mapClassical, State.mapHistory]
+  all_goals
+    repeat' rw [ExecutionState.executionState_mapClassical_comp_instances
+      (result := inferInstance)]
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual appended target has exactly the wrapping shift-and-bit arithmetic. -/
 theorem constantWord_append_read (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (store : Store ctx) :
-    ((appendStep output bit store).1.read (targetRead output)).toNat =
+    ((appendStep (model := model) output bit store).1.read (targetRead output)).toNat =
       appendBit (store.read (targetRead output)).toNat bit % 2 ^ width := by
   have shifted := Store.read_applyOp_output store (shiftOp output)
   change (store.applyOp (shiftOp output)).read (targetRead output) =
     CShape.wordShiftLeft width (store.read (targetRead output)) at shifted
   cases bit
-  · simpa only [appendStep, appendBit, Bool.toNat_false, Nat.add_zero,
+  · simpa only [appendStep, BitWord.instructionStep, appendBit, Bool.toNat_false, Nat.add_zero,
       CShape.wordShiftLeft, CShape.wordOfNat_val, CShape.wordModulus] using
         congrArg CShape.Value.toNat shifted
   · have incremented := Store.read_applyOp_output
@@ -76,15 +79,16 @@ theorem constantWord_append_read (output : CWriteRef ctx (.unsignedWord width))
       (targetRead output) = CShape.wordOfNat width
         (((store.applyOp (shiftOp output)).read (targetRead output)).toNat + 1) at incremented
     rw [shifted] at incremented
-    simpa only [appendStep, appendBit, Bool.toNat_true, CShape.wordShiftLeft,
-      CShape.wordOfNat_val, CShape.wordModulus, Nat.add_mod, Nat.mod_mod] using
+    simpa only [appendStep, BitWord.instructionStep, appendBit, Bool.toNat_true,
+      CShape.wordShiftLeft, CShape.wordOfNat_val, CShape.wordModulus,
+      Nat.add_mod, Nat.mod_mod] using
         congrArg CShape.Value.toNat incremented
 
 /-- The literal compiled bit writes only its actual supplied target cell. -/
 theorem constantWord_append_read_other (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (appendStep output bit store).1.read other = store.read other := by
+    (appendStep (model := model) output bit store).1.read other = store.read other := by
   cases bit
   · exact Store.read_applyOp_of_not_mem_storageKeys store (shiftOp output) other separate
   · exact (Store.read_applyOp_of_not_mem_storageKeys _ (incrementOp output) other separate).trans
@@ -92,41 +96,52 @@ theorem constantWord_append_read_other (output : CWriteRef ctx (.unsignedWord wi
 
 /-- The real store and nested path of the literal compilation-time list. -/
 def foldStep (output : CWriteRef ctx (.unsignedWord width)) :
-    (bits : List Bool) → Store ctx → Store ctx × (fold output bits).Path
+    (bits : List Bool) → Store ctx → Store ctx × (fold (model := model) output bits).Path
   | [], store => (store, ())
   | bit :: remaining, store =>
-      let first := appendStep output bit store
+      let first := appendStep (model := model) output bit store
       let last := foldStep output remaining first.1
       (last.1, (first.2, last.2))
 
 /-- The complete literal fold preserves every incoming quantum-reference matrix block. -/
 theorem constantWord_fold_execute (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (fold output bits).execute Reference state = state.mapClassical (fun entry =>
-      ((foldStep output bits entry.1).1, (entry.2, (foldStep output bits entry.1).2))) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (fold (model := model) output bits).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := foldStep (model := model) output bits entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   induction bits generalizing Reference History with
   | nil =>
-      refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact (Circuit.execute_id_mapClassical (model := model) Reference state).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons bit remaining ih =>
-      refine (Circuit.execute_seq_mapClassical (append output bit) (fold output remaining)
-        (appendStep output bit) (foldStep output remaining) (constantWord_append_execute output bit)
-        (fun reference {_} _ initial => ih reference initial) Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      refine (Circuit.execute_seq_mapClassical
+        (append (model := model) output bit) (fold (model := model) output remaining)
+        (fun before =>
+          let result := appendStep (model := model) output bit before.1
+          ((result.1, before.2), result.2))
+        (fun before =>
+          let result := foldStep (model := model) output remaining before.1
+          ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
+      · intro reference history _ input
+        exact (constantWord_append_execute (model := model) output bit reference input).trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)
+      · intro reference history _ input
+        exact (ih reference input).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+      · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Target reads of the genuine fold obey the existing pure wrapping accumulator. -/
 theorem constantWord_fold_read (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (store : Store ctx) :
-    ((foldStep output bits store).1.read (targetRead output)).toNat =
+    ((foldStep (model := model) output bits store).1.read (targetRead output)).toNat =
       bits.foldl (fun value bit => appendBit value bit % 2 ^ width)
         (store.read (targetRead output)).toNat := by
   induction bits generalizing store with
   | nil => rfl
   | cons bit remaining ih =>
-      change ((foldStep output remaining (appendStep output bit store).1).1.read
+      change ((foldStep (model := model) output remaining
+        (appendStep (model := model) output bit store).1).1.read
         (targetRead output)).toNat = _
       rw [ih, List.foldl_cons, constantWord_append_read]
 
@@ -134,17 +149,19 @@ theorem constantWord_fold_read (output : CWriteRef ctx (.unsignedWord width))
 theorem constantWord_fold_read_other (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (foldStep output bits store).1.read other = store.read other := by
+    (foldStep (model := model) output bits store).1.read other = store.read other := by
   induction bits generalizing store with
   | nil => rfl
   | cons bit remaining ih =>
-      change (foldStep output remaining (appendStep output bit store).1).1.read other = _
-      exact (ih _).trans (constantWord_append_read_other output bit other separate store)
+      change (foldStep (model := model) output remaining
+        (appendStep (model := model) output bit store).1).1.read other = _
+      exact (ih _).trans
+        (constantWord_append_read_other (model := model) output bit other separate store)
 
 /-- Width-many actual shifts load the exact compilation parameter modulo the target width. -/
 theorem constantWord_read (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (store : Store ctx) :
-    ((foldStep output (List.ofFn (constantBits width constant)) store).1.read
+    ((foldStep (model := model) output (List.ofFn (constantBits width constant)) store).1.read
       (targetRead output)).toNat = constant % 2 ^ width := by
   rw [constantWord_fold_read]
   have accumulated := terminalAccumulator_width_result (constantBits width constant)

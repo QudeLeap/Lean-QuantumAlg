@@ -14,7 +14,6 @@ import all QuantumAlg.Algorithms.QPE.Construction
 import all QuantumAlg.Algorithms.QPE.WindowProbability
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Accounting.Space
-import all QuantumAlg.Primitives.QFT.Construction
 import Mathlib.Analysis.Real.Pi.Bounds
 
 /-!
@@ -43,23 +42,18 @@ def successLB : ProbabilityLowerBound where
     apply (div_le_one (sq_pos_of_pos Real.pi_pos)).mpr
     nlinarith [Real.pi_gt_three]
 
-/-- One actual zero preparation of exactly the owned phase prefix. -/
-def basisPreparationEvent (t : Nat) : Resource.Event .quantum :=
-  .preparation
-    { family := "builtin", name := "computational-basis"
-      parameters := t :: (List.replicate t 2 ++ List.replicate t 0) }
-
-/-- Independent controlled-query, inverse-Fourier, preparation, measurement and packing ledger. -/
-def eventBudget (t n : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (basisPreparationEvent t) +
-    (ResourcePool.singleton (.gate (.builtin "hadamard")) t +
-      (2 ^ t - 1) • ResourcePool.singleton (qpeControlledSourceUnitaryEvent n) +
-      (t • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        t.choose 2 • ResourcePool.singleton (.gate qftControlledPhaseLabel) +
-        (t / 2) • ResourcePool.singleton (.gate (.builtin "swap")))) +
-    (t • ResourcePool.singleton
-      (.measurement { family := "builtin", name := "z", parameters := [2] }) +
-      ResourcePool.singleton (.classicalOperation (.nominalEncoding (.packFiniteBits t))))
+/-- Independent literal native gate, granted query, preparation, Z-read and packing limits. -/
+def eventBudget {n : Nat} (P : QPEEigenstateInput n) (t : Nat) : ResourcePool (model P) :=
+  t • ResourcePool.singleton (model := model P) (.preparation (2 : ℕ+)) +
+    ((2 * t + 3 * t.choose 2) • ResourcePool.singleton (model := model P)
+        (.gate AlgorithmGate.Coordinate.singleQubit) +
+      (2 * t.choose 2 + 3 * (t / 2)) • ResourcePool.singleton (model := model P)
+        (.gate AlgorithmGate.Coordinate.cnot) +
+      (2 ^ t - 1) • ResourcePool.singleton (model := model P)
+        (.oracle UnitarySource.Coordinate.controlled)) +
+    (t • ResourcePool.singleton (model := model P) (.measurement (2 : ℕ+)) +
+      ResourcePool.singleton (model := model P)
+        (.classicalOperation (Resource.ClassicalOpLabel.nominalEncoding (.packFiniteBits t))))
 
 /-- Every source and phase system remains resident, along with both classical representations. -/
 def residentBudget (t n : Nat) : SpacePool .quantum
@@ -71,9 +65,11 @@ def auxiliaryBudget (t : Nat) : SpacePool .quantum
   | .classicalBits => 2 * t
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then t else 0
 
-/-- The explicit total event count bounds the actual critical path at unit event duration. -/
+/-- Parallel preparation, the complete native word, sequential Z reads and packing depth. -/
 def depthBudget (t : Nat) : Nat :=
-  1 + (t + (2 ^ t - 1) + (t + t.choose 2 + t / 2)) + t + 1
+  (if t = 0 then 0 else 1) +
+    (((if t = 0 then 0 else 1) + (2 ^ t - 1)) +
+      (t + 5 * t.choose 2 + 3 * (t / 2))) + t + 1
 
 def accepts {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     (_initial : Execution.Store (pre t n)) (result : CShape.Value (.bits t)) : Prop :=
@@ -93,14 +89,14 @@ def accepts {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
 - Complete Output retaining the $n$ borrowed source systems, $t$ owned phase
   systems, $t$ binary measurement cells, and the packed $t$-bit result.
 **Resource budget.**
-- Exactly $2^t-1$ controlled-$U$ calls and $t$ preparation Hadamards.
-- The inverse Fourier readout uses $t$ Hadamards, $t(t-1)/2$ controlled
-  phases, and $\lfloor t/2\rfloor$ SWAPs.
-- One phase-prefix basis preparation, $t$ individual Z measurements, and
-  one actual finite-bit packing operation.
+- Exactly $2^t-1$ controlled-$U$ queries, $2t+3\binom{t}{2}$ native
+  single-qubit gates, and $2\binom{t}{2}+3\lfloor t/2\rfloor$ CNOT gates.
+- The inverse Fourier readout includes every native controlled-phase and SWAP expansion.
+- Exactly $t$ zero preparations, $t$ individual Z measurements, and one bit-packing operation.
 - Resident capacity is $t+n$ dimension-two systems and $2t$ classical bits;
   auxiliary capacity is $t$ dimension-two systems and $2t$ classical bits.
-- Unit-event depth is at most the sum of these explicit event multiplicities.
+- At positive width, unit-event depth is bounded by
+  $2^t+2+2t+5\binom{t}{2}+3\lfloor t/2\rfloor$.
 **Success.**
 - The original circular phase-window event has probability at least $4/\pi^2$.
 - The complete borrowed eigenstate and external reference are restored jointly,
@@ -112,16 +108,21 @@ def accepts {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
   structural source circuit; execution records its actual Z writes and packing.
 -/
 public def problem {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Problem .quantum (pre t n) (post t n) (.bits t) where
+    Problem (model P) (pre t n) (post t n) (.bits t) where
   valid := fun state => 0 < t ∧ inputPromise P t state.quantumMarginal
+  initialization := fun _ => True
   accepts := accepts P t
   successLB := successLB
   states := []
   resources :=
-    { events := eventBudget t n
+    { events := eventBudget P t
       resident := residentBudget t n
       auxiliary := auxiliaryBudget t }
-  depth := .quantum (fun _ => 1) (depthBudget t)
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBudget t
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

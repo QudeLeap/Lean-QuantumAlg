@@ -7,6 +7,9 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.Classical.Endpoint
+public import QuantumAlg.Components.Classical.Model.BitWord.Execution
+import all QuantumAlg.Core.Algorithm.Borrowed
+import all QuantumAlg.Core.Execution.Circuit.Restoration
 public import QuantumAlg.Util.Classical.TerminalDecode
 public import Mathlib.Data.Multiset.Replicate
 import all QuantumAlg.Algorithms.Classical.Endpoint
@@ -30,6 +33,10 @@ schedule and storage allowances below are derived from this implementation.
 -/
 
 namespace QuantumAlg.ClassicalEndpoints.Recovery.TerminalDecode
+
+noncomputable section
+
+local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open ClassicalAlgorithms.TerminalDecode
 open ClassicalRoutines.TerminalDecode
@@ -68,9 +75,10 @@ public def inputRef (width : Nat) : CInputRef (Standard.pre (.bits width)) (.bit
   The shift/increment execution and concrete memory allowances are project-derived.
 -/
 @[expose] public def problem (width : Nat) (order : BitOrder) :
-    Problem .classical (Standard.pre (.bits width))
+    Problem (.classical BitWord.model .empty) (Standard.pre (.bits width))
       (Standard.post (.bits width) (.unsignedWord width)) (.unsignedWord width) where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := accepts width order
   successLB := ⟨1, le_rfl⟩
   states := []
@@ -80,20 +88,26 @@ public def inputRef (width : Nat) : CInputRef (Standard.pre (.bits width)) (.bit
           Multiset.replicate 1 (.classicalOperation (.wordUnary .increment width)))
       resident := fun .classicalBits => 2 * width
       auxiliary := fun .classicalBits => width }
-  depth := .classical
+  depth :=
+    { duration := fun _ => 1
+      limit := 2 * width
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Allocate one real result word and execute the stored-bit shift/increment fold. -/
 public def algorithm (width : Nat) (order : BitOrder) :
-    Algorithm .classical (Standard.pre (.bits width))
+    Algorithm (.classical BitWord.model .empty) (Standard.pre (.bits width))
       (Standard.post (.bits width) (.unsignedWord width)) (.unsignedWord width) where
-  run := ClassicalRoutines.TerminalDecode.run (Standard.pre (.bits width)) width order
+  run := ClassicalRoutines.TerminalDecode.run (model := .classical BitWord.model .empty)
+    (Standard.pre (.bits width)) width order
     (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width))
 
 /-- The complete output includes every final live key, with its original storage role. -/
 public theorem terminalDecodeEndpoint_output_listing (width : Nat) (order : BitOrder) :
     (algorithm width order).run.output.listing =
       (Standard.post (.bits width) (.unsignedWord width)).keys := by
-  exact terminalDecode_run_output_listing (Standard.pre (.bits width)) width order
+  exact terminalDecode_run_output_listing (model := .classical BitWord.model .empty) (Standard.pre
+    (.bits width)) width order
     (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width))
 
 private def code (width : Nat) (order : BitOrder) := (algorithm width order).run.code
@@ -101,7 +115,8 @@ private def code (width : Nat) (order : BitOrder) := (algorithm width order).run
 private noncomputable def finalStore (width : Nat) (order : BitOrder)
     (store : Execution.Store (Standard.pre (.bits width))) :
     Execution.Store (Standard.post (.bits width) (.unsignedWord width)) :=
-  (retainedStep (Standard.pre (.bits width)) width order (inputRef width)
+  (retainedStep (model := .classical BitWord.model .empty) (Standard.pre (.bits width)) width
+    order (inputRef width)
     Standard.resultKey (Standard.resultFresh (.bits width)) store).1
 
 private theorem finalStore_accepts (width : Nat) (order : BitOrder)
@@ -109,6 +124,7 @@ private theorem finalStore_accepts (width : Nat) (order : BitOrder)
     accepts width order store ((finalStore width order store).read
       (Standard.resultRef (.bits width) (.unsignedWord width))) := by
   have decoded := congrArg Fin.val (terminalDecode_retainedStep_read_output
+    (model := .classical BitWord.model .empty)
     (Standard.pre (.bits width)) width order (inputRef width) Standard.resultKey
     (Standard.resultFresh (.bits width)) store)
   rw [terminalDecode_decodeOutput_val] at decoded
@@ -124,7 +140,8 @@ private theorem actual_resident (width : Nat) (order : BitOrder)
     (path : (code width order).Path) :
     (code width order).peakResidentSpace path ≤
       (fun .classicalBits => 2 * width : SpacePool .classical) := by
-  refine (terminalDecode_routine_resident_le (Standard.pre (.bits width)) width order
+  refine (terminalDecode_routine_resident_le (model := .classical BitWord.model .empty)
+    (Standard.pre (.bits width)) width order
     (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width)) path).trans ?_
   intro axis
   cases axis
@@ -135,40 +152,42 @@ private theorem actual_auxiliary (width : Nat) (order : BitOrder)
     (path : (code width order).Path) :
     (code width order).peakAuxiliarySpace path ≤
       (fun .classicalBits => width : SpacePool .classical) := by
-  refine (terminalDecode_routine_auxiliary_le (Standard.pre (.bits width)) width order
+  refine (terminalDecode_routine_auxiliary_le (model := .classical BitWord.model .empty)
+    (Standard.pre (.bits width)) width order
     (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width)) path).trans ?_
   intro axis
   cases axis
   exact Nat.le_refl width
 
-noncomputable section
-
-local instance {α : Type} : DecidableEq α := Classical.decEq α
-
 private def finalRecord (width : Nat) (order : BitOrder)
-    (store : Execution.Store (Standard.pre (.bits width))) :
+    (entry : Execution.Store (Standard.pre (.bits width)) ×
+      ClassicalOracleModel.empty.HiddenState) :
     (algorithm width order).run.Record :=
-  (finalStore width order store, (store,
-    (retainedStep (Standard.pre (.bits width)) width order (inputRef width)
-      Standard.resultKey (Standard.resultFresh (.bits width)) store).2))
+  let result := retainedStep (model := .classical BitWord.model .empty)
+    (Standard.pre (.bits width)) width order (inputRef width)
+    Standard.resultKey (Standard.resultFresh (.bits width)) entry.1
+  (result.1, (entry.2, (entry.1, result.2)))
 
 private theorem execution_eq_map (width : Nat) (order : BitOrder) (Reference : Register)
-    (state : ExecutionState (Execution.Store (Standard.pre (.bits width)))
+    (state : ExecutionState
+      (Execution.Store (Standard.pre (.bits width)) × ClassicalOracleModel.empty.HiddenState)
       (Register.prod (Standard.pre (.bits width)).register Reference)) :
     (algorithm width order).run.execute Reference state =
       state.mapClassical (finalRecord width order) := by
-  change (routine (Standard.pre (.bits width)) width order (inputRef width)
+  change (routine (model := .classical BitWord.model .empty)
+    (Standard.pre (.bits width)) width order (inputRef width)
     Standard.resultKey (Standard.resultFresh (.bits width))).execute Reference
-      (state.mapClassical (fun store => (store, store))) = _
+      (state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))) = _
   rw [terminalDecode_routine_execute]
   simp only [ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  rfl
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem relational_distribution (width : Nat) (order : BitOrder)
-    {Reference : Register} (input : Execution.Input (Standard.pre (.bits width)) Reference) :
+    {Reference : Register} (input : Execution.OracleInput .empty (Standard.pre (.bits width))
+      Reference) :
     (algorithm width order).relationalDistribution input =
       (input.state.toPMF input.normalized).map (fun store =>
-        (store, (finalStore width order store).read
+        (store.1, (finalStore width order store.1).read
           (Standard.resultRef (.bits width) (.unsignedWord width)))) := by
   apply AlgorithmRun.relationalDistribution_eq_map_of_block_mass
     (algorithm width order).run input (finalRecord width order)
@@ -177,7 +196,8 @@ private theorem relational_distribution (width : Nat) (order : BitOrder)
     (execution_eq_map width order Reference input.state)
 
 private theorem success_probability (width : Nat) (order : BitOrder)
-    {Reference : Register} (input : Execution.Input (Standard.pre (.bits width)) Reference) :
+    {Reference : Register} (input : Execution.OracleInput .empty (Standard.pre (.bits width))
+      Reference) :
     (1 : ENNReal) ≤ ((algorithm width order).relationalDistribution input).toOuterMeasure
       {pair | accepts width order pair.1 pair.2} := by
   rw [relational_distribution]
@@ -186,29 +206,35 @@ private theorem success_probability (width : Nat) (order : BitOrder)
   apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
   intro pair supported
   obtain ⟨store, _inputSupported, rfl⟩ := (PMF.mem_support_map_iff _ _ _).mp supported
-  exact finalStore_accepts width order store
+  exact finalStore_accepts width order store.1
 
 /-- The named decoder meets the independent contract for both orders and every width. -/
 public theorem main (width : Nat) (order : BitOrder) :
     (algorithm width order).Solves (problem width order) := by
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     exact success_probability width order input
-  · intro _Reference _input _valid _requirement impossible
+  · intro _Reference _input _valid _initialization _requirement impossible
     cases impossible
-  · intro Reference input _valid
-    exact terminalDecode_routine_borrowedRestored (Standard.pre (.bits width)) width order
-      (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width)) Reference
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
-    exact terminalDecode_routine_pool_le (Standard.pre (.bits width)) width order
+  · intro Reference input _valid _initialization
+    apply AlgorithmRun.restoresBorrowed_of_circuit
+    intro reference history _ state
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum (code width order) (by rfl) reference state
+  · intro _Reference _input _valid _initialization path _supported
+    exact terminalDecode_routine_pool_le (model := .classical BitWord.model .empty) (Standard.pre
+      (.bits width)) width order
       (inputRef width) Standard.resultKey (Standard.resultFresh (.bits width)) path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_resident width order path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_auxiliary width order path
-  · intro _Reference _input _valid _path _supported
-    trivial
+  · intro _Reference _input _valid _initialization path _supported
+    change (code width order).depth (fun _ => 1) path ≤ 2 * width
+    have bounded : (code width order).depth (fun _ => 1) path ≤ width * (1 + 1) :=
+      terminalDecode_routine_depth_le (model := .classical BitWord.model .empty)
+        (Standard.pre (.bits width)) width order (inputRef width)
+        Standard.resultKey (Standard.resultFresh (.bits width)) (fun _ => 1) path
+    exact bounded.trans (by omega)
 
 end
 

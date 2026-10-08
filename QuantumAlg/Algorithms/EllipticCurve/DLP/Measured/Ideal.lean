@@ -92,7 +92,7 @@ def idealReadoutOperator (problem : KnownOrderProblem E.GroupPoint) (seed : Affi
     UnitaryOperator (((Qubits (orderWidth problem + orderWidth problem)).prod
       (idealGroupRegister problem seed)).prod Reference) :=
   UnitaryOperator.prodTensor
-    (UnitaryOperator.prodTensor (exponentReadoutCircuit problem).matrix
+    (UnitaryOperator.prodTensor (exponentReadoutCircuit problem).binaryMatrix
       (1 : UnitaryOperator (idealGroupRegister problem seed))) (1 : UnitaryOperator Reference)
 
 /-- Decode the original ordered big-endian exponent event without reading retained labels. -/
@@ -227,7 +227,7 @@ def idealInputEffect (problem : KnownOrderProblem E.GroupPoint) (fieldTail : Nat
     Effect ((before p.size (2 * orderWidth problem)).register.prod Reference) :=
   Effect.pullbackUnitary
     (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) Reference)
+      Reference)
     (idealPreparedEffect problem fieldTail sameWidth fits seed event Reference)
 
 /-- The original input-coordinate effect is exactly paired with the complete prepared density. -/

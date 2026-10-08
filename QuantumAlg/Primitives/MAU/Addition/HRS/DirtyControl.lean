@@ -79,10 +79,12 @@ theorem hrsDirtyControlledToffoli_weight (control a b target work : EncodedBit e
     (hca : control.wire ≠ a.wire) (hcw : control.wire ≠ work.wire)
     (haw : a.wire ≠ work.wire) (hbw : b.wire ≠ work.wire)
     (hbt : b.wire ≠ target.wire) (hwt : work.wire ≠ target.wire)
-    (weight : Resource.Event .quantum → Nat) :
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     ((dirtyControlledToffoliGates control a b target work hca hcw haw hbw hbt hwt).map
-      fun gate => weight gate.event).sum = 4 * weight (.gate (.builtin "toffoli")) := by
-  simp [dirtyControlledToffoliGates, event]
+      fun gate => weight (event .empty gate)).sum = 4 * weight (.gate .toffoli) := by
+  simp [dirtyControlledToffoliGates, EncodedBit.GateSpec.event,
+    EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+    AlgorithmGate.model, AlgorithmGate.coordinate]
   omega
 
 /-- Three distinct operand wires require at least two bits in each equal-width word. -/

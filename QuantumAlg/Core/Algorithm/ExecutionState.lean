@@ -132,7 +132,7 @@ theorem measureZ_first_mass [DecidableEq Outcome] (state : ExecutionState C R)
 /-- A unitary step reads the actual classical value to select its operator.
 The instruction interpreter supplies this family from its typed conditional
 gate syntax, not from a separate channel or cost witness. -/
-def applyUnitary (state : ExecutionState C R) (operator : C → UnitaryOperator R) :
+public def applyUnitary (state : ExecutionState C R) (operator : C → UnitaryOperator R) :
     ExecutionState C R where
   block value := DensityOperator.applyUnitary (operator value) (state.block value)
   total_le_one := by

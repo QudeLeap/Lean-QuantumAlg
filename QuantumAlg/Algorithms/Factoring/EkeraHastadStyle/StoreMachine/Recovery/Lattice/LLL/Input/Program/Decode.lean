@@ -26,7 +26,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The original flat target-write package gives the complete actual target caller frame. -/
-theorem target_callerFrame {m ell width : Nat}
+theorem target_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {m ell width : Nat}
     (refs : LatticeWideTargetMachine.Refs ctx m ell width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : AvoidsTargetWrites other refs) :
     (LatticeWideTargetMachine.targetStep refs store).1.read other = store.read other := by
@@ -35,7 +36,8 @@ theorem target_callerFrame {m ell width : Nat}
     ⟨a, b⟩ ⟨c, d, e, f⟩ ⟨g, h, i, j⟩
 
 /-- Actual decoding and target loading preserve every read outside their original write sets. -/
-theorem decodeTargetInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+theorem decodeTargetInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : DecodeTargetCallerSeparated refs other) :
     (decodeTargetStep refs store).1.read other = store.read other :=
@@ -44,7 +46,9 @@ theorem decodeTargetInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
       other avoids.1)
 
 /-- Actual prefix decoding supplies the original first sample component to the target loader. -/
-theorem prefix_firstK (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx) :
+theorem prefix_firstK {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
+    (store : Store ctx) :
     LatticeWideTargetMachine.SampleKRepresents
       (LatticeWideInitializationPrefix.decodeBasisStep (prefixRefs refs) store).1
       refs.target.first.k (sourceSamples refs store).1 := by
@@ -54,7 +58,9 @@ theorem prefix_firstK (refs : Refs ctx N) (separation : Separation refs) (store 
     separation.prefixSeparation store .k
 
 /-- Actual prefix decoding supplies the original second sample component to the target loader. -/
-theorem prefix_secondK (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx) :
+theorem prefix_secondK {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
+    (store : Store ctx) :
     LatticeWideTargetMachine.SampleKRepresents
       (LatticeWideInitializationPrefix.decodeBasisStep (prefixRefs refs) store).1
       refs.target.second.k (sourceSamples refs store).2 := by
@@ -64,7 +70,9 @@ theorem prefix_secondK (refs : Refs ctx N) (separation : Separation refs) (store
     separation.prefixSeparation store .k
 
 /-- The actual source-basis modulus cell is the exact original positive unwrapped modulus. -/
-theorem prefix_modulus (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+theorem prefix_modulus {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
+    (store : Store ctx)
     (zeros : LatticeWideInitializationPrefix.BasisInitialZero store (prefixRefs refs)) :
     ((LatticeWideInitializationPrefix.decodeBasisStep (prefixRefs refs) store).1.read
       refs.target.modulus).toNat = 2 ^ (tradeoffBits N + shortLogBits N) := by
@@ -90,7 +98,8 @@ theorem prefix_modulus (refs : Refs ctx N) (separation : Separation refs) (store
   exact rawSignedRepresents_toNat_eq_of_lt _ raw fits
 
 /-- Actual prefix and target loading yield the exact original pure source target. -/
-theorem decodeTargetInto_target (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeTargetInto_target {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeArithmetic.PointRawRepresents (decodeTargetStep refs store).1 refs.target.target.point
       (RSA.shortLogLatticeTarget (shortLogBits N) (tradeoffBits N) (sourceSamples refs store)) := by
@@ -108,7 +117,8 @@ theorem decodeTargetInto_target (refs : Refs ctx N) (separation : Separation ref
     (prefix_modulus refs separation store initial.1) third
 
 /-- Actual target loading preserves all nine original source-basis coordinates of the LLL driver. -/
-theorem decodeTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeTargetInto_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx)
     (zeros : LatticeWideInitializationPrefix.BasisInitialZero store (prefixRefs refs)) :
     LatticeMetricMachine.BasisRawRepresents (decodeTargetStep refs store).1
@@ -128,7 +138,8 @@ structure DecodeTargetOutcome (refs : Refs ctx N) (before after : Store ctx) : P
     DecodeTargetCallerSeparated refs other → after.read other = before.read other
 
 /-- Actual decoding and target loading establish both original mathematical objects and frame. -/
-theorem decodeTargetInto_correct (refs : Refs ctx N) (separation : Separation refs)
+theorem decodeTargetInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     DecodeTargetOutcome refs store (decodeTargetStep refs store).1 :=
   ⟨decodeTargetInto_basis refs separation store initial.1,

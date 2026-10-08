@@ -14,6 +14,7 @@ import all QuantumAlg.Util.ModularMultiplicationDomain
 import all QuantumAlg.Util.ZModUnits
 import all QuantumAlg.Components.Encoded.Circuit
 import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate
 import all QuantumAlg.Primitives.MAU.Multiplication
@@ -132,8 +133,8 @@ def liftArithmeticGate (n : Nat) :
 
 @[simp] private theorem event_liftArithmeticGate (n : Nat)
     (gate : EncodedBit.GateSpec (MAU.Addition.VBECircuit.encoding n)) :
-    EncodedBit.GateSpec.event (liftArithmeticGate n gate) =
-      EncodedBit.GateSpec.event gate := by
+    (EncodedBit.GateSpec.event .empty) (liftArithmeticGate n gate) =
+      (EncodedBit.GateSpec.event .empty) gate := by
   cases gate <;> rfl
 
 private theorem step_liftArithmeticGate (n : Nat)
@@ -380,8 +381,10 @@ theorem stageConstantLabel_testBit (n N : Nat) (a : PlainAdder.Word n)
 
 /-- Concrete controlled-XOR program that loads one selected stage constant. -/
 def stageLoadProgram (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   EncodedBit.Word.controlledXorConstantProgram
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -398,6 +401,7 @@ theorem stageLoad_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     UnitaryCircuit.Realizes (encoding n) (stageLoadProgram n N a bit)
       (stageLoadStep n N a bit) :=
   EncodedBit.Word.controlledXorConstant_realizes
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -608,8 +612,10 @@ def uniformStageLoadGates (n N : Nat) (a : PlainAdder.Word n)
 The clean VBE reduction flag is used only as a known-false null control, so the
 physical width is unchanged. -/
 def uniformStageLoadProgram (n N : Nat) (a : PlainAdder.Word n)
-    (bit : Fin n) : UnitaryCircuit (Qubits (encoding n).width) :=
+    (bit : Fin n) : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   EncodedBit.Word.constantScheduleProgram
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -629,6 +635,7 @@ theorem uniformStageLoad_realizes (n N : Nat) (a : PlainAdder.Word n)
     UnitaryCircuit.Realizes (encoding n) (uniformStageLoadProgram n N a bit)
       (uniformStageLoadStep n N a bit) :=
   EncodedBit.Word.constantSchedule_realizes
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -683,23 +690,18 @@ theorem liftedModularAddStep_eq_gateList (n N : Nat) (x : Registers n) :
 
 /-- Actual modular-add circuit lifted past the complete multiplier word. -/
 def liftedModularAddProgram (n N : Nat) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  UnitaryCircuit.prodRight
-    (m := (PlainAdder.Schedule.PowerOfTwo.wordEncoding n).width)
-    (MAU.Addition.VBECircuit.modularAddProgram n N)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (liftedModularAddGates n N)
 
 /-- Direct realization of modular addition in the full MAC layout. -/
 theorem liftedModularAdd_realizes (n N : Nat) :
     UnitaryCircuit.Realizes (encoding n) (liftedModularAddProgram n N)
       (liftedModularAddStep n N) := by
-  apply UnitaryCircuit.Realizes.congrStep
-    (UnitaryCircuit.Realizes.relabel (registersEquiv n)
-      (UnitaryCircuit.Realizes.prodRight
-        (left := PlainAdder.Schedule.PowerOfTwo.wordEncoding n)
-        (MAU.Addition.VBECircuit.modularAdd_realizes n N)))
-  intro x
-  cases x
-  rfl
+  exact EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty (liftedModularAddGates n N)
+    (liftedModularAddStep_eq_gateList n N)
 
 /-! ### Constant-schedule stage unload -/
 
@@ -710,8 +712,10 @@ def uniformStageUnloadGates (n N : Nat) (a : PlainAdder.Word n)
 
 /-- Exact reverse of the fixed-schedule load gate list. -/
 def uniformStageUnloadProgram (n N : Nat) (a : PlainAdder.Word n)
-    (bit : Fin n) : UnitaryCircuit (Qubits (encoding n).width) :=
+    (bit : Fin n) : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   EncodedBit.Word.constantScheduleUnloadProgram
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -731,6 +735,7 @@ theorem uniformStageUnload_realizes (n N : Nat) (a : PlainAdder.Word n)
     UnitaryCircuit.Realizes (encoding n) (uniformStageUnloadProgram n N a bit)
       (uniformStageUnloadStep n N a bit) :=
   EncodedBit.Word.constantScheduleUnload_realizes
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -761,8 +766,10 @@ theorem uniformStageUnloadStep_cleanEndpoint
 
 /-- Reverse controlled-XOR program that clears the selected stage constant. -/
 def stageUnloadProgram (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   EncodedBit.Word.controlledXorConstantUnloadProgram
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -780,6 +787,7 @@ theorem stageUnload_realizes
     UnitaryCircuit.Realizes (encoding n) (stageUnloadProgram n N a bit)
       (stageUnloadStep n N a bit) :=
   EncodedBit.Word.controlledXorConstantUnload_realizes
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -815,7 +823,8 @@ def stageGates (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
 
 /-- Ordered load, modular-add, and unload programs for one multiplier bit. -/
 def stagePrograms (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    List (UnitaryCircuit (Qubits (encoding n).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum) :=
   [ uniformStageLoadProgram n N a bit,
     liftedModularAddProgram n N,
     uniformStageUnloadProgram n N a bit ]
@@ -854,9 +863,11 @@ theorem stageStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
 
 /-- Concrete concatenated program for one multiplier-bit stage. -/
 def stageProgram (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   (stagePrograms n N a bit).foldr UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits (encoding n).width) [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum)
 
 
 
@@ -880,9 +891,10 @@ def stageProgram (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
 compiled classical multiplicand. -/
 theorem stageGates_events_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
-    (stageGates n N left bit).map EncodedBit.GateSpec.event =
-      (stageGates n N right bit).map EncodedBit.GateSpec.event := by
+    (stageGates n N left bit).map (EncodedBit.GateSpec.event .empty) =
+      (stageGates n N right bit).map (EncodedBit.GateSpec.event .empty) := by
   have hload := EncodedBit.Word.constantScheduleGates_events_eq
+    .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N left bit) (stageConstantLabel n N right bit)
     (multiplicand_activeSource_ne n bit)
@@ -891,7 +903,7 @@ theorem stageGates_events_eq (n N : Nat)
     List.map_append, List.map_reverse] using congrArg
       (fun loadEvents =>
         loadEvents ++
-          (liftedModularAddGates n N).map EncodedBit.GateSpec.event ++
+          (liftedModularAddGates n N).map (EncodedBit.GateSpec.event .empty) ++
           loadEvents.reverse)
       hload
 
@@ -906,6 +918,7 @@ theorem uniformStageLoadProgram_eventCost_eq (n N : Nat)
     (uniformStageLoadProgram n N left bit).eventCost =
       (uniformStageLoadProgram n N right bit).eventCost := by
   exact EncodedBit.Word.constantScheduleProgram_eventCost_eq
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N left bit) (stageConstantLabel n N right bit)
     (multiplicand_activeSource_ne n bit)
@@ -918,6 +931,7 @@ theorem uniformStageLoadProgram_eventDepth_eq (n N : Nat)
     (uniformStageLoadProgram n N left bit).eventDepth =
       (uniformStageLoadProgram n N right bit).eventDepth := by
   exact EncodedBit.Word.constantScheduleProgram_eventDepth_eq
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N left bit) (stageConstantLabel n N right bit)
     (multiplicand_activeSource_ne n bit)
@@ -934,6 +948,7 @@ theorem uniformStageUnloadProgram_eventCost_eq (n N : Nat)
     (uniformStageUnloadProgram n N left bit).eventCost =
       (uniformStageUnloadProgram n N right bit).eventCost := by
   exact EncodedBit.Word.constantScheduleUnloadProgram_eventCost_eq
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N left bit) (stageConstantLabel n N right bit)
     (multiplicand_activeSource_ne n bit)
@@ -946,6 +961,7 @@ theorem uniformStageUnloadProgram_eventDepth_eq (n N : Nat)
     (uniformStageUnloadProgram n N left bit).eventDepth =
       (uniformStageUnloadProgram n N right bit).eventDepth := by
   exact EncodedBit.Word.constantScheduleUnloadProgram_eventDepth_eq
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N left bit) (stageConstantLabel n N right bit)
     (multiplicand_activeSource_ne n bit)
@@ -992,7 +1008,8 @@ theorem stageProgram_eventDepth_eq (n N : Nat)
 theorem stage_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     UnitaryCircuit.Realizes (encoding n) (stageProgram n N a bit)
       (stageStep n N a bit) :=
-  UnitaryCircuit.Realizes.appendList (encoding n) (stagePrograms n N a bit)
+  UnitaryCircuit.Realizes.appendList (encoding n) (QubitLayout.canonical _)
+    (stagePrograms n N a bit)
     (stageSteps n N a bit) (stageStages_realize n N a bit)
 
 /-- One exact load/add/unload stage conditionally contributes the fixed
@@ -1087,7 +1104,8 @@ theorem stageStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
 /-- One actual three-part program for each multiplier wire, in increasing
 little-endian bit-index order. -/
 def macPrograms (n N : Nat) (a : PlainAdder.Word n) :
-    List (UnitaryCircuit (Qubits (encoding n).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum) :=
   List.ofFn fun bit : Fin n => stageProgram n N a bit
 
 /-- Semantic schedule aligned entry-for-entry with `macPrograms`. -/
@@ -1131,7 +1149,8 @@ private theorem primitiveMultiplicity_sums_eq_length
         (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum +
         (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       gates.length := by
-  have h := EncodedBit.GateSpec.primitiveEventCount_programList gates
+  have h := EncodedBit.GateSpec.primitiveEventCount_programList
+    (QubitLayout.canonical dataEncoding.width) .empty gates
   unfold EncodedBit.GateSpec.primitiveEventCount at h
   rw [EncodedBit.GateSpec.programList_x_count_eq_sum,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum,
@@ -1144,6 +1163,7 @@ private theorem uniformStageLoadGates_cnotMultiplicity_sum
         EncodedBit.GateSpec.cnotMultiplicity).sum = 3 * (n + 1) := by
   rw [← EncodedBit.GateSpec.programList_cnot_count_eq_sum]
   exact EncodedBit.Word.constantScheduleProgram_cnot_eventCount
+    (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
@@ -1180,16 +1200,16 @@ private theorem uniformStageLoadGates_xMultiplicity_sum
   omega
 
 private theorem liftedModularAddGates_events_eq_source (n N : Nat) :
-    (liftedModularAddGates n N).map EncodedBit.GateSpec.event =
+    (liftedModularAddGates n N).map (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates n N).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   simp [liftedModularAddGates, List.map_map]
 
 private theorem liftedModularAddGates_toffoliMultiplicity_sum
     (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 30 * n := by
-  rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum n N
 
@@ -1197,14 +1217,14 @@ private theorem liftedModularAddGates_cnotMultiplicity_sum_le
     (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤ 18 * n + 14 := by
-  rw [EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  rw [EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_cnotMultiplicity_sum_le n N
 
 private theorem liftedModularAddGates_xMultiplicity_sum (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 := by
-  rw [EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+  rw [EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_xMultiplicity_sum n N
 
@@ -1349,8 +1369,8 @@ theorem macGates_length_le (n N : Nat) (a : PlainAdder.Word n) :
 private theorem map_event_flatMap_stageGates_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
-      (bits.flatMap (stageGates n N left)).map EncodedBit.GateSpec.event =
-        (bits.flatMap (stageGates n N right)).map EncodedBit.GateSpec.event
+      (bits.flatMap (stageGates n N left)).map (EncodedBit.GateSpec.event .empty) =
+        (bits.flatMap (stageGates n N right)).map (EncodedBit.GateSpec.event .empty)
   | [] => rfl
   | bit :: rest => by
       simp only [List.flatMap_cons, List.map_append]
@@ -1361,8 +1381,8 @@ private theorem map_event_flatMap_stageGates_eq (n N : Nat)
 classical multiplicand. -/
 theorem macGates_events_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
-    (macGates n N left).map EncodedBit.GateSpec.event =
-      (macGates n N right).map EncodedBit.GateSpec.event := by
+    (macGates n N left).map (EncodedBit.GateSpec.event .empty) =
+      (macGates n N right).map (EncodedBit.GateSpec.event .empty) := by
   exact map_event_flatMap_stageGates_eq n N left right
     (List.ofFn fun bit : Fin n => bit)
 
@@ -1406,9 +1426,11 @@ theorem macStages_realize (n N : Nat) (a : PlainAdder.Word n) :
 
 /-- The input-independent concrete program for all multiplier bits. -/
 def macProgram (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   (macPrograms n N a).foldr UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits (encoding n).width) [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n).width).toQuantum)
 
 
 
@@ -1423,14 +1445,17 @@ def macProgram (n N : Nat) (a : PlainAdder.Word n) :
 /-- Pairwise strict-event-pool equality is preserved by sequential list
 folding. -/
 theorem appendList_eventCost_eq_of_forall₂ {width : Nat}
-    {left right : List (UnitaryCircuit (Qubits width))}
+    {left right : List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (width)).toQuantum)}
     (h : List.Forall₂
       (fun first second => first.eventCost = second.eventCost)
       left right) :
     (left.foldr UnitaryCircuit.seq
-      (UnitaryCircuit.identity (Qubits width) [] (by simp))).eventCost =
+      (UnitaryCircuit.identity AlgorithmGate.model .empty
+        (QubitLayout.canonical width).toQuantum)).eventCost =
       (right.foldr UnitaryCircuit.seq
-        (UnitaryCircuit.identity (Qubits width) [] (by simp))).eventCost := by
+        (UnitaryCircuit.identity AlgorithmGate.model .empty
+          (QubitLayout.canonical width).toQuantum)).eventCost := by
   induction h with
   | nil => rfl
   | cons hhead _htail ih =>
@@ -1441,14 +1466,17 @@ theorem appendList_eventCost_eq_of_forall₂ {width : Nat}
 /-- Pairwise strict-event-depth equality is preserved by sequential list
 folding. -/
 theorem appendList_eventDepth_eq_of_forall₂ {width : Nat}
-    {left right : List (UnitaryCircuit (Qubits width))}
+    {left right : List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      (width)).toQuantum)}
     (h : List.Forall₂
       (fun first second => first.eventDepth = second.eventDepth)
       left right) :
     (left.foldr UnitaryCircuit.seq
-      (UnitaryCircuit.identity (Qubits width) [] (by simp))).eventDepth =
+      (UnitaryCircuit.identity AlgorithmGate.model .empty
+        (QubitLayout.canonical width).toQuantum)).eventDepth =
       (right.foldr UnitaryCircuit.seq
-        (UnitaryCircuit.identity (Qubits width) [] (by simp))).eventDepth := by
+        (UnitaryCircuit.identity AlgorithmGate.model .empty
+          (QubitLayout.canonical width).toQuantum)).eventDepth := by
   induction h with
   | nil => rfl
   | cons hhead _htail ih =>
@@ -1537,7 +1565,8 @@ theorem macStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
 theorem mac_realizes (n N : Nat) (a : PlainAdder.Word n) :
     UnitaryCircuit.Realizes (encoding n) (macProgram n N a)
       (macStep n N a) :=
-  UnitaryCircuit.Realizes.appendList (encoding n) (macPrograms n N a)
+  UnitaryCircuit.Realizes.appendList (encoding n) (QubitLayout.canonical _)
+    (macPrograms n N a)
     (macSteps n N a) (macStages_realize n N a)
 
 /-- Prefix of the actual multiplier-bit schedule. -/
@@ -1742,8 +1771,9 @@ def macInverseGates (n N : Nat) (a : PlainAdder.Word n) :
 /-- The actual adjoint circuit retained for existing inverse-application
 lemmas.  Its local GateSpec seam is `macInverseGates`. -/
 def macInverseProgram (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
-  (macProgram n N a).dagger
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
+  (macProgram n N a).dagger (AlgorithmGate.oracleFreeAdjoints .empty)
 
 instance registersNonempty (n : Nat) : Nonempty (Registers n) :=
   ⟨workspaceState n 0 0 0 0 false⟩
@@ -1788,6 +1818,9 @@ theorem macInverse_realizes (n N : Nat) (a : PlainAdder.Word n) :
     UnitaryCircuit.Realizes (encoding n) (macInverseProgram n N a)
       (macInverseStep n N a) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse (mac_realizes n N a)
+    (by
+      rw [macInverseProgram, UnitaryCircuit.dagger_matrix]
+      exact Unitary.star_eq_inv _)
     (macStep_macInverseStep n N a)
 
 
@@ -1798,17 +1831,9 @@ theorem macInverse_realizes (n N : Nat) (a : PlainAdder.Word n) :
 
 /-- Typed circuit obtained from the actual reverse-list program. -/
 def macInverseCircuit (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   macInverseProgram n N a
-
-private theorem dagger_applyNormalized_applyNormalized {R : Register}
-    (circuit : UnitaryCircuit R) (state : NormalizedVector R) :
-    circuit.dagger.applyNormalized (circuit.applyNormalized state) = state := by
-  apply NormalizedVector.ext
-  intro i
-  change (circuit.matrix⁻¹).applyVec (circuit.matrix.applyVec state) i = _
-  rw [← UnitaryOperator.mul_applyVec, inv_mul_cancel,
-    UnitaryOperator.one_applyVec]
 
 /-- Applying the reverse-list program to a clean forward endpoint restores the
 complete encoded physical state, not merely the high-level accumulator. -/
@@ -1818,19 +1843,26 @@ theorem macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
     (hx : x.FlagClean) :
     (macInverseProgram n N (a.val : PlainAdder.Word n)).applyNormalized
         (NormalizedVector.ket
-          ((encoding n).encode (cleanEmbedding n N (x.addScaled a)))) =
+          ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
+            ((encoding n).encode (cleanEmbedding n N (x.addScaled a))))) =
       NormalizedVector.ket
-        ((encoding n).encode (cleanEmbedding n N x)) := by
+        ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
+          ((encoding n).encode (cleanEmbedding n N x))) := by
   have hforward :=
     (mac_realizes n N (a.val : PlainAdder.Word n)).apply_encoded_ket
       (cleanEmbedding n N x)
   rw [macStep_cleanEmbedding n N a x hNpos hN hx] at hforward
   rw [← hforward]
   simpa only [macInverseProgram] using
-    dagger_applyNormalized_applyNormalized
+    UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
       (macProgram n N (a.val : PlainAdder.Word n))
+      (macInverseProgram n N (a.val : PlainAdder.Word n))
+      (by
+        rw [macInverseProgram, UnitaryCircuit.dagger_matrix]
+        exact Unitary.star_eq_inv _)
       (NormalizedVector.ket
-        ((encoding n).encode (cleanEmbedding n N x)))
+        ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
+          ((encoding n).encode (cleanEmbedding n N x))))
 
 /-- On clean forward endpoints, the semantic inverse permutation restores the
 complete physical register. -/
@@ -1846,41 +1878,46 @@ theorem macInverseStep_cleanEndpoint (n N : Nat) (a : ZMod N)
       (cleanEmbedding n N (x.addScaled a))
   rw [macInverseProgram_cleanEndpoint n N a x hNpos hN hx] at hrealizes
   apply (encoding n).encode_injective
+  apply (QubitLayout.canonical (encoding n).width).basisEquiv.symm.injective
   exact NormalizedVector.ket_injective hrealizes.symm
 
 /-- Typed circuit of the exact folded VBE multiply-accumulate program. -/
 def macCircuit (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit (Qubits (encoding n).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      n).width)).toQuantum :=
   macProgram n N a
 
 /-- Ordered strict events of the exact multiply-accumulate circuit. -/
 def macEventTrace (n N : Nat) (a : PlainAdder.Word n) :
-    List (Resource.Event .quantum) :=
+    List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (macCircuit n N a).eventTrace
 
 /-- Strict event pool of the exact multiply-accumulate circuit. -/
-def macEventCost (n N : Nat) (a : PlainAdder.Word n) : ResourcePool .quantum :=
+def macEventCost (n N : Nat) (a : PlainAdder.Word n) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (macCircuit n N a).eventCost
 
 /-- Strict symbolic event critical path of the multiply-accumulate circuit. -/
 def macEventDepth (n N : Nat) (a : PlainAdder.Word n) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (macCircuit n N a).eventDepth
 
 /-- Evaluated MAC depth under literal strict-event durations. -/
 def macEvaluatedEventDepth (n N : Nat) (a : PlainAdder.Word n)
-    (assign : Resource.Event .quantum → Nat) : Nat :=
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   (macCircuit n N a).evaluatedEventDepth assign
 
 /-- MAC depth selected by one literal event coordinate. -/
 def macEventQueryDepth (n N : Nat) (a : PlainAdder.Word n)
-    (focus : Resource.Event .quantum) : Nat :=
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   (macCircuit n N a).eventQueryDepth focus
 
 /-- Exact multiplicity of one gate coordinate in the MAC event pool. -/
 def macEventGateCount (n N : Nat) (a : PlainAdder.Word n)
-    (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label) (macCircuit n N a).eventCost
+    (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count
+    (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) label)
+    (macCircuit n N a).eventCost
 
 /-- Linearizing MAC event depth recovers its exact strict event pool. -/
 theorem macCircuit_resourcesFromEventDepth_eq_eventCost
@@ -1920,9 +1957,11 @@ theorem macCircuit_applyNormalized_clean_ket (n N : Nat) (a : ZMod N)
     (hx : x.FlagClean) :
     (macCircuit n N (a.val : PlainAdder.Word n)).applyNormalized
         (NormalizedVector.ket
-          ((encoding n).encode (cleanEmbedding n N x))) =
+          ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
+            ((encoding n).encode (cleanEmbedding n N x)))) =
       NormalizedVector.ket
-        ((encoding n).encode (cleanEmbedding n N (x.addScaled a))) := by
+        ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
+          ((encoding n).encode (cleanEmbedding n N (x.addScaled a)))) := by
   simpa only [macCircuit,
     macStep_cleanEmbedding n N a x hNpos hN hx] using
     (mac_realizes n N (a.val : PlainAdder.Word n)).apply_encoded_ket

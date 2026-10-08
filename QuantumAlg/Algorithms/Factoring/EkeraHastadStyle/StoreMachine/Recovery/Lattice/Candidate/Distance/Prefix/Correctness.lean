@@ -24,6 +24,8 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
+section StoreResult
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original candidate point, difference and squared norm with the full caller frame. -/
@@ -39,6 +41,11 @@ structure Outcome (m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.Short
     (NumberTheory.integerPointSquaredNorm
       ((RSA.shortLogPointAtOffset m ell samples offset).sub originalTarget) : Int)
   callerFrame : CallerFrame refs before after
+
+end StoreResult
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual three-phase prefix realizes the original source candidate and squared distance. -/
 theorem candidateDistancePrefixInto_correct (m ell : Nat)

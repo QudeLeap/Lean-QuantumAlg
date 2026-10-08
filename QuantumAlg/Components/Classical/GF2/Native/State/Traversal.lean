@@ -23,8 +23,10 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem absent_of_avoid (state : ClassicalAlgorithms.GF2.State rowCount width)
     (column : Fin width) (remaining : List (Fin width))
     (avoid : ClassicalAlgorithms.GF2.PivotColumnsAvoid state (column :: remaining)) :
@@ -43,8 +45,8 @@ private theorem traverse (cells : Cells ctx (stateShapes rowCount width))
     (represented : columnStateValues cells store state)
     (avoid : ClassicalAlgorithms.GF2.PivotColumnsAvoid state (List.ofFn indices)) :
     columnStateValues cells
-      (Circuit.forRangeRecord count
-        (fun index => reduceColumn cells.tail.tail.tail.tail.tail.head.ref
+      (Circuit.forRangeStoreRecord count
+        (fun index => reduceColumn (model := model) cells.tail.tail.tail.tail.tail.head.ref
           cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
           cells.tail.tail.tail.head.ref (indices index))
         (fun index => reduceColumnStep cells.tail.tail.tail.tail.tail.head.ref
@@ -75,8 +77,9 @@ theorem gf2ReduceColumns_cellState
     (represented : columnStateValues cells store state)
     (avoid : ClassicalAlgorithms.GF2.PivotColumnsAvoid state (List.finRange width)) :
     columnStateValues cells
-      (Circuit.forRangeRecord width
-        (reduceColumn cells.tail.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.head.ref
+      (Circuit.forRangeStoreRecord width
+        (reduceColumn (model := model) cells.tail.tail.tail.tail.tail.head.ref
+          cells.tail.tail.tail.tail.head.ref
           cells.tail.tail.tail.tail.tail.tail.head.ref cells.tail.tail.tail.head.ref)
         (reduceColumnStep cells.tail.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.head.ref
           cells.tail.tail.tail.tail.tail.tail.head.ref cells.tail.tail.tail.head.ref) store).1

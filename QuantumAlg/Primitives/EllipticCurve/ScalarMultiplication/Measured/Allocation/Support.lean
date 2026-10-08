@@ -82,7 +82,8 @@ theorem initializedDensity_support (modulus count : Nat) (Reference : Register)
 /-- Actual initialization establishes a selected first step's full joint support from input. -/
 theorem initialize_step_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     {count : Nat} (active : Fin count) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before p.size count) Reference History)
+    (state : State (before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬inputStepAdmissible E Q active input.1 → state.quantumMarginal.matrix input input = 0) :
     ∀ output : (Register.prod (after p.size count).register Reference).Index,

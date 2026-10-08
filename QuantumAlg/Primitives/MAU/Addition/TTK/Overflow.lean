@@ -124,7 +124,8 @@ theorem ttkOverflow_step (n : Nat) (s : OverflowRegisters n) :
 explicit overflow output, with no clean-output or workspace assumption. -/
 theorem ttkOverflow_realizes_addition (n : Nat) :
     UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n) overflowOutput :=
-  realizesList_congrStep (overflowGates n) (ttkOverflow_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (overflowGates n) (ttkOverflow_step n)
 
 end
 

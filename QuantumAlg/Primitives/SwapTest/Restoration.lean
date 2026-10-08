@@ -25,7 +25,8 @@ noncomputable section
 open Execution
 
 theorem code_borrowedRestored (width : Nat) {Reference : Register}
-    {History : Type} [Fintype History] (state : State (pre width) Reference History) :
+    {History : Type} [Fintype History]
+    (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     (code width).BorrowedRestored Reference state ((code width).execute Reference state) := by
   rw [code_execute]
   exact HadamardTest.code_borrowedRestored (swapRegistersOp width) state

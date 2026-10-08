@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Accounting.ResourcePool
+public import QuantumAlg.Components.GateModel.Algorithm
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Resources
 import all QuantumAlg.Primitives.MAU.Addition.Gidney.Native.Resources
@@ -25,173 +27,306 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 noncomputable section
 
 open Execution MeasuredUncompute MAU.Inversion.SharedEEA
+open BinaryLabelEncoding EncodedBit.GateSpec
 
-/-- Every live system is charged, including N and the reused finite measurement cells. -/
+private theorem pool_add_mono
+    {a b c d : ResourcePool (.quantum AlgorithmGate.model .empty)}
+    (left : a ≤ b) (right : c ≤ d) : a + c ≤ b + d := add_le_add left right
+
+private theorem pool_trans
+    {a b c : ResourcePool (.quantum AlgorithmGate.model .empty)}
+    (left : a ≤ b) (right : b ≤ c) : a ≤ c := left.trans right
+
+private theorem pool_add_six
+    {a b c d e f A B C D E F : ResourcePool (.quantum AlgorithmGate.model .empty)}
+    (ha : a ≤ A) (hb : b ≤ B) (hc : c ≤ C) (hd : d ≤ D) (he : e ≤ E) (hf : f ≤ F) :
+    a + b + c + d + e + f ≤ A + B + C + D + E + F :=
+  pool_add_mono (pool_add_mono (pool_add_mono (pool_add_mono (pool_add_mono ha hb) hc) hd) he) hf
+
+/-- Every live system includes both controls and the reused measurement cells. -/
 def space (width : Nat) : SpacePool .quantum :=
   width • SpacePool.ofShape (.finite 2) + OwnedQubits.space (3 * width + 4 * width.size + 13)
 
-private def cnotBudget : ResourcePool .quantum :=
-  ResourcePool.singleton (.gate (.builtin "cnot"))
+private def cnotBudget : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.singleton (.gate .cnot)
 
-private def offsetBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2 (MAU.Addition.Gidney.modularOffsetNativeBudget width)
+private def controlledBudget (control : OffsetControl) (count : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  (match control with | .supplied => count | .exceptional => 2) • cnotBudget +
+    (match control with | .supplied => 4 * count | .exceptional => 16 * count) •
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate AlgorithmGate.Coordinate.toffoli)
 
-private def comparisonBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2
-    (MAU.Addition.Gidney.comparisonEventBound width • EncodedBit.GateSpec.primitiveAlphabet)
+private def offsetBudget (width : Nat) (control : OffsetControl := .supplied) :=
+  controlledBudget control (MAU.Addition.Gidney.modularOffsetEventBound width)
 
-private def pivotBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2
-    (MAU.Addition.Gidney.pivotEventBound width • MAU.Addition.Gidney.offsetAlphabet)
+private def comparisonBudget (width : Nat) :=
+  controlledBudget .supplied (MAU.Addition.Gidney.comparisonEventBound width)
 
-private def squareBudget (width : Nat) : ResourcePool .quantum :=
-  width • cnotBudget +
-    (ResourcePool.controlForDimension 2 (MAU.Multiplication.VariableGidney.nativeBudget width) +
-      width • cnotBudget)
+private def pivotBudget (width : Nat) :=
+  controlledBudget .supplied (MAU.Addition.Gidney.pivotEventBound width)
 
-private def selectorBudget (width : Nat) : ResourcePool .quantum :=
-  cnotBudget + comparisonBudget width
+private def squareBudget (width : Nat) :=
+  width • cnotBudget + controlledBudget .supplied
+    (MAU.Multiplication.VariableGidney.eventBound width) + width • cnotBudget
 
-/-- Two controlled canonical coordinate differences precede the first measured call. -/
-def beforeBudget (width : Nat) : ResourcePool .quantum := offsetBudget width + offsetBudget width
+private def selectorBudget (width : Nat) := cnotBudget + comparisonBudget width
 
-/-- The middle stage uses the existing A, computes N, and executes three actual CNOT exchanges. -/
-def middleBudget (width : Nat) : ResourcePool .quantum :=
-  offsetBudget width + (squareBudget width + (selectorBudget width + 3 • cnotBudget))
+/-- Two real controlled coordinate offsets precede the measured division. -/
+def beforeBudget (width : Nat) := offsetBudget width + offsetBudget width
 
-/-- The final stage restores C/N and both output coordinates, including the exceptional arm. -/
-def afterBudget (width : Nat) : ResourcePool .quantum :=
-  3 • cnotBudget +
-    (ResourcePool.controlForDimension 4 (MAU.Addition.Gidney.modularOffsetNativeBudget width) +
-      (selectorBudget width + (pivotBudget width + (offsetBudget width + offsetBudget width))))
+/-- The middle allowance charges the actual square, selector and three-CNOT swap. -/
+def middleBudget (width : Nat) :=
+  offsetBudget width + squareBudget width + selectorBudget width + 3 • cnotBudget
 
-/-- Independent allowance follows the same five concrete execution stages. -/
-def events (width : Nat) : ResourcePool .quantum :=
+/-- Mixed-polarity cleanup includes both controlled X gates and the reversed selector word. -/
+def afterBudget (width : Nat) :=
+  3 • cnotBudget + offsetBudget width .exceptional + selectorBudget width +
+    pivotBudget width + offsetBudget width + offsetBudget width
+
+/-- Independent native-coordinate allowances for all five executed stages. -/
+public def events (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   beforeBudget width + (InPlaceControlled.events .division width +
     (middleBudget width + (InPlaceControlled.events .multiplication width + afterBudget width)))
 
-/-- Explicit serial duration includes both measured bodies and every actual native occurrence. -/
-def depthBound (width : Nat) : Nat :=
-  InPlaceControlled.depthBound .division width +
-    InPlaceControlled.depthBound .multiplication width +
-    6 * MAU.Addition.Gidney.modularOffsetEventBound width +
-    MAU.Addition.Gidney.pivotEventBound width + MAU.Multiplication.VariableGidney.eventBound width +
-    2 * MAU.Addition.Gidney.comparisonEventBound width + 2 * width + 8
+/-- The measured point-addition allowance's one-qubit coordinate comes from its
+two controlled arithmetic bodies; the surrounding controls use other gates. -/
+theorem events_singleQubit_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) (events width) =
+      8 + 12 * width + 4 * MAU.Multiplication.VariableGidney.eventBound width := by
+  simp [events, beforeBudget, middleBudget, afterBudget, offsetBudget,
+    comparisonBudget, pivotBudget, squareBudget, selectorBudget, cnotBudget,
+    controlledBudget, InPlaceControlled.events_singleQubit_count]
+  omega
 
-private theorem placement_cost {Source Target : Type}
+/-- Both controlled arithmetic bodies and the literal outer CNOT controls
+contribute to the point-addition CNOT allowance. -/
+theorem events_cnot_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (events width) =
+      5 * MAU.Addition.Gidney.modularOffsetEventBound width +
+      12 * width + 7 * MAU.Multiplication.VariableGidney.eventBound width +
+      2 * MAU.Addition.Gidney.comparisonEventBound width +
+      MAU.Addition.Gidney.pivotEventBound width +
+      4 * ForwardResources.inPlaceBound width + 10 := by
+  simp [events, beforeBudget, middleBudget, afterBudget, offsetBudget,
+    comparisonBudget, pivotBudget, squareBudget, selectorBudget, cnotBudget,
+    controlledBudget, InPlaceControlled.events_cnot_count]
+  omega
+
+/-- The two controlled arithmetic bodies and outer controls give the Toffoli allowance. -/
+theorem events_toffoli_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) (events width) =
+      36 * MAU.Addition.Gidney.modularOffsetEventBound width +
+      16 * MAU.Multiplication.VariableGidney.eventBound width +
+      8 * MAU.Addition.Gidney.comparisonEventBound width +
+      4 * MAU.Addition.Gidney.pivotEventBound width +
+      16 * ForwardResources.inPlaceBound width + 2 * width := by
+  simp [events, beforeBudget, middleBudget, afterBudget, offsetBudget,
+    comparisonBudget, pivotBudget, squareBudget, selectorBudget, cnotBudget,
+    controlledBudget, InPlaceControlled.events_toffoli_count]
+  omega
+
+/-- The actual 256-bit measured point-addition one-qubit allowance. -/
+public theorem events_singleQubit_count_256 :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) (events 256) = 12384882134024 := by
+  rw [events_singleQubit_count, MAU.Multiplication.VariableGidney.eventBound_256]
+
+/-- The actual 256-bit measured point-addition CNOT allowance. -/
+public theorem events_cnot_count_256 :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (events 256) = 108351862030480598216 := by
+  rw [events_cnot_count]
+  decide
+
+/-- The actual 256-bit measured point-addition Toffoli allowance. -/
+public theorem events_toffoli_count_256 :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) (events 256) = 433407410967323232792 := by
+  rw [events_toffoli_count]
+  decide
+
+/-- Serial native stages and the accepted measured arithmetic depth allowances. -/
+def depthBound (width : Nat) : Nat :=
+  (beforeBudget width).card + InPlaceControlled.depthBound .division width +
+    (middleBudget width).card + InPlaceControlled.depthBound .multiplication width +
+      (afterBudget width).card
+
+private def gatePool {Data : Type} {encoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec encoding)) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.ofList (gates.map (event .empty))
+
+private theorem gatePool_append {Data : Type} {encoding : BinaryLabelEncoding Data}
+    (first second : List (EncodedBit.GateSpec encoding)) :
+    gatePool (first ++ second) = gatePool first + gatePool second := by
+  simp only [gatePool, List.map_append, ResourcePool.ofList_append]
+
+private theorem gatePool_reverse {Data : Type} {encoding : BinaryLabelEncoding Data}
+    (gates : List (EncodedBit.GateSpec encoding)) : gatePool gates.reverse = gatePool gates := by
+  simp [gatePool, List.map_reverse, ResourcePool.ofList]
+
+private theorem gatePool_place {Source Target : Type}
     {source : BinaryLabelEncoding Source} {target : BinaryLabelEncoding Target}
     (placement : EncodedBit.FullPlacement source target)
-    (program : UnitaryCircuit (Qubits source.width))
-    (within : program.physical_idx ⊆ List.range source.width) :
-    (placement.place program within).eventCost = program.eventCost := by
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
-    EncodedBit.FullPlacement.place_eventTrace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+    (gates : List (EncodedBit.GateSpec source)) :
+    gatePool (gates.map placement.placeGate) = gatePool gates := by
+  simp only [gatePool, List.map_map, Function.comp_def,
+    EncodedBit.FullPlacement.placeGate_event]
 
-private theorem prefix_cost {width : Nat} (count : Nat) (active : Fin (2 ^ count))
-    (program : UnitaryCircuit (Qubits width)) :
-    (prefixControl count active program).eventCost =
-      ResourcePool.controlForDimension (2 ^ count) program.eventCost := by
-  simp only [prefixControl, UnitaryCircuit.reindex_eventCost, UnitaryCircuit.controlAt_eventCost,
-    UnitaryCircuit.shiftPhysicalIdx_eventCost, Fintype.card_fin]
+private theorem prefix_budget {Data : Type} (data : BinaryLabelEncoding Data)
+    (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
+    (capacity : 4 ≤ data.width) (control : OffsetControl)
+    (source : List (EncodedBit.GateSpec data)) (count : Nat) (bounded : source.length ≤ count) :
+    gatePool (prefixControlGates data bits bitsWire capacity control source) ≤
+      controlledBudget control count := by
+  let gates := prefixControlGates data bits bitsWire capacity control source
+  have counts := pointPrefixControlGates_counts data bits bitsWire capacity control source
+  have sourceLength := length_eq_multiplicity_sums source
+  have cost : gatePool gates =
+      (programList (QubitLayout.canonical _) .empty gates).eventCost :=
+    (programList_eventCost _ _ gates).symm
+  rw [cost]
+  apply ResourcePool.le_iff_count.mpr
+  intro focus
+  by_cases single : focus = .gate .singleQubit
+  · subst focus
+    rw [programList_x_count_eq_sum, counts.1]
+    exact Nat.zero_le _
+  by_cases cnot : focus = .gate .cnot
+  · subst focus
+    rw [programList_cnot_count_eq_sum, counts.2.1]
+    cases control <;>
+      simp only [controlledBudget, cnotBudget, ResourcePool.count_add,
+        ResourcePool.count_nsmul, ResourcePool.count_singleton, ↓reduceIte,
+        mul_one] <;> omega
+  by_cases toffoli : focus = .gate .toffoli
+  · subst focus
+    rw [programList_toffoli_count_eq_sum, counts.2.2]
+    cases control <;>
+      simp only [controlledBudget, cnotBudget, ResourcePool.count_add,
+        ResourcePool.count_nsmul, ResourcePool.count_singleton, ↓reduceIte,
+        mul_one] <;> omega
+  have outside : focus ∉ primitiveAlphabet := by
+    simpa [primitiveAlphabet, ResourcePool.ofList] using And.intro single (And.intro cnot toffoli)
+  rw [programList_count_zero_of_not_mem_primitiveAlphabet _ _ _ outside]
+  exact Nat.zero_le _
 
-private theorem arithmetic_cost (width : Nat) (control : OffsetControl) (coordinate : Coordinate)
-    (program : UnitaryCircuit (Qubits (MAU.Addition.Gidney.encoding width).width))
-    (within : program.physical_idx ⊆ List.range (MAU.Addition.Gidney.encoding width).width) :
-    (placedArithmetic width control coordinate program within).eventCost =
-      ResourcePool.controlForDimension (2 ^ controlWidth control) program.eventCost := by
-  rw [placedArithmetic, placement_cost, prefix_cost, UnitaryCircuit.prodLeft_eventCost]
+private theorem arithmetic_bound (width : Nat) (control : OffsetControl)
+    (coordinate : Coordinate) (source : List (EncodedBit.GateSpec
+      (MAU.Addition.Gidney.encoding width))) (count : Nat) (bounded : source.length ≤ count) :
+    gatePool (placedArithmeticGates width control coordinate source) ≤
+      controlledBudget control count := by
+  rw [placedArithmeticGates, gatePool_place, arithmeticControlGates]
+  apply prefix_budget
+  simpa only [List.length_map] using bounded
 
 private theorem offset_bound (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) :
-    (offset modulus control coordinate constant).eventCost ≤
-      ResourcePool.controlForDimension (2 ^ controlWidth control)
-        (MAU.Addition.Gidney.modularOffsetNativeBudget modulus.size) := by
-  rw [offset, arithmetic_cost]
-  apply (ResourcePool.controlForDimension_le_controlForDimension_iff _).mpr
-  exact MAU.Addition.Gidney.gidneyModularOffset_native_bound _ _ _
+    gatePool (offsetGates modulus control coordinate constant) ≤
+      offsetBudget modulus.size control := by
+  apply arithmetic_bound
+  have bounded := MAU.Addition.Gidney.gidneyModularOffset_event_count_bound modulus.size
+    (InPlaceArithmetic.modulusWord modulus) (fittedConstant modulus constant)
+  simpa only [MAU.Addition.Gidney.modularOffsetProgram, programList_eventCost_card] using bounded
 
 private theorem reflect_bound (modulus : Nat) :
-    (reflect modulus).eventCost ≤ pivotBudget modulus.size := by
-  rw [reflect, arithmetic_cost]
-  apply (ResourcePool.controlForDimension_le_controlForDimension_iff 2).mpr
-  exact ResourcePool.le_scaled_of_support_card_le _ _ _
-    (MAU.Addition.Gidney.gidneyPivot_native_support _ _)
-    (MAU.Addition.Gidney.gidneyPivot_event_count_bound _ _)
+    gatePool (reflectGates modulus) ≤ pivotBudget modulus.size := by
+  apply arithmetic_bound
+  have bounded := MAU.Addition.Gidney.gidneyPivot_event_count_bound modulus.size
+    (InPlaceArithmetic.modulusWord modulus)
+  simpa only [MAU.Addition.Gidney.pivotProgram, programList_eventCost_card] using bounded
 
 private theorem comparison_bound (width : Nat) :
-    (compareZero width).eventCost ≤ comparisonBudget width := by
-  rw [compareZero, placement_cost, prefix_cost, UnitaryCircuit.prodLeft_eventCost]
-  apply (ResourcePool.controlForDimension_le_controlForDimension_iff 2).mpr
-  exact ResourcePool.le_scaled_of_support_card_le _ _ _
-    (MAU.Addition.Gidney.gidneyComparison_native_support _ _)
-    (MAU.Addition.Gidney.gidneyComparison_event_count_bound _ _)
+    gatePool (compareZeroGates width) ≤ comparisonBudget width := by
+  rw [compareZeroGates, gatePool_place, arithmeticControlGates]
+  apply prefix_budget
+  simp only [List.length_map]
+  exact MAU.Addition.Gidney.gidneyComparisonGates_length_bound _ _
 
 private theorem exchange_cost (width : Nat) :
-    (exchangeControls width).eventCost = 3 • cnotBudget := by
-  have trace : (exchangeControls width).eventTrace =
-      List.replicate 3 (.gate (.builtin "cnot")) := by
-    rw [exchangeControls, EncodedBit.swapProgram, EncodedBit.GateSpec.programList_eventTrace]
-    rfl
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, trace, ResourcePool.ofList_replicate]
+    gatePool (exchangeControlGates width) = 3 • cnotBudget := by
+  have trace : (exchangeControlGates width).map (event .empty) =
+      List.replicate 3 (.gate AlgorithmGate.Coordinate.cnot) := rfl
+  rw [gatePool, trace, ResourcePool.ofList_replicate]
   rfl
 
-private theorem copy_cost (width : Nat) : (squareCopy width).eventCost = width • cnotBudget := by
-  have trace : (squareCopy width).eventTrace =
-      List.replicate width (.gate (.builtin "cnot")) := by
-    rw [squareCopy, EncodedBit.Word.xorIntoProgram, EncodedBit.GateSpec.programList_eventTrace,
-      EncodedBit.Word.xorIntoGates, List.map_ofFn]
+private theorem copy_cost (width : Nat) :
+    gatePool (squareCopyGates width) = width • cnotBudget := by
+  have trace : (squareCopyGates width).map (event .empty) =
+      List.replicate width (.gate .cnot) := by
+    rw [squareCopyGates, EncodedBit.Word.xorIntoGates, List.map_ofFn]
     change List.ofFn (fun _ : Fin width =>
-      (Resource.Event.gate (.builtin "cnot") : Resource.Event .quantum)) = _
+      (.gate AlgorithmGate.Coordinate.cnot :
+        Resource.Event (.quantum AlgorithmGate.model .empty))) = _
     exact List.ofFn_const _ _
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, trace, ResourcePool.ofList_replicate]
+  rw [gatePool, trace, ResourcePool.ofList_replicate]
   rfl
 
 private theorem square_bound (modulus : Nat) :
-    (subtractSquare modulus).eventCost ≤ squareBudget modulus.size := by
-  have product : (squareSubtract modulus).eventCost ≤ ResourcePool.controlForDimension 2
-      (MAU.Multiplication.VariableGidney.nativeBudget modulus.size) := by
-    rw [squareSubtract, placement_cost]
-    change (@prefixControl ((ProductPlacement.frameEncoding modulus.size).width + 1) 1 1
-      (UnitaryCircuit.prodLeft (n := 1)
-        (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)).dagger)
-      ).eventCost ≤ _
-    rw [prefix_cost, UnitaryCircuit.prodLeft_eventCost,
-      UnitaryCircuit.dagger_eventCost]
-    apply (ResourcePool.controlForDimension_le_controlForDimension_iff 2).mpr
-    exact NativeProductFrame.nativeProductFrame_budget _ _
-  rw [subtractSquare, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost, copy_cost]
-  exact add_le_add (le_refl _) (add_le_add product (le_refl _))
+    gatePool (subtractSquareGates modulus) ≤ squareBudget modulus.size := by
+  have product : gatePool (squareSubtractGates modulus) ≤ controlledBudget .supplied
+      (MAU.Multiplication.VariableGidney.eventBound modulus.size) := by
+    rw [squareSubtractGates, gatePool_place]
+    apply prefix_budget
+    simp only [List.length_map, List.length_reverse]
+    exact NativeProductFrame.nativeProductFrame_gates_length_bound _ _
+  rw [subtractSquareGates, gatePool_append, gatePool_append, copy_cost]
+  exact add_le_add (add_le_add (le_refl _) product) (le_refl _)
 
 private theorem selector_bound (width : Nat) :
-    (selectNormal width).eventCost ≤ selectorBudget width := by
-  rw [selectNormal, UnitaryCircuit.seq_eventCost, EncodedBit.GateSpec.program_eventCost]
+    gatePool (selectNormalGates width) ≤ selectorBudget width := by
+  rw [selectNormalGates, gatePool_append]
   exact add_le_add (le_refl _) (comparison_bound width)
+
+-- Resource algebra uses the compiled words through their proved interfaces.
+attribute [local irreducible] offsetGates subtractSquareGates selectNormalGates
+  exchangeControlGates reflectGates constantWord exceptionalSlope
+  controlledBudget offsetBudget comparisonBudget pivotBudget squareBudget selectorBudget
 
 theorem beforeDivision_budget {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) : (beforeDivision Q).eventCost ≤ beforeBudget p.size := by
-  rw [beforeDivision, UnitaryCircuit.seq_eventCost]
+  rw [beforeDivision, programList_eventCost]
+  change gatePool (beforeDivisionGates Q) ≤ _
+  rw [beforeDivisionGates, gatePool_append]
   exact add_le_add (offset_bound _ _ _ _) (offset_bound _ _ _ _)
 
 theorem beforeMultiplication_budget {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) : (beforeMultiplication Q).eventCost ≤ middleBudget p.size := by
-  simp only [beforeMultiplication, UnitaryCircuit.seq_eventCost]
-  exact add_le_add (offset_bound _ _ _ _) (add_le_add (square_bound _)
-    (add_le_add (selector_bound _) (exchange_cost _).le))
+  rw [beforeMultiplication, programList_eventCost]
+  change gatePool (beforeMultiplicationGates Q) ≤ _
+  simp only [beforeMultiplicationGates, gatePool_append]
+  exact add_le_add (add_le_add (add_le_add (offset_bound _ _ _ _)
+    (square_bound _)) (selector_bound _)) (exchange_cost _).le
 
 theorem afterMultiplication_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) : (afterMultiplication E Q).eventCost ≤ afterBudget p.size := by
-  simp only [afterMultiplication, UnitaryCircuit.seq_eventCost, UnitaryCircuit.dagger_eventCost]
-  exact add_le_add (exchange_cost _).le (add_le_add (offset_bound _ _ _ _)
-    (add_le_add (selector_bound _) (add_le_add (reflect_bound _)
-      (add_le_add (offset_bound _ _ _ _) (offset_bound _ _ _ _)))))
+  rw [afterMultiplication, programList_eventCost]
+  change gatePool (afterMultiplicationGates E Q) ≤ _
+  simp only [afterMultiplicationGates, gatePool_append, gatePool_reverse]
+  exact pool_add_six (exchange_cost p.size).le
+    (offset_bound p .exceptional .y (constantWord (-exceptionalSlope E Q)))
+    (selector_bound p.size) (reflect_bound p)
+    (offset_bound p .supplied .x (constantWord (Q.x + 1)))
+    (offset_bound p .supplied .y (constantWord (-Q.y)))
 
-private theorem native_pool (width : Nat)
-    (program : UnitaryCircuit (Qubits (encoding width).width))
-    (within : program.physical_idx ⊆ List.range (encoding width).width)
-    (path : (nativeCode width program within).Path) :
-    (nativeCode width program within).resourcePool path = program.eventCost := by
+attribute [local irreducible] beforeDivision beforeMultiplication afterMultiplication
+  InPlaceControlled.body beforeBudget middleBudget afterBudget
+
+private theorem native_pool (width : Nat) (program : NativeCircuit width)
+    (path : (nativeCode width program).Path) :
+    (nativeCode width program).resourcePool path = program.eventCost := by
   change ResourcePool.ofList (runtimeProgram width program).eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, runtimeProgram_cost]
+
+private theorem native_budget (width : Nat) (program : NativeCircuit width)
+    (budget : ResourcePool (.quantum AlgorithmGate.model .empty))
+    (bounded : program.eventCost ≤ budget) (path : (nativeCode width program).Path) :
+    (nativeCode width program).resourcePool path ≤ budget :=
+  pool_trans (native_pool width program path).le bounded
 
 private theorem arithmetic_budget (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (path : (arithmetic operation modulus prime).Path) :
@@ -203,126 +338,42 @@ private theorem arithmetic_budget (operation : InPlaceTarget.Operation) (modulus
   exact (ContextUnion.frameLocal_resourcePool _ _ _ _ original).le.trans
     (InPlaceControlled.body_budget operation modulus prime original)
 
-/-- Every actual path pays for both measured calls and every explicitly placed native stage. -/
+/-- Every actual path pays for both measured calls and all literal native stages. -/
 theorem body_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (body E Q).Path) :
     (body E Q).resourcePool path ≤ events p.size := by
   change ResourcePool.ofList
-    ((nativeCode p.size (beforeDivision Q) (beforeDivision_within Q)).eventTrace path.1 ++
+    ((nativeCode p.size (beforeDivision Q)).eventTrace path.1 ++
       ((arithmetic .division p Fact.out).eventTrace path.2.1 ++
-        ((nativeCode p.size (beforeMultiplication Q) (beforeMultiplication_within Q)).eventTrace
-          path.2.2.1 ++ ((arithmetic .multiplication p Fact.out).eventTrace path.2.2.2.1 ++
-            (nativeCode p.size (afterMultiplication E Q)
-              (afterMultiplication_within E Q)).eventTrace path.2.2.2.2)))) ≤ _
+        ((nativeCode p.size (beforeMultiplication Q)).eventTrace path.2.2.1 ++
+          ((arithmetic .multiplication p Fact.out).eventTrace path.2.2.2.1 ++
+            (nativeCode p.size (afterMultiplication E Q)).eventTrace path.2.2.2.2)))) ≤ _
   simp only [ResourcePool.ofList_append]
-  exact add_le_add ((native_pool _ _ _ _).le.trans (beforeDivision_budget Q))
-    (add_le_add (arithmetic_budget _ _ _ _) (add_le_add
-      ((native_pool _ _ _ _).le.trans (beforeMultiplication_budget Q))
-      (add_le_add (arithmetic_budget _ _ _ _)
-        ((native_pool _ _ _ _).le.trans (afterMultiplication_budget E Q)))))
+  unfold events
+  apply add_le_add
+  · exact (native_pool p.size (beforeDivision Q) path.1).le.trans (beforeDivision_budget Q)
+  · apply add_le_add
+    · exact arithmetic_budget .division p Fact.out path.2.1
+    · apply add_le_add
+      · exact (native_pool p.size (beforeMultiplication Q) path.2.2.1).le.trans
+          (beforeMultiplication_budget Q)
+      · apply add_le_add
+        · exact arithmetic_budget .multiplication p Fact.out path.2.2.2.1
+        · exact native_budget p.size (afterMultiplication E Q) (afterBudget p.size)
+            (afterMultiplication_budget E Q) path.2.2.2.2
 
-private theorem count_of_budget {pre post : RuntimeCtx .quantum} (code : Circuit pre post)
-    (path : code.Path) (budget : ResourcePool .quantum)
-    (bounded : code.resourcePool path ≤ budget) :
-    (code.eventTrace path).length ≤ budget.card :=
-  Multiset.card_le_card bounded
-
-/-- The actual event count is bounded by the independent native-coordinate allowance. -/
+/-- Exact emitted events are bounded by the independent native-coordinate allowance. -/
 theorem body_event_count {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (body E Q).Path) :
     ((body E Q).eventTrace path).length ≤ (events p.size).card :=
-  count_of_budget (body E Q) path (events p.size) (body_budget E Q path)
+  Multiset.card_le_card (body_budget E Q path)
 
-private theorem controlled_card (count : Nat) (pool : ResourcePool .quantum) :
-    (ResourcePool.controlForDimension count pool).card = pool.card :=
-  Multiset.card_map _ _
-
-private theorem offset_count (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
-    (constant : Fin (modulus + 1)) :
-    (offset modulus control coordinate constant).eventCost.card ≤
-      MAU.Addition.Gidney.modularOffsetEventBound modulus.size := by
-  rw [offset, arithmetic_cost, controlled_card]
-  exact MAU.Addition.Gidney.gidneyModularOffset_event_count_bound _ _ _
-
-private theorem reflect_count (modulus : Nat) :
-    (reflect modulus).eventCost.card ≤ MAU.Addition.Gidney.pivotEventBound modulus.size := by
-  rw [reflect, arithmetic_cost, controlled_card]
-  exact MAU.Addition.Gidney.gidneyPivot_event_count_bound _ _
-
-private theorem selector_count (width : Nat) :
-    (selectNormal width).eventCost.card ≤ 1 + MAU.Addition.Gidney.comparisonEventBound width := by
-  rw [selectNormal, UnitaryCircuit.seq_eventCost, Multiset.card_add,
-    EncodedBit.GateSpec.program_eventCost, compareZero, placement_cost, prefix_cost,
-    UnitaryCircuit.prodLeft_eventCost, controlled_card]
-  exact Nat.add_le_add_left (MAU.Addition.Gidney.gidneyComparison_event_count_bound _ _) 1
-
-private theorem exchange_count (width : Nat) : (exchangeControls width).eventCost.card = 3 := by
-  rw [exchange_cost]
-  simp [cnotBudget, ResourcePool.singleton]
-
-private theorem square_count (modulus : Nat) :
-    (subtractSquare modulus).eventCost.card ≤
-      2 * modulus.size + MAU.Multiplication.VariableGidney.eventBound modulus.size := by
-  have product : (squareSubtract modulus).eventCost.card ≤
-      MAU.Multiplication.VariableGidney.eventBound modulus.size := by
-    rw [squareSubtract, placement_cost]
-    change (@prefixControl ((ProductPlacement.frameEncoding modulus.size).width + 1) 1 1
-      (UnitaryCircuit.prodLeft (n := 1)
-        (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)).dagger)
-      ).eventCost.card ≤ _
-    rw [prefix_cost, UnitaryCircuit.prodLeft_eventCost,
-      UnitaryCircuit.dagger_eventCost, controlled_card]
-    rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
-      NativeProductFrame.nativeProductFrame_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
-    exact MAU.Multiplication.VariableGidney.variableGidney_event_count _ _
-  rw [subtractSquare, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
-    Multiset.card_add, Multiset.card_add, copy_cost]
-  have copies : (modulus.size • cnotBudget).card = modulus.size := by
-    simp [cnotBudget, ResourcePool.singleton]
-  rw [copies]
-  omega
-
-private theorem before_count {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) : (beforeDivision Q).eventCost.card ≤
-      2 * MAU.Addition.Gidney.modularOffsetEventBound p.size := by
-  rw [beforeDivision, UnitaryCircuit.seq_eventCost, Multiset.card_add]
-  have left := offset_count p .supplied .x (constantWord (-Q.x))
-  have right := offset_count p .supplied .y (constantWord (-Q.y))
-  omega
-
-private theorem middle_count {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    (Q : AffinePoint E) : (beforeMultiplication Q).eventCost.card ≤
-      MAU.Addition.Gidney.modularOffsetEventBound p.size + 2 * p.size +
-        MAU.Multiplication.VariableGidney.eventBound p.size +
-          MAU.Addition.Gidney.comparisonEventBound p.size + 4 := by
-  simp only [beforeMultiplication, UnitaryCircuit.seq_eventCost, Multiset.card_add, exchange_count]
-  have offset := offset_count p .supplied .x (constantWord (3 * Q.x))
-  have product := square_count p
-  have selector := selector_count p.size
-  omega
-
-private theorem after_count {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) : (afterMultiplication E Q).eventCost.card ≤
-      3 * MAU.Addition.Gidney.modularOffsetEventBound p.size +
-        MAU.Addition.Gidney.pivotEventBound p.size +
-          MAU.Addition.Gidney.comparisonEventBound p.size + 4 := by
-  simp only [afterMultiplication, UnitaryCircuit.seq_eventCost, UnitaryCircuit.dagger_eventCost,
-    Multiset.card_add, exchange_count]
-  have exceptional := offset_count p .exceptional .y (constantWord (-exceptionalSlope E Q))
-  have x := offset_count p .supplied .x (constantWord (Q.x + 1))
-  have y := offset_count p .supplied .y (constantWord (-Q.y))
-  have selector := selector_count p.size
-  have pivot := reflect_count p
-  omega
-
-private theorem native_depth (width : Nat)
-    (program : UnitaryCircuit (Qubits (encoding width).width))
-    (within : program.physical_idx ⊆ List.range (encoding width).width)
-    (path : (nativeCode width program within).Path) :
-    (nativeCode width program within).depth (fun _ => 1) path ≤ program.eventCost.card := by
-  change program.evaluatedEventDepth (fun _ => 1) + 0 ≤ _
-  rw [Nat.add_zero]
-  exact ShiftResources.unitDepth_le_count program
+private theorem native_depth (width : Nat) (program : NativeCircuit width)
+    (path : (nativeCode width program).Path) :
+    (nativeCode width program).depth (fun _ => 1) path ≤ program.eventCost.card := by
+  change (runtimeProgram width program).evaluatedEventDepth (fun _ => 1) + 0 ≤ _
+  rw [Nat.add_zero, ← runtimeProgram_cost width program]
+  exact ShiftResources.unitDepth_le_count _
 
 private theorem arithmetic_depth (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (path : (arithmetic operation modulus prime).Path) :
@@ -334,25 +385,23 @@ private theorem arithmetic_depth (operation : InPlaceTarget.Operation) (modulus 
   exact (ContextUnion.frameLocal_depth _ _ _ _ (fun _ => 1) original).le.trans
     (InPlaceControlled.body_depth operation modulus prime original)
 
-/-- The actual five-stage execution meets the independent complete serial depth allowance. -/
+/-- Serial depth is charged from actual native stages and the accepted measured depth laws. -/
 theorem body_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (body E Q).Path) :
     (body E Q).depth (fun _ => 1) path ≤ depthBound p.size := by
-  have before := (native_depth p.size (beforeDivision Q) (beforeDivision_within Q) path.1).trans
-    (before_count Q)
+  have before := (native_depth p.size (beforeDivision Q) path.1).trans
+    (Multiset.card_le_card (beforeDivision_budget Q))
   have division := arithmetic_depth .division p Fact.out path.2.1
-  have middle := (native_depth p.size (beforeMultiplication Q) (beforeMultiplication_within Q)
-    path.2.2.1).trans (middle_count Q)
+  have middle := (native_depth p.size (beforeMultiplication Q) path.2.2.1).trans
+    (Multiset.card_le_card (beforeMultiplication_budget Q))
   have multiplication := arithmetic_depth .multiplication p Fact.out path.2.2.2.1
-  have after := (native_depth p.size (afterMultiplication E Q) (afterMultiplication_within E Q)
-    path.2.2.2.2).trans (after_count E Q)
-  change (nativeCode p.size (beforeDivision Q) (beforeDivision_within Q)).depth (fun _ => 1)
-      path.1 + ((arithmetic .division p Fact.out).depth (fun _ => 1) path.2.1 +
-        ((nativeCode p.size (beforeMultiplication Q) (beforeMultiplication_within Q)).depth
-          (fun _ => 1) path.2.2.1 +
-            ((arithmetic .multiplication p Fact.out).depth (fun _ => 1) path.2.2.2.1 +
-              (nativeCode p.size (afterMultiplication E Q) (afterMultiplication_within E Q)).depth
-                (fun _ => 1) path.2.2.2.2))) ≤ _
+  have after := (native_depth p.size (afterMultiplication E Q) path.2.2.2.2).trans
+    (Multiset.card_le_card (afterMultiplication_budget E Q))
+  change (nativeCode p.size (beforeDivision Q)).depth (fun _ => 1) path.1 +
+    ((arithmetic .division p Fact.out).depth (fun _ => 1) path.2.1 +
+      ((nativeCode p.size (beforeMultiplication Q)).depth (fun _ => 1) path.2.2.1 +
+        ((arithmetic .multiplication p Fact.out).depth (fun _ => 1) path.2.2.2.1 +
+          (nativeCode p.size (afterMultiplication E Q)).depth (fun _ => 1) path.2.2.2.2))) ≤ _
   unfold depthBound
   omega
 

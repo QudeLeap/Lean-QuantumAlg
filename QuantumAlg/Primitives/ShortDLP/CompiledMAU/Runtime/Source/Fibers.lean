@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed.Selection
+import all QuantumAlg.Core.Execution.Basis.Seeded
 import all QuantumAlg.Core.Execution.Classical.Composition
 
 /-!
@@ -34,44 +35,6 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem store_matrix {ctx : RuntimeCtx .quantum}
-    {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx) :
-    ((state.mapClassical (fun entry => entry.1)).block original).matrix =
-      (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix := by
-  change (∑ entry : Store ctx × History,
-    if entry.1 = original then (state.block entry).matrix else 0) =
-      ∑ entry : Store ctx × History,
-        ((state.filterClassical (fun entry => entry.1 = original)).block entry).matrix
-  apply Finset.sum_congr rfl
-  intro entry _
-  by_cases same : entry.1 = original <;>
-    simp only [ExecutionState.filterClassical_block, same, if_true, if_false,
-      DensityOperator.zero_matrix]
-
-private theorem fiber_store_blocks {ctx : RuntimeCtx .quantum}
-    {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (weight : Store ctx → ctx.register.Index → ℂ)
-    (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum state (fun entry basis => weight entry.1 basis)
-        leftRef rightRef =
-      ∑ basis : ctx.register.Index, ∑ original : Store ctx, weight original basis *
-        (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix
-          (basis, leftRef) (basis, rightRef) := by
-  have observed := ExecutionState.referenceFiberSum_mapClassical
-    (R := ctx.register) (Reference := Reference) state
-    (fun entry => entry.1) weight leftRef rightRef
-  refine observed.symm.trans ?_
-  unfold ExecutionState.referenceFiberSum
-  apply Finset.sum_congr rfl
-  intro basis _
-  apply Finset.sum_congr rfl
-  intro original _
-  exact congrArg
-    (fun matrix : HilbertOperator (Register.prod ctx.register Reference) =>
-      weight original basis * matrix (basis, leftRef) (basis, rightRef))
-    (store_matrix state original)
-
 private theorem source_weight (amplitude coefficient : ℂ) :
     amplitude * coefficient * star amplitude =
       ((‖amplitude‖ ^ 2 : ℝ) : ℂ) * coefficient := by
@@ -87,7 +50,8 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
 theorem shortDLP_runtimeSelected_source_fiber {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (weight : Store ctx → ctx.register.Index → ℂ) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((selected m ell width sameWires parameter N generator target).execute Reference state)
@@ -101,7 +65,7 @@ theorem shortDLP_runtimeSelected_source_fiber {shape : CShape}
                 (CompiledMAU.reloadLabel m ell width N), leftRef)
               ((RuntimePlacement.basisEquiv m ell width sameWires).symm
                 (CompiledMAU.reloadLabel m ell width N), rightRef)) := by
-  refine (fiber_store_blocks
+  refine (BasisSeeded.fiber_store_blocks
     ((selected m ell width sameWires parameter N generator target).execute Reference state)
     weight leftRef rightRef).trans ?_
   apply Finset.sum_congr rfl
@@ -118,7 +82,8 @@ theorem shortDLP_runtimeRound_source_store_entry {shape : CShape}
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (finalStore : Store ctx) (left right : ctx.register.Index)
     (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical

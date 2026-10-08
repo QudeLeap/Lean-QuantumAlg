@@ -22,21 +22,29 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The original real copy marker precedes the real stable clear. -/
-def markFailure (success : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.classical (pivotRejectedOp success)) (.classical (pivotClearOp success))
+def markFailure (success : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (pivotRejectedOp success))
+    (BitWord.instruction (execution := model) (pivotClearOp success))
 
 /-- The actual stored equality bit selects the original failure arm. -/
 def decisionChoice (reject : Bool) (success : CWriteRef ctx .bit) :
-    CShape.Value .bit → Circuit ctx ctx
+    CShape.Value .bit → Circuit model ctx ctx
   | .bit value =>
       match reject, value with
-      | false, false => markFailure success
+      | false, false => markFailure (model := model) success
       | false, true => .id ctx
       | true, false => .id ctx
-      | true, true => markFailure success
+      | true, true => markFailure (model := model) success
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The original decrement writes the actual temporary word. -/
 def decisionDecrementOp (input output : CWriteRef ctx (.unsignedWord width)) :
@@ -57,19 +65,24 @@ def decisionEqualityOp (left right : CWriteRef ctx (.unsignedWord width))
   .wordBinary .equal width ctx
     (.product (.storage left.toCStorageRef) (.storage right.toCStorageRef)) flag
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- One original equality instruction is immediately followed by its actual stored-bit branch. -/
 def decisionTest (reject : Bool) (left right : CWriteRef ctx (.unsignedWord width))
-    (success flag : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.classical (decisionEqualityOp left right flag))
-    (.branch (.storage flag.toCStorageRef) (decisionChoice reject success))
+    (success flag : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (decisionEqualityOp left right flag))
+    (.branch (.storage flag.toCStorageRef) (decisionChoice (model := model) reject success))
 
 /-- All original uniqueness instructions execute in their original chronological order. -/
 def uniqueFreeBody (free zero work : CWriteRef ctx (.unsignedWord width))
-    (success flag : CWriteRef ctx .bit) : Circuit ctx ctx :=
-  .seq (.classical (decisionDecrementOp free work))
-    (.seq (.classical (decisionMaskOp free work))
-      (.seq (decisionTest false work zero success flag)
-        (decisionTest true free zero success flag)))
+    (success flag : CWriteRef ctx .bit) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (decisionDecrementOp free work))
+    (.seq (BitWord.instruction (execution := model) (decisionMaskOp free work))
+      (.seq (decisionTest (model := model) false work zero success flag)
+        (decisionTest (model := model) true free zero success flag)))
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The decision flag follows the original real word allocation. -/
 @[reducible] def decisionContext (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
@@ -88,45 +101,51 @@ def decisionWork (ctx : RuntimeCtx kind) (width : Nat) :
   (pivotMaskCell ctx width).underWorkspace (pivotMaskContext ctx width).canonicalFreshKey
     .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The original unique-free test runs on the actual lifted inputs and fresh cells. -/
 def placedUniqueFree (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
-    Circuit (decisionContext ctx width) (decisionContext ctx width) :=
-  uniqueFreeBody (decisionWrite width free) (decisionWrite width zero)
+    Circuit model (decisionContext ctx width) (decisionContext ctx width) :=
+  uniqueFreeBody (model := model) (decisionWrite width free) (decisionWrite width zero)
     (decisionWork ctx width) (decisionWrite width success) (pivotLatch (pivotMaskContext ctx width))
 
 /-- The real equality latch is released before the original temporary word. -/
 def scopedUniqueFree (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
-    Circuit (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
+    Circuit model (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
   .workspace (pivotMaskContext ctx width) (pivotMaskContext ctx width).canonicalFreshKey
-    .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh (placedUniqueFree free zero success)
+    .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
+      (placedUniqueFree (model := model) free zero success)
 
 /-- The original complete unique-free decision retains its ordered word and bit scopes. -/
 def selectUniqueFree (free zero : CWriteRef ctx (.unsignedWord width))
-    (success : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (success : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
-    (scopedUniqueFree free zero success)
+    (scopedUniqueFree (model := model) free zero success)
 
 /-- The original candidate check reads the real candidate and zero source below both cells. -/
 def placedCandidateNonzero (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
-    Circuit (decisionContext ctx width) (decisionContext ctx width) :=
-  decisionTest true (decisionWrite width candidate) (decisionWrite width zero)
+    Circuit model (decisionContext ctx width) (decisionContext ctx width) :=
+  decisionTest (model := model) true (decisionWrite width candidate) (decisionWrite width zero)
     (decisionWrite width success) (pivotLatch (pivotMaskContext ctx width))
 
 /-- The original nonzero check releases its actual equality flag first. -/
 def scopedCandidateNonzero (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
-    Circuit (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
+    Circuit model (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
   .workspace (pivotMaskContext ctx width) (pivotMaskContext ctx width).canonicalFreshKey
     .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
-      (placedCandidateNonzero candidate zero success)
+      (placedCandidateNonzero (model := model) candidate zero success)
 
 /-- The original nonzero check keeps its word allocation even though the body never reads it. -/
 def checkCandidateNonzero (candidate zero : CWriteRef ctx (.unsignedWord width))
-    (success : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (success : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
-    (scopedCandidateNonzero candidate zero success)
+    (scopedCandidateNonzero (model := model) candidate zero success)
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

@@ -7,11 +7,10 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.GateSpec
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -187,8 +186,9 @@ def counterIncrementWithWorkGates (n counterWidth : Nat) :
 
 /-- Base-gate program for the padding-counter incrementer with work. -/
 def counterIncrementWithWorkProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithCounterIncrementWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCounterIncrementWorkEncoding n counterWidth).width).toQuantum :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumProgram
     (counterIncrementLayout n counterWidth)
 
@@ -959,9 +959,10 @@ def fullRoundPathWorkOriginalActiveLatchStep
 /-- Actual circuit for the original-active path latch. -/
 def fullRoundPathWorkOriginalActiveLatchProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundPathWorkOriginalActiveLatchGates tail counterWidth)
 
 /-- The path-latch circuit realizes its gate-list step. -/
@@ -971,7 +972,7 @@ theorem fullRoundPathWorkOriginalActiveLatch_realizes
       (registersWithFullRoundPathWorkEncoding tail.succ counterWidth)
       (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth)
       (fullRoundPathWorkOriginalActiveLatchStep tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundPathWorkOriginalActiveLatchGates tail counterWidth)
 
 /-- With a clean path bit, the latch stores the current active flag. -/
@@ -999,9 +1000,10 @@ def fullRoundPathControlWorkOriginalActiveLatchStep
 /-- Actual original-active latch circuit in the path/control workspace. -/
 def fullRoundPathControlWorkOriginalActiveLatchProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithFullRoundPathControlWorkEncoding
+          tail.succ counterWidth).width).toQuantum :=
   liftFullRoundPathWorkProgramToControlWork tail.succ counterWidth
     (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth)
 
@@ -1473,9 +1475,10 @@ def detectorCounterInactivePaddingGateStep (n counterWidth : Nat) :
 
 /-- Actual detector-plus-counter inactive-padding circuit. -/
 def detectorCounterInactivePaddingGateProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithDetectorCounterWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithDetectorCounterWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (detectorCounterInactivePaddingGates n counterWidth)
 
 /-- The inactive-padding circuit realizes its gate-list action. -/
@@ -1484,7 +1487,7 @@ theorem detectorCounterInactivePaddingGate_realizes (n counterWidth : Nat) :
       (registersWithDetectorCounterWorkEncoding n counterWidth)
       (detectorCounterInactivePaddingGateProgram n counterWidth)
       (detectorCounterInactivePaddingGateStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (detectorCounterInactivePaddingGates n counterWidth)
 
 /-- The inactive-padding gate list is wire-disjoint from the active flag. -/
@@ -1617,10 +1620,11 @@ def detectorCounterActiveFalseControlledInactivePaddingStep
 detector-plus-counter workspace. -/
 def detectorCounterActiveFalseControlledInactivePaddingProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithDetectorCounterWorkEncoding
-        tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithDetectorCounterWorkEncoding
+          tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (detectorCounterActiveFalseControlledInactivePaddingGates
       tail counterWidth)
 
@@ -1633,7 +1637,7 @@ theorem detectorCounterActiveFalseControlledInactivePadding_realizes
         tail counterWidth)
       (detectorCounterActiveFalseControlledInactivePaddingStep
         tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (detectorCounterActiveFalseControlledInactivePaddingGates
       tail counterWidth)
 
@@ -3155,8 +3159,10 @@ def paddingCounterIncrementGates (n k : Nat) (hkn : k ≤ n) :
 
 /-- Actual base-gate program for the borrowed padding-counter increment. -/
 def paddingCounterIncrementProgram (n k : Nat) (hkn : k ≤ n) :
-    UnitaryCircuit (Qubits (encoding n (k + 1)).width) :=
-  EncodedBit.GateSpec.programList (paddingCounterIncrementGates n k hkn)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n (k + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (paddingCounterIncrementGates n k hkn)
 
 /-- Folded bit-lens step of the literal X--VBE--X counter schedule. -/
 def paddingCounterIncrementStep (n k : Nat) (hkn : k ≤ n) :
@@ -3168,7 +3174,8 @@ theorem paddingCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
     UnitaryCircuit.Realizes (encoding n (k + 1))
       (paddingCounterIncrementProgram n k hkn)
       (paddingCounterIncrementStep n k hkn) :=
-  EncodedBit.GateSpec.realizesList (paddingCounterIncrementGates n k hkn)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (paddingCounterIncrementGates n k hkn)
 
 /-- Exact X coordinate: one literal load and one matching unload. -/
 theorem paddingCounterIncrementGates_xMultiplicity_sum
@@ -3207,7 +3214,8 @@ theorem paddingCounterIncrementGates_length
 /-- The compiled program retains the exact literal X coordinate. -/
 theorem paddingCounterIncrementProgram_x_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (paddingCounterIncrementProgram n k hkn).eventCost = 2 := by
   rw [paddingCounterIncrementProgram,
     EncodedBit.GateSpec.programList_x_count_eq_sum,
@@ -3216,7 +3224,8 @@ theorem paddingCounterIncrementProgram_x_count
 /-- The compiled program retains the exact CNOT coordinate. -/
 theorem paddingCounterIncrementProgram_cnot_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (paddingCounterIncrementProgram n k hkn).eventCost = 2 * (k + 1) := by
   rw [paddingCounterIncrementProgram,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum,
@@ -3225,7 +3234,8 @@ theorem paddingCounterIncrementProgram_cnot_count
 /-- The compiled program retains the exact Toffoli coordinate. -/
 theorem paddingCounterIncrementProgram_toffoli_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (paddingCounterIncrementProgram n k hkn).eventCost = 6 * k := by
   rw [paddingCounterIncrementProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
@@ -4319,8 +4329,10 @@ theorem inactiveCounterIncrementGates_bitDisjoint_target
 
 /-- Actual base-gate program for the inactive compact counter increment. -/
 def inactiveCounterIncrementProgram (n k : Nat) (hkn : k ≤ n) :
-    UnitaryCircuit (Qubits (encoding n (k + 1)).width) :=
-  EncodedBit.GateSpec.programList (inactiveCounterIncrementGates n k hkn)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding n (k + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (inactiveCounterIncrementGates n k hkn)
 
 /-- Folded bit-lens step of the inactive X--VBE--X schedule. -/
 def inactiveCounterIncrementStep (n k : Nat) (hkn : k ≤ n) :
@@ -4332,7 +4344,8 @@ theorem inactiveCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
     UnitaryCircuit.Realizes (encoding n (k + 1))
       (inactiveCounterIncrementProgram n k hkn)
       (inactiveCounterIncrementStep n k hkn) :=
-  EncodedBit.GateSpec.realizesList (inactiveCounterIncrementGates n k hkn)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (inactiveCounterIncrementGates n k hkn)
 
 /-- Exact X coordinate of the inactive increment. -/
 theorem inactiveCounterIncrementGates_xMultiplicity_sum
@@ -4371,7 +4384,8 @@ theorem inactiveCounterIncrementGates_length
 /-- The compiled inactive program retains its exact X count. -/
 theorem inactiveCounterIncrementProgram_x_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "x"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
         (inactiveCounterIncrementProgram n k hkn).eventCost = 2 := by
   rw [inactiveCounterIncrementProgram,
     EncodedBit.GateSpec.programList_x_count_eq_sum,
@@ -4380,7 +4394,8 @@ theorem inactiveCounterIncrementProgram_x_count
 /-- The compiled inactive program retains its exact CNOT count. -/
 theorem inactiveCounterIncrementProgram_cnot_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
         (inactiveCounterIncrementProgram n k hkn).eventCost = 2 * (k + 1) := by
   rw [inactiveCounterIncrementProgram,
     EncodedBit.GateSpec.programList_cnot_count_eq_sum,
@@ -4389,7 +4404,8 @@ theorem inactiveCounterIncrementProgram_cnot_count
 /-- The compiled inactive program retains its exact Toffoli count. -/
 theorem inactiveCounterIncrementProgram_toffoli_count
     (n k : Nat) (hkn : k ≤ n) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (inactiveCounterIncrementProgram n k hkn).eventCost = 6 * k := by
   rw [inactiveCounterIncrementProgram,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum,

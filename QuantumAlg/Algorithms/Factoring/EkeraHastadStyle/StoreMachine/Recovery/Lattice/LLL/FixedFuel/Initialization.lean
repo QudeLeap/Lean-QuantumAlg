@@ -87,7 +87,8 @@ theorem sourceBasis_capacity (refs : Refs ctx N) (store : Store ctx) :
     (tradeoffBits N) (sourceSamples refs store)
 
 /-- Actual wide decoding initializes precisely the original basis view of the mutable LLL driver. -/
-theorem prefix_basisRepresents (refs : Refs ctx N)
+theorem prefix_basisRepresents {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N)
     (separation : LatticeWideInitializationPrefix.Separation (prefixRefs refs))
     (store : Store ctx) (zeros : LatticeWideInitializationPrefix.BasisInitialZero store
       (prefixRefs refs)) :
@@ -99,7 +100,8 @@ theorem prefix_basisRepresents (refs : Refs ctx N)
     separation store zeros
 
 /-- The original two-latch reset uses the actual shared native reset implementation. -/
-abbrev resetFirstInto (refs : Refs ctx N) : Circuit ctx ctx :=
+abbrev resetFirstInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) : Circuit model ctx ctx :=
   LatticeFixedFuelMachine.resetFirstInto refs.driver
 
 /-- The actual chronological reset store of the original two machine latches. -/
@@ -107,10 +109,13 @@ abbrev resetFirstStore (refs : Refs ctx N) (store : Store ctx) : Store ctx :=
   LatticeFixedFuelMachine.resetFirstStore refs.driver store
 
 /-- The actual original reset retains every incoming state block and its full history. -/
-theorem resetFirstInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem resetFirstInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (resetFirstInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (resetFirstStore refs entry.1, (entry.2, ((), ())))) :=
+      let actual := LatticeFixedFuelMachine.resetFirstStep (model := model) refs.driver entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeFixedFuelMachine.resetFirstInto_execute refs.driver Reference state
 
 /-- The actual original reset preserves every read outside the two latch identities. -/
@@ -179,13 +184,16 @@ theorem resetFirstInto_metric_callerFrame (refs : Refs ctx N)
       separation.doneMetric cell)
 
 /-- The original reset emits exactly two independent native XOR instructions. -/
-theorem resetFirstInto_events (refs : Refs ctx N) (path : (resetFirstInto refs).Path) :
+theorem resetFirstInto_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (path : (resetFirstInto refs).Path) :
     (resetFirstInto refs).eventTrace path = LatticeFixedFuelMachine.resetFirstTrace :=
   LatticeFixedFuelMachine.resetFirstInto_events refs.driver path
 
 /-- The actual original reset restores borrowed storage jointly with all external references. -/
-theorem resetFirstInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+theorem resetFirstInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (resetFirstInto refs).BorrowedRestored Reference state
       ((resetFirstInto refs).execute Reference state) :=
   LatticeFixedFuelMachine.resetFirstInto_borrowedRestored refs.driver Reference state

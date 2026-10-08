@@ -59,10 +59,10 @@ theorem exponentRepeatedRun_secret_probability_ge
         4 * Real.sqrt (preparedExceptionalMass problem points seed))) ^ count) ≤
       (exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed
         nontrivial count).outputDistribution
-          (PublicInput.initialInput E (orderWidth problem) problem original)
+          (repeatedOracleInput E problem original)
             (.optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)) := by
   let run := exponentRepeatedRun E fieldTail sameWidth fits odd problem points seed nontrivial count
-  let supplied := PublicInput.initialInput E (orderWidth problem) problem original
+  let supplied := repeatedOracleInput E problem original
   let distribution := run.outputDistribution supplied
   let wanted := CShape.wordOfNat (orderWidth problem) input.secret.val
   have total : distribution .optionNone + distribution (.optionSome wanted) = 1 := by

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.PointEquality.Model
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Classical.Composition.Range
 import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate
 
@@ -94,22 +95,29 @@ def outputAnd (scratch : Scratch ctx width) (output : CWriteRef ctx .bit) :
     ClassicalOp (.product .bit .bit) .bit ctx ctx :=
   .bit .and ctx (.product (read scratch.tag) (read scratch.x)) output
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Each indexed stage is one of the original eight actual instructions. -/
 def stage (left right : CInputRef ctx (PointShape width)) (scratch : Scratch ctx width)
-    (output : CWriteRef ctx .bit) : Fin 8 → Circuit ctx ctx :=
-  ![.classical (unpackLeft left scratch), .classical (unpackRight right scratch),
-    .classical (tagXor scratch), .classical (tagNot scratch),
-    .classical (equalX scratch), .classical (equalY scratch),
-    .classical (coordinateAnd scratch), .classical (outputAnd scratch output)]
+    (output : CWriteRef ctx .bit) : Fin 8 → Circuit model ctx ctx :=
+  ![BitWord.instruction (execution := model) (unpackLeft left scratch),
+    BitWord.instruction (execution := model) (unpackRight right scratch),
+    BitWord.instruction (execution := model) (tagXor scratch),
+    BitWord.instruction (execution := model) (tagNot scratch),
+    BitWord.instruction (execution := model) (equalX scratch),
+    BitWord.instruction (execution := model) (equalY scratch),
+    BitWord.instruction (execution := model) (coordinateAnd scratch),
+    BitWord.instruction (execution := model) (outputAnd scratch output)]
 
 /-- The original ordered eight-stage comparison uses the actual circuit composition. -/
 def core (left right : CInputRef ctx (PointShape width)) (scratch : Scratch ctx width)
-    (output : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (output : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   Circuit.forRange 8 (stage left right scratch output)
 
 /-- Allocate the complete original workspace, execute the comparator and release that workspace. -/
 def compareInto (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx .bit) : Circuit ctx ctx :=
+    (output : CWriteRef ctx .bit) : Circuit model ctx ctx :=
   withCells ctx (scratchShapes width) fun cells _distinct transport _separated =>
     core (transport.liftInput left) (transport.liftInput right)
       (scratchOfCells cells) (transport.liftWrite output)

@@ -278,8 +278,11 @@ theorem borrowOutGatesAt_bitDisjoint
       hminuend hsubtrahend hborrowInput hwork
 
 /-- Base-gate program computing the borrow output for stage `j`. -/
-def borrowOutProgramAt (j : Fin n) : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (borrowOutGatesAt layout j)
+def borrowOutProgramAt (j : Fin n) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (borrowOutGatesAt layout j)
 
 /-- State transformer induced by the borrow-output program at stage `j`. -/
 def borrowOutStepAt (j : Fin n) : Carrier → Carrier :=
@@ -288,7 +291,8 @@ def borrowOutStepAt (j : Fin n) : Carrier → Carrier :=
 theorem borrowOut_realizesAt (j : Fin n) :
     UnitaryCircuit.Realizes encoding (borrowOutProgramAt layout j)
       (borrowOutStepAt layout j) :=
-  EncodedBit.GateSpec.realizesList (borrowOutGatesAt layout j)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (borrowOutGatesAt layout j)
 
 theorem borrowOutGatesAt_get_workBorrow_clean
     (j : Fin n) (x : Carrier)
@@ -484,8 +488,11 @@ theorem borrowStage_bitDisjoint
     (hminuend j) (hsubtrahend j) (hborrowInput j) (hwork j) gate hgate
 
 /-- Base-gate program for the folded forward borrow stage. -/
-def borrowStageProgram : UnitaryCircuit (Qubits encoding.width) :=
-  EncodedBit.GateSpec.programList (borrowStage layout)
+def borrowStageProgram :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical encoding.width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (borrowStage layout)
 
 /-- Folded semantic action of the forward borrow stage over the index list. -/
 def borrowStageIndexStep : Carrier -> Carrier :=
@@ -506,7 +513,8 @@ def borrowStageStep : Carrier -> Carrier :=
 theorem borrowStage_realizes :
     UnitaryCircuit.Realizes encoding (borrowStageProgram layout)
       (borrowStageStep layout) :=
-  EncodedBit.GateSpec.realizesList (borrowStage layout)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (borrowStage layout)
 
 /-- Folded semantic action of the forward borrow stage as a fold over its
 local stage actions. -/

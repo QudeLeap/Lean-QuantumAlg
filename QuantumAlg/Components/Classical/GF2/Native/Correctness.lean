@@ -28,14 +28,17 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem bit_value (value : CShape.Value .bit) (bit : Bool)
     (same : value.toBool = bit) : value = .bit bit := by
   cases value with
   | bit value => exact congrArg CShape.Value.bit same
 
-private theorem when_true (success : CWriteRef ctx .bit) (body : Circuit ctx ctx)
+omit [BitWord.Selected model] in
+private theorem when_true (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (record : Store ctx → Store ctx × body.Path) (store : Store ctx)
     (value : (store.read (.storage success.toCStorageRef)).toBool = true) :
     (whenSuccessfulStep success body record store).1 = (record store).1 := by
@@ -43,7 +46,8 @@ private theorem when_true (success : CWriteRef ctx .bit) (body : Circuit ctx ctx
   rw [bit_value _ true value]
   rfl
 
-private theorem when_false (success : CWriteRef ctx .bit) (body : Circuit ctx ctx)
+omit [BitWord.Selected model] in
+private theorem when_false (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (record : Store ctx → Store ctx × body.Path) (store : Store ctx)
     (value : (store.read (.storage success.toCStorageRef)).toBool = false) :
     (whenSuccessfulStep success body record store).1 = store := by
@@ -51,7 +55,8 @@ private theorem when_false (success : CWriteRef ctx .bit) (body : Circuit ctx ct
   rw [bit_value _ false value]
   rfl
 
-private theorem when_read (success : CWriteRef ctx .bit) (body : Circuit ctx ctx)
+omit [BitWord.Selected model] in
+private theorem when_read (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (record : Store ctx → Store ctx × body.Path) {shape : CShape}
     (other : CInputRef ctx shape)
     (preserves : ∀ store, (record store).1.read other = store.read other) (store : Store ctx) :
@@ -83,7 +88,8 @@ private theorem into_store
     (intoStep input matrix used rows columns candidate zero success output store).1 =
       (packOutputStep success candidate output validated).1 := rfl
 
-private theorem caller_keys {outer : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem caller_keys {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (other : CInputRef outer shape) :
@@ -113,7 +119,7 @@ private theorem caller_keys {outer : RuntimeCtx kind}
                     separated.2.2.2.2.2.1 other, separated.2.2.2.2.2.2.1 other⟩
 
 /-- The actual initialized body writes the original optional recovery of the caller's samples. -/
-theorem gf2Into_cellOutput {outer : RuntimeCtx kind}
+theorem gf2Into_cellOutput {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (output : CWriteRef outer (.option (.unsignedWord width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
@@ -253,7 +259,7 @@ theorem gf2Into_cellOutput {outer : RuntimeCtx kind}
       rfl
 
 /-- Only the final output destination can change a transported structural caller read. -/
-theorem gf2Into_cellFrame {outer : RuntimeCtx kind}
+theorem gf2Into_cellFrame {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (output : CWriteRef outer (.option (.unsignedWord width)))
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)

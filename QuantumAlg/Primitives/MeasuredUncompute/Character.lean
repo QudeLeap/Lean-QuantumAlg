@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.Word.PhaseCorrection
 import all QuantumAlg.Primitives.WalshHadamard
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
 import Mathlib.Data.Finset.Card
 
 /-!
@@ -75,15 +76,20 @@ theorem measuredCorrection_sign_walsh (word : EncodedBit.Word encoding width)
     simp [even, odd]
 
 /-- The literal selected Z gates cancel exactly the measured Hadamard phase on a recomputed word. -/
-theorem measuredCorrection_cancel_walsh_ket (word : EncodedBit.Word encoding width)
+theorem measuredCorrection_cancel_walsh_ket
+    (physical : QubitLayout encoding.width) (oracles : OracleModel)
+    (word : EncodedBit.Word encoding width)
     (state : Data) (value outcome : Fin (2 ^ width))
     (reads : ∀ index, (word.bit index).get state = value.val.testBit index.val) :
-    (PhaseCorrection.program word (fun index => outcome.val.testBit index.val)).applyVec
+    (PhaseCorrection.program physical oracles word
+      (fun index => outcome.val.testBit index.val)).applyVec
         (WalshHadamard.walshSign outcome value •
-          (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec) =
-      (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+          (NormalizedVector.ket (R := physical.toQuantum.register)
+            (physical.basisEquiv.symm (encoding.encode state))).vec) =
+      (NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (encoding.encode state))).vec := by
   rw [← measuredCorrection_sign_walsh word state value outcome reads]
-  exact PhaseCorrection.phaseCorrection_cancel_ket word
+  exact PhaseCorrection.phaseCorrection_cancel_ket physical oracles word
     (PhaseCorrection.selected (fun index => outcome.val.testBit index.val)) state
 
 end

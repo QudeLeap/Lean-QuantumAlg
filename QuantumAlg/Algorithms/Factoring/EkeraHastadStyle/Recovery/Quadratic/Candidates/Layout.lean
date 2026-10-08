@@ -137,8 +137,8 @@ theorem nativeQuadratic_layout_quantumWires (ctx : RuntimeCtx kind) (width : Nat
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 /-- The real four-word scope encloses candidate calculation and both actual divisor checks. -/
-def scopes (ctx : RuntimeCtx kind) (width : Nat)
-    (inner : Circuit (context ctx width) (context ctx width)) : Circuit ctx ctx :=
+def scopes {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat)
+    (inner : Circuit model (context ctx width) (context ctx width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (RSA.quadraticWordWidth width))
     ctx.canonicalFreshKey_fresh
     (.workspace (centerCtx ctx width) (centerCtx ctx width).canonicalFreshKey

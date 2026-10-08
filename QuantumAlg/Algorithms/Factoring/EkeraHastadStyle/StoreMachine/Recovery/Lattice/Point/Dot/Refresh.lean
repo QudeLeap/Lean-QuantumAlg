@@ -50,13 +50,14 @@ def firstProductOp (left right : LatticeState.PointRefs ctx width) (refs : Refs 
     (.product (writeInput left.first) (writeInput right.first)) refs.dot
 
 /-- Overwrite with the first product, then add the remaining two coordinate products. -/
-def refreshInto (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width) :
-    Circuit ctx ctx :=
-  .seq (.classical (firstProductOp left right refs))
-    (.seq (LatticeDot.coordinateAccumulate (writeInput left.second) (writeInput right.second)
-        refs.dot refs.product)
-      (LatticeDot.coordinateAccumulate (writeInput left.third) (writeInput right.third)
-        refs.dot refs.product))
+def refreshInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (firstProductOp left right refs))
+    (.seq (LatticeDot.coordinateAccumulate (model := model)
+        (writeInput left.second) (writeInput right.second) refs.dot refs.product)
+      (LatticeDot.coordinateAccumulate (model := model)
+        (writeInput left.third) (writeInput right.third) refs.dot refs.product))
 
 /-- The actual chronological five-write store update. -/
 def refreshStore (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
@@ -66,17 +67,39 @@ def refreshStore (left right : LatticeState.PointRefs ctx width) (refs : Refs ct
     (LatticeDot.coordinateStore (writeInput left.second) (writeInput right.second)
       refs.dot refs.product (store.applyOp (firstProductOp left right refs)))
 
+/-- The three actual stages record one multiply followed by two multiply-add paths. -/
+def refreshStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (refreshInto (model := model) left right refs).Path :=
+  let first := BitWord.instructionStep (execution := model) (firstProductOp left right refs) store
+  let second := LatticeDot.coordinateStep (model := model)
+    (writeInput left.second) (writeInput right.second) refs.dot refs.product first.1
+  let third := LatticeDot.coordinateStep (model := model)
+    (writeInput left.third) (writeInput right.third) refs.dot refs.product second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (store : Store ctx) :
+    (refreshStep (model := model) left right refs store).1 =
+      refreshStore left right refs store := rfl
+
 /-- The complete actual refresh execution preserves history and quantum-reference blocks. -/
-theorem refreshInto_execute (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
+theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (refreshInto left right refs).execute Reference state = state.mapClassical (fun entry =>
-      (refreshStore left right refs entry.1, (entry.2, ((), (((), ()), ((), ())))))) := by
-  simp only [refreshInto, LatticeDot.coordinateAccumulate, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshInto (model := model) left right refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := refreshStep (model := model) left right refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [refreshInto, refreshStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute, LatticeDot.coordinateAccumulate_execute,
+    State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Only the caller's dot and product cells are changed by the actual refresh. -/
 theorem refreshInto_callerFrame (left right : LatticeState.PointRefs ctx width)
@@ -135,44 +158,58 @@ theorem refreshInto_correct (left right : LatticeState.PointRefs ctx width) (ref
     leftValue rightValue leftRep rightRep⟩
 
 /-- The actual dot refresh restores all borrowed correlations without a state-output premise. -/
-theorem refreshInto_borrowedRestored (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (refreshInto left right refs).BorrowedRestored Reference state
-      ((refreshInto left right refs).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (refreshInto (model := model) left right refs).BorrowedRestored Reference state
+      ((refreshInto (model := model) left right refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
   · exact Circuit.borrowedRestored_classical _ state
   · exact Circuit.borrowedRestored_seq _ _ _
       (LatticeDot.coordinateAccumulate_borrowedRestored _ _ _ _ Reference _)
       (LatticeDot.coordinateAccumulate_borrowedRestored _ _ _ _ Reference _)
 
-/-- Five actual native instructions overwrite and accumulate the dot product. -/
-theorem refreshInto_events (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
-    (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width),
-        .classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width)] :=
+/-- Five actual selected instructions overwrite and accumulate the dot product. -/
+theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width))] := by
+  change _ ++ (_ ++ _) = _
+  rw [BitWord.bitWord_instruction_eventTrace,
+    LatticeDot.coordinateAccumulate_events, LatticeDot.coordinateAccumulate_events]
   rfl
 
 /-- All five native operations remain sequentially dependent. -/
-theorem refreshInto_depth (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
-    (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).depth (fun _ => 1) path = 5 := rfl
+    (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).depth (fun _ => 1) path = 5 := rfl
 
 /-- The refresh visits only the complete original live context. -/
-theorem refreshInto_visited (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
-    (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx] := rfl
+theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).visitedContexts path =
+      [ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- Resident space includes all original quantum systems and the two existing cells. -/
-theorem refreshInto_resident_le (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
-    (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).peakResidentSpace path ≤ ctx.residentSpace := by
+    (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   have same : visited = ctx := by
@@ -182,10 +219,12 @@ theorem refreshInto_resident_le (left right : LatticeState.PointRefs ctx width)
   exact le_rfl
 
 /-- Auxiliary accounting uses the same supplied roles, with no temporary allocation. -/
-theorem refreshInto_auxiliary_le (left right : LatticeState.PointRefs ctx width)
+theorem refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
-    (path : (refreshInto left right refs).Path) :
-    (refreshInto left right refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+    (path : (refreshInto (model := model) left right refs).Path) :
+    (refreshInto (model := model) left right refs).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   have same : visited = ctx := by

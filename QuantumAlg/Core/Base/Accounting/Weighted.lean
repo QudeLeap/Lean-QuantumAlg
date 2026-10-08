@@ -21,32 +21,48 @@ The same operations apply to classical and quantum execution events.
 namespace QuantumAlg.ResourcePool
 
 /-- Sum a natural-number event weight over a strict resource ledger. -/
-public def weightedCount {kind : ProblemKind} (weight : Resource.Event kind → Nat)
-    (pool : ResourcePool kind) : Nat :=
+public def weightedCount {model : ExecutionModel} (weight : Resource.Event model → Nat)
+    (pool : ResourcePool model) : Nat :=
   (pool.map weight).sum
 
-@[simp] theorem weightedCount_zero {kind : ProblemKind}
-    (weight : Resource.Event kind → Nat) :
-    weightedCount weight (0 : ResourcePool kind) = 0 := by
+@[simp] theorem weightedCount_zero {model : ExecutionModel}
+    (weight : Resource.Event model → Nat) :
+    weightedCount weight (0 : ResourcePool model) = 0 := by
   simp [weightedCount]
 
-@[simp] theorem weightedCount_add {kind : ProblemKind}
-    (weight : Resource.Event kind → Nat)
-    (left right : ResourcePool kind) :
+/-- A ledger has zero total weight when every event it actually contains has zero weight. -/
+theorem weightedCount_eq_zero_of_mem {model : ExecutionModel}
+    (weight : Resource.Event model → Nat) (pool : ResourcePool model)
+    (zero : ∀ event ∈ pool, weight event = 0) : weightedCount weight pool = 0 := by
+  revert zero
+  induction pool using Multiset.induction_on with
+  | empty => intro _; rfl
+  | cons event rest ih =>
+      intro zero
+      have eventZero : weight event = 0 := zero event (by simp)
+      have restZero : ∀ other ∈ rest, weight other = 0 := by
+        intro other present
+        exact zero other (by simp [present])
+      simpa only [weightedCount, Multiset.map_cons, Multiset.sum_cons,
+        eventZero, Nat.zero_add] using ih restZero
+
+@[simp] theorem weightedCount_add {model : ExecutionModel}
+    (weight : Resource.Event model → Nat)
+    (left right : ResourcePool model) :
     weightedCount weight (left + right) =
       weightedCount weight left + weightedCount weight right := by
   simp [weightedCount]
 
-@[simp] theorem weightedCount_singleton {kind : ProblemKind}
-    (weight : Resource.Event kind → Nat)
-    (event : Resource.Event kind) (multiplicity : Nat) :
+@[simp] theorem weightedCount_singleton {model : ExecutionModel}
+    (weight : Resource.Event model → Nat)
+    (event : Resource.Event model) (multiplicity : Nat) :
     weightedCount weight (ResourcePool.singleton event multiplicity) =
       multiplicity * weight event := by
   simp [weightedCount, ResourcePool.singleton]
 
-@[simp] theorem weightedCount_nsmul {kind : ProblemKind}
-    (weight : Resource.Event kind → Nat)
-    (multiplicity : Nat) (pool : ResourcePool kind) :
+@[simp] theorem weightedCount_nsmul {model : ExecutionModel}
+    (weight : Resource.Event model → Nat)
+    (multiplicity : Nat) (pool : ResourcePool model) :
     weightedCount weight (multiplicity • pool) =
       multiplicity * weightedCount weight pool := by
   induction multiplicity with
@@ -55,9 +71,9 @@ public def weightedCount {kind : ProblemKind} (weight : Resource.Event kind → 
       rw [succ_nsmul, weightedCount_add, ih]
       simp [Nat.succ_mul]
 
-@[simp] theorem weightedCount_ofList {kind : ProblemKind}
-    (weight : Resource.Event kind → Nat)
-    (events : List (Resource.Event kind)) :
+@[simp] theorem weightedCount_ofList {model : ExecutionModel}
+    (weight : Resource.Event model → Nat)
+    (events : List (Resource.Event model)) :
     weightedCount weight (ResourcePool.ofList events) =
       (events.map weight).sum := by
   simp [weightedCount, ResourcePool.ofList]

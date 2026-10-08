@@ -32,13 +32,15 @@ theorem nativeBatchReuse_sampler_seedBlocks {ctx : RuntimeCtx .quantum} {N : Nat
     (sameWires : ctx.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History)
+    (state : State ctx Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       ((ShorStyle.Canonical.Sampler.Retained.samplerNative_quantumWires ctx N).trans sameWires) N
-      ((ShorStyle.Canonical.Sampler.Retained.circuit ctx N).execute Reference state) :=
-  ShorStyle.Canonical.Sampler.Retained.samplerRetained_seeded input.samplerInput _ state seeded
+      ((ShorStyle.Canonical.Sampler.Retained.circuit
+        (model := RuntimeRound.model) ctx N).execute Reference state) :=
+  ShorStyle.Canonical.Sampler.Retained.samplerRetained_seeded
+    (model := RuntimeRound.model) input.samplerInput _ state seeded
 
 end
 

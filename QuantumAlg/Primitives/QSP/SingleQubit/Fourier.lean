@@ -8,9 +8,12 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.Rotation.Operator
 import all QuantumAlg.Components.Kets
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Gate.Unitary
+public import QuantumAlg.Components.Gates.SingleQubit.Singleton
+import all QuantumAlg.Components.Gates.SingleQubit.Singleton
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Base.Gate.Basic
 import all QuantumAlg.Core.Base.Gate.Unitary
@@ -88,32 +91,38 @@ becomes the polynomial identity
 
 /-! #### Gates and products -/
 
-/-- Fold typed circuit atoms in execution order while preserving the
-left-to-right matrix product used by the trigonometric QSP statements. -/
-private theorem circuitAlgebraicFold_matrix {R : Register} {α : Type}
-    (schedule : List α) (start : UnitaryCircuit R) (step : α → UnitaryCircuit R) :
-    ((schedule.foldl (fun accumulated item => UnitaryCircuit.seq (step item) accumulated)
-        start).matrix : HilbertOperator R) =
-      schedule.foldl
-        (fun accumulated item =>
-          accumulated * ((step item).matrix : HilbertOperator R))
-        (start.matrix : HilbertOperator R) := by
+private abbrev fourierLayout := (QuantumSignature.qubits 1).canonicalPlacement.layout
+
+private def fourierGate (operator : UnitaryOperator (Qubits 1)) :
+    UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
+  Gate.singleQubitAt fourierLayout .empty operator (0 : Fin 1) rfl
+
+private theorem fourierGate_matrix (operator : UnitaryOperator (Qubits 1)) :
+    (fourierGate operator).binaryMatrix = operator :=
+  Gate.singleQubitAt_singleton_binaryMatrix .empty operator
+
+/-- The actual native fold has the original ordered binary matrix product. -/
+private theorem circuitAlgebraicFold_matrix {α : Type}
+    (schedule : List α) (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout) :
+    ((schedule.foldl (fun accumulated item => (step item).seq accumulated) start).binaryMatrix :
+      HilbertOperator (Qubits 1)) =
+      schedule.foldl (fun accumulated item =>
+        accumulated * ((step item).binaryMatrix : HilbertOperator (Qubits 1)))
+        (start.binaryMatrix : HilbertOperator (Qubits 1)) := by
   induction schedule generalizing start with
   | nil => rfl
   | cons item tail ih =>
       simp only [List.foldl_cons]
-      rw [ih]
+      rw [ih, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq]
       rfl
 
-
-
-/-- The typed fold also preserves its literal event coordinates. -/
-private theorem circuitAlgebraicFold_eventCost {R : Register} {α : Type}
-    (schedule : List α) (start : UnitaryCircuit R) (step : α → UnitaryCircuit R) :
-    (schedule.foldl (fun accumulated item => UnitaryCircuit.seq (step item) accumulated)
-        start).eventCost =
-      schedule.foldl
-        (fun accumulated item => (step item).eventCost + accumulated)
+/-- Events are obtained from the same actual native fold. -/
+private theorem circuitAlgebraicFold_eventCost {α : Type}
+    (schedule : List α) (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout) :
+    (schedule.foldl (fun accumulated item => (step item).seq accumulated) start).eventCost =
+      schedule.foldl (fun accumulated item => (step item).eventCost + accumulated)
         start.eventCost := by
   induction schedule generalizing start with
   | nil => rfl
@@ -121,6 +130,34 @@ private theorem circuitAlgebraicFold_eventCost {R : Register} {α : Type}
       simp only [List.foldl_cons]
       rw [ih]
       rfl
+
+private theorem fourierFold_events {α : Type} (schedule : List α)
+    (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (cost : ResourcePool (.quantum AlgorithmGate.model .empty))
+    (step_cost : ∀ item, (step item).eventCost = cost) :
+    (schedule.foldl (fun accumulated item => (step item).seq accumulated) start).eventCost =
+      schedule.length • cost + start.eventCost := by
+  induction schedule generalizing start with
+  | nil => simp
+  | cons item tail ih =>
+      simp only [List.foldl_cons, List.length_cons, ih, UnitaryCircuit.seq_eventCost, step_cost,
+        add_nsmul, one_nsmul]
+      ac_rfl
+
+private theorem fourierFold_depth {α : Type} (schedule : List α)
+    (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+    (duration : Nat)
+    (step_depth : ∀ item, (step item).evaluatedEventDepth (fun _ => 1) = duration) :
+    (schedule.foldl (fun accumulated item => (step item).seq accumulated) start).evaluatedEventDepth
+        (fun _ => 1) = schedule.length * duration + start.evaluatedEventDepth (fun _ => 1) := by
+  induction schedule generalizing start with
+  | nil => simp
+  | cons item tail ih =>
+      simp only [List.foldl_cons, List.length_cons, ih, UnitaryCircuit.evaluatedEventDepth_seq,
+        step_depth, Nat.add_mul, Nat.one_mul]
+      omega
 
 /-- Pointwise-equal factors give equal left-associated products. -/
 private theorem foldlMul_congr {M α : Type} [Mul M]
@@ -152,21 +189,24 @@ def qspYZY (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) : UnitaryOperator (Qubits 1)
           exact mul_mem ih (mul_mem (rotZStdOp x).property (rotYOp θ).property))
 
 /-- Initial typed circuit block for the YZY product. -/
-def qspYZYInitialCircuit (θ₀ : ℝ) : UnitaryCircuit (Qubits 1) :=
-  rotY θ₀
+def qspYZYInitialCircuit (θ₀ : ℝ) : UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
+  fourierGate (rotYOp θ₀)
 
 /-- One indexed YZY signal-processing block. -/
-def qspYZYStepCircuit (x θ : ℝ) : UnitaryCircuit (Qubits 1) :=
-  UnitaryCircuit.seq (rotY θ) (rotZStd x)
+def qspYZYStepCircuit (x θ : ℝ) : UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
+  UnitaryCircuit.seq (fourierGate (rotYOp θ)) (fourierGate (rotZStdOp x))
 
 @[simp] theorem qspYZYStepCircuit_matrix (x θ : ℝ) :
-    ((qspYZYStepCircuit x θ).matrix : HilbertOperator (Qubits 1)) =
+    ((qspYZYStepCircuit x θ).binaryMatrix : HilbertOperator (Qubits 1)) =
       (rotZStdOp x : HilbertOperator (Qubits 1)) *
-        (rotYOp θ : HilbertOperator (Qubits 1)) := rfl
+        (rotYOp θ : HilbertOperator (Qubits 1)) := by
+  rw [qspYZYStepCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    fourierGate_matrix, fourierGate_matrix]
+  rfl
 
 /-- Typed indexed-product version of the YZY QSP word. -/
 def qspYZYIndexedCircuit (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
-    UnitaryCircuit (Qubits 1) :=
+    UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
   θs.foldl
     (fun accumulated θ => UnitaryCircuit.seq (qspYZYStepCircuit x θ) accumulated)
     (qspYZYInitialCircuit θ₀)
@@ -174,11 +214,11 @@ def qspYZYIndexedCircuit (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
 @[simp]
 theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (show HilbertOperator (Qubits 1) from
-      ((qspYZYIndexedCircuit θ₀ θs x).matrix :
+      ((qspYZYIndexedCircuit θ₀ θs x).binaryMatrix :
         HilbertOperator (Qubits 1))) =
       (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) := by
   rw [qspYZYIndexedCircuit, circuitAlgebraicFold_matrix]
-  simp only [qspYZYInitialCircuit, qspYZY,
+  simp only [qspYZYInitialCircuit, fourierGate_matrix, qspYZY,
     UnitaryOperator.coe_ofMatrix]
   apply foldlMul_congr
   intro θ
@@ -191,9 +231,27 @@ theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZYIndexedCircuit θ₀ θs x).eventCost =
       θs.foldl
         (fun accumulated θ => (qspYZYStepCircuit x θ).eventCost + accumulated)
-        (rotY θ₀).eventCost := by
+        (fourierGate (rotYOp θ₀)).eventCost := by
   rw [qspYZYIndexedCircuit, circuitAlgebraicFold_eventCost]
   simp [qspYZYInitialCircuit, qspYZYStepCircuit]
+
+/-- The actual YZY word has exactly 2L+1 default single-qubit occurrences. -/
+theorem qspYZYIndexedCircuit_native_events (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+    (qspYZYIndexedCircuit θ₀ θs x).eventCost =
+      (2 * θs.length + 1) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
+  rw [qspYZYIndexedCircuit, fourierFold_events θs _ _
+    (2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit)) (fun _ => rfl)]
+  simp [qspYZYInitialCircuit, fourierGate, add_nsmul, smul_smul, Nat.mul_comm]
+
+/-- The full YZY word has its actual sequential native depth, including L=0. -/
+theorem qspYZYIndexedCircuit_native_depth (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+    (qspYZYIndexedCircuit θ₀ θs x).evaluatedEventDepth (fun _ => 1) =
+      2 * θs.length + 1 := by
+  rw [qspYZYIndexedCircuit, fourierFold_depth θs _ _ 2 (fun _ => rfl)]
+  change θs.length * 2 + 1 = 2 * θs.length + 1
+  omega
 
 @[simp]
 theorem qspYZY_nil (θ₀ : ℝ) (x : ℝ) :
@@ -232,36 +290,40 @@ public def qspYZZYZ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
             (mul_mem (rotYOp p.1).property (rotZStdOp p.2).property)))
 
 /-- Initial typed circuit block for the YZZYZ product. -/
-def qspYZZYZInitialCircuit (φ θ₀ φ₀ : ℝ) : UnitaryCircuit (Qubits 1) :=
-  UnitaryCircuit.seq (UnitaryCircuit.seq (rotZStd φ₀) (rotY θ₀)) (rotZStd φ)
-
-@[simp]
-theorem qspYZZYZInitialCircuit_physical_idx (φ θ₀ φ₀ : ℝ) :
-    (qspYZZYZInitialCircuit φ θ₀ φ₀).physical_idx = [0] :=
-  rfl
+def qspYZZYZInitialCircuit (φ θ₀ φ₀ : ℝ) :
+    UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
+  ((fourierGate (rotZStdOp φ₀)).seq (fourierGate (rotYOp θ₀))).seq
+    (fourierGate (rotZStdOp φ))
 
 @[simp]
 theorem qspYZZYZInitialCircuit_matrix (φ θ₀ φ₀ : ℝ) :
-    ((qspYZZYZInitialCircuit φ θ₀ φ₀).matrix :
+    ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
       HilbertOperator (Qubits 1)) =
       (rotZStdOp φ : HilbertOperator (Qubits 1)) *
         ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
-          (rotZStdOp φ₀ : HilbertOperator (Qubits 1))) :=
+          (rotZStdOp φ₀ : HilbertOperator (Qubits 1))) := by
+  simp only [qspYZZYZInitialCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    fourierGate_matrix]
   rfl
 
 /-- One indexed YZZYZ signal-processing block. -/
-def qspYZZYZStepCircuit (x : ℝ) (p : ℝ × ℝ) : UnitaryCircuit (Qubits 1) :=
-  UnitaryCircuit.seq (UnitaryCircuit.seq (rotZStd p.2) (rotY p.1)) (rotZStd x)
+def qspYZZYZStepCircuit (x : ℝ) (p : ℝ × ℝ) :
+    UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
+  ((fourierGate (rotZStdOp p.2)).seq (fourierGate (rotYOp p.1))).seq
+    (fourierGate (rotZStdOp x))
 
 @[simp] theorem qspYZZYZStepCircuit_matrix (x : ℝ) (p : ℝ × ℝ) :
-    ((qspYZZYZStepCircuit x p).matrix : HilbertOperator (Qubits 1)) =
+    ((qspYZZYZStepCircuit x p).binaryMatrix : HilbertOperator (Qubits 1)) =
       (rotZStdOp x : HilbertOperator (Qubits 1)) *
         ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
-          (rotZStdOp p.2 : HilbertOperator (Qubits 1))) := rfl
+          (rotZStdOp p.2 : HilbertOperator (Qubits 1))) := by
+  simp only [qspYZZYZStepCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    fourierGate_matrix]
+  rfl
 
 /-- Typed indexed-product version of the YZZYZ QSP word. -/
 def qspYZZYZIndexedCircuit (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
-    UnitaryCircuit (Qubits 1) :=
+    UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
   ps.foldl
     (fun accumulated p => UnitaryCircuit.seq (qspYZZYZStepCircuit x p) accumulated)
     (qspYZZYZInitialCircuit φ θ₀ φ₀)
@@ -269,11 +331,12 @@ def qspYZZYZIndexedCircuit (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : 
 @[simp]
 theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
     (show HilbertOperator (Qubits 1) from
-      ((qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).matrix :
+      ((qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).binaryMatrix :
         HilbertOperator (Qubits 1))) =
       (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) := by
   rw [qspYZZYZIndexedCircuit, circuitAlgebraicFold_matrix]
-  simp only [qspYZZYZInitialCircuit, UnitaryCircuit.seq_matrix,
+  simp only [qspYZZYZInitialCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    fourierGate_matrix,
     qspYZZYZ, UnitaryOperator.coe_ofMatrix]
   apply foldlMul_congr
   intro p
@@ -289,6 +352,28 @@ theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × 
         (fun accumulated p => (qspYZZYZStepCircuit x p).eventCost + accumulated)
         (qspYZZYZInitialCircuit φ θ₀ φ₀).eventCost := by
   rw [qspYZZYZIndexedCircuit, circuitAlgebraicFold_eventCost]
+
+/-- The actual YZZYZ word has exactly 3L+3 default single-qubit occurrences. -/
+theorem qspYZZYZIndexedCircuit_native_events (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+    (qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).eventCost =
+      (3 * ps.length + 3) • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
+  rw [qspYZZYZIndexedCircuit, fourierFold_events ps _ _
+    (3 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit)) (fun _ => rfl)]
+  simp only [qspYZZYZInitialCircuit, UnitaryCircuit.seq_eventCost]
+  let cost := ResourcePool.singleton
+    (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+  change ps.length • (3 • cost) + (3 • cost) = (3 * ps.length + 3) • cost
+  rw [smul_smul, Nat.mul_comm ps.length 3, add_nsmul]
+
+/-- The full YZZYZ word has its actual sequential native depth, including L=0. -/
+theorem qspYZZYZIndexedCircuit_native_depth (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+    (qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).evaluatedEventDepth (fun _ => 1) =
+      3 * ps.length + 3 := by
+  rw [qspYZZYZIndexedCircuit, fourierFold_depth ps _ _ 3 (fun _ => rfl)]
+  change ps.length * 3 + 3 = 3 * ps.length + 3
+  omega
 
 @[simp]
 theorem qspYZZYZ_nil (φ θ₀ φ₀ : ℝ) (x : ℝ) :

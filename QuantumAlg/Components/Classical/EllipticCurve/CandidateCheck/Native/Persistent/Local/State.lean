@@ -32,19 +32,23 @@ private structure RetainedCoordinates (base outer : RuntimeCtx kind) where
   History : Type
   [finiteHistory : Fintype History]
   reference : Register → Register
-  splitState : {Reference : Register} → {H : Type} → [Fintype H] →
-    State outer Reference H → State base (reference Reference) (History × H)
-  split_history : ∀ {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
-    (state : State outer Reference H) (update : H → K),
-    splitState (state.mapHistory update) =
-      (splitState state).mapHistory (fun record => (record.1, update record.2))
+  splitState : {Reference : Register} → {Hidden H : Type} →
+    [Fintype Hidden] → [Fintype H] →
+    State outer Reference (Hidden × H) →
+      State base (reference Reference) (Hidden × (History × H))
+  split_history : ∀ {Reference : Register} {Hidden H K : Type}
+    [Fintype Hidden] [Fintype H] [Fintype K]
+    (state : State outer Reference (Hidden × H)) (update : H → K),
+    splitState (state.mapHistory (fun record => (record.1, update record.2))) =
+      (splitState state).mapHistory
+        (fun record => (record.1, (record.2.1, update record.2.2)))
 
 attribute [instance] RetainedCoordinates.finiteHistory
 
 private def originalCoordinates (base : RuntimeCtx kind) : RetainedCoordinates base base where
   History := Unit
   reference := id
-  splitState state := state.mapHistory (fun history => ((), history))
+  splitState state := state.mapHistory (fun record => (record.1, ((), record.2)))
   split_history state update := by
     simp only [State.mapHistory_comp, Function.comp_def]
 
@@ -60,41 +64,54 @@ private def retainCoordinates {base outer : RuntimeCtx kind}
   splitState state :=
     (prior.splitState (Circuit.underRetainedSplitState outer.canonicalFreshKey shape
       outer.canonicalFreshKey_fresh state)).mapHistory
-        (fun record => ((record.1, record.2.1), record.2.2))
+        (fun record => (record.1, ((record.2.1, record.2.2.1), record.2.2.2)))
   split_history state update := by
-    rw [Circuit.retainedSplit_history, prior.split_history]
+    rw [Circuit.retainedSplit_history]
+    erw [prior.split_history
+      (Circuit.underRetainedSplitState outer.canonicalFreshKey shape
+        outer.canonicalFreshKey_fresh state)
+      (fun record : Store (Circuit.retainedLocalFrame (kind := kind)
+        outer.canonicalFreshKey shape) × _ => (record.1, update record.2))]
     simp only [State.mapHistory_comp, Function.comp_def]
 
-private def RetainedCoordinates.executedState {base outer : RuntimeCtx kind}
+private def RetainedCoordinates.executedState {model : ExecutionModel}
+    {base outer : RuntimeCtx model.kind}
     (coordinates : RetainedCoordinates base outer)
-    (code : Circuit base base) (extended : Circuit outer outer)
+    (code : Circuit model base base) (extended : Circuit model outer outer)
     (path : code.Path ≃ extended.Path) {Reference : Register} {H : Type} [Fintype H]
-    (state : State outer Reference H) :
-    State base (coordinates.reference Reference) (coordinates.History × (H × extended.Path)) :=
+    (state : State outer Reference (model.HiddenState × H)) :
+    State base (coordinates.reference Reference)
+      (model.HiddenState × (coordinates.History × (H × extended.Path))) :=
   (code.execute (coordinates.reference Reference) (coordinates.splitState state)).mapHistory
-    (fun record => (record.1.1, (record.1.2, path record.2)))
+    (fun record => (record.1, (record.2.1.1, (record.2.1.2, path record.2.2))))
 
-private def RetainedCoordinates.Executes {base outer : RuntimeCtx kind}
+private def RetainedCoordinates.Executes {model : ExecutionModel}
+    {base outer : RuntimeCtx model.kind}
     (coordinates : RetainedCoordinates base outer)
-    (code : Circuit base base) (extended : Circuit outer outer)
+    (code : Circuit model base base) (extended : Circuit model outer outer)
     (path : code.Path ≃ extended.Path) : Prop :=
-  ∀ {Reference : Register} {H : Type} [Fintype H] (state : State outer Reference H),
+  ∀ {Reference : Register} {H : Type} [Fintype H]
+    (state : State outer Reference (model.HiddenState × H)),
     coordinates.splitState (extended.execute Reference state) =
       (code.execute (coordinates.reference Reference) (coordinates.splitState state)).mapHistory
-        (fun record => (record.1.1, (record.1.2, path record.2)))
+        (fun record => (record.1, (record.2.1.1, (record.2.1.2, path record.2.2))))
 
-private theorem originalCoordinates_execute (code : Circuit ctx ctx) :
+private theorem originalCoordinates_execute {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} (code : Circuit model ctx ctx) :
     (originalCoordinates ctx).Executes code code (Equiv.refl _) := by
   intro Reference H _ state
-  change (code.execute Reference state).mapHistory (fun history => ((), history)) =
-    (code.execute Reference (state.mapHistory (fun history => ((), history)))).mapHistory
-      (fun record => (record.1.1, (record.1.2, record.2)))
+  change (code.execute Reference state).mapHistory
+      (fun record => (record.1, ((), record.2))) =
+    (code.execute Reference
+      (state.mapHistory (fun record => (record.1, ((), record.2))))).mapHistory
+      (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
   rw [Circuit.execute_mapHistory, State.mapHistory_comp]
   rfl
 
-private theorem retainCoordinates_execute {base outer : RuntimeCtx kind}
-    (prior : RetainedCoordinates base outer) (code : Circuit base base)
-    (localCode : { code : Circuit outer outer // code.IsLocal })
+private theorem retainCoordinates_execute {model : ExecutionModel}
+    {base outer : RuntimeCtx model.kind}
+    (prior : RetainedCoordinates base outer) (code : Circuit model base base)
+    (localCode : { code : Circuit model outer outer // code.IsLocal })
     (path : code.Path ≃ localCode.val.Path) (natural : prior.Executes code localCode.val path)
     (shape : CShape) :
     (retainCoordinates prior shape).Executes code (besideCell localCode shape).val
@@ -104,15 +121,40 @@ private theorem retainCoordinates_execute {base outer : RuntimeCtx kind}
     (Circuit.underRetainedSplitState outer.canonicalFreshKey shape outer.canonicalFreshKey_fresh
       ((Circuit.underRetained localCode.val localCode.property outer.canonicalFreshKey shape
         outer.canonicalFreshKey_fresh).execute Reference state))).mapHistory
-          (fun record => ((record.1, record.2.1), record.2.2)) =
+          (fun record => (record.1, ((record.2.1, record.2.2.1), record.2.2.2))) =
     (code.execute
-      (prior.reference ((Circuit.retainedLocalFrame (kind := kind)
+      (prior.reference ((Circuit.retainedLocalFrame (kind := model.kind)
         outer.canonicalFreshKey shape).register.prod Reference))
       ((prior.splitState (Circuit.underRetainedSplitState outer.canonicalFreshKey shape
         outer.canonicalFreshKey_fresh state)).mapHistory
-          (fun record => ((record.1, record.2.1), record.2.2)))).mapHistory
-            (fun record => (record.1.1, (record.1.2, besidePath localCode shape path record.2)))
-  erw [Circuit.underRetained_execute, prior.split_history, natural, Circuit.execute_mapHistory]
+          (fun record => (record.1, ((record.2.1, record.2.2.1), record.2.2.2))))).mapHistory
+        (fun record => (record.1,
+          (record.2.1.1, (record.2.1.2, besidePath localCode shape path record.2.2))))
+  erw [Circuit.underRetained_execute]
+  let split := Circuit.underRetainedSplitState outer.canonicalFreshKey shape
+    outer.canonicalFreshKey_fresh state
+  let liftPath := fun record :
+      (Store (Circuit.retainedLocalFrame (kind := model.kind)
+        outer.canonicalFreshKey shape) × H) × localCode.val.Path =>
+    (record.1.1, (record.1.2,
+      Circuit.underRetainedPathEquiv localCode.val localCode.property
+        outer.canonicalFreshKey shape outer.canonicalFreshKey_fresh record.2))
+  change (prior.splitState
+      ((localCode.val.execute
+        ((Circuit.retainedLocalFrame (kind := model.kind)
+          outer.canonicalFreshKey shape).register.prod Reference) split).mapHistory
+        (fun record => (record.1, liftPath record.2)))).mapHistory _ = _
+  rw [prior.split_history]
+  erw [natural]
+  let reassociate := fun record : prior.History ×
+      (Store (Circuit.retainedLocalFrame (kind := model.kind)
+        outer.canonicalFreshKey shape) × H) =>
+    ((record.1, record.2.1), record.2.2)
+  have commute := Circuit.execute_mapHistory code
+    (prior.reference ((Circuit.retainedLocalFrame (kind := model.kind)
+      outer.canonicalFreshKey shape).register.prod Reference))
+    (prior.splitState split) reassociate
+  rw [commute]
   erw [State.mapHistory_comp, State.mapHistory_comp, State.mapHistory_comp]
   rfl
 
@@ -143,22 +185,26 @@ def persistentLocalReference (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
 
 /-- Split all seven existing cells without changing their values or discarding correlations. -/
 def underPersistentSplitState (width scalarWidth : Nat) {Reference : Register}
-    {H : Type} [Fintype H] (state : State (persistentCtx ctx width scalarWidth) Reference H) :
+    {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (state : State (persistentCtx ctx width scalarWidth) Reference (Hidden × H)) :
     State ctx (persistentLocalReference ctx width scalarWidth Reference)
-      (persistentLocalHistory ctx width scalarWidth × H) :=
+      (Hidden × (persistentLocalHistory ctx width scalarWidth × H)) :=
   (persistentCoordinates ctx width scalarWidth).splitState state
 
 /-- The seven real cell Stores are preserved through every original history-coordinate map. -/
 theorem underPersistentSplitState_history (width scalarWidth : Nat) {Reference : Register}
-    {H K : Type} [Fintype H] [Fintype K]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) (update : H → K) :
-    underPersistentSplitState width scalarWidth (state.mapHistory update) =
+    {Hidden H K : Type} [Fintype Hidden] [Fintype H] [Fintype K]
+    (state : State (persistentCtx ctx width scalarWidth) Reference (Hidden × H))
+    (update : H → K) :
+    underPersistentSplitState width scalarWidth
+        (state.mapHistory (fun record => (record.1, update record.2))) =
       (underPersistentSplitState width scalarWidth state).mapHistory
-        (fun record => (record.1, update record.2)) :=
+        (fun record => (record.1, (record.2.1, update record.2.2))) :=
   (persistentCoordinates ctx width scalarWidth).split_history state update
 
-private theorem firstThreeCoordinates_execute
-    (code : Circuit ctx ctx) (supported : code.IsLocal) (scalarWidth : Nat) :
+private theorem firstThreeCoordinates_execute {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (scalarWidth : Nat) :
     (retainCoordinates
       (retainCoordinates (retainCoordinates (originalCoordinates ctx) .bit)
         (.unsignedWord scalarWidth)) .bit).Executes code
@@ -168,7 +214,7 @@ private theorem firstThreeCoordinates_execute
         (.unsignedWord scalarWidth)) .bit
         (besidePath (besideCell ⟨code, supported⟩ .bit) (.unsignedWord scalarWidth)
           (besidePath ⟨code, supported⟩ .bit (Equiv.refl _)))) := by
-  let original := (⟨code, supported⟩ : { code : Circuit ctx ctx // code.IsLocal })
+  let original := (⟨code, supported⟩ : { code : Circuit model ctx ctx // code.IsLocal })
   have accepted := @retainCoordinates_execute _ _ _ (originalCoordinates ctx) code original
     (Equiv.refl _) (originalCoordinates_execute code) .bit
   have selected := @retainCoordinates_execute _ _ _ _ code (besideCell original .bit) _ accepted
@@ -177,8 +223,9 @@ private theorem firstThreeCoordinates_execute
     (besideCell (besideCell original .bit) (.unsignedWord scalarWidth)) _ selected .bit
   exact @inverse
 
-private theorem persistentCoordinates_execute
-    (code : Circuit ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat) :
+private theorem persistentCoordinates_execute {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx) (supported : code.IsLocal) (width scalarWidth : Nat) :
     (persistentCoordinates ctx width scalarWidth).Executes code
       (underPersistent code supported width scalarWidth)
       (underPersistentPathEquiv code supported width scalarWidth) := by
@@ -190,24 +237,26 @@ private theorem persistentCoordinates_execute
   exact @scalar
 
 /-- Execute the original code in the complete split coordinates and retain its actual path. -/
-def underPersistentExecutionState (code : Circuit ctx ctx) (supported : code.IsLocal)
+def underPersistentExecutionState {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (width scalarWidth : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) :
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H)) :
     State ctx (persistentLocalReference ctx width scalarWidth Reference)
-      (persistentLocalHistory ctx width scalarWidth ×
-        (H × (underPersistent code supported width scalarWidth).Path)) :=
+      (model.HiddenState × (persistentLocalHistory ctx width scalarWidth ×
+        (H × (underPersistent code supported width scalarWidth).Path))) :=
   (persistentCoordinates ctx width scalarWidth).executedState code
     (underPersistent code supported width scalarWidth)
     (underPersistentPathEquiv code supported width scalarWidth) state
 
 /-- The complete actual state follows the original local circuit and its exact path equivalence. -/
-theorem underPersistent_execute (code : Circuit ctx ctx) (supported : code.IsLocal)
+theorem underPersistent_execute {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (width scalarWidth : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) :
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H)) :
     underPersistentSplitState width scalarWidth
         ((underPersistent code supported width scalarWidth).execute Reference state) =
       underPersistentExecutionState code supported width scalarWidth state :=
-  @persistentCoordinates_execute kind ctx code supported width scalarWidth Reference H _ state
+  @persistentCoordinates_execute model ctx code supported width scalarWidth Reference H _ state
 
 end
 

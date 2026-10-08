@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Coordinate
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual lattice multiply-accumulate
@@ -57,10 +58,11 @@ def coordinateAddOp (accumulator product : CWriteRef ctx (.unsignedWord width)) 
   .wordBinary .add width ctx (.product (writeInput accumulator) (writeInput product)) accumulator
 
 /-- Replace the accumulator by accumulator plus left times right modulo the raw width. -/
-def coordinateAccumulate (left right : CInputRef ctx (.unsignedWord width))
-    (accumulator product : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (coordinateProductOp left right product))
-    (.classical (coordinateAddOp accumulator product))
+def coordinateAccumulate {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (coordinateProductOp left right product))
+    (BitWord.instruction (execution := model) (coordinateAddOp accumulator product))
 
 /-- The two actual instruction updates on the classical store. -/
 def coordinateStore (left right : CInputRef ctx (.unsignedWord width))
@@ -68,25 +70,55 @@ def coordinateStore (left right : CInputRef ctx (.unsignedWord width))
   (store.applyOp (coordinateProductOp left right product)).applyOp
     (coordinateAddOp accumulator product)
 
+/-- The actual store and selected operation path of one coordinate update. -/
+def coordinateStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (coordinateAccumulate (model := model) left right accumulator product).Path :=
+  let multiplied := BitWord.instructionStep (execution := model)
+    (coordinateProductOp left right product) store
+  let added := BitWord.instructionStep (execution := model)
+    (coordinateAddOp accumulator product) multiplied.1
+  (added.1, (multiplied.2, added.2))
+
+theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
+    (accumulator product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (coordinateStep (model := model) left right accumulator product store).1 =
+      coordinateStore left right accumulator product store := rfl
+
 /-- The complete incoming quantum-reference blocks follow these actual store updates. -/
-theorem coordinateAccumulate_execute (left right : CInputRef ctx (.unsignedWord width))
+theorem coordinateAccumulate_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
     (accumulator product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : Execution.State ctx Reference History) :
-    (coordinateAccumulate left right accumulator product).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : Execution.State ctx Reference (model.HiddenState × History)) :
+    (coordinateAccumulate (model := model) left right accumulator product).execute
+      Reference state =
       state.mapClassical (fun entry =>
-        (coordinateStore left right accumulator product entry.1, (entry.2, ((), ())))) := by
-  simp only [coordinateAccumulate, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        let actual := coordinateStep (model := model) left right accumulator product entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [coordinateAccumulate, coordinateStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute,
     State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual coordinate path contains exactly the native multiply and addition. -/
-theorem coordinateAccumulate_events (left right : CInputRef ctx (.unsignedWord width))
+theorem coordinateAccumulate_events {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : CInputRef ctx (.unsignedWord width))
     (accumulator product : CWriteRef ctx (.unsignedWord width))
-    (path : (coordinateAccumulate left right accumulator product).Path) :
-    (coordinateAccumulate left right accumulator product).eventTrace path =
-      [.classicalOperation (.wordBinary .mulLow width),
-        .classicalOperation (.wordBinary .add width)] := rfl
+    (path : (coordinateAccumulate (model := model) left right accumulator product).Path) :
+    (coordinateAccumulate (model := model) left right accumulator product).eventTrace path =
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .add width))] := by
+  change (BitWord.instruction (execution := model)
+      (coordinateProductOp left right product)).eventTrace path.1 ++
+    (BitWord.instruction (execution := model)
+      (coordinateAddOp accumulator product)).eventTrace path.2 = _
+  simp only [BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Reads outside the two actual writes are preserved, with no operand-separation premise. -/
 theorem coordinateAccumulate_callerFrame
@@ -152,11 +184,15 @@ theorem coordinateAccumulate_correct (left right : CInputRef ctx (.unsignedWord 
 
 /-- Every coordinate accumulation preserves the complete borrowed interface. -/
 theorem coordinateAccumulate_borrowedRestored
+    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (left right : CInputRef ctx (.unsignedWord width))
     (accumulator product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (coordinateAccumulate left right accumulator product).BorrowedRestored Reference state
-      ((coordinateAccumulate left right accumulator product).execute Reference state) :=
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (coordinateAccumulate (model := model) left right accumulator product).BorrowedRestored
+      Reference state
+      ((coordinateAccumulate (model := model) left right accumulator product).execute
+        Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
     (Circuit.borrowedRestored_classical _ state) (Circuit.borrowedRestored_classical _ _)
 

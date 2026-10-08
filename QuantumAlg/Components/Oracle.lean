@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Oracle.Common
+import all QuantumAlg.Components.Oracle.Xor.Model
+import all QuantumAlg.Components.Oracle.Phase.Operator
+import all QuantumAlg.Components.Oracle.QPP
 import all QuantumAlg.Components.Oracle.Reflection
 import all QuantumAlg.Components.Oracle.ZeroReflection
 import all QuantumAlg.Components.Oracle.BlockEncoding

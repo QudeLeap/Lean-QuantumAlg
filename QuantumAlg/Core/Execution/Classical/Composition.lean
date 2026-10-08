@@ -6,30 +6,23 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Pushforward
+import all QuantumAlg.Core.Execution.Classical.Pushforward
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Classical.Branch
+import all QuantumAlg.Core.Execution.Random.Kernel.Point
 import all QuantumAlg.Core.Algorithm.ExecutionState
 
 /-!
-# Complete state equations for deterministic classical composition
+# Complete deterministic composition inside the selected execution model
 
-These laws compose equations already proved about the actual circuit
-interpreter. The selected branch is determined by its real storage reference.
-Every equation keeps each entire quantum-reference matrix block, including
-mixed states and correlations, while recording the actual instruction paths.
-There is no second instruction language or alternative resource interpretation.
+These laws compose already-proved equations of actual circuits. Each proved
+step includes its real store and persistent service state. The mathematical
+history is retained independently; a deterministic service transition may
+change the hidden state without resetting or reinitializing it.
+
+The semantic equations grant no extra operations or resource witnesses.
 -/
-
-namespace QuantumAlg.ExecutionState
-
-/-- Every matrix entry of a deterministic classical map is the sum of its actual input fiber. -/
-theorem mapClassical_block_matrix {C D : Type} [Fintype C] [Fintype D]
-    [DecidableEq D] {R : Register} (state : ExecutionState C R) (update : C → D)
-    (result : D) :
-    ((state.mapClassical update).block result).matrix =
-      ∑ entry : C, if update entry = result then (state.block entry).matrix else 0 := rfl
-
-end QuantumAlg.ExecutionState
 
 namespace QuantumAlg.Circuit
 
@@ -39,81 +32,98 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-/-- An atomic closed classical operation maps its actual store and records its unique path. -/
-theorem execute_classical_mapClassical {input output : CShape}
-    (op : ClassicalOp input output ctx ctx) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (Circuit.classical op).execute Reference state =
-      state.mapClassical (fun entry => (entry.1.applyOp op, (entry.2, ()))) := rfl
-
-/-- Identity preserves the real store and attaches only its unique empty path. -/
-theorem execute_id_mapClassical (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (Circuit.id ctx).execute Reference state =
-      state.mapClassical (fun entry => (entry.1, (entry.2, ()))) := by
-  rw [execute_id]
-  simp only [State.skip, State.mapHistory]
-  congr 1
-  exact Subsingleton.elim _ _
-
-/-- Two proved deterministic circuit equations compose on their actual intermediate store. -/
-theorem execute_seq_mapClassical
-    (first second : Circuit ctx ctx)
-    (firstStep : Store ctx → Store ctx × first.Path)
-    (secondStep : Store ctx → Store ctx × second.Path)
-    (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      first.execute Reference state = state.mapClassical (fun entry =>
-        ((firstStep entry.1).1, (entry.2, (firstStep entry.1).2))))
-    (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      second.execute Reference state = state.mapClassical (fun entry =>
-        ((secondStep entry.1).1, (entry.2, (secondStep entry.1).2))))
+/-- A proved point-valued native declaration gives the actual deterministic store update. -/
+theorem execute_classical_mapClassical
+    (application : model.classicalOperations.Application ctx)
+    (compute : (model.classicalOperations.inputShape application.token).Value →
+      (model.classicalOperations.outputShape application.token).Value)
+    (declared : ∀ value,
+      model.classicalOperations.evaluate application.token value = PMF.pure (compute value))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.classical (model := model) application).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := compute (entry.1.read application.input)
+        (entry.1.write application.output result, (entry.2.1, (entry.2.2, result)))) := by
+  rw [execute_classical]
+  simp_rw [declared]
+  rw [kernelChoice_pure,
+    ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
+/-- Identity retains the real store and shared service state with its unique empty path. -/
+theorem execute_id_mapClassical (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.id (model := model) ctx).execute Reference state =
+      state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) :=
+  execute_id state
+
+/-- Proved deterministic circuits compose on the actual intermediate store and service state. -/
+theorem execute_seq_mapClassical
+    (first second : Circuit model ctx ctx)
+    (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
+    (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
+    (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
+      first.execute Reference state = state.mapClassical (fun entry =>
+        let result := firstStep (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
+      second.execute Reference state = state.mapClassical (fun entry =>
+        let result := secondStep (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (Reference : Register) {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq first second).execute Reference state =
       state.mapClassical (fun entry =>
-        ((secondStep (firstStep entry.1).1).1,
-          (entry.2, ((firstStep entry.1).2, (secondStep (firstStep entry.1).1).2)))) := by
-  simp only [execute_seq, firstEquation, secondEquation, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+        let left := firstStep (entry.1, entry.2.1)
+        let right := secondStep left.1
+        (right.1.1, (right.1.2, (entry.2.2, (left.2, right.2))))) := by
+  rw [execute_seq, firstEquation, secondEquation]
+  dsimp only [State.mapHistory]
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance),
+    ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- A conditional composes the exact body equations using the value read from
-the incoming store. Every resulting block retains its original full matrix. -/
+/-- Actual stored values select the proved deterministic bodies, including their service updates. -/
 theorem execute_branch_mapClassical {shape : CShape}
-    (input : CInputRef ctx shape) (body : shape.Value → Circuit ctx ctx)
-    (step : (value : shape.Value) → Store ctx → Store ctx × (body value).Path)
+    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx ctx)
+    (step : (value : shape.Value) → Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body value).Path)
     (bodyEquation : ∀ (value : shape.Value) (Reference : Register)
-      {History : Type} [Fintype History] (state : State ctx Reference History),
+      {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)),
       (body value).execute Reference state = state.mapClassical (fun entry =>
-        ((step value entry.1).1, (entry.2, (step value entry.1).2))))
+        let result := step value (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.branch input body).execute Reference state =
       state.mapClassical (fun entry =>
-        ((step (entry.1.read input) entry.1).1,
-          (entry.2, ⟨entry.1.read input, (step (entry.1.read input) entry.1).2⟩))) := by
+        let selected := entry.1.read input
+        let result := step selected (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, ⟨selected, result.2⟩)))) := by
   apply ExecutionState.ext
   intro result
   apply DensityOperator.ext
   rw [execute_branch_block_matrix]
-  simp only [bodyEquation, State.mapHistory,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  simp only [bodyEquation, State.mapHistory]
+  simp_rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
   simp only [ExecutionState.mapClassical_block_matrix]
   rw [Finset.sum_comm]
   apply Finset.sum_congr rfl
   intro entry _
   rw [Finset.sum_eq_single (entry.1.read input)]
-  · simp only [ExecutionState.selectClassical_block, if_true]
+  · simp only [ExecutionState.selectClassical_block, if_true, Function.comp_apply]
   · intro value _ different
     rw [ExecutionState.selectClassical_block, if_neg (Ne.symm different)]
     simp only [DensityOperator.zero_matrix, ite_self]
   · intro absent
-    exact False.elim (absent (Finset.mem_univ _))
+    exact (absent (Finset.mem_univ _)).elim
 
 end
 

@@ -34,9 +34,11 @@ def spaceBound (kind : ProblemKind) (N : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (2 * modulusBits N + 3 * phaseBits N + 7 +
     OrderRecovery.Native.extraClassicalBits (modulusBits N) (phaseBits N)))
 
-private def innerScope (ctx : RuntimeCtx kind) (N : Nat)
-    (tail : Circuit (context ctx N) (context ctx N)) :
-    Circuit (zeroContext ctx N) (zeroContext ctx N) :=
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+
+private def innerScope (ctx : RuntimeCtx model.kind) (N : Nat)
+    (tail : Circuit model (context ctx N) (context ctx N)) :
+    Circuit model (zeroContext ctx N) (zeroContext ctx N) :=
   .workspace (zeroContext ctx N) (zeroContext ctx N).canonicalFreshKey .bit
     (zeroContext ctx N).canonicalFreshKey_fresh
     (.workspace (activeContext ctx N) (activeContext ctx N).canonicalFreshKey .bit
@@ -44,17 +46,17 @@ private def innerScope (ctx : RuntimeCtx kind) (N : Nat)
       (.workspace (positiveContext ctx N) (positiveContext ctx N).canonicalFreshKey
         (.unsignedWord (modulusBits N)) (positiveContext ctx N).canonicalFreshKey_fresh tail))
 
-private def middleScope (ctx : RuntimeCtx kind) (N : Nat)
-    (tail : Circuit (zeroContext ctx N) (zeroContext ctx N)) :
-    Circuit (orderContext ctx N) (orderContext ctx N) :=
+private def middleScope (ctx : RuntimeCtx model.kind) (N : Nat)
+    (tail : Circuit model (zeroContext ctx N) (zeroContext ctx N)) :
+    Circuit model (orderContext ctx N) (orderContext ctx N) :=
   .workspace (orderContext ctx N) (orderContext ctx N).canonicalFreshKey
     (.product .bit (.unsignedWord (phaseBits N + 1)))
     (orderContext ctx N).canonicalFreshKey_fresh
     (.workspace (expandedContext ctx N) (expandedContext ctx N).canonicalFreshKey
       (.unsignedWord (phaseBits N + 1)) (expandedContext ctx N).canonicalFreshKey_fresh tail)
 
-private def outerScope (ctx : RuntimeCtx kind) (N : Nat)
-    (tail : Circuit (orderContext ctx N) (orderContext ctx N)) : Circuit ctx ctx :=
+private def outerScope (ctx : RuntimeCtx model.kind) (N : Nat)
+    (tail : Circuit model (orderContext ctx N) (orderContext ctx N)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.canonicalResidue (modulusBits N))
     ctx.canonicalFreshKey_fresh
     (.workspace (baseContext ctx N) (baseContext ctx N).canonicalFreshKey
@@ -67,8 +69,8 @@ private theorem strip_context {α : Type} (head : α) (inside : List α) (value 
   · exact List.mem_cons.mp before
   · exact Or.inl (List.mem_singleton.mp after)
 
-private theorem inner_visited (tail : Circuit (context ctx N) (context ctx N))
-    (path : tail.Path) (visited : RuntimeCtx kind)
+private theorem inner_visited (tail : Circuit model (context ctx N) (context ctx N))
+    (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (innerScope ctx N tail).visitedContexts path) :
     visited ∈ [zeroContext ctx N, activeContext ctx N, positiveContext ctx N] ∨
       visited ∈ tail.visitedContexts path := by
@@ -84,8 +86,8 @@ private theorem inner_visited (tail : Circuit (context ctx N) (context ctx N))
       (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))))
   · exact Or.inr inside
 
-private theorem middle_visited (tail : Circuit (zeroContext ctx N) (zeroContext ctx N))
-    (path : tail.Path) (visited : RuntimeCtx kind)
+private theorem middle_visited (tail : Circuit model (zeroContext ctx N) (zeroContext ctx N))
+    (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (middleScope ctx N tail).visitedContexts path) :
     visited ∈ [orderContext ctx N, expandedContext ctx N] ∨
       visited ∈ tail.visitedContexts path := by
@@ -98,8 +100,8 @@ private theorem middle_visited (tail : Circuit (zeroContext ctx N) (zeroContext 
   · exact Or.inl (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))
   · exact Or.inr inside
 
-private theorem outer_visited (tail : Circuit (orderContext ctx N) (orderContext ctx N))
-    (path : tail.Path) (visited : RuntimeCtx kind)
+private theorem outer_visited (tail : Circuit model (orderContext ctx N) (orderContext ctx N))
+    (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (outerScope ctx N tail).visitedContexts path) :
     visited ∈ [ctx, baseContext ctx N] ∨ visited ∈ tail.visitedContexts path := by
   change visited ∈ ctx :: (baseContext ctx N :: tail.visitedContexts path ++
@@ -110,8 +112,8 @@ private theorem outer_visited (tail : Circuit (orderContext ctx N) (orderContext
   · exact Or.inl (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))
   · exact Or.inr inside
 
-private theorem layered_visited (tail : Circuit (context ctx N) (context ctx N))
-    (path : tail.Path) (visited : RuntimeCtx kind)
+private theorem layered_visited (tail : Circuit model (context ctx N) (context ctx N))
+    (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈
       (outerScope ctx N (middleScope ctx N (innerScope ctx N tail))).visitedContexts path) :
     visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
@@ -131,16 +133,25 @@ private theorem layered_visited (tail : Circuit (context ctx N) (context ctx N))
       [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N] third)
   · exact Or.inr inside
 
+variable [BitWord.Selected model]
+
 private theorem code_visited (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase output).Path) (visited : RuntimeCtx kind)
-    (present : visited ∈ (code source parameter phase output).visitedContexts path) :
+    (path : (code (model := model) source parameter phase output).Path) (visited : RuntimeCtx
+      model.kind)
+    (present : visited ∈ (code (model := model) source parameter phase output).visitedContexts
+      path) :
     visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
       zeroContext ctx N, activeContext ctx N, positiveContext ctx N] ∨
-      visited ∈ (body source parameter phase output).visitedContexts path :=
-  layered_visited (ctx := ctx) (N := N) (body source parameter phase output) path visited present
+      visited ∈ (body (model := model) source parameter phase output).visitedContexts path :=
+  layered_visited (ctx := ctx) (N := N) (body (model := model) source parameter phase output) path
+    visited present
+
+section Capacity
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
@@ -165,22 +176,29 @@ private theorem full_resident_capacity :
       baseContext, NativeFactorTail.spaceBound, spaceBound, SpacePool.ofShape]
   all_goals omega
 
+end Capacity
+
 /-- Every outer entry remains included while the complete resident recovery scratch is live. -/
 theorem code_resident_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase output).Path) :
-    (code source parameter phase output).peakResidentSpace path ≤
-      ctx.residentSpace + spaceBound kind N := by
+    (path : (code (model := model) source parameter phase output).Path) :
+    (code (model := model) source parameter phase output).peakResidentSpace path ≤
+      ctx.residentSpace + spaceBound model.kind N := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rcases code_visited source parameter phase output path visited present with outer | inner
   · exact prefix_resident_capacity visited outer
   · exact (Circuit.residentSpace_le_peak_of_visited
-      (body source parameter phase output) path visited inner).trans
-        ((NativeFactorTail.code_resident_le source (liftInput parameter) (liftInput phase)
+      (body (model := model) source parameter phase output) path visited inner).trans
+        ((NativeFactorTail.code_resident_le (model := model) source (liftInput parameter)
+          (liftInput phase)
           (cells ctx N) (liftWrite output) path).trans full_resident_capacity)
+
+section Capacity
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
@@ -205,21 +223,24 @@ private theorem full_auxiliary_capacity :
       baseContext, NativeFactorTail.spaceBound, spaceBound, SpacePool.ofShape]
   all_goals omega
 
+end Capacity
+
 /-- Every outer entry remains included while the complete auxiliary recovery scratch is live. -/
 theorem code_auxiliary_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (path : (code source parameter phase output).Path) :
-    (code source parameter phase output).peakAuxiliarySpace path ≤
-      ctx.auxiliarySpace + spaceBound kind N := by
+    (path : (code (model := model) source parameter phase output).Path) :
+    (code (model := model) source parameter phase output).peakAuxiliarySpace path ≤
+      ctx.auxiliarySpace + spaceBound model.kind N := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rcases code_visited source parameter phase output path visited present with outer | inner
   · exact prefix_auxiliary_capacity visited outer
   · exact (Circuit.auxiliarySpace_le_peak_of_visited
-      (body source parameter phase output) path visited inner).trans
-        ((NativeFactorTail.code_auxiliary_le source (liftInput parameter) (liftInput phase)
+      (body (model := model) source parameter phase output) path visited inner).trans
+        ((NativeFactorTail.code_auxiliary_le (model := model) source (liftInput parameter)
+          (liftInput phase)
           (cells ctx N) (liftWrite output) path).trans full_auxiliary_capacity)
 
 end

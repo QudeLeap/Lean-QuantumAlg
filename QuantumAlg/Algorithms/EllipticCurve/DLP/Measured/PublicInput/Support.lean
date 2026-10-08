@@ -75,46 +75,71 @@ theorem before_noBorrowedQuantum : (before E exponentWidth).borrowedQuantumWires
   rw [List.flatMap_append, List.flatMap_append, indexed_noBorrowedQuantum]
   rfl
 
-private theorem run_supported_initial {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (run : AlgorithmRun pre post shape)
+private theorem run_supported_initial {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (run : AlgorithmRun model pre post shape)
     (noBorrowed : pre.borrowedQuantumWires = []) (Reference : Register)
-    (initial : ExecutionState (Store pre) (Register.prod pre.register Reference))
+    (initial : ExecutionState (Store pre × model.HiddenState)
+      (Register.prod pre.register Reference))
     (record : run.Record)
     (positive : 0 < ((run.execute Reference initial).block record).mass) :
-    ∃ value, 0 < (initial.block value).mass ∧ value.readBorrowedClassical =
+    ∃ value, 0 < (initial.block value).mass ∧ value.1.readBorrowedClassical =
       run.code.borrowedClassicalValueTransport record.1.readBorrowedClassical := by
-  let recorded := initial.mapClassical (fun store => (store, store))
+  let recorded := initial.mapClassical (fun value => (value.1, (value.2, value.1)))
   have restored := run.code.borrowedRestored_of_noBorrowedQuantum noBorrowed Reference recorded
   obtain ⟨previous, previousPositive, same⟩ := run.code.borrowedRestored_supported_initial
     Reference recorded _ restored record positive
   obtain ⟨value, rfl, valuePositive⟩ :=
     (ExecutionState.mapClassical_block_mass_pos_iff initial
-      (fun store => (store, store)) previous).mp (by
+      (fun value => (value.1, (value.2, value.1))) previous).mp (by
         apply lt_of_lt_of_eq previousPositive
-        simp only [recorded, ExecutionState.mapClassical_block_mass]
-        apply Finset.sum_congr rfl
-        intro source _
-        split_ifs <;> rfl)
+        simp only [recorded, ExecutionState.mapClassical_block_mass])
   exact ⟨value, valuePositive, same⟩
+
+/-- Attach the uniquely empty classical service state to the prescribed public input. -/
+def initialRunState (problem : KnownOrderProblem E.GroupPoint) {Reference : Register}
+    (original : Input (Allocation.before p.size (2 * exponentWidth)) Reference) :
+    ExecutionState (Store (before E exponentWidth) × Unit)
+      (Register.prod (before E exponentWidth).register Reference) :=
+  (initialInput E exponentWidth problem original).state.mapClassical
+    (fun store => (store, ()))
 
 variable [Fact p.Prime]
 
+/-- Execute the original run on the prescribed input with its empty service state. -/
+def initialRunExecution (fieldTail : Nat) (odd : Odd p)
+    (problem : KnownOrderProblem E.GroupPoint)
+    (points : Fin (2 * orderWidth problem) → AffinePoint E) {Reference : Register}
+    (original : Input (Allocation.before p.size (2 * orderWidth problem)) Reference) :=
+  (exponentRun E fieldTail odd problem points).execute Reference
+    (initialRunState E (orderWidth problem) problem original)
+
+attribute [local irreducible] exponentRun
+
+set_option maxHeartbeats 500000 in
+-- The dependent record type of the complete exponent run exceeds the default elaboration budget.
 /-- Every supported actual final borrowed value comes from a prescribed positive input block. -/
 theorem exponentRun_supported_borrowed (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) {Reference : Register}
     (original : Input (Allocation.before p.size (2 * orderWidth problem)) Reference)
     (record : (exponentRun E fieldTail odd problem points).Record)
-    (positive : 0 < (((exponentRun E fieldTail odd problem points).execute Reference
-      (initialInput E (orderWidth problem) problem original).state).block record).mass) :
+    (positive : 0 < ((initialRunExecution E fieldTail odd problem points original).block
+      record).mass) :
     ∃ source, 0 < (original.state.block source).mass ∧
       (initialStore E (orderWidth problem) problem source).readBorrowedClassical =
         (exponentRun E fieldTail odd problem points).code.borrowedClassicalValueTransport
           record.1.readBorrowedClassical := by
-  obtain ⟨value, valuePositive, same⟩ := run_supported_initial
+  obtain ⟨entry, entryPositive, same⟩ := run_supported_initial
     (exponentRun E fieldTail odd problem points)
     (before_noBorrowedQuantum E (orderWidth problem)) Reference
-    (initialState E (orderWidth problem) problem original.state) record positive
+    (initialRunState E (orderWidth problem) problem original) record positive
+  obtain ⟨value, rfl, valuePositive⟩ :=
+    (ExecutionState.mapClassical_block_mass_pos_iff
+      (initialInput E (orderWidth problem) problem original).state
+      (fun store => (store, ())) entry).mp (by
+        apply lt_of_lt_of_eq entryPositive
+        simp only [initialRunState, ExecutionState.mapClassical_block_mass])
   obtain ⟨source, constructed, sourcePositive⟩ :=
     initialState_supported_original E (orderWidth problem) problem original.state
       value valuePositive

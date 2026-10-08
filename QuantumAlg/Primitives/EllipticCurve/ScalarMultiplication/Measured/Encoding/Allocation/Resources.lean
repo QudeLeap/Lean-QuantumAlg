@@ -14,8 +14,8 @@ import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.All
 /-!
 # Complete original-input resources with charged coordinate conversion
 
-The actual complete prefix charges its original two preparations and retains
-all finite result cells. The following converted cascade charges four native
+The actual complete prefix charges all zero preparations and fixed X loads,
+and retains all finite result cells. The following converted cascade charges four native
 coordinate multipliers and every measured point call. Actual initialization
 and execution share the same complete peak, including all supplied exponents,
 both coordinate words, fixed arithmetic work, selector and result cells.
@@ -52,7 +52,7 @@ theorem placedConvertedCascade_eventTrace {p : Nat} (E : PrimeFieldShortWeierstr
 theorem placedConvertedCascade_depth_exact {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (duration : Resource.Event .quantum → Nat)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (convertedCascade E points order coefficient).Path) :
     (placedConvertedCascade E points order coefficient).depth duration
         (placedConvertedPathEquiv E points order coefficient path) =
@@ -103,14 +103,14 @@ theorem placedConvertedCascade_auxiliary {p : Nat} (E : PrimeFieldShortWeierstra
   (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans
     (readyContext_auxiliary_exact p.size count)
 
-/-- Independent complete allowance for two preparations, four conversions and all point calls. -/
-def convertedEventBudget (modulus count calls : Nat) : ResourcePool .quantum :=
-  ResourcePool.ofList [(InPlacePreparation.preparation modulus).event,
-    (BasisPreparation.zero (indexedLayout modulus.size count)).event] +
+/-- Actual input-determined preparation, four conversions and every point call. -/
+def convertedEventBudget (modulus count calls : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.ofList (Allocation.initializationTrace modulus count) +
       (ResourcePool.scale 4 (MAU.Multiplication.Gidney.nativeBudget modulus.size) +
         ResourcePool.scale calls (MeasuredPointAddition.events modulus.size))
 
-/-- Every complete actual path includes both charged preparations and every converted point call. -/
+/-- Every complete path includes all preparation events and converted point calls. -/
 theorem convertedCircuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
@@ -122,17 +122,19 @@ theorem convertedCircuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
   exact ResourcePool.add_mono le_rfl
     (placedConvertedCascade_budget E points order coefficient path.2)
 
-/-- The full serial depth includes the two actual preparations before conversion and execution. -/
+/-- The full serial depth includes all preparation and X-load dependencies. -/
 theorem convertedCircuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
     (convertedCircuit E points order coefficient).depth (fun _ => 1) path ≤
-      2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
-        order.length * MeasuredPointAddition.depthBound p.size) := by
+      ResourcePool.weightedCount (fun _ => 1)
+        (ResourcePool.ofList (Allocation.initializationTrace p count)) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
+            order.length * MeasuredPointAddition.depthBound p.size) := by
   change (Allocation.initializeWork p count).depth (fun _ => 1) path.1 +
     (placedConvertedCascade E points order coefficient).depth (fun _ => 1) path.2 ≤ _
-  rw [Allocation.initialize_depth]
-  exact Nat.add_le_add_left (placedConvertedCascade_depth E points order coefficient path.2) 2
+  exact Nat.add_le_add (Allocation.initialize_depth p count (fun _ => 1) path.1)
+    (placedConvertedCascade_depth E points order coefficient path.2)
 
 /-- Actual initialization and converted execution reach only the same complete resident peak. -/
 theorem convertedCircuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]

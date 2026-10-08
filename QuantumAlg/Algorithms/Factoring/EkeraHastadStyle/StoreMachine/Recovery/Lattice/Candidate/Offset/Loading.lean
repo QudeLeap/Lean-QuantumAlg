@@ -22,10 +22,12 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original second and third signed coordinate loaders use their supplied offset cells. -/
-def suffixInto (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) : Circuit ctx ctx :=
+def suffixInto (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) :
+    Circuit model ctx ctx :=
   .seq (ClassicalRoutines.ConstantWord.Signed.into offset.2.1 refs.offset.second)
     (ClassicalRoutines.ConstantWord.Signed.into offset.2.2 refs.offset.third)
 
@@ -37,7 +39,8 @@ def suffixStep (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) (st
   (third.1, (second.2, third.2))
 
 /-- All three original signed loading loops execute in their original coordinate order. -/
-def setOffsetInto (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) : Circuit ctx ctx :=
+def setOffsetInto (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) :
+    Circuit model ctx ctx :=
   .seq (ClassicalRoutines.ConstantWord.Signed.into offset.1 refs.offset.first)
     (suffixInto offset refs)
 
@@ -52,35 +55,54 @@ def setOffsetStep (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
 /-- Actual suffix loading preserves all incoming state blocks and chronological histories. -/
 theorem suffixInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (suffixInto offset refs).execute Reference state = state.mapClassical (fun entry =>
-      ((suffixStep offset refs entry.1).1, (entry.2, (suffixStep offset refs entry.1).2))) := by
+      let actual := suffixStep offset refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (ClassicalRoutines.ConstantWord.Signed.into offset.2.1 refs.offset.second)
     (ClassicalRoutines.ConstantWord.Signed.into offset.2.2 refs.offset.third)
-    (ClassicalRoutines.ConstantWord.Signed.step offset.2.1 refs.offset.second)
-    (ClassicalRoutines.ConstantWord.Signed.step offset.2.2 refs.offset.third)
-    (ClassicalRoutines.ConstantWord.Signed.into_execute offset.2.1 refs.offset.second)
-    (ClassicalRoutines.ConstantWord.Signed.into_execute offset.2.2 refs.offset.third)
+    (fun before =>
+      let actual := ClassicalRoutines.ConstantWord.Signed.step offset.2.1
+        refs.offset.second before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := ClassicalRoutines.ConstantWord.Signed.step offset.2.2
+        refs.offset.third before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      ClassicalRoutines.ConstantWord.Signed.into_execute offset.2.1
+        refs.offset.second reference current)
+    (fun reference _history _ current =>
+      ClassicalRoutines.ConstantWord.Signed.into_execute offset.2.2
+        refs.offset.third reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual complete offset loading retains every original history and reference correlation. -/
 theorem setOffsetInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (setOffsetInto offset refs).execute Reference state = state.mapClassical (fun entry =>
-      ((setOffsetStep offset refs entry.1).1,
-        (entry.2, (setOffsetStep offset refs entry.1).2))) := by
+      let actual := setOffsetStep offset refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (ClassicalRoutines.ConstantWord.Signed.into offset.1 refs.offset.first) (suffixInto offset refs)
-    (ClassicalRoutines.ConstantWord.Signed.step offset.1 refs.offset.first) (suffixStep offset refs)
-    (ClassicalRoutines.ConstantWord.Signed.into_execute offset.1 refs.offset.first)
-    (suffixInto_execute offset refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := ClassicalRoutines.ConstantWord.Signed.step offset.1
+        refs.offset.first before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := suffixStep offset refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      ClassicalRoutines.ConstantWord.Signed.into_execute offset.1 refs.offset.first
+        reference current)
+    (fun reference _history _ current => suffixInto_execute offset refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
+omit [BitWord.Selected model] in
 /-- Different original offset coordinates have distinct actual write identities. -/
 theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     (saved written : MutableCell) (different : saved ≠ written) :

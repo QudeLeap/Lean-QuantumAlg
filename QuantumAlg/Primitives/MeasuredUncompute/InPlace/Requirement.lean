@@ -89,25 +89,25 @@ theorem holds_of_quantumMarginal (operation : InPlaceTarget.Operation) (modulus 
 /-- The complete mixed-state requirement holds for the actual division run and any full output. -/
 theorem division_holds (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
-    {Reference : Register} (input : Input (before modulus.size) Reference)
-    (valid : InPlaceDomain.valid modulus input.localState) :
-    (requirement .division modulus prime).Holds input
+    {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
+    (valid : InPlaceDomain.valid modulus input.caller.localState) :
+    (requirement .division modulus prime).Holds input.caller
       (({ code := InPlaceDivision.code modulus prime, output := output } :
-        AlgorithmRun (before modulus.size)
+        AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
           (NumeratorMeasurement.context modulus.size) shape).finalState Reference input.state) :=
-  holds_of_quantumMarginal .division modulus prime input _
+  holds_of_quantumMarginal .division modulus prime input.caller _
     (InPlaceState.division_finalState modulus prime output input valid)
 
 /-- Actual multiplication meets the full reference-aware requirement after summing real outcomes. -/
 theorem multiplication_holds (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
-    {Reference : Register} (input : Input (before modulus.size) Reference)
-    (valid : InPlaceDomain.valid modulus input.localState) :
-    (requirement .multiplication modulus prime).Holds input
+    {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
+    (valid : InPlaceDomain.valid modulus input.caller.localState) :
+    (requirement .multiplication modulus prime).Holds input.caller
       (({ code := InPlaceMultiplication.code modulus prime, output := output } :
-        AlgorithmRun (before modulus.size)
+        AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
           (NumeratorMeasurement.context modulus.size) shape).finalState Reference input.state) :=
-  holds_of_quantumMarginal .multiplication modulus prime input _
+  holds_of_quantumMarginal .multiplication modulus prime input.caller _
     (InPlaceState.multiplication_finalState modulus prime output input valid)
 
 

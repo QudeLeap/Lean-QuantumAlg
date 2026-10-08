@@ -49,18 +49,26 @@ def leave (N : Nat) (store : Store (context ctx N)) : Store ctx :=
   Store.popWorkspace ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
     ctx.canonicalFreshKey_fresh candidate
 
+section Selected
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The literal inner scan uses its already derived actual store and path update. -/
 def bodyStep (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Store (context ctx N) → Store (context ctx N) × (body source inputs result).Path :=
-  NativeFactorScan.step source (inputs.map liftInputs) (cells ctx N) (liftWrite result)
+    Store (context ctx N) → Store (context ctx N) × (body (model := model) source inputs
+      result).Path :=
+  NativeFactorScan.step (model := model) source (inputs.map liftInputs) (cells ctx N) (liftWrite
+    result)
 
 /-- Actual entry, the full scan and actual release retain the body's real path. -/
 def step (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (code source inputs result).Path :=
-  let selected := bodyStep source inputs result (enter N store)
+    Store ctx × (code (model := model) source inputs result).Path :=
+  let selected := bodyStep (model := model) source inputs result (enter N store)
   (leave N selected.1, selected.2)
+
+end Selected
 
 /-- The four real allocations preserve every original structural input value. -/
 theorem enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :

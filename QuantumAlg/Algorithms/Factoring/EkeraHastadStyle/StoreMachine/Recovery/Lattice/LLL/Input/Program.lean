@@ -26,8 +26,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Decode the actual original samples and source basis before loading the actual target. -/
-def decodeTargetInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def decodeTargetInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (LatticeWideInitializationPrefix.decodeBasisInto (prefixRefs refs))
     (LatticeWideTargetMachine.loadTargetInto refs.target)
 
@@ -40,21 +43,31 @@ def decodeTargetStep (refs : Refs ctx N) (store : Store ctx) :
 
 /-- The actual composed execution retains every incoming state block and original history. -/
 theorem decodeTargetInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodeTargetInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((decodeTargetStep refs entry.1).1, (entry.2, (decodeTargetStep refs entry.1).2))) := by
+      let actual := decodeTargetStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (LatticeWideInitializationPrefix.decodeBasisInto (prefixRefs refs))
     (LatticeWideTargetMachine.loadTargetInto refs.target)
-    (LatticeWideInitializationPrefix.decodeBasisStep (prefixRefs refs))
-    (LatticeWideTargetMachine.targetStep refs.target)
-    (LatticeWideInitializationPrefix.decodeBasisInto_execute (prefixRefs refs))
-    (LatticeWideTargetMachine.loadTargetInto_execute refs.target) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeWideInitializationPrefix.decodeBasisStep (model := model)
+        (prefixRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeWideTargetMachine.targetStep (model := model) refs.target before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeWideInitializationPrefix.decodeBasisInto_execute (prefixRefs refs)
+        reference current)
+    (fun reference _history _ current =>
+      LatticeWideTargetMachine.loadTargetInto_execute refs.target reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Load the original actual basis and target before refreshing Gram data and resetting phase. -/
-def initializeWideInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def initializeWideInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (decodeTargetInto refs)
     (LatticeFixedFuelMachine.refreshResetInto refs.initialization.driver)
 
@@ -67,22 +80,30 @@ def initializeWideStep (refs : Refs ctx N) (store : Store ctx) :
 
 /-- The actual composed execution retains every incoming state block and original history. -/
 theorem initializeWideInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (initializeWideInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((initializeWideStep refs entry.1).1, (entry.2, (initializeWideStep refs entry.1).2))) := by
+      let actual := initializeWideStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (decodeTargetInto refs)
     (LatticeFixedFuelMachine.refreshResetInto refs.initialization.driver)
-    (decodeTargetStep refs)
-    (LatticeFixedFuelMachine.refreshResetStep refs.initialization.driver)
-    (decodeTargetInto_execute refs)
-    (LatticeFixedFuelMachine.refreshResetInto_execute refs.initialization.driver)
+    (fun before =>
+      let actual := decodeTargetStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeFixedFuelMachine.refreshResetStep (model := model)
+        refs.initialization.driver before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => decodeTargetInto_execute refs reference current)
+    (fun reference _history _ current =>
+      LatticeFixedFuelMachine.refreshResetInto_execute refs.initialization.driver
+        reference current)
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Execute original sample and target loading before the original initialized fixed-fuel LLL. -/
-def pairToLllInto (refs : Refs ctx N) : Circuit ctx ctx :=
+def pairToLllInto (refs : Refs ctx N) : Circuit model ctx ctx :=
   .seq (decodeTargetInto refs)
     (LatticeFixedFuelMachine.initializedInto (RSA.shortLogRecoveryFuel
       (shortLogBits N) (tradeoffBits N)) refs.initialization.driver)
@@ -97,21 +118,30 @@ def pairToLllStep (refs : Refs ctx N) (store : Store ctx) :
 
 /-- The actual composed execution retains every incoming state block and original history. -/
 theorem pairToLllInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairToLllInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((pairToLllStep refs entry.1).1, (entry.2, (pairToLllStep refs entry.1).2))) := by
+      let actual := pairToLllStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (decodeTargetInto refs)
     (LatticeFixedFuelMachine.initializedInto (RSA.shortLogRecoveryFuel
       (shortLogBits N) (tradeoffBits N)) refs.initialization.driver)
-    (decodeTargetStep refs)
-    (LatticeFixedFuelMachine.initializedStep (RSA.shortLogRecoveryFuel
-      (shortLogBits N) (tradeoffBits N)) refs.initialization.driver)
-    (decodeTargetInto_execute refs)
-    (LatticeFixedFuelMachine.initializedInto_execute (RSA.shortLogRecoveryFuel
-      (shortLogBits N) (tradeoffBits N)) refs.initialization.driver) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := decodeTargetStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeFixedFuelMachine.initializedStep (model := model)
+        (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N))
+        refs.initialization.driver before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => decodeTargetInto_execute refs reference current)
+    (fun reference _history _ current =>
+      LatticeFixedFuelMachine.initializedInto_execute
+        (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N))
+        refs.initialization.driver reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

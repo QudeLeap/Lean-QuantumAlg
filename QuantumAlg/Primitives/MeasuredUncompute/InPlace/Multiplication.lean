@@ -35,44 +35,34 @@ noncomputable section
 
 open Execution MAU.Inversion.SharedEEA
 
-private theorem full_within (width : Nat)
-    (member : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
-    (full : member.physical_idx = List.range (OutputCopy.encoding width).width) :
-    member.physical_idx ⊆ List.range (OutputCopy.encoding width).width := by
-  rw [full]
-  exact List.Subset.refl _
-
 /-- Save the actual X/Y product in the clean original A port before measuring Y. -/
 def product (modulus : Nat) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size
     (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus))
-    (ReusedProduct.original_within modulus.size (InPlaceArithmetic.modulusWord modulus))
 
 /-- Invert only original X, using the actually reset Y as its large workspace. -/
 def forward (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size (NativeReusedEEA.forward modulus prime)
-    (full_within modulus.size _ (NativeReusedEEA.forward_physical modulus prime))
 
 /-- Restore the original X and complete fixed Γ using the same reused EEA backward program. -/
 def backward (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   NumeratorRuntime.code modulus.size (NativeEEAFrame.backward modulus prime)
-    (full_within modulus.size _ (NativeEEAFrame.backward_physical modulus prime))
 
 /-- Execute the actual final A/Y exchange with all other live systems retained. -/
 def swap (width : Nat) :
-    Circuit (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
   NumeratorRuntime.code width (FrameSwap.program width)
-    (full_within width _ (FrameSwap.frameSwap_physical width))
 
 /-- The exact multiplication schedule uses measured Y before its workspace-reuse EEA passes. -/
 def body (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (NumeratorMeasurement.context modulus.size)
+    Circuit (.quantum AlgorithmGate.model .empty) (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size) :=
   .seq (product modulus)
     (.seq (NumeratorReset.code modulus.size)
@@ -82,7 +72,8 @@ def body (modulus : Nat) (prime : Nat.Prime modulus) :
 
 /-- Fixed A=0 and Γ preparation, actual finite-cell allocation, then the actual multiplication. -/
 def code (modulus : Nat) (prime : Nat.Prime modulus) :
-    Circuit (InversePreparation.before modulus.size) (NumeratorMeasurement.context modulus.size) :=
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (InversePreparation.before modulus.size) (NumeratorMeasurement.context modulus.size) :=
   .seq (InPlacePreparation.circuit modulus)
     (.seq (NumeratorMeasurement.allocate modulus.size) (body modulus prime))
 

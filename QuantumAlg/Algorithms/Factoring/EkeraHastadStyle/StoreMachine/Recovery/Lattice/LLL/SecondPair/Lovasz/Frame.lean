@@ -79,10 +79,11 @@ theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
   · exact avoids .b33 (by decide)
   · exact avoids .swapScratch (by decide)
 
-private theorem selectArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit)
+private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
-    (selectArmStep refs flag store).1.read other = store.read other := by
+    (selectArmStep (model := model) refs flag store).1.read other = store.read other := by
   cases flag with
   | bit flag =>
     cases flag
@@ -90,16 +91,18 @@ private theorem selectArm_frame (refs : Refs ctx width) (flag : CShape.Value .bi
     · rfl
 
 /-- Both possible actual selected arms retain every read outside the row-exchange footprint. -/
-theorem select_frame (refs : Refs ctx width) (store : Store ctx)
+theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
-    (selectStep refs store).1.read other = store.read other :=
+    (selectStep (model := model) refs store).1.read other = store.read other :=
   selectArm_frame refs (store.read (writeInput refs.lovasz.passes)) store other avoids
 
 /-- Both actual selected arms retain the stored comparison bit exactly. -/
-theorem select_passes (refs : Refs ctx width) (separation : Separation refs)
+theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (selectStep refs store).1.read (writeInput refs.lovasz.passes) =
+    (selectStep (model := model) refs store).1.read (writeInput refs.lovasz.passes) =
       store.read (writeInput refs.lovasz.passes) := by
   apply select_frame
   intro cell member
@@ -111,15 +114,17 @@ theorem select_passes (refs : Refs ctx width) (separation : Separation refs)
   simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton, cellKey] using keyNe
 
 /-- Complete actual second-Lovasz execution retains every read outside its nine possible writes. -/
-theorem branchInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem branchInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :
-    (branchStep refs store).1.read other = store.read other := by
+    (branchStep (model := model) refs store).1.read other = store.read other := by
   have comparison : FrameAvoids refs comparisonCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
   have swap : FrameAvoids refs swapCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
-  change (selectStep refs (LatticeLovasz.secondLovaszStore refs.lovasz store)).1.read other = _
+  change (selectStep (model := model) refs
+    (LatticeLovasz.secondLovaszStore refs.lovasz store)).1.read other = _
   rw [select_frame refs _ other swap, comparison_frame refs _ other comparison]
 
 end

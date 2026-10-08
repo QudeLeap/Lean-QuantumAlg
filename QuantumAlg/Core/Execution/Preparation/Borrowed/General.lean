@@ -135,24 +135,32 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Fresh owned preparation restores every borrowed classical-quantum-reference correlation. -/
-theorem borrowedRestored_prepare {ctx : RuntimeCtx .quantum} {Reference : Register}
-    {H : Type} [Fintype H] (state : State ctx Reference H)
+theorem borrowedRestored_prepareZero {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} {Reference : Register}
+    {H : Type} [Fintype H] (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) {count : Nat} (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
-    (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) :
-    (Circuit.prepare ctx key layout fresh disjoint preparation).BorrowedRestored Reference state
-      ((Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state) := by
-  change observeBorrowed Reference (state.prepare key layout fresh disjoint preparation) =
+    (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).BorrowedRestored Reference state
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+        ctx key layout fresh disjoint).execute Reference state) := by
+  change observeBorrowed Reference
+    ((state.prepare key layout fresh disjoint (BasisPreparation.zero layout)).mapHistory
+      (fun record => (record.1.1, (record.1.2, record.2)))) =
     observeBorrowed Reference state
   apply ExecutionState.ext
   intro value
   rw [observeBorrowed_block, observeBorrowed_block]
-  simp only [State.prepare, ExecutionState.executionState_mapClassical_comp, Function.comp_def,
+  simp only [State.prepare, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def,
     Store.readBorrowedClassical_pushOwnedLayout]
   rw [prepareContext_mapClassical]
   exact prepareContext_borrowed_block
     (state.mapClassical fun label => label.1.readBorrowedClassical)
-    key layout fresh disjoint preparation.normalized value
+    key layout fresh disjoint (BasisPreparation.zero layout).normalized value
 
 end
 

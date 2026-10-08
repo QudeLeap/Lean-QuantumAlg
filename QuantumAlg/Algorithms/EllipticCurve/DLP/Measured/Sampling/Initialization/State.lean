@@ -76,9 +76,12 @@ private def selectorBlocks (width count : Nat) {C : Type} [Fintype C]
     (BasisPreparation.zero (indexedLayout width count)).normalized
 
 private def auxiliaryRecord (modulus count : Nat) (History : Type)
-    (record : Store (before modulus.size count) × History) :
+    (record : Store (before modulus.size count) ×
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     Store ((InversePreparation.after modulus.size).disjointUnion (exponents modulus.size count)
-      (auxiliary_disjoint modulus.size count)) × (History × Unit) :=
+      (auxiliary_disjoint modulus.size count)) ×
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (prepareAuxiliary modulus count).Path)) :=
   (record.1.pushOwnedLayout InversePreparation.auxiliaryKey
     (InputPreparation.auxiliaryLayout modulus.size)
     (preparation_fresh_union InversePreparation.auxiliaryKey
@@ -90,23 +93,34 @@ private def auxiliaryRecord (modulus count : Nat) (History : Type)
       (InputPreparation.auxiliaryLayout modulus.size)
       (InversePreparation.auxiliary_fresh modulus.size)
       (InversePreparation.auxiliary_disjoint modulus.size)
-      (auxiliary_disjoint modulus.size count)), (record.2, ()))
+      (auxiliary_disjoint modulus.size count)),
+        (record.2.1, (record.2.2, ((), ()))))
 
 private def selectorRecord (width count : Nat) (History : Type)
-    (record : Store (withCells width count) × History) :
-    Store (after width count) × (History × Unit) :=
+    (record : Store (withCells width count) ×
+      (ClassicalOracleModel.empty.HiddenState × History)) :
+    Store (after width count) ×
+      (ClassicalOracleModel.empty.HiddenState × (History × Unit)) :=
   (record.1.pushOwnedLayout (indexedKey width count) (indexedLayout width count)
-    (selector_fresh width count) (selector_disjoint width count), (record.2, ()))
+    (selector_fresh width count) (selector_disjoint width count),
+      (record.2.1, (record.2.2, ())))
 
 /-- Actual preparation markers and retained finite cells determine each final classical record. -/
 def initializationRecord (modulus count : Nat) (History : Type)
-    (record : Store (before modulus.size count) × History) :
-    Store (after modulus.size count) × (History × (initializeWork modulus count).Path) :=
+    (record : Store (before modulus.size count) ×
+      (ClassicalOracleModel.empty.HiddenState × History)) :
+    Store (after modulus.size count) ×
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (initializeWork modulus count).Path)) :=
   let auxiliary := auxiliaryRecord modulus count History record
-  let cells := scalarCellsRecord modulus.size count (History × Unit) auxiliary
+  let cells := scalarCellsRecord modulus.size count
+    (History × (prepareAuxiliary modulus count).Path) auxiliary
   let selected := selectorRecord modulus.size count
-    ((History × Unit) × (allocateCells modulus.size count).Path) cells
-  (selected.1, (selected.2.1.1.1, (selected.2.1.1.2, (selected.2.1.2, selected.2.2))))
+    ((History × (prepareAuxiliary modulus count).Path) ×
+      (allocateCells modulus.size count).Path) cells
+  (selected.1, (selected.2.1,
+    (selected.2.2.1.1.1, (selected.2.2.1.1.2,
+      (selected.2.2.1.2, selected.2.2.2)))))
 
 private theorem auxiliaryBlocks_entry (modulus count : Nat)
     {C : Type} [Fintype C] {Reference : Register}
@@ -254,25 +268,155 @@ private theorem initialized_preparedBlocks (modulus count : Nat)
 
 end AssembledBlocks
 
+private theorem auxiliary_load_density (modulus count : Nat) {Reference : Register}
+    (density : DensityOperator (Register.prod (before modulus.size count).register Reference)) :
+    DensityOperator.applyUnitary
+      (UnitaryOperator.prodTensor
+        (frameUnitary (InversePreparation.after modulus.size)
+          (exponents modulus.size count) (auxiliary_disjoint modulus.size count)
+          (InPlacePreparation.loadProgram modulus)).matrix
+        (1 : UnitaryOperator Reference))
+      (preparedDensity InversePreparation.auxiliaryKey
+        (InputPreparation.auxiliaryLayout modulus.size)
+        (preparation_fresh_union InversePreparation.auxiliaryKey
+          (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size)
+          (auxiliary_disjoint modulus.size count))
+        (preparation_wires_union InversePreparation.auxiliaryKey
+          (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size)
+          (auxiliary_disjoint modulus.size count))
+        (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).normalized
+        Reference density) =
+      preparedDensity InversePreparation.auxiliaryKey
+        (InputPreparation.auxiliaryLayout modulus.size)
+        (preparation_fresh_union InversePreparation.auxiliaryKey
+          (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size)
+          (auxiliary_disjoint modulus.size count))
+        (preparation_wires_union InversePreparation.auxiliaryKey
+          (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size)
+          (auxiliary_disjoint modulus.size count))
+        (InPlacePreparation.preparation modulus).normalized Reference density := by
+  apply preparedDensity_frameUnitary_transport
+    (ctx := InversePreparation.before modulus.size)
+    (frame := exponents modulus.size count)
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (auxiliary_disjoint modulus.size count)
+    (InPlacePreparation.loadProgram modulus)
+    (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size))
+    (InPlacePreparation.preparation modulus)
+    (fun {R} input => by
+      exact preparedDensity_load_ket InversePreparation.auxiliaryKey
+        (InputPreparation.auxiliaryLayout modulus.size)
+        (InversePreparation.auxiliary_fresh modulus.size)
+        (InversePreparation.auxiliary_disjoint modulus.size)
+        (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value
+        (InPlacePreparation.preparation modulus).value
+        (InPlacePreparation.loadProgram modulus).matrix
+        (InPlacePreparation.loadProgram_seed modulus) input)
+    Reference density
+
+private theorem unitary_mapClassical_instances {C D : Type}
+    [Fintype C] [Fintype D] {R : Register}
+    {first result : DecidableEq D} (state : ExecutionState C R)
+    (update : C → D) (operator : D → UnitaryOperator R) :
+    (@ExecutionState.mapClassical C D _ _ R first state update).applyUnitary operator =
+      @ExecutionState.mapClassical C D _ _ R result
+        (state.applyUnitary (fun value => operator (update value))) update := by
+  cases Subsingleton.elim first result
+  exact ExecutionState.applyUnitary_mapClassical state update operator
+
 private theorem auxiliary_execution (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before modulus.size count) Reference History) :
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     (prepareAuxiliary modulus count).execute Reference state =
       (auxiliaryBlocks modulus count state).mapClassical
-        (auxiliaryRecord modulus count History) :=
-  State.mapClassical_decision _ _ _ _
+        (auxiliaryRecord modulus count History) := by
+  let zeroBlocks := prepareContext (ctx := before modulus.size count) state
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (preparation_fresh_union InversePreparation.auxiliaryKey
+      (InputPreparation.auxiliaryLayout modulus.size)
+      (InversePreparation.auxiliary_fresh modulus.size)
+      (InversePreparation.auxiliary_disjoint modulus.size)
+      (auxiliary_disjoint modulus.size count))
+    (preparation_wires_union InversePreparation.auxiliaryKey
+      (InputPreparation.auxiliaryLayout modulus.size)
+      (InversePreparation.auxiliary_fresh modulus.size)
+      (InversePreparation.auxiliary_disjoint modulus.size)
+      (auxiliary_disjoint modulus.size count))
+    (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).normalized
+  let operation := UnitaryOperator.prodTensor
+    (frameUnitary (InversePreparation.after modulus.size)
+      (exponents modulus.size count) (auxiliary_disjoint modulus.size count)
+      (InPlacePreparation.loadProgram modulus)).matrix
+    (1 : UnitaryOperator Reference)
+  have loaded : zeroBlocks.applyUnitary (fun _ => operation) =
+      auxiliaryBlocks modulus count state := by
+    apply ExecutionState.ext
+    intro label
+    exact auxiliary_load_density modulus count (state.block label)
+  change (prepareFramed InversePreparation.auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (auxiliary_disjoint modulus.size count)
+    (InPlacePreparation.loadProgram modulus)).execute Reference state = _
+  unfold prepareFramed
+  unfold prepareZeroFramed
+  erw [Circuit.execute_seq]
+  erw [Circuit.execute_unitary (H := History × Unit)]
+  erw [Circuit.execute_prepareZero]
+  dsimp only [State.prepare, State.mapHistory]
+  erw [unitary_mapClassical_instances (result := Classical.decEq _),
+    unitary_mapClassical_instances (result := Classical.decEq _)]
+  erw [loaded]
+  dsimp only [Circuit.Path]
+  erw [ExecutionState.executionState_mapClassical_comp_instances
+    (result := Classical.decEq _)]
+  erw [ExecutionState.executionState_mapClassical_comp_instances
+    (result := Classical.decEq _)]
+  erw [ExecutionState.executionState_mapClassical_comp_instances
+    (result := Classical.decEq _)]
+  apply ExecutionState.executionState_mapClassical_congr
+    (D := Store ((InversePreparation.after modulus.size).disjointUnion
+      (exponents modulus.size count) (auxiliary_disjoint modulus.size count)) ×
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (prepareAuxiliary modulus count).Path)))
+  funext record
+  rfl
 
 private theorem selector_execution (width count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (withCells width count) Reference History) :
+    (state : State (withCells width count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     (prepareSelector width count).execute Reference state =
       (selectorBlocks width count state).mapClassical (selectorRecord width count History) :=
-  State.mapClassical_decision _ _ _ _
+  by
+    change (Circuit.prepareZero (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty)
+      (withCells width count) (indexedKey width count) (indexedLayout width count)
+      (selector_fresh width count) (selector_disjoint width count)).execute Reference state = _
+    rw [Circuit.execute_prepareZero]
+    dsimp only [State.prepare, State.mapHistory, selectorBlocks]
+    exact
+      (ExecutionState.executionState_mapClassical_comp_instances
+        (result := Classical.decEq _) _ _ _).trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 private theorem cells_execution (width count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ((InversePreparation.after width).disjointUnion (exponents width count)
-      (auxiliary_disjoint width count)) Reference History) :
+      (auxiliary_disjoint width count)) Reference
+        (ClassicalOracleModel.empty.HiddenState × History)) :
     (allocateCells width count).execute Reference state =
       (cellBlocks width count state).mapClassical (scalarCellsRecord width count History) :=
   allocateCells_execution width count state
@@ -311,30 +455,37 @@ private theorem initialization_blocks_records (modulus count : Nat)
 
 private def stagedInitialization (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before modulus.size count) Reference History) :
-    State (after modulus.size count) Reference (History × (initializeWork modulus count).Path) :=
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
+    State (after modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (initializeWork modulus count).Path)) :=
   let auxiliary : State
       ((InversePreparation.after modulus.size).disjointUnion (exponents modulus.size count)
         (auxiliary_disjoint modulus.size count)) Reference
-      (History × (prepareAuxiliary modulus count).Path) :=
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (prepareAuxiliary modulus count).Path)) :=
     (auxiliaryBlocks modulus count state).mapClassical (auxiliaryRecord modulus count History)
   let cells : State (withCells modulus.size count) Reference
-      ((History × (prepareAuxiliary modulus count).Path) ×
-        (allocateCells modulus.size count).Path) :=
+      (ClassicalOracleModel.empty.HiddenState ×
+        ((History × (prepareAuxiliary modulus count).Path) ×
+          (allocateCells modulus.size count).Path)) :=
     (cellBlocks modulus.size count auxiliary).mapClassical
       (scalarCellsRecord modulus.size count (History × (prepareAuxiliary modulus count).Path))
   let selected : State (after modulus.size count) Reference
-      (((History × (prepareAuxiliary modulus count).Path) ×
-        (allocateCells modulus.size count).Path) × (prepareSelector modulus.size count).Path) :=
+      (ClassicalOracleModel.empty.HiddenState ×
+        (((History × (prepareAuxiliary modulus count).Path) ×
+          (allocateCells modulus.size count).Path) × (prepareSelector modulus.size count).Path)) :=
     (selectorBlocks modulus.size count cells).mapClassical
       (selectorRecord modulus.size count ((History × (prepareAuxiliary modulus count).Path) ×
         (allocateCells modulus.size count).Path))
   State.mapHistory (ctx := after modulus.size count)
     (State.mapHistory (ctx := after modulus.size count) selected
-      (K := (History × (prepareAuxiliary modulus count).Path) ×
-        ((allocateCells modulus.size count).seq (prepareSelector modulus.size count)).Path)
-      (fun record => (record.1.1, (record.1.2, record.2))))
-    (fun record => (record.1.1, (record.1.2, record.2)))
+      (K := ClassicalOracleModel.empty.HiddenState ×
+        ((History × (prepareAuxiliary modulus count).Path) ×
+          ((allocateCells modulus.size count).seq (prepareSelector modulus.size count)).Path))
+      (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))))
+    (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
 
 section StagedExecution
 
@@ -343,7 +494,8 @@ attribute [local irreducible] auxiliaryBlocks cellBlocks selectorBlocks
 
 private theorem initializeWork_staged_execute (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before modulus.size count) Reference History) :
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     (initializeWork modulus count).execute Reference state =
       stagedInitialization modulus count state := by
   dsimp only [initializeWork]
@@ -362,7 +514,8 @@ attribute [local irreducible] auxiliaryBlocks cellBlocks selectorBlocks initiali
 
 private theorem stagedInitialization_eq (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before modulus.size count) Reference History) :
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     stagedInitialization modulus count state =
       (initializationBlocks modulus count state).mapClassical
         (initializationRecord modulus count History) := by
@@ -370,34 +523,49 @@ private theorem stagedInitialization_eq (modulus count : Nat)
   have merged := initialization_blocks_records modulus count
     (A := Store ((InversePreparation.after modulus.size).disjointUnion
       (exponents modulus.size count) (auxiliary_disjoint modulus.size count)) ×
-        (History × (prepareAuxiliary modulus count).Path))
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (prepareAuxiliary modulus count).Path)))
     (B := Store (withCells modulus.size count) ×
-      ((History × (prepareAuxiliary modulus count).Path) × (allocateCells modulus.size count).Path))
+      (ClassicalOracleModel.empty.HiddenState ×
+        ((History × (prepareAuxiliary modulus count).Path) ×
+          (allocateCells modulus.size count).Path)))
     (D := Store (after modulus.size count) ×
-      (((History × (prepareAuxiliary modulus count).Path) ×
-        (allocateCells modulus.size count).Path) × (prepareSelector modulus.size count).Path))
+      (ClassicalOracleModel.empty.HiddenState ×
+        (((History × (prepareAuxiliary modulus count).Path) ×
+          (allocateCells modulus.size count).Path) ×
+          (prepareSelector modulus.size count).Path)))
     (F := Store (after modulus.size count) ×
-      ((History × (prepareAuxiliary modulus count).Path) ×
-        ((allocateCells modulus.size count).seq (prepareSelector modulus.size count)).Path))
-    (G := Store (after modulus.size count) × (History × (initializeWork modulus count).Path))
+      (ClassicalOracleModel.empty.HiddenState ×
+        ((History × (prepareAuxiliary modulus count).Path) ×
+          ((allocateCells modulus.size count).seq (prepareSelector modulus.size count)).Path)))
+    (G := Store (after modulus.size count) ×
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (initializeWork modulus count).Path)))
     (Reference := Reference) state
     (auxiliaryRecord modulus count History)
     (scalarCellsRecord modulus.size count (History × (prepareAuxiliary modulus count).Path))
     (selectorRecord modulus.size count ((History × (prepareAuxiliary modulus count).Path) ×
       (allocateCells modulus.size count).Path))
-    (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
-    (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
+    (fun record => (record.1, (record.2.1,
+      (record.2.2.1.1, (record.2.2.1.2, record.2.2.2)))))
+    (fun record => (record.1, (record.2.1,
+      (record.2.2.1.1, (record.2.2.1.2, record.2.2.2)))))
   have updates :
-      (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) ∘
-        (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) ∘
+      (fun record => (record.1, (record.2.1,
+        (record.2.2.1.1, (record.2.2.1.2, record.2.2.2))))) ∘
+        (fun record => (record.1, (record.2.1,
+          (record.2.2.1.1, (record.2.2.1.2, record.2.2.2))))) ∘
         selectorRecord modulus.size count
           ((History × (prepareAuxiliary modulus count).Path) ×
             (allocateCells modulus.size count).Path) ∘
         scalarCellsRecord modulus.size count (History × (prepareAuxiliary modulus count).Path) ∘
         auxiliaryRecord modulus count History = initializationRecord modulus count History := rfl
   have rewritten := congrArg
-    (fun update : Store (before modulus.size count) × History →
-      Store (after modulus.size count) × (History × (initializeWork modulus count).Path) =>
+    (fun update : Store (before modulus.size count) ×
+        (ClassicalOracleModel.empty.HiddenState × History) →
+      Store (after modulus.size count) ×
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (initializeWork modulus count).Path)) =>
         (initializationBlocks modulus count state).mapClassical update) updates
   have combined := merged.trans ((State.mapClassical_decision _ _ _ _).trans rewritten)
   convert combined using 1
@@ -406,7 +574,8 @@ private theorem stagedInitialization_eq (modulus count : Nat)
 /-- The actual two preparations and all original retains have the complete prescribed state. -/
 theorem initializeWork_execute (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (before modulus.size count) Reference History) :
+    (state : State (before modulus.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) :
     (initializeWork modulus count).execute Reference state =
       (initializationBlocks modulus count state).mapClassical
         (initializationRecord modulus count History) :=

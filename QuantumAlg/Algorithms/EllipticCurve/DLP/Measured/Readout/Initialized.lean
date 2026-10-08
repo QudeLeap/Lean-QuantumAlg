@@ -29,24 +29,24 @@ open GenericPointAddition.InPlace
 
 /-- Actual allocated matrix columns retain both fixed preparation factors and the full reference. -/
 theorem afterExponentOperator_initializedAssembly_entry (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (Reference : Register)
     (selector : (indexedLayout modulus.size (2 * exponentWidth)).register.Index)
     (auxiliary : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (row column : (Register.prod
       (before modulus.size (2 * exponentWidth)).register Reference).Index) :
     (UnitaryOperator.prodTensor
-      (afterExponentProgram modulus exponentWidth program physical).matrix
+      (afterExponentProgram modulus exponentWidth program).matrix
       (1 : UnitaryOperator Reference))
         (initializedJointAssembly modulus (2 * exponentWidth) Reference (selector, auxiliary, row))
         (initializedOutputEmbedding modulus (2 * exponentWidth) Reference column) =
       (if selector = (BasisPreparation.zero
         (indexedLayout modulus.size (2 * exponentWidth))).value then 1 else 0) *
         ((if auxiliary = (InPlacePreparation.preparation modulus).value then 1 else 0) *
-          (beforeExponentOperator modulus exponentWidth program physical Reference)
+          (beforeExponentOperator modulus exponentWidth program Reference)
             row column) := by
-  change (afterExponentProgram modulus exponentWidth program physical).matrix
+  change (afterExponentProgram modulus exponentWidth program).matrix
       (initializedAssembly modulus (2 * exponentWidth) (selector, auxiliary, row.1))
       (initializedAssembly modulus (2 * exponentWidth)
         ((BasisPreparation.zero (indexedLayout modulus.size (2 * exponentWidth))).value,
@@ -56,42 +56,42 @@ theorem afterExponentOperator_initializedAssembly_entry (modulus exponentWidth :
   change _ = (if selector = (BasisPreparation.zero
       (indexedLayout modulus.size (2 * exponentWidth))).value then (1 : ℂ) else 0) *
     ((if auxiliary = (InPlacePreparation.preparation modulus).value then 1 else 0) *
-      ((beforeExponentProgram modulus exponentWidth program physical).matrix row.1 column.1 *
+      ((beforeExponentProgram modulus exponentWidth program).matrix row.1 column.1 *
         (if row.2 = column.2 then 1 else 0)))
   ring
 
 /-- On the actual initialized subspace the complete original input matrix is unchanged. -/
 theorem afterExponentOperator_initialized_entry (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (Reference : Register)
     (row column : (Register.prod
       (before modulus.size (2 * exponentWidth)).register Reference).Index) :
     (UnitaryOperator.prodTensor
-      (afterExponentProgram modulus exponentWidth program physical).matrix
+      (afterExponentProgram modulus exponentWidth program).matrix
       (1 : UnitaryOperator Reference))
         (initializedOutputEmbedding modulus (2 * exponentWidth) Reference row)
         (initializedOutputEmbedding modulus (2 * exponentWidth) Reference column) =
-      (beforeExponentOperator modulus exponentWidth program physical Reference) row column := by
+      (beforeExponentOperator modulus exponentWidth program Reference) row column := by
   simpa only [initializedOutputEmbedding, ite_true, one_mul] using
-    afterExponentOperator_initializedAssembly_entry modulus exponentWidth program physical Reference
+    afterExponentOperator_initializedAssembly_entry modulus exponentWidth program Reference
       (BasisPreparation.zero (indexedLayout modulus.size (2 * exponentWidth))).value
       (InPlacePreparation.preparation modulus).value row column
 
 /-- The original exponent operator commutes with actual initialization on every coherent vector. -/
 theorem afterExponentOperator_initializedVector (modulus exponentWidth : Nat)
-    (program : UnitaryCircuit (Qubits (exponentWidth + exponentWidth)))
-    (physical : program.physical_idx = List.range (exponentWidth + exponentWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QuantumSignature.qubits (exponentWidth + exponentWidth)).canonicalPlacement.layout)
     (Reference : Register)
     (vector : HilbertVector
       (Register.prod (before modulus.size (2 * exponentWidth)).register Reference)) :
     (UnitaryOperator.prodTensor
-      (afterExponentProgram modulus exponentWidth program physical).matrix
+      (afterExponentProgram modulus exponentWidth program).matrix
       (1 : UnitaryOperator Reference)).applyVec
         (Effect.extensionVector
           (initializedOutputEmbedding modulus (2 * exponentWidth) Reference) vector) =
       Effect.extensionVector (initializedOutputEmbedding modulus (2 * exponentWidth) Reference)
-        ((beforeExponentOperator modulus exponentWidth program physical Reference).applyVec
+        ((beforeExponentOperator modulus exponentWidth program Reference).applyVec
           vector) := by
   classical
   ext output

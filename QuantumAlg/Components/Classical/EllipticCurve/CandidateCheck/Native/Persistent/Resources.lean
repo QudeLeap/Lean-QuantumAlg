@@ -49,18 +49,21 @@ theorem persistentCtx_auxiliarySpace (ctx : RuntimeCtx kind) (width scalarWidth 
     RuntimeCtx.auxiliarySpace_addRetained, persistentCellSpace, add_assoc]
 
 /-- Literal retention of the seven cells emits no native operation events. -/
-theorem retainPersistent_eventTrace (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
+theorem retainPersistent_eventTrace {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).eventTrace path = [] := rfl
 
 /-- The actual event multiset of the one-time allocation is empty. -/
-theorem retainPersistent_resourcePool (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
+theorem retainPersistent_resourcePool {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).resourcePool path = 0 := rfl
 
 /-- The actual allocation dependency duration is zero for every native duration model. -/
-theorem retainPersistent_depth (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
-    (duration : Resource.Event kind → Nat)
+theorem retainPersistent_depth {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
+    (duration : Resource.Event model → Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).depth duration path = 0 := rfl
 
@@ -84,7 +87,8 @@ private theorem persistentPeak_le {s0 s1 s2 s3 s4 s5 s6 s7 : SpacePool kind}
     (SpacePool.max_le h6 (le_rfl)))))))))))))
 
 /-- The exact resident peak is the complete final context, including all original entries. -/
-theorem retainPersistent_resident (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
+theorem retainPersistent_resident {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).peakResidentSpace path =
       (persistentCtx ctx width scalarWidth).residentSpace := by
@@ -117,7 +121,8 @@ theorem retainPersistent_resident (ctx : RuntimeCtx kind) (width scalarWidth : N
       width scalarWidth).residentSpace from le_add_self)
 
 /-- The exact auxiliary peak is the complete final context, including all original entries. -/
-theorem retainPersistent_auxiliary (ctx : RuntimeCtx kind) (width scalarWidth : Nat)
+theorem retainPersistent_auxiliary {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).peakAuxiliarySpace path =
       (persistentCtx ctx width scalarWidth).auxiliarySpace := by

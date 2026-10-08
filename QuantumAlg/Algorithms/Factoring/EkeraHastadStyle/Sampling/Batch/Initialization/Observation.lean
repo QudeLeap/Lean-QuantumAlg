@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Program
 import all QuantumAlg.Core.Execution.Preparation.Observation
+import all QuantumAlg.Core.Execution.Reference.Weighted
 import all QuantumAlg.Core.Execution.Measurement.Cells.Observation
 
 /-!
@@ -60,52 +61,81 @@ theorem nativeBatch_readyInput_product {left right : CShape}
 theorem nativeBatch_prepare_reference_input {shape : CShape}
     (input : CInputRef (sampledContext base N) shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (sampledContext base N) Reference History) (weight : shape.Value → ℂ)
+    (state : State (sampledContext base N) Reference (RuntimeRound.model.HiddenState × History))
+    (weight : shape.Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((RuntimeBank.prepare (sampledContext base N)
+        ((RuntimeBank.prepare (operations := BitWord.model) (services := .empty)
+          (sampledContext base N)
           (nativeBatch_sampled_noQuantum base noQuantum N)
           (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N).execute Reference state)
         (fun entry _ => weight (entry.1.read (bankInput base noQuantum N input)))
         leftRef rightRef =
       ExecutionState.referenceFiberSum state (fun entry _ => weight (entry.1.read input))
-        leftRef rightRef :=
-  Circuit.referenceFiberSum_execute_prepare_input input (sampledContext base N).canonicalFreshKey
+        leftRef rightRef := by
+  let allocated := RuntimeBank.allocateZero (operations := BitWord.model) (services := .empty)
+    (sampledContext base N) (nativeBatch_sampled_noQuantum base noQuantum N)
+    (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
+  let program := RuntimeBank.loadProgram (sampledContext base N)
+    (nativeBatch_sampled_noQuantum base noQuantum N)
+    (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
+  refine (Circuit.referenceFiberSum_execute_seq allocated
+    (.unitary (operations := BitWord.model) (classicalOracles := .empty) program) state
+    (fun store => weight (store.read (bankInput base noQuantum N input)))
+    leftRef rightRef).trans ?_
+  refine (Circuit.unitary_weighted_reference
+    (operations := BitWord.model) (classicalOracles := .empty)
+    program (allocated.execute Reference state)
+    (fun store => weight (store.read (bankInput base noQuantum N input)))
+    leftRef rightRef).trans ?_
+  exact Circuit.referenceFiberSum_execute_prepareZero_input
+    (gates := AlgorithmGate.model) (oracles := .empty)
+    (operations := BitWord.model) (classicalOracles := .empty)
+    input (sampledContext base N).canonicalFreshKey
     (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N))
     (sampledContext base N).canonicalFreshKey_fresh
     (RuntimeBank.allocationDisjoint (sampledContext base N)
       (nativeBatch_sampled_noQuantum base noQuantum N)
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N))
-    (seedPreparation (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)
     state weight leftRef rightRef
 
 /-- Ready-bank observations equal those of the same actual sampler execution before preparation. -/
 theorem nativeBatch_initialize_reference_input {shape : CShape}
     (input : CInputRef (sampledContext base N) shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (weight : shape.Value → ℂ)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (weight : shape.Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
         ((initializeBank base noQuantum N).execute Reference state)
         (fun entry _ => weight (entry.1.read (readyInput base noQuantum N input)))
         leftRef rightRef =
       ExecutionState.referenceFiberSum
-        ((ShorStyle.Canonical.Sampler.Retained.circuit base N).execute Reference state)
+        (Circuit.execute
+          (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+          Reference state)
         (fun entry _ => weight (entry.1.read input)) leftRef rightRef := by
   have allocated := (Circuit.referenceFiberSum_execute_seq (sampleAndPrepare base noQuantum N)
-    (MeasurementCells.allocate (bankContext base noQuantum N) 2 (measurementBits N)) state
+    (MeasurementCells.allocate (model := RuntimeRound.model)
+      (bankContext base noQuantum N) 2 (measurementBits N)) state
     (fun store => weight (store.read (readyInput base noQuantum N input))) leftRef rightRef).trans
-    (MeasurementCells.allocate_referenceFiberSum_input (bankInput base noQuantum N input)
+    (MeasurementCells.allocate_referenceFiberSum_input
+      (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := BitWord.model) (classicalOracles := .empty)
+      (bankInput base noQuantum N input)
       2 (measurementBits N) ((sampleAndPrepare base noQuantum N).execute Reference state)
       weight leftRef rightRef)
   have prepared := (Circuit.referenceFiberSum_execute_seq
-    (ShorStyle.Canonical.Sampler.Retained.circuit base N)
-    (RuntimeBank.prepare (sampledContext base N)
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+    (RuntimeBank.prepare (operations := BitWord.model) (services := .empty)
+      (sampledContext base N)
       (nativeBatch_sampled_noQuantum base noQuantum N)
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N) state
     (fun store => weight (store.read (bankInput base noQuantum N input))) leftRef rightRef).trans
     (nativeBatch_prepare_reference_input base noQuantum N input
-      ((ShorStyle.Canonical.Sampler.Retained.circuit base N).execute Reference state)
+      (Circuit.execute
+          (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+          Reference state)
       weight leftRef rightRef)
   exact allocated.trans prepared
 

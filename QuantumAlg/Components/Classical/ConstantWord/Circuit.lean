@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Store
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Literal native loading of a known word
@@ -19,6 +20,10 @@ Exactly the target width's bits are consumed in most-significant-bit order.
 -/
 
 namespace QuantumAlg.ClassicalRoutines.ConstantWord
+
+noncomputable section
+
+section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
@@ -36,22 +41,32 @@ def incrementOp (output : CWriteRef ctx (.unsignedWord width)) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .increment width ctx (targetRead output) output
 
+end
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
+
 /-- Append one compilation-time bit with its real selected native instructions. -/
-def append (output : CWriteRef ctx (.unsignedWord width)) : Bool → Circuit ctx ctx
-  | false => .seq (.classical (shiftOp output)) (.id ctx)
-  | true => .seq (.classical (shiftOp output)) (.classical (incrementOp output))
+def append (output : CWriteRef ctx (.unsignedWord width)) : Bool → Circuit model ctx ctx
+  | false => .seq (BitWord.instruction (execution := model) (shiftOp output)) (.id ctx)
+  | true => .seq (BitWord.instruction (execution := model) (shiftOp output))
+      (BitWord.instruction (execution := model) (incrementOp output))
 
 /-- Literal sequential composition of all supplied compilation-time bits. -/
-def fold (output : CWriteRef ctx (.unsignedWord width)) : List Bool → Circuit ctx ctx
+def fold (output : CWriteRef ctx (.unsignedWord width)) : List Bool → Circuit model ctx ctx
   | [] => .id ctx
-  | bit :: remaining => .seq (append output bit) (fold output remaining)
+  | bit :: remaining => .seq (append (model := model) output bit)
+      (fold output remaining)
 
 /-- The compilation-time bits in the order consumed by the actual shifts. -/
 def constantBits (width constant : Nat) : Fin width → Bool :=
   fun index => constant.testBit index.rev.val
 
 /-- Load a constant modulo the intrinsic target-word width using the literal native fold. -/
-def circuit (output : CWriteRef ctx (.unsignedWord width)) (constant : Nat) : Circuit ctx ctx :=
-  fold output (List.ofFn (constantBits width constant))
+def circuit (output : CWriteRef ctx (.unsignedWord width)) (constant : Nat) :
+    Circuit model ctx ctx :=
+  fold (model := model) output (List.ofFn (constantBits width constant))
+
+end
 
 end QuantumAlg.ClassicalRoutines.ConstantWord

@@ -61,36 +61,49 @@ end ExecutionState
 
 namespace Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 open Execution
 
 /-- Actual Z execution and its Store write leave the external reference unchanged. -/
 theorem measurementStep_reference_entry {ctx : RuntimeCtx .quantum}
     (item : ZReadout ctx) {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference H) (refLeft refRight : Reference.Index) :
+    (state : State ctx Reference (classicalOracles.HiddenState × H))
+    (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((Circuit.measureZ item.wire item.output).execute Reference state).quantumMarginal.matrix
+      ((Circuit.measureZ (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) item.wire
+        item.output).execute Reference state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
   rw [execute_measureZ]
-  simp only [State.measureZ, ExecutionState.mapClassical_quantumMarginal]
+  simp only [ExecutionState.mapClassical_quantumMarginal]
   exact ExecutionState.measureZ_reference_entry ctx.quantumLayout item.wire state refLeft refRight
 
 /-- A finite sequence preserves the same reference in its one actual complete execution. -/
 theorem measurementSequence_reference_entry {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference H) (refLeft refRight : Reference.Index) :
+    (state : State ctx Reference (classicalOracles.HiddenState × H))
+    (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((measurementSequence readouts).execute Reference state).quantumMarginal.matrix
+      ((measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+        Reference state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
   induction readouts generalizing H with
   | nil =>
-      rw [measurementSequence, execute_id, State.skip_quantumMarginal]
+      simp only [measurementSequence, execute_id,
+        ExecutionState.mapClassical_quantumMarginal]
   | cons head tail ih =>
-      rw [measurementSequence, execute_seq, State.mapHistory_quantumMarginal]
-      exact (ih ((Circuit.measureZ head.wire head.output).execute Reference state)).trans
+      rw [measurementSequence, execute_seq,
+        State.mapHistory_quantumMarginal]
+      exact (ih ((Circuit.measureZ (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) head.wire
+        head.output).execute Reference state)).trans
         (measurementStep_reference_entry head state refLeft refRight)
 
 /-- Without borrowed quantum systems, singleton classical input values
@@ -98,9 +111,14 @@ and the complete reference are restored. -/
 theorem borrowedRestored_measurementSequence_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value]
     (noQuantum : ctx.borrowedQuantumWires = []) (readouts : List (ZReadout ctx))
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H) :
-    (measurementSequence readouts).BorrowedRestored Reference state
-      ((measurementSequence readouts).execute Reference state) := by
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (classicalOracles.HiddenState × H)) :
+    (measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts).BorrowedRestored
+      Reference state
+      ((measurementSequence (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+        Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
   intro value

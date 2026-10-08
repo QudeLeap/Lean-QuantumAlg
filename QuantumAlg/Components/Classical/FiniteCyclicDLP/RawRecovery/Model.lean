@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Classical.FiniteCyclicDLP.NormalizedRecovery.Model
+public import QuantumAlg.Core.Algorithm.ClassicalOp
+public import QuantumAlg.Util.Classical.TerminalDecode
+public import QuantumAlg.Util.Classical.NumberTheory.Checked
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.NormalizedRecovery.Model
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Util.Classical.TerminalDecode
@@ -27,17 +31,17 @@ open ClassicalAlgorithms.Modular
 
 /-- One retained terminal outcome consists of two consecutive `width`-bit
 Fourier registers. -/
-abbrev InputShape (width : Nat) : CShape :=
+public abbrev InputShape (width : Nat) : CShape :=
   .bits (width + width)
 
 /-- Failure of the unit check, or the recovered candidate and its independent
 reconstruction flag. -/
-abbrev OutputShape (width : Nat) : CShape :=
+public abbrev OutputShape (width : Nat) : CShape :=
   .option (FiniteCyclicDLP.OutputShape width)
 
 /-- Interpret the retained terminal cell in the Core full-register convention.
 The left register occupies the most-significant half. -/
-def decodedTerminal {width : Nat}
+public def decodedTerminal {width : Nat}
     (input : CShape.Value (InputShape width)) : Nat :=
   match input with
   | .bits bits =>
@@ -45,21 +49,21 @@ def decodedTerminal {width : Nat}
         { order := .bigEndian, bits := bits }
 
 /-- High terminal register before order rescaling. -/
-def leftRaw {width : Nat} (input : CShape.Value (InputShape width)) : Nat :=
+public def leftRaw {width : Nat} (input : CShape.Value (InputShape width)) : Nat :=
   decodedTerminal input / 2 ^ width
 
 /-- Low terminal register before order rescaling. -/
-def rightRaw {width : Nat} (input : CShape.Value (InputShape width)) : Nat :=
+public def rightRaw {width : Nat} (input : CShape.Value (InputShape width)) : Nat :=
   decodedTerminal input % 2 ^ width
 
 /-- The integer Fourier-frequency rescaling used by finite-cyclic DLP. -/
-def scaleFrequency {width : Nat} (spec : ModulusSpec width) (raw : Nat) :
+public def scaleFrequency {width : Nat} (spec : ModulusSpec width) (raw : Nat) :
     Residue spec :=
   Residue.ofNat spec (raw * spec.modulus / 2 ^ width)
 
 /-- Normalized left and right frequencies produced from the retained raw
 measurement. -/
-structure NormalizedInput {width : Nat} (spec : ModulusSpec width) where
+public structure NormalizedInput {width : Nat} (spec : ModulusSpec width) where
   /-- The order-normalized left Fourier frequency. -/
   left : Residue spec
   /-- The order-normalized right Fourier frequency. -/
@@ -67,20 +71,20 @@ structure NormalizedInput {width : Nat} (spec : ModulusSpec width) where
 
 /-- Convert one raw retained terminal result into its two order-normalized
 frequencies. -/
-def normalize {width : Nat} (spec : ModulusSpec width)
+public def normalize {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) : NormalizedInput spec :=
   { left := scaleFrequency spec (leftRaw input)
     right := scaleFrequency spec (rightRaw input) }
 
 /-- The additive inverse of one normalized right frequency, represented in the
 canonical residue carrier without introducing a host-level operation. -/
-def negateRight {width : Nat} (spec : ModulusSpec width)
+public def negateRight {width : Nat} (spec : ModulusSpec width)
     (input : NormalizedInput spec) : Residue spec :=
   Residue.ofNat spec (spec.modulus - input.right.val)
 
 /-- The pure normalized input consumed by the reusable typed recovery core
 when the checked inverse succeeds. -/
-def helperInput {width : Nat} (spec : ModulusSpec width)
+public def helperInput {width : Nat} (spec : ModulusSpec width)
     (input : NormalizedInput spec) (inverse : Residue spec) :
     FiniteCyclicDLP.Input spec :=
   { leftFrequency := input.left
@@ -90,7 +94,7 @@ def helperInput {width : Nat} (spec : ModulusSpec width)
 /-- Exact semantic result of the raw-terminal recovery: a nonunit left
 frequency produces `none`; otherwise the candidate is recovered and verified
 by the same typed core used by the machine implementation. -/
-def outputOf {width : Nat} (spec : ModulusSpec width)
+public def outputOf {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) : Option (FiniteCyclicDLP.Output spec) :=
   let normalized := normalize spec input
   match ClassicalAlgorithms.NumberTheory.TryInv.eval spec normalized.left with
@@ -100,7 +104,7 @@ def outputOf {width : Nat} (spec : ModulusSpec width)
 
 /-- The raw terminal model has no externally supplied inverse, rounding, or
 classical callback: all three are fixed by `outputOf`. -/
-theorem outputOf_checked_inverse {width : Nat} (spec : ModulusSpec width)
+public theorem outputOf_checked_inverse {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) :
     outputOf spec input =
       match ClassicalAlgorithms.NumberTheory.TryInv.eval spec
@@ -132,7 +136,7 @@ private theorem outputOf_some_elim {width : Nat} (spec : ModulusSpec width)
 On checked-inverse failure, the closed machine leaves its fresh candidate and
 reconstruction cells at their zero initialization.  On success, it exposes
 the candidate and independent reconstruction bit of the shared typed core. -/
-def outputCells {width : Nat} (spec : ModulusSpec width)
+@[expose] public def outputCells {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) :
     CShape.Value (.product .bit (.product (.unsignedWord width) .bit)) :=
   match outputOf spec input with

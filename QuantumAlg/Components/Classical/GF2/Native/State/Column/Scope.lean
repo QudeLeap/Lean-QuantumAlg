@@ -24,8 +24,10 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem lifted_fields (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys) :
     ((cells.underWorkspace key extra fresh).tail.tail.tail.tail.tail.head.ref =
@@ -52,6 +54,7 @@ private theorem lifted_fields (cells : Cells ctx (stateShapes rowCount width))
               | cons rows tail6 =>
                 exact ⟨rfl, rfl, rfl, rfl⟩
 
+omit [BitWord.Selected model] in
 private theorem push_read (store : Store ctx) (key : StorageKey) (extra : CShape)
     (fresh : key ∉ ctx.keys) {shape : CShape} (output : CWriteRef ctx shape) :
     (store.pushWorkspace key extra fresh).read
@@ -59,6 +62,7 @@ private theorem push_read (store : Store ctx) (key : StorageKey) (extra : CShape
         store.read (.storage output.toCStorageRef) :=
   Store.read_pushWorkspace_underWorkspace store key extra fresh (.storage output.toCStorageRef)
 
+omit [BitWord.Selected model] in
 private theorem pop_read (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key extra fresh)) {shape : CShape}
     (output : CWriteRef ctx shape) :
@@ -66,6 +70,7 @@ private theorem pop_read (key : StorageKey) (extra : CShape) (fresh : key ∉ ct
       store.read (.storage (output.underWorkspace key extra fresh).toCStorageRef) :=
   Store.read_popWorkspace_underWorkspace key extra fresh store (.storage output.toCStorageRef)
 
+omit [BitWord.Selected model] in
 private theorem push_values (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
@@ -75,6 +80,7 @@ private theorem push_values (cells : Cells ctx (stateShapes rowCount width))
   obtain ⟨matrix, used, rows, columns⟩ := lifted_fields cells key extra fresh
   simpa only [columnStateValues, matrix, used, rows, columns, push_read] using represented
 
+omit [BitWord.Selected model] in
 private theorem pop_values (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key extra fresh))

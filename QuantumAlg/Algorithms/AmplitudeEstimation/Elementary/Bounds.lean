@@ -29,7 +29,7 @@ noncomputable section
 
 /-- The actual independent elementary count has the source's linear-plus-quadratic form. -/
 theorem unitaryGateCount_le (t n : Nat) :
-    unitaryGateCount t n ≤ 13 * n * (2 ^ t - 1) + 3 * t + t ^ 2 := by
+    unitaryGateCount t n ≤ 13 * n * (2 ^ t - 1) + 5 * t + 5 * t ^ 2 := by
   have reflected : ZeroReflection.controlledElementaryGateCount n ≤ 13 * n := by
     cases n with
     | zero => decide

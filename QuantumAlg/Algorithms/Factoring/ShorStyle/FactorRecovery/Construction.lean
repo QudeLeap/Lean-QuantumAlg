@@ -106,44 +106,6 @@ def packEarlyOp (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
       (.option (.unsignedWord (modulusBits N))) ctx ctx :=
   .packOption ctx (.second parameter) output
 
-/-- The actual accepted order feeds the native power and the fully scoped GCD-selection circuit. -/
-def reduce (source : Input N) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (NativeHalfPower.code source (.storage cells.base.toCStorageRef)
-    (orderRead cells) cells.halfPower) (NativeHalfFactorScope.code (halfRead cells) output)
-
-/-- Every runtime order predicate is materialized by its actual native operation. -/
-def guardOrder (cells : Cells ctx N) : Circuit ctx ctx :=
-  .seq (.classical (clearZeroOp cells))
-    (.seq (.classical (evenOrderOp cells))
-      (.seq (.classical (positiveOrderOp cells))
-        (.seq (.classical (positiveEvenOp cells)) (.classical (acceptedOrderOp cells)))))
-
-/-- Only the actual true guard executes the half-order reduction; false is really packed as none. -/
-def checkedOrder (source : Input N) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (guardOrder cells)
-    (.branch (activeRead cells)
-      (fun value => if value.toBool then reduce source cells output
-        else .classical (packOutputOp cells output)))
-
-/-- Preserve the original sampler early-factor priority using its actual stored flag. -/
-def dispatch (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit ctx ctx :=
-  .branch (.first (.second parameter))
-    (fun value => if value.toBool then .classical (packEarlyOp parameter output)
-      else checkedOrder source cells output)
-
-/-- Actual non-even prefix: stored base packing, native recovery and nominal order decoding. -/
-def recovered (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (.classical (packBaseOp parameter cells))
-    (.seq (OrderRecovery.Native.into (recoverySpec source) (.storage cells.base.toCStorageRef)
-      phase cells.order)
-      (.seq (.classical (unpackOrderOp cells)) (dispatch source parameter cells output)))
-
 /-- The even-modulus flag is set by two real closed Boolean instructions. -/
 def clearActiveOp (cells : Cells ctx N) : ClassicalOp (.product .bit .bit) .bit ctx ctx :=
   .bit .xor ctx (.product (activeRead cells) (activeRead cells)) cells.active
@@ -151,18 +113,67 @@ def clearActiveOp (cells : Cells ctx N) : ClassicalOp (.product .bit .bit) .bit 
 def setActiveOp (cells : Cells ctx N) : ClassicalOp .bit .bit ctx ctx :=
   .bit .not ctx (activeRead cells) cells.active
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- The actual accepted order feeds the native power and the fully scoped GCD-selection circuit. -/
+def reduce (source : Input N) (cells : Cells ctx N)
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (NativeHalfPower.code (model := model) source (.storage cells.base.toCStorageRef)
+    (orderRead cells) cells.halfPower) (NativeHalfFactorScope.code (model := model) (halfRead
+        cells) output)
+
+/-- Every runtime order predicate is materialized by its actual native operation. -/
+def guardOrder (cells : Cells ctx N) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearZeroOp cells))
+    (.seq (BitWord.instruction (execution := model) (evenOrderOp cells))
+      (.seq (BitWord.instruction (execution := model) (positiveOrderOp cells))
+        (.seq (BitWord.instruction (execution := model) (positiveEvenOp cells))
+            (BitWord.instruction (execution := model) (acceptedOrderOp cells)))))
+
+/-- Only the actual true guard executes the half-order reduction; false is really packed as none. -/
+def checkedOrder (source : Input N) (cells : Cells ctx N)
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (guardOrder (model := model) cells)
+    (.branch (activeRead cells)
+      (fun value => if value.toBool then reduce (model := model) source cells output
+        else BitWord.instruction (execution := model) (packOutputOp cells output)))
+
+/-- Preserve the original sampler early-factor priority using its actual stored flag. -/
+def dispatch (source : Input N) (parameter : CInputRef ctx (ParameterShape
+    (modulusBits N)))
+    (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
+    Circuit model ctx ctx :=
+  .branch (.first (.second parameter))
+    (fun value => if value.toBool then BitWord.instruction (execution := model) (packEarlyOp
+        parameter output)
+      else checkedOrder (model := model) source cells output)
+
+/-- Actual non-even prefix: stored base packing, native recovery and nominal order decoding. -/
+def recovered (source : Input N) (parameter : CInputRef ctx (ParameterShape
+    (modulusBits N)))
+    (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (packBaseOp parameter cells))
+    (.seq (OrderRecovery.Native.into (model := model) (recoverySpec source) (.storage
+        cells.base.toCStorageRef)
+      phase cells.order)
+      (.seq (BitWord.instruction (execution := model) (unpackOrderOp cells)) (dispatch (model :=
+          model) source parameter cells output)))
+
 /-- The known-modulus even case actually writes and packages the factor two. -/
 def evenModulus (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .seq (.classical (clearActiveOp cells))
-    (.seq (.classical (setActiveOp cells))
-      (.seq (ConstantWord.circuit cells.halfPower 2) (.classical (packOutputOp cells output))))
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (clearActiveOp cells))
+    (.seq (BitWord.instruction (execution := model) (setActiveOp cells))
+      (.seq (ConstantWord.circuit (model := model) cells.halfPower 2) (BitWord.instruction
+          (execution := model) (packOutputOp cells output))))
 
 /-- Preserve the original modulus exception and all actual stored-input factor-recovery branches. -/
 def code (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
-    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  if 2 < N ∧ Even N then evenModulus cells output else recovered source parameter phase cells output
+    (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit model ctx ctx :=
+  if 2 < N ∧ Even N then evenModulus (model := model) cells output else recovered (model := model)
+      source parameter phase cells output
 
 end
 

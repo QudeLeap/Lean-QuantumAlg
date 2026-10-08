@@ -78,11 +78,12 @@ public theorem main
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.TrigonometricPolynomialBound L coeff) :
-    ∃ circuit : UnitaryCircuit (Qubits (1 + n)),
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+        (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.matrix : HilbertOperator (Qubits (1 + n)))
+          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
+      QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfTrigonometricBound L U coeff h)
 

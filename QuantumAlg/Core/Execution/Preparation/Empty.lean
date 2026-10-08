@@ -14,8 +14,8 @@ import all QuantumAlg.Core.Execution.Reindex
 
 If the old context contains no quantum wires, its register has exactly one
 basis label. A normalized input may still have arbitrary classical blocks
-and a correlated external reference. The actual preparation instruction's
-local marginal is nevertheless precisely its prescribed pure state
+and a correlated external reference. The actual zero-preparation instruction's
+local marginal is nevertheless precisely its canonical pure zero state
 [dW19, qcnotes.tex:5381,5394,6827].
 
 The new local register is identified by the same wire-level assembly used
@@ -155,22 +155,28 @@ noncomputable section
 variable {systemCount : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
   {H : Type} [Fintype H]
 
-/-- Actual circuit preparation produces its declared pure local state from every normalized
+/-- Actual zero preparation produces its canonical pure state from every normalized
 classical-reference input whenever the old context has no quantum systems. -/
-theorem prepare_empty_local_density (state : State ctx Reference H)
+theorem prepareZero_empty_local_density {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) (empty : ctx.systemCount = 0)
+    (empty : ctx.systemCount = 0)
     (normalized : state.IsNormalized) :
-    ((Circuit.prepare ctx key layout fresh disjoint preparation).execute
+    ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      ctx key layout fresh disjoint).execute
       Reference state).quantumMarginal.marginalLeft =
         DensityOperator.reindex
           (S := (ctx.addOwnedLayout key layout fresh disjoint).register)
-          (DensityOperator.ofPure preparation.normalized)
+          (DensityOperator.ofPure (BasisPreparation.zero layout).normalized)
           (preparedEmptyBasisEquiv ctx key layout fresh disjoint empty) := by
-  rw [execute_prepare, State.prepare_quantumMarginal]
-  exact prepareContext_empty_local_density state key layout fresh disjoint preparation.normalized
-    empty normalized
+  rw [execute_prepareZero]
+  simp only [State.mapHistory, ExecutionState.mapClassical_quantumMarginal,
+    State.prepare_quantumMarginal]
+  exact prepareContext_empty_local_density state key layout fresh disjoint
+    (BasisPreparation.zero layout).normalized empty normalized
 
 end
 

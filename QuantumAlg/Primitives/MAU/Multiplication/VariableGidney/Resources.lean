@@ -7,91 +7,134 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Multiplication.VariableGidney.Program
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.NativeResources
-import all QuantumAlg.Components.Encoded.BitGates.Control.Resources
+import all QuantumAlg.Components.Encoded.BitGates.Resources
+import all QuantumAlg.Core.Base.Accounting.Support
 
 /-!
 # Independent native resources of three-word variable multiplication
 
-Each first-input bit controls one full existing MAC. Its native event
-coordinates retain the additional control, and its shared selector
-serializes all body occurrences. The full static schedule uses one stage
-per first-input bit. Its explicit count bound is quadratic in the number
-of bit pairs times the existing modular-offset bound, with no claim that
-this upper bound is attained on every modulus or constant.
+Each first-input bit controls one literal MAC gate list. The small-width
+branch emits one native gate per source gate; the larger-width branch uses
+at most four native gates per source gate, borrowing only existing wires.
+Every stage restores its borrowed work and retains both input words.
 -/
 
 namespace QuantumAlg.MAU.Multiplication.VariableGidney
 
 noncomputable section
 
-/-- Independent native budget for each actual selected MAC. -/
-def stageBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2 (Accumulate.Gidney.nativeBudget width)
+open EncodedBit.GateSpec
+
+/-- Independent numerical cap for one addressed MAC stage. -/
+def stageEventBound (width : Nat) : Nat :=
+  4 * (width * Accumulate.Gidney.stageEventBound width)
+
+/-- Independent native-coordinate budget for one selected MAC. -/
+def stageBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  stageEventBound width • primitiveAlphabet
 
 /-- Independent coordinatewise budget for the complete bit-pair program. -/
-def nativeBudget (width : Nat) : ResourcePool .quantum := width • stageBudget width
+def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  width • stageBudget width
 
 /-- Explicit native-event and serial unit-depth upper bound. -/
-def eventBound (width : Nat) : Nat := width * (width * Accumulate.Gidney.stageEventBound width)
+def eventBound (width : Nat) : Nat := width * stageEventBound width
 
-theorem variableGidney_stage_pool (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (index : Fin width) :
-    (stageProgram width modulus index).eventCost =
-      ResourcePool.controlForDimension 2
-        (Accumulate.Gidney.program width modulus (2 ^ index.val)).eventCost :=
-  UnitaryCircuit.controlAtEncodedBit_native_pool (inputBit width index)
-    (Accumulate.Gidney.program width modulus (2 ^ index.val))
+/-- Every native single-qubit allowance in the variable multiplier comes from its stage pool. -/
+theorem nativeBudget_singleQubit_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) (nativeBudget width) = eventBound width := by
+  simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
 
-theorem variableGidney_stage_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (index : Fin width) :
-    (stageProgram width modulus index).eventCost ≤ stageBudget width := by
-  rw [variableGidney_stage_pool]
-  exact (ResourcePool.controlForDimension_le_controlForDimension_iff 2).mpr
-    (Accumulate.Gidney.gidneyAccumulate_native_bound width modulus (2 ^ index.val))
+/-- The same independent stage cap applies to the CNOT coordinate. -/
+theorem nativeBudget_cnot_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (nativeBudget width) = eventBound width := by
+  simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
 
+/-- The same independent stage cap applies to the Toffoli coordinate. -/
+theorem nativeBudget_toffoli_count (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) (nativeBudget width) = eventBound width := by
+  simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
+
+/-- The 256-bit variable multiplier's independent cap at each native coordinate. -/
+theorem eventBound_256 : eventBound 256 = 3096220532736 := by decide
+
+/-- The literal controlled list satisfies the independent per-stage envelope. -/
+theorem variableGidney_stageGates_length_bound (width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
+    (stageGates width modulus index).length ≤ stageEventBound width := by
+  have source := Accumulate.Gidney.gidneyAccumulateGates_length_bound
+    width modulus (2 ^ index.val)
+  by_cases small : width ≤ 1
+  · simp only [stageGates, dif_pos small, List.length_map]
+    unfold stageEventBound
+    omega
+  · simp only [stageGates, dif_neg small]
+    have controlled := controlRightList_length_bound
+      (BinaryLabelEncoding.finIdentityBit width) (bodyBits width)
+      (inputBits_wire width) (bodyBits_wire width)
+      (by change 5 ≤ width + (width + width); omega)
+      (inputBit width index)
+      (Accumulate.Gidney.gates width modulus (2 ^ index.val))
+    unfold stageEventBound
+    omega
+
+/-- All emitted coordinates belong to the default-model native alphabet. -/
+theorem variableGidney_stage_native_support (width : Nat)
+    (modulus : Fin (2 ^ width + 1)) (index : Fin width)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
+    (present : focus ∈ (stageProgram width modulus index).eventCost) :
+    focus ∈ primitiveAlphabet :=
+  programList_native_support _ (stageGates width modulus index) focus present
+
+/-- The actual number of emitted native instructions obeys the stage cap. -/
 theorem variableGidney_stage_count (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
-    (stageProgram width modulus index).eventCost.card ≤
-      width * Accumulate.Gidney.stageEventBound width := by
-  rw [variableGidney_stage_pool]
-  simp only [ResourcePool.controlForDimension, ResourcePool.controlForDimensions, Multiset.card_map]
-  exact Accumulate.Gidney.gidneyAccumulate_event_count_bound width modulus (2 ^ index.val)
+    (stageProgram width modulus index).eventCost.card ≤ stageEventBound width := by
+  simp only [stageProgram, encoding, programList_eventCost_card]
+  exact variableGidney_stageGates_length_bound width modulus index
 
+/-- The same actual list gives the stage's exact serial unit depth. -/
 theorem variableGidney_stage_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
     (stageProgram width modulus index).evaluatedEventDepth (fun _ => 1) =
       (stageProgram width modulus index).eventCost.card := by
-  have depth : (stageProgram width modulus index).evaluatedEventDepth (fun _ => 1) =
-      (Accumulate.Gidney.program width modulus (2 ^ index.val)).eventCost.card :=
-    UnitaryCircuit.controlAtEncodedBit_unit_depth (inputBit width index)
-      (Accumulate.Gidney.program width modulus (2 ^ index.val))
-  rw [depth, variableGidney_stage_pool]
-  simp only [ResourcePool.controlForDimension, ResourcePool.controlForDimensions, Multiset.card_map]
+  simp only [stageProgram, encoding, programList_evaluatedEventDepth_unit,
+    programList_eventCost_card]
+
+/-- Every native coordinate has a separate independent upper bound. -/
+theorem variableGidney_stage_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (index : Fin width) :
+    (stageProgram width modulus index).eventCost ≤ stageBudget width :=
+  ResourcePool.le_scaled_of_support_card_le _ _ _
+    (variableGidney_stage_native_support width modulus index)
+    (variableGidney_stage_count width modulus index)
 
 theorem variableGidney_prefix_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus count within).eventCost ≤ count • stageBudget width := by
   induction count with
   | zero => exact le_of_eq (zero_nsmul _).symm
-  | succ index inductionHypothesis =>
+  | succ index ih =>
       change ((prefixProgram width modulus index (by omega)).seq
         (stageProgram width modulus ⟨index, by omega⟩)).eventCost ≤ _
       rw [UnitaryCircuit.seq_eventCost, add_nsmul, one_nsmul]
-      exact add_le_add (inductionHypothesis (by omega))
+      exact add_le_add (ih (by omega))
         (variableGidney_stage_budget width modulus ⟨index, by omega⟩)
 
 theorem variableGidney_prefix_count (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus count within).eventCost.card ≤
-      count * (width * Accumulate.Gidney.stageEventBound width) := by
+      count * stageEventBound width := by
   induction count with
   | zero => exact Nat.zero_le _
-  | succ index inductionHypothesis =>
+  | succ index ih =>
       change ((prefixProgram width modulus index (by omega)).seq
         (stageProgram width modulus ⟨index, by omega⟩)).eventCost.card ≤ _
       rw [UnitaryCircuit.seq_eventCost, Multiset.card_add, Nat.succ_mul]
-      exact Nat.add_le_add (inductionHypothesis (by omega))
+      exact Nat.add_le_add (ih (by omega))
         (variableGidney_stage_count width modulus ⟨index, by omega⟩)
 
 theorem variableGidney_prefix_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -100,35 +143,30 @@ theorem variableGidney_prefix_depth (width : Nat) (modulus : Fin (2 ^ width + 1)
       (prefixProgram width modulus count within).eventCost.card := by
   induction count with
   | zero => rfl
-  | succ index inductionHypothesis =>
+  | succ index ih =>
       change ((prefixProgram width modulus index (by omega)).seq
         (stageProgram width modulus ⟨index, by omega⟩)).evaluatedEventDepth (fun _ => 1) =
           ((prefixProgram width modulus index (by omega)).seq
             (stageProgram width modulus ⟨index, by omega⟩)).eventCost.card
       rw [UnitaryCircuit.evaluatedEventDepth_seq, UnitaryCircuit.seq_eventCost,
-        Multiset.card_add, inductionHypothesis, variableGidney_stage_depth]
+        Multiset.card_add, ih, variableGidney_stage_depth]
 
-/-- The complete actual program meets the independent coordinatewise budget. -/
+/-- Complete circuit satisfies the independent default-model resource budget. -/
 theorem variableGidney_native_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (program width modulus).eventCost ≤ nativeBudget width := by
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
-  exact variableGidney_prefix_budget width modulus width (Nat.le_refl width)
+    (program width modulus).eventCost ≤ nativeBudget width :=
+  variableGidney_prefix_budget width modulus width (Nat.le_refl width)
 
 /-- The actual complete event count has the explicit polynomial upper bound. -/
 theorem variableGidney_event_count (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    (program width modulus).eventCost.card ≤ eventBound width := by
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
-  exact variableGidney_prefix_count width modulus width (Nat.le_refl width)
+    (program width modulus).eventCost.card ≤ eventBound width :=
+  variableGidney_prefix_count width modulus width (Nat.le_refl width)
 
-/-- The actual sequential critical path counts the same controlled native events. -/
+/-- The actual sequential critical path counts the controlled native events. -/
 theorem variableGidney_unit_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).evaluatedEventDepth (fun _ => 1) ≤ eventBound width := by
-  have complete : (program width modulus).evaluatedEventDepth (fun _ => 1) =
-      (program width modulus).eventCost.card := by
-    rw [program, UnitaryCircuit.evaluatedEventDepth_seq, UnitaryCircuit.seq_eventCost,
-      UnitaryCircuit.identity_eventCost, add_zero, variableGidney_prefix_depth]
-    rfl
-  exact complete.trans_le (variableGidney_event_count width modulus)
+  have depth := variableGidney_prefix_depth width modulus width (Nat.le_refl width)
+  rw [program] at *
+  exact depth.trans_le (variableGidney_event_count width modulus)
 
 end
 

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Workspace
+import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Resources
 
 /-!
 # Native space of all exponent systems and the shared measured workspace

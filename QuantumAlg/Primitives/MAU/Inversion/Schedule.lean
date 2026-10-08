@@ -11,7 +11,6 @@ import all QuantumAlg.Components.QubitPrimitive
 import all QuantumAlg.Primitives.Arithmetic.BitSlice
 import all QuantumAlg.Primitives.Arithmetic.Comparator
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder
-import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Physical
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.Schedule.ZeroTestValue
 import all QuantumAlg.Primitives.Arithmetic.PlainAdder.StructuredCircuit
@@ -20,8 +19,6 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
 import all QuantumAlg.Util.ZModUnits
 import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.MAU.Addition.StructuredCircuit
-import all QuantumAlg.Primitives.MAU.Addition.Physical
-import all QuantumAlg.Primitives.MAU.Addition.VBE.Circuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.Basic
 
 /-!

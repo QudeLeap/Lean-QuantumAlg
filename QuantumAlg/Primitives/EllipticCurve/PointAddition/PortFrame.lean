@@ -127,8 +127,8 @@ complete ordered primitive-event trace. -/
 theorem liftAuxGates_map_event {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
-    (liftAuxGates auxEncoding width gates).map EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+    (liftAuxGates auxEncoding width gates).map (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold liftAuxGates
   exact
     (EncodedBit.GateSpec.map_event_prodRight BinaryLabelEncoding.bool _).trans
@@ -155,7 +155,7 @@ theorem liftAuxGates_toffoliMultiplicity_sum {Aux : Type}
     ((liftAuxGates auxEncoding width gates).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (liftAuxGates_map_event auxEncoding width gates)
 
 /-- Folding lifted auxiliary gates preserves the public carrier and framing
@@ -182,71 +182,13 @@ theorem liftAuxGates_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (EncodedBit.GateSpec.programList (liftAuxGates auxEncoding width gates))
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+        (liftAuxGates auxEncoding width gates))
       (fun state =>
         (state.1, ((state.2.1.1,
           EncodedBit.GateSpec.stepList gates state.2.1.2), state.2.2))) :=
-  EncodedBit.GateSpec.realizesList_congrStep _
+  EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
     (liftAuxGates_stepList auxEncoding width gates)
-
-/-- Lift an arithmetic circuit through the explicit public carrier and both
-framing bits. -/
-def liftAuxCircuit {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
-    (width : Nat) (program : UnitaryCircuit (Qubits auxEncoding.width)) :
-    UnitaryCircuit (Qubits (rawEncoding auxEncoding width).width) :=
-  UnitaryCircuit.prodRight (m := BinaryLabelEncoding.bool.width)
-    (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width)
-      (UnitaryCircuit.prodRight (m := (publicEncoding width).width) program))
-
-/-- Lifting an auxiliary circuit preserves its realized step and every public
-or framing field. -/
-theorem liftAuxCircuit_realizes {Aux : Type}
-    (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
-    {program : UnitaryCircuit (Qubits auxEncoding.width)} {step : Aux → Aux}
-    (h : UnitaryCircuit.Realizes auxEncoding program step) :
-    UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (liftAuxCircuit auxEncoding width program)
-      (fun state =>
-        (state.1, ((state.2.1.1, step state.2.1.2), state.2.2))) := by
-  exact UnitaryCircuit.Realizes.prodRight
-    (UnitaryCircuit.Realizes.prodLeft (UnitaryCircuit.Realizes.prodRight h))
-
-/-- Lift one proved auxiliary basis endpoint while preserving the explicit
-public words and both framing bits. -/
-theorem liftAuxCircuit_applyNormalized_encoded_ket_of_eq {Aux : Type}
-    (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
-    (program : UnitaryCircuit (Qubits auxEncoding.width))
-    (control : Bool) (publicWords : PublicWords width)
-    (input output : Aux) (controlWork : Bool)
-    (h : program.applyNormalized
-        (NormalizedVector.ket (auxEncoding.encode input)) =
-      NormalizedVector.ket (auxEncoding.encode output)) :
-    (liftAuxCircuit auxEncoding width program).applyNormalized
-        (NormalizedVector.ket
-          ((rawEncoding auxEncoding width).encode
-            (control, ((publicWords, input), controlWork)))) =
-      NormalizedVector.ket
-        ((rawEncoding auxEncoding width).encode
-          (control, ((publicWords, output), controlWork))) := by
-  have hcore :=
-    UnitaryCircuit.Realizes.prodRight_applyNormalized_encoded_ket_of_eq
-      (publicEncoding width) auxEncoding program publicWords input output h
-  have hwork :=
-    UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
-      (coreEncoding auxEncoding width) BinaryLabelEncoding.bool
-      (UnitaryCircuit.prodRight (m := (publicEncoding width).width) program)
-      (publicWords, input) (publicWords, output) controlWork hcore
-  have hcontrol :=
-    UnitaryCircuit.Realizes.prodRight_applyNormalized_encoded_ket_of_eq
-      BinaryLabelEncoding.bool
-      (BinaryLabelEncoding.prod (coreEncoding auxEncoding width)
-        BinaryLabelEncoding.bool)
-      (UnitaryCircuit.prodLeft (n := BinaryLabelEncoding.bool.width)
-        (UnitaryCircuit.prodRight (m := (publicEncoding width).width) program))
-      control ((publicWords, input), controlWork)
-      ((publicWords, output), controlWork) hwork
-  simpa only [liftAuxCircuit, rawEncoding,
-    BinaryLabelEncoding.prod_width] using hcontrol
 
 /-- Every public bit is physically separated from every arithmetic-suffix bit. -/
 theorem liftPublicBit_liftAuxBit_wire_ne {Aux : Type}
@@ -813,8 +755,10 @@ theorem loadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
 /-- Actual base-gate program loading a fixed classical point. -/
 def loadConstantProgram {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
     (width : Nat) (constant : PointWords width) :
-    UnitaryCircuit (Qubits (rawEncoding auxEncoding width).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (rawEncoding auxEncoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (loadConstantGates auxEncoding width constant)
 
 /-- Folded action of the fixed-point loader. -/
@@ -830,7 +774,7 @@ theorem loadConstant_realizes {Aux : Type}
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
       (loadConstantProgram auxEncoding width constant)
       (loadConstantStep auxEncoding width constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- A literal constant xor updates one structural word port to a word whose
 bits have the corresponding xor values. -/
@@ -970,12 +914,14 @@ theorem loadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
     (loadConstantProgram auxEncoding width constant).applyNormalized
         (NormalizedVector.ket
-          ((rawEncoding auxEncoding width).encode
+          ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+            ((rawEncoding auxEncoding width).encode
             (control,
-              (((mutable, (zeroPoint width, output)), aux), controlWork)))) =
+              (((mutable, (zeroPoint width, output)), aux), controlWork))))) =
       NormalizedVector.ket
-        ((rawEncoding auxEncoding width).encode
-          (control, (((mutable, (constant, output)), aux), controlWork))) := by
+        ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+          ((rawEncoding auxEncoding width).encode
+            (control, (((mutable, (constant, output)), aux), controlWork)))) := by
   rw [(loadConstant_realizes auxEncoding width constant).apply_encoded_ket]
   rw [loadConstantStep_at auxEncoding width constant control mutable output aux
     controlWork]
@@ -1037,8 +983,10 @@ theorem replaceConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
 def replaceConstantProgram {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
-    UnitaryCircuit (Qubits (rawEncoding auxEncoding width).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (rawEncoding auxEncoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (replaceConstantGates auxEncoding width source target)
 
 /-- Folded action of the point-constant replacement. -/
@@ -1055,7 +1003,7 @@ theorem replaceConstant_realizes {Aux : Type}
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
       (replaceConstantProgram auxEncoding width source target)
       (replaceConstantStep auxEncoding width source target) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- Replacing a loaded literal point updates only the constant port. -/
 theorem replaceConstantStep_at {Aux : Type}
@@ -1115,11 +1063,13 @@ theorem replaceConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
     (replaceConstantProgram auxEncoding width source target).applyNormalized
         (NormalizedVector.ket
-          ((rawEncoding auxEncoding width).encode
-            (control, (((mutable, (source, output)), aux), controlWork)))) =
+          ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+            ((rawEncoding auxEncoding width).encode
+              (control, (((mutable, (source, output)), aux), controlWork))))) =
       NormalizedVector.ket
-        ((rawEncoding auxEncoding width).encode
-          (control, (((mutable, (target, output)), aux), controlWork))) := by
+        ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+          ((rawEncoding auxEncoding width).encode
+            (control, (((mutable, (target, output)), aux), controlWork)))) := by
   rw [(replaceConstant_realizes auxEncoding width source target).apply_encoded_ket]
   rw [replaceConstantStep_at auxEncoding width source target control mutable
     output aux controlWork]
@@ -1158,8 +1108,10 @@ theorem unloadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
 def unloadConstantProgram {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
-    UnitaryCircuit (Qubits (rawEncoding auxEncoding width).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (rawEncoding auxEncoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (unloadConstantGates auxEncoding width constant)
 
 /-- Folded action of the fixed-point unloader. -/
@@ -1175,7 +1127,7 @@ theorem unloadConstant_realizes {Aux : Type}
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
       (unloadConstantProgram auxEncoding width constant)
       (unloadConstantStep auxEncoding width constant) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- Unloading a literal point restores the clean constant port while leaving
 the other raw-register fields unchanged. -/
@@ -1208,12 +1160,14 @@ theorem unloadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
     (unloadConstantProgram auxEncoding width constant).applyNormalized
         (NormalizedVector.ket
-          ((rawEncoding auxEncoding width).encode
-            (control, (((mutable, (constant, output)), aux), controlWork)))) =
+          ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+            ((rawEncoding auxEncoding width).encode
+              (control, (((mutable, (constant, output)), aux), controlWork))))) =
       NormalizedVector.ket
-        ((rawEncoding auxEncoding width).encode
-          (control,
-            (((mutable, (zeroPoint width, output)), aux), controlWork))) := by
+        ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+          ((rawEncoding auxEncoding width).encode
+            (control,
+              (((mutable, (zeroPoint width, output)), aux), controlWork)))) := by
   rw [(unloadConstant_realizes auxEncoding width constant).apply_encoded_ket]
   rw [unloadConstantStep_at auxEncoding width constant control mutable output aux
     controlWork]
@@ -1303,8 +1257,10 @@ theorem swapMutableOutputGates_bitDisjoint_controlWorkBit {Aux : Type}
 /-- Actual three-CNOT-per-word-bit swap program for both coordinates. -/
 def swapMutableOutputProgram {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
-    UnitaryCircuit (Qubits (rawEncoding auxEncoding width).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (rawEncoding auxEncoding width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (swapMutableOutputGates auxEncoding width)
 
 /-- Folded action of the mutable/output point swap. -/
@@ -1319,7 +1275,7 @@ theorem swapMutableOutput_realizes {Aux : Type}
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
       (swapMutableOutputProgram auxEncoding width)
       (swapMutableOutputStep auxEncoding width) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- The X-coordinate word swap preserves every other raw-register field. -/
 private theorem swapMutableOutputXStep_at {Aux : Type}
@@ -1543,11 +1499,13 @@ theorem swapMutableOutputProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (aux : Aux) (controlWork : Bool) :
     (swapMutableOutputProgram auxEncoding width).applyNormalized
         (NormalizedVector.ket
-          ((rawEncoding auxEncoding width).encode
-            (control, (((mutable, (constant, output)), aux), controlWork)))) =
+          ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+            ((rawEncoding auxEncoding width).encode
+              (control, (((mutable, (constant, output)), aux), controlWork))))) =
       NormalizedVector.ket
-        ((rawEncoding auxEncoding width).encode
-          (control, (((output, (constant, mutable)), aux), controlWork))) := by
+        ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
+          ((rawEncoding auxEncoding width).encode
+            (control, (((output, (constant, mutable)), aux), controlWork)))) := by
   rw [(swapMutableOutput_realizes auxEncoding width).apply_encoded_ket]
   rw [swapMutableOutputStep_at auxEncoding width control mutable constant output
     aux controlWork]
@@ -1595,10 +1553,9 @@ theorem loadConstantGates_cnotMultiplicity_sum {Aux : Type}
     (constant : PointWords width) :
     ((loadConstantGates auxEncoding width constant).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
-  simp [loadConstantGates, EncodedBit.Word.xorConstantGates,
-    EncodedBit.GateSpec.cnotMultiplicity,
-    EncodedBit.GateSpec.eventMultiplicity, EncodedBit.GateSpec.event,
-    Resource.GateLabel.builtin, Function.comp_def]
+  rw [loadConstantGates, List.map_append, List.sum_append,
+    EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum,
+    EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum, Nat.zero_add]
 
 /-- Loading a classical point contributes no source Toffoli gates. -/
 theorem loadConstantGates_toffoliMultiplicity_sum {Aux : Type}
@@ -1606,10 +1563,9 @@ theorem loadConstantGates_toffoliMultiplicity_sum {Aux : Type}
     (constant : PointWords width) :
     ((loadConstantGates auxEncoding width constant).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
-  simp [loadConstantGates, EncodedBit.Word.xorConstantGates,
-    EncodedBit.GateSpec.toffoliMultiplicity,
-    EncodedBit.GateSpec.eventMultiplicity, EncodedBit.GateSpec.event,
-    Resource.GateLabel.builtin, Function.comp_def]
+  rw [loadConstantGates, List.map_append, List.sum_append,
+    EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum,
+    EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum, Nat.zero_add]
 
 /-- Replacing one classical point contributes no source CNOT gates. -/
 theorem replaceConstantGates_cnotMultiplicity_sum {Aux : Type}
@@ -1617,10 +1573,9 @@ theorem replaceConstantGates_cnotMultiplicity_sum {Aux : Type}
     (source target : PointWords width) :
     ((replaceConstantGates auxEncoding width source target).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
-  simp [replaceConstantGates, EncodedBit.Word.xorConstantGates,
-    EncodedBit.GateSpec.cnotMultiplicity,
-    EncodedBit.GateSpec.eventMultiplicity, EncodedBit.GateSpec.event,
-    Resource.GateLabel.builtin, Function.comp_def]
+  rw [replaceConstantGates, List.map_append, List.sum_append,
+    EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum,
+    EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum, Nat.zero_add]
 
 /-- Replacing one classical point contributes no source Toffoli gates. -/
 theorem replaceConstantGates_toffoliMultiplicity_sum {Aux : Type}
@@ -1628,10 +1583,9 @@ theorem replaceConstantGates_toffoliMultiplicity_sum {Aux : Type}
     (source target : PointWords width) :
     ((replaceConstantGates auxEncoding width source target).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
-  simp [replaceConstantGates, EncodedBit.Word.xorConstantGates,
-    EncodedBit.GateSpec.toffoliMultiplicity,
-    EncodedBit.GateSpec.eventMultiplicity, EncodedBit.GateSpec.event,
-    Resource.GateLabel.builtin, Function.comp_def]
+  rw [replaceConstantGates, List.map_append, List.sum_append,
+    EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum,
+    EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum, Nat.zero_add]
 
 /-- Unloading a classical point contributes no source CNOT gates. -/
 theorem unloadConstantGates_cnotMultiplicity_sum {Aux : Type}
@@ -1659,16 +1613,14 @@ theorem swapMutableOutputGates_cnotMultiplicity_sum {Aux : Type}
       EncodedBit.GateSpec.cnotMultiplicity).sum = 6 * width := by
   unfold swapMutableOutputGates
   rw [List.map_append, List.sum_append]
-  have hx := EncodedBit.Word.swapCircuit_cnot_eventCount
+  have hx := EncodedBit.Word.swapGates_cnotMultiplicity_sum
     (mutableXPort auxEncoding width).word
     (outputXPort auxEncoding width).word
     (fun bit => mutableX_outputX_wire_ne auxEncoding width bit bit)
-  have hy := EncodedBit.Word.swapCircuit_cnot_eventCount
+  have hy := EncodedBit.Word.swapGates_cnotMultiplicity_sum
     (mutableYPort auxEncoding width).word
     (outputYPort auxEncoding width).word
     (fun bit => mutableY_outputY_wire_ne auxEncoding width bit bit)
-  rw [EncodedBit.Word.swapCircuit, EncodedBit.Word.swapProgram,
-    EncodedBit.GateSpec.programList_cnot_count_eq_sum] at hx hy
   omega
 
 /-- The mutable/output point swap contributes no source Toffoli gates. -/

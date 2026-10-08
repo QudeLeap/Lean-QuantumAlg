@@ -89,12 +89,13 @@ theorem preparationRefs_transport_avoids {outer : RuntimeCtx kind}
   exact Cells.workspaceCells_cellAt_transport_avoids cells transport separated input index.rev
 
 /-- Keep all original preparation cells live through the actual subsequent consumer. -/
-def withPreparation (spec : ModulusSpec width)
+def withPreparation {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
-    (consumer : ∀ {inner : RuntimeCtx kind}, PreparationRefs inner width →
-      Transport ctx inner → Circuit inner inner) : Circuit ctx ctx :=
-  withCells ctx (preparationShapes width) fun cells _ transport _ =>
-    .seq (preparationBody spec (transport.liftInput input) (preparationRefs cells))
+    (consumer : ∀ {inner : RuntimeCtx model.kind}, PreparationRefs inner width →
+      Transport ctx inner → Circuit model inner inner) : Circuit model ctx ctx :=
+  withCells (model := model) ctx (preparationShapes width) fun cells _ transport _ =>
+    .seq (preparationBody (model := model) spec (transport.liftInput input) (preparationRefs cells))
       (consumer (preparationRefs cells) transport)
 
 end

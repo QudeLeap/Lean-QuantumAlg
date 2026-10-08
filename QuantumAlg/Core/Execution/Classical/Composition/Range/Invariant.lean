@@ -23,21 +23,39 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
-/-- Each original indexed transition advances its invariant on the actual intermediate store. -/
-theorem forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit ctx ctx)
-    (records : ∀ index, Store ctx → Store ctx × (body index).Path)
-    (Invariant : Nat → Store ctx → Prop)
+/-- Each indexed transition advances its invariant on the actual store and service state. -/
+theorem forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (body index).Path)
+    (Invariant : Nat → Store ctx × model.HiddenState → Prop)
     (advance : ∀ index store, Invariant index.val store →
       Invariant (index.val + 1) (records index store).1)
-    (store : Store ctx) (initial : Invariant 0 store) :
+    (store : Store ctx × model.HiddenState) (initial : Invariant 0 store) :
     Invariant count (forRangeRecord count body records store).1 := by
   induction count generalizing Invariant store with
   | zero => exact initial
   | succ count ih =>
       exact ih (fun index => body index.succ) (fun index => records index.succ)
         (fun processed current => Invariant (processed + 1) current)
+        (fun index current established => advance index.succ current established)
+        (records 0 store).1 (advance 0 store initial)
+
+/-- Store-only chronological records retain invariants without exposing service state. -/
+theorem forRangeStoreRecord_invariant (count : Nat)
+    (body : Fin count → Circuit model ctx ctx)
+    (records : ∀ index, Store ctx → Store ctx × (body index).Path)
+    (Invariant : Nat → Store ctx → Prop)
+    (advance : ∀ index store, Invariant index.val store →
+      Invariant (index.val + 1) (records index store).1)
+    (store : Store ctx) (initial : Invariant 0 store) :
+    Invariant count (forRangeStoreRecord count body records store).1 := by
+  induction count generalizing Invariant store with
+  | zero => exact initial
+  | succ count ih =>
+      exact ih (fun index => body index.succ) (fun index => records index.succ)
+        (fun index current => Invariant (index + 1) current)
         (fun index current established => advance index.succ current established)
         (records 0 store).1 (advance 0 store initial)
 

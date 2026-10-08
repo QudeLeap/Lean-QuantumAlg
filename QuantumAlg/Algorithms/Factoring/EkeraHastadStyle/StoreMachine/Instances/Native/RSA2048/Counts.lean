@@ -25,16 +25,16 @@ open Execution ShortDLP.CompiledMAU
 noncomputable section
 
 /-- Cardinality ceiling for the compiled member's independent native-coordinate pool. -/
-def memberEventCountBound : Nat := 823_919_233_263_112
+def memberEventCountBound : Nat := 12_998_238_507_871_758
 
 /-- Complete round ceiling includes terminal readout, packing, bank correction and seed reload. -/
-def roundEventCountBound : Nat := 823_919_233_289_752
+def roundEventCountBound : Nat := 12_998_238_507_892_251
 
 /-- Complete classical-recovery native-coordinate ceiling, including all candidate slots. -/
 def recoveryEventCountBound : Nat := 2_191_863_151_158_329_395
 
 /-- Full seven-batch native-event ceiling, including actual preparation and selection. -/
-def eventCountBound : Nat := 15_435_321_012_237_389_937
+def eventCountBound : Nat := 16_798_844_770_992_869_825
 
 /-- Full seven-batch ceiling for literal classical-operation coordinates. -/
 def classicalOperationBound : Nat := 15_343_042_058_108_937_824
@@ -43,10 +43,13 @@ def classicalOperationBound : Nat := 15_343_042_058_108_937_824
 theorem memberEventCountWidthBound_eq :
     polynomialPrimitiveWidthBound 1_025 513 2_048 = memberEventCountBound := by
   norm_num [polynomialPrimitiveWidthBound, groupActionPrimitiveWidthBound,
-    exponentiationPrimitiveWidthBound, MAU.Multiplication.Accumulate.Gidney.stageEventBound,
+    exponentiationPrimitiveWidthBound, MAU.Exponentiation.Gidney.eventBound,
+    MAU.Exponentiation.Gidney.stageEventBound, MAU.Multiplication.Gidney.eventBound,
+    MAU.Multiplication.Accumulate.Gidney.stageEventBound,
     MAU.Addition.Gidney.modularOffsetEventBound, MAU.Addition.Gidney.pivotEventBound,
     MAU.Addition.Gidney.biFlipEventBound, MAU.Addition.Gidney.comparisonEventBound,
-    MAU.Addition.Gidney.constantOffsetEventBound, qftPrimitiveBound, memberEventCountBound]
+    MAU.Addition.Gidney.constantOffsetEventBound, qftPrimitiveBound, Nat.choose_two_right,
+    memberEventCountBound]
 
 /-- The complete-round decimal is obtained from its independent scalar formula. -/
 theorem roundEventCountWidthBound_eq :
@@ -69,6 +72,8 @@ theorem recoveryEventCountWidthBound_eq :
 
 -- Substitute the proved scalar coordinate width before considering the complete formulas.
 attribute [local irreducible] RSA.ShortLogWidths.coordinateWidth
+attribute [local irreducible] RuntimeRound.eventCountWidthBound
+  LatticeFixedBatchRecoveryMachine.eventCountBound
 
 /-- Every original fixed key has the stated independent full-run native-event ceiling. -/
 theorem model_scalarEventCountBound_eq {N : Nat} (model : FixedWidthModel N) :

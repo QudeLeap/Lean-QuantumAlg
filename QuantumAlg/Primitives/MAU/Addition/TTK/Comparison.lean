@@ -34,8 +34,10 @@ def comparisonGates (n : Nat) : List (EncodedBit.GateSpec (overflowEncoding n)) 
   overflowSubtractionGates n ++ (lowRippleGates n).map withOverflowGate
 
 /-- Compile comparison on exactly two operand words and one xor-output bit. -/
-def comparisonProgram (n : Nat) : UnitaryCircuit (Qubits (overflowEncoding n).width) :=
-  programList (comparisonGates n)
+def comparisonProgram (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (overflowEncoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (comparisonGates n)
 
 /-- The literal gate list preserves both inputs and computes xor-output comparison. -/
 theorem ttkComparison_step (n : Nat) (s : OverflowRegisters n) :
@@ -53,40 +55,49 @@ theorem ttkComparison_step (n : Nat) (s : OverflowRegisters n) :
 /-- Exact comparison for all widths and arbitrary initial output bits. -/
 theorem ttkComparison_realizes (n : Nat) :
     UnitaryCircuit.Realizes (overflowEncoding n) (comparisonProgram n) comparisonOutput :=
-  realizesList_congrStep (comparisonGates n) (ttkComparison_step n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (comparisonGates n) (ttkComparison_step n)
 
 private theorem lifted_events {n : Nat}
     (gates : List (EncodedBit.GateSpec (encoding n))) :
-    (gates.map withOverflowGate).map event = gates.map event := by
+    (gates.map withOverflowGate).map (event .empty) = gates.map (event .empty) := by
   simp only [List.map_map, Function.comp_def]
   congr 1
   funext gate
   cases gate <;> rfl
 
 /-- Native coordinates come from one inverse overflow and one forward low-word list. -/
-theorem ttkComparison_native_count (n : Nat) (focus : Resource.Event .quantum) :
+theorem ttkComparison_native_count (n : Nat)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (comparisonProgram n).eventCost =
       ResourcePool.count focus (overflowProgram n).eventCost +
         ResourcePool.count focus (lowRippleProgram n).eventCost := by
   rw [comparisonProgram, comparisonGates,
     programList_event_count_eq_sum_eventMultiplicity, List.map_append, List.sum_append]
-  rw [sum_eventMultiplicity_eq_of_events_eq focus (lifted_events (lowRippleGates n))]
-  rw [← programList_event_count_eq_sum_eventMultiplicity focus (overflowSubtractionGates n),
-    ← programList_event_count_eq_sum_eventMultiplicity focus (lowRippleGates n)]
+  rw [sum_eventMultiplicity_eq_of_events_eq .empty focus
+    (lifted_events (lowRippleGates n))]
+  rw [← programList_event_count_eq_sum_eventMultiplicity
+      (layout := QubitLayout.canonical _) (oracles := .empty) focus
+      (overflowSubtractionGates n),
+    ← programList_event_count_eq_sum_eventMultiplicity
+      (layout := QubitLayout.canonical _) (oracles := .empty) focus
+      (lowRippleGates n)]
   change ResourcePool.count focus (overflowSubtractionProgram n).eventCost +
       ResourcePool.count focus (lowRippleProgram n).eventCost = _
   rw [ttkOverflowSubtraction_native_count]
 
 /-- Exact CNOT count, including the empty and one-bit comparisons. -/
 theorem ttkComparison_cnot_count (n : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot")) (comparisonProgram n).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+      (comparisonProgram n).eventCost =
       2 * (n + 2 * (n - 1) + 2 * (n - 2)) + (if 2 ≤ n then 1 else 0) := by
   rw [ttkComparison_native_count, ttkOverflow_cnot_count, ttkLowRipple_cnot_count]
   omega
 
 /-- Exact Toffoli count for the actual comparison program. -/
 theorem ttkComparison_toffoli_count (n : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli")) (comparisonProgram n).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+      (comparisonProgram n).eventCost =
       4 * (n - 1) + (if n = 0 then 0 else 1) := by
   rw [ttkComparison_native_count, ttkOverflow_toffoli_count, ttkLowRipple_toffoli_count]
   omega
@@ -118,9 +129,11 @@ theorem ttkComparison_serial_depth (n : Nat) :
 
 /-- Closed resource formulas for the actual serial composition above width one. -/
 theorem ttkComparison_resources_of_two_le (n : Nat) (hn : 2 ≤ n) :
-    ResourcePool.count (.gate (.builtin "cnot")) (comparisonProgram n).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+      (comparisonProgram n).eventCost =
         10 * n - 11 ∧
-      ResourcePool.count (.gate (.builtin "toffoli")) (comparisonProgram n).eventCost =
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+        (comparisonProgram n).eventCost =
         4 * n - 3 ∧
       (comparisonProgram n).eventCost.card = 14 * n - 14 ∧
       (comparisonProgram n).evaluatedEventDepth (fun _ => 1) = 14 * n - 14 := by
@@ -133,11 +146,9 @@ theorem ttkComparison_resources_of_two_le (n : Nat) (hn : 2 ≤ n) :
 /-- The real interface has two words and its output bit, with no carry workspace. -/
 theorem ttkComparison_interface (n : Nat) :
     (overflowEncoding n).width = 2 * n + 1 ∧
-      (comparisonProgram n).physical_idx ⊆ List.range (2 * n + 1) := by
-  constructor
-  · exact ttkOverflowEncoding_width n
-  · simpa only [comparisonProgram, ttkOverflowEncoding_width] using
-      programList_physical_idx_subset_range (comparisonGates n)
+      (QubitLayout.canonical (overflowEncoding n).width).systemIdx =
+        List.range (2 * n + 1) :=
+  ttkOverflow_interface n
 
 end
 

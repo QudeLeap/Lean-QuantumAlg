@@ -7,13 +7,13 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Construction
-import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Queries
+import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Queries.Matrix
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Reflection.Laws
 import all QuantumAlg.Algorithms.QPE.ControlledAction
 import all QuantumAlg.Algorithms.QPE.Analysis
 import all QuantumAlg.Components.Oracle.AmplitudeAmplification
 import all QuantumAlg.Core.Base.Tensor.Certified
-import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Powers
 import all QuantumAlg.Primitives.AmplitudeAmplification.Construction
 
 /-!
@@ -32,7 +32,7 @@ noncomputable section
 private theorem step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) (target : HilbertVector (Qubits n)) :
-    (step U good stage).matrix.applyVec
+    (step U good stage).binaryMatrix.applyVec
         (HilbertVector.tensor
           (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec target) =
       HilbertVector.tensor (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec
@@ -40,17 +40,11 @@ private theorem step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n)
           (U * (ZeroReflection.zeroReflectionOperator n *
             (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good))).applyVec target
         else target) := by
-  change (step U good stage).applyVec
-    (HilbertVector.tensor
-      (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec target) = _
-  rw [step, UnitaryCircuit.applyVec_seq, UnitaryCircuit.applyVec_seq,
-    UnitaryCircuit.applyVec_seq]
-  change (preparation t U).matrix.applyVec
-      ((reflection n stage).matrix.applyVec
-        ((inversePreparation t U).matrix.applyVec
-          ((controlledGoodReflection good stage).matrix.applyVec
-            (HilbertVector.tensor
-              (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec target)))) = _
+  rw [step, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryOperator.mul_applyVec, UnitaryOperator.mul_applyVec,
+    UnitaryOperator.mul_applyVec]
   rw [preparation_matrix, inversePreparation_matrix, reflection_matrix,
     controlledGoodReflection_matrix, qpeControlledBitOp_applyVec_ket_tensor,
     UnitaryOperator.tensor_applyVec_tensor, UnitaryOperator.one_applyVec,
@@ -63,7 +57,7 @@ private theorem step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n)
 /-- The actual source sequence equals control of the complete source product on every state. -/
 theorem step_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    (step U good stage).matrix = qpeControlledBitOp (phaseWidth t n)
+    (step U good stage).binaryMatrix = qpeControlledBitOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (extendedStage n stage) := by
@@ -89,11 +83,11 @@ theorem step_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
 /-- Actual stage repetitions multiply the selected exponent by the original binary power. -/
 theorem powerStage_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    (powerStage U good stage).matrix = qpeExponentOp (phaseWidth t n)
+    (powerStage U good stage).binaryMatrix = qpeExponentOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (fun phase => 2 ^ stage.val * (phase.val.testBit (extendedStage n stage).val).toNat) := by
-  change (step U good stage).matrix ^ (2 ^ stage.val) = _
+  rw [powerStage, UnitaryCircuit.unitaryCircuit_binaryMatrix_iterate]
   rw [step_matrix, qpeControlledBitOp, qpeExponentOp_pow]
 
 end

@@ -103,27 +103,33 @@ def prodRight (left : BinaryLabelEncoding Left) :
         (prodRightWire_ne left hb)
 
 /-- Left-product lifting preserves the strict primitive event coordinate. -/
-@[simp] theorem event_prodLeft (right : BinaryLabelEncoding Right)
+@[simp] theorem event_prodLeft {oracles : OracleModel}
+    (right : BinaryLabelEncoding Right)
     (gate : GateSpec left) :
-    event (prodLeft right gate) = event gate := by
+    event oracles (prodLeft right gate) = event oracles gate := by
   cases gate <;> rfl
 
 /-- Right-product lifting preserves the strict primitive event coordinate. -/
-@[simp] theorem event_prodRight (left : BinaryLabelEncoding Left)
+@[simp] theorem event_prodRight {oracles : OracleModel}
+    (left : BinaryLabelEncoding Left)
     (gate : GateSpec right) :
-    event (prodRight left gate) = event gate := by
+    event oracles (prodRight left gate) = event oracles gate := by
   cases gate <;> rfl
 
 /-- Left-product lifting preserves the complete ordered strict event trace. -/
-theorem map_event_prodLeft (right : BinaryLabelEncoding Right)
+theorem map_event_prodLeft {oracles : OracleModel}
+    (right : BinaryLabelEncoding Right)
     (gates : List (GateSpec left)) :
-    (gates.map (prodLeft right)).map event = gates.map event := by
+    (gates.map (prodLeft right)).map (event oracles) =
+      gates.map (event oracles) := by
   simp
 
 /-- Right-product lifting preserves the complete ordered strict event trace. -/
-theorem map_event_prodRight (left : BinaryLabelEncoding Left)
+theorem map_event_prodRight {oracles : OracleModel}
+    (left : BinaryLabelEncoding Left)
     (gates : List (GateSpec right)) :
-    (gates.map (prodRight left)).map event = gates.map event := by
+    (gates.map (prodRight left)).map (event oracles) =
+      gates.map (event oracles) := by
   simp
 
 

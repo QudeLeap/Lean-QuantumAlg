@@ -25,7 +25,8 @@ noncomputable section
 
 open Execution ClassicalRoutines ClassicalAlgorithms
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The real destination contains the original modular power of the actual stored half order. -/
 theorem result_toNat (source : Input N)
@@ -36,7 +37,8 @@ theorem result_toNat (source : Input N)
     (orderValue : Word (phaseBits N + 1))
     (baseRead : store.read base = .canonicalResidue baseValue.toWord)
     (orderRead : store.read order = .unsignedWord orderValue) :
-    (((step source base order output store).1).read (.storage output.toCStorageRef)).toNat =
+    (((step (model := model) source base order output store).1).read
+      (.storage output.toCStorageRef)).toNat =
       baseValue.val ^ (orderValue.val / 2) % N := by
   let entered := store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (phaseBits N + 1))
     ctx.canonicalFreshKey_fresh
@@ -71,12 +73,13 @@ theorem result_toNat (source : Input N)
     apply Fin.ext
     change (orderValue.val / 2) % 2 ^ (phaseBits N + 1) = orderValue.val / 2
     exact Nat.mod_eq_of_lt ((Nat.div_le_self _ _).trans_lt orderValue.isLt)
-  have actual := Modular.NativePower.nativePower_into_toNat (modulusSpec source)
+  have actual := Modular.NativePower.nativePower_into_toNat (model := model)
+    (modulusSpec source)
     (liftInput base) (.storage (halfRef ctx N).toCStorageRef) (liftWrite output)
     shifted sourcePower ⟨shiftedBase, shiftedHalf⟩
   have popped := Store.read_popWorkspace_underWorkspace ctx.canonicalFreshKey
     (.unsignedWord (phaseBits N + 1)) ctx.canonicalFreshKey_fresh
-    (Modular.NativePower.intoStep (modulusSpec source) (liftInput base)
+    (Modular.NativePower.intoStep (model := model) (modulusSpec source) (liftInput base)
       (.storage (halfRef ctx N).toCStorageRef) (liftWrite output) shifted).1
     (.storage output.toCStorageRef)
   exact (congrArg CShape.Value.toNat popped).trans actual

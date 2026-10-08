@@ -99,50 +99,54 @@ def CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (other : CInputRef ctx shape) : Prop :=
   ∀ cell, cellKey refs cell ∉ other.storageKeys
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
-
 /-- One charged self-XOR on the original dependently typed reset destination. -/
-def clearOp (refs : LatticePairFactorRecovery.Refs ctx N) (cell : Cell) :=
+def clearOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+    (refs : LatticePairFactorRecovery.Refs ctx N) (cell : Cell) :=
   ClassicalOp.wordBinary .bitXor (cellWidth N cell) ctx
     (.product (FirstAccepted.cellRead (cellRef refs cell))
       (FirstAccepted.cellRead (cellRef refs cell))) (cellRef refs cell)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
+
 /-- Execute the original list of reset destinations in order. -/
-def clearCells (refs : LatticePairFactorRecovery.Refs ctx N) : List Cell → Circuit ctx ctx
+def clearCells (refs : LatticePairFactorRecovery.Refs ctx N) :
+    List Cell → Circuit model ctx ctx
   | [] => .id ctx
-  | head :: tail => .seq (.classical (clearOp refs head)) (clearCells refs tail)
+  | head :: tail =>
+      .seq (BitWord.instruction (execution := model) (clearOp refs head))
+        (clearCells refs tail)
 
 /-- Actual store and complete chronological path of the dependent reset list. -/
 def clearCellsStep (refs : LatticePairFactorRecovery.Refs ctx N) :
     (selected : List Cell) → Store ctx → Store ctx × (clearCells refs selected).Path
   | [], store => (store, ())
   | head :: tail, store =>
-      let rest := clearCellsStep refs tail (store.applyOp (clearOp refs head))
-      (rest.1, ((), rest.2))
+      let first := BitWord.instructionStep (execution := model) (clearOp refs head) store
+      let rest := clearCellsStep refs tail first.1
+      (rest.1, (first.2, rest.2))
 
 /-- Every listed reset instruction executes on the same full classical-reference record. -/
 theorem clearCells_execute (refs : LatticePairFactorRecovery.Refs ctx N) (selected : List Cell) :
     ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (clearCells refs selected).execute Reference state = state.mapClassical (fun entry =>
-        ((clearCellsStep refs selected entry.1).1,
-          (entry.2, (clearCellsStep refs selected entry.1).2))) := by
+        let actual := clearCellsStep refs selected entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   induction selected with
   | nil =>
       intro Reference History _ state
-      refine (Circuit.execute_id_mapClassical Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact (Circuit.execute_id_mapClassical Reference state).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons head tail ih =>
       intro Reference History _ state
-      simp only [clearCells, clearCellsStep, Circuit.execute_seq,
-        Circuit.execute_classical_mapClassical, ih, State.mapHistory,
-        ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-      congr 1
-      exact Subsingleton.elim _ _
+      exact Circuit.execute_sequenceStoreRecord _ _ _ _
+        (fun _reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+        ih Reference state
 
 /-- The original thirteen-word reset always runs in full before another pair. -/
-def into (refs : LatticePairFactorRecovery.Refs ctx N) : Circuit ctx ctx := clearCells refs cells
+def into (refs : LatticePairFactorRecovery.Refs ctx N) : Circuit model ctx ctx :=
+  clearCells refs cells
 
 /-- The actual thirteen-write result and its complete path. -/
 def step (refs : LatticePairFactorRecovery.Refs ctx N) (store : Store ctx) :
@@ -150,11 +154,14 @@ def step (refs : LatticePairFactorRecovery.Refs ctx N) (store : Store ctx) :
 
 /-- Actual reset execution preserves complete incoming histories and reference blocks. -/
 theorem into_execute (refs : LatticePairFactorRecovery.Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) :=
+      let actual := step refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   clearCells_execute refs cells Reference state
 
+omit [BitWord.Selected model] in
 /-- One listed instruction writes its canonical zero from arbitrary incoming contents. -/
 private theorem clear_value (refs : LatticePairFactorRecovery.Refs ctx N) (cell : Cell)
     (store : Store ctx) :
@@ -241,15 +248,17 @@ theorem into_correct (refs : LatticePairFactorRecovery.Refs ctx N)
   | b33 => exact rawZero .basis33
 
 /-- Independent native label of each original dependently typed reset word. -/
-def cellEvent (N : Nat) (cell : Cell) : Resource.Event kind :=
-  .classicalOperation (.wordBinary .bitXor (cellWidth N cell))
+def cellEvent (N : Nat) (cell : Cell) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordBinary .bitXor (cellWidth N cell)))
 
 /-- Independent chronological trace of an ordered reset list. -/
-def nativeTrace (N : Nat) (selected : List Cell) : List (Resource.Event kind) :=
+def nativeTrace (N : Nat) (selected : List Cell) : List (Resource.Event model) :=
   selected.map (cellEvent N)
 
 /-- Independent native allowance of the original thirteen reset writes. -/
-def resetEventEnvelope (N : Nat) : ResourcePool kind := ResourcePool.ofList (nativeTrace N cells)
+def resetEventEnvelope (N : Nat) : ResourcePool model :=
+  ResourcePool.ofList (nativeTrace N cells)
 
 /-- Each actual listed instruction contributes exactly its original native label. -/
 theorem clearCells_events (refs : LatticePairFactorRecovery.Refs ctx N) (selected : List Cell) :
@@ -259,6 +268,9 @@ theorem clearCells_events (refs : LatticePairFactorRecovery.Refs ctx N) (selecte
   | nil => intro path; rfl
   | cons head tail ih =>
       intro path
+      change (BitWord.instruction (execution := model) (clearOp refs head)).eventTrace
+        path.1 ++ (clearCells refs tail).eventTrace path.2 = _
+      rw [BitWord.bitWord_instruction_eventTrace]
       change cellEvent N head :: (clearCells refs tail).eventTrace path.2 =
         cellEvent N head :: nativeTrace N tail
       rw [ih]
@@ -298,7 +310,8 @@ theorem into_depth (refs : LatticePairFactorRecovery.Refs ctx N) (path : (into r
 
 private theorem clearCells_visited (refs : LatticePairFactorRecovery.Refs ctx N)
     (selected : List Cell) : ∀ (path : (clearCells refs selected).Path)
-      (visited : RuntimeCtx kind), visited ∈ (clearCells refs selected).visitedContexts path →
+      (visited : RuntimeCtx model.kind),
+        visited ∈ (clearCells refs selected).visitedContexts path →
         visited = ctx := by
   induction selected with
   | nil => intro path visited present; exact List.mem_singleton.mp present
@@ -311,7 +324,7 @@ private theorem clearCells_visited (refs : LatticePairFactorRecovery.Refs ctx N)
 
 /-- Every supplied classical and quantum runtime entry remains live throughout reset. -/
 theorem into_visited (refs : LatticePairFactorRecovery.Refs ctx N) (path : (into refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (into refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := clearCells_visited refs cells path visited present
 
 /-- The thirteen paid clears allocate no additional runtime storage. -/
@@ -330,23 +343,25 @@ theorem into_auxiliary_le (refs : LatticePairFactorRecovery.Refs ctx N) (path : 
 
 private theorem clearCells_borrowedRestored (refs : LatticePairFactorRecovery.Refs ctx N)
     (selected : List Cell) : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (clearCells refs selected).BorrowedRestored Reference state
         ((clearCells refs selected).execute Reference state) := by
   induction selected with
   | nil =>
       intro Reference History _ state
-      rw [clearCells, Circuit.BorrowedRestored, observeBorrowedAfter_sameContext,
-        Circuit.execute_id]
-      exact observeBorrowed_mapHistory state _
+      exact Circuit.borrowedRestored_id (model := model) (ctx := ctx)
+        (Reference := Reference) (H := History) state
   | cons head tail ih =>
       intro Reference History _ state
       exact Circuit.borrowedRestored_seq _ _ state
-        (Circuit.borrowedRestored_classical (clearOp refs head) state) (ih Reference _)
+        (Circuit.borrowedRestored_classical
+          (BitWord.selectedApplication (execution := model) (clearOp refs head)) state)
+        (ih Reference _)
 
 /-- Every actual reset instruction restores borrowed systems jointly with arbitrary references. -/
 theorem into_borrowedRestored (refs : LatticePairFactorRecovery.Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) :=
   clearCells_borrowedRestored refs cells Reference state
 

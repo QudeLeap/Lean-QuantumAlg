@@ -25,18 +25,19 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 /-- The real option instruction retains precisely the stored tag and candidate's natural value. -/
 theorem pack_result_numeric (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : cells.payload.key ≠ cells.lower.key) :
-    (packStep cells output store).1.read (.storage output.toCStorageRef) =
+    (packStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =
       if (store.read (.storage cells.lower.toCStorageRef)).toBool then
         .optionSome (CShape.wordOfNat (modulusBits N)
           (store.read (.storage cells.candidate.toCStorageRef)).toNat)
       else .optionNone := by
-  rw [pack_result cells output store separate]
+  rw [pack_result (model := model) cells output store separate]
   cases store.read (.storage cells.lower.toCStorageRef) with
   | bit value => cases value <;> rfl
 
@@ -48,7 +49,7 @@ theorem checkedPack_result (cells : Cells ctx N)
     (upperLower : cells.upper.key ≠ cells.lower.key)
     (upperCandidate : cells.upper.key ≠ cells.candidate.key)
     (payloadLower : cells.payload.key ≠ cells.lower.key) :
-    (checkedPackStep cells output store).1.read (.storage output.toCStorageRef) =
+    (checkedPackStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =
       if decide ((store.read cells.one).toNat <
           (store.read (.storage cells.candidate.toCStorageRef)).toNat) &&
           decide ((store.read (.storage cells.candidate.toCStorageRef)).toNat <
@@ -70,7 +71,7 @@ theorem checkedPack_result (cells : Cells ctx N)
       store.read (.storage cells.candidate.toCStorageRef) :=
     FactorRange.read_other (checkRefs cells) (.storage cells.candidate.toCStorageRef) lowerCandidate
       (fun member => upperCandidate (List.mem_singleton.mp member)) store
-  refine (pack_result_numeric cells output compared payloadLower).trans ?_
+  refine (pack_result_numeric (model := model) cells output compared payloadLower).trans ?_
   rw [tag, candidateSame]
 
 end

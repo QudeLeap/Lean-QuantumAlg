@@ -45,23 +45,28 @@ def finishOp (output : CWriteRef ctx (.unsignedWord width)) :
   .wordUnary .copy width (context ctx width)
     (.storage (rootCell ctx width).toCStorageRef) (underWrite output width)
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Fixed-count execution of the same actual refinement round on its generated references. -/
-def rounds (ctx : RuntimeCtx kind) (width : Nat) :
-    Circuit (context ctx width) (context ctx width) :=
+def rounds (ctx : RuntimeCtx model.kind) (width : Nat) :
+    Circuit model (context ctx width) (context ctx width) :=
   .iterate width
-    (round (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width))
+    (round (model := model) (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width))
 
 /-- Actual widening, literal increment load, fixed-count refinement and result copy. -/
 def body (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    Circuit (context ctx width) (context ctx width) :=
-  .seq (.classical (widenOp input))
-    (.seq (ConstantWord.circuit (halfCell ctx width) (initialHalf width))
-      (.seq (rounds ctx width) (.classical (finishOp output))))
+    Circuit model (context ctx width) (context ctx width) :=
+  .seq (BitWord.instruction (execution := model) (widenOp input))
+    (.seq (ConstantWord.circuit (model := model) (halfCell ctx width) (initialHalf width))
+      (.seq (rounds (model := model) ctx width) (BitWord.instruction (execution := model)
+        (finishOp output))))
 
 /-- The real square-root program owns and releases every scratch cell it requires. -/
 def into (input : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord (width + width))
     ctx.canonicalFreshKey_fresh
     (.workspace (wideContext ctx width) (wideContext ctx width).canonicalFreshKey
@@ -73,6 +78,9 @@ def into (input : CInputRef ctx (.unsignedWord width))
           (.workspace (candidateContext ctx width) (candidateContext ctx width).canonicalFreshKey
             (.unsignedWord (width + width)) (candidateContext ctx width).canonicalFreshKey_fresh
             (.workspace (squareContext ctx width) (squareContext ctx width).canonicalFreshKey
-              .bit (squareContext ctx width).canonicalFreshKey_fresh (body input output))))))
+              .bit (squareContext ctx width).canonicalFreshKey_fresh (body (model := model) input
+                output))))))
+
+end
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt

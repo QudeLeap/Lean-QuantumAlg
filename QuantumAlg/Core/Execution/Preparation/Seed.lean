@@ -70,37 +70,57 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- The real preparation establishes its physical basis seed in every complete stored block. -/
-theorem prepare_empty_seeded {ctx : RuntimeCtx .quantum} {systemCount : Nat}
+/-- The real zero preparation establishes its physical basis seed in every complete
+stored block, with the persistent service state and reference retained. -/
+theorem prepareZero_empty_seeded
+    {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum} {systemCount : Nat}
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout) (empty : ctx.systemCount = 0)
+    (empty : ctx.systemCount = 0)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (services.HiddenState × History)) :
     BasisSeeded.Holds
-      (preparedEmptyBasisEquiv ctx key layout fresh disjoint empty preparation.value)
-      ((Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state) := by
+      (preparedEmptyBasisEquiv ctx key layout fresh disjoint empty
+        (BasisPreparation.zero layout).value)
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services)
+        ctx key layout fresh disjoint).execute Reference state) := by
+  let preparation := BasisPreparation.zero layout
   let seed := preparedEmptyBasisEquiv ctx key layout fresh disjoint empty preparation.value
   let prepared := prepareContext state key layout fresh disjoint preparation.normalized
-  let update := fun entry : Store ctx × History =>
-    (entry.1.pushOwnedLayout key layout fresh disjoint, (entry.2, ()))
+  let update := fun entry : Store ctx × (services.HiddenState × History) =>
+    (entry.1.pushOwnedLayout key layout fresh disjoint, (entry.2.1, (entry.2.2, ())))
   intro finalStore row column leftRef rightRef
   by_cases same : row = seed ∧ column = seed
   · obtain ⟨rfl, rfl⟩ := same
     exact (if_pos ⟨rfl, rfl⟩).symm
   · refine Eq.trans ?_ (if_neg same).symm
+    have reshaped :
+        (state.prepare key layout fresh disjoint preparation).mapHistory
+            (fun record => (record.1.1, (record.1.2, record.2))) =
+          prepared.mapClassical update := by
+      simp only [State.prepare, State.mapHistory,
+        ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
     have executed := congrArg
       (fun output : State (ctx.addOwnedLayout key layout fresh disjoint)
-          Reference (History × Unit) =>
+          Reference (services.HiddenState × (History × Unit)) =>
         ((output.mapClassical (fun entry => entry.1)).block finalStore).matrix)
-      (execute_prepare state key layout fresh disjoint preparation)
+      (execute_prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services)
+        state key layout fresh disjoint)
+    rw [reshaped] at executed
     have composed := congrArg
       (fun output : ExecutionState (Store (ctx.addOwnedLayout key layout fresh disjoint))
           (Register.prod (ctx.addOwnedLayout key layout fresh disjoint).register Reference) =>
         (output.block finalStore).matrix)
       (ExecutionState.executionState_mapClassical_comp prepared update (fun entry => entry.1))
     have actual := (BasisSeeded.store_matrix
-      ((Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state)
+      ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := services)
+        ctx key layout fresh disjoint).execute Reference state)
       finalStore).symm.trans (executed.trans composed)
     refine (congrArg
       (fun matrix : HilbertOperator

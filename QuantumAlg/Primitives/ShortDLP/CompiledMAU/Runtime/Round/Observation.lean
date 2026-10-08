@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Source.Fibers
+import all QuantumAlg.Core.Execution.Basis.Seeded
 
 /-!
 # Every observed actual round result retains its complete reference fiber
@@ -38,7 +39,7 @@ private theorem round_store_reference {shape : CShape}
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx)
+    (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx)
     (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,
       (ExecutionState.filterClassical
@@ -77,7 +78,7 @@ theorem shortDLP_runtimeRound_referenceFiberSum {shape : CShape}
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (weight : Store ctx → ℂ)
+    (state : State ctx Reference (model.HiddenState × History)) (weight : Store ctx → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((code m ell width sameWires parameter N generator target cells result).execute
@@ -88,7 +89,7 @@ theorem shortDLP_runtimeRound_referenceFiberSum {shape : CShape}
         (fun entry basis =>
           weight (packedBasisStore m ell width sameWires cells result entry.1 basis))
         leftRef rightRef := by
-  refine (fiber_store_blocks
+  refine (BasisSeeded.fiber_store_blocks
     ((code m ell width sameWires parameter N generator target cells result).execute Reference state)
     (fun store _ => weight store) leftRef rightRef).trans ?_
   rw [Finset.sum_comm]
@@ -126,7 +127,8 @@ theorem shortDLP_runtimeRound_observed_reference_entry {shape : CShape}
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History Observed : Type} [Fintype History] [Fintype Observed]
-    (state : State ctx Reference History) (observe : Store ctx → Observed) (value : Observed)
+    (state : State ctx Reference (model.HiddenState × History))
+    (observe : Store ctx → Observed) (value : Observed)
     (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,
       ((ExecutionState.mapClassical

@@ -7,11 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-public import QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Gate.Unitary
 public import QuantumAlg.Components.Oracle.Reflection
 public import QuantumAlg.Util.Polynomial.Basic
-import all QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 import all QuantumAlg.Components.Control
 import all QuantumAlg.Components.Kets
 import all QuantumAlg.Components.Oracle.BlockEncoding
@@ -2003,28 +2001,8 @@ noncomputable def phasePlusBlock {N : Nat}
 noncomputable def phaseHadamardWrapperOperator {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) : UnitaryOperator (Qubits (1 + N)) := by
   let identity : UnitaryOperator (Qubits N) := 1
-  let hadamard := UnitaryOperator.tensor Gate.H.matrix identity
+  let hadamard := UnitaryOperator.tensor Gate.HOp identity
   exact hadamard * V * hadamard
-
-/-- Conjugate a phase-ancilla circuit by a Hadamard on the phase qubit so that
-the `|+⟩` block becomes an ordinary top-left `|0⟩` block. -/
-noncomputable def phaseHadamardWrapper {N : Nat}
-    (V : UnitaryCircuit (Qubits (1 + N))) : UnitaryCircuit (Qubits (1 + N)) := by
-  let identity := UnitaryCircuit.identity (Qubits N) (List.range' 1 N) List.nodup_range'
-  let hadamard := UnitaryCircuit.tensorQubits Gate.H identity
-    { left_nodup := Gate.H.physical_idx_nodup
-      right_nodup := identity.physical_idx_nodup
-      disjoint := by
-        change [0].Disjoint (List.range' 1 N)
-        simp }
-  exact UnitaryCircuit.seq (UnitaryCircuit.seq hadamard V) hadamard
-
-@[simp]
-theorem phaseHadamardWrapper_matrix {N : Nat}
-    (V : UnitaryCircuit (Qubits (1 + N))) :
-    (phaseHadamardWrapper V).matrix = phaseHadamardWrapperOperator V.matrix := by
-  apply Subtype.ext
-  simp [phaseHadamardWrapper, phaseHadamardWrapperOperator, Matrix.mul_assoc]
 
 /-- Ancilla-indexed block of an operator acting on one phase qubit plus an `N`-qubit
 signal space. -/
@@ -2087,30 +2065,27 @@ theorem projectedBlock_phaseHadamardWrapper {N : Nat}
   change ancillaBlock 0 0 (phaseHadamardWrapperOperator V) = phasePlusBlock V
   rw [phasePlusBlock_eq_sum_ancillaBlock]
   change ancillaBlock 0 0
-      (HilbertOperator.tensor (Gate.H : HilbertOperator (Qubits 1))
+      (HilbertOperator.tensor (Gate.HOp : HilbertOperator (Qubits 1))
           (1 : HilbertOperator (Qubits N)) *
         (V : HilbertOperator (Qubits (1 + N))) *
-        HilbertOperator.tensor (Gate.H : HilbertOperator (Qubits 1))
+        HilbertOperator.tensor (Gate.HOp : HilbertOperator (Qubits 1))
           (1 : HilbertOperator (Qubits N))) =
     ∑ a : Fin (2 ^ 1), ∑ b : Fin (2 ^ 1),
       starRingEnd ℂ ((NormalizedVector.ketPlus : HilbertVector (Qubits 1)) a) •
         (((NormalizedVector.ketPlus : HilbertVector (Qubits 1)) b) •
           ancillaBlock a b (V : HilbertOperator (Qubits (1 + N))))
   have hH00 :
-      (Gate.H : HilbertOperator (Qubits 1)) 0 0 = NormalizedVector.invSqrt2 := by
-    change Gate.HOp 0 0 = NormalizedVector.invSqrt2
+      (Gate.HOp : HilbertOperator (Qubits 1)) 0 0 = NormalizedVector.invSqrt2 := by
     simp [Gate.HOp]
   have hH01 :
-      (Gate.H : HilbertOperator (Qubits 1)) 0 1 = NormalizedVector.invSqrt2 := by
-    change Gate.HOp 0 1 = NormalizedVector.invSqrt2
+      (Gate.HOp : HilbertOperator (Qubits 1)) 0 1 = NormalizedVector.invSqrt2 := by
     simp [Gate.HOp]
   have hH10 :
-      (Gate.H : HilbertOperator (Qubits 1)) 1 0 = NormalizedVector.invSqrt2 := by
-    change Gate.HOp 1 0 = NormalizedVector.invSqrt2
+      (Gate.HOp : HilbertOperator (Qubits 1)) 1 0 = NormalizedVector.invSqrt2 := by
     simp [Gate.HOp]
   have hleft (c : Fin (2 ^ 1)) :
       ancillaBlock 0 c
-          (HilbertOperator.tensor (Gate.H : HilbertOperator (Qubits 1))
+          (HilbertOperator.tensor (Gate.HOp : HilbertOperator (Qubits 1))
               (1 : HilbertOperator (Qubits N)) *
             (V : HilbertOperator (Qubits (1 + N)))) =
         NormalizedVector.invSqrt2 • ancillaBlock 0 c V +
@@ -2137,20 +2112,6 @@ theorem phaseAncillaAssocEquiv_symm_zero {m n : Nat} (i : Fin (2 ^ n)) :
   apply Fin.ext
   simp [phaseAncillaAssocEquiv, prodEquiv, finProdFinEquiv, finCongr]
 
-/-- Reindex a gate from the nested `1+(m+n)` layout to the standard
-`(1+m)+n` block-encoding layout. -/
-noncomputable def reassociatePhaseAncillaGate {m n : Nat}
-    (V : UnitaryCircuit (Qubits (1 + (m + n)))) : UnitaryCircuit (Qubits ((1 + m) + n)) :=
-  UnitaryCircuit.reindex (phaseAncillaAssocEquiv m n) V
-
-@[simp]
-theorem reassociatePhaseAncillaGate_matrix {m n : Nat}
-    (V : UnitaryCircuit (Qubits (1 + (m + n)))) :
-    (reassociatePhaseAncillaGate (m := m) (n := n) V).matrix =
-      reassociatePhaseAncillaOperator (m := m) (n := n) V.matrix := by
-  apply Subtype.ext
-  rfl
-
 @[simp]
 theorem reassociatePhaseAncillaOperator_apply_zero {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) (i j : Fin (2 ^ n)) :
@@ -2162,18 +2123,6 @@ theorem reassociatePhaseAncillaOperator_apply_zero {m n : Nat}
       (prodEquiv ((0 : Fin (2 ^ 1)), prodEquiv ((0 : Fin (2 ^ m)), i)))
       (prodEquiv ((0 : Fin (2 ^ 1)), prodEquiv ((0 : Fin (2 ^ m)), j))) := by
   simp [reassociatePhaseAncillaOperator, Matrix.reindex_apply]
-
-theorem reassociatePhaseAncillaGate_apply_zero {m n : Nat}
-    (V : UnitaryCircuit (Qubits (1 + (m + n)))) (i j : Fin (2 ^ n)) :
-    (reassociatePhaseAncillaGate (m := m) (n := n) V :
-        HilbertOperator (Qubits ((1 + m) + n)))
-      (prodEquiv ((0 : Fin (2 ^ (1 + m))), i))
-      (prodEquiv ((0 : Fin (2 ^ (1 + m))), j)) =
-    (V : HilbertOperator (Qubits (1 + (m + n))))
-      (prodEquiv ((0 : Fin (2 ^ 1)), prodEquiv ((0 : Fin (2 ^ m)), i)))
-      (prodEquiv ((0 : Fin (2 ^ 1)), prodEquiv ((0 : Fin (2 ^ m)), j))) := by
-  simp [reassociatePhaseAncillaGate, Matrix.reindex_apply,
-    UnitaryCircuit.reindex_matrix]
 
 /-- Taking the top-left block after Hadamard-wrapping and reassociating
 ancillas is the same as first taking the phase `|+⟩` block and then the
@@ -2262,11 +2211,6 @@ noncomputable abbrev reassociatePhaseAncillaOperator {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) :
     UnitaryOperator (Qubits ((1 + m) + n)) :=
   QuantumAlg.QSP.MultiQubit.QSVT.reassociatePhaseAncillaOperator V
-
-/-- Namespace-local spelling of phase-ancilla reassociation for QSVT circuits. -/
-noncomputable abbrev reassociatePhaseAncillaGate {m n : Nat}
-    (V : UnitaryCircuit (Qubits (1 + (m + n)))) : UnitaryCircuit (Qubits ((1 + m) + n)) :=
-  QuantumAlg.QSP.MultiQubit.QSVT.reassociatePhaseAncillaGate V
 
 end QSVT.Complement
 

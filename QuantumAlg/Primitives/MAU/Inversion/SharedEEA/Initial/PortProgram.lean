@@ -72,7 +72,8 @@ theorem inputFrame_input (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (inputFrame modulus input).secondWord = (InitialFrame.initial modulus input).secondWord := rfl
 
 /-- Execute the fixed constant-X load, using only the existing full frame. -/
-def program (modulus : Nat) : UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
+    (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   Work1Constant.program modulus.size (constant modulus)
 
 /-- The literal fixed X list reconstructs the complete source initial frame. -/
@@ -89,15 +90,18 @@ theorem gates_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
 /-- Actual normalized amplitudes are preserved while loading A from zero, for every input label. -/
 theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (program modulus).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (inputFrame modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (InitialFrame.initial modulus input)) := by
-  exact (GateSpec.realizesList
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (inputFrame modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) := by
+  exact (GateSpec.realizesList (QubitLayout.canonical _) .empty
     (Work1Constant.gates modulus.size (constant modulus))).apply_encoded_ket
       (inputFrame modulus input) |>.trans
         (congrArg (fun state => NormalizedVector.ket
-          (R := Qubits (encoding modulus.size).width) ((encoding modulus.size).encode state))
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode state)))
           (gates_initial modulus input))
 
 /-- Every literal initial X occurrence is charged, independently of the input value. -/

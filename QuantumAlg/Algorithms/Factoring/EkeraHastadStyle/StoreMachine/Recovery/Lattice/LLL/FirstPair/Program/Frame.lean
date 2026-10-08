@@ -149,10 +149,12 @@ theorem row_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
       exact rep.2.2
 
 /-- The actual six-cell division footprint is the original transition footprint. -/
-theorem division_frame (refs : Refs ctx width) (store : Store ctx)
+theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs divisionCells other) :
-    (RoundedDiv.bodyStep refs.division store).1.read other = store.read other := by
+    (RoundedDiv.bodyStep (model := model) refs.division store).1.read other =
+      store.read other := by
   apply RoundedDiv.body_callerFrame refs.division store other
   intro key member
   change key ∈ divisionCells.map (cellKey refs) at member
@@ -208,10 +210,11 @@ theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
   · exact avoids .b23 (by decide)
   · exact avoids .swapScratch (by decide)
 
-private theorem selectArm_frame (refs : Refs ctx width) (flag : CShape.Value .bit)
+private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
-    (selectArmStep refs flag store).1.read other = store.read other := by
+    (selectArmStep (model := model) refs flag store).1.read other = store.read other := by
   cases flag with
   | bit flag =>
     cases flag
@@ -219,17 +222,19 @@ private theorem selectArm_frame (refs : Refs ctx width) (flag : CShape.Value .bi
     · rfl
 
 /-- The selected actual arm preserves the full caller frame on both possible outcomes. -/
-theorem select_frame (refs : Refs ctx width) (store : Store ctx)
+theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
-    (selectStep refs store).1.read other = store.read other :=
+    (selectStep (model := model) refs store).1.read other = store.read other :=
   selectArm_frame refs (store.read (writeInput refs.lovasz.passes)) store other avoids
 
 /-- Complete first-pair execution preserves every read outside the union of its actual writes. -/
-theorem firstPairInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem firstPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :
-    (firstPairStep refs store).1.read other = store.read other := by
+    (firstPairStep (model := model) refs store).1.read other = store.read other := by
   have division : FrameAvoids refs divisionCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
   have reduction : FrameAvoids refs reductionCells other := fun cell member =>
@@ -240,7 +245,12 @@ theorem firstPairInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     avoids cell (by simp [mutableCells, member])
   have swap : FrameAvoids refs swapCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
-  unfold firstPairStep lovaszBranchStep reductionPrefixStep reduceRefreshStep
+  change (selectStep (model := model) refs
+    (LatticeLovasz.firstLovaszStore refs.metric refs.lovasz
+      (LatticeNormRefresh.refreshStore refs.basis.second refs.refresh
+        (LatticeArithmetic.pointStore (writeInput refs.division.output)
+          refs.basis.first refs.basis.second refs.reduceProduct
+          (RoundedDiv.bodyStep (model := model) refs.division store).1)))).1.read other = _
   rw [select_frame refs _ other swap, comparison_frame refs _ other comparison,
     refresh_frame refs _ other refresh, reduction_frame refs _ other reduction,
     division_frame refs _ other division]

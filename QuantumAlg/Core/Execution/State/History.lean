@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.MapLaws
+import all QuantumAlg.Core.Execution.Classical.Step.History
 import all QuantumAlg.Core.Execution.Random.Map
 import all QuantumAlg.Core.Execution.Preparation.Borrowed.General
 import all QuantumAlg.Core.Execution.State
@@ -46,16 +47,6 @@ theorem mapHistory_classicalStep (state : State ctx Reference H) (update : H →
     (state.mapHistory update).classicalStep operation =
       (state.classicalStep operation).mapHistory (fun record => (update record.1, record.2)) := by
   simp only [classicalStep, mapHistory, ExecutionState.executionState_mapClassical_comp,
-    Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
-
-/-- Declared calls retain their real storage action and the same unique path. -/
-theorem mapHistory_declaredStep (state : State ctx Reference H) (update : H → K)
-    {input output : CShape} (call : DeclaredClassicalCall ctx input output) :
-    (state.mapHistory update).declaredStep call =
-      (state.declaredStep call).mapHistory (fun record => (update record.1, record.2)) := by
-  simp only [declaredStep, mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
   congr 1
   exact Subsingleton.elim _ _
@@ -117,7 +108,7 @@ variable {ctx : RuntimeCtx .quantum}
 
 /-- Actual unitary evolution commutes with every finite mathematical history function. -/
 theorem mapHistory_unitary (state : State ctx Reference H) (update : H → K)
-    (program : UnitaryCircuit ctx.register) :
+    (program : UnitaryOperator ctx.register) :
     (state.mapHistory update).unitary program =
       (state.unitary program).mapHistory (fun record => (update record.1, record.2)) := by
   simp only [unitary, mapHistory, ExecutionState.applyUnitary_mapClassical,

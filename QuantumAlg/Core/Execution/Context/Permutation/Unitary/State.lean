@@ -25,8 +25,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {source target : RuntimeCtx .quantum}
-  (same : source.entries.Perm target.entries) (program : UnitaryCircuit source.register)
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+  {source target : RuntimeCtx .quantum}
+  (same : source.entries.Perm target.entries)
+  (program : UnitaryCircuit gates oracles source.quantumLayout)
 
 /-- The complete joint operator has exactly the corresponding reference coordinates. -/
 theorem unitary_referenceBasis (Reference : Register) :
@@ -54,11 +57,13 @@ private theorem density_naturality {Reference : Register}
         (density.reindex (referenceBasis same Reference)))
         (unitary_referenceBasis same program Reference))
 
-/-- Exact state coordinates preserve the actual unitary step and its unique path. -/
-theorem state_unitary (placed : program.physical_idx = source.physicalIdx)
-    {Reference : Register} {H : Type} [Fintype H] (original : State source Reference H) :
-    state same (original.unitary program) =
-      (state same original).unitary (unitaryProgram same program) := by
+/-- Full unitary execution preserves the service state in the same permuted coordinates. -/
+theorem state_unitary {Reference : Register} {H : Type} [Fintype H]
+    (original : State source Reference (services.HiddenState × H)) :
+    state same ((Circuit.unitary (operations := operations) (classicalOracles := services)
+      program).execute Reference original) =
+      (Circuit.unitary (operations := operations) (classicalOracles := services)
+        (unitaryProgram same program)).execute Reference (state same original) := by
   have block_eq {K : Type} [Fintype K] (value : State source Reference K)
       (stored : Store target) (history : K) :
       (state same value).block (stored, history) =
@@ -68,16 +73,17 @@ theorem state_unitary (placed : program.physical_idx = source.physicalIdx)
     ext row column
     exact state_entry same value (stored, history) row column
   apply ExecutionState.ext
-  rintro ⟨stored, history, path⟩
+  rintro ⟨stored, hidden, history, path⟩
   cases path
   rw [block_eq]
-  change (((Circuit.unitary program placed).execute Reference original).block
-    (store same.symm stored, (history, ()))).reindex (referenceBasis same Reference) = _
+  change (((Circuit.unitary (operations := operations) (classicalOracles := services)
+    program).execute Reference original).block
+    (store same.symm stored, (hidden, (history, ())))).reindex
+      (referenceBasis same Reference) = _
   rw [Circuit.execute_unitary_block, density_naturality]
-  rw [← block_eq original stored history]
-  exact (Circuit.execute_unitary_block (state same original)
-    (unitaryProgram same program) (unitaryProgram_physical same program placed)
-    stored history).symm
+  rw [← block_eq original stored (hidden, history)]
+  exact (Circuit.execute_unitary_block (operations := operations) (services := services)
+    (state same original) (unitaryProgram same program) stored hidden history).symm
 
 end
 

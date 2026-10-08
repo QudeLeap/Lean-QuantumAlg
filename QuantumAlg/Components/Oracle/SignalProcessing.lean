@@ -11,11 +11,11 @@ import all QuantumAlg.Components.Oracle.BlockEncoding
 import all QuantumAlg.Components.Oracle.Reflection
 
 /-!
-# Signal-processing oracle components
+# Signal-processing operators
 
-Reusable QSVT signal, projector, and phase declarations. Each declaration
-owns its resource coordinate. Derived families own their operator construction;
-the opaque signal-unitary seam explicitly accepts certified semantics.
+Certified projector phases, branch phases and scalar dilations used by QSVT.
+These operators describe exact linear-algebraic semantics; native applications
+and explicitly granted oracle calls determine execution resources separately.
 -/
 
 section
@@ -30,150 +30,15 @@ namespace QSVT
 
 noncomputable section
 
-/-! ## Signal-unitary query -/
-
-/-- Stable opaque-subroutine family for an `N`-qubit QSVT signal unitary. -/
-def qsvtOracleLabel (N : ℕ) : Resource.SubroutineLabel where
-  family := "qsvt"
-  name := "qsvt-signal-unitary"
-  parameters := [N]
-
-
-
-/-- Literal strict event for one QSVT signal-unitary query. -/
-def qsvtOracleEvent (N : ℕ) : Resource.Event .quantum :=
-  .quantumSubroutine (qsvtOracleLabel N).quantum
-
-
-
-/-- Compatibility constructor for the certified QSVT signal operator. -/
-def qsvtOracleOp {N : ℕ} (U : UnitaryOperator (Qubits N)) :
-    UnitaryOperator (Qubits N) :=
-  U
-
-/-- A QSVT signal query with explicit certified semantics at a caller-supplied
-physical placement. -/
-def qsvtOracleLeafAt {N : ℕ} (U : UnitaryOperator (Qubits N))
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits N) :=
-  UnitaryLeaf.subroutine (qsvtOracleLabel N) systemIdx U
-
-/-- A QSVT signal query on its canonical signal-register placement. -/
-def qsvtOracleLeaf {N : ℕ} (U : UnitaryOperator (Qubits N)) :
-    UnitaryLeaf (Qubits N) :=
-  qsvtOracleLeafAt U (List.range N)
-
-/-! ## Projector-controlled NOT queries -/
-
 /-- The two fixed projector roles in projected QSVT. -/
 inductive QSVTProjectorSide where
   | left
   | right
 deriving DecidableEq
 
-/-- Stable left-projector controlled-NOT subroutine family. -/
-def qsvtLeftProjectorOracleLabel (N : ℕ) : Resource.SubroutineLabel where
-  family := "qsvt"
-  name := "qsvt-left-projector-controlled-not"
-  parameters := [N]
-
-/-- Stable right-projector controlled-NOT subroutine family. -/
-def qsvtRightProjectorOracleLabel (N : ℕ) : Resource.SubroutineLabel where
-  family := "qsvt"
-  name := "qsvt-right-projector-controlled-not"
-  parameters := [N]
-
-
-
-/-- Literal strict event for one left-projector query. -/
-def qsvtLeftProjectorOracleEvent (N : ℕ) : Resource.Event .quantum :=
-  .quantumSubroutine (qsvtLeftProjectorOracleLabel N).quantum
-
-
-
-
-
-/-- Literal strict event for one right-projector query. -/
-def qsvtRightProjectorOracleEvent (N : ℕ) : Resource.Event .quantum :=
-  .quantumSubroutine (qsvtRightProjectorOracleLabel N).quantum
-
-
-
 /-- The fixed projector side selected at one remaining phase slot. -/
 def qsvtProjectorSide (remaining : ℕ) : QSVTProjectorSide :=
   if remaining % 2 = 0 then .right else .left
-
-/-- The role-specific projector query selected at one remaining phase slot. -/
-def qsvtProjectorOracleLabel (N remaining : ℕ) : Resource.SubroutineLabel :=
-  if remaining % 2 = 0 then qsvtRightProjectorOracleLabel N
-  else qsvtLeftProjectorOracleLabel N
-
-
-
-/-- Literal strict event for the parity-selected projector query. -/
-def qsvtProjectorOracleEvent (N remaining : ℕ) :
-    Resource.Event .quantum :=
-  .quantumSubroutine (qsvtProjectorOracleLabel N remaining).quantum
-
-section ProjectorControlledNotLeaves
-
-variable {N : Nat} (P : OrthogonalProjector N)
-
-/-- A left-projector controlled NOT at a caller-supplied placement. -/
-def qsvtLeftProjectorControlledNotLeafAt
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits (1 + N)) :=
-  UnitaryLeaf.subroutine (qsvtLeftProjectorOracleLabel N) systemIdx
-    (OrthogonalProjector.controlledNotOp P)
-
-/-- A right-projector controlled NOT at a caller-supplied placement. -/
-def qsvtRightProjectorControlledNotLeafAt
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits (1 + N)) :=
-  UnitaryLeaf.subroutine (qsvtRightProjectorOracleLabel N) systemIdx
-    (OrthogonalProjector.controlledNotOp P)
-
-end ProjectorControlledNotLeaves
-
-/-- A role-specific projector-controlled NOT on its canonical placement. -/
-def qsvtProjectorControlledNotLeaf {N : Nat} (side : QSVTProjectorSide)
-    (P : OrthogonalProjector N) : UnitaryLeaf (Qubits (1 + N)) :=
-  match side with
-  | .left => qsvtLeftProjectorControlledNotLeafAt P (List.range (1 + N))
-  | .right => qsvtRightProjectorControlledNotLeafAt P (List.range (1 + N))
-
-/-! ## Projected phase declarations -/
-
-/-- One declared phase-rotation coordinate in the projected-QSVT
-implementation. -/
-def qsvtControlledPhaseLabel : Resource.GateLabel :=
-  .declared "qsvt" "qsvt-controlled-phase"
-
-
-
-/-- Literal strict event for one projected-QSVT controlled phase. -/
-def qsvtControlledPhaseEvent : Resource.Event .quantum :=
-  .gate qsvtControlledPhaseLabel
-
-
-
-/-- A projected-QSVT phase rotation at a caller-supplied placement. -/
-def qsvtControlledPhaseLeafAt (φ : ℝ)
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits 1) :=
-  UnitaryLeaf.gate qsvtControlledPhaseLabel systemIdx (rotZStdOp φ)
-
-/-- A projected-QSVT phase rotation on its canonical ancilla placement. -/
-def qsvtControlledPhaseLeaf (φ : ℝ) : UnitaryLeaf (Qubits 1) :=
-  qsvtControlledPhaseLeafAt φ [0]
-
-/-! ## Source projector phase -/
-
-/-- Stable source-projector phase gate coordinate. -/
-def qsvtSourceProjectorPhaseLabel : Resource.GateLabel :=
-  .declared "qsvt" "qsvt-projector-phase"
-
-
-
-/-- Literal strict event for one source-projector phase. -/
-def qsvtSourceProjectorPhaseEvent : Resource.Event .quantum :=
-  .gate qsvtSourceProjectorPhaseLabel
 
 /-- The source projector phase `e^{iφ(2P-I)}` as a metadata-free unitary.
 [GSLW19, BlockHam.tex:738-745,883-887]. -/
@@ -249,17 +114,6 @@ theorem projectorPhaseOp_applyVec_of_complement_applyVec_eq_self {N : Nat}
     hpsi]
   simp
 
-/-- A source projector phase at a caller-supplied placement. -/
-def projectorPhaseLeafAt {N : Nat} (φ : ℝ) (P : OrthogonalProjector N)
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits N) :=
-  UnitaryLeaf.gate qsvtSourceProjectorPhaseLabel systemIdx
-    (projectorPhaseOp φ P)
-
-/-- A source projector phase on its canonical signal-register placement. -/
-def projectorPhaseLeaf {N : Nat} (φ : ℝ)
-    (P : OrthogonalProjector N) : UnitaryLeaf (Qubits N) :=
-  projectorPhaseLeafAt φ P (List.range N)
-
 /-! ## Branch global phase -/
 
 /-- Raw global-phase scaling formula. -/
@@ -287,18 +141,6 @@ theorem phaseScaledOperator_coe {R : Register} (ζ : ℂ)
       phaseScaledOperatorRaw ζ V :=
   rfl
 
-/-- Stable gate coordinate for an explicit global phase on one QSVT branch. -/
-def qsvtBranchPhaseLabel : Resource.GateLabel :=
-  .declared "qsvt" "qsvt-branch-global-phase"
-
-
-
-/-- Literal strict event for one explicit branch-global phase. -/
-def qsvtBranchPhaseEvent : Resource.Event .quantum :=
-  .gate qsvtBranchPhaseLabel
-
-
-
 /-- The family-specialized global phase applied to the identity operator. -/
 def qsvtBranchPhaseOp {R : Register} (ζ : ℂ)
     (hζ : Complex.normSq ζ = 1) : UnitaryOperator R :=
@@ -312,17 +154,6 @@ def qsvtBranchPhaseOp {R : Register} (ζ : ℂ)
     rw [hphase', one_smul]
     exact Matrix.mem_unitaryGroup_iff.mp
       (1 : UnitaryOperator R).property)
-
-/-- A global branch phase at a caller-supplied placement. -/
-def qsvtBranchPhaseLeafAt {R : Register} (ζ : ℂ)
-    (hζ : Complex.normSq ζ = 1)
-    (systemIdx : List Nat) : UnitaryLeaf R :=
-  UnitaryLeaf.gate qsvtBranchPhaseLabel systemIdx (qsvtBranchPhaseOp ζ hζ)
-
-/-- A global branch phase on its canonical empty placement. -/
-def qsvtBranchPhaseLeaf {R : Register} (ζ : ℂ)
-    (hζ : Complex.normSq ζ = 1) : UnitaryLeaf R :=
-  qsvtBranchPhaseLeafAt ζ hζ []
 
 /-! ## Scalar dilation -/
 
@@ -520,20 +351,6 @@ def scalarDilationWithSourceAncillas {m n : Nat}
   reassociatePhaseAncillaOperator (m := m) (n := n)
     (diagonalScalarDilationOperator (n := m + n) (fun _ => c) (fun _ => hc))
 
-/-! ## Scalar-dilation declaration -/
-
-/-- Stable gate coordinate for the closed scalar-dilation branch. -/
-def qsvtScalarDilationLabel : Resource.GateLabel :=
-  .declared "qsvt" "qsvt-scalar-dilation"
-
-
-
-/-- Literal strict event for one closed scalar-dilation branch. -/
-def qsvtScalarDilationEvent : Resource.Event .quantum :=
-  .gate qsvtScalarDilationLabel
-
-
-
 /-- The certified closed scalar-dilation operator family. -/
 def qsvtScalarDilationOp {m n : Nat} (c : ℂ)
     (hc : Complex.normSq c ≤ 1) :
@@ -550,12 +367,6 @@ def qsvtScalarDilationOp {m n : Nat} (c : ℂ)
       (diagonalScalarDilationOperator (n := m + n)
         (fun _ => c) (fun _ => hc)).property)
 
-/-- A closed scalar dilation at a caller-supplied physical placement. -/
-def qsvtScalarDilationLeafAt {m n : Nat} (c : ℂ)
-    (hc : Complex.normSq c ≤ 1)
-    (systemIdx : List Nat) : UnitaryLeaf (Qubits ((1 + m) + n)) :=
-  UnitaryLeaf.gate qsvtScalarDilationLabel systemIdx
-    (qsvtScalarDilationOp (m := m) (n := n) c hc)
 
 end
 

@@ -6,29 +6,26 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Primitives.WalshHadamard
+public import QuantumAlg.Primitives.WalshHadamard.Mathematics
 public import Mathlib.Data.Finset.Card
 public import Mathlib.Data.Fintype.Card
-import all QuantumAlg.Components.Oracle
-import all QuantumAlg.Core.Base.Accounting.ResourcePool
-import all QuantumAlg.Core.Base.Accounting.Weighted
+import all QuantumAlg.Components.Oracle.Phase.Operator
+import all QuantumAlg.Components.Oracle.Reflection
+import all QuantumAlg.Components.Oracle.ZeroReflection
 import all QuantumAlg.Core.Base.Layout.Qubit
-import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Measure
 import all QuantumAlg.Core.Measure.Distribution
 import all QuantumAlg.Primitives.AmplitudeAmplification.Construction
-import all QuantumAlg.Primitives.WalshHadamard
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
 
 /-!
-# Grover search: predicate geometry and the exact executable unitary
+# Predicate geometry and Grover's independent source operator
 
-The actual phase oracle and uniform-state diffusion rotate the normalized
-good/bad plane. After k iterations, the marked-event Born mass is exactly
-sin((2k+1) arcsin(sqrt(t/2^n))) squared [dW19, qcnotes.tex:2760-2852].
-The all-marked case is proved separately, without constructing a normalized
-empty unmarked state. Native events and depth below describe the same
-unitary sequence. Preparation, actual Z writes, classical packing and
-complete live output are assembled separately by the endpoint.
+The original phase predicate and uniform-state reflection rotate the good/bad
+plane. The resulting Born probability is exactly the original sine-squared
+formula, including the all-marked case [dW19, qcnotes.tex:2760-2852].
+Actual native execution, resource counts and measurement are connected to
+this independently defined operator in separate execution owners.
 -/
 
 section
@@ -321,136 +318,16 @@ theorem uniformState_decomposition {n : Nat}
       mul_zero, zero_add]
     exact (cosAngle_mul_unmarkedNormalization marked ht_lt).symm
 
-/-! ### Concrete oracle, diffusion, and same-circuit closed form -/
-
-/-- The Grover query coordinate is the Components-layer phase-oracle
-subroutine coordinate. -/
-def oracleSubroutineLabel (n : Nat) : Resource.SubroutineLabel :=
-  phaseOracleSubroutineLabel n
-
-/-- Strict event coordinate of one marked-predicate phase query. -/
-def oracleEvent (n : Nat) : Resource.Event .quantum :=
-  .quantumSubroutine (oracleSubroutineLabel n).quantum
+/-! ### Independent diffusion and source evolution -/
 
 /-- The semantic diffusion operator `2|U><U|-I`. -/
 def diffusionOperator (n : Nat) : UnitaryOperator (Qubits n) :=
   OrthogonalProjector.rankOneReflectionOp (WalshHadamard.uniformState n)
 
-/-- The reusable all-zero-reflection event in its Grover diffusion role. -/
-def diffusionEvent (n : Nat) : Resource.Event .quantum :=
-  ZeroReflection.event n
-
-/-- The phase-oracle and direct all-zero-reflection coordinates are distinct. -/
-theorem oracleEvent_ne_diffusionEvent (n : Nat) :
-    oracleEvent n ≠ diffusionEvent n := by
-  simp [oracleEvent, diffusionEvent, ZeroReflection.event]
-
-namespace EndpointDeclarations
-
-/-- The reusable all-zero reflection placed as a Grover diffusion leaf. -/
-def diffusionLeafAt (n : Nat) (systemIdx : List Nat) : UnitaryLeaf (Qubits n) :=
-  ZeroReflection.zeroReflectionLeafAt n systemIdx
-
-end EndpointDeclarations
-
-/-- The literal direct all-zero-reflection circuit. -/
-def diffusionReflectionLeaf (n : Nat) : UnitaryLeaf (Qubits n) :=
-  EndpointDeclarations.diffusionLeafAt n (List.range n)
-
-/-- The direct all-zero-reflection circuit within one diffusion block. -/
-def diffusionReflectionCircuit (n : Nat) : UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (diffusionReflectionLeaf n)
-    List.nodup_range
-
-/-- Initial Walsh-Hadamard preparation as a typed circuit. -/
-def initialPreparationCircuit (n : Nat) : UnitaryCircuit (Qubits n) :=
-  WalshHadamard.hadamardLayer n
-
-/-- The actual marked-predicate phase query as a typed circuit. -/
-def phaseOracleCircuit {n : Nat} (marked : Fin (2 ^ n) → Bool) :
-    UnitaryCircuit (Qubits n) :=
-  phaseOracle marked
-
-/-- The source-faithful elementary diffusion decomposition.  It executes
-`H†`, the direct all-zero reflection, then `H`, so its semantic operator is
-the uniform-state reflection while its strict event ledger remains explicit. -/
-def diffusionElementaryCircuit (n : Nat) : UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.seq
-    (UnitaryCircuit.dagger (WalshHadamard.hadamardLayer n))
-    (UnitaryCircuit.seq (diffusionReflectionCircuit n) (WalshHadamard.hadamardLayer n))
-
-/-- Exact direct-event ledger of one positive-width diffusion decomposition. -/
-def diffusionElementaryEventCost (n : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton WalshHadamard.hadamardEvent n +
-    (ResourcePool.singleton (diffusionEvent n) +
-      ResourcePool.singleton WalshHadamard.hadamardEvent n)
-
-/-- The actual uniform-state diffusion.  The width-zero identity is event-free
-and defines the zero-width unitary boundary. -/
-def diffusionCircuit : (n : Nat) → UnitaryCircuit (Qubits n)
-  | 0 => UnitaryCircuit.identity (Qubits 0) [] (by simp)
-  | n + 1 => diffusionElementaryCircuit (n + 1)
-
-@[simp]
-theorem diffusionCircuit_physical_idx (n : Nat) :
-    (diffusionCircuit n).physical_idx = List.range n := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-      rw [diffusionCircuit]
-      unfold diffusionElementaryCircuit UnitaryCircuit.seq
-      simp [diffusionReflectionCircuit, diffusionReflectionLeaf,
-        EndpointDeclarations.diffusionLeafAt,
-        ZeroReflection.zeroReflectionLeafAt,
-        UnitaryCircuit.ofLeaf,
-        WalshHadamard.hadamardLayer_physical_idx]
-
-@[simp]
-theorem diffusionCircuit_eventCost (n : Nat) :
-    (diffusionCircuit n).eventCost =
-      if n = 0 then 0 else
-        ResourcePool.singleton WalshHadamard.hadamardEvent n +
-          (ResourcePool.singleton (diffusionEvent n) +
-            ResourcePool.singleton WalshHadamard.hadamardEvent n) := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-      simp [diffusionCircuit, diffusionElementaryCircuit,
-        diffusionReflectionCircuit, diffusionReflectionLeaf,
-        EndpointDeclarations.diffusionLeafAt,
-        ZeroReflection.zeroReflectionLeafAt, diffusionEvent,
-        ZeroReflection.event]
-
-@[simp]
-theorem diffusionCircuit_eventTrace (n : Nat) :
-    (diffusionCircuit n).eventTrace =
-      if n = 0 then [] else
-        (WalshHadamard.parallelHadamardEventTrace n).reverse ++
-          [diffusionEvent n] ++ WalshHadamard.parallelHadamardEventTrace n := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-      simp [diffusionCircuit, diffusionElementaryCircuit,
-        diffusionReflectionCircuit, diffusionReflectionLeaf,
-        EndpointDeclarations.diffusionLeafAt,
-        ZeroReflection.zeroReflectionLeafAt, diffusionEvent,
-        ZeroReflection.event]
-
-@[simp]
-theorem diffusionCircuit_eventDepth (n : Nat) :
-    (diffusionCircuit n).eventDepth =
-      if n = 0 then .id else
-        .seq (.inverse (WalshHadamard.parallelHadamardEventDepth n))
-          (.seq (.atom (diffusionEvent n))
-            (WalshHadamard.parallelHadamardEventDepth n)) := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-      simp [diffusionCircuit, diffusionElementaryCircuit,
-        diffusionReflectionCircuit, diffusionReflectionLeaf,
-        EndpointDeclarations.diffusionLeafAt,
-        ZeroReflection.zeroReflectionLeafAt, diffusionEvent,
-        ZeroReflection.event]
+/-- The source's full measurement-free evolution, independently of any native implementation. -/
+def sourceOperator {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    UnitaryOperator (Qubits n) :=
+  (diffusionOperator n * phaseOracleOp marked) ^ k * WalshHadamard.hadamardLayerOperator n
 
 @[simp]
 theorem diffusionOperator_zero :
@@ -463,37 +340,13 @@ theorem diffusionOperator_zero :
     OrthogonalProjector.rankOneOp, WalshHadamard.uniformState,
     WalshHadamard.invSqrtCard, UnitaryOperator.ofMatrix]
 
-private theorem hadamardLayer_applyVec (n : Nat)
+theorem diffusionDecomposition_applyVec (n : Nat)
     (state : HilbertVector (Qubits n)) :
-    (WalshHadamard.hadamardLayer n).applyVec state =
-      (WalshHadamard.hadamardLayerOperator n).applyVec state := by
-  unfold UnitaryCircuit.applyVec
-  rw [WalshHadamard.hadamardLayer_matrix]
-
-private theorem hadamardLayerDagger_applyVec (n : Nat)
-    (state : HilbertVector (Qubits n)) :
-    (UnitaryCircuit.dagger (WalshHadamard.hadamardLayer n)).applyVec state =
-      (WalshHadamard.hadamardLayerOperator n).dagger.applyVec state := by
-  unfold UnitaryCircuit.applyVec
-  change ((WalshHadamard.hadamardLayer n).matrix.dagger).applyVec state = _
-  rw [WalshHadamard.hadamardLayer_matrix]
-
-private theorem diffusionReflectionCircuit_applyVec (n : Nat)
-    (state : HilbertVector (Qubits n)) :
-    (diffusionReflectionCircuit n).applyVec state =
-      (ZeroReflection.zeroReflectionOperator n).applyVec state := by
-  unfold UnitaryCircuit.applyVec
-  rw [show (diffusionReflectionCircuit n).matrix =
-      ZeroReflection.zeroReflectionOperator n by
-    rfl]
-
-private theorem diffusionElementaryCircuit_applyVec (n : Nat)
-    (state : HilbertVector (Qubits n)) :
-    (diffusionElementaryCircuit n).applyVec state =
+    ((WalshHadamard.hadamardLayerOperator n) *
+      (ZeroReflection.zeroReflectionOperator n *
+        (WalshHadamard.hadamardLayerOperator n).dagger)).applyVec state =
       (diffusionOperator n).applyVec state := by
-  rw [diffusionElementaryCircuit, UnitaryCircuit.applyVec_seq, UnitaryCircuit.applyVec_seq]
-  rw [hadamardLayerDagger_applyVec, diffusionReflectionCircuit_applyVec,
-    hadamardLayer_applyVec]
+  rw [UnitaryOperator.mul_applyVec, UnitaryOperator.mul_applyVec]
   rw [ZeroReflection.zeroReflectionOperator, diffusionOperator,
     OrthogonalProjector.rankOneReflectionOp_applyVec,
     OrthogonalProjector.rankOneReflectionOp_applyVec]
@@ -534,107 +387,6 @@ private theorem diffusionElementaryCircuit_applyVec (n : Nat)
   rw [(WalshHadamard.hadamardLayerOperator n).applyVec_sub,
     (WalshHadamard.hadamardLayerOperator n).applyVec_smul,
     AmplitudeAmplification.unitary_applyVec_dagger_applyVec, hinner, hzero]
-
-@[simp]
-theorem diffusionCircuit_matrix (n : Nat) :
-    ((diffusionCircuit n).matrix : HilbertOperator (Qubits n)) =
-      (diffusionOperator n : HilbertOperator (Qubits n)) := by
-  cases n with
-  | zero =>
-      change (1 : HilbertOperator (Qubits 0)) = diffusionOperator 0
-      exact diffusionOperator_zero.symm
-  | succ n =>
-      rw [diffusionCircuit]
-      apply HilbertOperator.ext_of_applyVec_eq
-      intro state
-      simpa only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec] using
-        diffusionElementaryCircuit_applyVec (n + 1) state
-
-/-- One Grover iterate, in execution order: phase oracle then diffusion. -/
-def groverStepCircuit {n : Nat} (marked : Fin (2 ^ n) → Bool) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.seq
-    (phaseOracleCircuit marked)
-    (diffusionCircuit n)
-
-/-- One real Grover circuit: initial Hadamards followed by `k` actual
-oracle/diffusion iterates. -/
-def circuit {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.seq
-    (initialPreparationCircuit n)
-    (UnitaryCircuit.iterate k (groverStepCircuit marked))
-
-@[simp] theorem initialPreparationCircuit_matrix (n : Nat) :
-    ((initialPreparationCircuit n).matrix : HilbertOperator (Qubits n)) =
-      (WalshHadamard.hadamardLayerOperator n : HilbertOperator (Qubits n)) := by
-  rw [initialPreparationCircuit, WalshHadamard.hadamardLayer_matrix]
-
-@[simp] theorem groverStepCircuit_matrix {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) :
-    ((groverStepCircuit marked).matrix : HilbertOperator (Qubits n)) =
-      (diffusionOperator n : HilbertOperator (Qubits n)) *
-        (phaseOracleOp marked : HilbertOperator (Qubits n)) := by
-  simp [groverStepCircuit, phaseOracleCircuit]
-
-@[simp] theorem circuit_physical_idx {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).physical_idx = List.range n := by
-  rw [circuit]
-  change UnitaryCircuit.unionPhysicalIdx
-      (WalshHadamard.hadamardLayer n).physical_idx
-      (UnitaryCircuit.unionPhysicalIdx (List.range n) (diffusionCircuit n).physical_idx) =
-    List.range n
-  rw [WalshHadamard.hadamardLayer_physical_idx, diffusionCircuit_physical_idx]
-  simp only [UnitaryCircuit.unionPhysicalIdx_self]
-
-@[simp] theorem phaseOracleCircuit_eventCost {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) :
-    (phaseOracleCircuit marked).eventCost = ResourcePool.singleton (oracleEvent n) :=
-  rfl
-
-@[simp] theorem phaseOracleCircuit_eventTrace {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) :
-    (phaseOracleCircuit marked).eventTrace = [oracleEvent n] :=
-  rfl
-
-@[simp] theorem phaseOracleCircuit_eventDepth {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) :
-    (phaseOracleCircuit marked).eventDepth = .atom (oracleEvent n) :=
-  rfl
-
-/-- A Grover iterate exposes the source order directly in its event trace. -/
-@[simp] theorem groverStepCircuit_eventTrace {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) :
-    (groverStepCircuit marked).eventTrace =
-      [oracleEvent n] ++ if n = 0 then [] else
-        (WalshHadamard.parallelHadamardEventTrace n).reverse ++
-          [diffusionEvent n] ++ WalshHadamard.parallelHadamardEventTrace n := by
-  simp [groverStepCircuit]
-
-/-- Every positive-width Grover iterate has the required query followed by the
-literal `H† → zero-reflection → H` diffusion decomposition. -/
-theorem groverStepCircuit_eventTrace_succ (n : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    (groverStepCircuit marked).eventTrace =
-      [oracleEvent (n + 1)] ++
-        (WalshHadamard.parallelHadamardEventTrace (n + 1)).reverse ++
-          [diffusionEvent (n + 1)] ++
-            WalshHadamard.parallelHadamardEventTrace (n + 1) := by
-  simp [groverStepCircuit_eventTrace]
-
-/-- The strict event pool of the circuit is derived from its sealed leaves. -/
-@[simp] theorem circuit_eventCost {n : Nat}
-    (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).eventCost =
-      ResourcePool.singleton WalshHadamard.hadamardEvent n +
-        k • (ResourcePool.singleton (oracleEvent n) +
-          if n = 0 then 0 else
-            ResourcePool.singleton WalshHadamard.hadamardEvent n +
-              (ResourcePool.singleton (diffusionEvent n) +
-                ResourcePool.singleton WalshHadamard.hadamardEvent n)) := by
-  simp [circuit, initialPreparationCircuit, groverStepCircuit,
-    phaseOracleCircuit_eventCost, diffusionCircuit_eventCost]
 
 /-- The concrete phase oracle acts diagonally on any state vector. -/
 theorem phaseOracleOp_applyVec_apply {n : Nat}
@@ -825,47 +577,30 @@ private theorem groverStepOperator_pow_apply_uniform {n : Nat}
       rw [pow_succ', HilbertOperator.mul_applyVec, ih]
       exact groverStepOperator_apply_amplifiedState marked ht_pos ht_lt k
 
-/-- The real circuit, including its initial Hadamards, has the source closed
-form on every nontrivial marked/unmarked instance. -/
-private theorem circuit_apply_zero_coe {n : Nat}
+/-- The independent source evolution has the exact nontrivial-plane closed form. -/
+private theorem sourceOperator_apply_zero_coe {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
-    UnitaryCircuit.applyVec (circuit marked k)
+    (sourceOperator marked k).applyVec
         (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n)) :
           HilbertVector (Qubits n)) =
       (nontrivialModel marked ht_pos ht_lt).amplifiedState k := by
-  rw [circuit, UnitaryCircuit.applyVec_seq, initialPreparationCircuit,
-    UnitaryCircuit.applyVec]
-  change HilbertOperator.applyVec
-      (((groverStepCircuit marked).matrix : HilbertOperator (Qubits n)) ^ k)
-      (HilbertOperator.applyVec
-        ((WalshHadamard.hadamardLayer n).matrix : HilbertOperator (Qubits n))
-        (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n)) :
-          HilbertVector (Qubits n))) = _
-  rw [WalshHadamard.hadamardLayer_matrix]
-  change HilbertOperator.applyVec
-      (((groverStepCircuit marked).matrix : HilbertOperator (Qubits n)) ^ k)
-      ((WalshHadamard.hadamardLayerOperator n).applyVec
-        (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n)) :
-          HilbertVector (Qubits n))) = _
-  rw [hadamardLayerOperator_applyVec_zero,
-    groverStepCircuit_matrix]
+  rw [sourceOperator, UnitaryOperator.mul_applyVec, hadamardLayerOperator_applyVec_zero]
   exact groverStepOperator_pow_apply_uniform marked ht_pos ht_lt k
 
-/-- The concrete Grover circuit maps the normalized all-zero input to the
-normalized closed form. -/
-theorem circuit_applyNormalized_zero {n : Nat}
+/-- The source operator sends the normalized zero input to the normalized closed form. -/
+theorem sourceOperator_apply_zero {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
-    UnitaryCircuit.applyNormalized (circuit marked k)
+    (sourceOperator marked k).apply
         (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n))) =
       (nontrivialModel marked ht_pos ht_lt).amplifiedState k := by
   apply NormalizedVector.ext
   intro i
   exact congrArg (fun state : HilbertVector (Qubits n) => state i)
-    (circuit_apply_zero_coe marked ht_pos ht_lt k)
+    (sourceOperator_apply_zero_coe marked ht_pos ht_lt k)
 
 /-! ### The evolved vector and its exact mathematical Born probability -/
 
@@ -879,7 +614,7 @@ def layout (n : Nat) : QubitLayout n where
   simp [layout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 
 /-- Canonically placed all-zero input.  The Hadamard preparation is kept in the
-circuit rather than hidden in the input state. -/
+source operator rather than hidden in the input state. -/
 def inputState (n : Nat) : QubitLayout.State (layout n) where
   state := PureState.ofNormalized
     (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n)))
@@ -892,11 +627,11 @@ def SuccessfulIndex {n : Nat} (marked : Fin (2 ^ n) → Bool)
     (j : Fin (2 ^ n)) : Prop :=
   marked j = true
 
-/-- The normalized state after the exact circuit stored in the run. -/
+/-- The normalized state predicted by the independent source evolution. -/
 def evolvedState {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     QubitLayout.State (layout n) :=
   { state := PureState.ofNormalized
-      (UnitaryCircuit.applyNormalized (circuit marked k)
+      ((sourceOperator marked k).apply
         (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n))))
       (layout n).systemIdx
     system_idx_eq := rfl }
@@ -907,9 +642,9 @@ theorem evolvedState_vector {n : Nat}
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
     (evolvedState marked k).normalized =
       (nontrivialModel marked ht_pos ht_lt).amplifiedState k := by
-  change UnitaryCircuit.applyNormalized (circuit marked k)
+  change (sourceOperator marked k).apply
       (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n))) = _
-  exact circuit_applyNormalized_zero marked ht_pos ht_lt k
+  exact sourceOperator_apply_zero marked ht_pos ht_lt k
 
 /-- Marked-event mass of the Born PMF of the exact evolved state. -/
 noncomputable def sourceSuccessProbability {n : Nat}
@@ -1045,171 +780,11 @@ theorem sourceSuccessProbability_eq {n t k : Nat}
 index. -/
 theorem main_phase_oracle_basis_action {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
-    HilbertOperator.applyVec (phaseOracle marked)
+    (phaseOracleOp marked).applyVec
         (NormalizedVector.ket (R := Qubits n) j : HilbertVector (Qubits n)) =
       (if marked j then -1 else 1 : ℂ) •
         (NormalizedVector.ket (R := Qubits n) j : HilbertVector (Qubits n)) := by
   exact phaseOracle_apply_ket marked j
-
-/-- On every positive-width circuit, the literal iterate trace contains the
-actual query then `H† → zero-reflection → H` block in each source iteration. -/
-theorem circuit_iteration_eventTrace_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    (UnitaryCircuit.iterate k (groverStepCircuit marked)).eventTrace =
-      (List.replicate k
-        ([oracleEvent (n + 1)] ++
-          (WalshHadamard.parallelHadamardEventTrace (n + 1)).reverse ++
-            [diffusionEvent (n + 1)] ++
-              WalshHadamard.parallelHadamardEventTrace (n + 1))).flatten := by
-  rw [UnitaryCircuit.iterate_eventTrace, groverStepCircuit_eventTrace_succ]
-
-/-- The full positive-width event trace has the Hadamard prefix followed by
-the exact ordered `oracle → H† → zero-reflection → H` repetitions. -/
-theorem circuit_eventTrace_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    (circuit marked k).eventTrace =
-      (initialPreparationCircuit (n + 1)).eventTrace ++
-        (List.replicate k
-          ([oracleEvent (n + 1)] ++
-            (WalshHadamard.parallelHadamardEventTrace (n + 1)).reverse ++
-              [diffusionEvent (n + 1)] ++
-                WalshHadamard.parallelHadamardEventTrace (n + 1))).flatten := by
-  rw [circuit, UnitaryCircuit.seq_eventTrace, circuit_iteration_eventTrace_succ]
-
-private theorem oracleEvent_ne_hadamardEvent (n : Nat) :
-    oracleEvent n ≠ WalshHadamard.hadamardEvent := by
-  simp [oracleEvent, oracleSubroutineLabel, phaseOracleSubroutineLabel,
-    WalshHadamard.hadamardEvent]
-
-private theorem diffusionEvent_ne_hadamardEvent (n : Nat) :
-    diffusionEvent n ≠ WalshHadamard.hadamardEvent := by
-  intro equal
-  have labelEqual : ZeroReflection.gateLabel n =
-      Resource.GateLabel.builtin "hadamard" := by
-    simpa [diffusionEvent, ZeroReflection.event,
-      WalshHadamard.hadamardEvent] using equal
-  have familyEqual := congrArg Resource.GateLabel.family labelEqual
-  simp [ZeroReflection.gateLabel, Resource.GateLabel.builtin] at familyEqual
-
-private theorem oracleEvent_ne_diffusionEvent' (n : Nat) :
-    oracleEvent n ≠ diffusionEvent n :=
-  oracleEvent_ne_diffusionEvent n
-
-/-- Positive-width circuits contain exactly `k` phase-oracle calls. -/
-theorem circuit_oracleMultiplicity_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    ResourcePool.count (oracleEvent (n + 1)) (circuit marked k).eventCost = k := by
-  have hhadamard := oracleEvent_ne_hadamardEvent (n + 1)
-  have hzero := oracleEvent_ne_diffusionEvent' (n + 1)
-  rw [circuit_eventCost]
-  simp [ResourcePool.count,
-    ResourcePool.singleton, Multiset.count_nsmul, Multiset.mem_replicate,
-    hhadamard, hzero]
-
-/-- Positive-width circuits contain exactly `k` direct all-zero reflections. -/
-theorem circuit_diffusionMultiplicity_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    ResourcePool.count (diffusionEvent (n + 1))
-      (circuit marked k).eventCost = k := by
-  have hhadamard := diffusionEvent_ne_hadamardEvent (n + 1)
-  have horacle := (oracleEvent_ne_diffusionEvent' (n + 1)).symm
-  rw [circuit_eventCost]
-  simp [ResourcePool.count,
-    ResourcePool.singleton, Multiset.count_nsmul, Multiset.mem_replicate,
-    hhadamard, horacle]
-
-/-- Positive-width circuits contain the initial layer and two Hadamard layers
-per Grover iteration, all counted from their strict event ledger. -/
-private theorem circuit_hadamardMultiplicity_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    ResourcePool.count WalshHadamard.hadamardEvent (circuit marked k).eventCost =
-      (n + 1) + k * (2 * (n + 1)) := by
-  have horacle := oracleEvent_ne_hadamardEvent (n + 1)
-  have hzero := diffusionEvent_ne_hadamardEvent (n + 1)
-  rw [circuit_eventCost]
-  simp only [if_neg (by omega : n + 1 ≠ 0)]
-  simp only [ResourcePool.count_add, ResourcePool.count_nsmul,
-    ResourcePool.count_singleton_self,
-    ResourcePool.count_singleton_of_ne horacle.symm,
-    ResourcePool.count_singleton_of_ne hzero.symm]
-  ring
-
-/-- Indicator weight for every direct declared elementary gate event.  Opaque
-phase-oracle subroutines, preparations, and measurements contribute zero. -/
-def declaredElementaryGateWeight : Resource.Event .quantum → Nat
-  | .gate _ => 1
-  | _ => 0
-
-/-- Aggregate direct-gate count extracted from one strict event ledger. -/
-def declaredElementaryGateCount (pool : ResourcePool .quantum) : Nat :=
-  ResourcePool.weightedCount declaredElementaryGateWeight pool
-
-@[simp] private theorem declaredElementaryGateWeight_oracleEvent (n : Nat) :
-    declaredElementaryGateWeight (oracleEvent n) = 0 := by
-  rfl
-
-private theorem declaredElementaryGateWeight_hadamardEvent :
-    declaredElementaryGateWeight WalshHadamard.hadamardEvent = 1 := by
-  rfl
-
-@[simp] private theorem declaredElementaryGateWeight_diffusionEvent (n : Nat) :
-    declaredElementaryGateWeight (diffusionEvent n) = 1 := by
-  rfl
-
-@[simp] private theorem declaredElementaryGateCount_add
-    (left right : ResourcePool .quantum) :
-    declaredElementaryGateCount (left + right) =
-      declaredElementaryGateCount left + declaredElementaryGateCount right :=
-  ResourcePool.weightedCount_add _ _ _
-
-@[simp] private theorem declaredElementaryGateCount_zero :
-    declaredElementaryGateCount (0 : ResourcePool .quantum) = 0 :=
-  ResourcePool.weightedCount_zero _
-
-@[simp] private theorem declaredElementaryGateCount_singleton
-    (event : Resource.Event .quantum) (multiplicity : Nat) :
-    declaredElementaryGateCount (ResourcePool.singleton event multiplicity) =
-      multiplicity * declaredElementaryGateWeight event := by
-  exact ResourcePool.weightedCount_singleton _ _ _
-
-@[simp] private theorem declaredElementaryGateCount_nsmul
-    (multiplicity : Nat) (pool : ResourcePool .quantum) :
-    declaredElementaryGateCount (multiplicity • pool) =
-      multiplicity * declaredElementaryGateCount pool := by
-  exact ResourcePool.weightedCount_nsmul _ _ _
-
-/-- Exact declared elementary-gate count of the positive-width circuit.  This
-counts the actual Hadamard and declared all-zero-reflection leaves. The
-reflection coordinate retains the native circuit declaration used here. -/
-theorem circuit_declaredElementaryGateCount_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    declaredElementaryGateCount (circuit marked k).eventCost =
-      (n + 1) + k * (2 * (n + 1) + 1) := by
-  rw [circuit_eventCost]
-  simp only [if_neg (by omega : n + 1 ≠ 0),
-    declaredElementaryGateCount_add, declaredElementaryGateCount_nsmul,
-    declaredElementaryGateCount_singleton,
-    declaredElementaryGateWeight_oracleEvent,
-    declaredElementaryGateWeight_hadamardEvent,
-    declaredElementaryGateWeight_diffusionEvent]
-  ring
-
-theorem circuit_unit_depth_succ (n k : Nat)
-    (marked : Fin (2 ^ (n + 1)) → Bool) :
-    DepthExpr.depthEval (fun _ => 1) (circuit marked k).eventDepth = 4 * k + 1 := by
-  simp [circuit, initialPreparationCircuit, groverStepCircuit,
-    phaseOracleCircuit_eventDepth, diffusionCircuit_eventDepth,
-    WalshHadamard.hadamardLayer_eventDepth,
-    WalshHadamard.parallelHadamardEventDepth_unit_depth]
-  omega
-
-theorem circuit_unit_depth_zero
-    (marked : Fin (2 ^ 0) → Bool) (k : Nat) :
-    DepthExpr.depthEval (fun _ => 1) (circuit marked k).eventDepth = k := by
-  simp [circuit, initialPreparationCircuit, groverStepCircuit,
-    phaseOracleCircuit_eventDepth, diffusionCircuit_eventDepth,
-    WalshHadamard.hadamardLayer_eventDepth,
-    WalshHadamard.parallelHadamardEventDepth_unit_depth]
 
 end GroverSearch
 

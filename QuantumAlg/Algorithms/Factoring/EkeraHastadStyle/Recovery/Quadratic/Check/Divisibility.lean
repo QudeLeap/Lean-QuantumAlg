@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual divisibility completion of a quadratic candidate check
@@ -56,11 +57,6 @@ def combineOp (refs : Refs ctx width) : ClassicalOp (.product .bit .bit) .bit ct
   .bit .and ctx (.product (.storage refs.valid.toCStorageRef)
     (.storage refs.divides.toCStorageRef)) refs.valid
 
-/-- Complete actual divisibility work, without short-circuiting either arithmetic instruction. -/
-def code (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (remainderOp refs))
-    (.seq (.classical (equalityOp refs)) (.classical (combineOp refs)))
-
 /-- The complete actual store after the three native writes. -/
 def storeStep (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   ((store.applyOp (remainderOp refs)).applyOp (equalityOp refs)).applyOp (combineOp refs)
@@ -69,18 +65,31 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Complete actual divisibility work, without short-circuiting either arithmetic instruction. -/
+def code (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (remainderOp refs))
+    (.seq (BitWord.instruction (execution := model) (equalityOp refs))
+      (BitWord.instruction (execution := model) (combineOp refs)))
+
+/-- The real remainder and both returned predicate values form the chronological path. -/
+def step (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (code (model := model) refs).Path :=
+  let remainder := BitWord.instructionStep (execution := model) (remainderOp refs) store
+  let equality := BitWord.instructionStep (execution := model) (equalityOp refs) remainder.1
+  let combined := BitWord.instructionStep (execution := model) (combineOp refs) equality.1
+  (combined.1, (remainder.2, (equality.2, combined.2)))
+
 /-- The three actual instructions preserve all complete incoming quantum-reference blocks. -/
 theorem nativeQuadratic_divisibility_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (code refs).execute Reference state = state.mapClassical (fun entry =>
-      (storeStep refs entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [code, Circuit.execute_seq, Circuit.execute_classical_mapClassical, State.mapHistory,
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      ((step (model := model) refs entry.1).1,
+        (entry.2.1, (entry.2.2, (step (model := model) refs entry.1).2)))) := by
+  simp only [code, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (code refs).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => (storeStep refs entry.1, (entry.2, ((), ((), ()))))))
-    (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

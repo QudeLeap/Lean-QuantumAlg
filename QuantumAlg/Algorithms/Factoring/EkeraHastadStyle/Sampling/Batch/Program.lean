@@ -34,26 +34,28 @@ open Execution
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The sole quantum allocation follows the actual complete native sampler. -/
-def sampleAndPrepare : Circuit base (bankContext base noQuantum N) :=
-  .seq (ShorStyle.Canonical.Sampler.Retained.circuit base N)
-    (RuntimeBank.prepare (sampledContext base N)
+def sampleAndPrepare : Circuit RuntimeRound.model base (bankContext base noQuantum N) :=
+  .seq (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
+    (RuntimeBank.prepare (operations := BitWord.model) (services := .empty) (sampledContext base N)
       (nativeBatch_sampled_noQuantum base noQuantum N)
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)
 
 /-- Shared finite cells are actually allocated once before the measured rounds. -/
-def initializeBank : Circuit base (readyContext base noQuantum N) :=
+def initializeBank : Circuit RuntimeRound.model base (readyContext base noQuantum N) :=
   .seq (sampleAndPrepare base noQuantum N)
-    (MeasurementCells.allocate (bankContext base noQuantum N) 2 (measurementBits N))
+    (MeasurementCells.allocate (model := RuntimeRound.model)
+      (bankContext base noQuantum N) 2 (measurementBits N))
 
 /-- Sixteen chronological outcomes come from the stored parameter and the same actual bank. -/
-def rounds : Circuit (readyContext base noQuantum N) (context base noQuantum N) :=
+def rounds : Circuit RuntimeRound.model
+    (readyContext base noQuantum N) (context base noQuantum N) :=
   RuntimeRepetition.code (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N))
     (readyContext base noQuantum N) (nativeBatch_ready_wires base noQuantum N)
     (parameter base noQuantum N) (cells base noQuantum N) 16
 
 /-- Complete first-batch syntax, preserving source sampling and early-factor handling order. -/
-def code : Circuit base (context base noQuantum N) :=
+def code : Circuit RuntimeRound.model base (context base noQuantum N) :=
   .seq (initializeBank base noQuantum N) (rounds base noQuantum N)
 
 /-- The original sample, complete parameter and all sixteen actual packed outcomes. -/
@@ -62,7 +64,7 @@ def resultShape (N : Nat) : CShape :=
     (.product (ParameterShape N) (.fixedVector 16 (.bits (measurementBits N))))
 
 /-- Actual complete Output retains the bank and observes only existing result cells. -/
-def run : AlgorithmRun base (context base noQuantum N) (resultShape N) where
+def run : AlgorithmRun RuntimeRound.model base (context base noQuantum N) (resultShape N) where
   code := code base noQuantum N
   output := Output.all (context base noQuantum N)
     (.read (.product (finalSample base noQuantum N)

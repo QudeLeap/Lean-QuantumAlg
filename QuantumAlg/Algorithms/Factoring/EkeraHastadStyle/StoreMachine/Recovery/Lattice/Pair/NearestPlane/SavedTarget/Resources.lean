@@ -22,7 +22,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual path composes the verified source, copy and nearest-plane traces in order. -/
 theorem pairToNearestPlaneSavedTargetInto_events (refs : Refs ctx N)
@@ -77,7 +78,8 @@ theorem pairToNearestPlaneSavedTargetInto_depth_le (refs : Refs ctx N)
 
 /-- Actual copying and nearest plane preserve every original borrowed-reference correlation. -/
 theorem copyNearestInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (copyNearestInto refs).BorrowedRestored Reference state
       ((copyNearestInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -89,7 +91,8 @@ theorem copyNearestInto_borrowedRestored (refs : Refs ctx N) (Reference : Regist
 /-- The complete actual saved-target run restores every borrowed-reference joint state. -/
 theorem pairToNearestPlaneSavedTargetInto_borrowedRestored (refs : Refs ctx N)
     (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (pairToNearestPlaneSavedTargetInto refs).BorrowedRestored Reference state
       ((pairToNearestPlaneSavedTargetInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state
@@ -98,7 +101,8 @@ theorem pairToNearestPlaneSavedTargetInto_borrowedRestored (refs : Refs ctx N)
 
 /-- Every actual copy and nearest-plane instruction retains the complete original context. -/
 theorem copyNearestInto_visited (refs : Refs ctx N) (path : (copyNearestInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (copyNearestInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (copyNearestInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   exact (List.mem_append.mp present).elim
@@ -111,7 +115,7 @@ theorem copyNearestInto_visited (refs : Refs ctx N) (path : (copyNearestInto ref
 
 /-- Every actual source, copy and nearest-plane instruction retains all original context entries. -/
 theorem pairToNearestPlaneSavedTargetInto_visited (refs : Refs ctx N)
-    (path : (pairToNearestPlaneSavedTargetInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (pairToNearestPlaneSavedTargetInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pairToNearestPlaneSavedTargetInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present

@@ -33,20 +33,23 @@ private theorem read_cell {source destination observed : CShape}
   apply Store.read_applyOp_of_not_mem_storageKeys
   simpa only [CInputRef.storageKeys, List.mem_singleton] using different
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- The actual final root is exactly the source refinement whenever its midpoint fits. -/
 theorem nativeSqrt_round_root
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx)
     (midpointFits : (store.read (.storage refs.root.toCStorageRef)).toNat +
       (store.read (.storage refs.half.toCStorageRef)).toNat < 2 ^ width) :
-    ((roundStep input refs store).1.read (.storage refs.root.toCStorageRef)).toNat =
+    ((roundStep (model := model) input refs store).1.read (.storage
+      refs.root.toCStorageRef)).toNat =
       Nat.BinarySqrt.refine (store.read input).toNat
         (store.read (.storage refs.half.toCStorageRef)).toNat
         (store.read (.storage refs.root.toCStorageRef)).toNat := by
   let added := store.applyOp (addOp refs)
   let squared := added.applyOp (squareOp refs)
   let compared := squared.applyOp (compareOp input refs)
-  let selected := selectStep refs compared
+  let selected := selectStep (model := model) refs compared
   have candidateAdded : (added.read (.storage refs.candidate.toCStorageRef)).toNat =
       (store.read (.storage refs.root.toCStorageRef)).toNat +
         (store.read (.storage refs.half.toCStorageRef)).toNat :=
@@ -86,7 +89,7 @@ theorem nativeSqrt_round_root
         separated.decisionCandidate).trans
         (read_cell added (squareOp refs) refs.candidate separated.squareCandidate))).trans
       candidateAdded
-  have rootSelected := nativeSqrt_select_read refs compared
+  have rootSelected := nativeSqrt_select_read (model := model) refs compared
   rw [decision, rootCompared, candidateCompared] at rootSelected
   have shifted := congrArg CShape.Value.toNat
     (read_cell selected.1 (shiftOp refs) refs.root separated.rootHalf.symm)
@@ -98,7 +101,8 @@ theorem nativeSqrt_round_root
 theorem nativeSqrt_round_half
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx) :
-    ((roundStep input refs store).1.read (.storage refs.half.toCStorageRef)).toNat =
+    ((roundStep (model := model) input refs store).1.read (.storage
+      refs.half.toCStorageRef)).toNat =
       (store.read (.storage refs.half.toCStorageRef)).toNat / 2 := by
   let added := store.applyOp (addOp refs)
   let squared := added.applyOp (squareOp refs)
@@ -108,7 +112,8 @@ theorem nativeSqrt_round_half
     (read_cell squared (compareOp input refs) refs.half separated.decisionHalf).trans
       ((read_cell added (squareOp refs) refs.half separated.squareHalf).trans
         (read_cell store (addOp refs) refs.half separated.candidateHalf))
-  have halfSelected : (selectStep refs compared).1.read (.storage refs.half.toCStorageRef) =
+  have halfSelected : (selectStep (model := model) refs compared).1.read (.storage
+    refs.half.toCStorageRef) =
       compared.read (.storage refs.half.toCStorageRef) := by
     unfold selectStep
     cases flagRead : compared.read (.storage refs.tooLarge.toCStorageRef) with
@@ -116,7 +121,7 @@ theorem nativeSqrt_round_half
         cases flag with
         | false => exact read_cell compared (copyOp refs) refs.half separated.rootHalf
         | true => rfl
-  exact (nativeSqrt_shift_read refs (selectStep refs compared).1).trans
+  exact (nativeSqrt_shift_read refs (selectStep (model := model) refs compared).1).trans
     (congrArg (fun value : CShape.Value (.unsignedWord width) => value.toNat / 2)
       (halfSelected.trans halfCompared))
 
@@ -124,7 +129,7 @@ theorem nativeSqrt_round_half
 theorem nativeSqrt_round_input
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx) :
-    (roundStep input refs store).1.read input = store.read input :=
-  nativeSqrt_round_read_unchanged input refs input separated.inputFree store
+    (roundStep (model := model) input refs store).1.read input = store.read input :=
+  nativeSqrt_round_read_unchanged (model := model) input refs input separated.inputFree store
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt

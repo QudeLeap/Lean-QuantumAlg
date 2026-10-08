@@ -14,16 +14,16 @@ import all QuantumAlg.Primitives.HadamardTest.Space
 import all QuantumAlg.Primitives.HadamardTest.Specification
 import all QuantumAlg.Core.Execution.Owned.Qubit.Prefix
 import all QuantumAlg.Core.Execution.Measurement.Sequence
-import all QuantumAlg.Core.Execution.Preparation
-import all QuantumAlg.Core.Execution.Trace.Bounds
+import all QuantumAlg.Core.Execution.Preparation.Resources
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Core.Base.Depth.EventCount
 
 /-!
-# Independent native resource bounds for the same elementary SWAP test
+# Independent native resource bounds for the same complete SWAP test
 
-Preparation, every H and Toffoli occurrence, and the actual stored Z result
-all belong to one run. The original input words and control remain live.
+The complete execution includes preparation, both H operations, each actual
+CNOT and Toffoli, and the stored Z result. Every original quantum system remains live.
 -/
 
 namespace QuantumAlg.SwapTest
@@ -32,49 +32,39 @@ noncomputable section
 
 open Execution
 
-private theorem preparation_event :
-    (OwnedQubitPrefix.zeroPreparation 1).event =
-      Resource.Event.preparation
-        { family := "builtin", name := "computational-basis", parameters := [1, 2, 0] } := rfl
-
 private theorem readout_event (width : Nat) :
-    Circuit.zEvent
+    Circuit.zEvent (gates := AlgorithmGate.model) (oracles := .empty)
+      (operations := .empty) (classicalOracles := .empty)
       ((post width).quantumLayout.wire (HadamardTest.readout (width + width)).wire).dimension =
-      .measurement { family := "builtin", name := "z", parameters := [2] } := by
+      .measurement (2 : ℕ+) := by
   rw [show (HadamardTest.readout (width + width)).wire =
     HadamardTest.controlWire (width + width) from rfl, HadamardTest.controlWire_dimension]
   rfl
 
-/-- Every actual path has exactly the independently stated elementary event ledger. -/
+/-- Every actual path has exactly the independently stated complete native event ledger. -/
 theorem code_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path = eventBudget width := by
-  simp only [Circuit.resourcePool, code, beforeMeasurement, HadamardTest.readoutCode,
-    OwnedQubitPrefix.prepareCode, Circuit.measurementSequence, Circuit.eventTrace,
-    List.append_nil, nativeProgram, UnitaryCircuit.reindex_eventTrace,
-    sourceCircuit_eventTrace, preparation_event, readout_event]
-  simp only [eventBudget, ResourcePool.ofList, List.append_assoc, List.cons_append, List.nil_append]
+  change ResourcePool.ofList
+    ((ZeroPreparation.eventTrace AlgorithmGate.model .empty
+      (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout ++
+      ((nativeProgram width).eventTrace ++ [])) ++
+      [Circuit.zEvent (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := .empty) (classicalOracles := .empty)
+        ((post width).quantumLayout.wire
+          (HadamardTest.readout (width + width)).wire).dimension]) = _
+  rw [ZeroPreparation.zeroPreparation_uniform_trace AlgorithmGate.model .empty
+    (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout 2 (fun _ => rfl), List.append_nil,
+    ResourcePool.ofList_append, ResourcePool.ofList_append,
+    UnitaryCircuit.ofList_eventTrace_eq_eventCost, nativeProgram,
+    Execution.unitaryOfEqualWires_cost, sourceCircuit_eventCost, readout_event]
+  rfl
 
-private theorem program_depth_le (width : Nat) :
-    (nativeProgram width).evaluatedEventDepth (fun _ => 1) ≤ 3 * width + 2 := by
-  calc
-    _ ≤ DepthExpr.costEval (fun _ => 1) (nativeProgram width).eventDepth :=
-      DepthExpr.depthEval_le_costEval (fun _ => 1) (nativeProgram width).eventDepth
-    _ = (nativeProgram width).eventCost.card :=
-      (DepthExpr.unitCost_eq_eventPool_card (nativeProgram width).eventDepth).trans
-        (congrArg Multiset.card (UnitaryCircuit.resourcesFromEventDepth_eq_eventCost _))
-    _ = 3 * width + 2 := by
-      rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, nativeProgram,
-        UnitaryCircuit.reindex_eventTrace, sourceCircuit_eventTrace]
-      simp only [ResourcePool.ofList, Multiset.coe_card, List.length_append,
-        List.length_singleton, List.length_replicate]
-      omega
-
-/-- The actual dependency depth is bounded by the full unit-event count. -/
+/-- The full depth includes control preparation, all gates and the actual measurement. -/
 theorem code_depth (width : Nat) (path : (code width).Path) :
     (code width).depth (fun _ => 1) path ≤ 3 * width + 4 := by
-  change (1 + ((nativeProgram width).evaluatedEventDepth (fun _ => 1) + 0)) +
+  change (1 + ((sourceCircuit width).evaluatedEventDepth (fun _ => 1) + 0)) +
     (1 + 0) ≤ 3 * width + 4
-  have bounded := program_depth_le width
+  rw [sourceCircuit_depth]
   omega
 
 /-- Actual resident space counts all input, prepared and retained resources. -/

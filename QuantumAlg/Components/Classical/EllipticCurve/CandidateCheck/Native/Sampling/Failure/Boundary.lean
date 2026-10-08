@@ -25,26 +25,10 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
-private theorem retainedStep_indicator_weight (key : StorageKey) (shape : CShape)
-    (fresh : key ∉ ctx.keys) {input output : CShape}
-    (op : ClassicalOp input output
-      (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H)
-    (condition : Store (ctx.addRetained key shape fresh) → Prop) [DecidablePred condition] :
-    ((Circuit.retainedStep ctx key shape fresh op).execute Reference state).effectWeight
-        (fun entry => if condition entry.1 then
-          Effect.one ((ctx.addRetained key shape fresh).register.prod Reference)
-        else Effect.zero ((ctx.addRetained key shape fresh).register.prod Reference)) =
-      state.effectWeight (fun entry =>
-        if condition ((entry.1.pushRetained key shape fresh).applyOp op) then
-          Effect.one (ctx.register.prod Reference)
-        else Effect.zero (ctx.register.prod Reference)) := by
-  rw [Circuit.execute_retainedStep]
-  let update : Store ctx × H → Store (ctx.addRetained key shape fresh) × (H × (Unit × Unit)) :=
-    fun entry => ((entry.1.pushRetained key shape fresh).applyOp op, (entry.2, ((), ())))
-  exact mapped_indicator_weight _ state update (fun entry => condition entry.1)
+attribute [local irreducible] persistentCtx packBatchResultStep
 
 private theorem packOption_none_iff {shape : CShape}
     (tag : CShape.Value .bit) (value : CShape.Value shape) :
@@ -63,7 +47,7 @@ private theorem option_none_weight {shape : CShape} {R : Register}
 /-- The actual final optional output is absent exactly with the incoming failure mass. -/
 theorem packBatchResult_none_weight (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H) :
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H)) :
     ((packBatchResult ctx width scalarWidth).execute Reference state).effectWeight
         (fun entry => if entry.1.read (batchResultRead ctx width scalarWidth) = .optionNone then
           Effect.one ((batchResultCtx ctx width scalarWidth).register.prod Reference)
@@ -72,12 +56,35 @@ theorem packBatchResult_none_weight (width scalarWidth : Nat)
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false then
           Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)
         else Effect.zero ((persistentCtx ctx width scalarWidth).register.prod Reference)) := by
-  have weighted := retainedStep_indicator_weight
-    (persistentCtx ctx width scalarWidth).canonicalFreshKey (.option (.unsignedWord scalarWidth))
-    (persistentCtx ctx width scalarWidth).canonicalFreshKey_fresh
-    (batchResultOp ctx width scalarWidth) state
-    (fun store => store.read (batchResultRead ctx width scalarWidth) = .optionNone)
-  refine weighted.trans ?_
+  let observe := fun entry : Store (batchResultCtx ctx width scalarWidth) × H =>
+    entry.1.read (batchResultRead ctx width scalarWidth)
+  rw [packBatchResult_execute]
+  have observed :
+      (packBatchResultState ctx width scalarWidth Reference state).effectWeight
+        (fun entry => if entry.1.read (batchResultRead ctx width scalarWidth) = .optionNone then
+          Effect.one ((batchResultCtx ctx width scalarWidth).register.prod Reference)
+        else Effect.zero ((batchResultCtx ctx width scalarWidth).register.prod Reference)) =
+      (packBatchResultObserved ctx width scalarWidth observe Reference state).effectWeight
+        (fun value => if value = .optionNone then
+          Effect.one ((batchResultCtx ctx width scalarWidth).register.prod Reference)
+        else Effect.zero ((batchResultCtx ctx width scalarWidth).register.prod Reference)) := by
+    unfold packBatchResultObserved
+    let update : Store (batchResultCtx ctx width scalarWidth) ×
+        (model.HiddenState × (H × (packBatchResult ctx width scalarWidth).Path)) →
+        (CShape.option (.unsignedWord scalarWidth)).Value :=
+      fun entry => observe (entry.1, entry.2.2.1)
+    let effects : (CShape.option (.unsignedWord scalarWidth)).Value →
+        Effect ((batchResultCtx ctx width scalarWidth).register.prod Reference) :=
+      fun value => if value = .optionNone then Effect.one _ else Effect.zero _
+    change (packBatchResultState ctx width scalarWidth Reference state).effectWeight
+      (fun entry => effects (update entry)) =
+        ((packBatchResultState ctx width scalarWidth Reference state).mapClassical
+          update).effectWeight effects
+    exact (ExecutionState.effectWeight_mapClassical_decision (Classical.decEq _)
+      (packBatchResultState ctx width scalarWidth Reference state) update effects).symm
+  rw [observed, packBatchResult_observe]
+  unfold packBatchResultExpected
+  rw [ExecutionState.effectWeight_mapClassical_decision]
   unfold ExecutionState.effectWeight
   apply Finset.sum_congr rfl
   intro entry _

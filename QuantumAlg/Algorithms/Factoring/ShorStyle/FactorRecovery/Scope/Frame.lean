@@ -48,15 +48,17 @@ private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modu
   · rw [liftInput_keys]
     exact separate
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 private theorem body_read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store (context ctx N)) :
-    (bodyStep source parameter phase output store).1.read (liftInput other) =
+    (bodyStep (model := model) source parameter phase output store).1.read (liftInput other) =
       store.read (liftInput other) :=
-  NativeFactorTail.read_other source (liftInput parameter) (liftInput phase)
+  NativeFactorTail.read_other (model := model) source (liftInput parameter) (liftInput phase)
     (cells ctx N) (liftWrite output) (liftInput other) (frame_free output other separate) store
 
 /-- The actual released factor scope changes no original operand outside its result cell. -/
@@ -65,9 +67,11 @@ theorem read_other (source : Input N)
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step source parameter phase output store).1.read other = store.read other :=
-  (leave_read other (bodyStep source parameter phase output (enter N store)).1).trans
-    ((body_read_other source parameter phase output other separate (enter N store)).trans
+    (step (model := model) source parameter phase output store).1.read other = store.read other :=
+  (leave_read other (bodyStep (model := model) source parameter phase output (enter N
+    store)).1).trans
+    ((body_read_other (model := model) source parameter phase output other separate (enter N
+      store)).trans
       (enter_read other store))
 
 end

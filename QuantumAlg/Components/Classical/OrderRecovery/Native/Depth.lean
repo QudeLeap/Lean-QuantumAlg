@@ -20,19 +20,28 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 
 open ClassicalAlgorithms.Modular
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth width phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth width phaseBits : Nat}
 
 /-- Whichever actual selection arm is taken has at most five dependent instructions. -/
 theorem nativeRecovery_selection_unitDepth_le (cells : ScanCells ctx modulusWidth width)
     (remainder : CInputRef ctx (.unsignedWord width))
-    (path : (selectCandidate cells remainder).Path) :
-    (selectCandidate cells remainder).depth (fun _ => 1) path ≤ 5 := by
+    (path : (selectCandidate (model := model) cells remainder).Path) :
+    (selectCandidate (model := model) cells remainder).depth (fun _ => 1) path ≤ 5 := by
   rcases path with ⟨value, path⟩
   cases value with
   | bit value =>
       cases value
-      · exact le_rfl
-      · change 3 ≤ 5
+      · change (advanceCursor (model := model) cells.cursor remainder cells.zero).Path at path
+        change (advanceCursor (model := model) cells.cursor remainder cells.zero).depth
+          (fun _ => 1) path ≤ 5
+        rw [nativeCursor_advance_unitDepth]
+      · change (acceptCursor (model := model) (cellRead cells.cursor.candidate)
+          (cellRead cells.valid) cells.selected cells.accepted cells.cursor.active).Path at path
+        change (acceptCursor (model := model) (cellRead cells.cursor.candidate)
+          (cellRead cells.valid) cells.selected cells.accepted cells.cursor.active).depth
+          (fun _ => 1) path ≤ 5
+        rw [nativeCursor_accept_unitDepth]
         decide
 
 /-- Candidate materialization, modular validation and selection all contribute to visit depth. -/
@@ -40,27 +49,33 @@ theorem nativeRecovery_visit_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (path : (visitWithDivision spec base cells division).Path) :
-    (visitWithDivision spec base cells division).depth (fun _ => 1) path ≤
+    (path : (visitWithDivision (model := model) spec base cells division).Path) :
+    (visitWithDivision (model := model) spec base cells division).depth (fun _ => 1) path ≤
       2 * modulusWidth + 16 + 6 * width := by
-  change (candidatePrefix (cellRead cells.cursor.numerator) (cellRead cells.cursor.denominator)
+  change (candidatePrefix (model := model) (cellRead cells.cursor.numerator)
+    (cellRead cells.cursor.denominator)
     (cellRead cells.cursor.previous) (cellRead cells.cursor.older) division
     cells.cursor.candidate).depth (fun _ => 1) path.1 +
-    ((validate spec base (cellRead cells.cursor.candidate) cells.zero cells.one cells.power
+    ((validate (model := model) spec base (cellRead cells.cursor.candidate)
+      cells.zero cells.one cells.power
       cells.positive cells.valid).depth (fun _ => 1) path.2.1 +
-      (selectCandidate cells (.second (cellRead division))).depth (fun _ => 1) path.2.2) ≤ _
+      (selectCandidate (model := model) cells
+        (.second (cellRead division))).depth (fun _ => 1) path.2.2) ≤ _
   rw [nativeCandidatePrefix_unitDepth, nativeValidation_unitDepth]
-  have powered := Modular.NativePower.nativePower_into_unitDepth_le spec base
+  have powered := Modular.NativePower.nativePower_into_unitDepth_le (model := model)
+    spec base
     (cellRead cells.cursor.candidate) cells.power path.2.1.1
-  have selected := nativeRecovery_selection_unitDepth_le cells (.second (cellRead division))
+  have selected := nativeRecovery_selection_unitDepth_le (model := model)
+    cells (.second (cellRead division))
     path.2.2
   omega
 
 /-- Lexical allocation adds no depth to the actual active visit. -/
 theorem nativeRecovery_activeVisit_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth width) (path : (activeVisit spec base cells).Path) :
-    (activeVisit spec base cells).depth (fun _ => 1) path ≤
+    (cells : ScanCells ctx modulusWidth width)
+    (path : (activeVisit (model := model) spec base cells).Path) :
+    (activeVisit (model := model) spec base cells).depth (fun _ => 1) path ≤
       2 * modulusWidth + 16 + 6 * width :=
   nativeRecovery_visit_unitDepth_le spec
     (base.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape width)
@@ -71,8 +86,9 @@ theorem nativeRecovery_activeVisit_unitDepth_le (spec : ModulusSpec modulusWidth
 /-- Only the actual active branch contributes visit depth. -/
 theorem nativeRecovery_slot_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth width) (path : (scanSlot spec base cells).Path) :
-    (scanSlot spec base cells).depth (fun _ => 1) path ≤
+    (cells : ScanCells ctx modulusWidth width)
+    (path : (scanSlot (model := model) spec base cells).Path) :
+    (scanSlot (model := model) spec base cells).depth (fun _ => 1) path ≤
       2 * modulusWidth + 16 + 6 * width := by
   rcases path with ⟨value, path⟩
   cases value with
@@ -85,10 +101,11 @@ theorem nativeRecovery_slot_unitDepth_le (spec : ModulusSpec modulusWidth)
 theorem nativeRecovery_scan_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (count : Nat)
-    (path : (scan spec base cells count).Path) :
-    (scan spec base cells count).depth (fun _ => 1) path ≤
+    (path : (scan (model := model) spec base cells count).Path) :
+    (scan (model := model) spec base cells count).depth (fun _ => 1) path ≤
       count * (2 * modulusWidth + 16 + 6 * width) := by
-  change 0 + ∑ index : Fin count, (scanSlot spec base cells).depth (fun _ => 1) (path index) ≤ _
+  change 0 + ∑ index : Fin count,
+    (scanSlot (model := model) spec base cells).depth (fun _ => 1) (path index) ≤ _
   rw [Nat.zero_add]
   calc
     _ ≤ ∑ _index : Fin count, (2 * modulusWidth + 16 + 6 * width) :=
@@ -97,19 +114,23 @@ theorem nativeRecovery_scan_unitDepth_le (spec : ModulusSpec modulusWidth)
 
 /-- Actual padded decoding, dyadic loading and three initialization writes are all charged. -/
 theorem nativeRecovery_initialization_unitDepth_le (sample : CInputRef ctx (.bits phaseBits))
-    (path : (initializeScan ctx modulusWidth phaseBits sample).Path) :
-    (initializeScan ctx modulusWidth phaseBits sample).depth (fun _ => 1) path ≤
+    (path : (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path) :
+    (initializeScan (model := model) ctx modulusWidth phaseBits sample).depth (fun _ => 1) path ≤
       4 * (phaseBits + 1) + 3 := by
-  have decoded := TerminalDecode.terminalDecode_intoFromBitRefs_depth_le .bigEndian
+  have decoded := TerminalDecode.terminalDecode_intoFromBitRefs_depth_le (model := model)
+    .bigEndian
     (initialPhaseBitRefs ctx modulusWidth phaseBits sample)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator (fun _ => 1) path.1
-  have loaded := ConstantWord.constantWord_depth_le
+  have loaded := ConstantWord.constantWord_depth_le (model := model)
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator (2 ^ phaseBits)
     (fun _ => 1) path.2.1
-  change (decodeInitialNumerator ctx modulusWidth phaseBits sample).depth (fun _ => 1) path.1 +
-    ((ConstantWord.circuit (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
+  change (decodeInitialNumerator (model := model) ctx modulusWidth phaseBits sample).depth
+    (fun _ => 1) path.1 +
+    ((ConstantWord.circuit (model := model)
+      (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.denominator
       (2 ^ phaseBits)).depth (fun _ => 1) path.2.1 + (1 + (1 + 1))) ≤ _
-  change (decodeInitialNumerator ctx modulusWidth phaseBits sample).depth (fun _ => 1) path.1 ≤
+  change (decodeInitialNumerator (model := model) ctx modulusWidth phaseBits sample).depth
+    (fun _ => 1) path.1 ≤
     (phaseBits + 1) * (1 + 1) at decoded
   omega
 
@@ -118,17 +139,20 @@ theorem nativeRecovery_into_unitDepth_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
-    (path : (into spec base sample output).Path) :
-    (into spec base sample output).depth (fun _ => 1) path ≤
+    (path : (into (model := model) spec base sample output).Path) :
+    (into (model := model) spec base sample output).depth (fun _ => 1) path ≤
       unitDepthBound modulusWidth phaseBits := by
-  change (initializeScan ctx modulusWidth phaseBits sample).depth (fun _ => 1) path.1 +
-    ((scan spec.modulusSpec
+  change (initializeScan (model := model) ctx modulusWidth phaseBits sample).depth
+    (fun _ => 1) path.1 +
+    ((scan (model := model) spec.modulusSpec
       (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
       (recoveryCells ctx modulusWidth (phaseBits + 1))
       (ClassicalAlgorithms.OrderRecovery.finiteCandidateFuel phaseBits)).depth
         (fun _ => 1) path.2.1 + 1) ≤ _
-  have initialized := nativeRecovery_initialization_unitDepth_le sample path.1
-  have scanned := nativeRecovery_scan_unitDepth_le spec.modulusSpec
+  have initialized := nativeRecovery_initialization_unitDepth_le (model := model)
+    sample path.1
+  have scanned := nativeRecovery_scan_unitDepth_le (model := model)
+    spec.modulusSpec
     (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
     (recoveryCells ctx modulusWidth (phaseBits + 1))
     (ClassicalAlgorithms.OrderRecovery.finiteCandidateFuel phaseBits) path.2.1

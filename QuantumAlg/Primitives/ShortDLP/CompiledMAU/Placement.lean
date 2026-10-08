@@ -27,14 +27,17 @@ does not permute wires: both the source and target are the same flat physical
 bit string, with only the parenthesization of `Nat` addition changed. -/
 def castProgram {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
-    (program : UnitaryCircuit (Qubits sourceWidth)) :
-    UnitaryCircuit (Qubits targetWidth) :=
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical sourceWidth).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical targetWidth).toQuantum :=
   hwidth ▸ program
 
 /-- Width transport preserves the strict event pool. -/
 @[simp] theorem castProgram_eventCost {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
-    (program : UnitaryCircuit (Qubits sourceWidth)) :
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical sourceWidth).toQuantum) :
     (castProgram hwidth program).eventCost = program.eventCost := by
   subst targetWidth
   rfl
@@ -42,16 +45,18 @@ def castProgram {sourceWidth targetWidth : Nat}
 /-- Width transport preserves the strict event critical path. -/
 @[simp] theorem castProgram_eventDepth {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
-    (program : UnitaryCircuit (Qubits sourceWidth)) :
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical sourceWidth).toQuantum) :
     (castProgram hwidth program).eventDepth = program.eventDepth := by
   subst targetWidth
   rfl
 
-/-- Width transport does not change the actual physical footprint. -/
-@[simp] theorem castProgram_physical_idx {sourceWidth targetWidth : Nat}
+/-- Width transport retains the exact native and query event sequence. -/
+@[simp] theorem castProgram_eventTrace {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
-    (program : UnitaryCircuit (Qubits sourceWidth)) :
-    (castProgram hwidth program).physical_idx = program.physical_idx := by
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical sourceWidth).toQuantum) :
+    (castProgram hwidth program).eventTrace = program.eventTrace := by
   subst targetWidth
   rfl
 
@@ -64,13 +69,20 @@ def castLabel {sourceWidth targetWidth : Nat}
 /-- Width transport preserves a proved computational-basis action. -/
 theorem applyNormalized_castProgram {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
-    (program : UnitaryCircuit (Qubits sourceWidth))
+    (program : UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical sourceWidth).toQuantum)
     (input output : Fin (2 ^ sourceWidth))
-    (happly : program.applyNormalized (NormalizedVector.ket input) =
-      NormalizedVector.ket output) :
+    (happly : program.applyNormalized (NormalizedVector.ket
+      ((QubitLayout.canonical sourceWidth).basisEquiv.symm input)) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical sourceWidth).basisEquiv.symm output)) :
     (castProgram hwidth program).applyNormalized
-        (NormalizedVector.ket (castLabel hwidth input)) =
-      NormalizedVector.ket (castLabel hwidth output) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical targetWidth).basisEquiv.symm
+            (castLabel hwidth input))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical targetWidth).basisEquiv.symm
+          (castLabel hwidth output)) := by
   subst targetWidth
   simpa [castLabel, castProgram] using happly
 

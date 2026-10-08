@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Original exact recovery result, preserved scan data and every unaffected caller read. -/
 structure Outcome (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
@@ -38,7 +39,8 @@ theorem pairCandidateRecoveryInto_correct (input : Input N) (generator : (ZMod N
     Outcome input generator refs store (recoveryStep input refs store).1 := by
   rw [recoveryStep_store]
   have prefixFacts := pairCandidatePrefix_correct input generator refs separation store initial
-  have scan := LatticeCandidateScanInitialized.initializedScanInto_correct input generator
+  have scan := LatticeCandidateScanInitialized.initializedScanInto_correct (model := model)
+    input generator
     (LatticePairNearestPlaneSavedTarget.sourceSamples refs.pair store) refs.scan
     separation.scan separation.scanFrames (prefixStep input refs store).1 prefixFacts
   refine ⟨scan.initial, scan.selected, ?_⟩

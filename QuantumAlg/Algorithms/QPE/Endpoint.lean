@@ -26,6 +26,8 @@ import all QuantumAlg.Algorithms.QPE.Specification
 import all QuantumAlg.Core.Execution.Local.Marginals
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Borrowed.Preservation
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 
 /-!
 # Complete native quantum phase estimation
@@ -70,45 +72,87 @@ public theorem problem_accepts_bits_iff {n : Nat} (P : QPEEigenstateInput n) (t 
 
 /-- The complete public execution prepares, measures and returns its actual retained phase bits. -/
 public def algorithm {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Algorithm .quantum (pre t n) (post t n) (.bits t) where
+    Algorithm (model P) (pre t n) (post t n) (.bits t) where
   run := run P t
 
 /-- Every actual path contains exactly the controlled source calls of the power ladder. -/
 public theorem algorithm_controlledUnitaryCount {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) (path : (algorithm P t).run.code.Path) :
-    ResourcePool.count (qpeControlledSourceUnitaryEvent n)
+    ResourcePool.count (model := model P) (.oracle UnitarySource.Coordinate.controlled)
       ((algorithm P t).run.code.resourcePool path) = 2 ^ t - 1 :=
   code_controlledUnitaryCount P t path
+
+/-- Every actual QPE path has the inverse-Fourier expansion's exact native one-qubit count. -/
+public theorem qpeAlgorithm_singleQubitCount {n : Nat} (P : QPEEigenstateInput n)
+    (t : Nat) (path : (algorithm P t).run.code.Path) :
+    ResourcePool.count (model := model P) (.gate .singleQubit)
+      ((algorithm P t).run.code.resourcePool path) = 2 * t + 3 * t.choose 2 :=
+  qpeCode_singleQubitCount P t path
+
+/-- Every actual QPE path has the inverse-Fourier expansion's exact native CNOT count. -/
+public theorem qpeAlgorithm_cnotCount {n : Nat} (P : QPEEigenstateInput n)
+    (t : Nat) (path : (algorithm P t).run.code.Path) :
+    ResourcePool.count (model := model P) (.gate .cnot)
+      ((algorithm P t).run.code.resourcePool path) = 2 * t.choose 2 + 3 * (t / 2) :=
+  qpeCode_cnotCount P t path
+
+/-- The actual phase-estimation circuit uses no native Toffoli gate. -/
+public theorem qpeAlgorithm_toffoliCount {n : Nat} (P : QPEEigenstateInput n)
+    (t : Nat) (path : (algorithm P t).run.code.Path) :
+    ResourcePool.count (model := model P) (.gate .toffoli)
+      ((algorithm P t).run.code.resourcePool path) = 0 :=
+  qpeCode_toffoliCount P t path
 
 /-- Complete Output lists every actual live entry, including the borrowed source and phase word. -/
 public theorem algorithm_output_listing {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
     (algorithm P t).run.output.listing = (post t n).keys :=
   run_output_listing P t
 
+/-- The named public execution satisfies its full independent input,
+state and resource contract. -/
+public theorem algorithm_solves {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
+    Algorithm.Solves (algorithm P t) (problem P t) := by
+  constructor
+  · intro Reference input promised _initialized
+    exact actual_success P t input promised.2
+  · intro _Reference _input _promised _initialized requirement present
+    exact False.elim (List.not_mem_nil present)
+  · intro Reference input promised _initialized
+    have promisedState : inputPromise P t
+        (input.state.mapClassical
+          (fun value => (value.1, (value.2, value.1)))).quantumMarginal.marginalLeft := by
+      have localPromise := promised.2
+      rw [Execution.Input.localState_quantumMarginal,
+        Execution.OracleInput.oracleInput_caller_quantumMarginal] at localPromise
+      simpa only [ExecutionState.mapClassical_quantumMarginal] using localPromise
+    have restored := code_borrowedRestored P t
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))) promisedState
+    have history := Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
+    change (code P t).BorrowedRestored Reference input.state
+      ((code P t).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
+    unfold Circuit.BorrowedRestored at restored ⊢
+    rw [restored]
+    refine Eq.trans ?_ history
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
+  · intro _Reference _input _promised _initialized path _supported
+    exact le_of_eq (code_events P t path)
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_residentSpace P t path
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_auxiliarySpace P t path
+  · intro _Reference _input _promised _initialized path _supported
+    exact code_depth P t path
+
+
 /-- The original borrowed-eigenstate phase-estimation problem is solved by the same actual
 execution with complete output, joint borrowed restoration and independent native budgets. -/
 public theorem main {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    ∃ candidate : Algorithm .quantum (pre t n) (post t n) (.bits t),
-      Algorithm.Solves candidate (problem P t) := by
-  refine ⟨algorithm P t, ?_⟩
-  constructor
-  · intro Reference input promised
-    exact actual_success P t input promised.2
-  · intro _Reference _input _promised requirement present
-    exact False.elim (List.not_mem_nil present)
-  · intro Reference input promised
-    apply code_borrowedRestored P t
-      (input.state.mapClassical (fun store => (store, store)))
-    rw [ExecutionState.mapClassical_quantumMarginal, ← Execution.Input.localState_quantumMarginal]
-    exact promised.2
-  · intro _Reference _input _promised path _supported
-    exact le_of_eq (code_events P t path)
-  · intro _Reference _input _promised path _supported
-    exact code_residentSpace P t path
-  · intro _Reference _input _promised path _supported
-    exact code_auxiliarySpace P t path
-  · intro _Reference _input _promised path _supported
-    exact code_depth P t path
+    ∃ candidate : Algorithm (model P) (pre t n) (post t n) (.bits t),
+      Algorithm.Solves candidate (problem P t) :=
+  ⟨algorithm P t, algorithm_solves P t⟩
 
 end
 

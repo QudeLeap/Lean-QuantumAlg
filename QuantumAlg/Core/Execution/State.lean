@@ -7,8 +7,8 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm.ExecutionState
-public import QuantumAlg.Core.Execution.Circuit
-import all QuantumAlg.Core.Execution.Circuit
+public import QuantumAlg.Core.Execution.Preparation
+public import QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Execution.Context.Layout
@@ -66,17 +66,6 @@ theorem classicalStep_mass (state : State ctx Reference H) {input output : CShap
     (classicalStep state op).mass = state.mass :=
   state.mapClassical_mass _
 
-/-- A declared call uses the same typed read and write boundary as an atomic operation. -/
-def declaredStep (state : State ctx Reference H) {input output : CShape}
-    (call : DeclaredClassicalCall ctx input output) : State ctx Reference (H × Unit) :=
-  state.mapClassical fun value =>
-    (value.1.write call.outputRef (call.eval (value.1.read call.inputRef)), (value.2, ()))
-
-theorem declaredStep_mass (state : State ctx Reference H) {input output : CShape}
-    (call : DeclaredClassicalCall ctx input output) :
-    (declaredStep state call).mass = state.mass :=
-  state.mapClassical_mass _
-
 /-- Allocate a retained classical cell while preserving the entire existing quantum register. -/
 def retain (state : State ctx Reference H)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
@@ -127,15 +116,15 @@ section Quantum
 
 variable {ctx : RuntimeCtx .quantum}
 
-/-- Apply the instruction's actual unitary to the complete context register. -/
-def unitary (state : State ctx Reference H) (program : UnitaryCircuit ctx.register) :
+/-- Apply a mathematical unitary while retaining the entire external reference. -/
+def unitary (state : State ctx Reference H) (operator : UnitaryOperator ctx.register) :
     State ctx Reference (H × Unit) :=
   (state.applyUnitary fun _ =>
-    UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)).mapClassical
+    UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)).mapClassical
       fun value => (value.1, (value.2, ()))
 
-theorem unitary_mass (state : State ctx Reference H) (program : UnitaryCircuit ctx.register) :
-    (unitary state program).mass = state.mass := by
+theorem unitary_mass (state : State ctx Reference H) (operator : UnitaryOperator ctx.register) :
+    (unitary state operator).mass = state.mass := by
   simp only [unitary, ExecutionState.mapClassical_mass, ExecutionState.applyUnitary_mass]
 
 /-- Measure the actual wire, write its actual result, and retain every quantum system. -/

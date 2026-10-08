@@ -7,15 +7,17 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Encoded.BitGates
+import all QuantumAlg.Components.Encoded.BitGates.GateSpec
+import all QuantumAlg.Components.Encoded.BitGates.QubitPrimitive
+import all QuantumAlg.Components.Encoded.BitGates.Word.Xor
+import all QuantumAlg.Components.Encoded.BitGates.Word.CopyValue
 /-!
 # Homogeneous arithmetic-block banks
 
 This module supplies the structural product combinators used by the
 width-parameterized ECADD assembly.  A bank is a right-nested product of a
-fixed number of identical physical arithmetic carriers.  Circuits and encoded
-word views can be lifted to one selected block without expanding the selected
-arithmetic circuit.
+fixed number of identical physical arithmetic carriers.  Encoded gates and
+word views can be lifted to one selected block on the common physical layout.
 -/
 
 section
@@ -362,8 +364,10 @@ theorem directCopyGates_toffoliMultiplicity_sum
 def directCopyProgram (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire) :
-    UnitaryCircuit (Qubits blockEncoding.width) :=
-  EncodedBit.GateSpec.programList (directCopyGates source target hdisjoint)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (blockEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (directCopyGates source target hdisjoint)
 
 /-- Classical basis-state action of the literal direct-copy gate list. -/
 def directCopyStep (source target : WordPort blockEncoding width)
@@ -377,7 +381,7 @@ theorem directCopy_realizes (source target : WordPort blockEncoding width)
     UnitaryCircuit.Realizes blockEncoding
       (directCopyProgram source target hdisjoint)
       (directCopyStep source target hdisjoint) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- A direct CNOT copy installs the source word in a clean target port. -/
 theorem directCopyStep_eq_set_of_clean
@@ -521,8 +525,11 @@ def bankPort (port : WordPort blockEncoding width) (index : Fin count) :
 /-- Literal CNOT routing between two different bank blocks. -/
 def copyProgram (source target : WordPort blockEncoding width)
     (sourceIndex targetIndex : Fin count) (hne : sourceIndex ≠ targetIndex) :
-    UnitaryCircuit (Qubits (encoding blockEncoding count).width) :=
-  EncodedBit.Word.xorIntoProgram (source.bankWord sourceIndex)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding blockEncoding count).width).toQuantum :=
+  EncodedBit.Word.xorIntoProgram (QubitLayout.canonical _) .empty
+    (source.bankWord sourceIndex)
     (target.bankWord targetIndex)
     (fun bit => bitAt_wire_ne_of_index_ne blockEncoding sourceIndex targetIndex
       hne (source.word.bit bit) (target.word.bit bit))
@@ -541,7 +548,7 @@ theorem copy_realizes (source target : WordPort blockEncoding width)
     UnitaryCircuit.Realizes (encoding blockEncoding count)
       (copyProgram source target sourceIndex targetIndex hne)
       (copyStep source target sourceIndex targetIndex hne) :=
-  EncodedBit.Word.xorInto_realizes _ _ _
+  EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty _ _ _
 
 /-- Copying a source port into a clean target port installs the source word. -/
 theorem copyStep_eq_bankSet_of_clean
@@ -591,8 +598,8 @@ complete ordered primitive-event trace. -/
 theorem liftGates_map_event (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
-    (liftGates blockEncoding index gates).map EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+    (liftGates blockEncoding index gates).map (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   induction count with
   | zero => exact Fin.elim0 index
   | succ count ih =>
@@ -602,12 +609,12 @@ theorem liftGates_map_event (blockEncoding : BinaryLabelEncoding Block)
           | zero =>
               rw [liftGates]
               exact
-                (EncodedBit.GateSpec.map_event_relabel (consEquiv count) _).trans
+                (EncodedBit.GateSpec.map_event_relabel .empty (consEquiv count) _).trans
                   (EncodedBit.GateSpec.map_event_prodLeft _ _)
           | succ index =>
               rw [liftGates]
               exact
-                (EncodedBit.GateSpec.map_event_relabel (consEquiv count) _).trans
+                (EncodedBit.GateSpec.map_event_relabel .empty (consEquiv count) _).trans
                   ((EncodedBit.GateSpec.map_event_prodRight blockEncoding _).trans
                     (ih ⟨index, by omega⟩))
 
@@ -637,7 +644,7 @@ theorem liftGates_toffoliMultiplicity_sum
     ((liftGates blockEncoding index gates).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  exact EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (liftGates_map_event blockEncoding index gates)
 
 /-- Folding a lifted gate list updates exactly its selected bank entry. -/
@@ -685,46 +692,13 @@ theorem liftGates_realizes (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
     UnitaryCircuit.Realizes (encoding blockEncoding count)
-      (EncodedBit.GateSpec.programList (liftGates blockEncoding index gates))
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+        (liftGates blockEncoding index gates))
       (fun state =>
         set state index (EncodedBit.GateSpec.stepList gates (get state index))) :=
-  EncodedBit.GateSpec.realizesList_congrStep _
+  EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty _
     (liftGates_stepList blockEncoding index gates)
-
-/-- Lift one block circuit to a selected bank factor. -/
-def liftCircuit (blockEncoding : BinaryLabelEncoding Block) :
-    {count : Nat} → Fin count → UnitaryCircuit (Qubits blockEncoding.width) →
-      UnitaryCircuit (Qubits (encoding blockEncoding count).width)
-  | _ + 1, ⟨0, _⟩, program =>
-      UnitaryCircuit.prodLeft (n := (encoding blockEncoding _).width) program
-  | _ + 1, ⟨index + 1, h⟩, program =>
-      UnitaryCircuit.prodRight (m := blockEncoding.width)
-        (liftCircuit blockEncoding ⟨index, by omega⟩ program)
-
-/-- A lifted block circuit updates exactly the selected bank entry. -/
-theorem liftCircuit_realizes (blockEncoding : BinaryLabelEncoding Block)
-    {count : Nat} (index : Fin count)
-    {program : UnitaryCircuit (Qubits blockEncoding.width)} {step : Block → Block}
-    (h : UnitaryCircuit.Realizes blockEncoding program step) :
-    UnitaryCircuit.Realizes (encoding blockEncoding count)
-      (liftCircuit blockEncoding index program)
-      (fun state => set state index (step (get state index))) := by
-  induction count with
-  | zero => exact Fin.elim0 index
-  | succ count ih =>
-      refine Fin.cases ?_ (fun later => ?_) index
-      · have hhead := UnitaryCircuit.Realizes.prodLeft
-          (right := encoding blockEncoding count) h
-        exact (UnitaryCircuit.Realizes.relabel (consEquiv count) hhead).congrStep (by
-          intro state
-          cases state
-          rfl)
-      · have htail := UnitaryCircuit.Realizes.prodRight
-          (left := blockEncoding) (ih later)
-        exact (UnitaryCircuit.Realizes.relabel (consEquiv count) htail).congrStep (by
-          intro state
-          cases state
-          rfl)
 
 end BlockBank
 

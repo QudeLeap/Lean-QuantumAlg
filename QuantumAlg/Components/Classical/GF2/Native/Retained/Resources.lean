@@ -23,7 +23,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 noncomputable section
 
@@ -32,12 +33,12 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
 
 /-- Actual output retention preserves the complete original native event allowance. -/
 theorem gf2Retained_pool_le (path : (retainedCircuit input key fresh).Path) :
-    (retainedCircuit input key fresh).resourcePool path ≤ intoEnvelope kind rowCount width :=
+    (retainedCircuit input key fresh).resourcePool path ≤ intoEnvelope model rowCount width :=
   gf2WithState_pool_le (input.underRetained key (.option (.unsignedWord width)) fresh)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) path.2
 
 /-- Every arbitrary event duration is charged through the original retained invocation. -/
-theorem gf2Retained_depth_le (duration : Resource.Event kind → Nat)
+theorem gf2Retained_depth_le (duration : Resource.Event model → Nat)
     (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).depth duration path ≤
       intoDepthLimit rowCount width duration := by
@@ -49,7 +50,7 @@ theorem gf2Retained_depth_le (duration : Resource.Event kind → Nat)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) duration path.2
 
 /-- Actual retention and lexical scopes preserve the same-path serial event-duration equation. -/
-theorem gf2Retained_duration_eventTrace (duration : Resource.Event kind → Nat)
+theorem gf2Retained_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).depth duration path =
       (((retainedCircuit input key fresh).eventTrace path).map duration).sum := by
@@ -69,7 +70,7 @@ theorem gf2Retained_duration_eventTrace (duration : Resource.Event kind → Nat)
 /-- Every actual native instruction remains counted at the retained endpoint. -/
 theorem gf2Retained_eventCount_le (path : (retainedCircuit input key fresh).Path) :
     ((retainedCircuit input key fresh).eventTrace path).length ≤
-      intoDepthLimit (kind := kind) rowCount width (fun _ => 1) :=
+      intoDepthLimit (model := model) rowCount width (fun _ => 1) :=
   gf2WithState_eventCount_le (input.underRetained key (.option (.unsignedWord width)) fresh)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) path.2
 
@@ -77,7 +78,7 @@ theorem gf2Retained_eventCount_le (path : (retainedCircuit input key fresh).Path
 theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).peakResidentSpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
-        intoScratchSpace kind rowCount width +
+        intoScratchSpace model rowCount width +
           (SpacePool.ofShape (.option (.unsignedWord width)) + ctx.residentSpace) := by
   refine (Circuit.peakResidentSpace_seq
     (.retain ctx key (.option (.unsignedWord width)) fresh)
@@ -94,7 +95,7 @@ theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) 
     intro axis
     change ctx.residentSpace axis ≤
       (((stateShapes rowCount width).map SpacePool.ofShape).sum) axis +
-        intoScratchSpace kind rowCount width axis +
+        intoScratchSpace model rowCount width axis +
           (SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.residentSpace axis)
     omega
   · have last := List.mem_singleton.mp later
@@ -102,7 +103,7 @@ theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) 
     intro axis
     change SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.residentSpace axis ≤
       (((stateShapes rowCount width).map SpacePool.ofShape).sum) axis +
-        intoScratchSpace kind rowCount width axis +
+        intoScratchSpace model rowCount width axis +
           (SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.residentSpace axis)
     omega
 
@@ -110,7 +111,7 @@ theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) 
 theorem gf2Retained_auxiliary_le (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).peakAuxiliarySpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
-        intoScratchSpace kind rowCount width +
+        intoScratchSpace model rowCount width +
           (SpacePool.ofShape (.option (.unsignedWord width)) + ctx.auxiliarySpace) := by
   refine (Circuit.peakAuxiliarySpace_seq
     (.retain ctx key (.option (.unsignedWord width)) fresh)
@@ -127,7 +128,7 @@ theorem gf2Retained_auxiliary_le (path : (retainedCircuit input key fresh).Path)
     intro axis
     change ctx.auxiliarySpace axis ≤
       (((stateShapes rowCount width).map SpacePool.ofShape).sum) axis +
-        intoScratchSpace kind rowCount width axis +
+        intoScratchSpace model rowCount width axis +
           (SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.auxiliarySpace axis)
     omega
   · have last := List.mem_singleton.mp later
@@ -135,7 +136,7 @@ theorem gf2Retained_auxiliary_le (path : (retainedCircuit input key fresh).Path)
     intro axis
     change SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.auxiliarySpace axis ≤
       (((stateShapes rowCount width).map SpacePool.ofShape).sum) axis +
-        intoScratchSpace kind rowCount width axis +
+        intoScratchSpace model rowCount width axis +
           (SpacePool.ofShape (.option (.unsignedWord width)) axis + ctx.auxiliarySpace axis)
     omega
 

@@ -52,10 +52,11 @@ theorem refresh_denominator (refs : Refs ctx width) (separation : Separation ref
     separation.phase .g11 refreshCells (by decide))
 
 /-- The actual refreshed dot product and retained norm produce the original rounded coefficient. -/
-theorem refreshed_division_coefficient (refs : Refs ctx width) (separation : Separation refs)
+theorem refreshed_division_coefficient {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    RawSignedRepresents ((RoundedDiv.bodyStep refs.machine.division31
+    RawSignedRepresents ((RoundedDiv.bodyStep (model := model) refs.machine.division31
       (LatticeDotRefresh.refreshStore refs.machine.basis.third refs.machine.basis.first
         (refreshG31Refs refs) store)).1.read (writeInput refs.machine.division31.output))
       (postReductionCoefficient basis) := by
@@ -72,10 +73,12 @@ theorem refreshed_division_coefficient (refs : Refs ctx width) (separation : Sep
   · exact fits.denominatorFits
 
 /-- Actual final-direction division preserves all represented basis coordinates. -/
-theorem division_basis (refs : Refs ctx width) (separation : Separation refs)
+theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
-    LatticeMetricMachine.BasisRawRepresents (RoundedDiv.bodyStep refs.machine.division31 store).1
+    LatticeMetricMachine.BasisRawRepresents
+      (RoundedDiv.bodyStep (model := model) refs.machine.division31 store).1
       refs.machine.basis basis := by
   intro row
   apply LatticeSecondPairMachine.row_raw_of_frame refs.machine separation.phase row _
@@ -136,10 +139,11 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
       after.read other = before.read other
 
 /-- Actual final first-direction reduction realizes the original result on the original domain. -/
-theorem postReductionInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem postReductionInto_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    Outcome refs store (postReductionStep refs store).1 basis := by
+    Outcome refs store (postReductionStep (model := model) refs store).1 basis := by
   have refreshedBasis := refresh_basis refs separation store basis initial.basisRep
   have coefficient := refreshed_division_coefficient refs separation store basis initial fits
   have dividedBasis := division_basis refs separation _ basis refreshedBasis
@@ -148,7 +152,7 @@ theorem postReductionInto_correct (refs : Refs ctx width) (separation : Separati
     postReductionInto_callerFrame refs store⟩
   change RawSignedRepresents ((LatticeArithmetic.pointStore
     (writeInput refs.machine.division31.output) refs.machine.basis.first refs.machine.basis.third
-    refs.machine.reduceProduct (RoundedDiv.bodyStep refs.machine.division31
+    refs.machine.reduceProduct (RoundedDiv.bodyStep (model := model) refs.machine.division31
       (LatticeDotRefresh.refreshStore refs.machine.basis.third refs.machine.basis.first
         (refreshG31Refs refs) store)).1).read (writeInput refs.machine.division31.output)) _
   rw [reduction_coefficient refs separation]

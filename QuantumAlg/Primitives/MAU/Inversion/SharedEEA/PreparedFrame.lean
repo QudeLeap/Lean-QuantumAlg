@@ -142,7 +142,8 @@ theorem frameEquiv_prepared_control (width : Nat) (old : (before width).register
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- The actual preparation has zero row support on every decoded source frame with Ctrl one. -/
-theorem execute_dirty_frame_row (width : Nat) (state : State (before width) Reference H)
+theorem execute_dirty_frame_row (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (freshRow freshColumn : (controlLayout width).register.Index)
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index)
     (dirty : (frameEquiv width (assembly width (freshRow, oldRow.1))).control = true) :
@@ -154,7 +155,8 @@ theorem execute_dirty_frame_row (width : Nat) (state : State (before width) Refe
   contradiction
 
 /-- The complete matrix on the source Ctrl-zero subspace is the unchanged prior joint matrix. -/
-theorem execute_prepared_frame_entry (width : Nat) (state : State (before width) Reference H)
+theorem execute_prepared_frame_entry (width : Nat)
+    (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index) :
     ((circuit width).execute Reference state).quantumMarginal.matrix
       (joined width (preparation width).value oldRow)

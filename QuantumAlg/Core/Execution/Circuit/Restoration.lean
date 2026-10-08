@@ -39,18 +39,21 @@ private theorem transported_history {kind : ProblemKind} {pre post : RuntimeCtx 
     (observeBorrowed_mapHistory state update)
 
 /-- Actual stored-value dispatch restores the entire borrowed interface of its selected fibers. -/
-theorem borrowedRestored_branch {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit pre post)
+theorem borrowedRestored_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
     (Reference : Register)
-    (restores : ∀ value {History : Type} [Fintype History] (state : State pre Reference History),
+    (restores : ∀ value {History : Type} [Fintype History]
+      (state : State pre Reference (model.HiddenState × History)),
       (body value).BorrowedRestored Reference state ((body value).execute Reference state))
-    {History : Type} [Fintype History] (state : State pre Reference History) :
+    {History : Type} [Fintype History]
+      (state : State pre Reference (model.HiddenState × History)) :
     (Circuit.branch input body).BorrowedRestored Reference state
       ((Circuit.branch input body).execute Reference state) := by
   let selected := state.selectClassical (fun entry => entry.1.read input)
-  let family : shape.Value → State post Reference (History × (Circuit.branch input body).Path) :=
+  let family : shape.Value → State post Reference
+      (model.HiddenState × (History × (Circuit.branch input body).Path)) :=
     fun value => ((body value).execute Reference (selected value)).mapHistory
-      (fun history => (history.1, ⟨value, history.2⟩))
+      (fun history => (history.1, (history.2.1, ⟨value, history.2.2⟩)))
   have total : ∑ value, (family value).mass ≤ 1 := by
     simp only [family, State.mapHistory_mass, execute_mass]
     exact state.sum_selectClassical_mass_le_one (fun entry => entry.1.read input)
@@ -72,7 +75,8 @@ theorem borrowedRestored_branch {kind : ProblemKind} {pre post : RuntimeCtx kind
       (Circuit.branch input body).borrowedClassicalShape_preserved
       (Circuit.branch input body).borrowedRegister_preserved
       ((body value).execute Reference (selected value))
-      (fun history => (history.1, (⟨value, history.2⟩ : (Circuit.branch input body).Path)))
+      (fun history => (history.1, (history.2.1,
+        (⟨value, history.2.2⟩ : (Circuit.branch input body).Path))))
     exact mapped.trans (restores value (selected value))
   rw [BorrowedRestored, observeBorrowedAfter, actual, observeBorrowed_finiteSum,
     transportBorrowed_finiteSum]
@@ -90,37 +94,35 @@ theorem borrowedRestored_branch {kind : ProblemKind} {pre post : RuntimeCtx kind
         (ExecutionState.finiteSum_selectClassical state (fun entry => entry.1.read input))
 
 /-- Actual owned-system execution restores all borrowed classical-reference correlations. -/
-theorem borrowedRestored_of_noBorrowedQuantum {kind : ProblemKind}
-    {pre post : RuntimeCtx kind} (code : Circuit pre post) :
+theorem borrowedRestored_of_noBorrowedQuantum {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} (code : Circuit model pre post) :
     ∀ (_noBorrowedQuantum : pre.borrowedQuantumWires = []) (Reference : Register)
-      {History : Type} [Fintype History] (state : State pre Reference History),
+      {History : Type} [Fintype History]
+      (state : State pre Reference (model.HiddenState × History)),
       code.BorrowedRestored Reference state (code.execute Reference state) := by
   induction code with
-  | id =>
+  | @id selected ctx =>
       intro _ Reference History _ state
-      rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_id]
-      exact observeBorrowed_mapHistory state _
+      exact borrowedRestored_id (model := selected) (ctx := ctx)
+        (Reference := Reference) (H := History) state
   | classical op =>
       intro _ Reference History _ state
       exact borrowedRestored_classical op state
-  | declaredCall call =>
+  | classicalQuery application =>
       intro _ Reference History _ state
-      exact borrowedRestored_declaredCall call state
-  | unitary program placed =>
+      exact borrowedRestored_classicalQuery application state
+  | unitary program =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_unitary_classicalReference noBorrowedQuantum program placed state
+      exact borrowedRestored_unitary_classicalReference noBorrowedQuantum program state
   | measureZ wire output =>
       intro noBorrowedQuantum Reference History _ state
       exact borrowedRestored_measureZ_classicalReference noBorrowedQuantum ⟨wire, output⟩ state
-  | randomBits width output =>
-      intro _ Reference History _ state
-      exact borrowedRestored_randomBits width output state
   | retain ctx key shape fresh =>
       intro _ Reference History _ state
       exact borrowedRestored_retain key shape fresh state
-  | prepare ctx key layout fresh disjoint preparation =>
+  | prepareZero ctx key layout fresh disjoint =>
       intro _ Reference History _ state
-      exact borrowedRestored_prepare state key layout fresh disjoint preparation
+      exact borrowedRestored_prepareZero state key layout fresh disjoint
   | seq first second firstIH secondIH =>
       intro noBorrowedQuantum Reference History _ state
       exact borrowedRestored_seq first second state

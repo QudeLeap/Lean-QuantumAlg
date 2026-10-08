@@ -26,7 +26,8 @@ open Execution ClassicalAlgorithms.OrderRecovery
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- The actual complete scoped routine writes exactly the original source's optional word. -/
 theorem nativeRecovery_into_result
@@ -36,16 +37,17 @@ theorem nativeRecovery_into_result
     (output : CWriteRef ctx (outputShape phaseBits)) (store : Store ctx)
     (baseValue : store.read base = .canonicalResidue input.base)
     (sampleValue : store.read sample = .bits input.terminalBits) :
-    (intoStep spec base sample output store).1.read (cellRead output) =
+    (intoStep (model := model) spec base sample output store).1.read (cellRead output) =
       encodeOutput (recoverUnitOrder spec input) := by
   change (scopeRecoveryStep ctx modulusWidth (phaseBits + 1) recoveryFields
-    (recoveryBody spec base sample output) (recoveryBodyStep spec base sample output) store).1.read
+    (recoveryBody (model := model) spec base sample output)
+    (recoveryBodyStep (model := model) spec base sample output) store).1.read
       (cellRead output) = _
   rw [nativeRecovery_scope_store, nativeRecovery_leave_read]
-  change (((fun initial => (scanSlotStep spec.modulusSpec
+  change (((fun initial => (scanSlotStep (model := model) spec.modulusSpec
     (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields base)
     (recoveryCells ctx modulusWidth (phaseBits + 1)) initial).1)^[finiteCandidateFuel phaseBits]
-      (initializeScanStep ctx modulusWidth phaseBits sample
+      (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
         (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1).applyOp
           (packRecoveredOp output)).read
     (underRecoveryFields modulusWidth (phaseBits + 1) recoveryFields (cellRead output)) = _
@@ -60,7 +62,8 @@ theorem nativeRecovery_into_decoded_result
     (output : CWriteRef ctx (outputShape phaseBits)) (store : Store ctx)
     (baseValue : store.read base = .canonicalResidue input.base)
     (sampleValue : store.read sample = .bits input.terminalBits) :
-    decodeOutput ((intoStep spec base sample output store).1.read (cellRead output)) =
+    decodeOutput ((intoStep (model := model) spec base sample output store).1.read
+      (cellRead output)) =
       recoverUnitOrder spec input :=
   (congrArg decodeOutput
     (nativeRecovery_into_result spec input base sample output store baseValue sampleValue)).trans

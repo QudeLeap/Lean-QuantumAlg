@@ -28,47 +28,61 @@ open ClassicalRoutines
 noncomputable section
 
 /-- The five real guard operations retain their actual word widths and Boolean coordinates. -/
-def guardEvents (kind : ProblemKind) (N : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .bitXor (phaseBits N + 1)),
-    .classicalOperation (.bit .not),
-    .classicalOperation (.wordBinary .lessThan (phaseBits N + 1)),
-    .classicalOperation (.bit .and), .classicalOperation (.bit .and)]
+def guardEvents (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : List (Resource.Event
+    model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .bitXor
+      (phaseBits N + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .lessThan
+        (phaseBits N + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and)),
+        .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))]
 
 /-- Every branch returns through the same native option representation at the modulus width. -/
-def packBudget (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.nominalEncoding (.packOption (modulusBits N))))
+def packBudget (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool model :=
+  ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.nominalEncoding (.packOption (modulusBits N)))))
 
 /-- Both true half-order stages contribute their full independent native event allowance. -/
-def reduceEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  NativeHalfPower.eventEnvelope kind N + NativeHalfFactorScope.eventEnvelope kind N
+def reduceEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool
+    model :=
+  NativeHalfPower.eventEnvelope model N + NativeHalfFactorScope.eventEnvelope model N
 
 /-- The genuine guard chooses reduction or a real option-none packaging instruction. -/
-def checkedEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  ResourcePool.ofList (guardEvents kind N) +
-    ResourcePool.max (packBudget kind N) (reduceEnvelope kind N)
+def checkedEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool
+    model :=
+  ResourcePool.ofList (guardEvents model N) +
+    ResourcePool.max (packBudget model N) (reduceEnvelope model N)
 
 /-- Real early-factor priority admits either its single pack or the full checked order route. -/
-def dispatchEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  ResourcePool.max (packBudget kind N) (checkedEnvelope kind N)
+def dispatchEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool
+    model :=
+  ResourcePool.max (packBudget model N) (checkedEnvelope model N)
 
 /-- Actual stored base packing, complete order recovery and its nominal decode precede dispatch. -/
-def recoveredEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
+def recoveredEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool
+    model :=
   ResourcePool.singleton
-    (.classicalOperation (.residueEncoding .pack (modulusBits N))) +
-      (OrderRecovery.Native.eventEnvelope kind (modulusBits N) (phaseBits N) +
+    (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.residueEncoding .pack
+        (modulusBits N)))) +
+      (OrderRecovery.Native.eventEnvelope model (modulusBits N) (phaseBits N) +
         (ResourcePool.singleton
-          (.classicalOperation (.nominalEncoding (.unpackOption (phaseBits N + 1)))) +
-          dispatchEnvelope kind N))
+          (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
+              (.unpackOption (phaseBits N + 1))))) +
+          dispatchEnvelope model N))
 
 /-- The exception executes two actual bit writes, a literal factor-two load and a real pack. -/
-def evenEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.bit .xor)) +
-    (ResourcePool.singleton (.classicalOperation (.bit .not)) +
-      (ConstantWord.envelope kind (modulusBits N) + packBudget kind N))
+def evenEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool model :=
+  ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.bit .xor))) +
+    (ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.bit .not))) +
+      (ConstantWord.envelope model (modulusBits N) + packBudget model N))
 
 /-- The public modulus alone chooses the original exceptional or full recovery allowance. -/
-def eventEnvelope (kind : ProblemKind) (N : Nat) : ResourcePool kind :=
-  if 2 < N ∧ Even N then evenEnvelope kind N else recoveredEnvelope kind N
+def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : ResourcePool model
+    :=
+  if 2 < N ∧ Even N then evenEnvelope model N else recoveredEnvelope model N
 
 /-- Independent serial allowance for actual modular half-power and complete factor selection. -/
 def reduceDepth (N : Nat) : Nat :=

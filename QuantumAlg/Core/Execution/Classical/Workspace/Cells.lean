@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace
+public import QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Execution.Classical.Workspace
 
 /-!
@@ -20,13 +22,13 @@ interpreter and Store.
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- One internally allocated workspace cell together with its ownership fact. -/
-structure Cell {kind : ProblemKind} (ctx : RuntimeCtx kind) (shape : CShape) where
+public structure Cell {kind : ProblemKind} (ctx : RuntimeCtx kind) (shape : CShape) where
   /-- The writable reference for this allocated workspace cell. -/
   ref : CWriteRef ctx shape
   role : ref.toCStorageRef.role = .workspace
 
 /-- A heterogeneous collection of live lexical workspaces. -/
-inductive Cells {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+public inductive Cells {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     List CShape → Type where
   | nil : Cells ctx []
   | cons {shape : CShape} {shapes : List CShape}
@@ -36,17 +38,17 @@ inductive Cells {kind : ProblemKind} (ctx : RuntimeCtx kind) :
 namespace Cells
 
 /-- Head cell of a nonempty heterogeneous workspace list. -/
-def head {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+public def head {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     {shapes : List CShape} : Cells ctx (shape :: shapes) → Cell ctx shape
   | .cons first _ => first
 
 /-- Tail cells of a nonempty heterogeneous workspace list. -/
-def tail {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+public def tail {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     {shapes : List CShape} : Cells ctx (shape :: shapes) → Cells ctx shapes
   | .cons _ remaining => remaining
 
 /-- Lift every live lexical cell through one further workspace allocation. -/
-def underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public def underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     Cells (ctx.addWorkspace key shape fresh) shapes :=
@@ -61,7 +63,7 @@ def underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
         (tail.underWorkspace key shape fresh)
 
 /-- Every member of a heterogeneous collection avoids one key. -/
-def AvoidsKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public def AvoidsKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes)
     (key : StorageKey) : Prop :=
   match cells with
@@ -70,17 +72,17 @@ def AvoidsKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
       head.ref.toCStorageRef.key ≠ key ∧ tail.AvoidsKey key
 
 /-- Storage keys of a heterogeneous collection, in allocation-stack order. -/
-def keys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shapes : List CShape} :
+public def keys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shapes : List CShape} :
     Cells ctx shapes → List StorageKey
   | .nil => []
   | .cons head tail => head.ref.toCStorageRef.key :: tail.keys
 
-theorem workspaceCells_keys_eq_nil {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem workspaceCells_keys_eq_nil {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (cells : Cells ctx []) : cells.keys = [] := by
   cases cells
   rfl
 
-theorem workspaceCells_keys_eq_cons_head_tail {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem workspaceCells_keys_eq_cons_head_tail {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {shapes : List CShape}
     (cells : Cells ctx (shape :: shapes)) :
     cells.keys = cells.head.ref.toCStorageRef.key :: cells.tail.keys := by
@@ -88,14 +90,14 @@ theorem workspaceCells_keys_eq_cons_head_tail {kind : ProblemKind} {ctx : Runtim
   rfl
 
 /-- The live lexical cells have pairwise distinct storage keys. -/
-def Distinct {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public def Distinct {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes) : Prop :=
   match cells with
   | .nil => True
   | .cons head tail =>
       tail.AvoidsKey head.ref.toCStorageRef.key ∧ tail.Distinct
 
-theorem workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes) (key : StorageKey)
     (avoids : cells.AvoidsKey key) : key ∉ cells.keys := by
   induction cells with
@@ -105,7 +107,7 @@ theorem workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx : Runtim
       simp only [keys, List.mem_cons, not_or]
       exact ⟨Ne.symm headAvoids, tailIH tailAvoids⟩
 
-theorem workspaceCells_distinct_keys_nodup {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem workspaceCells_distinct_keys_nodup {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes)
     (distinct : cells.Distinct) : cells.keys.Nodup := by
   induction cells with

@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.EllipticCurve.Example.Curve
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.OrderPreparation
+import all QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Expansion
 
 /-!
 # Literal preparation data for the order-seven example
@@ -24,14 +24,13 @@ open PrimeFieldShortWeierstrass
 noncomputable section
 
 /-- The actual order-seven source preparation has set-bit exponents zero, one and two. -/
-def orderExpansion : ECDLP.Canonical.OrderExpansion canonicalProblem.order where
-  s := 2
+def orderExpansion : FiniteCyclicDLP.OrderExpansion ecdLPInstance.subgroupOrder where
+  count := 3
+  count_pos := by norm_num
   ell := fun index => index.val
   ell_strict := fun _ _ ordered => ordered
   sum_powers := by
-    norm_num [canonicalProblem, ECDLP.Canonical.problem, ecdLPInstance, subgroupOrder,
-      Fin.sum_univ_succ]
-  N_pos := ecdLPInstance.subgroupOrder_pos
+    norm_num [ecdLPInstance, subgroupOrder, Fin.sum_univ_succ]
 
 end
 

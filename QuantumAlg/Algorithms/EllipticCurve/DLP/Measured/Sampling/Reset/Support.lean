@@ -41,17 +41,15 @@ private theorem marginal_supported {ctx : RuntimeCtx .quantum} {Reference : Regi
 
 private theorem unionSplit_supported (ctx frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint ctx frame) (label : ctx.register.Index)
-    {Reference : Register} {History : Type} [Fintype History]
-    (state : State (ctx.disjointUnion frame separate) Reference History)
+    {Reference : Register} {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (ctx.disjointUnion frame separate) Reference (Hidden × History))
     (supported : ∀ basis,
       (unionBasisEquiv ctx frame separate basis.1).1 ≠ label →
         state.quantumMarginal.matrix basis basis = 0)
     (basis : (ctx.register.prod (frame.register.prod Reference)).Index)
     (outside : basis.1 ≠ label) :
-    (splitState ctx frame separate state).quantumMarginal.matrix basis basis = 0 := by
-  unfold splitState
-  rw [Circuit.marginal_reindex, ExecutionState.mapClassical_quantumMarginal,
-    DensityOperator.reindex_entry]
+    (splitServiceState ctx frame separate state).quantumMarginal.matrix basis basis = 0 := by
+  rw [contextUnion_splitServiceState_quantumMarginal, DensityOperator.reindex_entry]
   apply supported
   have coordinates := (referenceBasis ctx frame separate Reference).apply_symm_apply basis
   have first := congrArg Prod.fst coordinates
@@ -59,8 +57,8 @@ private theorem unionSplit_supported (ctx frame : RuntimeCtx .quantum)
 
 private theorem retainedSplit_supported (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys) (label : ctx.register.Index)
-    {Reference : Register} {History : Type} [Fintype History]
-    (state : State (ctx.addRetained key shape fresh) Reference History)
+    {Reference : Register} {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (ctx.addRetained key shape fresh) Reference (Hidden × History))
     (supported : ∀ basis, basis.1 ≠ label →
       state.quantumMarginal.matrix basis basis = 0)
     (basis : (ctx.register.prod
@@ -81,8 +79,8 @@ private theorem retainedSplit_supported (ctx : RuntimeCtx .quantum) (key : Stora
 
 private theorem cellsSplit_supported (ctx : RuntimeCtx .quantum) (count : Nat)
     (label : ctx.register.Index) {Reference : Register}
-    {History : Type} [Fintype History]
-    (state : State (MeasurementCells.context ctx 2 count) Reference History)
+    {Hidden History : Type} [Fintype Hidden] [Fintype History]
+    (state : State (MeasurementCells.context ctx 2 count) Reference (Hidden × History))
     (supported : ∀ basis, basis.1 ≠ MeasurementCells.basisEquiv ctx 2 count label →
       state.quantumMarginal.matrix basis basis = 0)
     (basis : (ctx.register.prod (Circuit.measurementCellsReference ctx 2 count Reference)).Index)
@@ -108,11 +106,53 @@ private theorem cellsSplit_supported (ctx : RuntimeCtx .quantum) (count : Nat)
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
+/-- The coordinate split used by readout preserves the prescribed complete
+sampling-basis support. This works for a previously reset input as well as
+for the output of the current reset. -/
+theorem samplingReadoutSplit_supported (fieldTail exponentWidth : Nat)
+    (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ)
+    (seed : AffinePoint E)
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State (PublicInput.terminal E exponentWidth) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
+    (supported : ∀ input, input.1 ≠
+      samplingResetLabel E exponentWidth fieldTail sameWidth fits seed →
+        state.quantumMarginal.matrix input input = 0)
+    (basis : ((Allocation.after p.size (2 * exponentWidth)).register.prod
+      (Circuit.measurementCellsReference (Allocation.after p.size (2 * exponentWidth)) 2
+        (2 * exponentWidth) (Register.prod (PublicInput.frame E exponentWidth).register
+          Reference))).Index)
+    (outside : basis.1 ≠ Allocation.initializedAssembly p (2 * exponentWidth)
+      ((BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).value,
+        (InPlacePreparation.preparation p).value,
+        Encoding.pairedMontgomeryInput fieldTail exponentWidth sameWidth fits seed (0, 0))) :
+    (samplingReadoutSplitState E exponentWidth state).quantumMarginal.matrix basis basis =
+      0 := by
+  let label := Allocation.initializedAssembly p (2 * exponentWidth)
+    ((BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).value,
+      (InPlacePreparation.preparation p).value,
+      Encoding.pairedMontgomeryInput fieldTail exponentWidth sameWidth fits seed (0, 0))
+  have framed := unionSplit_supported (exponentMeasurementContext p exponentWidth)
+    (PublicInput.frame E exponentWidth) (PublicInput.terminal_disjoint E exponentWidth)
+    (MeasurementCells.basisEquiv (Allocation.after p.size (2 * exponentWidth)) 2
+      (2 * exponentWidth) label) state (by
+        intro input different
+        apply supported input
+        intro same
+        apply different
+        rw [same, samplingResetLabel, Equiv.apply_symm_apply])
+  exact cellsSplit_supported (Allocation.after p.size (2 * exponentWidth))
+    (2 * exponentWidth) label
+    (splitServiceState (exponentMeasurementContext p exponentWidth)
+      (PublicInput.frame E exponentWidth)
+      (PublicInput.terminal_disjoint E exponentWidth) state) framed basis outside
+
 /-- Actual reset establishes the original initialized local ket in the full scalar coordinates. -/
 theorem samplingResetSplit_supported (fieldTail exponentWidth : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (seed : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (PublicInput.terminal E exponentWidth) Reference History)
+    (state : State (PublicInput.terminal E exponentWidth) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (basis : ((Allocation.after p.size (2 * exponentWidth)).register.prod
       (Circuit.measurementCellsReference (Allocation.after p.size (2 * exponentWidth)) 2
         (2 * exponentWidth) (Register.prod (PublicInput.frame E exponentWidth).register
@@ -124,10 +164,6 @@ theorem samplingResetSplit_supported (fieldTail exponentWidth : Nat)
     (samplingReadoutSplitState E exponentWidth
       ((samplingReset E fieldTail exponentWidth sameWidth fits seed).execute
         Reference state)).quantumMarginal.matrix basis basis = 0 := by
-  let label := Allocation.initializedAssembly p (2 * exponentWidth)
-    ((BasisPreparation.zero (indexedLayout p.size (2 * exponentWidth))).value,
-      (InPlacePreparation.preparation p).value,
-      Encoding.pairedMontgomeryInput fieldTail exponentWidth sameWidth fits seed (0, 0))
   let completed := (samplingReset E fieldTail exponentWidth sameWidth fits seed).execute
     Reference state
   have original : ∀ input, input.1 ≠
@@ -140,19 +176,8 @@ theorem samplingResetSplit_supported (fieldTail exponentWidth : Nat)
     exact (samplingReset_block_factor E fieldTail exponentWidth sameWidth fits seed state
       record localBasis localBasis external external).trans (by
         simp only [NormalizedVector.ket_apply, different, if_false, zero_mul])
-  have framed := unionSplit_supported (exponentMeasurementContext p exponentWidth)
-    (PublicInput.frame E exponentWidth) (PublicInput.terminal_disjoint E exponentWidth)
-    (MeasurementCells.basisEquiv (Allocation.after p.size (2 * exponentWidth)) 2
-      (2 * exponentWidth) label) completed (by
-        intro input different
-        apply original input
-        intro same
-        apply different
-        rw [same, samplingResetLabel, Equiv.apply_symm_apply])
-  exact cellsSplit_supported (Allocation.after p.size (2 * exponentWidth))
-    (2 * exponentWidth) label
-    (splitState (exponentMeasurementContext p exponentWidth) (PublicInput.frame E exponentWidth)
-      (PublicInput.terminal_disjoint E exponentWidth) completed) framed basis outside
+  exact samplingReadoutSplit_supported E fieldTail exponentWidth sameWidth fits seed
+    completed original basis outside
 
 end
 

@@ -18,8 +18,7 @@ import all QuantumAlg.Algorithms.Grover.Elementary.Resources
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Accounting.Space
 import all QuantumAlg.Core.Measure.Distribution
-import all QuantumAlg.Components.Oracle.Common
-import all QuantumAlg.Components.Oracle.ZeroReflection
+import all QuantumAlg.Components.Oracle.ZeroReflection.Resources
 
 /-!
 # The independent complete Grover search problem
@@ -50,20 +49,23 @@ def successLB (n t k : Nat) : ProbabilityLowerBound where
     apply ENNReal.ofReal_le_one.mpr
     exact (sq_le_one_iff_abs_le_one _).mpr (Real.abs_sin_le_one _)
 
-/-- The independent all-zero preparation coordinate records each actual binary dimension. -/
-def preparationEvent (n : Nat) : Resource.Event .quantum :=
-  .preparation
-    { family := "builtin"
-      name := "computational-basis"
-      parameters := n :: (List.replicate n 2 ++ List.replicate n 0) }
+/-- Independent native unitary multiplicities in the selected classical execution context. -/
+def unitaryBudget {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ResourcePool (model marked) :=
+  n • ResourcePool.singleton (model := model marked) (.gate .singleQubit) +
+    k • (ResourcePool.singleton (model := model marked) (.oracle .ordinary) +
+      ((n • ResourcePool.singleton (model := model marked) (.gate .singleQubit) +
+        ZeroReflection.elementaryEventPool (Elementary.oracles marked) n BitWord.model .empty) +
+          n • ResourcePool.singleton (model := model marked) (.gate .singleQubit)))
 
-/-- Explicit elementary unitary, complete preparation, measurement and packing multiplicities. -/
-def eventBudget (n k : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (preparationEvent (totalQubits n k)) +
-    Elementary.unitaryEventPool n k +
-    (n • ResourcePool.singleton
-      (.measurement { family := "builtin", name := "z", parameters := [2] }) +
-      ResourcePool.singleton (.classicalOperation (.nominalEncoding (.packFiniteBits n))))
+/-- Explicit native unitary, per-system preparation, measurement and packing multiplicities. -/
+def eventBudget {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ResourcePool (model marked) :=
+  totalQubits n k • ResourcePool.singleton (model := model marked) (.preparation (2 : ℕ+)) +
+    unitaryBudget marked k +
+    (n • ResourcePool.singleton (model := model marked) (.measurement (2 : ℕ+)) +
+      ResourcePool.singleton (model := model marked)
+        (.classicalOperation (.nominalEncoding (.packFiniteBits n))))
 
 /-- All search and selected work systems and both result representations remain live. -/
 def spaceBudget (n k : Nat) : SpacePool .quantum
@@ -89,11 +91,11 @@ extensions are admitted. The search register is prepared internally.
 predicate marks its canonical big-endian decoding. Every prepared search and
 work system, n finite measurement cells, the packed result and borrowed unit
 remain in complete Output after measurement. Only the search wires are measured.
-**Resource budget.** One actual all-zero preparation of the complete register,
+**Resource budget.** One zero preparation per actual qubit,
 k phase queries, n+2nk Hadamards outside the reflections, the independently
 specified elementary S0 events, n binary Z measurements and one packing operation.
-For n=1,2,3 a reflection uses respectively 1,5,13 elementary gates and no work.
-For n>=4 it uses (2n+2) X gates, two Z gates, two H gates and L(n-1) Toffoli gates,
+For n=1,2,3 a reflection uses respectively 1,5,10 elementary gates and no work.
+For n>=4 it uses 2n+3 single-qubit gates and L(n-1) Toffoli gates,
 where L(3)=4, L(4)=10 and L(m)=8(m-3) for m>=5. The total elementary gate count is
 n+k(2n+S0Count(n)). A single additional work system is needed only when k>0 and
 n>=4; resident and auxiliary capacities both count it and the 2n retained
@@ -108,14 +110,19 @@ probability in [dW19, qcnotes.tex:2760-2852]. The native execution additionally
 charges its actual basis preparation, Z writes, retained cells and packing.
 -/
 public def problem {n t : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Problem .quantum pre (post n k) (.bits n) where
+    Problem (model marked) pre (post n k) (.bits n) where
   valid := fun _ => 0 < n ∧ markedCount marked = t ∧ 0 < t
+  initialization := fun _ => True
   accepts := accepts marked
   successLB := successLB n t k
   states := []
   resources :=
-    { events := eventBudget n k, resident := spaceBudget n k, auxiliary := spaceBudget n k }
-  depth := .quantum (fun _ => 1) (depthBudget n k)
+    { events := eventBudget marked k, resident := spaceBudget n k, auxiliary := spaceBudget n k }
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBudget n k
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

@@ -110,16 +110,19 @@ theorem descending_reverse_step (width : Nat) (selected : Bool) (state : Registe
 
 /-- Exact native realization of the retained phase predicate. -/
 theorem first_realizes (width : Nat) (selected : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (GateSpec.programList (firstGates width selected))
+    UnitaryCircuit.Realizes (encoding width)
+      (GateSpec.programList (QubitLayout.canonical _) .empty (firstGates width selected))
       (fun state => xorControl (firstPredicate selected state) state) :=
-  GateSpec.realizesList_congrStep (firstGates width selected) (first_step width selected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (firstGates width selected) (first_step width selected)
 
 /-- Exact native realization of the retained descending-phase predicate. -/
 theorem descending_realizes (width : Nat) (selected : Bool) :
     UnitaryCircuit.Realizes (encoding width)
-      (GateSpec.programList (descendingGates width selected))
+      (GateSpec.programList (QubitLayout.canonical _) .empty (descendingGates width selected))
       (fun state => xorControl (descendingPredicate selected state) state) :=
-  GateSpec.realizesList_congrStep (descendingGates width selected) (descending_step width selected)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (descendingGates width selected) (descending_step width selected)
 
 /-- Literal phase predicate size, including the constant-X gate for the negative condition. -/
 theorem first_length (width : Nat) (selected : Bool) :

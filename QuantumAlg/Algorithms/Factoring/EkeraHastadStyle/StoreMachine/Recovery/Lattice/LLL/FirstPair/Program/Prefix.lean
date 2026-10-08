@@ -25,10 +25,11 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original actual numerator and denominator determine the stored reduction coefficient. -/
-theorem division_coefficient (refs : Refs ctx width) (separation : Separation refs)
+theorem division_coefficient {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    RawSignedRepresents ((RoundedDiv.bodyStep refs.division store).1.read
+    RawSignedRepresents ((RoundedDiv.bodyStep (model := model) refs.division store).1.read
       (writeInput refs.division.output)) basis.firstReductionCoefficient := by
   have positive : 0 < (store.read refs.division.denominator).toNat := by
     rw [initial.denominator]
@@ -39,10 +40,12 @@ theorem division_coefficient (refs : Refs ctx width) (separation : Separation re
   exact result
 
 /-- Division leaves all nine original basis coordinates intact. -/
-theorem division_basis (refs : Refs ctx width) (separation : Separation refs)
+theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
-    LatticeMetricMachine.BasisRawRepresents (RoundedDiv.bodyStep refs.division store).1
+    LatticeMetricMachine.BasisRawRepresents
+      (RoundedDiv.bodyStep (model := model) refs.division store).1
       refs.basis basis := by
   intro row
   apply row_raw_of_frame refs separation row _ divisionCells (rep row)
@@ -98,14 +101,16 @@ theorem refresh_basis_norm (refs : Refs ctx width) (separation : Separation refs
     exact refreshed.1
 
 /-- The actual reduction prefix preserves the first norm input word exactly. -/
-theorem reductionPrefix_g11 (refs : Refs ctx width) (separation : Separation refs)
+theorem reductionPrefix_g11 {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
-    (reductionPrefixStep refs store).1.read (writeInput refs.metric.g11) =
+    (reductionPrefixStep (model := model) refs store).1.read
+      (writeInput refs.metric.g11) =
       store.read (writeInput refs.metric.g11) := by
   change (LatticeNormRefresh.refreshStore refs.basis.second refs.refresh
     (LatticeArithmetic.pointStore (writeInput refs.division.output)
       refs.basis.first refs.basis.second refs.reduceProduct
-      (RoundedDiv.bodyStep refs.division store).1)).read
+      (RoundedDiv.bodyStep (model := model) refs.division store).1)).read
         (writeInput (LatticeMetricMachine.metricCellRef refs.metric .g11)) = _
   rw [refresh_frame refs _ _ (metric_avoids refs separation .g11 refreshCells (by decide)),
     reduction_frame refs _ _ (metric_avoids refs separation .g11 reductionCells (by decide)),
@@ -113,14 +118,15 @@ theorem reductionPrefix_g11 (refs : Refs ctx width) (separation : Separation ref
   rfl
 
 /-- The actual prefix produces the original reduced basis and both comparison inputs. -/
-theorem reductionPrefix_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem reductionPrefix_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
-    LatticeMetricMachine.BasisRawRepresents (reductionPrefixStep refs store).1
+    LatticeMetricMachine.BasisRawRepresents (reductionPrefixStep (model := model) refs store).1
         refs.basis basis.sizeReduceFirstPair.1 ∧
-      RawSignedRepresents ((reductionPrefixStep refs store).1.read
+      RawSignedRepresents ((reductionPrefixStep (model := model) refs store).1.read
         (writeInput refs.metric.g11)) (NumberTheory.integerPointSquaredNorm basis.first : Int) ∧
-      RawSignedRepresents ((reductionPrefixStep refs store).1.read
+      RawSignedRepresents ((reductionPrefixStep (model := model) refs store).1.read
         (writeInput refs.metric.g22))
         (NumberTheory.integerPointSquaredNorm basis.sizeReduceFirstPair.1.second : Int) := by
   have divided := division_basis refs separation store basis initial.basisRep

@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original outer pivot-record branch preserves all reads outside its candidate word. -/
 theorem gf2CandidatePivotRow_read_other
@@ -69,6 +70,7 @@ theorem gf2CandidatePivotRow_candidate
       · rfl
       · exact gf2CandidateRowSelected_candidate matrix free candidate zero row column store
 
+omit [BitWord.Selected model] in
 /-- A canonical recorded pivot row reads exactly its original first-match row decision. -/
 theorem gf2CandidatePivotBit_of_record
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))

@@ -31,16 +31,19 @@ noncomputable section
 open EncodedBit.GateSpec
 
 private theorem base_native_count (width : Nat) (constant : Fin (2 ^ width))
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (oneDirtyBaseProgram width constant).eventCost =
       (EncodedBit.Word.constantOneIndices constant).length *
-        (if (.gate (.builtin "x") : Resource.Event .quantum) = focus then 1 else 0) := by
+        (if (.gate .singleQubit : Resource.Event
+          (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0) := by
   rw [oneDirtyBaseProgram, programList_event_count_eq_sum_eventMultiplicity]
-  by_cases h : (.gate (.builtin "x") : Resource.Event .quantum) = focus
+  by_cases h : (.gate .singleQubit : Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
   · simp [oneDirtyBaseGates, EncodedBit.Word.xorConstantGates,
-      Function.comp_def, eventMultiplicity, event, h]
+      Function.comp_def, eventMultiplicity, event, primitive,
+      QubitPrimitive.event, QubitPrimitive.nativeToken, h]
   · simp [oneDirtyBaseGates, EncodedBit.Word.xorConstantGates,
-      Function.comp_def, eventMultiplicity, event, h]
+      Function.comp_def, eventMultiplicity, event, primitive,
+      QubitPrimitive.event, QubitPrimitive.nativeToken, h]
 
 /-- Exact native-event ledger recurrence of the executed recursive program. -/
 theorem hrsOneDirty_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
@@ -52,17 +55,17 @@ theorem hrsOneDirty_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
   by_cases hbase : width ≤ 1
   · conv_lhs => rw [oneDirtyProgram]
     rw [dif_pos hbase, if_pos hbase]
-    exact (hrsDeclareOneDirtyLayout_resources _ _ (fun _ => 1)).1
   · conv_lhs => rw [oneDirtyProgram]
     rw [dif_neg hbase, if_neg hbase]
     exact hrsRecursiveStep_eventCost width constant _ _
 
 /-- Every native gate coordinate follows the same actual-program recurrence. -/
 theorem hrsOneDirty_native_count (width : Nat) (constant : Fin (2 ^ width))
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (oneDirtyProgram width constant).eventCost =
       if width ≤ 1 then (EncodedBit.Word.constantOneIndices constant).length *
-        (if (.gate (.builtin "x") : Resource.Event .quantum) = focus then 1 else 0)
+        (if (.gate .singleQubit : Resource.Event
+          (.quantum AlgorithmGate.model .empty)) = focus then 1 else 0)
       else ResourcePool.count focus
           (recursiveBridgeProgram width ((splitWord width) constant).1).eventCost +
         ResourcePool.count focus
@@ -90,7 +93,7 @@ theorem hrsOneDirty_event_count (width : Nat) (constant : Fin (2 ^ width)) :
 
 /-- Evaluated event depth of the same executed three-stage recursion. -/
 theorem hrsOneDirty_depth (width : Nat) (constant : Fin (2 ^ width))
-    (assign : Resource.Event .quantum → Nat) :
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (oneDirtyProgram width constant).evaluatedEventDepth assign =
       if width ≤ 1 then (oneDirtyBaseProgram width constant).evaluatedEventDepth assign
       else (recursiveBridgeProgram width
@@ -102,7 +105,6 @@ theorem hrsOneDirty_depth (width : Nat) (constant : Fin (2 ^ width))
   by_cases hbase : width ≤ 1
   · conv_lhs => rw [oneDirtyProgram]
     rw [dif_pos hbase, if_pos hbase]
-    exact (hrsDeclareOneDirtyLayout_resources _ _ assign).2
   · conv_lhs => rw [oneDirtyProgram]
     rw [dif_neg hbase, if_neg hbase]
     exact hrsRecursiveStep_depth width constant _ _ assign

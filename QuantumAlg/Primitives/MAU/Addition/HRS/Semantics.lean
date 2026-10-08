@@ -10,6 +10,8 @@ public import QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Core.Base.Gate.Unitary
 import all QuantumAlg.Primitives.MAU.Addition.HRS.OneDirty
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 public import QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Core.Base.Tensor.Certified
 
@@ -79,18 +81,23 @@ private theorem encodingEquiv_apply (width : Nat) (state : OneDirtyRegisters wid
 
 /-- The actual recursive HRS circuit is exactly translation tensored with borrowed identity. -/
 theorem hrsOneDirty_matrix (width : Nat) (constant : Fin (2 ^ width)) :
-    (oneDirtyProgram width constant).matrix = oneDirtyOperator width constant := by
+    (oneDirtyProgram width constant).binaryMatrix = oneDirtyOperator width constant := by
   apply Subtype.ext
   ext output input
   obtain ⟨⟨word, dirty⟩, rfl⟩ := (encodingEquiv width).surjective input
   rw [encodingEquiv_apply]
+  have actualAction :=
+    UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (oneDirtyProgram width constant) ((oneDirtyEncoding width).encode (word, dirty))
+        ((oneDirtyEncoding width).encode (addWord constant word, dirty))
+          ((hrsOneDirty_realizes width constant).apply_encoded_ket (word, dirty))
   have actual := congrArg (fun state : NormalizedVector (Qubits (width + 1)) => state output)
-    (hrsOneDirty_apply width constant word dirty)
+    actualAction
   have semantic := congrArg (fun state : NormalizedVector (Qubits (width + 1)) => state output)
     (operator_encoded_ket width constant word dirty)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((oneDirtyProgram width constant).matrix :
+      ((oneDirtyProgram width constant).binaryMatrix :
         HilbertOperator (Qubits (oneDirtyEncoding width).width))
       ((oneDirtyEncoding width).encode (word, dirty)) output).symm.trans actual
   have semanticColumn :=

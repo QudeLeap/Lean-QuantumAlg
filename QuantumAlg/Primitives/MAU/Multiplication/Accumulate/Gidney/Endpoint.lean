@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Core.Algorithm
 public import QuantumAlg.Core.Execution.Owned.Qubits
+public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Semantics
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
@@ -17,8 +18,9 @@ import all QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Core.Execution.Borrowed.Empty
 import all QuantumAlg.Core.Execution.Output
 import all QuantumAlg.Core.Execution.Trace
-import all QuantumAlg.Core.Base.UnitaryCircuit.Construction
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.Semantics
 import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.NativeResources
 
@@ -40,39 +42,56 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open Execution.OwnedQubits
 
-private def wordBasisEquiv (width : Nat) :
-    (context (2 * width)).register.Index ≃ (Qubits (encoding width).width).Index :=
-  (basisEquiv (2 * width)).trans
-    (finCongr (congrArg (fun size : Nat => 2 ^ size) (Nat.two_mul width)))
+private theorem supplied_wires (width : Nat) :
+    (QubitLayout.canonical (encoding width).width).toQuantum.wires =
+      (context (2 * width)).quantumLayout.wires := by
+  rw [(gidneyAccumulate_interface width).1]
+  exact Execution.OwnedQubits.canonical_wires (2 * width)
 
 private def nativeOperator (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) : UnitaryOperator (context (2 * width)).register :=
-  UnitaryOperator.reindex (wordBasisEquiv width).symm
-    (wordAccumulateOperator width modulus coefficient)
+  UnitaryOperator.reindex
+    (Execution.basisOfEqualWires
+      (QubitLayout.canonical (encoding width).width).toQuantum
+      (context (2 * width)).quantumLayout (supplied_wires width))
+    (UnitaryOperator.reindex
+      (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+      (wordAccumulateOperator width modulus coefficient))
 
 private def nativeProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : Nat) : UnitaryCircuit (context (2 * width)).register :=
-  UnitaryCircuit.reindex (wordBasisEquiv width).symm (program width modulus coefficient)
+    (coefficient : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty (context (2 * width)).quantumLayout :=
+  Execution.unitaryOfEqualWires
+    (QubitLayout.canonical (encoding width).width).toQuantum
+    (context (2 * width)).quantumLayout (supplied_wires width)
+      (program width modulus coefficient)
 
 private theorem nativeProgram_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (nativeProgram width modulus coefficient).matrix =
       nativeOperator width modulus coefficient := by
-  exact (UnitaryCircuit.reindex_matrix (R := Qubits (encoding width).width)
-    (S := (context (2 * width)).register) (wordBasisEquiv width).symm
-    (program width modulus coefficient)).trans
-      (congrArg (fun operator : UnitaryOperator (Qubits (encoding width).width) =>
-        UnitaryOperator.reindex (wordBasisEquiv width).symm operator)
-        (gidneyAccumulate_matrix width modulus coefficient))
-
-private theorem placement (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    (nativeProgram width modulus coefficient).physical_idx = (context (2 * width)).physicalIdx := by
-  change (program width modulus coefficient).physical_idx = (context (2 * width)).physicalIdx
-  rw [gidneyAccumulate_physical, ownedQubits_physicalIdx]
+  unfold nativeOperator
+  have sourceMatrix : (program width modulus coefficient).matrix =
+      UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (wordAccumulateOperator width modulus coefficient) := by
+    have binary := congrArg
+      (UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm)
+      (gidneyAccumulate_matrix width modulus coefficient)
+    change UnitaryOperator.reindex
+        (QubitLayout.canonical (encoding width).width).basisEquiv.symm
+          (UnitaryOperator.reindex
+            (QubitLayout.canonical (encoding width).width).basisEquiv
+            (program width modulus coefficient).matrix) = _ at binary
+    rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
+    exact binary
+  rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
 
 private def code (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    Circuit (context (2 * width)) (context (2 * width)) :=
-  .unitary (nativeProgram width modulus coefficient) (placement width modulus coefficient)
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (context (2 * width)) (context (2 * width)) :=
+  .unitary (nativeProgram width modulus coefficient)
 
 /-- Independent exact modular multiply-accumulate execution contract.
 
@@ -92,10 +111,10 @@ tensored with the reference identity, with exact phase.
 
 **Resource budget.**
 
-- Six explicit native coordinates are permitted: X, CNOT,
-and Toffoli with one or two additional dimension-two controls. Each has cap
-width*stageEventBound(width), where the stage bound is 9 at widths at most two
-and 6*F(width+1)+12*F(width)+6*width+6 otherwise, with F(w)=w*(39*clog(2,w)+1).
+- The actual default-model X, CNOT, and Toffoli coordinates each have cap
+width*stageEventBound(width). The stage bound is 9 at widths at most two and
+4*modularOffsetEventBound(width) otherwise. Its recursive offset bound is
+independent of the emitted gate list.
 Resident and owned auxiliary coordinates both contain the same 2*width supplied
 dimension-two systems; no extra quantum or classical system is allocated.
 Unit-duration depth is at most width*stageEventBound(width).
@@ -112,8 +131,10 @@ internally borrowed constant offsets [HRS16, paper.tex:219-226,232-260], and
 the selected binary-add recurrence [VBE95, 9511018.tex:333-367].
 -/
 public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    Problem .quantum (context (2 * width)) (context (2 * width)) .unit where
+    Problem (.quantum AlgorithmGate.model .empty)
+      (context (2 * width)) (context (2 * width)) .unit where
   valid := fun _ => True
+  initialization := fun _ => True
   accepts := fun _ _ => True
   successLB := ⟨1, le_rfl⟩
   states := [StateRequirement.unitary (nativeOperator width modulus coefficient)]
@@ -121,11 +142,16 @@ public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : 
     { events := nativeBudget width
       resident := space (2 * width)
       auxiliary := space (2 * width) }
-  depth := .quantum (fun _ => 1) (width * stageEventBound width)
+  depth :=
+    { duration := fun _ => 1
+      limit := width * stageEventBound width
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute the actual two-word circuit and explicitly retain its complete live output. -/
 public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    Algorithm .quantum (context (2 * width)) (context (2 * width)) .unit where
+    Algorithm (.quantum AlgorithmGate.model .empty)
+      (context (2 * width)) (context (2 * width)) .unit where
   run :=
     { code := code width modulus coefficient
       output := Output.all (context (2 * width)) .unit }
@@ -146,12 +172,15 @@ private theorem actual_events (width : Nat) (modulus : Fin (2 ^ width + 1)) (coe
       (problem width modulus coefficient).resources.events := by
   change ResourcePool.ofList (nativeProgram width modulus coefficient).eventTrace ≤
     nativeBudget width
-  exact (UnitaryCircuit.ofList_eventTrace_eq_eventCost
-    (nativeProgram width modulus coefficient)).le.trans
-      ((UnitaryCircuit.reindex_eventCost (R := Qubits (encoding width).width)
-        (S := (context (2 * width)).register) (wordBasisEquiv width).symm
-        (program width modulus coefficient)).le.trans
-          (gidneyAccumulate_native_bound width modulus coefficient))
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+  have cost : (nativeProgram width modulus coefficient).eventCost =
+      (program width modulus coefficient).eventCost :=
+    Execution.unitaryOfEqualWires_cost
+      (QubitLayout.canonical (encoding width).width).toQuantum
+      (context (2 * width)).quantumLayout (supplied_wires width)
+      (program width modulus coefficient) .empty .empty
+  rw [cost]
+  exact gidneyAccumulate_native_bound width modulus coefficient
 
 private theorem actual_resident (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
     (path : (code width modulus coefficient).Path) :
@@ -169,37 +198,45 @@ private theorem actual_auxiliary (width : Nat) (modulus : Fin (2 ^ width + 1)) (
   rw [ownedQubits_auxiliary]
   exact le_of_eq (Nat.max_zero _)
 
+private theorem actual_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : Nat) (path : (code width modulus coefficient).Path) :
+    (code width modulus coefficient).depth (fun _ => 1) path ≤
+      width * stageEventBound width := by
+  change DepthExpr.depthEval (fun _ => 1)
+    ((nativeProgram width modulus coefficient).eventDepth .empty .empty) ≤ _
+  rw [nativeProgram, Execution.unitaryOfEqualWires_depth]
+  exact gidneyAccumulate_depth_bound width modulus coefficient
+
 /-- The native algorithm meets the independent arithmetic and coordinatewise resource contract. -/
 public theorem main (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     ∃ candidate, Algorithm.Solves candidate (problem width modulus coefficient) := by
   refine ⟨algorithm width modulus coefficient, ?_⟩
   constructor
-  · intro Reference input _valid
+  · intro Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid requirement present
+  · intro Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (nativeOperator width modulus coefficient) :=
       List.mem_singleton.mp present
     subst requirement
     exact StateRequirement.unitary_holds (nativeOperator width modulus coefficient)
-      (nativeProgram width modulus coefficient) (placement width modulus coefficient)
-      (nativeProgram_matrix width modulus coefficient)
+      (nativeProgram width modulus coefficient) (nativeProgram_matrix width modulus coefficient)
       (Output.all (context (2 * width)) .unit) input
-  · intro Reference input _valid
-    exact Circuit.borrowedRestored_unitary_noBorrowed rfl rfl
-      (nativeProgram width modulus coefficient) (placement width modulus coefficient)
-      (input.state.mapClassical fun store => (store, store))
-  · intro _Reference _input _valid path _supported
+  · intro Reference input _valid _initialized
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+      (nativeProgram width modulus coefficient)
+      (Output.all (context (2 * width)) .unit) input
+  · intro _Reference _input _valid _initialized path _supported
     exact actual_events width modulus coefficient path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact actual_resident width modulus coefficient path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialized path _supported
     exact actual_auxiliary width modulus coefficient path
-  · intro _Reference _input _valid path _supported
-    exact gidneyAccumulate_depth_bound width modulus coefficient
+  · intro _Reference _input _valid _initialized path _supported
+    exact actual_depth width modulus coefficient path
 
 end
 

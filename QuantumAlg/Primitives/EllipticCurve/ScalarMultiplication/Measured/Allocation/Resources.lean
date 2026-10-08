@@ -9,14 +9,15 @@ module
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Cascade.Resources
 import all QuantumAlg.Core.Execution.Measurement.Cells.Framing.Resources
+import all QuantumAlg.Core.Execution.Circuit.Weighted
 
 /-!
 # Charged initialization and native measured cascade resources
 
-Both fixed quantum preparations occur in the actual prefix. The original
-finite result cells are retained there and used by the following measured
-cascade. Native events and serial depth include the prefix and every actual
-point call in the supplied order.
+The actual prefix charges every zero preparation and fixed X load. The
+original finite result cells are retained there and used by the following
+measured cascade. Native events and serial depth include the prefix and every
+actual point call in the supplied order.
 -/
 
 namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ScalarMultiplication
@@ -26,31 +27,20 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-/-- The two concrete preparations both occur in the actual initialization trace. -/
+/-- The literal initialization trace includes every zero preparation and fixed X load. -/
 theorem initialize_eventTrace (modulus count : Nat) (path : (initializeWork modulus count).Path) :
-    (initializeWork modulus count).eventTrace path =
-      [(InPlacePreparation.preparation modulus).event,
-        (BasisPreparation.zero (indexedLayout modulus.size count)).event] := by
-  change [(InPlacePreparation.preparation modulus).event] ++
-    ((allocateCells modulus.size count).eventTrace path.2.1 ++
-      [(BasisPreparation.zero (indexedLayout modulus.size count)).event]) = _
-  have noEvents : (allocateCells modulus.size count).eventTrace path.2.1 = [] :=
-    MeasurementCells.allocateFramed_eventTrace _ _ _ _ _ _
-  rw [noEvents]
-  rfl
+    (initializeWork modulus count).eventTrace path = initializationTrace modulus count :=
+  initializeWork_eventTrace modulus count path
 
-/-- Actual initialization has the chronological duration of its two charged preparations. -/
-theorem initialize_depth (modulus count : Nat) (duration : Resource.Event .quantum → Nat)
+/-- The real preparation and loading dependencies fit their exact event allowance. -/
+theorem initialize_depth (modulus count : Nat)
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (initializeWork modulus count).Path) :
-    (initializeWork modulus count).depth duration path =
-      duration (InPlacePreparation.preparation modulus).event +
-        duration (BasisPreparation.zero (indexedLayout modulus.size count)).event := by
-  change duration (InPlacePreparation.preparation modulus).event +
-    ((allocateCells modulus.size count).depth duration path.2.1 +
-      duration (BasisPreparation.zero (indexedLayout modulus.size count)).event) = _
-  have noDepth : (allocateCells modulus.size count).depth duration path.2.1 = 0 :=
-    MeasurementCells.allocateFramed_depth _ _ _ _ _ _ _
-  rw [noDepth, Nat.zero_add]
+    (initializeWork modulus count).depth duration path ≤
+      ResourcePool.weightedCount duration
+        (ResourcePool.ofList (initializationTrace modulus count)) := by
+  exact (Circuit.depth_le_weightedCount_of_pool_le _ duration _ path
+    (initializeWork_resourcePool modulus count path).le)
 
 /-- The complete original cascade outcomes identify all actual post-allocation execution paths. -/
 def placedPathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -103,10 +93,10 @@ theorem placedCascade_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
   (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans
     (readyContext_auxiliary_exact p.size count)
 
-/-- Independent native allowance includes both preparations and every prescribed point call. -/
-def eventBudget (modulus count calls : Nat) : ResourcePool .quantum :=
-  ResourcePool.ofList [(InPlacePreparation.preparation modulus).event,
-    (BasisPreparation.zero (indexedLayout modulus.size count)).event] +
+/-- Input-determined preparation allowance and every prescribed point call. -/
+def eventBudget (modulus count calls : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  ResourcePool.ofList (initializationTrace modulus count) +
       ResourcePool.scale calls (MeasuredPointAddition.events modulus.size)
 
 /-- Every actual complete path charges initialization and all following measured point calls. -/
@@ -119,16 +109,18 @@ theorem circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
   rw [ResourcePool.ofList_append, initialize_eventTrace]
   exact ResourcePool.add_mono le_rfl (placedCascade_budget E points order path.2)
 
-/-- Two preparations precede the independent complete cascade serial depth allowance. -/
+/-- Every preparation and X load precedes the complete cascade duration. -/
 theorem circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (path : (circuit E points order).Path) :
     (circuit E points order).depth (fun _ => 1) path ≤
-      2 + order.length * MeasuredPointAddition.depthBound p.size := by
+      ResourcePool.weightedCount (fun _ => 1)
+        (ResourcePool.ofList (initializationTrace p count)) +
+          order.length * MeasuredPointAddition.depthBound p.size := by
   change (initializeWork p count).depth (fun _ => 1) path.1 +
     (placedCascade E points order).depth (fun _ => 1) path.2 ≤ _
-  rw [initialize_depth]
-  exact Nat.add_le_add_left (placedCascade_depth E points order path.2) 2
+  exact Nat.add_le_add (initialize_depth p count (fun _ => 1) path.1)
+    (placedCascade_depth E points order path.2)
 
 end
 

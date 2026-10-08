@@ -8,62 +8,37 @@ module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Exponentiation
 import all QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Resources
-import all QuantumAlg.Primitives.MAU.Multiplication.Gidney.Resources
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Gidney.NativeResources
-import all QuantumAlg.Primitives.MAU.Addition.Gidney.Native.Alphabet
-import all QuantumAlg.Components.Encoded.BitGates.Resources
 
 /-!
 # Independent native event envelopes for the new short-DLP exponentiation member
 
-The independent pool retains all six controlled primitive coordinates and
-the controlled swap-CNOT coordinate. Its cardinality sums the separate
-coordinate caps; it is deliberately distinguished from the sharper bound
-on the total actual gate occurrences. Every branch uses its literal actual
-program and the same source modulus domain.
+The independent pool bounds the three actual default-model coordinates.
+Its per-bit cap includes the native expansion of each controlled multiplier
+instruction. Summing the three coordinate caps is distinct from the tighter
+bound on all actual gate occurrences. Invalid compilation parameters retain
+their zero-event identity extension.
 -/
 
 namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
-private theorem control_card (pool : ResourcePool .quantum) :
-    (ResourcePool.controlForDimension 2 pool).card = pool.card := by
-  simp only [ResourcePool.controlForDimension, ResourcePool.controlForDimensions, Multiset.card_map]
-
-private theorem accumulateAlphabet_card :
-    MAU.Multiplication.Accumulate.Gidney.nativeAlphabet.card = 6 := by
-  have primitive : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
-  unfold MAU.Multiplication.Accumulate.Gidney.nativeAlphabet
-  rw [control_card]
-  unfold MAU.Addition.Gidney.offsetAlphabet
-  rw [Multiset.card_add, control_card, primitive]
-
-/-- The independent width-only pool sums six caps for each MAC and the exact word-swap CNOTs. -/
+/-- Three coordinate caps include the complete native control expansion at every bit. -/
 def exponentiationPrimitiveWidthBound (bits width : Nat) : Nat :=
-  bits * (12 * (width * MAU.Multiplication.Accumulate.Gidney.stageEventBound width) + 3 * width)
+  3 * MAU.Exponentiation.Gidney.eventBound bits width
 
 private theorem exponentiationBudget_card (bits width : Nat) :
     (MAU.Exponentiation.Gidney.nativeBudget bits width).card =
       exponentiationPrimitiveWidthBound bits width := by
-  have accumulation : (MAU.Multiplication.Accumulate.Gidney.nativeBudget width).card =
-      (width * MAU.Multiplication.Accumulate.Gidney.stageEventBound width) * 6 := by
-    rw [MAU.Multiplication.Accumulate.Gidney.nativeBudget, Multiset.card_nsmul,
-      accumulateAlphabet_card]
-  have swap : (MAU.Multiplication.Gidney.wordSwapBudget width).card = 3 * width := by
-    simp only [MAU.Multiplication.Gidney.wordSwapBudget, ResourcePool.ofList,
-      Multiset.coe_card, List.length_replicate]
-  have multiplication : (MAU.Multiplication.Gidney.nativeBudget width).card =
-      12 * (width * MAU.Multiplication.Accumulate.Gidney.stageEventBound width) + 3 * width := by
-    rw [MAU.Multiplication.Gidney.nativeBudget, Multiset.card_add, Multiset.card_add,
-      accumulation, swap]
-    omega
-  rw [MAU.Exponentiation.Gidney.nativeBudget, Multiset.card_nsmul,
-    MAU.Exponentiation.Gidney.stageNativeBudget, control_card, multiplication]
-  rfl
+  have alphabet : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
+  simp only [MAU.Exponentiation.Gidney.nativeBudget,
+    MAU.Exponentiation.Gidney.stageNativeBudget, Multiset.card_nsmul, alphabet,
+    exponentiationPrimitiveWidthBound, MAU.Exponentiation.Gidney.eventBound]
+  ring
 
 /-- Independent native coordinates for every compiled unit base on the admitted modulus branch. -/
-def exponentiationEventEnvelope (bits width N : Nat) : ResourcePool .quantum :=
+def exponentiationEventEnvelope (bits width N : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   if 0 < N ∧ N ≤ 2 ^ width then MAU.Exponentiation.Gidney.nativeBudget bits width else 0
 
 /-- Cardinality of the independently capped pool, not an equality with actual gate occurrences. -/
@@ -98,10 +73,10 @@ theorem exponentiationProgram_eventCost_le (bits width N : Nat) (unit : (ZMod N)
         ⟨N, Nat.lt_succ_of_le fitted⟩ unit
     · rw [exponentiationProgram_unfitted bits width N positive fitted unit]
       rw [if_neg (fun valid => fitted valid.2)]
-      exact le_refl (0 : ResourcePool .quantum)
+      exact le_refl (0 : ResourcePool (.quantum AlgorithmGate.model .empty))
   · rw [exponentiationProgram_nonpositive bits width N positive unit]
     rw [if_neg (fun valid => positive valid.1)]
-    exact le_refl (0 : ResourcePool .quantum)
+    exact le_refl (0 : ResourcePool (.quantum AlgorithmGate.model .empty))
 
 /-- The actual event count is also bounded by the independent pool's closed cardinality. -/
 theorem exponentiationProgram_eventCost_card_le (bits width N : Nat) (unit : (ZMod N)ˣ) :
@@ -113,7 +88,7 @@ theorem exponentiationProgram_eventCost_card_le (bits width N : Nat) (unit : (ZM
 /-- Tighter total-event bound, before summing the separate native coordinate caps. -/
 theorem exponentiationProgram_actual_event_bound (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (exponentiationProgram bits width N unit).eventCost.card ≤
-      bits * MAU.Multiplication.Gidney.eventBound width := by
+      MAU.Exponentiation.Gidney.eventBound bits width := by
   by_cases positive : 0 < N
   · by_cases fitted : N ≤ 2 ^ width
     · rw [exponentiationProgram_valid bits width N positive fitted unit]

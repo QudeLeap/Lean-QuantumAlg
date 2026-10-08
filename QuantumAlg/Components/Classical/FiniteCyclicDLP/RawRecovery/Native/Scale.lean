@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Model
-import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Trace
 
@@ -28,6 +28,8 @@ open Execution ClassicalAlgorithms.Modular
 noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
+
+section Descriptor
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
@@ -61,16 +63,6 @@ def scaleQuotientOp (division : CWriteRef ctx (scaleDivisionShape width))
     ClassicalOp (.unsignedWord (width + (width + 1))) (.unsignedWord width) ctx ctx :=
   .wordResize (width + (width + 1)) width ctx (.first (scaleRead division)) output
 
-/-- The literal original full-product, division and quotient materialization sequence. -/
-def scaleBody (raw : CInputRef ctx (.unsignedWord width))
-    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
-    (division : CWriteRef ctx (scaleDivisionShape width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (scaleProductOp raw modulus product))
-    (.seq (.classical (scaleDivisionOp product denominator division))
-      (.classical (scaleQuotientOp division output)))
-
 /-- Actual store after precisely the three scaling instructions. -/
 def scaleStore (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
@@ -86,22 +78,6 @@ def scaleWordValue (raw : CShape.Word width)
   CShape.wordResize width
     (CShape.divRem (width + (width + 1)) (width + 1)
       (.product (CShape.mulFull width (width + 1) (.product raw modulus)) denominator)).first
-
-/-- Full actual classical execution retains every complete quantum-reference matrix block. -/
-theorem scaleBody_execute (raw : CInputRef ctx (.unsignedWord width))
-    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
-    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
-    (division : CWriteRef ctx (scaleDivisionShape width))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (scaleBody raw modulus denominator product division output).execute Reference state =
-      state.mapClassical (fun entry =>
-        (scaleStore raw modulus denominator product division output entry.1,
-          (entry.2, ((), ((), ()))))) := by
-  simp only [scaleBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
 
 /-- Product storage preserves the later-read denominator; every scratch start is arbitrary. -/
 theorem scaleBody_result (raw : CInputRef ctx (.unsignedWord width))
@@ -182,11 +158,61 @@ theorem scaleBody_read_other (raw : CInputRef ctx (.unsignedWord width))
       (Store.read_applyOp_of_not_mem_storageKeys store (scaleProductOp raw modulus product)
         other productFree))
 
+end Descriptor
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
+
+/-- The literal original full-product, division and quotient materialization sequence. -/
+def scaleBody (raw : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (scaleProductOp raw modulus product))
+    (.seq (BitWord.instruction (execution := model) (scaleDivisionOp product denominator division))
+      (BitWord.instruction (execution := model) (scaleQuotientOp division output)))
+
+/-- The three actual returned values, recorded at their chronological stores. -/
+def scaleStep (raw : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (scaleBody (model := model) raw modulus denominator product division output).Path :=
+  let first := BitWord.instructionStep (execution := model)
+    (scaleProductOp raw modulus product) store
+  let second := BitWord.instructionStep (execution := model)
+    (scaleDivisionOp product denominator division) first.1
+  let third := BitWord.instructionStep (execution := model)
+    (scaleQuotientOp division output) second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+/-- Full execution preserves the shared service and all quantum-reference correlations. -/
+theorem scaleBody_execute (raw : CInputRef ctx (.unsignedWord width))
+    (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
+    (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
+    (division : CWriteRef ctx (scaleDivisionShape width))
+    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scaleBody (model := model) raw modulus denominator product division output).execute
+      Reference state = state.mapClassical (fun entry =>
+        let result := scaleStep (model := model) raw modulus denominator product division
+          output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [scaleBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
+
 /-- Independent original full-width multiplication, division and quotient resize coordinates. -/
-def scaleBodyEvents (kind : ProblemKind) (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.mulFull width (width + 1)),
-    .classicalOperation (.divRem (width + (width + 1)) (width + 1)),
-    .classicalOperation (.wordResize (width + (width + 1)) width)]
+def scaleBodyEvents (width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.mulFull width (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.divRem (width + (width + 1)) (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (width + (width + 1)) width))]
 
 /-- The original three native instructions are the complete actual chronological trace. -/
 theorem scaleBody_eventTrace (raw : CInputRef ctx (.unsignedWord width))
@@ -194,9 +220,18 @@ theorem scaleBody_eventTrace (raw : CInputRef ctx (.unsignedWord width))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (scaleBody raw modulus denominator product division output).Path) :
-    (scaleBody raw modulus denominator product division output).eventTrace path =
-      scaleBodyEvents kind width := rfl
+    (path : (scaleBody (model := model) raw modulus denominator product division output).Path) :
+    (scaleBody (model := model) raw modulus denominator product division output).eventTrace path =
+      scaleBodyEvents (model := model) width := by
+  change (BitWord.instruction (execution := model)
+    (scaleProductOp raw modulus product)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model)
+        (scaleDivisionOp product denominator division)).eventTrace path.2.1 ++
+        (BitWord.instruction (execution := model)
+          (scaleQuotientOp division output)).eventTrace path.2.2) = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- Every scaling operation depends on the original preceding result. -/
 theorem scaleBody_depth (raw : CInputRef ctx (.unsignedWord width))
@@ -204,8 +239,9 @@ theorem scaleBody_depth (raw : CInputRef ctx (.unsignedWord width))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
     (output : CWriteRef ctx (.unsignedWord width))
-    (path : (scaleBody raw modulus denominator product division output).Path) :
-    (scaleBody raw modulus denominator product division output).depth (fun _ => 1) path = 3 := rfl
+    (path : (scaleBody (model := model) raw modulus denominator product division output).Path) :
+    (scaleBody (model := model) raw modulus denominator product division output).depth
+      (fun _ => 1) path = 3 := rfl
 
 end
 

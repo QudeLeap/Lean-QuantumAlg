@@ -7,13 +7,18 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Components.Classical.Model.BitWord.Execution
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
+import all QuantumAlg.Core.Algorithm.Borrowed
+import all QuantumAlg.Core.Execution.Circuit.Restoration
 import all QuantumAlg.Core.Algorithm.RelationalLaws
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Execution.Input
+import all QuantumAlg.Core.Execution.Borrowed.Support
 import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.State
@@ -37,6 +42,10 @@ no quantum divider or division-by-zero result is asserted by this endpoint.
 -/
 
 namespace QuantumAlg.ClassicalEndpoints.Arithmetic.DivRem
+
+noncomputable section
+
+local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The numerator and divisor have independently declared unsigned widths. -/
 public abbrev inputShape (numeratorWidth divisorWidth : Nat) : CShape :=
@@ -85,11 +94,14 @@ private def divRemOp (numeratorWidth divisorWidth : Nat) :
       divisorWidth) (resultFresh numeratorWidth divisorWidth))
     (resultWrite numeratorWidth divisorWidth)
 
-private def code (numeratorWidth divisorWidth : Nat) : Circuit (inputContext numeratorWidth
-  divisorWidth) (outputContext numeratorWidth divisorWidth) :=
-  .seq (.retain (inputContext numeratorWidth divisorWidth) ⟨1⟩ (outputShape numeratorWidth
-    divisorWidth) (resultFresh numeratorWidth divisorWidth))
-    (.classical (divRemOp numeratorWidth divisorWidth))
+private def code (numeratorWidth divisorWidth : Nat) :
+    Circuit (.classical BitWord.model .empty)
+      (inputContext numeratorWidth divisorWidth) (outputContext numeratorWidth divisorWidth) :=
+  .seq (.retain (model := .classical BitWord.model .empty)
+    (inputContext numeratorWidth divisorWidth) ⟨1⟩ (outputShape numeratorWidth divisorWidth)
+      (resultFresh numeratorWidth divisorWidth))
+    (BitWord.instruction (execution := .classical BitWord.model .empty)
+      (divRemOp numeratorWidth divisorWidth))
 
 /-- The actual divisor is nonzero in every supported local input block. -/
 @[expose] public def valid (numeratorWidth divisorWidth : Nat)
@@ -127,21 +139,29 @@ borrowed input correlation with any external reference is restored.
 claim a division circuit or gate count from the reversible-adder source VBE95.
 -/
 public def problem (numeratorWidth divisorWidth : Nat) :
-    Problem .classical (inputContext numeratorWidth divisorWidth) (outputContext numeratorWidth
+    Problem (.classical BitWord.model .empty) (inputContext numeratorWidth divisorWidth)
+      (outputContext numeratorWidth
       divisorWidth) (outputShape numeratorWidth divisorWidth) where
   valid := valid numeratorWidth divisorWidth
+  initialization := fun _ => True
   accepts := accepts numeratorWidth divisorWidth
   successLB := ⟨1, le_rfl⟩
   states := []
   resources :=
-    { events := ResourcePool.singleton (.classicalOperation (.divRem numeratorWidth divisorWidth))
+    { events := ResourcePool.singleton (model := .classical BitWord.model .empty)
+        (.classicalOperation (.divRem numeratorWidth divisorWidth))
       resident := fun .classicalBits => 2 * (numeratorWidth + divisorWidth)
       auxiliary := fun .classicalBits => numeratorWidth + divisorWidth }
-  depth := .classical
+  depth :=
+    { duration := fun _ => 1
+      limit := 1
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 /-- Allocate both results, divide the actual operands, and list every live key. -/
 public def algorithm (numeratorWidth divisorWidth : Nat) :
-    Algorithm .classical (inputContext numeratorWidth divisorWidth) (outputContext numeratorWidth
+    Algorithm (.classical BitWord.model .empty) (inputContext numeratorWidth divisorWidth)
+      (outputContext numeratorWidth
       divisorWidth) (outputShape numeratorWidth divisorWidth) where
   run :=
     { code := code numeratorWidth divisorWidth
@@ -201,8 +221,10 @@ private theorem finalStore_accepts (numeratorWidth divisorWidth : Nat)
 private theorem actual_events (numeratorWidth divisorWidth : Nat) (path : (code numeratorWidth
   divisorWidth).Path) :
     (code numeratorWidth divisorWidth).resourcePool path =
-      ResourcePool.singleton (.classicalOperation (.divRem numeratorWidth divisorWidth)) := by
-  change ResourcePool.ofList [.classicalOperation (.divRem numeratorWidth divisorWidth)] = _
+      ResourcePool.singleton (model := .classical BitWord.model .empty) (.classicalOperation
+        (.divRem numeratorWidth divisorWidth)) := by
+  change ResourcePool.ofList (model := .classical BitWord.model .empty) [.classicalOperation
+    (.divRem numeratorWidth divisorWidth)] = _
   simp
 
 private theorem actual_resident (numeratorWidth divisorWidth : Nat)
@@ -229,32 +251,34 @@ private theorem actual_auxiliary (numeratorWidth divisorWidth : Nat)
   simpa only [Nat.max_zero, Nat.max_self, Nat.zero_max] using
     Nat.le_refl (numeratorWidth + divisorWidth)
 
-noncomputable section
-
-local instance {α : Type} : DecidableEq α := Classical.decEq α
-
-private def finalRecord (numeratorWidth divisorWidth : Nat) (store : Execution.Store (inputContext
-  numeratorWidth divisorWidth)) :
+private def finalRecord (numeratorWidth divisorWidth : Nat)
+    (entry : Execution.Store (inputContext numeratorWidth divisorWidth) ×
+      ClassicalOracleModel.empty.HiddenState) :
     (algorithm numeratorWidth divisorWidth).run.Record :=
-  (finalStore numeratorWidth divisorWidth store, (store, ((), ())))
+  let retained := entry.1.pushRetained ⟨1⟩ (outputShape numeratorWidth divisorWidth) (resultFresh
+    numeratorWidth divisorWidth)
+  let result := BitWord.instructionStep
+    (execution := .classical BitWord.model .empty) (divRemOp numeratorWidth divisorWidth) retained
+  (result.1, (entry.2, (entry.1, ((), result.2))))
 
 private theorem execution_eq_map (numeratorWidth divisorWidth : Nat) (Reference : Register)
-    (state : ExecutionState (Execution.Store (inputContext numeratorWidth divisorWidth))
+    (state : ExecutionState
+      (Execution.Store (inputContext numeratorWidth divisorWidth) ×
+        ClassicalOracleModel.empty.HiddenState)
       (Register.prod (inputContext numeratorWidth divisorWidth).register Reference)) :
     (algorithm numeratorWidth divisorWidth).run.execute Reference state = state.mapClassical
       (finalRecord numeratorWidth divisorWidth) := by
   simp only [algorithm, AlgorithmRun.execute, code, Circuit.execute_seq,
-    Circuit.execute_retain, Circuit.execute_classical, Execution.State.classicalStep,
+    Circuit.execute_retain, BitWord.bitWord_instruction_execute,
     Execution.State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem relational_distribution (numeratorWidth divisorWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext numeratorWidth divisorWidth) Reference) :
+    (input : Execution.OracleInput .empty (inputContext numeratorWidth divisorWidth) Reference) :
     (algorithm numeratorWidth divisorWidth).relationalDistribution input =
       (input.state.toPMF input.normalized).map
-        (fun store => (store, (finalStore numeratorWidth divisorWidth store).read (resultRead
+        (fun store => (store.1, (finalStore numeratorWidth divisorWidth store.1).read (resultRead
           numeratorWidth divisorWidth))) := by
   apply AlgorithmRun.relationalDistribution_eq_map_of_block_mass
     (algorithm numeratorWidth divisorWidth).run input (finalRecord numeratorWidth divisorWidth)
@@ -262,8 +286,8 @@ private theorem relational_distribution (numeratorWidth divisorWidth : Nat) {Ref
   rw [execution_eq_map]
 
 private theorem success_probability (numeratorWidth divisorWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext numeratorWidth divisorWidth) Reference)
-    (inputValid : valid numeratorWidth divisorWidth input.localState) :
+    (input : Execution.OracleInput .empty (inputContext numeratorWidth divisorWidth) Reference)
+    (inputValid : valid numeratorWidth divisorWidth input.caller.localState) :
     (1 : ENNReal) ≤ ((algorithm numeratorWidth divisorWidth).relationalDistribution
       input).toOuterMeasure
       {pair | accepts numeratorWidth divisorWidth pair.1 pair.2} := by
@@ -273,44 +297,39 @@ private theorem success_probability (numeratorWidth divisorWidth : Nat) {Referen
   apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
   intro pair supported
   obtain ⟨store, inputSupported, rfl⟩ := (PMF.mem_support_map_iff _ _ _).mp supported
-  apply finalStore_accepts numeratorWidth divisorWidth store
-  apply inputValid store
-  rw [Execution.Input.localState_block_mass]
-  exact (ExecutionState.mem_support_toPMF_iff input.state input.normalized store).mp
-    inputSupported
+  apply finalStore_accepts numeratorWidth divisorWidth store.1
+  apply inputValid store.1
+  exact input.caller_local_mass_pos_of_joint store
+    ((ExecutionState.mem_support_toPMF_iff input.state input.normalized store).mp inputSupported)
 
 private theorem restores_borrowed (numeratorWidth divisorWidth : Nat) {Reference : Register}
-    (input : Execution.Input (inputContext numeratorWidth divisorWidth) Reference) :
+    (input : Execution.OracleInput .empty (inputContext numeratorWidth divisorWidth) Reference) :
     (algorithm numeratorWidth divisorWidth).run.RestoresBorrowed input := by
-  change (code numeratorWidth divisorWidth).BorrowedRestored Reference
-    (input.state.mapClassical fun store => (store, store))
-    ((code numeratorWidth divisorWidth).execute Reference (input.state.mapClassical fun store =>
-      (store, store)))
-  unfold code
-  refine Circuit.borrowedRestored_seq _ _ _ ?_ ?_
-  · exact Circuit.borrowedRestored_retain ⟨1⟩ (outputShape numeratorWidth divisorWidth)
-      (resultFresh numeratorWidth divisorWidth) _
-  · exact Circuit.borrowedRestored_classical (divRemOp numeratorWidth divisorWidth) _
+  apply AlgorithmRun.restoresBorrowed_of_circuit
+  intro reference history _ state
+  exact Circuit.borrowedRestored_of_noBorrowedQuantum
+    (code numeratorWidth divisorWidth) (by rfl) reference state
 
 /-- Native division solves the independent nonzero-divisor arithmetic and storage contract. -/
 public theorem main (numeratorWidth divisorWidth : Nat) : ∃ candidate, Algorithm.Solves candidate
   (problem numeratorWidth divisorWidth) := by
   refine ⟨algorithm numeratorWidth divisorWidth, ?_⟩
   constructor
-  · intro Reference input inputValid
+  · intro Reference input inputValid _initialization
     exact success_probability numeratorWidth divisorWidth input inputValid
-  · intro _Reference _input _valid _requirement impossible
+  · intro _Reference _input _valid _initialization _requirement impossible
     cases impossible
-  · intro Reference input _valid
+  · intro Reference input _valid _initialization
     exact restores_borrowed numeratorWidth divisorWidth input
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact le_of_eq (actual_events numeratorWidth divisorWidth path)
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_resident numeratorWidth divisorWidth path
-  · intro _Reference _input _valid path _supported
+  · intro _Reference _input _valid _initialization path _supported
     exact actual_auxiliary numeratorWidth divisorWidth path
-  · intro _Reference _input _valid _path _supported
-    trivial
+  · intro _Reference _input _valid _initialization _path _supported
+    change 0 + 1 ≤ 1
+    omega
 
 end
 

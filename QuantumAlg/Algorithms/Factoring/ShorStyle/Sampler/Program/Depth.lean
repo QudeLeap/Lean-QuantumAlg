@@ -24,22 +24,27 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 
 open ClassicalRoutines
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- The real public-modulus load and source scan satisfy their explicit serial-depth sum. -/
 theorem samplerScan_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
-    (path : (Scan.circuit N sample).Path) :
-    (Scan.circuit N sample).depth (fun _ => 1) path ≤
+    (path : (Scan.circuit (model := model) N sample).Path) :
+    (Scan.circuit (model := model) N sample).depth (fun _ => 1) path ≤
       2 * (modulusBits N + 1) + residueProposalCount * (2 * modulusBits N + 8) := by
-  have loaded := ConstantWord.constantWord_depth_le (Layout.modulusCell ctx (modulusBits N))
+  have loaded := ConstantWord.constantWord_depth_le (model := model)
+    (Layout.modulusCell ctx (modulusBits N))
     N (fun _ => 1) path.1
-  change (Scan.loader ctx N).depth (fun _ => 1) path.1 ≤
+  change (Scan.loader (model := model) ctx N).depth (fun _ => 1) path.1 ≤
     (modulusBits N + 1) * (1 + 1) at loaded
-  have scanned := Proposal.proposalScan_unit_depth_le (Layout.underRead sample (modulusBits N))
+  have scanned := Proposal.proposalScan_unit_depth_le (model := model)
+    (Layout.underRead sample (modulusBits N))
     (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2
-  change (Scan.loader ctx N).depth (fun _ => 1) path.1 +
-    (Proposal.scan (Layout.underRead sample (modulusBits N))
+  change (Scan.loader (model := model) ctx N).depth (fun _ => 1) path.1 +
+    (Proposal.scan (model := model) (Layout.underRead sample (modulusBits N))
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N))).depth
         (fun _ => 1) path.2 ≤ _
   omega
@@ -48,15 +53,16 @@ theorem samplerScan_unit_depth_le (N : Nat)
 theorem samplerInner_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (inner N sample output).Path) :
-    (inner N sample output).depth (fun _ => 1) path ≤ 44 * modulusBits N + 160 := by
-  have scanned := samplerScan_unit_depth_le N sample path.1
-  have decided := Decision.decision_depth_le (Layout.shared ctx (modulusBits N))
+    (path : (inner (model := model) N sample output).Path) :
+    (inner (model := model) N sample output).depth (fun _ => 1) path ≤
+      44 * modulusBits N + 160 := by
+  have scanned := samplerScan_unit_depth_le (model := model) N sample path.1
+  have decided := Decision.decision_depth_le (model := model) (Layout.shared ctx (modulusBits N))
     (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
     (Layout.underWrite output (modulusBits N)) (fun _ => 1) path.2
   rw [Decision.decisionNativeDepthLimit_unit] at decided
-  change (Scan.circuit N sample).depth (fun _ => 1) path.1 +
-    (Decision.circuit (Layout.shared ctx (modulusBits N))
+  change (Scan.circuit (model := model) N sample).depth (fun _ => 1) path.1 +
+    (Decision.circuit (model := model) (Layout.shared ctx (modulusBits N))
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N))).depth (fun _ => 1) path.2 ≤ _
   simp only [residueProposalCount] at scanned
@@ -66,8 +72,10 @@ theorem samplerInner_unit_depth_le (N : Nat)
 theorem samplerProgram_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
-    (path : (circuit N sample output).Path) :
-    (circuit N sample output).depth (fun _ => 1) path ≤ 44 * modulusBits N + 160 :=
-  samplerInner_unit_depth_le N sample output path
+    (path : (circuit (model := model) N sample output).Path) :
+    (circuit (model := model) N sample output).depth (fun _ => 1) path ≤ 44 * modulusBits N + 160 :=
+  samplerInner_unit_depth_le (model := model) N sample output path
+
+end
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program

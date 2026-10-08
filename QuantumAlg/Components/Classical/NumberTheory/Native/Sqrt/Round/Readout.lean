@@ -76,9 +76,11 @@ theorem nativeSqrt_shift_read (refs : RoundRefs ctx width) (store : Store ctx) :
   exact Nat.mod_eq_of_lt
     ((Nat.div_le_self _ _).trans_lt (store.read (.storage refs.half.toCStorageRef)).toNat_lt)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Both actual branches expose the root chosen by the real comparison result. -/
 theorem nativeSqrt_select_read (refs : RoundRefs ctx width) (store : Store ctx) :
-    ((selectStep refs store).1.read (.storage refs.root.toCStorageRef)).toNat =
+    ((selectStep (model := model) refs store).1.read (.storage refs.root.toCStorageRef)).toNat =
       if (store.read (.storage refs.tooLarge.toCStorageRef)).toBool then
         (store.read (.storage refs.root.toCStorageRef)).toNat
       else (store.read (.storage refs.candidate.toCStorageRef)).toNat := by

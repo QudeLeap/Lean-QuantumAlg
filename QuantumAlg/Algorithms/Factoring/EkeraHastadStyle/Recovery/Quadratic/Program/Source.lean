@@ -43,6 +43,9 @@ private theorem observed_order (accepted firstValid secondValid : Bool) (first s
           (fun factor => factor % 2 ^ resultWidth)) := by
   cases accepted <;> cases firstValid <;> cases secondValid <;> rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The same complete native execution returns the first original factor with actual conversion. -/
 theorem nativeQuadratic_program_source
     (input : CInputRef ctx (.unsignedWord width))
@@ -50,7 +53,7 @@ theorem nativeQuadratic_program_source
     (original : FirstAccepted.Refs ctx resultWidth)
     (unique : ([original.take.key, original.available.key, original.selected.key,
       original.accepted.key] : List StorageKey).Nodup) (store : Store ctx) :
-    selectedFactor original (programStep input modulus original store).1 =
+    selectedFactor original (programStep (model := model) input modulus original store).1 =
       (selectedFactor original store).orElse (fun _ =>
         (RSA.recoverFactorFromShortLog (store.read modulus).toNat (store.read input).toNat).map
           (fun factor => factor % 2 ^ resultWidth)) := by
@@ -59,7 +62,8 @@ theorem nativeQuadratic_program_source
     (store.read modulus).toNat % source.1 = 0)
   let secondValid := decide (1 < source.2 ∧ source.2 < (store.read modulus).toNat ∧
     (store.read modulus).toNat % source.2 = 0)
-  have actual := nativeQuadratic_program_latches input modulus original unique store
+  have actual :=
+    nativeQuadratic_program_latches (model := model) input modulus original unique store
   have observed := congrArg₂
     (fun (accepted : Bool) (word : CShape.Value (.unsignedWord resultWidth)) =>
       if accepted then some word.toNat else none) actual.1 actual.2
@@ -81,10 +85,10 @@ theorem nativeQuadratic_program_source_exact
     (unique : ([original.take.key, original.available.key, original.selected.key,
       original.accepted.key] : List StorageKey).Nodup) (store : Store ctx)
     (capacity : (store.read modulus).toNat ≤ 2 ^ resultWidth) :
-    selectedFactor original (programStep input modulus original store).1 =
+    selectedFactor original (programStep (model := model) input modulus original store).1 =
       (selectedFactor original store).orElse (fun _ =>
         RSA.recoverFactorFromShortLog (store.read modulus).toNat (store.read input).toNat) :=
-  (nativeQuadratic_program_source input modulus original unique store).trans
+  (nativeQuadratic_program_source (model := model) input modulus original unique store).trans
     (congrArg (fun result : Option Nat => (selectedFactor original store).orElse (fun _ => result))
       (RSA.recoverFactorFromShortLog_map_mod
         (store.read modulus).toNat (store.read input).toNat resultWidth capacity))
@@ -96,11 +100,12 @@ theorem nativeQuadratic_allocated_program_source
       (.unsignedWord (RSA.quadraticWordWidth width)))
     (store : Store (SelectionLayout.context ctx resultWidth)) :
     let original := SelectionLayout.refs ctx resultWidth
-    selectedFactor original (programStep input modulus original store).1 =
+    selectedFactor original (programStep (model := model) input modulus original store).1 =
       (selectedFactor original store).orElse (fun _ =>
         (RSA.recoverFactorFromShortLog (store.read modulus).toNat (store.read input).toNat).map
           (fun factor => factor % 2 ^ resultWidth)) :=
-  nativeQuadratic_program_source input modulus (SelectionLayout.refs ctx resultWidth)
+  nativeQuadratic_program_source (model := model) input modulus
+    (SelectionLayout.refs ctx resultWidth)
     (SelectionLayout.nativeRecovery_selection_nodup ctx resultWidth) store
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic

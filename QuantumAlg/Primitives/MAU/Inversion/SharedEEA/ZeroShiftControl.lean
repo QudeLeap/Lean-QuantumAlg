@@ -80,27 +80,32 @@ theorem step_eq_sourceStep {width : Nat} (state : Registers width)
 
 /-- Compile precisely the same actual list whose full-register action is proved above. -/
 def program (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width enough)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Exact basis-vector action of the actual native circuit, without losing relative phases. -/
 theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width enough)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width enough) (gates_step width enough)
 
 /-- The actual native circuit implements the source operation on internally prepared frames. -/
 theorem program_apply_prepared (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) (preparedControl : state.control = false) :
-    (program width enough).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep state)) := by
+    (program width enough).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep state))) := by
   rw [(program_realizes width enough).apply_encoded_ket, step_eq_sourceStep state preparedControl]
 
 /-- The exact event trace includes the forward predicate, two CNOTs, and reversed predicate. -/
 theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace =
-      (TerminalPredicate.gates width enough).map GateSpec.event ++
-        [.gate (.builtin "cnot"), .gate (.builtin "cnot")] ++
-          ((TerminalPredicate.gates width enough).map GateSpec.event).reverse := by
+      (TerminalPredicate.gates width enough).map (GateSpec.event .empty) ++
+        [.gate .cnot, .gate .cnot] ++
+          ((TerminalPredicate.gates width enough).map (GateSpec.event .empty)).reverse := by
   rw [program, GateSpec.programList_eventTrace]
   simp only [gates, List.map_append, List.map_reverse]
   rfl

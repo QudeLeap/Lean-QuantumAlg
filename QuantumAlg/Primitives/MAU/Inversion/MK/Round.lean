@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Realization
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.MAU.Inversion.MK.AuxiliaryShift
 
 /-!
@@ -250,8 +252,8 @@ def coeffWorkKaliskiActiveBranchRoundStep
 def coeffWorkKaliskiActiveBranchRoundProgram
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (branch : Branch) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) := by
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithCoeffAdderWorkEncoding n counterWidth).width)).toQuantum := by
   cases branch with
   | uEven =>
       exact
@@ -312,10 +314,10 @@ the full fixed-round workspace. -/
 def fullRoundWorkKaliskiActiveBranchRoundProgram
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (branch : Branch) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft
-    (n := (counterIncrementWorkEncoding counterWidth).width)
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix
+    (counterIncrementWorkEncoding counterWidth).width
     (coeffWorkKaliskiActiveBranchRoundProgram
       n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
 
@@ -329,7 +331,7 @@ theorem fullRoundWorkKaliskiActiveBranchRound_realizes
         n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
       (fullRoundWorkKaliskiActiveBranchRoundStep
         n counterWidth uIndex vIndex comparisonIndex historyIndex branch) :=
-  UnitaryCircuit.Realizes.prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix
     (right := counterIncrementWorkEncoding counterWidth)
     (coeffWorkKaliskiActiveBranchRound_realizes
       n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
@@ -358,9 +360,9 @@ def fullRoundWorkOddOddSelectorToCarryGates
 /-- Base-gate program for the full-round odd-odd selector latch. -/
 def fullRoundWorkOddOddSelectorToCarryProgram
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCarryGates
       tail counterWidth selectorIndex)
 
@@ -391,6 +393,7 @@ theorem fullRoundWorkOddOddSelectorToCarry_realizes
       (fullRoundWorkOddOddSelectorToCarryStep
         tail counterWidth selectorIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCarryGates
       tail counterWidth selectorIndex)
     (fullRoundWorkOddOddSelectorToCarryStep_eq_gateList
@@ -515,9 +518,9 @@ def fullRoundWorkOddOddSelectorToCounterCarryInGates
 /-- Base-gate program for latching the odd-odd selector into counter work. -/
 def fullRoundWorkOddOddSelectorToCounterCarryInProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCounterCarryInGates
       tail counterWidth)
 
@@ -552,6 +555,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryIn_realizes
       (fullRoundWorkOddOddSelectorToCounterCarryInStep
         tail counterWidth) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCounterCarryInGates
       tail counterWidth)
     (fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_gateList
@@ -660,9 +664,9 @@ def fullRoundWorkActiveOddOddSelectorToCounterCarryInStep
 /-- Actual circuit for the active-guarded odd-odd counter-work latch. -/
 def fullRoundWorkActiveOddOddSelectorToCounterCarryInProgram
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
       tail counterWidth workIndex)
 
@@ -675,7 +679,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryIn_realizes
         tail counterWidth workIndex)
       (fullRoundWorkActiveOddOddSelectorToCounterCarryInStep
         tail counterWidth workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
       tail counterWidth workIndex)
 
@@ -1316,9 +1320,9 @@ to the full fixed-round workspace. -/
 def fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchProgram
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex)
 
@@ -1352,6 +1356,7 @@ theorem fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
       (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep
         tail counterWidth tempIndex historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex)
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_eq_gateList
@@ -1372,10 +1377,10 @@ private theorem
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
-      tail counterWidth tempIndex historyIndex).map EncodedBit.GateSpec.event =
+      tail counterWidth tempIndex historyIndex).map (EncodedBit.GateSpec.event .empty) =
     (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   unfold fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
     registersWithFullRoundWorkEncoding
   rw [EncodedBit.GateSpec.map_event_prodLeft]
@@ -1396,6 +1401,7 @@ theorem
           tail counterWidth tempIndex historyIndex).map
             EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_events
           tail counterWidth tempIndex historyIndex)
     _ = 1 :=
@@ -1418,6 +1424,7 @@ theorem
           tail counterWidth tempIndex historyIndex).map
             EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_events
           tail counterWidth tempIndex historyIndex)
     _ = 18 * tail + 19 :=
@@ -1596,9 +1603,9 @@ lifted to the full fixed-round workspace. -/
 def fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex)
 
@@ -1633,6 +1640,7 @@ theorem
       (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex)
     (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep_eq_gateList
@@ -1656,10 +1664,10 @@ private theorem
     (historyIndex : Fin (2 * tail.succ)) :
     (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
     (coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   unfold fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
     registersWithFullRoundWorkEncoding
   rw [EncodedBit.GateSpec.map_event_prodLeft]
@@ -1680,6 +1688,7 @@ theorem
           tail counterWidth comparisonIndex historyIndex).map
             EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_events
           tail counterWidth comparisonIndex historyIndex)
     _ = 1 :=
@@ -1702,6 +1711,7 @@ theorem
           tail counterWidth comparisonIndex historyIndex).map
             EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_events
           tail counterWidth comparisonIndex historyIndex)
     _ = 104 * tail + 66 :=
@@ -1988,9 +1998,9 @@ def
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
@@ -2005,7 +2015,7 @@ theorem fullRoundWorkCounterCarryInControlledSelectedDispatch_realizes
         tail counterWidth tempIndex historyIndex workIndex)
       (fullRoundWorkCounterCarryInControlledSelectedDispatchStep
         tail counterWidth tempIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
@@ -2117,9 +2127,9 @@ def
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
@@ -2135,7 +2145,7 @@ theorem fullRoundWorkCounterCarryInFalseControlledSelectedDispatch_realizes
         tail counterWidth tempIndex historyIndex workIndex)
       (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchStep
         tail counterWidth tempIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
@@ -2286,9 +2296,9 @@ def
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2303,7 +2313,7 @@ theorem fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatch_realizes
         tail counterWidth comparisonIndex historyIndex workIndex)
       (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2413,9 +2423,9 @@ def fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2430,7 +2440,7 @@ theorem fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatch_realizes
         tail counterWidth comparisonIndex historyIndex workIndex)
       (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2567,9 +2577,9 @@ def fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2584,7 +2594,7 @@ theorem fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_reali
         tail counterWidth comparisonIndex historyIndex workIndex)
       (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2594,7 +2604,8 @@ theorem
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
         (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
           tail counterWidth comparisonIndex historyIndex workIndex).eventCost =
       366 * tail + 260 := by
@@ -2704,10 +2715,10 @@ def fullRoundPathControlWorkOriginalActiveControlledBodyProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundPathControlWorkOriginalActiveControlledBodyGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2724,7 +2735,7 @@ theorem fullRoundPathControlWorkOriginalActiveControlledBody_realizes
         tail counterWidth comparisonIndex historyIndex workIndex)
       (fullRoundPathControlWorkOriginalActiveControlledBodyStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundPathControlWorkOriginalActiveControlledBodyGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2900,10 +2911,11 @@ def fullRoundWorkActiveOddOddLatchThenBodyUncomputeProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
     tail counterWidth comparisonIndex historyIndex workIndex).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The reversed active-guarded latch-then-body program realizes the uncompute
 semantic step. -/
@@ -2920,6 +2932,10 @@ theorem fullRoundWorkActiveOddOddLatchThenBody_uncompute_realizes
   UnitaryCircuit.Realizes.dagger_of_rightInverse
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
       tail counterWidth comparisonIndex historyIndex workIndex)
+    (by
+      rw [fullRoundWorkActiveOddOddLatchThenBodyUncomputeProgram,
+        UnitaryCircuit.dagger_matrix]
+      exact Unitary.star_eq_inv _)
     (fullRoundWorkActiveOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -3358,9 +3374,9 @@ def fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -3375,7 +3391,7 @@ theorem fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
         tail counterWidth comparisonIndex historyIndex workIndex)
       (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -3435,10 +3451,11 @@ def fullRoundWorkOddOddLatchThenBodyUncomputeProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
     tail counterWidth comparisonIndex historyIndex workIndex).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The reversed latch-then-body program realizes the uncompute semantic step.
 -/
@@ -3455,6 +3472,10 @@ theorem fullRoundWorkOddOddLatchThenBody_uncompute_realizes
   UnitaryCircuit.Realizes.dagger_of_rightInverse
     (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
       tail counterWidth comparisonIndex historyIndex workIndex)
+    (by
+      rw [fullRoundWorkOddOddLatchThenBodyUncomputeProgram,
+        UnitaryCircuit.dagger_matrix]
+      exact Unitary.star_eq_inv _)
     (fullRoundWorkOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -5361,9 +5382,9 @@ def detectorCounterInactivePaddingStep
 work. -/
 def detectorCounterInactivePaddingProgram
     (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithDetectorCounterWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.insertMiddle
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithDetectorCounterWorkEncoding n counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryMiddle
     (leftWidth := (registerEncoding n counterWidth).width)
     (middleWidth := (comparisonWorkEncoding n).width)
     (rightWidth := (counterIncrementWorkEncoding counterWidth).width)
@@ -5377,7 +5398,7 @@ theorem detectorCounterInactivePadding_realizes
       (detectorCounterInactivePaddingProgram n counterWidth)
       (detectorCounterInactivePaddingStep n counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
-    (UnitaryCircuit.Realizes.insertMiddle
+    (UnitaryCircuit.Realizes.onBinaryMiddle
       (left := registerEncoding n counterWidth)
       (middle := comparisonWorkEncoding n)
       (right := counterIncrementWorkEncoding counterWidth)
@@ -5435,9 +5456,9 @@ def fullRoundWorkInactivePaddingStep
 encoding. -/
 def fullRoundWorkInactivePaddingProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  UnitaryCircuit.insertMiddle
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryMiddle
     (leftWidth :=
       (registersWithComparisonWorkEncoding tail.succ counterWidth).width)
     (middleWidth := (coeffAdderWorkEncoding tail.succ).width)
@@ -5452,7 +5473,7 @@ theorem fullRoundWorkInactivePadding_realizes
       (fullRoundWorkInactivePaddingProgram tail counterWidth)
       (fullRoundWorkInactivePaddingStep tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
-    (UnitaryCircuit.Realizes.insertMiddle
+    (UnitaryCircuit.Realizes.onBinaryMiddle
       (left := registersWithComparisonWorkEncoding tail.succ counterWidth)
       (middle := coeffAdderWorkEncoding tail.succ)
       (right := counterIncrementWorkEncoding counterWidth)
@@ -5483,9 +5504,9 @@ def fullRoundWorkInactivePaddingGateStep
 fixed-round workspace. -/
 def fullRoundWorkInactivePaddingGateProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  UnitaryCircuit.insertMiddle
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryMiddle
     (leftWidth :=
       (registersWithComparisonWorkEncoding tail.succ counterWidth).width)
     (middleWidth := (coeffAdderWorkEncoding tail.succ).width)
@@ -5501,7 +5522,7 @@ theorem fullRoundWorkInactivePaddingGate_realizes
       (fullRoundWorkInactivePaddingGateProgram tail counterWidth)
       (fullRoundWorkInactivePaddingGateStep tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
-    (UnitaryCircuit.Realizes.insertMiddle
+    (UnitaryCircuit.Realizes.onBinaryMiddle
       (left := registersWithComparisonWorkEncoding tail.succ counterWidth)
       (middle := coeffAdderWorkEncoding tail.succ)
       (right := counterIncrementWorkEncoding counterWidth)
@@ -5527,9 +5548,9 @@ def fullRoundWorkActiveFalseControlledInactivePaddingStep
 to the full fixed-round workspace. -/
 def fullRoundWorkActiveFalseControlledInactivePaddingProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
-  UnitaryCircuit.insertMiddle
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
+  UnitaryCircuit.onBinaryMiddle
     (leftWidth :=
       (registersWithComparisonWorkEncoding tail.succ counterWidth).width)
     (middleWidth := (coeffAdderWorkEncoding tail.succ).width)
@@ -5547,7 +5568,7 @@ theorem fullRoundWorkActiveFalseControlledInactivePadding_realizes
       (fullRoundWorkActiveFalseControlledInactivePaddingStep
         tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
-    (UnitaryCircuit.Realizes.insertMiddle
+    (UnitaryCircuit.Realizes.onBinaryMiddle
       (left := registersWithComparisonWorkEncoding tail.succ counterWidth)
       (middle := coeffAdderWorkEncoding tail.succ)
       (right := counterIncrementWorkEncoding counterWidth)
@@ -5570,9 +5591,9 @@ def fullRoundPathControlWorkActiveFalseInactivePaddingStep
 /-- Actual path/control-work-lifted inactive-padding circuit. -/
 def fullRoundPathControlWorkActiveFalseInactivePaddingProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   liftFullRoundWorkProgramToPathControlWork tail.succ counterWidth
     (fullRoundWorkActiveFalseControlledInactivePaddingProgram
       tail counterWidth)
@@ -5602,9 +5623,9 @@ def fullRoundPathControlWorkTerminatingStep
 /-- Actual path/control-work-lifted terminating-prefix circuit. -/
 def fullRoundPathControlWorkTerminatingProgram
     (tail counterWidth : Nat) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   liftFullRoundWorkProgramToPathControlWork tail.succ counterWidth
     (fullRoundWorkTerminatingStandardLayoutProgram tail counterWidth)
 
@@ -5642,9 +5663,9 @@ def fullRoundPathControlWorkKaliskiRoundControlledProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq
     (UnitaryCircuit.seq
       (fullRoundPathControlWorkOriginalActiveLatchProgram
@@ -5716,9 +5737,9 @@ def fixedRoundPathControlWorkKaliskiRoundProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   fullRoundPathControlWorkKaliskiRoundControlledProgram tail counterWidth
     comparisonIndex (RoundState.fixedRoundHistoryIndex tail.succ roundIndex)
     workIndex
@@ -5789,9 +5810,9 @@ theorem fixedRoundPathControlWorkKaliskiRoundStepSchedule_get
 def fixedRoundPathControlWorkKaliskiRoundProgramSchedule
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    List (UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum) :=
   List.ofFn fun roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds =>
     fixedRoundPathControlWorkKaliskiRoundProgram tail counterWidth
       comparisonIndex roundIndex workIndex
@@ -5877,14 +5898,15 @@ agreement and staged inverse packaging remain separate obligations. -/
 def fixedRoundPathControlWorkKaliskiRoundFoldProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   (fixedRoundPathControlWorkKaliskiRoundProgramSchedule
     tail counterWidth comparisonIndex workIndex).foldr UnitaryCircuit.seq
-      (UnitaryCircuit.identity
-        (Qubits (registersWithFullRoundPathControlWorkEncoding
-          tail.succ counterWidth).width) [] (by simp))
+      (UnitaryCircuit.identity AlgorithmGate.model .empty
+        (QubitLayout.canonical
+          (registersWithFullRoundPathControlWorkEncoding
+            tail.succ counterWidth).width).toQuantum)
 
 /-- Folded semantic shell corresponding to the fixed-round path/control-work
 route schedule. -/
@@ -5977,6 +5999,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_realizes
         tail counterWidth comparisonIndex workIndex) :=
   UnitaryCircuit.Realizes.appendList
     (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
+    (QubitLayout.canonical _)
     (fixedRoundPathControlWorkKaliskiRoundProgramSchedule
       tail counterWidth comparisonIndex workIndex)
     (fixedRoundPathControlWorkKaliskiRoundStepSchedule
@@ -6064,11 +6087,12 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_leftInverse_on_range
 noncomputable def fixedRoundPathControlWorkKaliskiRoundFoldUncomputeProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathControlWorkEncoding
-        tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathControlWorkEncoding
+        tail.succ counterWidth).width)).toQuantum :=
   (fixedRoundPathControlWorkKaliskiRoundFoldProgram
     tail counterWidth comparisonIndex workIndex).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The reversed folded path/control program realizes the selected semantic
 uncompute step. -/
@@ -6084,6 +6108,10 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_realizes
   UnitaryCircuit.Realizes.dagger_of_rightInverse
     (fixedRoundPathControlWorkKaliskiRoundFold_realizes
       tail counterWidth comparisonIndex workIndex)
+    (by
+      rw [fixedRoundPathControlWorkKaliskiRoundFoldUncomputeProgram,
+        UnitaryCircuit.dagger_matrix]
+      exact Unitary.star_eq_inv _)
     (fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
       tail counterWidth comparisonIndex workIndex)
 
@@ -7163,8 +7191,8 @@ def fullRoundWorkKaliskiActiveOnlyRoundConcreteProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq
     (fullRoundWorkTerminatingStandardLayoutProgram tail counterWidth)
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
@@ -7564,8 +7592,8 @@ def fullRoundWorkKaliskiRoundConcreteProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq
     (fullRoundWorkActiveFalseControlledInactivePaddingProgram
       tail counterWidth)
@@ -7613,8 +7641,8 @@ def fullRoundPathWorkKaliskiRoundConcreteProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   liftFullRoundWorkProgramToPathWork tail.succ counterWidth
     (fullRoundWorkKaliskiRoundConcreteProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
@@ -7755,8 +7783,8 @@ def fullRoundPathWorkKaliskiRoundWithOriginalActiveProgram
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits
-      (registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
+      ((registersWithFullRoundPathWorkEncoding tail.succ counterWidth).width)).toQuantum :=
   UnitaryCircuit.seq
     (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth)
     (fullRoundPathWorkKaliskiRoundConcreteProgram

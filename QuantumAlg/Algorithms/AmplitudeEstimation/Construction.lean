@@ -12,7 +12,8 @@ import all QuantumAlg.Algorithms.QPE.Analysis
 import all QuantumAlg.Algorithms.QPE.Basic
 import all QuantumAlg.Algorithms.QPE.Construction
 import all QuantumAlg.Algorithms.QPE.WindowProbability
-import all QuantumAlg.Core.Base.UnitaryCircuit
+import all QuantumAlg.Algorithms.QPE.Circuit.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Base.Tensor.Certified
 import all QuantumAlg.Core.Base.Layout.Qubit
 import all QuantumAlg.Core.Measure
@@ -57,7 +58,9 @@ def inputState {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
 /-- Independent source target: mathematical QPE after the source-granted preparation. -/
 def sourceOperator {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
     UnitaryOperator (Qubits (t + n)) :=
-  (qpeCircuit t (AmplitudeAmplification.intrinsicGoodSourceStepOperator E.source)).matrix *
+  ((invQFT t).tensor (1 : UnitaryOperator (Qubits n)) *
+    (qpeControlledPowerOp t (AmplitudeAmplification.intrinsicGoodSourceStepOperator E.source) *
+      (WalshHadamard.hadamardLayerOperator t).tensor (1 : UnitaryOperator (Qubits n)))) *
     UnitaryOperator.tensor (1 : UnitaryOperator (Qubits t)) E.source.preparation
 
 /-- Normalized target state after the source-defined preparation and mathematical QPE. -/
@@ -119,16 +122,17 @@ theorem sourceOperator_applyVec_allZero {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
     (sourceOperator E t).applyVec (allZeroInput E t : HilbertVector (Qubits (t + n))) =
       E.source.eigenPlusCoefficient •
-          UnitaryCircuit.applyVec
-            (qpeCircuit t (positiveEigenInput E).unitary)
+          (QuantumPhaseEstimation.Native.circuit t
+            (positiveEigenInput E).unitary).binaryMatrix.applyVec
             (qpeInput (positiveEigenInput E) t :
               HilbertVector (Qubits (t + n))) +
         E.source.eigenMinusCoefficient •
-          UnitaryCircuit.applyVec
-            (qpeCircuit t (negativeEigenInput E).unitary)
+          (QuantumPhaseEstimation.Native.circuit t
+            (negativeEigenInput E).unitary).binaryMatrix.applyVec
             (qpeInput (negativeEigenInput E) t :
               HilbertVector (Qubits (t + n))) := by
-  rw [sourceOperator, UnitaryOperator.mul_applyVec]
+  rw [sourceOperator, ← QuantumPhaseEstimation.Native.qpeNative_circuit_binaryMatrix,
+    UnitaryOperator.mul_applyVec]
   rw [allZeroInput, NormalizedVector.coe_tensor, UnitaryOperator.tensor_applyVec_tensor,
     UnitaryOperator.one_applyVec]
   rw [E.source.intrinsicPreparedState_eigen_decomposition]
@@ -156,11 +160,12 @@ theorem evolvedState_apply_prod {n : Nat}
   change (sourceOperator E t).applyVec (allZeroInput E t : HilbertVector (Qubits (t + n)))
       (prodEquiv (j, y)) = _
   have hplus :
-      UnitaryCircuit.applyVec (qpeCircuit t (positiveEigenInput E).unitary)
+      (QuantumPhaseEstimation.Native.circuit t
+            (positiveEigenInput E).unitary).binaryMatrix.applyVec
           (qpeInput (positiveEigenInput E) t :
             HilbertVector (Qubits (t + n))) =
         HilbertVector.tensor
-          (UnitaryCircuit.applyNormalized (qpeReadoutCircuit t)
+          ((invQFT t).apply
             (phaseState t (positiveEigenInput E).phase) :
             HilbertVector (Qubits t))
           ((positiveEigenInput E).eigenstate : HilbertVector (Qubits n)) := by
@@ -169,11 +174,12 @@ theorem evolvedState_apply_prod {n : Nat}
         (ψ : HilbertVector (Qubits (t + n))))
       (qpeCircuit_applyNormalized_input (positiveEigenInput E) t)
   have hminus :
-      UnitaryCircuit.applyVec (qpeCircuit t (negativeEigenInput E).unitary)
+      (QuantumPhaseEstimation.Native.circuit t
+            (negativeEigenInput E).unitary).binaryMatrix.applyVec
           (qpeInput (negativeEigenInput E) t :
             HilbertVector (Qubits (t + n))) =
         HilbertVector.tensor
-          (UnitaryCircuit.applyNormalized (qpeReadoutCircuit t)
+          ((invQFT t).apply
             (phaseState t (negativeEigenInput E).phase) :
             HilbertVector (Qubits t))
           ((negativeEigenInput E).eigenstate : HilbertVector (Qubits n)) := by
@@ -182,18 +188,16 @@ theorem evolvedState_apply_prod {n : Nat}
         (ψ : HilbertVector (Qubits (t + n))))
       (qpeCircuit_applyNormalized_input (negativeEigenInput E) t)
   have hreadoutPlus :
-      UnitaryCircuit.applyNormalized (qpeReadoutCircuit t)
+      (invQFT t).apply
           (phaseState t (positiveEigenInput E).phase) j =
         phaseRegisterGeometricAmplitude t
           (positiveEigenInput E).phase j := by
-    change (invQFT t).apply (phaseState t (positiveEigenInput E).phase) j = _
     exact invQFT_phaseState_apply_geometricSum _ _ _
   have hreadoutMinus :
-      UnitaryCircuit.applyNormalized (qpeReadoutCircuit t)
+      (invQFT t).apply
           (phaseState t (negativeEigenInput E).phase) j =
         phaseRegisterGeometricAmplitude t
           (negativeEigenInput E).phase j := by
-    change (invQFT t).apply (phaseState t (negativeEigenInput E).phase) j = _
     exact invQFT_phaseState_apply_geometricSum _ _ _
   rw [sourceOperator_applyVec_allZero, hplus, hminus]
   simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul,

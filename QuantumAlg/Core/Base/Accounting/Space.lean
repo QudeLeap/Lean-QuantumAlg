@@ -8,6 +8,7 @@ module
 
 import QuantumAlg.Init
 public import QuantumAlg.Core.Base.Accounting.Kind
+public import QuantumAlg.Core.Base.Accounting.Shape
 import all QuantumAlg.Core.Base.Accounting.Kind
 import all QuantumAlg.Core.Base.Accounting.Shape
 public import QuantumAlg.Core.Base.Layout.Quantum
@@ -49,7 +50,7 @@ def ofAxes {kind : ProblemKind} (f : SpaceAxis kind → Nat) : SpacePool kind :=
   f
 
 /-- Pointwise maximum, used by sequential and alternative control flow. -/
-def max {kind : ProblemKind} (left right : SpacePool kind) : SpacePool kind :=
+@[expose] public def max {kind : ProblemKind} (left right : SpacePool kind) : SpacePool kind :=
   fun axis => Nat.max (left axis) (right axis)
 
 @[ext] theorem ext {kind : ProblemKind} {left right : SpacePool kind}
@@ -142,7 +143,7 @@ theorem max_assoc {kind : ProblemKind} (first second third : SpacePool kind) :
   simp [max]
 
 /-- A closed classical shape contributes only to the classical-bit axis. -/
-def ofShape {kind : ProblemKind} (shape : CShape) : SpacePool kind :=
+public def ofShape {kind : ProblemKind} (shape : CShape) : SpacePool kind :=
   fun axis =>
     match axis with
     | .classicalBits => shape.bitWidth
@@ -339,10 +340,6 @@ example (pool : SpacePool .classical) : Nat := pool (.quantumSystems 3)
 /-- error: Unknown constant -/
 #guard_msgs(error, substring := true) in
 #check SpacePool.ofFootprint
-
-/-- error: Unknown constant -/
-#guard_msgs(error, substring := true) in
-#check Resource.Event.byte
 
 /-- error: Unknown constant -/
 #guard_msgs(error, substring := true) in

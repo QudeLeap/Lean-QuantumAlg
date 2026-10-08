@@ -20,7 +20,7 @@ quantum-reference state survive the allocated classical tail.
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuseRecovery
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
@@ -37,10 +37,12 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
 
 /-- Every original structural read survives both real allocation and complete recovery. -/
 theorem tail_callerFrame (input : Input N) (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState)
     {shape : CShape} (other : CInputRef (NativeBatchReuse.context base N) shape) :
-    (step base input before).1.read (liftInput base N other) =
+    (step base input (before, hidden)).1.1.read (liftInput base N other) =
       before.read other :=
-  (LatticeFixedBatchRecoveryMachine.into_callerFrame input (sourceParameter base N)
+  (LatticeFixedBatchRecoveryMachine.into_callerFrame (model := RuntimeRound.model)
+    input (sourceParameter base N)
     (terminals base N) (resultRef base N) _
     (liftInput base N other) (result_avoids_input base N other)).trans
       (Store.read_pushRetained_underRetained before _ _ _ other)
@@ -68,9 +70,10 @@ private theorem batchValue_allocated (sample : Fin (2 ^ residueSamplingBits N))
 /-- The retained output is the exact original batch value of the actual sixteen source results. -/
 theorem tail_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState)
     (parameterStored : before.read (NativeBatchReuse.finalParameter base N) =
       Canonical.parameterValue input sample) :
-    (step base input before).1.read
+    (step base input (before, hidden)).1.1.read
         (.storage (resultRef base N).toCStorageRef) =
       LatticeFixedBatchRecoveryMachine.batchValue sample (sourceTerminals base N)
         before := by
@@ -80,49 +83,60 @@ theorem tail_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
       (sourceParameter base N) :=
     ⟨(Store.read_pushRetained_underRetained before _ _ _
       (NativeBatchReuse.finalParameter base N)).trans parameterStored⟩
-  exact (LatticeFixedBatchRecoveryMachine.into_correct input sample
+  exact (LatticeFixedBatchRecoveryMachine.into_correct (model := RuntimeRound.model) input sample
     (sourceParameter base N) (terminals base N) (resultRef base N)
     _ initialized).output.trans (batchValue_allocated base sample before)
 
 /-- The complete output observes that same actual retained factor. -/
 theorem run_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState)
     (parameterStored : before.read (NativeBatchReuse.finalParameter base N) =
       Canonical.parameterValue input sample) :
-    (run base sameWires originalCells input).output.eval (step base input before).1 =
+    (run base sameWires originalCells input).output.eval (step base input (before, hidden)).1.1 =
       LatticeFixedBatchRecoveryMachine.batchValue sample (sourceTerminals base N)
         before :=
-  tail_output base input sample before parameterStored
+  tail_output base input sample before hidden parameterStored
 
 /-- Recovery preserves the sampled residue in its original cell. -/
-theorem tail_sample (input : Input N) (before : Store (NativeBatchReuse.context base N)) :
-    (step base input before).1.read (sourceSample base N) =
+theorem tail_sample (input : Input N) (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState) :
+    (step base input (before, hidden)).1.1.read (sourceSample base N) =
       before.read (NativeBatchReuse.finalSample base N) :=
-  tail_callerFrame base input before _
+  tail_callerFrame base input before hidden _
 
 /-- Recovery preserves the complete shared parameter in its original cell. -/
-theorem tail_parameter (input : Input N) (before : Store (NativeBatchReuse.context base N)) :
-    (step base input before).1.read (sourceParameter base N) =
+theorem tail_parameter (input : Input N) (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState) :
+    (step base input (before, hidden)).1.1.read (sourceParameter base N) =
       before.read (NativeBatchReuse.finalParameter base N) :=
-  tail_callerFrame base input before _
+  tail_callerFrame base input before hidden _
 
 /-- Recovery preserves all sixteen actual source outcome cells together. -/
-theorem tail_results (input : Input N) (before : Store (NativeBatchReuse.context base N)) :
-    (step base input before).1.read (sourceResults base N) =
+theorem tail_results (input : Input N) (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState) :
+    (step base input (before, hidden)).1.1.read (sourceResults base N) =
       before.read (NativeBatchReuse.finalResults base N) :=
-  tail_callerFrame base input before _
+  tail_callerFrame base input before hidden _
 
 /-- The original complete classical source result survives as one joint structured value. -/
 theorem tail_sourceOutput (input : Input N)
-    (before : Store (NativeBatchReuse.context base N)) :
-    (step base input before).1.read
+    (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState) :
+    (step base input (before, hidden)).1.1.read
         (.product (sourceSample base N)
           (.product (sourceParameter base N) (sourceResults base N))) =
       (NativeBatchReuse.run base N sameWires originalCells).output.eval before :=
-  tail_callerFrame base input before
+  tail_callerFrame base input before hidden
     (.product (NativeBatchReuse.finalSample base N)
       (.product (NativeBatchReuse.finalParameter base N)
         (NativeBatchReuse.finalResults base N)))
+
+/-- The actual retained recovery record preserves the incoming service state exactly. -/
+theorem tail_hiddenState (input : Input N)
+    (before : Store (NativeBatchReuse.context base N))
+    (hidden : RuntimeRound.model.HiddenState) :
+    (step base input (before, hidden)).1.2 = hidden := rfl
 
 /-- The tail leaves the entire actual bank jointly with an arbitrary reference unchanged. -/
 theorem tail_quantumMarginal (input : Input N) :
@@ -137,23 +151,49 @@ theorem code_quantumMarginal (input : Input N) :
   Circuit.RetainedTailRecord.quantumPreserved (NativeBatchReuse.code base N sameWires originalCells)
     (tail base input) (step base input) (code_execute base sameWires originalCells input)
 
+-- Use the proved complete recovery contract without reducing its finite execution tree.
+attribute [local irreducible] LatticeFixedBatchRecoveryMachine.into
+
+private theorem body_borrowedRestored (input : Input N) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State (context base N) Reference (RuntimeRound.model.HiddenState × History)) :
+    (body base input).BorrowedRestored Reference state
+      ((body base input).execute Reference state) :=
+  LatticeFixedBatchRecoveryMachine.into_borrowedRestored
+    (model := RuntimeRound.model) (ctx := context base N) (History := History)
+    input (sourceParameter base N) (terminals base N)
+    (resultRef base N) Reference state
+
+attribute [local irreducible] body
+
 /-- The allocated tail restores all borrowed classical, quantum and reference correlations. -/
 theorem tail_borrowedRestored (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
-    (state : State (NativeBatchReuse.context base N) Reference History) :
+    (state : State (NativeBatchReuse.context base N) Reference
+      (RuntimeRound.model.HiddenState × History)) :
     (tail base input).BorrowedRestored Reference state
       ((tail base input).execute Reference state) := by
-  unfold tail
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_retain _ _ _ state
-  · exact LatticeFixedBatchRecoveryMachine.into_borrowedRestored input
-      (sourceParameter base N) (terminals base N)
-      (resultRef base N) Reference _
+  let allocation : Circuit RuntimeRound.model (NativeBatchReuse.context base N) (context base N) :=
+    .retain (model := RuntimeRound.model) (NativeBatchReuse.context base N)
+      (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
+      (NativeBatchReuse.context base N).canonicalFreshKey_fresh
+  have firstRestores := Circuit.borrowedRestored_retain
+    (model := RuntimeRound.model) (ctx := NativeBatchReuse.context base N)
+    (Reference := Reference) (H := History)
+    (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
+    (NativeBatchReuse.context base N).canonicalFreshKey_fresh state
+  have secondRestores := body_borrowedRestored base input Reference
+    (History := History × Unit) (allocation.execute Reference state)
+  exact Circuit.borrowedRestored_seq (model := RuntimeRound.model)
+    (ctx := NativeBatchReuse.context base N) (middle := context base N) (post := context base N)
+    (Reference := Reference) (H := History) allocation (body base input)
+    state firstRestores secondRestores
 
 /-- The owned original bank and complete recovery restore the same borrowed interface jointly. -/
 theorem code_borrowedRestored (input : Input N)
     (noBorrowed : base.borrowedQuantumWires = []) (Reference : Register)
-    {History : Type} [Fintype History] (state : State base Reference History) :
+    {History : Type} [Fintype History]
+    (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base sameWires originalCells input).BorrowedRestored Reference state
       ((code base sameWires originalCells input).execute Reference state) := by
   unfold code

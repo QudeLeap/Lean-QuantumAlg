@@ -6,59 +6,61 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.State.Basis
 public import QuantumAlg.Core.Base.Accounting.ResourcePool
-public import QuantumAlg.Core.Base.State.Normalized
-public import QuantumAlg.Core.Base.Layout.Quantum
+public import QuantumAlg.Core.Base.Depth.Expr
+import all QuantumAlg.Core.Base.State.Basis
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Depth.Expr
-import all QuantumAlg.Core.Base.State.Normalized
 
 /-!
-# Computational-basis preparation on actual quantum systems
+# Fixed zero preparation on fresh physical systems
 
-The prepared basis has one bounded value at each physical wire's declared
-dimension. Its normalized state and native event both follow from these
-values. Physical allocation and disjointness are checked by the circuit
-constructor; external unknown inputs enter through the initial runtime state.
+Each allocated wire is prepared in its zero computational-basis state and
+emits one preparation event at its actual positive dimension. Independent fresh
+systems may be prepared in parallel. The circuit constructor checks allocation
+and disjointness from the complete existing context.
 -/
 
-namespace QuantumAlg
+namespace QuantumAlg.ZeroPreparation
 
-/-- A closed computational-basis preparation on one finite-dimensional layout. -/
-public structure BasisPreparation {systemCount : Nat} (layout : QuantumLayout systemCount) where
-  /-- One actual finite value for every declared physical system. -/
-  value : layout.Basis
+/-- The sole normalized state produced by the built-in preparation instruction. -/
+public noncomputable def normalized {count : Nat} (layout : QuantumLayout count) :
+    NormalizedVector layout.register := (BasisPreparation.zero layout).normalized
 
-namespace BasisPreparation
+/-- One fixed preparation event for each actual allocated physical system. -/
+public def eventTrace (gates : GateModel) (oracles : OracleModel) {count : Nat}
+    (layout : QuantumLayout count)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    List (Resource.Event (.quantum gates oracles operations classicalOracles)) :=
+  List.ofFn fun index => .preparation (layout.wire index).dimension
 
-/-- Prepare every declared system in its zero computational-basis state. -/
-public def zero {systemCount : Nat} (layout : QuantumLayout systemCount) :
-    BasisPreparation layout :=
-  ⟨layout.zeroLabel⟩
+/-- Literal multiplicities of those actual per-system preparations. -/
+public def eventCost (gates : GateModel) (oracles : OracleModel) {count : Nat}
+    (layout : QuantumLayout count)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    ResourcePool (.quantum gates oracles operations classicalOracles) :=
+  ResourcePool.ofList (eventTrace gates oracles layout operations classicalOracles)
 
-/-- The normalized vector fixed by the specified computational-basis values. -/
-public noncomputable def normalized {systemCount : Nat} {layout : QuantumLayout systemCount}
-    (preparation : BasisPreparation layout) : NormalizedVector layout.register :=
-  NormalizedVector.ket preparation.value
+/-- Distinct fresh wires are independent; the empty layout has no preparation depth. -/
+public def eventDepth (gates : GateModel) (oracles : OracleModel) {count : Nat}
+    (layout : QuantumLayout count)
+    (operations : ClassicalOpModel := .empty)
+    (classicalOracles : ClassicalOracleModel := .empty) :
+    DepthExpr (Resource.Event (.quantum gates oracles operations classicalOracles)) :=
+  (eventTrace gates oracles layout operations classicalOracles).foldr
+    (fun event depth => .tensor (.atom event) depth) .id
 
-/-- Native label records ordered dimensions and values, independently of placement. -/
-public def label {systemCount : Nat} {layout : QuantumLayout systemCount}
-    (preparation : BasisPreparation layout) : Resource.PreparationLabel where
-  family := "builtin"
-  name := "computational-basis"
-  parameters := systemCount ::
-    ((layout.dimensions.map PNat.val) ++ List.ofFn (fun wire => (preparation.value wire).val))
+/-- Every allocated system contributes exactly one fixed preparation occurrence. -/
+public theorem zeroPreparation_event_count (gates : GateModel) (oracles : OracleModel)
+    {count : Nat} (layout : QuantumLayout count) :
+    (eventTrace gates oracles layout).length = count := by simp [eventTrace]
 
-/-- The preparation event belongs to the same declared basis operation. -/
-public def event {systemCount : Nat} {layout : QuantumLayout systemCount}
-    (preparation : BasisPreparation layout) : Resource.Event .quantum :=
-  .preparation preparation.label
+/-- Empty allocation has no event and cannot hide a preparation. -/
+public theorem zeroPreparation_empty_events (gates : GateModel) (oracles : OracleModel)
+    (layout : QuantumLayout 0) : eventTrace gates oracles layout = [] := by
+  simp [eventTrace]
 
-/-- Exact preparation cost derives from the single emitted native event. -/
-public def eventCost {systemCount : Nat} {layout : QuantumLayout systemCount}
-    (preparation : BasisPreparation layout) : ResourcePool .quantum :=
-  ResourcePool.singleton preparation.event
-
-end BasisPreparation
-
-end QuantumAlg
+end QuantumAlg.ZeroPreparation

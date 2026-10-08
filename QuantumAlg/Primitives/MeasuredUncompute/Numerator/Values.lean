@@ -99,8 +99,12 @@ theorem wire_basis_bit (width : Nat) (basis : (context width).register.Index)
 /-- The actual stored result selects exactly the native numerator mask for that Z branch. -/
 theorem stored_native_mask (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (index : Fin width) :
-    QubitReadouts.mask ((Circuit.writeMeasurementPath (readouts width) store
-      (Circuit.measurementBasisPath (readouts width) basis)).read (input width)) index =
+    QubitReadouts.mask ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+      (readouts width) store
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width) basis)).read (input width)) index =
         (frameBasis width basis).val.testBit index.val :=
   (stored_mask width store basis index).trans (wire_basis_bit width basis index)
 

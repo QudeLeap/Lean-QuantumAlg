@@ -27,99 +27,130 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original initialization, unpadded active steps and the three raw result copies. -/
-def rawEvents (kind : ProblemKind) {width : Nat} (input : PureXGCD.Input width) :
-    List (Resource.Event kind) :=
-  initializationEvents kind width ++
-    ((PureXGCD.trace input).flatMap (fun _ => activeEvents kind width) ++
-      rawOutputEvents kind width)
+def rawEvents (model : ExecutionModel) [BitWord.Selected model] {width : Nat} (input :
+  PureXGCD.Input width) :
+    List (Resource.Event model) :=
+  initializationEvents model width ++
+    ((PureXGCD.trace input).flatMap (fun _ => activeEvents model width) ++
+      rawOutputEvents model width)
+
+private theorem scheduled_eventTrace (cells : Cells ctx (stateShapes width))
+    (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
+    (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
+    (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
+    (scheduledRawBody (model := model) cells input zero outputs).eventTrace path =
+      initializationEvents model width ++
+        ((Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
+          (guardedActive (model := model) cells zero)).eventTrace path.2.1 ++
+          rawOutputEvents model width) := by
+  change (initializationBody (model := model) cells input zero).eventTrace path.1 ++
+    ((Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
+      (guardedActive (model := model) cells zero)).eventTrace path.2.1 ++
+      (copyRawOutputs (model := model) cells outputs).eventTrace path.2.2) = _
+  rw [xgcdNativeInitialization_eventTrace, xgcdNativeCopyRawOutputs_eventTrace]
 
 private theorem scheduled_record_execute (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
-    (record : Store ctx → Store ctx ×
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).Path)
+        (guardedActive (model := model) cells zero)).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).execute Reference state = state.mapClassical (fun entry =>
-          ((record entry.1).1, (entry.2, (record entry.1).2))))
+        (guardedActive (model := model) cells zero)).execute Reference state = state.mapClassical
+          (fun entry =>
+          let result := record (entry.1, entry.2.1)
+          (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (scheduledRawBody cells input zero outputs).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (scheduledRawBody (model := model) cells input zero outputs).execute Reference state =
       state.mapClassical (fun entry =>
-        ((scheduledRawRecord cells input zero outputs record entry.1).1,
-          (entry.2, (scheduledRawRecord cells input zero outputs record entry.1).2))) := by
-  apply Circuit.execute_sequenceRecord (initializationBody cells input zero)
+        let result := scheduledRawRecord (model := model) cells input zero outputs record
+          (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
+  apply Circuit.execute_sequenceRecord (initializationBody (model := model) cells input zero)
     (.seq (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedActive cells zero)) (copyRawOutputs cells outputs))
-    (fun before => (initializationStore cells input zero before,
-      ((), ((), ((), ((), ((), ())))))))
+      (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells outputs))
+    (fun before =>
+      let result := initializationStep (model := model) cells input zero before.1
+      ((result.1, before.2), result.2))
     (Circuit.sequenceRecord
       (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)) (copyRawOutputs cells outputs) record
-      (fun before => (copyRawOutputsStore cells outputs before, ((), ((), ())))))
+        (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells
+          outputs) record
+      (fun before =>
+        let result := copyRawOutputsStep (model := model) cells outputs before.1
+        ((result.1, before.2), result.2)))
   · intro reference history historyFinite initial
     refine (xgcdNativeInitialization_execute cells input zero reference initial).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro reference history historyFinite initial
     exact Circuit.execute_sequenceRecord
       (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)) (copyRawOutputs cells outputs) record
-      (fun before => (copyRawOutputsStore cells outputs before, ((), ((), ())))) equation
+        (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells
+          outputs) record
+      (fun before =>
+        let result := copyRawOutputsStep (model := model) cells outputs before.1
+        ((result.1, before.2), result.2)) equation
       (fun finalReference {_} _ finalState => by
         refine (xgcdNativeCopyRawOutputs_execute cells outputs finalReference finalState).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _) reference initial
+        exact ExecutionState.executionState_mapClassical_congr _ rfl) reference initial
 
 /-- A certified record of the initialized schedule emits exactly the original represented trace. -/
-theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx kind}
+theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef outer (.unsignedWord width)) (outputs : RawOutputs outer width)
-    (record : Store ctx → Store ctx ×
-      (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput
+        zero)
         (outputs.transport transport)).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+      (state : State ctx Reference (model.HiddenState × History)),
+      (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput
+        zero)
         (outputs.transport transport)).execute Reference state = state.mapClassical (fun entry =>
-          ((record entry.1).1, (entry.2, (record entry.1).2))))
-    (store : Store ctx) (initialized : cells.Initialized store)
-    (zeroValue : (store.read (transport.liftInput zero)).toNat = 0) :
-    (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+          let result := record (entry.1, entry.2.1)
+          (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (store : Store ctx × model.HiddenState) (initialized : cells.Initialized store.1)
+    (zeroValue : (store.1.read (transport.liftInput zero)).toNat = 0) :
+    (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput zero)
       (outputs.transport transport)).eventTrace (record store).2 =
-        rawEvents kind (GCD.decodeOperands (store.read (transport.liftInput input))) := by
+        rawEvents model (GCD.decodeOperands (store.1.read (transport.liftInput input))) := by
   obtain ⟨loopRecord, loopEquation, _⟩ :=
-    xgcdNativeInitializedLoop_actualRecord cells distinct transport separated input zero
+    xgcdNativeInitializedLoop_actualRecord (model := model) cells distinct transport separated
+      input zero
   have same := Circuit.executionRecord_unique
-    (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+    (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput zero)
       (outputs.transport transport)) record
-    (scheduledRawRecord cells (transport.liftInput input) (transport.liftInput zero)
+    (scheduledRawRecord (model := model) cells (transport.liftInput input) (transport.liftInput
+      zero)
       (outputs.transport transport) loopRecord) equation
     (scheduled_record_execute cells (transport.liftInput input) (transport.liftInput zero)
       (outputs.transport transport) loopRecord loopEquation)
-  rw [same]
+  rw [same, scheduled_eventTrace]
   have loopTrace := xgcdNativeLoop_record_eventTrace cells distinct (transport.liftInput zero)
     (xgcdNativeState_input_separated cells transport separated zero)
     (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width) loopRecord loopEquation
-    (initializationStore cells (transport.liftInput input) (transport.liftInput zero) store)
-    (GCD.decodeOperands (store.read (transport.liftInput input)))
+    (initializationStore cells (transport.liftInput input) (transport.liftInput zero) store.1,
+      store.2)
+    (GCD.decodeOperands (store.1.read (transport.liftInput input)))
     (xgcdNativeInitialization_ready cells distinct transport separated
-      input zero store initialized zeroValue)
+      input zero store.1 initialized zeroValue)
     (xgcdNativeInitialization_state cells distinct transport separated
-      input zero store initialized zeroValue) le_rfl
-  change initializationEvents kind width ++
+      input zero store.1 initialized zeroValue) le_rfl
+  change initializationEvents model width ++
     ((Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedActive cells (transport.liftInput zero))).eventTrace
+      (guardedActive (model := model) cells (transport.liftInput zero))).eventTrace
         (loopRecord (initializationStore cells
-          (transport.liftInput input) (transport.liftInput zero) store)).2 ++
-      rawOutputEvents kind width) = _
+          (transport.liftInput input) (transport.liftInput zero) store.1, store.2)).2 ++
+      rawOutputEvents model width) = _
   rw [loopTrace]
   rfl
 
@@ -127,23 +158,25 @@ private theorem with_raw_state_trace_record
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (distinct : outputs.Distinct) :
-    ∃ record : Store ctx → Store ctx × (withRawState input zero outputs).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (withRawState
+      (model := model) input zero outputs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withRawState input zero outputs).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withRawState (model := model) input zero outputs).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (before.read zero).toNat = 0 →
-        (withRawState input zero outputs).eventTrace (record before).2 =
-          rawEvents kind (GCD.decodeOperands (before.read input)) := by
-  let Trace (before : Store ctx) (events : List (Resource.Event kind)) : Prop :=
-    (before.read zero).toNat = 0 → events = rawEvents kind (GCD.decodeOperands (before.read input))
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (before.1.read zero).toNat = 0 →
+        (withRawState (model := model) input zero outputs).eventTrace (record before).2 =
+          rawEvents model (GCD.decodeOperands (before.1.read input)) := by
+  let Trace (before : Store ctx) (events : List (Resource.Event model)) : Prop :=
+    (before.read zero).toNat = 0 → events = rawEvents model (GCD.decodeOperands (before.read input))
   refine withCells_actualRecord_initialized_trace ctx (stateShapes width)
-    (fun cells _ transport _ => scheduledRawBody cells
+    (fun cells _ transport _ => scheduledRawBody (model := model) cells
       (transport.liftInput input) (transport.liftInput zero) (outputs.transport transport)) Trace ?_
   intro inner cells cellsDistinct transport separated
   obtain ⟨record, equation, _⟩ := xgcdNativeScheduledRaw_actualRecord
-    cells cellsDistinct transport separated input zero outputs distinct
+    (model := model) cells cellsDistinct transport separated input zero outputs distinct
   refine ⟨record, equation, ?_⟩
   intro source before reads initialized zeroValue
   have result := xgcdNativeScheduledRaw_record_eventTrace cells cellsDistinct transport separated
@@ -158,36 +191,44 @@ theorem xgcdNativeWithRawState_record_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (distinct : outputs.Distinct)
-    (record : Store ctx → Store ctx × (withRawState input zero outputs).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (withRawState
+      (model := model) input zero outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (withRawState input zero outputs).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2))))
-    (store : Store ctx) (zeroValue : (store.read zero).toNat = 0) :
-    (withRawState input zero outputs).eventTrace (record store).2 =
-      rawEvents kind (GCD.decodeOperands (store.read input)) := by
+      (state : State ctx Reference (model.HiddenState × History)),
+      (withRawState (model := model) input zero outputs).execute Reference state =
+        state.mapClassical (fun entry =>
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (store : Store ctx × model.HiddenState) (zeroValue : (store.1.read zero).toNat = 0) :
+    (withRawState (model := model) input zero outputs).eventTrace (record store).2 =
+      rawEvents model (GCD.decodeOperands (store.1.read input)) := by
   obtain ⟨other, otherEquation, trace⟩ := with_raw_state_trace_record input zero outputs distinct
-  rw [Circuit.executionRecord_unique (withRawState input zero outputs)
+  rw [Circuit.executionRecord_unique (withRawState (model := model) input zero outputs)
     record other equation otherEquation]
   exact trace store zeroValue
 
-private theorem lexical_record_trace {inner : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem lexical_record_trace {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
-    (body : Circuit (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
-    (bodyRecord : Store (inner.addWorkspace key shape fresh) →
-      Store (inner.addWorkspace key shape fresh) × body.Path)
+    (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
+    (bodyRecord : Store (inner.addWorkspace key shape fresh) × model.HiddenState →
+      (Store (inner.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State (inner.addWorkspace key shape fresh) Reference History),
+      (state : State (inner.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
       body.execute Reference state = state.mapClassical (fun entry =>
-        ((bodyRecord entry.1).1, (entry.2, (bodyRecord entry.1).2))))
-    (record : Store inner → Store inner × (Circuit.workspace inner key shape fresh body).Path)
+        let result := bodyRecord (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
+    (record : Store inner × model.HiddenState → (Store inner × model.HiddenState) ×
+      (Circuit.workspace inner key shape fresh body).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State inner Reference History),
+      (state : State inner Reference (model.HiddenState × History)),
       (Circuit.workspace inner key shape fresh body).execute Reference state =
         state.mapClassical (fun entry =>
-          ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store inner) :
+          let result := record (entry.1, entry.2.1)
+          (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store inner ×
+            model.HiddenState) :
     (Circuit.workspace inner key shape fresh body).eventTrace (record store).2 =
-      body.eventTrace (bodyRecord (store.pushWorkspace key shape fresh)).2 := by
+      body.eventTrace (bodyRecord (store.1.pushWorkspace key shape fresh, store.2)).2 := by
   rw [Circuit.executionRecord_unique (Circuit.workspace inner key shape fresh body)
     record (Circuit.workspaceRecord key shape fresh body bodyRecord) equation
     (Circuit.execute_workspaceRecord key shape fresh body bodyRecord bodyEquation)]
@@ -197,29 +238,34 @@ private theorem lexical_record_trace {inner : RuntimeCtx kind}
 theorem xgcdNativeRawEngine_record_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
-    (record : Store ctx → Store ctx × (rawEngine input outputs).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
+      := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (rawEngine input outputs).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx) :
-    (rawEngine input outputs).eventTrace (record store).2 =
-      rawEvents kind (GCD.decodeOperands (store.read input)) := by
+      (state : State ctx Reference (model.HiddenState × History)),
+      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+        (fun entry =>
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×
+          model.HiddenState) :
+    (rawEngine (model := model) input outputs).eventTrace (record store).2 =
+      rawEvents model (GCD.decodeOperands (store.1.read input)) := by
   let key := ctx.canonicalFreshKey
   let shape := CShape.unsignedWord width
   let fresh := ctx.canonicalFreshKey_fresh
   let liftedInput := input.underWorkspace key shape fresh
   let zero := GCD.cellRead (CWriteRef.workspaceHead ctx key shape fresh)
   let liftedOutputs := outputs.underZero
-  let body := withRawState liftedInput zero liftedOutputs
+  let body := withRawState (model := model) liftedInput zero liftedOutputs
   have liftedDistinct : liftedOutputs.Distinct := distinct
   obtain ⟨bodyRecord, bodyEquation, _⟩ :=
-    xgcdNativeWithRawState_actualRecord liftedInput zero liftedOutputs liftedDistinct
+    xgcdNativeWithRawState_actualRecord (model := model) liftedInput zero liftedOutputs
+      liftedDistinct
   have inherited := lexical_record_trace key shape fresh body bodyRecord bodyEquation
     record equation store
   have traced := xgcdNativeWithRawState_record_eventTrace liftedInput zero liftedOutputs
-    liftedDistinct bodyRecord bodyEquation (store.pushWorkspace key shape fresh) (by rfl)
-  have inputRead : (store.pushWorkspace key shape fresh).read liftedInput = store.read input :=
-    Store.read_pushWorkspace_underWorkspace store key shape fresh input
+    liftedDistinct bodyRecord bodyEquation (store.1.pushWorkspace key shape fresh, store.2) (by rfl)
+  have inputRead : (store.1.pushWorkspace key shape fresh).read liftedInput = store.1.read input :=
+    Store.read_pushWorkspace_underWorkspace store.1 key shape fresh input
   rw [inputRead] at traced
   exact inherited.trans traced
 
@@ -227,13 +273,17 @@ theorem xgcdNativeRawEngine_record_eventTrace
 theorem xgcdNativeRawEngine_record_resourcePool
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
-    (record : Store ctx → Store ctx × (rawEngine input outputs).Path)
+    (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
+      := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
-      (rawEngine input outputs).execute Reference state = state.mapClassical (fun entry =>
-        ((record entry.1).1, (entry.2, (record entry.1).2)))) (store : Store ctx) :
-    (rawEngine input outputs).resourcePool (record store).2 =
-      ResourcePool.ofList (rawEvents kind (GCD.decodeOperands (store.read input))) := by
+      (state : State ctx Reference (model.HiddenState × History)),
+      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+        (fun entry =>
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×
+          model.HiddenState) :
+    (rawEngine (model := model) input outputs).resourcePool (record store).2 =
+      ResourcePool.ofList (rawEvents model (GCD.decodeOperands (store.1.read input))) := by
   exact congrArg ResourcePool.ofList
     (xgcdNativeRawEngine_record_eventTrace input outputs distinct record equation store)
 

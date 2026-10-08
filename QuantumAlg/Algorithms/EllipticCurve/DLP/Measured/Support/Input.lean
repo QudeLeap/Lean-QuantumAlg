@@ -62,7 +62,7 @@ theorem originalMontgomeryInputVector_prepared (problem : KnownOrderProblem (Gro
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ)
     (seed : AffinePoint E) {Reference : Register} (reference : NormalizedVector Reference) :
     (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) Reference).applyVec
+      Reference).applyVec
         (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference).vec =
       (preparedMontgomeryVector problem fieldTail sameWidth fits seed reference).vec :=
   preparedMontgomeryVector_actual problem fieldTail sameWidth fits seed reference
@@ -74,7 +74,7 @@ def goodInputVector (problem : KnownOrderProblem (GroupPoint E))
     {Reference : Register} (reference : NormalizedVector Reference) :
     HilbertVector (Register.prod (before p.size (2 * orderWidth problem)).register Reference) :=
   (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-    (exponentPreparationCircuit_physical_idx problem) Reference).dagger.applyVec
+    Reference).dagger.applyVec
       (preparedGoodVector problem fieldTail sameWidth fits points seed reference)
 
 /-- Pulling back the good component preserves its original subnormalized norm. -/
@@ -92,7 +92,7 @@ theorem goodInputVector_prepared (problem : KnownOrderProblem (GroupPoint E))
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} (reference : NormalizedVector Reference) :
     (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) Reference).applyVec
+      Reference).applyVec
         (goodInputVector problem fieldTail sameWidth fits points seed reference) =
       preparedGoodVector problem fieldTail sameWidth fits points seed reference := by
   rw [goodInputVector, ← UnitaryOperator.mul_applyVec, UnitaryOperator.dagger,
@@ -113,7 +113,7 @@ theorem goodInputVector_preparedDensity (problem : KnownOrderProblem (GroupPoint
           points seed reference) := by
   have transformed := applyUnitary_subnormalizedVector
     (beforeExponentOperator p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem) Reference)
+      Reference)
     (goodInputVector problem fieldTail sameWidth fits points seed reference)
     (goodInputVector_norm_le_one problem fieldTail sameWidth fits points seed reference)
   apply DensityOperator.ext
@@ -144,8 +144,7 @@ theorem norm_originalMontgomeryInput_sub_good (problem : KnownOrderProblem (Grou
       goodInputVector problem fieldTail sameWidth fits points seed reference‖ =
       Real.sqrt (preparedExceptionalMass problem points seed) := by
   have isometry := (beforeExponentOperator p (orderWidth problem)
-    (exponentPreparationCircuit problem) (exponentPreparationCircuit_physical_idx problem)
-    Reference).norm_applyVec
+    (exponentPreparationCircuit problem) Reference).norm_applyVec
       ((originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference).vec -
         goodInputVector problem fieldTail sameWidth fits points seed reference)
   rw [UnitaryOperator.applyVec_sub, originalMontgomeryInputVector_prepared,

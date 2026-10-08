@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
 noncomputable section
 
-open Execution ClassicalRoutines.FirstAccepted.Direct
+open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 /-- Every supported typed batch word decodes to its original checked nontrivial factor. -/
 theorem batch_outputValue_some_sound {N : Nat} (specification : Input N)
@@ -48,7 +48,8 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- Every populated actual selected output word represents a checked nontrivial divisor. -/
 theorem run_some_sound (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference)
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈
       ((run base noQuantum specification count).outputDistribution input).support) :
@@ -59,7 +60,8 @@ theorem run_some_sound (specification : Input N) (count : Nat)
 
 /-- Natural observation of any supported populated actual result is the same nontrivial divisor. -/
 theorem run_decoded_some_sound (specification : Input N) (count : Nat)
-    {Reference : Register} (input : Execution.Input base Reference) (factor : Nat)
+    {Reference : Register}
+    (input : OracleInput RuntimeRound.model.classicalOracles base Reference) (factor : Nat)
     (supported : some factor ∈
       (((run base noQuantum specification count).outputDistribution input).map
         decodeFactor).support) :

@@ -11,6 +11,9 @@ import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Initial.PortProgram
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.RegisterFrame
 import all QuantumAlg.Core.Execution.Preparation.Laws
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Preparation.Loaded
+import all QuantumAlg.Core.Execution.Prepared.BasisSupport
+import all QuantumAlg.Core.Execution.Reference.Unitary
 
 /-!
 # Direct fixed preparation for the original in-place division frame
@@ -234,21 +237,51 @@ theorem prepared_input (modulus : Nat)
         (value, (InversePreparation.inputBasisEquiv modulus.size old).2)) source
 
 /-- One actual fixed preparation retains the two already existing words in the same layout. -/
-def circuit (modulus : Nat) :
-    Circuit (InversePreparation.before modulus.size) (InversePreparation.after modulus.size) :=
-  .prepare (InversePreparation.before modulus.size) InversePreparation.auxiliaryKey
+def loadConstant (modulus : Nat) : Fin (2 ^ InputPreparation.auxiliaryWidth modulus.size) :=
+  (InputPreparation.auxiliaryQubitLayout modulus.size).binaryIndexEquiv
+    (preparation modulus).value
+
+/-- Literal X gates load the fixed initial frame on the newly allocated wires. -/
+def loadProgram (modulus : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (InversePreparation.after modulus.size).quantumLayout :=
+  Execution.PreparationLoaded.program (InversePreparation.before modulus.size)
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (EncodedBit.Word.BasisLoad.program (InputPreparation.auxiliaryQubitLayout modulus.size)
+      .empty (loadConstant modulus))
+
+/-- The actual auxiliary register is allocated in zero before its fixed X loading. -/
+def zeroCircuit (modulus : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (InversePreparation.before modulus.size) (InversePreparation.after modulus.size) :=
+  .prepareZero (InversePreparation.before modulus.size) InversePreparation.auxiliaryKey
     (InputPreparation.auxiliaryLayout modulus.size)
     (InversePreparation.auxiliary_fresh modulus.size)
-    (InversePreparation.auxiliary_disjoint modulus.size) (preparation modulus)
+    (InversePreparation.auxiliary_disjoint modulus.size)
 
-/-- The charged event is the new directly prepared A=0 basis on the actual auxiliary layout. -/
+/-- One actual fixed preparation retains the two already existing words in the same layout. -/
+def circuit (modulus : Nat) :
+    Circuit (.quantum AlgorithmGate.model .empty)
+      (InversePreparation.before modulus.size) (InversePreparation.after modulus.size) :=
+  (zeroCircuit modulus).seq (.unitary (loadProgram modulus))
+
+/-- The trace charges zero allocation and the literal X gates loading the fixed seed. -/
 theorem circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
-    (circuit modulus).eventTrace path = [(preparation modulus).event] := rfl
+    (circuit modulus).eventTrace path =
+      ZeroPreparation.eventTrace AlgorithmGate.model .empty
+        (InputPreparation.auxiliaryLayout modulus.size) ++
+        (loadProgram modulus).eventTrace .empty .empty := by
+  change (zeroCircuit modulus).eventTrace path.1 ++
+    (Circuit.unitary (loadProgram modulus)).eventTrace path.2 = _
+  rfl
 
 /-- The actual allocation visits exactly the existing two-word input and shared-frame output. -/
 theorem circuit_visitedContexts (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).visitedContexts path =
-      [InversePreparation.before modulus.size, InversePreparation.after modulus.size] := rfl
+      [InversePreparation.before modulus.size, InversePreparation.after modulus.size,
+        InversePreparation.after modulus.size] := rfl
 
 /-- Resident peak includes both supplied words and the entire same allocated auxiliary layout. -/
 theorem circuit_resident (modulus : Nat) (path : (circuit modulus).Path) :
@@ -256,8 +289,9 @@ theorem circuit_resident (modulus : Nat) (path : (circuit modulus).Path) :
       (InversePreparation.before modulus.size).residentSpace
       (InversePreparation.after modulus.size).residentSpace := by
   change SpacePool.max (InversePreparation.before modulus.size).residentSpace
-    (SpacePool.max (InversePreparation.after modulus.size).residentSpace 0) = _
-  rw [SpacePool.max_zero]
+    (SpacePool.max (InversePreparation.after modulus.size).residentSpace
+      (SpacePool.max (InversePreparation.after modulus.size).residentSpace 0)) = _
+  rw [SpacePool.max_zero, SpacePool.max_self]
 
 /-- The same complete live register has the owned role; no additional auxiliary bank is present. -/
 theorem circuit_auxiliary (modulus : Nat) (path : (circuit modulus).Path) :
@@ -265,14 +299,98 @@ theorem circuit_auxiliary (modulus : Nat) (path : (circuit modulus).Path) :
       (InversePreparation.before modulus.size).auxiliarySpace
       (InversePreparation.after modulus.size).auxiliarySpace := by
   change SpacePool.max (InversePreparation.before modulus.size).auxiliarySpace
-    (SpacePool.max (InversePreparation.after modulus.size).auxiliarySpace 0) = _
-  rw [SpacePool.max_zero]
+    (SpacePool.max (InversePreparation.after modulus.size).auxiliarySpace
+      (SpacePool.max (InversePreparation.after modulus.size).auxiliarySpace 0)) = _
+  rw [SpacePool.max_zero, SpacePool.max_self]
+
+/-- The fixed X list maps the fresh zero bank to exactly the required seed. -/
+theorem sourceLoad_seed (modulus : Nat) :
+    (EncodedBit.Word.BasisLoad.program (InputPreparation.auxiliaryQubitLayout modulus.size)
+      .empty (loadConstant modulus)).applyNormalized
+        (NormalizedVector.ket
+          (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value) =
+      NormalizedVector.ket (preparation modulus).value := by
+  have zeroBasis :
+      (InputPreparation.auxiliaryQubitLayout modulus.size).binaryIndexEquiv.symm 0 =
+        (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value := by
+    funext index
+    apply Fin.ext
+    change (finTwoEquiv.symm ((0 : Nat).testBit index.rev.val)).val = 0
+    simp only [Nat.zero_testBit]
+    decide
+  have seedBasis :
+      (InputPreparation.auxiliaryQubitLayout modulus.size).binaryIndexEquiv.symm
+        (loadConstant modulus) = (preparation modulus).value :=
+    (InputPreparation.auxiliaryQubitLayout modulus.size).binaryIndexEquiv.symm_apply_apply _
+  rw [← zeroBasis, ← seedBasis]
+  exact EncodedBit.Word.BasisLoad.basisLoad_apply_zero
+    (InputPreparation.auxiliaryQubitLayout modulus.size) .empty (loadConstant modulus)
+
+/-- Loading touches only fresh systems and preserves every old input basis label. -/
+theorem loadProgram_seed (modulus : Nat)
+    (old : (InversePreparation.before modulus.size).register.Index) :
+    (loadProgram modulus).applyNormalized
+        (NormalizedVector.ket
+          (preparedLocalBasisEquiv (InversePreparation.before modulus.size)
+            InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+            (InversePreparation.auxiliary_fresh modulus.size)
+            (InversePreparation.auxiliary_disjoint modulus.size)
+            ((BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value,
+              old))) =
+      NormalizedVector.ket
+        (preparedLocalBasisEquiv (InversePreparation.before modulus.size)
+          InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size)
+          ((preparation modulus).value, old)) :=
+  Execution.PreparationLoaded.program_joined_ket (InversePreparation.before modulus.size)
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    _ _ _ (sourceLoad_seed modulus) old
 
 variable {Reference : Register} {H : Type} [Fintype H]
 
+/-- The zero allocation followed by X loading realizes the exact fixed-seed tensor. -/
+theorem execute_preparedDensity (modulus : Nat)
+    (state : State (InversePreparation.before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
+    ((circuit modulus).execute Reference state).quantumMarginal =
+      preparedDensity InversePreparation.auxiliaryKey
+        (InputPreparation.auxiliaryLayout modulus.size)
+        (InversePreparation.auxiliary_fresh modulus.size)
+        (InversePreparation.auxiliary_disjoint modulus.size)
+        (preparation modulus).normalized Reference state.quantumMarginal := by
+  rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
+    Circuit.unitary_jointDensity]
+  have zero : ((zeroCircuit modulus).execute Reference state).quantumMarginal =
+      preparedDensity InversePreparation.auxiliaryKey
+        (InputPreparation.auxiliaryLayout modulus.size)
+        (InversePreparation.auxiliary_fresh modulus.size)
+        (InversePreparation.auxiliary_disjoint modulus.size)
+        (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).normalized
+        Reference state.quantumMarginal := by
+    change ((state.prepare InversePreparation.auxiliaryKey
+      (InputPreparation.auxiliaryLayout modulus.size)
+      (InversePreparation.auxiliary_fresh modulus.size)
+      (InversePreparation.auxiliary_disjoint modulus.size)
+      (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size))).mapHistory
+        (fun record => (record.1.1, (record.1.2, record.2)))).quantumMarginal = _
+    rw [State.mapHistory_quantumMarginal, State.prepare_quantumMarginal,
+      prepareContext_quantumMarginal_eq_preparedDensity]
+  rw [zero]
+  exact preparedDensity_load_ket InversePreparation.auxiliaryKey
+    (InputPreparation.auxiliaryLayout modulus.size)
+    (InversePreparation.auxiliary_fresh modulus.size)
+    (InversePreparation.auxiliary_disjoint modulus.size)
+    (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value
+    (preparation modulus).value (loadProgram modulus).matrix
+    (loadProgram_seed modulus) state.quantumMarginal
+
 /-- The same full joint tensor includes arbitrary old coherences, not separable input factors. -/
 theorem execute_joined_entry (modulus : Nat)
-    (state : State (InversePreparation.before modulus.size) Reference H)
+    (state : State (InversePreparation.before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (newRow newColumn : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (oldRow oldColumn :
       (Register.prod (InversePreparation.before modulus.size).register Reference).Index) :
@@ -287,30 +405,41 @@ theorem execute_joined_entry (modulus : Nat)
         (InversePreparation.auxiliary_disjoint modulus.size) (newColumn, oldColumn)) =
       ((preparation modulus).normalized.vec newRow *
         star ((preparation modulus).normalized.vec newColumn)) *
-          state.quantumMarginal.matrix oldRow oldColumn :=
-  Circuit.prepare_joined_entry state InversePreparation.auxiliaryKey
-    (InputPreparation.auxiliaryLayout modulus.size)
+          state.quantumMarginal.matrix oldRow oldColumn := by
+  rw [execute_preparedDensity]
+  exact preparedDensity_joined_entry
+    InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
     (InversePreparation.auxiliary_fresh modulus.size)
-    (InversePreparation.auxiliary_disjoint modulus.size) (preparation modulus)
-    newRow newColumn oldRow oldColumn
+    (InversePreparation.auxiliary_disjoint modulus.size) (preparation modulus).normalized
+    state.quantumMarginal newRow newColumn oldRow oldColumn
 
 /-- Every full external-reference matrix entry is preserved by this actual fixed preparation. -/
 theorem execute_reference_entry (modulus : Nat)
-    (state : State (InversePreparation.before modulus.size) Reference H)
+    (state : State (InversePreparation.before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (left right : Reference.Index) :
     (∑ basis : (InversePreparation.after modulus.size).register.Index,
       ((circuit modulus).execute Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (InversePreparation.before modulus.size).register.Index,
-        state.quantumMarginal.matrix (basis, left) (basis, right) :=
-  Circuit.prepare_reference_entry state InversePreparation.auxiliaryKey
-    (InputPreparation.auxiliaryLayout modulus.size)
-    (InversePreparation.auxiliary_fresh modulus.size)
-    (InversePreparation.auxiliary_disjoint modulus.size) (preparation modulus) left right
+        state.quantumMarginal.matrix (basis, left) (basis, right) := by
+  rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
+    Circuit.unitary_jointDensity]
+  exact (DensityOperator.localUnitary_reference_entry (loadProgram modulus).matrix
+    (((zeroCircuit modulus).execute Reference state).quantumMarginal) left right).trans
+      (by
+        convert (Circuit.prepareZero_reference_entry (gates := AlgorithmGate.model)
+          (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+          state InversePreparation.auxiliaryKey
+          (InputPreparation.auxiliaryLayout modulus.size)
+          (InversePreparation.auxiliary_fresh modulus.size)
+          (InversePreparation.auxiliary_disjoint modulus.size) left right)
+          using 1; rfl)
 
 /-- Actual preparation preserves the complete incoming mass without a basis-state restriction. -/
 theorem execute_mass (modulus : Nat)
-    (state : State (InversePreparation.before modulus.size) Reference H) :
+    (state : State (InversePreparation.before modulus.size) Reference
+      (ClassicalOracleModel.empty.HiddenState × H)) :
     ((circuit modulus).execute Reference state).mass = state.mass :=
   Circuit.execute_mass (circuit modulus) Reference state
 

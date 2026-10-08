@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Construction
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
 import all QuantumAlg.Components.Classical.OrderRecovery.Native.Encoding
 import all QuantumAlg.Core.Algorithm.ClassicalOp
 import all QuantumAlg.Core.Execution.Store

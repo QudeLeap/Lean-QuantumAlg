@@ -26,22 +26,27 @@ open NumberTheory.Checked.Native Modular.NativePower
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original successful recovery duration includes both products, verification and packing. -/
-def selectedRecoveryDepthLimit (width : Nat) (duration : Resource.Event kind → Nat) : Nat :=
+def selectedRecoveryDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : Nat :=
   (2 * multiplyDepth width duration +
-    duration (.classicalOperation (.wordBinary .equal width)) +
-      duration (.classicalOperation (.nominalEncoding (.packProduct width 1)))) +
-        duration (.classicalOperation (.nominalEncoding (.packOption (width + 1))))
+    duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary
+      .equal width))) +
+      duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.nominalEncoding (.packProduct width 1))))) +
+        duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.nominalEncoding (.packOption (width + 1)))))
 
 /-- Original independent checked-inverse allowance and the complete selected recovery capacity. -/
-def checkedRecoveryEnvelope (kind : ProblemKind) (spec : ModulusSpec width) : ResourcePool kind :=
-  checkedInverseEnvelope kind spec + ResourcePool.ofList (selectedRecoveryEvents kind width true)
+def checkedRecoveryEnvelope (model : ExecutionModel) [BitWord.Selected model]
+    (spec : ModulusSpec width) : ResourcePool model :=
+  checkedInverseEnvelope model spec + ResourcePool.ofList (selectedRecoveryEvents model width true)
 
 /-- The original checked call and selected normalized recovery have serial dependencies. -/
 def checkedRecoveryDepthLimit (spec : ModulusSpec width)
-    (duration : Resource.Event kind → Nat) : Nat :=
+    (duration : Resource.Event model → Nat) : Nat :=
   checkedInverseDepthLimit spec duration + selectedRecoveryDepthLimit width duration
 
 /-- Checked engine scratch is released before selected payload and normalized arithmetic scratch. -/
@@ -52,9 +57,9 @@ def checkedRecoveryActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool ki
 private theorem selected_pool_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).resourcePool path ≤
-      ResourcePool.ofList (selectedRecoveryEvents kind width true) := by
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).resourcePool path ≤
+      ResourcePool.ofList (selectedRecoveryEvents model width true) := by
   rw [withSelectedRecovery_resourcePool]
   cases selected : path.1.1.toBool
   · simp only [selectedRecoveryEvents, Bool.false_eq_true, if_false, if_true, List.nil_append]
@@ -64,9 +69,9 @@ private theorem selected_pool_le (input : CInputRef ctx (FiniteCyclicDLP.InputSh
 
 private theorem selected_depth_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
-    (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (withSelectedRecovery input modulus success output).Path) :
-    (withSelectedRecovery input modulus success output).depth duration path ≤
+    (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
+    (withSelectedRecovery (model := model) input modulus success output).depth duration path ≤
       selectedRecoveryDepthLimit width duration := by
   rw [withSelectedRecovery_durationDepth]
   cases selected : path.1.1.toBool
@@ -74,7 +79,7 @@ private theorem selected_depth_le (input : CInputRef ctx (FiniteCyclicDLP.InputS
     omega
   · exact le_rfl
 
-private theorem selected_scratch_le (selected : Bool) :
+private theorem selected_scratch_le {kind : ProblemKind} (selected : Bool) :
     (selectedRecoveryScratchSpace width selected : SpacePool kind) ≤
       selectedRecoveryScratchSpace width true := by
   cases selected
@@ -86,11 +91,15 @@ private theorem checked_recovery_body_pool_le (spec : ModulusSpec width)
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (checkedSelectionBody spec left negatedRight modulus success inverse result).Path) :
-    (checkedSelectionBody spec left negatedRight modulus success inverse result).resourcePool path ≤
-      checkedRecoveryEnvelope kind spec := by
-  change ResourcePool.ofList ((withCheckedInverse spec left success inverse).eventTrace path.1 ++
-    (withSelectedRecovery (.product left (.product negatedRight (scaleRead inverse))) modulus
+    (path : (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).Path) :
+    (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).resourcePool path ≤
+      checkedRecoveryEnvelope model spec := by
+  change ResourcePool.ofList ((withCheckedInverse (model := model) spec left success
+    inverse).eventTrace path.1 ++
+    (withSelectedRecovery (model := model) (.product left (.product negatedRight (scaleRead
+      inverse))) modulus
       (scaleRead success) result).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (withCheckedInverse_pool_le spec left success inverse path.1)
@@ -99,25 +108,27 @@ private theorem checked_recovery_body_pool_le (spec : ModulusSpec width)
 /-- Real allocation of both checked result cells adds no fictitious native operations. -/
 theorem withCheckedSelection_pool_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
-    (path : (withCheckedSelection spec refs result).Path) :
-    (withCheckedSelection spec refs result).resourcePool path ≤
-      checkedRecoveryEnvelope kind spec := by
+    (path : (withCheckedSelection (model := model) spec refs result).Path) :
+    (withCheckedSelection (model := model) spec refs result).resourcePool path ≤
+      checkedRecoveryEnvelope model spec := by
   exact withCellsFrom_pool_le (Transport.id ctx) (checkedResultShapes width)
-    (fun cells _ transport _ => checkedSelectionBody spec
+    (fun cells _ transport _ => checkedSelectionBody (model := model) spec
       (transport.liftInput (scaleRead refs.left))
       (transport.liftInput (scaleRead refs.negatedRight))
       (transport.liftInput (scaleRead refs.modulusWide))
       (checkedSuccessCell cells) (checkedInverseCell cells) (transport.liftWrite result))
-    (checkedRecoveryEnvelope kind spec)
+    (checkedRecoveryEnvelope model spec)
     (fun cells _ transport _ selected => checked_recovery_body_pool_le _ _ _ _ _ _ _ selected) path
 
 private theorem checked_recovery_body_depth_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
-    (result : CWriteRef ctx (OutputShape width)) (duration : Resource.Event kind → Nat)
-    (path : (checkedSelectionBody spec left negatedRight modulus success inverse result).Path) :
-    (checkedSelectionBody spec left negatedRight modulus success inverse result).depth
+    (result : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
+    (path : (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).Path) :
+    (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).depth
       duration path ≤ checkedRecoveryDepthLimit spec duration :=
   Nat.add_le_add (withCheckedInverse_depth_le spec left success inverse duration path.1)
     (selected_depth_le _ _ _ _ duration path.2)
@@ -125,11 +136,12 @@ private theorem checked_recovery_body_depth_le (spec : ModulusSpec width)
 /-- Actual stored success selects a serial recovery whose original duration is fully charged. -/
 theorem withCheckedSelection_depth_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
-    (duration : Resource.Event kind → Nat) (path : (withCheckedSelection spec refs result).Path) :
-    (withCheckedSelection spec refs result).depth duration path ≤
+    (duration : Resource.Event model → Nat) (path : (withCheckedSelection (model := model) spec
+      refs result).Path) :
+    (withCheckedSelection (model := model) spec refs result).depth duration path ≤
       checkedRecoveryDepthLimit spec duration := by
   exact withCellsFrom_depth_le (Transport.id ctx) (checkedResultShapes width)
-    (fun cells _ transport _ => checkedSelectionBody spec
+    (fun cells _ transport _ => checkedSelectionBody (model := model) spec
       (transport.liftInput (scaleRead refs.left))
       (transport.liftInput (scaleRead refs.negatedRight))
       (transport.liftInput (scaleRead refs.modulusWide))
@@ -143,9 +155,11 @@ private theorem checked_recovery_body_resident_le (spec : ModulusSpec width)
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (checkedSelectionBody spec left negatedRight modulus success inverse result).Path) :
-    (checkedSelectionBody spec left negatedRight modulus success inverse result).peakResidentSpace
-      path ≤ checkedRecoveryActiveSpace kind width + ctx.residentSpace := by
+    (path : (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).Path) :
+    (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).peakResidentSpace
+      path ≤ checkedRecoveryActiveSpace model.kind width + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (withCheckedInverse_resident_le spec left success inverse path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -157,9 +171,11 @@ private theorem checked_recovery_body_auxiliary_le (spec : ModulusSpec width)
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (result : CWriteRef ctx (OutputShape width))
-    (path : (checkedSelectionBody spec left negatedRight modulus success inverse result).Path) :
-    (checkedSelectionBody spec left negatedRight modulus success inverse result).peakAuxiliarySpace
-      path ≤ checkedRecoveryActiveSpace kind width + ctx.auxiliarySpace := by
+    (path : (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).Path) :
+    (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
+      result).peakAuxiliarySpace
+      path ≤ checkedRecoveryActiveSpace model.kind width + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (withCheckedInverse_auxiliary_le spec left success inverse path.1).trans
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
@@ -169,34 +185,34 @@ private theorem checked_recovery_body_auxiliary_le (spec : ModulusSpec width)
 /-- Both original checked result cells coexist with the larger actual checked or recovery scope. -/
 theorem withCheckedSelection_resident_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
-    (path : (withCheckedSelection spec refs result).Path) :
-    (withCheckedSelection spec refs result).peakResidentSpace path ≤
+    (path : (withCheckedSelection (model := model) spec refs result).Path) :
+    (withCheckedSelection (model := model) spec refs result).peakResidentSpace path ≤
       ((checkedResultShapes width).map SpacePool.ofShape).sum +
-        checkedRecoveryActiveSpace kind width + ctx.residentSpace := by
+        checkedRecoveryActiveSpace model.kind width + ctx.residentSpace := by
   exact withCellsFrom_resident_le (Transport.id ctx) (checkedResultShapes width)
-    (fun cells _ transport _ => checkedSelectionBody spec
+    (fun cells _ transport _ => checkedSelectionBody (model := model) spec
       (transport.liftInput (scaleRead refs.left))
       (transport.liftInput (scaleRead refs.negatedRight))
       (transport.liftInput (scaleRead refs.modulusWide))
       (checkedSuccessCell cells) (checkedInverseCell cells) (transport.liftWrite result))
-    (checkedRecoveryActiveSpace kind width)
+    (checkedRecoveryActiveSpace model.kind width)
     (fun cells _ transport _ selected => checked_recovery_body_resident_le _ _ _ _ _ _ _ selected)
     path
 
 /-- Real auxiliary ownership includes both checked result cells and the complete caller context. -/
 theorem withCheckedSelection_auxiliary_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
-    (path : (withCheckedSelection spec refs result).Path) :
-    (withCheckedSelection spec refs result).peakAuxiliarySpace path ≤
+    (path : (withCheckedSelection (model := model) spec refs result).Path) :
+    (withCheckedSelection (model := model) spec refs result).peakAuxiliarySpace path ≤
       ((checkedResultShapes width).map SpacePool.ofShape).sum +
-        checkedRecoveryActiveSpace kind width + ctx.auxiliarySpace := by
+        checkedRecoveryActiveSpace model.kind width + ctx.auxiliarySpace := by
   exact withCellsFrom_auxiliary_le (Transport.id ctx) (checkedResultShapes width)
-    (fun cells _ transport _ => checkedSelectionBody spec
+    (fun cells _ transport _ => checkedSelectionBody (model := model) spec
       (transport.liftInput (scaleRead refs.left))
       (transport.liftInput (scaleRead refs.negatedRight))
       (transport.liftInput (scaleRead refs.modulusWide))
       (checkedSuccessCell cells) (checkedInverseCell cells) (transport.liftWrite result))
-    (checkedRecoveryActiveSpace kind width)
+    (checkedRecoveryActiveSpace model.kind width)
     (fun cells _ transport _ selected => checked_recovery_body_auxiliary_le _ _ _ _ _ _ _ selected)
     path
 

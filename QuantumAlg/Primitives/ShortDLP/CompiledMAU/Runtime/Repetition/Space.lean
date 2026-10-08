@@ -83,9 +83,11 @@ private theorem visited_spaces {shape : CShape} (m ell width N : Nat)
             (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh,
           succ_nsmul]
         ac_rfl
-      change frame ∈ [ctx, nextCtx] ++
-        (first.visitedContexts path.2.1 ++ later.visitedContexts path.2.2) at present
-      simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at present
+      change frame ∈ List.append (α := RuntimeCtx .quantum) [ctx, nextCtx]
+        (List.append (α := RuntimeCtx .quantum)
+          (first.visitedContexts path.2.1) (later.visitedContexts path.2.2)) at present
+      simp only [List.append_eq, List.mem_append, List.mem_cons, List.not_mem_nil, or_false]
+        at present
       rcases present with (rfl | rfl) | firstPresent | laterPresent
       · exact ⟨fun _ => Nat.le_add_left _ _, fun _ => Nat.le_add_left _ _⟩
       · exact ⟨(show nextCtx.residentSpace ≤

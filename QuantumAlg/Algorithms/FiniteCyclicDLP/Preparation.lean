@@ -8,24 +8,22 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Components.Gates
+import all QuantumAlg.Components.Gates.StatePreparation
 import all QuantumAlg.Core.Base.UnitaryCircuit
 public import QuantumAlg.Util.FiniteCyclicDLP
 import all QuantumAlg.Util.FiniteCyclicDLP
 import all QuantumAlg.Util.Nat
 public import Mathlib.Algebra.Group.Defs
+public import Mathlib.Data.Complex.Basic
 
 /-!
 # Source-faithful finite-cyclic DLP exponent preparation
 
 Shor's finite-cyclic discrete-logarithm experiment prepares the exponent
 register uniformly on `0, ..., N - 1`, even though the physical register has
-the next power-of-two capacity.  This module constructs that normalized state
-and a sealed unitary primitive which prepares it from `|0>`.
-
-The unitary is selected noncomputably from an orthonormal-basis extension of
-the target state.  Its operator and strict event are fixed by the gate-set
-declaration; callers cannot provide a replacement unitary, cost, or depth.
-Resource claims are read directly from its strict event pool and event depth.
+the next power-of-two capacity.  This module retains the source mathematics
+and its model-independent basis-change operator.  The actual default-model
+word and resource derivation live in `Order.Preparation.Native`.
 -/
 
 section
@@ -43,28 +41,28 @@ variable {G : Type u} [Group G]
 /-- Constant oversampling used by the two-register Fourier experiment.  The
 factor twelve makes every residue class admit a one-sided rounded raw Fourier
 index whose error lies in the source phase cone. -/
-def fourierOversamplingFactor : Nat := 12
+@[expose] public def fourierOversamplingFactor : Nat := 12
 
 /-- Oversampled source size whose next power of two is the Fourier modulus. -/
-def oversampledOrder (P : KnownOrderProblem G) : Nat :=
+@[expose] public def oversampledOrder (P : KnownOrderProblem G) : Nat :=
   fourierOversamplingFactor * P.order
 
 /-- Exponent-register width for the oversampled Fourier modulus. -/
-public def orderWidth (P : KnownOrderProblem G) : Nat :=
+@[expose] public def orderWidth (P : KnownOrderProblem G) : Nat :=
   Nat.clog 2 (oversampledOrder P)
 
 /-- Power-of-two Fourier modulus used by both exponent registers. -/
-def fourierModulus (P : KnownOrderProblem G) : Nat :=
+@[expose] public def fourierModulus (P : KnownOrderProblem G) : Nat :=
   2 ^ orderWidth P
 
 /-- The source-safe oversampled range fits in the Fourier register. -/
-theorem oversampledOrder_le_fourierModulus (P : KnownOrderProblem G) :
+public theorem oversampledOrder_le_fourierModulus (P : KnownOrderProblem G) :
     oversampledOrder P ≤ fourierModulus P := by
   exact Nat.le_pow_clog (by norm_num : 1 < 2) (oversampledOrder P)
 
 /-- The selected power of two is strictly less than twice the oversampled
 range, so `12N ≤ q < 24N`. -/
-theorem fourierModulus_lt_twice_oversampledOrder
+public theorem fourierModulus_lt_twice_oversampledOrder
     (P : KnownOrderProblem G) :
     fourierModulus P < 2 * oversampledOrder P := by
   have hlarge : 1 < oversampledOrder P := by
@@ -80,7 +78,7 @@ theorem fourierModulus_lt_twice_oversampledOrder
   omega
 
 /-- The actual source range `0, ..., N-1` fits in the oversampled register. -/
-theorem order_le_fourierModulus (P : KnownOrderProblem G) :
+public theorem order_le_fourierModulus (P : KnownOrderProblem G) :
     P.order ≤ fourierModulus P := by
   calc
     P.order ≤ oversampledOrder P := by
@@ -91,7 +89,7 @@ theorem order_le_fourierModulus (P : KnownOrderProblem G) :
 /-- The actual group order fits strictly below the Fourier-register capacity.
 The stronger inequality follows from the twelve-fold oversampling and is the
 boundary needed by fixed-width routines that materialize the modulus itself. -/
-theorem order_lt_fourierModulus (P : KnownOrderProblem G) :
+public theorem order_lt_fourierModulus (P : KnownOrderProblem G) :
     P.order < fourierModulus P := by
   calc
     P.order < oversampledOrder P := by
@@ -102,7 +100,7 @@ theorem order_lt_fourierModulus (P : KnownOrderProblem G) :
 
 /-- Canonical raw Fourier index immediately above the exact residue frequency.
 The oversampled register guarantees that this ceiling index remains in range. -/
-def selectedRawFrequency (P : KnownOrderProblem G) (residue : Fin P.order) :
+public def selectedRawFrequency (P : KnownOrderProblem G) (residue : Fin P.order) :
     Fin (fourierModulus P) :=
   ⟨QuantumAlg.Nat.ceilDiv (residue.val * fourierModulus P) P.order, by
     have hceil := QuantumAlg.Nat.ceilDiv_mul_lt_add
@@ -135,7 +133,7 @@ def selectedRawFrequency (P : KnownOrderProblem G) (residue : Fin P.order) :
     exact (Nat.mul_lt_mul_right P.order_pos).mp hproduct⟩
 
 /-- The canonical raw frequency scales back to its exact residue. -/
-theorem selectedRawFrequency_scale
+public theorem selectedRawFrequency_scale
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     (selectedRawFrequency P residue).val * P.order / fourierModulus P =
       residue.val := by
@@ -162,7 +160,7 @@ theorem selectedRawFrequency_scale
   · exact (Nat.le_div_iff_mul_le hq).2 hlower
 
 /-- The one-sided raw-frequency rounding error is less than one group order. -/
-theorem selectedRawFrequency_error_lt_order
+public theorem selectedRawFrequency_error_lt_order
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     (selectedRawFrequency P residue).val * P.order -
         residue.val * fourierModulus P < P.order := by
@@ -178,7 +176,7 @@ theorem selectedRawFrequency_error_lt_order
 
 /-- Twelve times the rounding error remains strictly below the Fourier
 modulus, the arithmetic form of the phase-cone margin. -/
-theorem twelve_mul_selectedRawFrequency_error_lt
+public theorem twelve_mul_selectedRawFrequency_error_lt
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     12 * ((selectedRawFrequency P residue).val * P.order -
         residue.val * fourierModulus P) < fourierModulus P := by
@@ -193,7 +191,7 @@ theorem twelve_mul_selectedRawFrequency_error_lt
   exact hstrict.trans_le hscaled
 
 /-- One over the square root of a positive finite range size. -/
-def invSqrtOrder (order : Nat) : ℂ :=
+public def invSqrtOrder (order : Nat) : ℂ :=
   (Real.sqrt (order : ℝ) : ℂ)⁻¹
 
 theorem norm_sq_invSqrtOrder {order : Nat} (horder : 0 < order) :
@@ -296,51 +294,6 @@ theorem rangePreparationOperator_apply_zero
       rangeUniformState order width horder hfits := by
   exact Gate.finiteCyclicRangePreparationOp_apply_zero
     (rangeUniformState order width horder hfits)
-
-
-
-/-- Strict gate coordinate for the source range-uniform preparation. -/
-def rangePreparationGateLabel : Resource.GateLabel :=
-  Gate.finiteCyclicRangePreparationGateLabel
-
-/-- Strict event for one source range-uniform preparation gate. -/
-def rangePreparationEvent : Resource.Event .quantum :=
-  .gate rangePreparationGateLabel
-
-/-- The source range-uniform preparation as one sealed gate leaf. -/
-def rangePreparationLeaf (P : KnownOrderProblem G) :
-    UnitaryLeaf (Qubits (orderWidth P)) :=
-  Gate.finiteCyclicRangePreparationLeafAt
-    (rangeUniformState P.order (orderWidth P) P.order_pos
-      (order_le_fourierModulus P))
-    (List.range (orderWidth P))
-
-/-- The actual source range-uniform preparation as one sealed circuit leaf. -/
-def rangePreparationCircuit (P : KnownOrderProblem G) :
-    UnitaryCircuit (Qubits (orderWidth P)) :=
-  UnitaryCircuit.ofLeaf (rangePreparationLeaf P) List.nodup_range
-
-@[simp]
-theorem rangePreparationCircuit_matrix (P : KnownOrderProblem G) :
-    (rangePreparationCircuit P).matrix =
-      rangePreparationOperator P.order (orderWidth P) P.order_pos
-        (order_le_fourierModulus P) :=
-  rfl
-
-
-
-
-
-@[simp]
-theorem rangePreparationCircuit_eventCost (P : KnownOrderProblem G) :
-    (rangePreparationCircuit P).eventCost =
-      ResourcePool.singleton rangePreparationEvent :=
-  rfl
-
-@[simp]
-theorem rangePreparationCircuit_eventDepth (P : KnownOrderProblem G) :
-    (rangePreparationCircuit P).eventDepth = .atom rangePreparationEvent :=
-  rfl
 
 end FiniteCyclicDLP
 

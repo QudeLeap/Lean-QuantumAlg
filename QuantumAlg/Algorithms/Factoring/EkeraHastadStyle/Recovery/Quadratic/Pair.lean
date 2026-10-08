@@ -39,12 +39,6 @@ def selectedInputs (checked : Check.Refs ctx width) : FirstAccepted.Inputs ctx w
   eligible := .storage checked.divisor.valid.toCStorageRef
   candidate := checked.divisor.candidate
 
-/-- Both complete checks run before any first-factor latch is conditionally updated. -/
-def code (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (Check.code refs.first)
-    (.seq (Check.code refs.second)
-      (Selection.code (selectedInputs refs.first) (selectedInputs refs.second) refs.selection))
-
 /-- All twelve actual writes before left-priority selection. -/
 def checkedStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   Check.storeStep refs.second (Check.storeStep refs.first store)
@@ -53,54 +47,35 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Both complete checks run before any first-factor latch is conditionally updated. -/
+def code (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (Check.code (model := model) refs.first)
+    (.seq (Check.code (model := model) refs.second)
+      (Selection.code (model := model)
+        (selectedInputs refs.first) (selectedInputs refs.second) refs.selection))
+
 /-- The actual complete store and chronological paths of checking and selection. -/
-def step (refs : Refs ctx width) (store : Store ctx) : Store ctx × (code refs).Path :=
-  let selected := Selection.step (selectedInputs refs.first) (selectedInputs refs.second)
-    refs.selection (checkedStore refs store)
-  (selected.1, ((((), ((), ())), ((), ((), ()))),
-    ((((), ((), ())), ((), ((), ()))), selected.2)))
+def step (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (code (model := model) refs).Path :=
+  let first := Check.step (model := model) refs.first store
+  let second := Check.step (model := model) refs.second first.1
+  let selected := Selection.step (model := model)
+    (selectedInputs refs.first) (selectedInputs refs.second) refs.selection second.1
+  (selected.1, (first.2, (second.2, selected.2)))
 
 /-- Complete actual pair execution preserves every incoming quantum-reference block. -/
 theorem nativeQuadratic_pair_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (code refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step refs entry.1).1, (entry.2, (step refs entry.1).2))) := by
-  let selection := Selection.code (selectedInputs refs.first) (selectedInputs refs.second)
-    refs.selection
-  let selectStep := Selection.step (selectedInputs refs.first) (selectedInputs refs.second)
-    refs.selection
-  refine (Circuit.execute_seq_mapClassical (Check.code refs.first)
-    (.seq (Check.code refs.second) selection)
-    (fun store => (Check.storeStep refs.first store, (((), ((), ())), ((), ((), ())))))
-    (fun store =>
-      let selected := selectStep (Check.storeStep refs.second store)
-      (selected.1, ((((), ((), ())), ((), ((), ()))), selected.2)))
-    (fun reference {_} _ initial => by
-      refine (Check.nativeQuadratic_check_execute refs.first reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_seq_mapClassical (Check.code refs.second) selection
-        (fun store => (Check.storeStep refs.second store, (((), ((), ())), ((), ((), ())))))
-        selectStep
-        (fun reference {_} _ initial => by
-          refine (Check.nativeQuadratic_check_execute refs.second reference initial).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _)
-        (fun reference {_} _ initial => by
-          refine (Selection.nativeQuadratic_selection_execute
-            (selectedInputs refs.first) (selectedInputs refs.second)
-            refs.selection reference initial).trans ?_
-          congr 1)
-        reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    Reference state).trans ?_
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (code refs).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => ((step refs entry.1).1, (entry.2, (step refs entry.1).2))))
-    (Subsingleton.elim _ _)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      let actual := step (model := model) refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [code, Circuit.execute_seq, Check.nativeQuadratic_check_execute,
+    Selection.nativeQuadratic_selection_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

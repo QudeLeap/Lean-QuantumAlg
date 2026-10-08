@@ -78,7 +78,7 @@ def sampleIndicator (count : Nat) (indices : Fin count → Fin total)
       CShape.Value.bits (outcomes index) then 1 else 0
 
 private theorem reference_congr {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum n total) Reference History)
+    (state : State (context base noQuantum n total) Reference (Unit × History))
     (first second : Store (context base noQuantum n total) → ℂ)
     (equal : ∀ store, first store = second store) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum state (fun entry _ => first entry.1) leftRef rightRef =
@@ -94,7 +94,7 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
       (_separate : ∀ index, (bankSlot base noQuantum n total (indices index)).key ∉
         other.storageKeys)
       {Reference : Register} {History : Type} [Fintype History]
-      (state : State (context base noQuantum n total) Reference History)
+      (state : State (context base noQuantum n total) Reference (Unit × History))
       (weight : shape.Value → ℂ) (outcomes : Fin count → Outcome n)
       (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
@@ -112,16 +112,17 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
       intro indices _distinct shape other _separate Reference History _
         state weight outcomes leftRef rightRef
       have executed := congrArg
-        (fun output : State (context base noQuantum n total) Reference (History × Unit) =>
+        (fun output : State (context base noQuantum n total) Reference (Unit × (History × Unit)) =>
           ExecutionState.referenceFiberSum output
             (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
-            leftRef rightRef) (Circuit.execute_id_mapClassical Reference state)
-      have mapped := ExecutionState.referenceFiberSum_mapClassical state
-        (fun entry => (entry.1, (entry.2, ())))
+            leftRef rightRef) (Circuit.execute_id_mapClassical
+          (model := executionModel sampling.oracle) Reference state)
+      have completed := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
+        (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
         (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
-        leftRef rightRef
+        leftRef rightRef)
       simp only [Circuit.forRange, sampleIndicator, Fin.prod_univ_zero, mul_one, one_mul]
-      convert executed.trans mapped using 1
+      convert completed using 1
       congr 1
   | succ count ih =>
       intro indices distinct shape other separate Reference History _
@@ -198,7 +199,7 @@ private theorem emptyRead_keys (ctx : RuntimeCtx .quantum) : (emptyRead ctx).sto
 /-- The real first sample and all paid successors have the original joint Born law. -/
 theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum n total) Reference History)
+    (state : State (context base noQuantum n total) Reference (Unit × History))
     (seeded : BasisSeeded.Holds (context base noQuantum n total).quantumLayout.zeroLabel state)
     (outcomes : Fin total → Outcome n) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
@@ -210,13 +211,14 @@ theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
   cases total with
   | zero =>
       have executed := congrArg
-        (fun output : State (context base noQuantum n 0) Reference (History × Unit) =>
+        (fun output : State (context base noQuantum n 0) Reference (Unit × (History × Unit)) =>
           ExecutionState.referenceFiberSum output (fun _ _ => 1) leftRef rightRef)
-        (Circuit.execute_id_mapClassical Reference state)
-      have mapped := ExecutionState.referenceFiberSum_mapClassical state
-        (fun entry => (entry.1, (entry.2, ()))) (fun _ _ => 1) leftRef rightRef
+        (Circuit.execute_id_mapClassical
+          (model := executionModel sampling.oracle) Reference state)
+      have completed := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
+        (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) (fun _ _ => 1) leftRef rightRef)
       simp only [sampleBatch, sampleIndicator, Fin.prod_univ_zero, one_mul]
-      convert executed.trans mapped using 1
+      convert completed using 1
       congr 1
   | succ count =>
       let head := bankSlot base noQuantum n (count + 1) 0
@@ -278,7 +280,7 @@ theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
 /-- The actual allocator and loop establish the joint law from every original complete state. -/
 theorem nativeSimon_code_reference (sampling : SamplingCircuit n)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (outcomes : Fin total → Outcome n)
+    (state : State base Reference (Unit × History)) (outcomes : Fin total → Outcome n)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((code base noQuantum n total sampling).execute Reference state)
@@ -286,13 +288,17 @@ theorem nativeSimon_code_reference (sampling : SamplingCircuit n)
         leftRef rightRef =
       (∏ index : Fin total, ((sampling.outcomePMF (outcomes index)).toReal : ℂ)) *
         ExecutionState.referenceFiberSum state (fun _ _ => 1) leftRef rightRef := by
-  have first := Circuit.referenceFiberSum_execute_seq (allocate base noQuantum n total)
+  have first := Circuit.referenceFiberSum_execute_seq
+    (allocate (oracles := sourceModel sampling.oracle) base noQuantum n total)
     (sampleBatch base noQuantum n sampling total) state
     (sampleIndicator base noQuantum n total total id outcomes) leftRef rightRef
   have sampled := nativeSimon_sampleBatch_reference base noQuantum n total sampling
-    ((allocate base noQuantum n total).execute Reference state)
-    (nativeSimon_allocate_seeded base noQuantum n total state) outcomes leftRef rightRef
-  have allocated := nativeSimon_allocate_reference base noQuantum n total (emptyRead base)
+    ((allocate (oracles := sourceModel sampling.oracle)
+      base noQuantum n total).execute Reference state)
+    (nativeSimon_allocate_seeded (oracles := sourceModel sampling.oracle)
+      base noQuantum n total state) outcomes leftRef rightRef
+  have allocated := nativeSimon_allocate_reference (oracles := sourceModel sampling.oracle)
+    base noQuantum n total (emptyRead base)
     state (fun _ => 1) leftRef rightRef
   exact first.trans (sampled.trans (congrArg
     (fun coefficient : ℂ =>
@@ -342,7 +348,7 @@ private theorem sampleIndicator_observed (store : Store (context base noQuantum 
 
 /-- The decoded actual output PMF is the original finite independent vector law. -/
 theorem nativeSimon_run_outputDistribution (sampling : SamplingCircuit n)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register} (input : Execution.OracleInput .empty base Reference) :
     ((run base noQuantum n total sampling).outputDistribution input).map (sampleOutcomes n total) =
       PMF.independentReplicateVector sampling.outcomePMF total := by
   let actual := run base noQuantum n total sampling
@@ -353,7 +359,7 @@ theorem nativeSimon_run_outputDistribution (sampling : SamplingCircuit n)
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum input.state
     (actual.execute Reference input.state) input.normalized (actual.execute_normalized input)
   intro outcomes leftRef rightRef
-  let initial := input.state.mapClassical (fun store => (store, store))
+  let initial := input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have read := reference_congr base noQuantum n total (actual.execute Reference input.state)
     (fun store => if sampleOutcomes n total (store.read (samplesInput base noQuantum n total)) =
       outcomes then (1 : ℂ) else 0)
@@ -362,10 +368,9 @@ theorem nativeSimon_run_outputDistribution (sampling : SamplingCircuit n)
     leftRef rightRef
   have joint := nativeSimon_code_reference base noQuantum n total sampling initial outcomes.get
     leftRef rightRef
-  have old := ExecutionState.referenceFiberSum_mapClassical input.state
-    (fun store => (store, store)) (fun _ _ => (1 : ℂ)) leftRef rightRef
   refine read.trans (joint.trans ?_)
-  rw [old]
+  dsimp only [initial]
+  rw [ExecutionState.referenceFiberSum_mapClassical]
   have probability :
       (∏ index : Fin total, ((sampling.outcomePMF (outcomes.get index)).toReal : ℂ)) =
       ((distribution outcomes).toReal : ℂ) := by

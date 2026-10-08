@@ -59,9 +59,11 @@ namespace Circuit
 
 /-- The interpreter restores all borrowed resources jointly when its matrix has exact
 identity action on the borrowed subsystem. This requires no product-state input premise. -/
-theorem borrowedRestored_unitary_complement {ctx : RuntimeCtx .quantum}
+theorem borrowedRestored_unitary_complement {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {ctx : RuntimeCtx .quantum}
     {Reference : Register} {H : Type} [Fintype H]
-    (program : UnitaryCircuit ctx.register) (placed : program.physical_idx = ctx.physicalIdx)
+    (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (complement : UnitaryOperator (ctx.quantumLayout.complementRegister ctx.borrowedSelection))
     (factorization :
       UnitaryOperator.reindex (ctx.quantumLayout.selectionBasisEquiv ctx.borrowedSelection)
@@ -69,14 +71,17 @@ theorem borrowedRestored_unitary_complement {ctx : RuntimeCtx .quantum}
       UnitaryOperator.prodTensor
         (1 : UnitaryOperator (ctx.quantumLayout.selectedRegister ctx.borrowedSelection))
         complement)
-    (state : Execution.State ctx Reference H) :
-    (Circuit.unitary program placed).BorrowedRestored Reference state
-      ((Circuit.unitary program placed).execute Reference state) := by
+    (state : Execution.State ctx Reference (services.HiddenState × H)) :
+    (Circuit.unitary (operations := operations) (classicalOracles := services)
+      program).BorrowedRestored Reference state
+      ((Circuit.unitary (operations := operations) (classicalOracles := services)
+        program).execute Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext, execute_unitary]
   apply ExecutionState.ext
   intro value
-  simp only [Execution.observeBorrowed_block, Execution.State.unitary,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  simp only [Execution.observeBorrowed_block]
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  simp only [Function.comp_def]
   exact congrArg
     (fun observed : ExecutionState ctx.borrowedClassicalShape.Value
       (Register.prod ctx.borrowedQuantumLayout.register Reference) => observed.block value)

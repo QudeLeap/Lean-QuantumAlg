@@ -29,148 +29,193 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 private theorem body_execute (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx N) Reference History) :
-    (body source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((bodyStep source inputs result entry.1).1,
-        (entry.2, (bodyStep source inputs result entry.1).2))) := by
-  refine (NativeFactorScan.code_execute source (inputs.map liftInputs)
+    (state : State (context ctx N) Reference (model.HiddenState × History)) :
+    (body (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := bodyStep (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (NativeFactorScan.code_execute (model := model) source (inputs.map liftInputs)
     (cells ctx N) (liftWrite result) Reference state).trans ?_
-  exact congrArg
-    (fun decision : DecidableEq
-        (Store (context ctx N) × (History × (body source inputs result).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod (context ctx N).register Reference)
-        decision state (fun entry => ((bodyStep source inputs result entry.1).1,
-          (entry.2, (bodyStep source inputs result entry.1).2)))) (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part3 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (selectedContext ctx N) (selectedContext ctx N) :=
-  .workspace (selectedContext ctx N) (selectedContext ctx N).canonicalFreshKey
-    .bit (selectedContext ctx N).canonicalFreshKey_fresh (body source inputs result)
+    Circuit model (selectedContext ctx N) (selectedContext ctx N) :=
+  .workspace (selectedContext ctx N) (selectedContext ctx N).canonicalFreshKey .bit
+    (selectedContext ctx N).canonicalFreshKey_fresh
+    (body (model := model) source inputs result)
 
 private def update3 (source : Input N) (inputs : List (Inputs ctx N))
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (store : Store (selectedContext ctx N)) :
-    Store (selectedContext ctx N) × (part3 source inputs result).Path :=
-  Circuit.workspaceRecord (selectedContext ctx N).canonicalFreshKey
-    .bit (selectedContext ctx N).canonicalFreshKey_fresh
-    (body source inputs result) (bodyStep source inputs result) store
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store
+      (selectedContext ctx N)) :
+    Store (selectedContext ctx N) × (body (model := model) source inputs result).Path :=
+  let selected := bodyStep (model := model) source inputs result
+    (store.pushWorkspace (selectedContext ctx N).canonicalFreshKey .bit (selectedContext ctx
+      N).canonicalFreshKey_fresh)
+  (Store.popWorkspace (selectedContext ctx N).canonicalFreshKey .bit (selectedContext ctx
+    N).canonicalFreshKey_fresh selected.1, selected.2)
 
 private theorem equation3 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (selectedContext ctx N) Reference History) :
-    (part3 source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((update3 source inputs result entry.1).1,
-        (entry.2, (update3 source inputs result entry.1).2))) :=
-  Circuit.execute_workspaceRecord (selectedContext ctx N).canonicalFreshKey
-    .bit (selectedContext ctx N).canonicalFreshKey_fresh
-    (body source inputs result) (bodyStep source inputs result)
-    (body_execute source inputs result) Reference state
+    (state : State (selectedContext ctx N) Reference (model.HiddenState × History)) :
+    (part3 (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := update3 (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_workspaceRecord (selectedContext ctx N).canonicalFreshKey .bit
+    (selectedContext ctx N).canonicalFreshKey_fresh
+    (body (model := model) source inputs result)
+    (fun entry =>
+      let actual := bodyStep (model := model) source inputs result entry.1
+      ((actual.1, entry.2), actual.2))
+    ?bodyEquation Reference state).trans ?_
+  · intro reference history _ input
+    dsimp only
+    exact body_execute (model := model) source inputs result reference input
+  · apply ExecutionState.executionState_mapClassical_congr
+    funext entry
+    dsimp only [Circuit.workspaceRecord, update3]
 
 private def part2 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (acceptedContext ctx N) (acceptedContext ctx N) :=
-  .workspace (acceptedContext ctx N) (acceptedContext ctx N).canonicalFreshKey
-    (.unsignedWord (modulusBits N))
-    (acceptedContext ctx N).canonicalFreshKey_fresh
-    (part3 source inputs result)
+    Circuit model (acceptedContext ctx N) (acceptedContext ctx N) :=
+  .workspace (acceptedContext ctx N) (acceptedContext ctx N).canonicalFreshKey (.unsignedWord
+    (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
+    (part3 (model := model) source inputs result)
 
 private def update2 (source : Input N) (inputs : List (Inputs ctx N))
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (store : Store (acceptedContext ctx N)) :
-    Store (acceptedContext ctx N) × (part2 source inputs result).Path :=
-  Circuit.workspaceRecord (acceptedContext ctx N).canonicalFreshKey
-    (.unsignedWord (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
-    (part3 source inputs result) (update3 source inputs result) store
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store
+      (acceptedContext ctx N)) :
+    Store (acceptedContext ctx N) × (body (model := model) source inputs result).Path :=
+  let selected := update3 (model := model) source inputs result
+    (store.pushWorkspace (acceptedContext ctx N).canonicalFreshKey (.unsignedWord (modulusBits N))
+      (acceptedContext ctx N).canonicalFreshKey_fresh)
+  (Store.popWorkspace (acceptedContext ctx N).canonicalFreshKey (.unsignedWord (modulusBits N))
+    (acceptedContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
 private theorem equation2 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (acceptedContext ctx N) Reference History) :
-    (part2 source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((update2 source inputs result entry.1).1,
-        (entry.2, (update2 source inputs result entry.1).2))) :=
-  Circuit.execute_workspaceRecord (acceptedContext ctx N).canonicalFreshKey
-    (.unsignedWord (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
-    (part3 source inputs result) (update3 source inputs result)
-    (equation3 source inputs result) Reference state
+    (state : State (acceptedContext ctx N) Reference (model.HiddenState × History)) :
+    (part2 (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := update2 (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_workspaceRecord (acceptedContext ctx N).canonicalFreshKey (.unsignedWord
+    (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
+    (part3 (model := model) source inputs result)
+    (fun entry =>
+      let actual := update3 (model := model) source inputs result entry.1
+      ((actual.1, entry.2), actual.2))
+    ?bodyEquation Reference state).trans ?_
+  · intro reference history _ input
+    dsimp only
+    exact equation3 (model := model) source inputs result reference input
+  · apply ExecutionState.executionState_mapClassical_congr
+    funext entry
+    dsimp only [Circuit.workspaceRecord, update2]
+    rfl
 
 private def part1 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (candidateContext ctx N) (candidateContext ctx N) :=
-  .workspace (candidateContext ctx N) (candidateContext ctx N).canonicalFreshKey
-    .bit (candidateContext ctx N).canonicalFreshKey_fresh (part2 source inputs result)
+    Circuit model (candidateContext ctx N) (candidateContext ctx N) :=
+  .workspace (candidateContext ctx N) (candidateContext ctx N).canonicalFreshKey .bit
+    (candidateContext ctx N).canonicalFreshKey_fresh
+    (part2 (model := model) source inputs result)
 
 private def update1 (source : Input N) (inputs : List (Inputs ctx N))
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (store : Store (candidateContext ctx N)) :
-    Store (candidateContext ctx N) × (part1 source inputs result).Path :=
-  Circuit.workspaceRecord (candidateContext ctx N).canonicalFreshKey
-    .bit (candidateContext ctx N).canonicalFreshKey_fresh
-    (part2 source inputs result) (update2 source inputs result) store
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store
+      (candidateContext ctx N)) :
+    Store (candidateContext ctx N) × (body (model := model) source inputs result).Path :=
+  let selected := update2 (model := model) source inputs result
+    (store.pushWorkspace (candidateContext ctx N).canonicalFreshKey .bit (candidateContext ctx
+      N).canonicalFreshKey_fresh)
+  (Store.popWorkspace (candidateContext ctx N).canonicalFreshKey .bit (candidateContext ctx
+    N).canonicalFreshKey_fresh selected.1, selected.2)
 
 private theorem equation1 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (candidateContext ctx N) Reference History) :
-    (part1 source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((update1 source inputs result entry.1).1,
-        (entry.2, (update1 source inputs result entry.1).2))) :=
-  Circuit.execute_workspaceRecord (candidateContext ctx N).canonicalFreshKey
-    .bit (candidateContext ctx N).canonicalFreshKey_fresh
-    (part2 source inputs result) (update2 source inputs result)
-    (equation2 source inputs result) Reference state
+    (state : State (candidateContext ctx N) Reference (model.HiddenState × History)) :
+    (part1 (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := update1 (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_workspaceRecord (candidateContext ctx N).canonicalFreshKey .bit
+    (candidateContext ctx N).canonicalFreshKey_fresh
+    (part2 (model := model) source inputs result)
+    (fun entry =>
+      let actual := update2 (model := model) source inputs result entry.1
+      ((actual.1, entry.2), actual.2))
+    ?bodyEquation Reference state).trans ?_
+  · intro reference history _ input
+    dsimp only
+    exact equation2 (model := model) source inputs result reference input
+  · apply ExecutionState.executionState_mapClassical_congr
+    funext entry
+    dsimp only [Circuit.workspaceRecord, update1]
+    rfl
 
 private def part0 (source : Input N) (inputs : List (Inputs ctx N))
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) : Circuit ctx ctx :=
-  .workspace ctx ctx.canonicalFreshKey
-    (.product .bit (.unsignedWord (modulusBits N)))
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
+    Circuit model ctx ctx :=
+  .workspace ctx ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
     ctx.canonicalFreshKey_fresh
-    (part1 source inputs result)
+    (part1 (model := model) source inputs result)
 
 private def update0 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
-    Store ctx × (part0 source inputs result).Path :=
-  Circuit.workspaceRecord ctx.canonicalFreshKey
-    (.product .bit (.unsignedWord (modulusBits N))) ctx.canonicalFreshKey_fresh
-    (part1 source inputs result) (update1 source inputs result) store
+    Store ctx × (body (model := model) source inputs result).Path :=
+  let selected := update1 (model := model) source inputs result
+    (store.pushWorkspace ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
+      ctx.canonicalFreshKey_fresh)
+  (Store.popWorkspace ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
+    ctx.canonicalFreshKey_fresh selected.1, selected.2)
 
 private theorem equation0 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (part0 source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((update0 source inputs result entry.1).1,
-        (entry.2, (update0 source inputs result entry.1).2))) :=
-  Circuit.execute_workspaceRecord ctx.canonicalFreshKey
-    (.product .bit (.unsignedWord (modulusBits N))) ctx.canonicalFreshKey_fresh
-    (part1 source inputs result) (update1 source inputs result)
-    (equation1 source inputs result) Reference state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (part0 (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := update0 (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_workspaceRecord ctx.canonicalFreshKey (.product .bit (.unsignedWord
+    (modulusBits N))) ctx.canonicalFreshKey_fresh
+    (part1 (model := model) source inputs result)
+    (fun entry =>
+      let actual := update1 (model := model) source inputs result entry.1
+      ((actual.1, entry.2), actual.2))
+    ?bodyEquation Reference state).trans ?_
+  · intro reference history _ input
+    dsimp only
+    exact equation1 (model := model) source inputs result reference input
+  · apply ExecutionState.executionState_mapClassical_congr
+    funext entry
+    dsimp only [Circuit.workspaceRecord, update0]
+    rfl
 
-/-- The actual complete scan scope executes entry, every recovery visit and matching release. -/
+/-- The complete scan executes and releases all four real workspace entries. -/
 theorem code_execute (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code source inputs result).execute Reference state =
-      state.mapClassical (fun entry => ((step source inputs result entry.1).1,
-        (entry.2, (step source inputs result entry.1).2))) := by
-  refine (equation0 source inputs result Reference state).trans ?_
-  dsimp only [update0, update1, update2, update3, Circuit.workspaceRecord, step, enter, leave]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × History)
-    (D := Store ctx × (History × (code source inputs result).Path))
-    (R := Register.prod ctx.register Reference) _ state _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × History)
-    (D := Store ctx × (History × (code source inputs result).Path))
-    (R := Register.prod ctx.register Reference) _ state _).symm
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) source inputs result).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := step (model := model) source inputs result entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (equation0 (model := model) source inputs result Reference state).trans ?_
+  apply ExecutionState.executionState_mapClassical_congr
+  funext entry
+  dsimp only [update0, update1, update2, update3, step, enter, leave]
+  rfl
 
 end
 

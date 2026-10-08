@@ -78,7 +78,8 @@ theorem nativeScan_sourceReads_underWorkspace
         reads.oneValue
 
 /-- Every number of real finite slots preserves the source base and comparison constants. -/
-theorem nativeScan_iterate_source_reads
+theorem nativeScan_iterate_source_reads {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -86,7 +87,8 @@ theorem nativeScan_iterate_source_reads
     (baseFree : ∀ key ∈ cells.writeKeys, key ∉ base.storageKeys)
     (store : Store ctx) (reads : ScanSourceReads spec input base cells store) (fuel : Nat) :
     ScanSourceReads spec input base cells
-      ((fun initial => (scanSlotStep spec.modulusSpec base cells initial).1)^[fuel] store) := by
+      ((fun initial => (scanSlotStep (model := model) spec.modulusSpec base cells initial).1)^[fuel]
+        store) := by
   refine ⟨?_, ?_, ?_⟩
   · exact (nativeScan_iterate_read_other spec.modulusSpec base cells fuel
       base baseFree store).trans reads.baseValue
@@ -98,13 +100,16 @@ theorem nativeScan_iterate_source_reads
         separated.oneFree store)).trans reads.oneValue
 
 /-- A false actual activity bit makes every remaining slot identity on the whole store. -/
-theorem nativeScan_iterate_of_inactive
+theorem nativeScan_iterate_of_inactive {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (store : Store ctx)
     (inactive : store.read (cellRead cells.cursor.active) = .bit false) (fuel : Nat) :
-    (fun initial => (scanSlotStep spec base cells initial).1)^[fuel] store = store := by
-  have fixed := nativeScan_slot_inactive spec base cells store inactive
+    (fun initial => (scanSlotStep (model := model) spec base cells initial).1)^[fuel] store =
+      store := by
+  have fixed := nativeScan_slot_inactive (model := model)
+    spec base cells store inactive
   induction fuel with
   | zero => rfl
   | succ fuel ih => rw [Function.iterate_succ_apply, fixed, ih]

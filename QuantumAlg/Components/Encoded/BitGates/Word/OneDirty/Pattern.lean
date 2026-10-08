@@ -140,11 +140,13 @@ theorem patternGates_work_restored (expected : Fin controls → Bool) (state : D
   · rfl
 
 /-- The actual list realizes the complete predicate flip without discarded relative phase. -/
-theorem patternGates_realizes (expected : Fin controls → Bool) :
-    UnitaryCircuit.Realizes encoding (GateSpec.programList (layout.patternGates expected))
+theorem patternGates_realizes (physical : QubitLayout encoding.width)
+    (oracles : OracleModel) (expected : Fin controls → Bool) :
+    UnitaryCircuit.Realizes encoding
+      (GateSpec.programList physical oracles (layout.patternGates expected))
       (fun state => if layout.PatternMatches expected state
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep _ (layout.patternGates_step expected)
+  GateSpec.realizesList_congrStep physical oracles _ (layout.patternGates_step expected)
 
 /-- Exact actual elementary length, including both source masks. -/
 theorem patternGates_length (expected : Fin controls → Bool) :

@@ -27,6 +27,9 @@ open FiniteCyclicDLP Canonical.Probability
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
+private abbrev RecoveryModel : ExecutionModel :=
+  .quantum AlgorithmGate.model .empty BitWord.model
+
 /-- The actual recovered-secret PMF retains the original floor and supplied-offset error. -/
 theorem exponentRecoveryRun_probability_bound
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
@@ -42,15 +45,16 @@ theorem exponentRecoveryRun_probability_bound
     ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
       (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
       (exponentRecoveryRun E fieldTail odd problem points nontrivial).outputDistribution
-        (AlgorithmRun.pureInput stored
+        (AlgorithmRun.pureInput (model := RecoveryModel) (stored, ())
           (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))
         (recoveredSecretOutput problem input) +
         ENNReal.ofReal (4 * Real.sqrt (preparedExceptionalMass problem points seed)) := by
   exact (selectedExponentRun_probability_bound E fieldTail sameWidth fits odd
     problem points seed addends input reference stored).trans
       (add_le_add
-        (exponentRecoveryRun_selected_probability_le fieldTail odd problem points nontrivial
-          input (AlgorithmRun.pureInput stored
+        (exponentRecoveryRun_selected_probability_le (p := p) (E := E)
+          (Reference := Reference) fieldTail odd problem points nontrivial
+          input (AlgorithmRun.pureInput (model := RecoveryModel) (stored, ())
             (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)))
         le_rfl)
 
@@ -71,7 +75,7 @@ theorem exists_fixedOffset_exponentRecoveryRun_bound
           ENNReal.ofReal ((problem.order : ℝ) * Nat.totient problem.order /
             (4 * (fourierModulus problem : ℝ) ^ 2)) ≤
             (exponentRecoveryRun E fieldTail odd problem points nontrivial).outputDistribution
-              (AlgorithmRun.pureInput stored
+              (AlgorithmRun.pureInput (model := RecoveryModel) (stored, ())
                 (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference))
               (recoveredSecretOutput problem input) +
               ENNReal.ofReal (4 * Real.sqrt
@@ -83,8 +87,9 @@ theorem exists_fixedOffset_exponentRecoveryRun_bound
   intro input Reference reference stored
   exact (bound input Reference reference stored).trans
     (add_le_add
-      (exponentRecoveryRun_selected_probability_le fieldTail odd problem points nontrivial
-        input (AlgorithmRun.pureInput stored
+      (exponentRecoveryRun_selected_probability_le (p := p) (E := E)
+          (Reference := Reference) fieldTail odd problem points nontrivial
+        input (AlgorithmRun.pureInput (model := RecoveryModel) (stored, ())
           (originalMontgomeryInputVector problem fieldTail sameWidth fits seed reference)))
       le_rfl)
 

@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
 
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
+
 import all QuantumAlg.Algorithms.Grover.Construction
 import all QuantumAlg.Algorithms.Grover.Context
 import all QuantumAlg.Algorithms.Grover.Storage
@@ -47,14 +49,18 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 private theorem packedRead (n k : Nat) (store : Store (post n k)) :
-    (store.applyOp (packing n k)).read (.storage (resultRef n k).toCStorageRef) =
+    (store.write (BitWord.application (packing n k)).output
+      ((packing n k).eval (store.read (BitWord.application (packing n k)).input))).read
+        (.storage (resultRef n k).toCStorageRef) =
       (packing n k).eval (store.read (MeasurementCells.input (resultContext n k) 2 n)) :=
   Store.read_applyOp_output store (packing n k)
 
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass (n k : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (post n k) Reference H) (output : CShape.Value (.bits n)) :
-    ((((readoutCode n k).execute Reference state).mapClassical
+theorem readoutCode_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (post n k) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (output : CShape.Value (.bits n)) :
+    ((((readoutCode marked k).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n k).toCStorageRef))).block output).mass =
       (∑ basis : (post n k).register.Index,
         if CShape.Value.bits ((zMeasure (layout n)).readout (outputSource n k basis)) = output
@@ -64,8 +70,10 @@ theorem readoutCode_block_mass (n k : Nat) {Reference : Register} {H : Type} [Fi
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical]
-  simp only [State.classicalStep, ExecutionState.diagonalSum_mapClassical]
+  rw [Circuit.execute_classical_mapClassical (model := model marked)
+    (BitWord.application (packing n k))
+    (packing n k).eval (BitWord.bitWord_application_evaluate (packing n k))]
+  simp only [ExecutionState.diagonalSum_mapClassical]
   rw [Circuit.measurementSequence_diagonalSum]
   simp only [packedRead, packing_measured_value]
   calc
@@ -104,7 +112,8 @@ private theorem evolved_product_diagonal {n : Nat} (marked : Fin (2 ^ n) → Boo
 /-- Every final output-block mass is the original query-readout Born fiber,
 derived from actual elementary gates and measured source wires, with the work wire retained. -/
 theorem code_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits n)) :
     ((((code marked k).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n k).toCStorageRef))).block output).mass =
@@ -120,7 +129,7 @@ theorem code_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass n k
+          readoutCode_block_mass marked k
             ((beforeMeasurement marked k).execute Reference state) output
     _ = (∑ basis : Fin (2 ^ (totalQubits n k)),
         if CShape.Value.bits ((zMeasure (layout n)).readout

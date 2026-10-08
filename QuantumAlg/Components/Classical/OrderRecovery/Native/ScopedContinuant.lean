@@ -26,15 +26,16 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Allocate the product temporary around the actual multiply/add program. -/
 def scopedContinuant (quotient previous older : CInputRef ctx (.unsignedWord width))
-    (candidate : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+    (candidate : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   let key := ctx.canonicalFreshKey
   let fresh := ctx.canonicalFreshKey_fresh
   .workspace ctx key (.unsignedWord width) fresh
-    (continuantBody
+    (continuantBody (model := model)
       (quotient.underWorkspace key (.unsignedWord width) fresh)
       (previous.underWorkspace key (.unsignedWord width) fresh)
       (older.underWorkspace key (.unsignedWord width) fresh)
@@ -44,27 +45,29 @@ def scopedContinuant (quotient previous older : CInputRef ctx (.unsignedWord wid
 /-- The resulting outer store and the path of its two actual operations. -/
 def scopedContinuantStep (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (scopedContinuant quotient previous older candidate).Path :=
+    Store ctx × (scopedContinuant (model := model) quotient previous older candidate).Path :=
   let key := ctx.canonicalFreshKey
   let fresh := ctx.canonicalFreshKey_fresh
-  let final := continuantStore
+  let final := continuantStep (model := model)
     (quotient.underWorkspace key (.unsignedWord width) fresh)
     (previous.underWorkspace key (.unsignedWord width) fresh)
     (older.underWorkspace key (.unsignedWord width) fresh)
     (CWriteRef.workspaceHead ctx key (.unsignedWord width) fresh)
     (candidate.underWorkspace key (.unsignedWord width) fresh)
     (store.pushWorkspace key (.unsignedWord width) fresh)
-  (Store.popWorkspace key (.unsignedWord width) fresh final, ((), ()))
+  (Store.popWorkspace key (.unsignedWord width) fresh final.1, final.2)
 
 /-- The lexical program has this exact action on every complete quantum-reference block. -/
 theorem nativeScopedContinuant_execute
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (scopedContinuant quotient previous older candidate).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (scopedContinuant (model := model) quotient previous older candidate).execute Reference state =
       state.mapClassical (fun entry =>
-        ((scopedContinuantStep quotient previous older candidate entry.1).1,
-          (entry.2, (scopedContinuantStep quotient previous older candidate entry.1).2))) := by
+        ((scopedContinuantStep (model := model) quotient previous older candidate entry.1).1,
+          (entry.2.1, (entry.2.2,
+            (scopedContinuantStep (model := model) quotient previous older candidate
+              entry.1).2)))) := by
   let key := ctx.canonicalFreshKey
   let fresh := ctx.canonicalFreshKey_fresh
   let quotient' := quotient.underWorkspace key (.unsignedWord width) fresh
@@ -73,17 +76,19 @@ theorem nativeScopedContinuant_execute
   let candidate' := candidate.underWorkspace key (.unsignedWord width) fresh
   let product := CWriteRef.workspaceHead ctx key (.unsignedWord width) fresh
   refine (Circuit.execute_workspace_mapClassical key (.unsignedWord width) fresh
-    (continuantBody quotient' previous' older' product candidate')
-    (fun store => (continuantStore quotient' previous' older' product candidate' store,
-      ((), ())))
+    (continuantBody (model := model) quotient' previous' older' product candidate')
+    (fun entry =>
+      let next := continuantStep (model := model) quotient' previous' older' product candidate'
+        entry.1
+      ((next.1, entry.2), next.2))
     (fun reference {_} _ initial => by
       refine (nativeContinuant_execute quotient' previous' older' product candidate'
         reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
+      exact ExecutionState.executionState_mapClassical_congr _ rfl) Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem liftedWrite_key {shape workspaceShape : CShape} (output : CWriteRef ctx shape)
+private theorem liftedWrite_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    {shape workspaceShape : CShape} (output : CWriteRef ctx shape)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     (output.underWorkspace key workspaceShape fresh).key = output.key := rfl
 
@@ -91,7 +96,7 @@ private theorem liftedWrite_key {shape workspaceShape : CShape} (output : CWrite
 theorem nativeScopedContinuant_result
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    ((scopedContinuantStep quotient previous older candidate store).1).read
+    ((scopedContinuantStep (model := model) quotient previous older candidate store).1).read
         (cellRead candidate) =
       continuantValue (store.read quotient) (store.read previous) (store.read older) := by
   let key := ctx.canonicalFreshKey
@@ -108,7 +113,8 @@ theorem nativeScopedContinuant_result
     separate (store.pushWorkspace key (.unsignedWord width) fresh)
   have liftRead : cellRead candidate' =
       (cellRead candidate).underWorkspace key (.unsignedWord width) fresh := rfl
-  simpa only [scopedContinuantStep, Store.read_popWorkspace_underWorkspace,
+  simpa only [scopedContinuantStep, continuantStep, BitWord.instructionStep, continuantStore,
+    Store.read_popWorkspace_underWorkspace,
     quotient', previous', older', candidate', product, liftRead,
     Store.read_pushWorkspace_underWorkspace] using actual
 
@@ -118,9 +124,10 @@ theorem nativeScopedContinuant_read_other
     (candidate : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : candidate.key ∉ other.storageKeys) (store : Store ctx) :
-    ((scopedContinuantStep quotient previous older candidate store).1).read other =
+    ((scopedContinuantStep (model := model) quotient previous older candidate store).1).read other =
       store.read other := by
   unfold scopedContinuantStep
+  change (Store.popWorkspace _ _ _ (continuantStore _ _ _ _ _ _)).read other = _
   rw [Store.read_popWorkspace_underWorkspace]
   rw [nativeContinuant_read_other]
   · exact Store.read_pushWorkspace_underWorkspace store _ _ _ other
@@ -133,16 +140,19 @@ theorem nativeScopedContinuant_read_other
 theorem nativeScopedContinuant_eventTrace
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width))
-    (path : (scopedContinuant quotient previous older candidate).Path) :
-    (scopedContinuant quotient previous older candidate).eventTrace path =
-      continuantEvents kind width := rfl
+    (path : (scopedContinuant (model := model) quotient previous older candidate).Path) :
+    (scopedContinuant (model := model) quotient previous older candidate).eventTrace path =
+      continuantEvents model width := by
+  apply nativeContinuant_eventTrace
 
 /-- The multiplication and dependent addition retain their exact sequential depth. -/
 theorem nativeScopedContinuant_unitDepth
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width))
-    (path : (scopedContinuant quotient previous older candidate).Path) :
-    (scopedContinuant quotient previous older candidate).depth (fun _ => 1) path = 2 := rfl
+    (path : (scopedContinuant (model := model) quotient previous older candidate).Path) :
+    (scopedContinuant (model := model) quotient previous older candidate).depth
+      (fun _ => 1) path = 2 := by
+  apply nativeContinuant_unitDepth
 
 end
 

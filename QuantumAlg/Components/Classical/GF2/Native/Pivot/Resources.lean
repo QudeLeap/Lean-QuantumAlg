@@ -26,55 +26,68 @@ noncomputable section
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
+
+/-- The selected coordinate of a pivot-search operation. -/
+def pivotOperationEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
+
+private theorem pivotInstruction_duration_eventTrace {input output : CShape}
+    (op : ClassicalOp input output ctx ctx) (duration : Resource.Event model → Nat)
+    (path : (BitWord.instruction (execution := model) op).Path) :
+    (BitWord.instruction (execution := model) op).depth duration path =
+      ((((BitWord.instruction (execution := model) op).eventTrace path).map duration).sum) := by
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+  simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- The original five-stage selected-pivot native allowance. -/
-def selectedPivotEnvelope (kind : ProblemKind) (rowCount width : Nat)
-    (row : Fin rowCount) (column : Fin width) : ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.bit .and)) +
-    (ResourcePool.singleton (.classicalOperation (.bit .not)) +
-      (ResourcePool.ofList (pivotRowTrace kind rowCount width row) +
-        (ResourcePool.ofList (pivotColumnTrace kind width column) +
+def selectedPivotEnvelope (rowCount width : Nat)
+    (row : Fin rowCount) (column : Fin width) : ResourcePool model :=
+  ResourcePool.singleton (pivotOperationEvent (model := model) (.bit .and)) +
+    (ResourcePool.singleton (pivotOperationEvent (model := model) (.bit .not)) +
+      (ResourcePool.ofList (pivotRowTrace (model := model) rowCount width row) +
+        (ResourcePool.ofList (pivotColumnTrace (model := model) width column) +
           ResourcePool.scale rowCount
-            (ResourcePool.singleton (eliminationEvent kind rowCount width)))))
+            (ResourcePool.singleton (eliminationEvent (model := model) rowCount width)))))
 
 /-- Rejection and selection preserve distinct original native event coordinates. -/
-def pivotProbeEnvelope (kind : ProblemKind) (rowCount width : Nat)
-    (row : Fin rowCount) (column : Fin width) : ResourcePool kind :=
-  ResourcePool.max (ResourcePool.singleton (.classicalOperation (.bit .copy)))
-    (selectedPivotEnvelope kind rowCount width row column)
+def pivotProbeEnvelope (rowCount width : Nat)
+    (row : Fin rowCount) (column : Fin width) : ResourcePool model :=
+  ResourcePool.max (ResourcePool.singleton (pivotOperationEvent (model := model) (.bit .copy)))
+    (selectedPivotEnvelope (model := model) rowCount width row column)
 
 /-- All-path column allowance: original found clear, each row arm and final no-pivot marker. -/
-def pivotColumnEnvelope (kind : ProblemKind) (rowCount width : Nat) (column : Fin width) :
-    ResourcePool kind :=
-  ResourcePool.singleton (.classicalOperation (.bit .xor)) +
-    ((∑ row, pivotProbeEnvelope kind rowCount width row column) +
-      ResourcePool.singleton (.classicalOperation (.bit .xor)))
+def pivotColumnEnvelope (rowCount width : Nat) (column : Fin width) :
+    ResourcePool model :=
+  ResourcePool.singleton (pivotOperationEvent (model := model) (.bit .xor)) +
+    ((∑ row, pivotProbeEnvelope (model := model) rowCount width row column) +
+      ResourcePool.singleton (pivotOperationEvent (model := model) (.bit .xor)))
 
 /-- Arbitrary-duration allowance preserves all five selected-pivot stages. -/
 def selectedPivotDepthLimit (rowCount width : Nat) (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.bit .and)) +
-    (duration (.classicalOperation (.bit .not)) +
-      (((pivotRowTrace kind rowCount width row).map duration).sum +
-        (((pivotColumnTrace kind width column).map duration).sum +
-          rowCount * duration (eliminationEvent kind rowCount width))))
+    (duration : Resource.Event model → Nat) : Nat :=
+  duration (pivotOperationEvent (model := model) (.bit .and)) +
+    (duration (pivotOperationEvent (model := model) (.bit .not)) +
+      (((pivotRowTrace (model := model) rowCount width row).map duration).sum +
+        (((pivotColumnTrace (model := model) width column).map duration).sum +
+          rowCount * duration (eliminationEvent (model := model) rowCount width))))
 
 /-- Each row's duration allowance retains the actual rejection-or-selection alternative. -/
 def pivotProbeDepthLimit (rowCount width : Nat) (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  max (duration (.classicalOperation (.bit .copy)))
+    (duration : Resource.Event model → Nat) : Nat :=
+  max (duration (pivotOperationEvent (model := model) (.bit .copy)))
     (selectedPivotDepthLimit rowCount width row column duration)
 
 /-- The complete column adds the original clear and final no-pivot instruction allowances. -/
 def pivotColumnDepthLimit (rowCount width : Nat) (column : Fin width)
-    (duration : Resource.Event kind → Nat) : Nat :=
-  duration (.classicalOperation (.bit .xor)) +
+    (duration : Resource.Event model → Nat) : Nat :=
+  duration (pivotOperationEvent (model := model) (.bit .xor)) +
     ((∑ row, pivotProbeDepthLimit rowCount width row column duration) +
-      duration (.classicalOperation (.bit .xor)))
+      duration (pivotOperationEvent (model := model) (.bit .xor)))
 
 /-- The two mask words are sequential scopes, so their live-space allowance is a maximum. -/
-def pivotMaskSpace (kind : ProblemKind) (rowCount width : Nat) : SpacePool kind :=
+def pivotMaskSpace (rowCount width : Nat) : SpacePool model.kind :=
   SpacePool.max (SpacePool.ofShape (.unsignedWord rowCount))
     (SpacePool.ofShape (.unsignedWord width))
 
@@ -87,10 +100,22 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 theorem gf2SelectPivot_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).resourcePool path ≤
-      selectedPivotEnvelope kind rowCount width row column := by
+      selectedPivotEnvelope (model := model) rowCount width row column := by
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotSelectedOp sink))
+    (Circuit.seq (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (Circuit.seq (materializePivotRow (model := model) used rows row column)
+        (Circuit.seq (materializePivotColumn (model := model) columns column)
+          (eliminateWithPivot (model := model) matrix row column))))).Path at path
   change ResourcePool.ofList
-    ([.classicalOperation (.bit .and)] ++
-      (([.classicalOperation (.bit .not)] : List (Resource.Event kind)) ++
+    ((BitWord.instruction (execution := model) (pivotSelectedOp sink)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model) (pivotFoundOp found)).eventTrace path.2.1 ++
+        ((materializePivotRow used rows row column).eventTrace path.2.2.1 ++
+          ((materializePivotColumn columns column).eventTrace path.2.2.2.1 ++
+            (eliminateWithPivot matrix row column).eventTrace path.2.2.2.2)))) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change ResourcePool.ofList
+    ([pivotOperationEvent (model := model) (.bit .and)] ++
+      (([pivotOperationEvent (model := model) (.bit .not)] : List (Resource.Event model)) ++
       ((materializePivotRow used rows row column).eventTrace path.2.2.1 ++
         ((materializePivotColumn columns column).eventTrace path.2.2.2.1 ++
           (eliminateWithPivot matrix row column).eventTrace path.2.2.2.2)))) ≤ _
@@ -101,12 +126,24 @@ theorem gf2SelectPivot_pool_le (row : Fin rowCount) (column : Fin width)
 
 /-- Arbitrary selected-pivot durations add the same five actual stages. -/
 theorem gf2SelectPivot_depth_le (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).depth duration path ≤
       selectedPivotDepthLimit rowCount width row column duration := by
-  change duration (.classicalOperation (.bit .and)) +
-    (duration (.classicalOperation (.bit .not)) +
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotSelectedOp sink))
+    (Circuit.seq (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (Circuit.seq (materializePivotRow (model := model) used rows row column)
+        (Circuit.seq (materializePivotColumn (model := model) columns column)
+          (eliminateWithPivot (model := model) matrix row column))))).Path at path
+  change (BitWord.instruction (execution := model) (pivotSelectedOp sink)).depth
+      duration path.1 +
+    ((BitWord.instruction (execution := model) (pivotFoundOp found)).depth duration path.2.1 +
+      ((materializePivotRow used rows row column).depth duration path.2.2.1 +
+        ((materializePivotColumn columns column).depth duration path.2.2.2.1 +
+          (eliminateWithPivot matrix row column).depth duration path.2.2.2.2))) ≤ _
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
+  change duration (pivotOperationEvent (model := model) (.bit .and)) +
+    (duration (pivotOperationEvent (model := model) (.bit .not)) +
       ((materializePivotRow used rows row column).depth duration path.2.2.1 +
         ((materializePivotColumn columns column).depth duration path.2.2.2.1 +
           (eliminateWithPivot matrix row column).depth duration path.2.2.2.2))) ≤ _
@@ -117,18 +154,36 @@ theorem gf2SelectPivot_depth_le (row : Fin rowCount) (column : Fin width)
 
 /-- Selected-pivot depth is exactly the sum of the durations of its actual emitted events. -/
 theorem gf2SelectPivot_duration_eventTrace (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).depth duration path =
       (((selectPivot matrix used rows columns found sink row column).eventTrace path).map
         duration).sum := by
-  change duration (.classicalOperation (.bit .and)) +
-    (duration (.classicalOperation (.bit .not)) +
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotSelectedOp sink))
+    (Circuit.seq (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (Circuit.seq (materializePivotRow (model := model) used rows row column)
+        (Circuit.seq (materializePivotColumn (model := model) columns column)
+          (eliminateWithPivot (model := model) matrix row column))))).Path at path
+  change (BitWord.instruction (execution := model) (pivotSelectedOp sink)).depth
+      duration path.1 +
+    ((BitWord.instruction (execution := model) (pivotFoundOp found)).depth duration path.2.1 +
       ((materializePivotRow used rows row column).depth duration path.2.2.1 +
         ((materializePivotColumn columns column).depth duration path.2.2.2.1 +
           (eliminateWithPivot matrix row column).depth duration path.2.2.2.2))) =
-    ((([.classicalOperation (.bit .and)] : List (Resource.Event kind)) ++
-      (([.classicalOperation (.bit .not)] : List (Resource.Event kind)) ++
+    (((BitWord.instruction (execution := model) (pivotSelectedOp sink)).eventTrace path.1 ++
+      ((BitWord.instruction (execution := model) (pivotFoundOp found)).eventTrace path.2.1 ++
+        ((materializePivotRow used rows row column).eventTrace path.2.2.1 ++
+          ((materializePivotColumn columns column).eventTrace path.2.2.2.1 ++
+            (eliminateWithPivot matrix row column).eventTrace path.2.2.2.2)))).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth,
+    BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace]
+  change duration (pivotOperationEvent (model := model) (.bit .and)) +
+    (duration (pivotOperationEvent (model := model) (.bit .not)) +
+      ((materializePivotRow used rows row column).depth duration path.2.2.1 +
+        ((materializePivotColumn columns column).depth duration path.2.2.2.1 +
+          (eliminateWithPivot matrix row column).depth duration path.2.2.2.2))) =
+    ((([pivotOperationEvent (model := model) (.bit .and)] : List (Resource.Event model)) ++
+      (([pivotOperationEvent (model := model) (.bit .not)] : List (Resource.Event model)) ++
       ((materializePivotRow used rows row column).eventTrace path.2.2.1 ++
         ((materializePivotColumn columns column).eventTrace path.2.2.2.1 ++
           (eliminateWithPivot matrix row column).eventTrace path.2.2.2.2)))).map duration).sum
@@ -142,7 +197,7 @@ theorem gf2SelectPivot_duration_eventTrace (row : Fin rowCount) (column : Fin wi
 theorem gf2PivotProbeRow_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).resourcePool path ≤
-      pivotProbeEnvelope kind rowCount width row column := by
+      pivotProbeEnvelope (model := model) rowCount width row column := by
   rcases path with ⟨value, path⟩
   cases value
   rename_i isFound
@@ -155,16 +210,24 @@ theorem gf2PivotProbeRow_pool_le (row : Fin rowCount) (column : Fin width)
       cases value
       rename_i isSet
       cases isSet
-      · exact ResourcePool.le_max_left _ _
+      · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+        change ResourcePool.ofList
+          ((BitWord.instruction (execution := model) (pivotRejectedOp sink)).eventTrace path) ≤ _
+        rw [BitWord.bitWord_instruction_eventTrace]
+        exact ResourcePool.le_max_left _ _
       · exact (gf2SelectPivot_pool_le matrix used rows columns found sink row column path).trans
           (ResourcePool.le_max_right _ _)
-    · exact ResourcePool.le_max_left _ _
-  · change (0 : ResourcePool kind) ≤ _
+    · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+      change ResourcePool.ofList
+        ((BitWord.instruction (execution := model) (pivotRejectedOp sink)).eventTrace path) ≤ _
+      rw [BitWord.bitWord_instruction_eventTrace]
+      exact ResourcePool.le_max_left _ _
+  · change (0 : ResourcePool model) ≤ _
     exact zero_le
 
 /-- The actual three branch choices respect each row's duration allowance. -/
 theorem gf2PivotProbeRow_depth_le (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).depth duration path ≤
       pivotProbeDepthLimit rowCount width row column duration := by
@@ -180,15 +243,23 @@ theorem gf2PivotProbeRow_depth_le (row : Fin rowCount) (column : Fin width)
       cases value
       rename_i isSet
       cases isSet
-      · exact Nat.le_max_left _ _
+      · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+        change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).depth
+          duration path ≤ _
+        rw [BitWord.bitWord_instruction_depth]
+        exact Nat.le_max_left _ _
       · exact (gf2SelectPivot_depth_le matrix used rows columns found sink row column duration
           path).trans (Nat.le_max_right _ _)
-    · exact Nat.le_max_left _ _
+    · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+      change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).depth
+        duration path ≤ _
+      rw [BitWord.bitWord_instruction_depth]
+      exact Nat.le_max_left _ _
   · exact Nat.zero_le _
 
 /-- Each row path retains exact serial event-duration accounting. -/
 theorem gf2PivotProbeRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).depth duration path =
       (((pivotProbeRow matrix used rows columns found sink row column).eventTrace path).map
@@ -205,18 +276,41 @@ theorem gf2PivotProbeRow_duration_eventTrace (row : Fin rowCount) (column : Fin 
       cases value
       rename_i isSet
       cases isSet
-      · exact (Nat.add_zero _).symm
+      · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+        change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).depth
+          duration path =
+            ((((BitWord.instruction (execution := model)
+              (pivotRejectedOp sink)).eventTrace path).map duration).sum)
+        exact pivotInstruction_duration_eventTrace (pivotRejectedOp sink) duration path
       · exact gf2SelectPivot_duration_eventTrace matrix used rows columns found sink row column
           duration path
-    · exact (Nat.add_zero _).symm
+    · change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).Path at path
+      change (BitWord.instruction (execution := model) (pivotRejectedOp sink)).depth
+        duration path =
+          ((((BitWord.instruction (execution := model)
+            (pivotRejectedOp sink)).eventTrace path).map duration).sum)
+      exact pivotInstruction_duration_eventTrace (pivotRejectedOp sink) duration path
   · rfl
 
 /-- The all-path native column allowance includes every real marker and every row arm. -/
 theorem gf2ReduceColumnBody_pool_le (column : Fin width)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).resourcePool path ≤
-      pivotColumnEnvelope kind rowCount width column := by
-  change ResourcePool.ofList ([.classicalOperation (.bit .xor)] ++
+      pivotColumnEnvelope (model := model) rowCount width column := by
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp found))
+    (Circuit.seq (Circuit.forRange rowCount
+      (fun row => pivotProbeRow (model := model)
+        matrix used rows columns found sink row column))
+      (Circuit.branch (.storage found.toCStorageRef)
+        (pivotAbsentChoice (model := model) sink)))).Path at path
+  change ResourcePool.ofList
+    ((BitWord.instruction (execution := model) (pivotClearOp found)).eventTrace path.1 ++
+      ((Circuit.forRange rowCount
+        (fun row => pivotProbeRow matrix used rows columns found sink row column)).eventTrace
+          path.2.1 ++
+        (pivotAbsentChoice sink path.2.2.1).eventTrace path.2.2.2)) ≤ _
+  rw [BitWord.bitWord_instruction_eventTrace]
+  change ResourcePool.ofList ([pivotOperationEvent (model := model) (.bit .xor)] ++
     ((Circuit.forRange rowCount
       (fun row => pivotProbeRow matrix used rows columns found sink row column)).eventTrace path.2.1
         ++
@@ -230,16 +324,33 @@ theorem gf2ReduceColumnBody_pool_le (column : Fin width)
   cases value
   rename_i isFound
   cases isFound
-  · exact le_rfl
-  · change (0 : ResourcePool kind) ≤ _
+  · change (BitWord.instruction (execution := model) (pivotClearOp sink)).Path at last
+    change ResourcePool.ofList
+      ((BitWord.instruction (execution := model) (pivotClearOp sink)).eventTrace last) ≤ _
+    rw [BitWord.bitWord_instruction_eventTrace]
+    change ResourcePool.ofList [pivotOperationEvent (model := model) (.bit .xor)] ≤ _
+    exact le_rfl
+  · change (0 : ResourcePool model) ≤ _
     exact zero_le
 
 /-- Each row retains its own original duration allowance in the increasing sequence. -/
-theorem gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.Event kind → Nat)
+theorem gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).depth duration path ≤
       pivotColumnDepthLimit rowCount width column duration := by
-  change duration (.classicalOperation (.bit .xor)) +
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp found))
+    (Circuit.seq (Circuit.forRange rowCount
+      (fun row => pivotProbeRow (model := model)
+        matrix used rows columns found sink row column))
+      (Circuit.branch (.storage found.toCStorageRef)
+        (pivotAbsentChoice (model := model) sink)))).Path at path
+  change (BitWord.instruction (execution := model) (pivotClearOp found)).depth
+      duration path.1 +
+    ((Circuit.forRange rowCount
+      (fun row => pivotProbeRow matrix used rows columns found sink row column)).depth duration
+        path.2.1 + (pivotAbsentChoice sink path.2.2.1).depth duration path.2.2.2) ≤ _
+  rw [BitWord.bitWord_instruction_depth]
+  change duration (pivotOperationEvent (model := model) (.bit .xor)) +
     ((Circuit.forRange rowCount
       (fun row => pivotProbeRow matrix used rows columns found sink row column)).depth duration
         path.2.1 + (pivotAbsentChoice sink path.2.2.1).depth duration path.2.2.2) ≤ _
@@ -251,21 +362,43 @@ theorem gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.E
   cases value
   rename_i isFound
   cases isFound
-  · exact le_rfl
+  · change (BitWord.instruction (execution := model) (pivotClearOp sink)).Path at last
+    change (BitWord.instruction (execution := model) (pivotClearOp sink)).depth
+      duration last ≤ _
+    rw [BitWord.bitWord_instruction_depth]
+    change duration (pivotOperationEvent (model := model) (.bit .xor)) ≤ _
+    exact le_rfl
   · exact Nat.zero_le _
 
 /-- The complete actual column path has serial depth equal to its native duration sum. -/
 theorem gf2ReduceColumnBody_duration_eventTrace (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).depth duration path =
       (((reduceColumnBody matrix used rows columns found sink column).eventTrace path).map
         duration).sum := by
-  change duration (.classicalOperation (.bit .xor)) +
+  change (Circuit.seq (BitWord.instruction (execution := model) (pivotClearOp found))
+    (Circuit.seq (Circuit.forRange rowCount
+      (fun row => pivotProbeRow (model := model)
+        matrix used rows columns found sink row column))
+      (Circuit.branch (.storage found.toCStorageRef)
+        (pivotAbsentChoice (model := model) sink)))).Path at path
+  change (BitWord.instruction (execution := model) (pivotClearOp found)).depth
+      duration path.1 +
     ((Circuit.forRange rowCount
       (fun row => pivotProbeRow matrix used rows columns found sink row column)).depth duration
         path.2.1 + (pivotAbsentChoice sink path.2.2.1).depth duration path.2.2.2) =
-    ((([.classicalOperation (.bit .xor)] : List (Resource.Event kind)) ++
+    (((BitWord.instruction (execution := model) (pivotClearOp found)).eventTrace path.1 ++
+      ((Circuit.forRange rowCount
+        (fun row => pivotProbeRow matrix used rows columns found sink row column)).eventTrace
+          path.2.1 ++ (pivotAbsentChoice sink path.2.2.1).eventTrace
+            path.2.2.2)).map duration).sum
+  rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_eventTrace]
+  change duration (pivotOperationEvent (model := model) (.bit .xor)) +
+    ((Circuit.forRange rowCount
+      (fun row => pivotProbeRow matrix used rows columns found sink row column)).depth duration
+        path.2.1 + (pivotAbsentChoice sink path.2.2.1).depth duration path.2.2.2) =
+    ((([pivotOperationEvent (model := model) (.bit .xor)] : List (Resource.Event model)) ++
       ((Circuit.forRange rowCount
         (fun row => pivotProbeRow matrix used rows columns found sink row column)).eventTrace
           path.2.1 ++ (pivotAbsentChoice sink path.2.2.1).eventTrace path.2.2.2)).map duration).sum
@@ -279,19 +412,24 @@ theorem gf2ReduceColumnBody_duration_eventTrace (column : Fin width)
   cases value
   rename_i isFound
   cases isFound
-  · exact (Nat.add_zero _).symm
+  · change (BitWord.instruction (execution := model) (pivotClearOp sink)).Path at last
+    change (BitWord.instruction (execution := model) (pivotClearOp sink)).depth
+      duration last =
+        ((((BitWord.instruction (execution := model)
+          (pivotClearOp sink)).eventTrace last).map duration).sum)
+    exact pivotInstruction_duration_eventTrace (pivotClearOp sink) duration last
   · rfl
 
 /-- Both real bit scopes retain the original column's native allowance. -/
 theorem gf2ReduceColumn_pool_le (column : Fin width)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).resourcePool path ≤
-      pivotColumnEnvelope kind rowCount width column :=
+      pivotColumnEnvelope (model := model) rowCount width column :=
   gf2ReduceColumnBody_pool_le _ _ _ _ _ _ column path
 
 /-- Both real bit scopes retain the original column's arbitrary-duration allowance. -/
 theorem gf2ReduceColumn_depth_le (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).depth duration path ≤
       pivotColumnDepthLimit rowCount width column duration :=
@@ -299,7 +437,7 @@ theorem gf2ReduceColumn_depth_le (column : Fin width)
 
 /-- Both real bit scopes preserve the exact actual serial-duration equation. -/
 theorem gf2ReduceColumn_duration_eventTrace (column : Fin width)
-    (duration : Resource.Event kind → Nat)
+    (duration : Resource.Event model → Nat)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).depth duration path =
       (((reduceColumn matrix used rows columns column).eventTrace path).map duration).sum :=
@@ -311,7 +449,7 @@ theorem gf2ReduceColumn_unit_depth_le (column : Fin width)
     (reduceColumn matrix used rows columns column).depth (fun _ => 1) path ≤
       rowCount * (2 * rowCount + width + 9) + 2 := by
   have eachRow : ∀ row : Fin rowCount,
-      pivotProbeDepthLimit rowCount width row column (fun _ : Resource.Event kind => 1) ≤
+      pivotProbeDepthLimit rowCount width row column (fun _ : Resource.Event model => 1) ≤
         2 * rowCount + width + 9 := by
     intro row
     refine Nat.max_le.mpr ⟨by change 1 ≤ _; omega, ?_⟩
@@ -324,7 +462,7 @@ theorem gf2ReduceColumn_unit_depth_le (column : Fin width)
   have sumBound := Finset.sum_le_sum (fun row (_present : row ∈ Finset.univ) => eachRow row)
   simp only [Finset.sum_const, Finset.card_fin, smul_eq_mul] at sumBound
   change 1 + ((∑ row, pivotProbeDepthLimit rowCount width row column
-    (fun _ : Resource.Event kind => 1)) + 1) ≤ _
+    (fun _ : Resource.Event model => 1)) + 1) ≤ _
   omega
 
 end

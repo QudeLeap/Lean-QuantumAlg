@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem bitAnd_value (left right : CShape.Value .bit) :
     (Resource.BitOpcode.eval .and (.product left right)).toBool =

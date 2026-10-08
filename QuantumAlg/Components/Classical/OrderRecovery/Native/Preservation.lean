@@ -29,32 +29,35 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth candidateWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {modulusWidth candidateWidth : Nat}
 
 private theorem prefix_borrowed (numerator denominator previous older :
     CInputRef ctx (.unsignedWord candidateWidth))
     (division : CWriteRef ctx (cursorDivisionShape candidateWidth))
     (candidate : CWriteRef ctx (.unsignedWord candidateWidth)) (store : Store ctx) :
-    ((candidatePrefixStep numerator denominator previous older division candidate
+    ((candidatePrefixStep (model := model) numerator denominator previous older division candidate
       store).1).readBorrowedClassical = store.readBorrowedClassical := by
   simp only [candidatePrefixStep, scopedContinuantStep, Store.readBorrowedClassical_popWorkspace,
-    continuantStore, Store.readBorrowedClassical_applyOp, Store.readBorrowedClassical_pushWorkspace]
+    continuantStep, BitWord.instructionStep, Store.readBorrowedClassical_applyOp,
+    Store.readBorrowedClassical_pushWorkspace]
 
 private theorem selection_borrowed (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth)) (value : CShape.Value .bit)
     (store : Store ctx) :
-    (selectionChoiceStep cells remainder value store).1.readBorrowedClassical =
+    (selectionChoiceStep (model := model) cells remainder value store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   cases value with
   | bit value =>
-      cases value <;> simp only [selectionChoiceStep,
-        nativeCursor_advance_borrowed_values, nativeCursor_accept_borrowed_values]
+      cases value <;> simp only [selectionChoiceStep, advanceCursorStep, acceptCursorStep,
+        BitWord.instructionStep, Store.readBorrowedClassical_applyOp]
 
 private theorem visit_borrowed (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (division : CWriteRef ctx (cursorDivisionShape candidateWidth)) (store : Store ctx) :
-    (visitWithDivisionStep spec base cells division store).1.readBorrowedClassical =
+    (visitWithDivisionStep (model := model) spec base cells division
+      store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   simp only [visitWithDivisionStep, selection_borrowed, nativeValidation_borrowed_values,
     prefix_borrowed]
@@ -62,7 +65,7 @@ private theorem visit_borrowed (spec : ModulusSpec modulusWidth)
 private theorem active_borrowed (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (store : Store ctx) :
-    (activeVisitStep spec base cells store).1.readBorrowedClassical =
+    (activeVisitStep (model := model) spec base cells store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   simp only [activeVisitStep, Store.readBorrowedClassical_popWorkspace, visit_borrowed,
     Store.readBorrowedClassical_pushWorkspace]
@@ -71,7 +74,7 @@ private theorem activity_borrowed (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (value : CShape.Value .bit)
     (store : Store ctx) :
-    (activityChoiceStep spec base cells value store).1.readBorrowedClassical =
+    (activityChoiceStep (model := model) spec base cells value store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   cases value with
   | bit value => cases value <;> simp only [activityChoiceStep, active_borrowed]
@@ -80,14 +83,14 @@ private theorem activity_borrowed (spec : ModulusSpec modulusWidth)
 theorem nativeRecovery_slot_borrowed_values (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (store : Store ctx) :
-    (scanSlotStep spec base cells store).1.readBorrowedClassical =
+    (scanSlotStep (model := model) spec base cells store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   simp only [scanSlotStep, activity_borrowed]
 
 private theorem iteration_borrowed (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (count : Nat) (store : Store ctx) :
-    ((fun initial => (scanSlotStep spec base cells initial).1)^[count]
+    ((fun initial => (scanSlotStep (model := model) spec base cells initial).1)^[count]
       store).readBorrowedClassical =
       store.readBorrowedClassical := by
   induction count generalizing store with
@@ -95,12 +98,14 @@ private theorem iteration_borrowed (spec : ModulusSpec modulusWidth)
   | succ count ih =>
       rw [Function.iterate_succ_apply, ih, nativeRecovery_slot_borrowed_values]
 
-private theorem initialization_borrowed (ctx : RuntimeCtx kind) (modulusWidth phaseBits : Nat)
+private theorem initialization_borrowed (ctx : RuntimeCtx model.kind)
+    (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
-    (initializeScanStep ctx modulusWidth phaseBits sample store).1.readBorrowedClassical =
+    (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
+      store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
-  simp only [initializeScanStep, Store.readBorrowedClassical_applyOp,
+  simp only [initializeScanStep, BitWord.instructionStep, Store.readBorrowedClassical_applyOp,
     ConstantWord.constantWord_foldStep_borrowed_values,
     TerminalDecode.terminalDecode_foldStep_borrowed_values]
 
@@ -109,14 +114,16 @@ private theorem body_borrowed {phaseBits : Nat}
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
-    (recoveryBodyStep spec base sample output store).1.readBorrowedClassical =
+    (recoveryBodyStep (model := model) spec base sample output store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
-  simp only [recoveryBodyStep, Store.readBorrowedClassical_applyOp, iteration_borrowed,
+  simp only [recoveryBodyStep, BitWord.instructionStep, Store.readBorrowedClassical_applyOp,
+    iteration_borrowed,
     initialization_borrowed]
 
-private theorem scope_borrowed (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat)
+omit [BitWord.Selected model] in
+private theorem scope_borrowed (ctx : RuntimeCtx model.kind) (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField)
-    (body : Circuit (fieldsContext ctx modulusWidth candidateWidth fields)
+    (body : Circuit model (fieldsContext ctx modulusWidth candidateWidth fields)
       (fieldsContext ctx modulusWidth candidateWidth fields))
     (step : Store (fieldsContext ctx modulusWidth candidateWidth fields) →
       Store (fieldsContext ctx modulusWidth candidateWidth fields) × body.Path)
@@ -137,10 +144,11 @@ theorem nativeRecovery_into_borrowed_values {phaseBits : Nat}
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
     (store : Store ctx) :
-    (intoStep spec base sample output store).1.readBorrowedClassical =
+    (intoStep (model := model) spec base sample output store).1.readBorrowedClassical =
       store.readBorrowedClassical :=
   scope_borrowed ctx modulusWidth (phaseBits + 1) recoveryFields
-    (recoveryBody spec base sample output) (recoveryBodyStep spec base sample output)
+    (recoveryBody (model := model) spec base sample output)
+    (recoveryBodyStep (model := model) spec base sample output)
     (body_borrowed spec base sample output) store
 
 /-- The same complete execution jointly restores all borrowed classical/quantum/reference data. -/
@@ -149,14 +157,17 @@ theorem nativeRecovery_into_borrowedRestored {phaseBits : Nat}
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (into spec base sample output).BorrowedRestored Reference state
-      ((into spec base sample output).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) spec base sample output).BorrowedRestored Reference state
+      ((into (model := model) spec base sample output).execute Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, nativeRecovery_into_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
-    (H := History) (K := History × (into spec base sample output).Path) state
-    (fun entry => ((intoStep spec base sample output entry.1).1,
-      (entry.2, (intoStep spec base sample output entry.1).2)))
+    (H := model.HiddenState × History)
+    (K := model.HiddenState ×
+      (History × (into (model := model) spec base sample output).Path)) state
+    (fun entry => ((intoStep (model := model) spec base sample output entry.1).1,
+      (entry.2.1, (entry.2.2,
+        (intoStep (model := model) spec base sample output entry.1).2))))
     (fun entry => nativeRecovery_into_borrowed_values spec base sample output entry.1))
   congr 1
   congr 1

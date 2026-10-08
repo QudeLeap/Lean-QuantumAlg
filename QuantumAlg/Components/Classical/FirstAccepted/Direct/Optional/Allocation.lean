@@ -91,92 +91,106 @@ def packOp (selected : Optional.Refs ctx width)
     (.product (Direct.writeInput selected.selection.accepted)
       (Direct.writeInput selected.selection.selected)) output
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- All actual selection steps precede the sole caller-output pack. -/
 def body (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx kind}
-    (cells : Cells inner (shapes width)) (transport : Transport ctx inner) : Circuit inner inner :=
-  .seq (Fold.into (fun index => transport.liftInput (inputs index)) (refs cells))
-    (.classical (packOp (refs cells) (transport.liftWrite output)))
+    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx model.kind}
+    (cells : Cells inner (shapes width)) (transport : Transport ctx inner) : Circuit model inner
+      inner :=
+  .seq (Fold.into (model := model) (fun index => transport.liftInput (inputs index)) (refs cells))
+    (BitWord.instruction (execution := model) (packOp (refs cells) (transport.liftWrite output)))
 
 /-- The body record follows the actual fold and then writes its result through the real pack. -/
 def bodyStep (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx kind}
+    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx model.kind}
     (cells : Cells inner (shapes width)) (transport : Transport ctx inner)
-    (store : Store inner) : Store inner × (body inputs output cells transport).Path :=
+    (store : Store inner × model.HiddenState) : (Store inner × model.HiddenState) × (body (model :=
+      model) inputs output cells transport).Path :=
   Circuit.sequenceRecord
-    (Fold.into (fun index => transport.liftInput (inputs index)) (refs cells))
-    (.classical (packOp (refs cells) (transport.liftWrite output)))
-    (Fold.step (fun index => transport.liftInput (inputs index)) (refs cells))
-    (fun current => (current.applyOp (packOp (refs cells) (transport.liftWrite output)), ())) store
+    (Fold.into (model := model) (fun index => transport.liftInput (inputs index)) (refs cells))
+    (BitWord.instruction (execution := model) (packOp (refs cells) (transport.liftWrite output)))
+    (Fold.step (model := model) (fun index => transport.liftInput (inputs index)) (refs cells))
+    (fun current =>
+      let actual := BitWord.instructionStep (execution := model)
+        (packOp (refs cells) (transport.liftWrite output)) current.1
+      ((actual.1, current.2), actual.2)) store
 
 /-- The complete body executes on the same full store, history and quantum-reference state. -/
 theorem body_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx kind}
+    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx model.kind}
     (cells : Cells inner (shapes width)) (transport : Transport ctx inner)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State inner Reference History) :
-    (body inputs output cells transport).execute Reference state = state.mapClassical (fun entry =>
-      ((bodyStep inputs output cells transport entry.1).1,
-        (entry.2, (bodyStep inputs output cells transport entry.1).2))) := by
+    (state : State inner Reference (model.HiddenState × History)) :
+    (body (model := model) inputs output cells transport).execute Reference state =
+      state.mapClassical (fun entry =>
+      let actual := bodyStep (model := model) inputs output cells transport (entry.1, entry.2.1)
+      (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
   apply Circuit.execute_sequenceRecord
   · exact Fold.into_execute _ _
-  · intro reference history _ current
-    refine (Circuit.execute_classical_mapClassical
-      (packOp (refs cells) (transport.liftWrite output)) reference current).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+  · intro reference _history _ current
+    refine (BitWord.bitWord_instruction_execute
+      (packOp (refs cells) (transport.liftWrite output)) current).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual initialized body changes precisely the original caller output. -/
 theorem body_store (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx kind}
+    (output : CWriteRef ctx (.option (.unsignedWord width))) {inner : RuntimeCtx model.kind}
     (cells : Cells inner (shapes width)) (distinct : cells.Distinct)
     (transport : Transport ctx inner) (separated : cells.TransportSeparated transport)
-    (before : Store inner) (initialized : cells.Initialized before) :
-    transport.restrict (bodyStep inputs output cells transport before).1 =
-      (transport.restrict before).write output (value inputs (transport.restrict before)) := by
+    (before : Store inner × model.HiddenState) (initialized : cells.Initialized before.1) :
+    transport.restrict (bodyStep (model := model) inputs output cells transport before).1.1 =
+      (transport.restrict before.1).write output (value inputs (transport.restrict before.1)) := by
   let lifted := fun index => transport.liftInput (inputs index)
-  have unchanged : transport.restrict (Fold.step lifted (refs cells) before).1 =
-      transport.restrict before := by
+  have unchanged : transport.restrict (Fold.step (model := model) lifted (refs cells) before).1.1 =
+      transport.restrict before.1 := by
     apply Store.store_eq_of_storage_reads
     intro shape other
     exact (transport.workspaceTransport_restrict_readsAs _ (.storage other)).symm.trans
       ((Fold.into_callerFrame lifted (refs cells) before (transport.liftInput (.storage other))
         (refs_avoid cells transport separated (.storage other))).trans
-        (transport.workspaceTransport_restrict_readsAs before (.storage other)))
+        (transport.workspaceTransport_restrict_readsAs before.1 (.storage other)))
   have selected := Fold.into_correct lifted (refs cells) (refs_separated cells distinct)
     (fun index => refs_avoid cells transport separated (inputs index)) before
-  rw [refs_initialized cells before initialized] at selected
-  have reads : (fun index => before.read (lifted index)) =
-      (fun index => (transport.restrict before).read (inputs index)) :=
-    funext (fun index => transport.workspaceTransport_restrict_readsAs before (inputs index))
+  rw [refs_initialized cells before.1 initialized] at selected
+  have reads : (fun index => before.1.read (lifted index)) =
+      (fun index => (transport.restrict before.1).read (inputs index)) :=
+    funext (fun index => transport.workspaceTransport_restrict_readsAs before.1 (inputs index))
   rw [reads] at selected
-  change transport.restrict ((Fold.step lifted (refs cells) before).1.write
+  change transport.restrict ((Fold.step (model := model) lifted (refs cells) before).1.1.write
     (transport.liftWrite output)
-    (Optional.selectedValue (refs cells).selection (Fold.step lifted (refs cells) before).1)) = _
+    (Optional.selectedValue (refs cells).selection (Fold.step (model := model) lifted (refs cells)
+      before).1.1)) = _
   rw [transport.workspaceTransport_restrict_write, unchanged, selected]
   rfl
 
 /-- The actual allocator introduces only the three declared lexical workspaces. -/
 def into (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit model ctx ctx :=
   withCells ctx (shapes width) fun cells _distinct transport _separated =>
-    body inputs output cells transport
+    body (model := model) inputs output cells transport
 
 /-- Existing push/body/pop semantics provide the initialized full record and caller-store
 equation. -/
 theorem actualRecord (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    ∃ record : Store ctx → Store ctx × (into inputs output).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (into (model :=
+      model) inputs output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (into inputs output).execute Reference state = state.mapClassical (fun entry =>
-          ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 = before.write output (value inputs before) := by
+        (state : State ctx Reference (model.HiddenState × History)),
+        (into (model := model) inputs output).execute Reference state = state.mapClassical (fun
+          entry =>
+          let actual := record (entry.1, entry.2.1)
+          (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = before.1.write output (value inputs before.1) := by
   apply withCells_actualRecord_initialized_restricted_post ctx (shapes width)
-    (fun cells _distinct transport _separated => body inputs output cells transport)
+    (fun cells _distinct transport _separated => body (model := model) inputs output cells
+      transport)
     (fun before after => after = before.write output (value inputs before))
   intro inner cells distinct transport separated
-  exact ⟨bodyStep inputs output cells transport, body_execute inputs output cells transport,
+  exact ⟨bodyStep (model := model) inputs output cells transport, body_execute inputs output cells
+    transport,
     fun before initialized => body_store inputs output cells distinct transport separated
       before initialized⟩
 
@@ -184,38 +198,43 @@ theorem actualRecord (inputs : Fin count → CInputRef ctx (.option (.unsignedWo
 interpreter. -/
 def step (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
-    Store ctx → Store ctx × (into inputs output).Path :=
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (into (model := model) inputs
+      output).Path :=
   Classical.choose (actualRecord inputs output)
 
 /-- Actual allocation, all selection steps, packing and release preserve the complete
 reference state. -/
 theorem into_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (into inputs output).execute Reference state = state.mapClassical (fun entry =>
-      ((step inputs output entry.1).1, (entry.2, (step inputs output entry.1).2))) :=
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (into (model := model) inputs output).execute Reference state = state.mapClassical (fun entry =>
+      let actual := step (model := model) inputs output (entry.1, entry.2.1)
+      (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) :=
   (Classical.choose_spec (actualRecord inputs output)).1 Reference state
 
 /-- The full returned caller store differs precisely by the specified output write. -/
 theorem into_store (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx) :
-    (step inputs output store).1 = store.write output (value inputs store) :=
+    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx ×
+      model.HiddenState) :
+    (step (model := model) inputs output store).1.1 = store.1.write output (value inputs store.1) :=
   (Classical.choose_spec (actualRecord inputs output)).2 store
 
 /-- The actual retained caller output contains the first populated original candidate. -/
 theorem into_correct (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx) :
-    (step inputs output store).1.read (Direct.writeInput output) = value inputs store := by
+    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx ×
+      model.HiddenState) :
+    (step (model := model) inputs output store).1.1.read (Direct.writeInput output) = value inputs
+      store.1 := by
   rw [into_store]
   exact Store.read_write_same _ _ _
 
 /-- Every structural caller read outside the sole final output write is preserved. -/
 theorem into_callerFrame (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx)
+    (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx × model.HiddenState)
     {shape : CShape} (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) :
-    (step inputs output store).1.read other = store.read other := by
+    (step (model := model) inputs output store).1.1.read other = store.1.read other := by
   rw [into_store]
-  exact Store.read_write_of_not_mem_storageKeys store output _ other separate
+  exact Store.read_write_of_not_mem_storageKeys store.1 output _ other separate
 
 end
 

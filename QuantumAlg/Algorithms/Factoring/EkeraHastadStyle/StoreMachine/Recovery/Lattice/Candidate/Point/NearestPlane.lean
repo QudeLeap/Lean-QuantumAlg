@@ -87,14 +87,15 @@ structure InitialConditions {kind : ProblemKind} {ctx : RuntimeCtx kind} {width 
   offset : LatticeArithmetic.PointRawRepresents before refs.offset offset
 
 /-- The candidate adapter's suffix caller frame. -/
-def CallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+def CallerFrame {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
     (refs : Refs ctx width) (before after : Store ctx) : Prop :=
-  LatticeCandidatePointMachine.CallerFrame (candidateRefs refs) before after
+  LatticeCandidatePointMachine.CallerFrame (model := model) (candidateRefs refs) before after
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual candidate constructor uses the original nearest-plane coefficient cells. -/
-def candidatePointInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def candidatePointInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   LatticeCandidatePointMachine.candidatePointInto (candidateRefs refs)
 
 /-- Complete actual candidate store and chronological native instruction path. -/
@@ -104,9 +105,10 @@ def candidateStep (refs : Refs ctx width) (store : Store ctx) :
 
 /-- The complete actual source adapter preserves every incoming history and reference block. -/
 theorem candidatePointInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePointInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((candidateStep refs entry.1).1, (entry.2, (candidateStep refs entry.1).2))) :=
+      let actual := candidateStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeCandidatePointMachine.candidatePointInto_execute (candidateRefs refs) Reference state
 
 /-- Exact original short-log outputs and all retained caller reads of the actual suffix. -/
@@ -253,7 +255,7 @@ theorem candidatePointInto_depth (refs : Refs ctx width)
 
 /-- The actual source adapter restores every borrowed-reference joint state. -/
 theorem candidatePointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePointInto refs).BorrowedRestored Reference state
       ((candidatePointInto refs).execute Reference state) :=
   LatticeCandidatePointMachine.candidatePointInto_borrowedRestored (candidateRefs refs)

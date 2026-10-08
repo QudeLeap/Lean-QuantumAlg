@@ -62,32 +62,39 @@ namespace Circuit
 open Execution
 
 /-- Complete equations for the same actual interpreter determine both store and path uniquely. -/
-theorem executionRecord_unique {kind : ProblemKind} {ctx : RuntimeCtx kind}
-    (code : Circuit ctx ctx)
-    (first second : Store ctx → Store ctx × code.Path)
+theorem executionRecord_unique {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx)
+    (first second : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × code.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       code.execute Reference state = state.mapClassical (fun entry =>
-        ((first entry.1).1, (entry.2, (first entry.1).2))))
+        let result := first (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History),
+      (state : State ctx Reference (model.HiddenState × History)),
       code.execute Reference state = state.mapClassical (fun entry =>
-        ((second entry.1).1, (entry.2, (second entry.1).2)))) : first = second := by
+        let result := second (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2))))) : first = second := by
   let density : DensityOperator (Register.prod ctx.register (Qubits 0)) :=
     DensityOperator.ofPure (NormalizedVector.ket (ctx.quantumLayout.zeroLabel, 0))
-  let firstMap : Store ctx × Unit → Store ctx × (Unit × code.Path) :=
-    fun entry => ((first entry.1).1, (entry.2, (first entry.1).2))
-  let secondMap : Store ctx × Unit → Store ctx × (Unit × code.Path) :=
-    fun entry => ((second entry.1).1, (entry.2, (second entry.1).2))
-  have equation : ∀ state : State ctx (Qubits 0) Unit,
+  let firstMap : Store ctx × (model.HiddenState × Unit) →
+      Store ctx × (model.HiddenState × (Unit × code.Path)) := fun entry =>
+    let result := first (entry.1, entry.2.1)
+    (result.1.1, (result.1.2, (entry.2.2, result.2)))
+  let secondMap : Store ctx × (model.HiddenState × Unit) →
+      Store ctx × (model.HiddenState × (Unit × code.Path)) := fun entry =>
+    let result := second (entry.1, entry.2.1)
+    (result.1.1, (result.1.2, (entry.2.2, result.2)))
+  have equation : ∀ state : State ctx (Qubits 0) (model.HiddenState × Unit),
       state.mapClassical firstMap = state.mapClassical secondMap := by
     intro state
     convert (firstEquation (Qubits 0) state).symm.trans
       (secondEquation (Qubits 0) state) using 1 <;>
       congr 1 <;> exact Subsingleton.elim _ _
   have same := maps_unique density (DensityOperator.ofPure_normalized _) firstMap secondMap equation
-  funext store
-  exact congrArg (fun entry => (entry.1, entry.2.2)) (congrFun same (store, ()))
+  funext input
+  exact congrArg (fun entry => ((entry.1, entry.2.1), entry.2.2.2))
+    (congrFun same (input.1, (input.2, ())))
 
 end Circuit
 

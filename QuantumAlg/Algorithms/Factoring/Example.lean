@@ -76,7 +76,7 @@ theorem publishedThreshold_eq_ninetyNineHundredths :
 any well-formed public failure budget. -/
 theorem mainForBudget (budget : FailureBudget)
     (hbudget : FailureBudget.WellFormed budget) :
-    ∃ candidate : Algorithm .quantum ShorStyle.pre
+    ∃ candidate : Algorithm (ShorStyle.executionModel semiprimeModel) ShorStyle.pre
         (ShorStyle.post semiprimeModel budget) (ShorStyle.OutputShape modulus),
       Algorithm.Solves candidate (ShorStyle.problem semiprimeModel budget hbudget) :=
   ⟨ShorStyle.algorithm semiprimeModel budget,
@@ -84,7 +84,7 @@ theorem mainForBudget (budget : FailureBudget)
 
 /-- The complete factor-15 specialization at the fixed one-percent failure budget. -/
 theorem main :
-    ∃ candidate : Algorithm .quantum ShorStyle.pre
+    ∃ candidate : Algorithm (ShorStyle.executionModel semiprimeModel) ShorStyle.pre
         (ShorStyle.post semiprimeModel publishedFailureBudget) (ShorStyle.OutputShape modulus),
       Algorithm.Solves candidate
         (ShorStyle.problem semiprimeModel publishedFailureBudget

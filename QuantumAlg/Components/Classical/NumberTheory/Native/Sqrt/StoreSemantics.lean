@@ -23,19 +23,20 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every original structural read outside the actual final destination retains its entire value. -/
 theorem nativeSqrt_into_read_unchanged (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (intoStep input output store).1.read other = store.read other := by
+    (intoStep (model := model) input output store).1.read other = store.read other := by
   let lifted := underRead other width
   let pushed := pushStore width store
   let saved := pushed.applyOp (widenOp input)
-  let loaded := ConstantWord.foldStep (halfCell ctx width)
+  let loaded := ConstantWord.foldStep (model := model) (halfCell ctx width)
     (List.ofFn (ConstantWord.constantBits width (initialHalf width))) saved
-  let iterated := iteratedRoundStep (.storage (wideCell ctx width).toCStorageRef)
+  let iterated := iteratedRoundStep (model := model) (.storage (wideCell ctx width).toCStorageRef)
     (roundRefs ctx width) width loaded.1
   have wideFree : (widenOp input).outputRef.key ∉ lifted.storageKeys :=
     nativeSqrt_underRead_free other width (wideCell ctx width).key (by simp [internalKeys])
@@ -54,27 +55,29 @@ theorem nativeSqrt_into_read_unchanged (input : CInputRef ctx (.unsignedWord wid
     exact separate
   have afterCopy := Store.read_applyOp_of_not_mem_storageKeys
     iterated.1 (finishOp output) lifted finishFree
-  have afterRounds := nativeSqrt_iteration_read_unchanged
+  have afterRounds := nativeSqrt_iteration_read_unchanged (model := model)
     (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width)
     lifted roundFree width loaded.1
-  have afterLoader := ConstantWord.constantWord_fold_read_other (halfCell ctx width)
+  have afterLoader := ConstantWord.constantWord_fold_read_other (model := model) (halfCell ctx
+    width)
     (List.ofFn (ConstantWord.constantBits width (initialHalf width))) lifted halfFree saved
   have afterWiden := Store.read_applyOp_of_not_mem_storageKeys
     pushed (widenOp input) lifted wideFree
   have entered := nativeSqrt_push_read other width store
-  have exited := nativeSqrt_pop_read other width (bodyStep input output pushed).1
+  have exited := nativeSqrt_pop_read other width (bodyStep (model := model) input output pushed).1
   exact exited.trans
     (afterCopy.trans (afterRounds.trans (afterLoader.trans (afterWiden.trans entered))))
 
 /-- The actual output value is the canonical unsigned word containing the exact square root. -/
 theorem nativeSqrt_into_output_value (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    (intoStep input output store).1.read (.storage output.toCStorageRef) =
+    (intoStep (model := model) input output store).1.read (.storage output.toCStorageRef) =
       CShape.wordOfNat width (Nat.sqrt (store.read input).toNat) := by
-  have natural := nativeSqrt_into_read_output input output store
+  have natural := nativeSqrt_into_read_output (model := model) input output store
   have bounded : Nat.sqrt (store.read input).toNat < 2 ^ width :=
     (Nat.sqrt_le_self _).trans_lt (store.read input).toNat_lt
-  cases actual : (intoStep input output store).1.read (.storage output.toCStorageRef) with
+  cases actual : (intoStep (model := model) input output store).1.read (.storage
+    output.toCStorageRef) with
   | unsignedWord word =>
       apply congrArg CShape.Value.unsignedWord
       apply Fin.ext
@@ -85,10 +88,10 @@ theorem nativeSqrt_into_output_value (input : CInputRef ctx (.unsignedWord width
 /-- The complete returned store changes precisely the actual caller destination. -/
 theorem nativeSqrt_into_store (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    (intoStep input output store).1 =
+    (intoStep (model := model) input output store).1 =
       store.write output (CShape.wordOfNat width (Nat.sqrt (store.read input).toNat)) := by
   apply Store.store_eq_write_of_read_frame
-  · exact nativeSqrt_into_output_value input output store
+  · exact nativeSqrt_into_output_value (model := model) input output store
   · intro shape other separate
     exact nativeSqrt_into_read_unchanged input output (.storage other)
       (by simpa only [CInputRef.storageKeys, List.mem_singleton] using separate) store

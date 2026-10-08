@@ -6,6 +6,21 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Tensor.Basic
+import all QuantumAlg.Core.Base.State.Normalized
+import all QuantumAlg.Core.Base.Gate.Unitary
+import all QuantumAlg.Components.Kets
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Util.FinPow
+
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
+import all QuantumAlg.Primitives.WalshHadamard.Uniform
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+import all QuantumAlg.Primitives.WalshHadamard.Initialization
+import all QuantumAlg.Primitives.WalshHadamard.Initialization.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+
 import QuantumAlg.Init
 public import QuantumAlg.Primitives.WalshHadamard
 public import Mathlib.Data.Finset.Filter
@@ -17,7 +32,7 @@ import all QuantumAlg.Core.Measure
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Core.Measure.Distribution
 import all QuantumAlg.Primitives.WalshHadamard
-import all QuantumAlg.Primitives.PhaseKickback.Basic
+import all QuantumAlg.Primitives.PhaseKickback.Xor
 
 /-!
 # Deutsch-Jozsa promise, amplitudes, and circuit mathematics
@@ -48,7 +63,7 @@ is summed rather than selecting one joint coordinate.
   of terminally reading `0^n` is the squared norm of the signed phase average.
 - `QuantumAlg.DeutschJozsa.circuitMain` — under the explicit constant/balanced
   promise, one concrete circuit has correct terminal decision probability one;
-  the same witness supplies the exact query, Hadamard, and depth counts.
+  the same witness supplies the exact native gate, query, and depth counts.
 
 The normalized-state Born distribution below is a mathematical observation.
 The complete native endpoint separately proves its actual measured Store
@@ -239,14 +254,12 @@ private theorem allZeroOutcome_fiber :
 
 theorem evolvedState_apply_zero_prod (f : Oracle n)
     (target : Fin (2 ^ 1)) :
-    (evolvedState (WalshHadamard.circuit f)
-        (WalshHadamard.Readout.circuit_physical_idx f)).normalized
+    (evolvedState f).normalized
         (prodEquiv ((0 : Fin (2 ^ n)), target)) =
       zeroAmplitude f * ketMinus target := by
-  change UnitaryCircuit.applyNormalized (WalshHadamard.circuit f)
-      (WalshHadamard.input n)
+  change WalshHadamard.finalJointState f
       (prodEquiv ((0 : Fin (2 ^ n)), target)) = _
-  rw [WalshHadamard.circuit_applyNormalized,
+  rw [
     WalshHadamard.finalJointState_eq_finalState_tensor,
     NormalizedVector.tensor_apply_prod]
   change inputZeroAmplitude f * ketMinus target = _
@@ -256,8 +269,7 @@ theorem evolvedState_apply_zero_prod (f : Oracle n)
 basis states are summed because the target is not measured. -/
 theorem allZeroOutcome_probability (f : Oracle n) :
     (measurement n).outcomePMF
-        (evolvedState (WalshHadamard.circuit f)
-          (WalshHadamard.Readout.circuit_physical_idx f))
+        (evolvedState f)
         (allZeroOutcome n) =
       ENNReal.ofReal (‖zeroAmplitude f‖ ^ 2) := by
   rw [TerminalZMeasure.outcomePMF_apply, allZeroOutcome_fiber,
@@ -275,8 +287,7 @@ theorem allZeroOutcome_probability (f : Oracle n) :
 theorem allZeroOutcome_probability_of_constant (f : Oracle n)
     (hf : IsConstant f) :
     (measurement n).outcomePMF
-        (evolvedState (WalshHadamard.circuit f)
-          (WalshHadamard.Readout.circuit_physical_idx f))
+        (evolvedState f)
         (allZeroOutcome n) = 1 := by
   rw [allZeroOutcome_probability]
   rcases zeroAmplitude_of_constant f hf with ⟨value, hvalue⟩
@@ -286,32 +297,28 @@ theorem allZeroOutcome_probability_of_constant (f : Oracle n)
 theorem allZeroOutcome_probability_of_balanced (f : Oracle n)
     (hf : IsBalanced f) :
     (measurement n).outcomePMF
-        (evolvedState (WalshHadamard.circuit f)
-          (WalshHadamard.Readout.circuit_physical_idx f))
+        (evolvedState f)
         (allZeroOutcome n) = 0 := by
   rw [allZeroOutcome_probability, zeroAmplitude_of_balanced f hf]
   norm_num
 
-/-- Probability mass that the actual terminal-measurement PMF assigns to the
-correct Deutsch-Jozsa decision event. -/
+/-- Decision probability of a complete normalized joint state on the original physical wires. -/
 def correctDecisionProbability (f : Oracle n)
-    (circuit : UnitaryCircuit (Qubits (n + 1)))
-    (circuit_layout : circuit.physical_idx = (layout n).systemIdx) : ENNReal :=
+    (state : NormalizedVector (Qubits (n + 1))) : ENNReal :=
   ((measurement n).outcomePMF
-      (evolvedState circuit circuit_layout)).toOuterMeasure
-    {outcome | CorrectDecision f outcome}
+    { state := PureState.ofNormalized state (WalshHadamard.Readout.layout n).systemIdx
+      system_idx_eq := rfl }).toOuterMeasure {outcome | CorrectDecision f outcome}
 
 theorem correctDecision_probability_one (f : Oracle n) (hf : Promise f) :
-    correctDecisionProbability f (WalshHadamard.circuit f)
-        (WalshHadamard.Readout.circuit_physical_idx f) = 1 := by
+    correctDecisionProbability f (WalshHadamard.finalJointState f) = 1 := by
   rw [correctDecisionProbability, PMF.toOuterMeasure_apply_eq_one_iff]
   intro outcome houtcome
+  change outcome ∈ ((measurement n).outcomePMF (evolvedState f)).support at houtcome
   by_cases hconstant : IsConstant f
   · have hprob := allZeroOutcome_probability_of_constant f hconstant
     have hsupport :
         ((measurement n).outcomePMF
-          (evolvedState (WalshHadamard.circuit f)
-            (WalshHadamard.Readout.circuit_physical_idx f))).support =
+          (evolvedState f)).support =
           {allZeroOutcome n} :=
       (PMF.apply_eq_one_iff _ _).mp hprob
     have houtcome_eq : outcome = allZeroOutcome n := by
@@ -331,7 +338,7 @@ theorem correctDecision_probability_one (f : Oracle n) (hf : Promise f) :
 /-- One Deutsch-Jozsa oracle query with the target qubit in `|-⟩` is the
 phase query `|x⟩ ↦ (-1)^{f x}|x⟩`. -/
 theorem deutschJozsa_query_phase (f : WalshHadamard.Oracle n) (x : Fin (2 ^ n)) :
-    (WalshHadamard.oracleGate f).applyVec
+    (xorOracleOp f).applyVec
         (HilbertVector.tensor
           ((ket x : NormalizedVector (Qubits n)) : HilbertVector (Qubits n))
           (ketMinus : HilbertVector (Qubits 1)))
@@ -342,24 +349,29 @@ theorem deutschJozsa_query_phase (f : WalshHadamard.Oracle n) (x : Fin (2 ^ n)) 
             (ketMinus : HilbertVector (Qubits 1)) := by
   exact PhaseKickback.xor_action f x
 
-/-- **Deutsch-Jozsa correctness and exact resources**: one concrete circuit
-has correct terminal-measurement decision probability one and supplies its
-strict event evidence. The same `circuit` binder occurs in the Born semantics,
-event counts, and event-depth claim; no detached resource profile is accepted. -/
+/-- One actual native word realizes the exact original joint state and certain decision,
+with its own single-qubit, XOR-query and dependency counts. -/
 theorem circuitMain (f : WalshHadamard.Oracle n) (hf : Promise f) :
-    ∃ circuit : UnitaryCircuit (Qubits (n + 1)),
-      ∃ circuit_layout : circuit.physical_idx = (layout n).systemIdx,
-      correctDecisionProbability f circuit circuit_layout = 1 ∧
-      circuit.eventCost = WalshHadamard.eventPool n ∧
-      ResourcePool.count WalshHadamard.hadamardEvent circuit.eventCost = 2 * n + 1 ∧
-      ResourcePool.count (WalshHadamard.xorOracleEvent n) circuit.eventCost = 1 ∧
-      circuit.evaluatedEventDepth (fun _event => 1) = if n = 0 then 2 else 3 := by
-  refine ⟨WalshHadamard.circuit f, WalshHadamard.Readout.circuit_physical_idx f,
-    correctDecision_probability_one f hf, WalshHadamard.circuit_eventCost f,
-    WalshHadamard.circuit_eventCost_hadamard_count f,
-    WalshHadamard.circuit_eventCost_xorOracle_count f, ?_⟩
-  rw [UnitaryCircuit.evaluatedEventDepth, WalshHadamard.circuit_eventDepth]
-  exact WalshHadamard.eventCriticalPath_unit_depth n
+    ∃ body : UnitaryCircuit AlgorithmGate.model (XorOracle.model f)
+        (Gate.HadamardLayer.layout (n + 1)),
+      body.binaryMatrix.apply (NormalizedVector.ket (R := Qubits (n + 1)) 0) =
+        WalshHadamard.finalJointState f ∧
+      correctDecisionProbability f
+        (body.binaryMatrix.apply (NormalizedVector.ket (R := Qubits (n + 1)) 0)) = 1 ∧
+      body.eventCost =
+        (2 * n + 2) • ResourcePool.singleton
+          (model := .quantum AlgorithmGate.model (XorOracle.model f))
+          (.gate AlgorithmGate.Coordinate.singleQubit) +
+          ResourcePool.singleton
+            (model := .quantum AlgorithmGate.model (XorOracle.model f))
+            (.oracle XorOracle.Coordinate.xor) ∧
+      body.evaluatedEventDepth (fun _ => 1) = if n = 0 then 3 else 4 := by
+  refine ⟨WalshHadamard.Native.zeroInputProgram f,
+    WalshHadamard.Native.walshNative_zeroInputProgram_apply_zero f, ?_,
+    WalshHadamard.Native.walshNative_zeroInputProgram_eventCost f,
+    WalshHadamard.Native.walshNative_zeroInputProgram_unit_depth f⟩
+  rw [WalshHadamard.Native.walshNative_zeroInputProgram_apply_zero]
+  exact correctDecision_probability_one f hf
 
 end DeutschJozsa
 

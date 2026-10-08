@@ -11,9 +11,10 @@ import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Scan.Frame
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Scan.Execution
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Scope.Frame
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Scope.Records
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Selector
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.SamplingInput
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Parameters
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.Source.Distribution
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.Source.Outcome
 
 /-!
 # The actual finite scan returns the original first successful source factor
@@ -68,40 +69,6 @@ private theorem firstPresent_assoc {width : Nat}
       firstPresent first (firstPresent second third) := by
   cases first <;> rfl
 
-/-- Actual factor recovery and selection preserve the first successful factor exactly. -/
-theorem visit_latchValue (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
-    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
-    (separated : Separated cells result) (store : Store ctx) (outcome : SourceOutcome N)
-    (parameterRead : store.read inputs.parameter = parameterValue source outcome.sample)
-    (phaseRead : store.read inputs.phase = .bits outcome.measurement) :
-    latchValue cells (visitStep source inputs cells result store).1 =
-      firstPresent (latchValue cells store) (sourceResult source outcome) := by
-  let semantic := FactorRecovery.sampledSemanticInput source outcome.sample outcome.measurement
-  let recovered := FactorRecovery.NativeFactorScope.step source
-    inputs.parameter inputs.phase result store
-  have baseRead : (store.read inputs.parameter).first.toNat = semantic.base.val :=
-    (congrArg (fun value => value.first.toNat) parameterRead).trans
-      (parameterValue_unit_toNat source outcome.sample)
-  have actualResult : recovered.1.read (.storage result.toCStorageRef) =
-      sourceResult source outcome :=
-    (FactorRecovery.NativeFactorScope.result source semantic inputs.parameter inputs.phase
-      result store baseRead phaseRead).trans
-      (congrArg (fun parameter => FactorRecovery.encodeOutput
-        (FactorRecovery.outputOfRecovered parameter
-          (ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
-            (FactorRecovery.recoverySpec source) semantic))) parameterRead)
-  have acceptedSame := FactorRecovery.NativeFactorScope.read_other source
-    inputs.parameter inputs.phase result (.storage cells.accepted.toCStorageRef)
-    (fun member => separated.resultAccepted (List.mem_singleton.mp member)) store
-  have selectedSame := FactorRecovery.NativeFactorScope.read_other source
-    inputs.parameter inputs.phase result (.storage cells.selected.toCStorageRef)
-    (fun member => separated.resultSelected (List.mem_singleton.mp member)) store
-  have latchesSame : latchValue cells recovered.1 = latchValue cells store :=
-    congrArg CShape.packOption (congrArg₂ CShape.Value.product acceptedSame selectedSame)
-  exact (selection_latchValue cells result separated.selector separated.candidateAccepted
-    separated.candidateSelected recovered.1).trans
-    (congrArg₂ firstPresent latchesSame actualResult)
-
 /-- The internal actual-read facts used to identify each retained source outcome. -/
 def Represents (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
     (store : Store ctx) : Prop :=
@@ -116,12 +83,51 @@ def Frames (cells : Cells ctx N)
   ∀ entry ∈ entries,
     FrameFree cells result entry.1.parameter ∧ FrameFree cells result entry.1.phase
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Actual factor recovery and selection preserve the first successful factor exactly. -/
+theorem visit_latchValue (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+    (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+    (separated : Separated cells result) (store : Store ctx) (outcome : SourceOutcome N)
+    (parameterRead : store.read inputs.parameter = parameterValue source outcome.sample)
+    (phaseRead : store.read inputs.phase = .bits outcome.measurement) :
+    latchValue cells (visitStep (model := model) source inputs cells result store).1 =
+      firstPresent (latchValue cells store) (sourceResult source outcome) := by
+  let semantic := FactorRecovery.sampledSemanticInput source outcome.sample outcome.measurement
+  let recovered := FactorRecovery.NativeFactorScope.step (model := model) source
+    inputs.parameter inputs.phase result store
+  have baseRead : (store.read inputs.parameter).first.toNat = semantic.base.val :=
+    (congrArg (fun value => value.first.toNat) parameterRead).trans
+      (parameterValue_unit_toNat source outcome.sample)
+  have actualResult : recovered.1.read (.storage result.toCStorageRef) =
+      sourceResult source outcome :=
+    (FactorRecovery.NativeFactorScope.result (model := model) source semantic inputs.parameter
+      inputs.phase
+      result store baseRead phaseRead).trans
+      (congrArg (fun parameter => FactorRecovery.encodeOutput
+        (FactorRecovery.outputOfRecovered parameter
+          (ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
+            (FactorRecovery.recoverySpec source) semantic))) parameterRead)
+  have acceptedSame := FactorRecovery.NativeFactorScope.read_other (model := model) source
+    inputs.parameter inputs.phase result (.storage cells.accepted.toCStorageRef)
+    (fun member => separated.resultAccepted (List.mem_singleton.mp member)) store
+  have selectedSame := FactorRecovery.NativeFactorScope.read_other (model := model) source
+    inputs.parameter inputs.phase result (.storage cells.selected.toCStorageRef)
+    (fun member => separated.resultSelected (List.mem_singleton.mp member)) store
+  have latchesSame : latchValue cells recovered.1 = latchValue cells store :=
+    congrArg CShape.packOption (congrArg₂ CShape.Value.product acceptedSame selectedSame)
+  exact (selection_latchValue (model := model) cells result separated.selector
+    separated.candidateAccepted
+    separated.candidateSelected recovered.1).trans
+    (congrArg₂ firstPresent latchesSame actualResult)
+
 /-- Actual scanning folds the source selector while retaining an earlier accepted result. -/
 theorem scan_latchValue (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : Separated cells result) (entries : List (Inputs ctx N × SourceOutcome N)) :
     ∀ (store : Store ctx), Frames cells result entries → Represents source entries store →
-      latchValue cells (scanStep source cells result (entries.map Prod.fst) store).1 =
+      latchValue cells (scanStep (model := model) source cells result (entries.map Prod.fst)
+        store).1 =
         firstPresent (latchValue cells store) (sourceResults source (entries.map Prod.snd)) := by
   induction entries with
   | nil =>
@@ -129,7 +135,7 @@ theorem scan_latchValue (source : Input N) (cells : Cells ctx N)
       exact (firstPresent_none_right (latchValue cells store)).symm
   | cons entry rest ih =>
       intro store frames represented
-      let visited := visitStep source entry.1 cells result store
+      let visited := visitStep (model := model) source entry.1 cells result store
       have current := represented entry List.mem_cons_self
       have laterFrames : Frames cells result rest :=
         fun later member => frames later (List.mem_cons_of_mem entry member)
@@ -137,12 +143,13 @@ theorem scan_latchValue (source : Input N) (cells : Cells ctx N)
         intro later member
         have original := represented later (List.mem_cons_of_mem entry member)
         have free := laterFrames later member
-        have parameterSame := visit_read_other source entry.1 cells result
+        have parameterSame := visit_read_other (model := model) source entry.1 cells result
           later.1.parameter free.1 store
-        have phaseSame := visit_read_other source entry.1 cells result later.1.phase free.2 store
+        have phaseSame := visit_read_other (model := model) source entry.1 cells result
+          later.1.phase free.2 store
         exact ⟨parameterSame.trans original.1, phaseSame.trans original.2⟩
       have remaining := ih visited.1 laterFrames laterReads
-      have currentResult := visit_latchValue source entry.1 cells result separated
+      have currentResult := visit_latchValue (model := model) source entry.1 cells result separated
         store entry.2 current.1 current.2
       refine remaining.trans ?_
       exact (congrArg (fun value =>
@@ -154,7 +161,7 @@ theorem code_result (source : Input N) (entries : List (Inputs ctx N × SourceOu
     (cells : Cells ctx N) (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : Separated cells result) (store : Store ctx)
     (frames : Frames cells result entries) (represented : Represents source entries store) :
-    (step source (entries.map Prod.fst) cells result store).1.read
+    (step (model := model) source (entries.map Prod.fst) cells result store).1.read
       (.storage result.toCStorageRef) = sourceResults source (entries.map Prod.snd) := by
   let cleared := store.applyOp (clearAcceptedOp cells)
   have clearedReads : Represents source entries cleared := by
@@ -166,8 +173,9 @@ theorem code_result (source : Input N) (entries : List (Inputs ctx N × SourceOu
       (Store.read_applyOp_of_not_mem_storageKeys store (clearAcceptedOp cells)
         entry.1.phase free.2.accepted).trans original.2⟩
   refine (pack_result cells result
-    (scanStep source cells result (entries.map Prod.fst) cleared).1).trans
-    ((scan_latchValue source cells result separated entries cleared frames clearedReads).trans ?_)
+    (scanStep (model := model) source cells result (entries.map Prod.fst) cleared).1).trans
+    ((scan_latchValue (model := model) source cells result separated entries cleared frames
+      clearedReads).trans ?_)
   rw [clear_latchValue]
   rfl
 

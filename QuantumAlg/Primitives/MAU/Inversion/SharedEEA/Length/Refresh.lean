@@ -107,18 +107,21 @@ theorem gates_retained (width : Nat) (state : Registers width) :
   exact ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- The circuit is the actual elementary program list, with no additional native declaration. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Complete basis action of the actual program agrees with the independent finite update. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- Actual ordered events retain all four complete native write schedules. -/
 theorem program_eventTrace (width : Nat) :
-    (program width).eventTrace = (gates width).map GateSpec.event :=
-  GateSpec.programList_eventTrace _
+    (program width).eventTrace = (gates width).map (GateSpec.event .empty) := by
+  rw [program, GateSpec.programList_eventTrace]
 
 end
 

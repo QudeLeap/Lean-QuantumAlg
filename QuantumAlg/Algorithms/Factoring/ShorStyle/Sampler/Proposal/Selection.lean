@@ -50,6 +50,9 @@ private theorem word_eq_of_toNat_eq (actual : CShape.Value (.unsignedWord width)
       congr 1
       exact Fin.ext same
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The prefix returns the full source candidate word and its exact interval predicate. -/
 theorem proposalPrefix_values
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
@@ -58,19 +61,22 @@ theorem proposalPrefix_values
     (value : Fin (2 ^ (count * width)))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :
     let candidate := RSA.decodeFixedWidthWords width count value proposal
-    let final := (prefixStep sample proposal shared scratch store).1
+    let final := (prefixStep (model := model) sample proposal shared scratch store).1
     final.read (FirstAccepted.cellRead scratch.candidate) = .unsignedWord candidate ∧
       (final.read (FirstAccepted.cellRead scratch.eligible)).toBool =
         decide ((store.read shared.zero).toNat < candidate.val ∧
           candidate.val < (store.read shared.modulus).toNat) := by
-  let decoded := (decodedStep sample proposal scratch store).1
-  have decodedValue := proposalDecoded_read_source sample proposal scratch store value
+  let decoded := (decodedStep (model := model) sample proposal scratch store).1
+  have decodedValue := proposalDecoded_read_source (model := model)
+    sample proposal scratch store value
     separated.candidateSample sampled
   have decodedZero : decoded.read shared.zero = store.read shared.zero :=
-    TerminalDecode.terminalDecode_fold_read_other scratch.candidate _ store shared.zero
+    TerminalDecode.terminalDecode_fold_read_other (model := model)
+      scratch.candidate _ store shared.zero
       separated.candidateZero
   have decodedModulus : decoded.read shared.modulus = store.read shared.modulus :=
-    TerminalDecode.terminalDecode_fold_read_other scratch.candidate _ store shared.modulus
+    TerminalDecode.terminalDecode_fold_read_other (model := model)
+      scratch.candidate _ store shared.modulus
       separated.candidateModulus
   have candidate := proposalComparison_candidate shared scratch separated.comparison decoded
   have eligible := proposalComparison_eligible shared scratch separated.comparison decoded
@@ -89,29 +95,30 @@ theorem proposalSlot_latches
     let eligible := decide ((store.read shared.zero).toNat < candidate.val ∧
       candidate.val < (store.read shared.modulus).toNat)
     let accepted := (store.read (FirstAccepted.cellRead shared.selector.accepted)).toBool
-    let final := (slotStep sample proposal shared scratch store).1
+    let final := (slotStep (model := model) sample proposal shared scratch store).1
     (final.read (FirstAccepted.cellRead shared.selector.accepted)).toBool =
         (accepted || eligible) ∧
       final.read (FirstAccepted.cellRead shared.selector.selected) =
         if (!accepted) && eligible then .unsignedWord candidate
           else store.read (FirstAccepted.cellRead shared.selector.selected) := by
-  let prefixed := (prefixStep sample proposal shared scratch store).1
-  have values := proposalPrefix_values sample proposal shared scratch separated store value sampled
+  let prefixed := (prefixStep (model := model) sample proposal shared scratch store).1
+  have values := proposalPrefix_values (model := model)
+    sample proposal shared scratch separated store value sampled
   have acceptedRead : prefixed.read (FirstAccepted.cellRead shared.selector.accepted) =
       store.read (FirstAccepted.cellRead shared.selector.accepted) :=
-    proposalPrefix_read_other sample proposal shared scratch
+    proposalPrefix_read_other (model := model) sample proposal shared scratch
       (FirstAccepted.cellRead shared.selector.accepted)
       (fun key member => by
         simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using
           separated.prefixAccepted key member) store
   have selectedRead : prefixed.read (FirstAccepted.cellRead shared.selector.selected) =
       store.read (FirstAccepted.cellRead shared.selector.selected) :=
-    proposalPrefix_read_other sample proposal shared scratch
+    proposalPrefix_read_other (model := model) sample proposal shared scratch
       (FirstAccepted.cellRead shared.selector.selected)
       (fun key member => by
         simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using
           separated.prefixSelected key member) store
-  have selected := FirstAccepted.firstAccepted_latches (selectorInputs scratch)
+  have selected := FirstAccepted.firstAccepted_latches (model := model) (selectorInputs scratch)
     shared.selector separated.selector prefixed
   dsimp only at values selected ⊢
   change _ = (_ || (prefixed.read (FirstAccepted.cellRead scratch.eligible)).toBool) ∧

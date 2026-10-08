@@ -145,7 +145,9 @@ theorem transportBorrowed_trans {firstShape middleShape lastShape : CShape}
   rfl
 
 /-- Put the final joint observation on exactly the input borrowed classical and quantum carriers. -/
-def observeBorrowedAfter {pre post : RuntimeCtx kind} (code : Circuit pre post)
+def observeBorrowedAfter {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post)
     (Reference : Register)
     (state : ExecutionState (Store post × H) (Register.prod post.register Reference)) :
     ExecutionState pre.borrowedClassicalShape.Value
@@ -154,7 +156,9 @@ def observeBorrowedAfter {pre post : RuntimeCtx kind} (code : Circuit pre post)
     code.borrowedRegister_preserved (observeBorrowed Reference state)
 
 /-- Exact borrowed-coordinate transport preserves the full joint probability mass. -/
-theorem observeBorrowedAfter_mass {pre post : RuntimeCtx kind} (code : Circuit pre post)
+theorem observeBorrowedAfter_mass {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post)
     (Reference : Register)
     (state : ExecutionState (Store post × H) (Register.prod post.register Reference)) :
     (observeBorrowedAfter code Reference state).mass = state.mass := by
@@ -166,8 +170,8 @@ namespace Circuit
 
 /-- All borrowed classical-quantum-reference correlations are restored by the actual execution.
 The final state is compared with the initial one as a single joint CQ object. -/
-public def BorrowedRestored {kind : ProblemKind} {pre post : RuntimeCtx kind}
-    (code : Circuit pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
+public def BorrowedRestored {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
     (initial : ExecutionState (Execution.Store pre × H) (Register.prod pre.register Reference))
     (final : ExecutionState (Execution.Store post × K) (Register.prod post.register Reference)) :
     Prop :=

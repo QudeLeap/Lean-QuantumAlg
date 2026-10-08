@@ -27,7 +27,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -62,25 +62,30 @@ def requirement : StateRequirement base (context base noQuantum N) :=
 
 /-- The real sixteen-round run satisfies the independent complete state requirement. -/
 theorem nativeBatch_requirement_holds (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
-    (requirement base noQuantum N).Holds input
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
+    (requirement base noQuantum N).Holds input.caller
       ((run base noQuantum N).finalState Reference input.state) := by
   intro selected
   let actual :=
     (((run base noQuantum N).finalState Reference input.state).mapClassical
       (run base noQuantum N).output.eval).block selected
-  have referenceNormalized : input.state.referenceMarginal.IsNormalized :=
-    (ExecutionState.referenceMarginal_mass input.state).trans input.normalized
+  have sameReference : input.state.referenceMarginal = input.caller.state.referenceMarginal := by
+    unfold ExecutionState.referenceMarginal
+    rw [OracleInput.oracleInput_caller_quantumMarginal]
+  have referenceNormalized : input.caller.state.referenceMarginal.IsNormalized :=
+    (ExecutionState.referenceMarginal_mass input.caller.state).trans input.caller.normalized
   have joint := BasisReference.promise_of_entries (restoredSeed base noQuantum N)
-    input.state.referenceMarginal referenceNormalized actual
+    input.caller.state.referenceMarginal referenceNormalized actual
     (sourceDistribution specification selected).toReal
-    (fun left right leftRef rightRef =>
-      nativeBatch_run_output_joint_entry base noQuantum specification input selected
+    (fun left right leftRef rightRef => by
+      rw [← sameReference]
+      exact nativeBatch_run_output_joint_entry base noQuantum specification input selected
         left right leftRef rightRef)
   exact StatePromise.mixed_fullSelection (context base noQuantum N).quantumLayout Reference
-    (BasisReference.target (restoredSeed base noQuantum N) input.state.referenceMarginal)
+    (BasisReference.target (restoredSeed base noQuantum N) input.caller.state.referenceMarginal)
     (BasisReference.target_normalized (restoredSeed base noQuantum N)
-      input.state.referenceMarginal referenceNormalized) actual joint
+      input.caller.state.referenceMarginal referenceNormalized) actual joint
 
 end
 

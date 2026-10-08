@@ -28,69 +28,24 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-/-- Actual native composition preserves each complete quantum-reference block and history. -/
-theorem recoveryBody_execute (left right inverse : CInputRef ctx (.unsignedWord width))
+/-- Actual native composition preserves shared state and every quantum-reference block. -/
+theorem recoveryBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (recoveryBody left right inverse modulus candidate reconstruction verified output).execute
-      Reference state = state.mapClassical (fun entry =>
-        ((recoveryBodyStep left right inverse modulus candidate reconstruction verified output
-          entry.1).1, (entry.2, (recoveryBodyStep left right inverse modulus candidate
-            reconstruction verified output entry.1).2))) := by
-  let check := Circuit.classical (recoveryEqualOp right reconstruction verified)
-  let pack := Circuit.classical (recoveryPackOp candidate verified output)
-  let checkStep : Store ctx → Store ctx × check.Path := fun store =>
-    (store.applyOp (recoveryEqualOp right reconstruction verified), ())
-  let packStep : Store ctx → Store ctx × pack.Path := fun store =>
-    (store.applyOp (recoveryPackOp candidate verified output), ())
-  let finishStep : Store ctx → Store ctx × (check.seq pack).Path := fun store =>
-    let checked := checkStep store
-    let packed := packStep checked.1
-    (packed.1, (checked.2, packed.2))
-  have finish : ∀ (reference : Register) {history : Type} [Fintype history]
-      (initial : State ctx reference history), (check.seq pack).execute reference initial =
-        initial.mapClassical (fun entry => ((finishStep entry.1).1,
-          (entry.2, (finishStep entry.1).2))) := by
-    intro reference history _ initial
-    refine (Circuit.execute_seq_mapClassical check pack checkStep packStep
-      (fun ref {_} _ before => by
-        refine (Circuit.execute_classical_mapClassical
-          (recoveryEqualOp right reconstruction verified) ref before).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _)
-      (fun ref {_} _ before => by
-        refine (Circuit.execute_classical_mapClassical
-          (recoveryPackOp candidate verified output) ref before).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _) reference initial).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
-  let reconstruct := scopedMultiply (wordRead candidate) left modulus reconstruction
-  let laterStep : Store ctx → Store ctx × (reconstruct.seq (check.seq pack)).Path := fun store =>
-    let reconstructed := scopedMultiplyStep (wordRead candidate) left modulus reconstruction store
-    let finished := finishStep reconstructed.1
-    (finished.1, (reconstructed.2, finished.2))
-  have later : ∀ (reference : Register) {history : Type} [Fintype history]
-      (initial : State ctx reference history),
-      (reconstruct.seq (check.seq pack)).execute reference initial =
-        initial.mapClassical (fun entry => ((laterStep entry.1).1,
-          (entry.2, (laterStep entry.1).2))) := by
-    intro reference history _ initial
-    refine (Circuit.execute_seq_mapClassical reconstruct (check.seq pack)
-      (scopedMultiplyStep (wordRead candidate) left modulus reconstruction) finishStep
-      (nativePower_scopedMultiply_execute (wordRead candidate) left modulus reconstruction)
-      finish reference initial).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
-  refine (Circuit.execute_seq_mapClassical (scopedMultiply right inverse modulus candidate)
-    (reconstruct.seq (check.seq pack)) (scopedMultiplyStep right inverse modulus candidate)
-    laterStep (nativePower_scopedMultiply_execute right inverse modulus candidate) later
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (recoveryBody (model := model) left right inverse modulus candidate reconstruction
+      verified output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := recoveryBodyStep (model := model) left right inverse modulus candidate
+          reconstruction verified output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  simp only [recoveryBody, Circuit.execute_seq, nativePower_scopedMultiply_execute,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The two true native reductions followed by the stored reconstruction check. -/
 def recoveryValue (left right inverse : CShape.Word width)
@@ -100,7 +55,8 @@ def recoveryValue (left right inverse : CShape.Word width)
     (.bit (decide ((multiplyValue candidate left modulus).toNat = right.toNat)))
 
 /-- Only scratch writes preceding a later read require separation in the unplaced body. -/
-theorem recoveryBody_result (left right inverse : CInputRef ctx (.unsignedWord width))
+theorem recoveryBody_result {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
@@ -110,26 +66,34 @@ theorem recoveryBody_result (left right inverse : CInputRef ctx (.unsignedWord w
     (reconstructionRight : reconstruction.key ∉ right.storageKeys)
     (reconstructionCandidate : reconstruction.key ∉ (wordRead candidate).storageKeys)
     (verifiedCandidate : verified.key ∉ (wordRead candidate).storageKeys) (store : Store ctx) :
-    (recoveryBodyStep left right inverse modulus candidate reconstruction verified output
-      store).1.read (wordRead output) =
+    (recoveryBodyStep (model := model) left right inverse modulus candidate reconstruction
+      verified output store).1.read (wordRead output) =
         recoveryValue (store.read left) (store.read right) (store.read inverse)
           (store.read modulus) := by
-  let recovered := (scopedMultiplyStep right inverse modulus candidate store).1
+  let recovered := (scopedMultiplyStep (model := model) right inverse modulus candidate store).1
   let reconstructed :=
-    (scopedMultiplyStep (wordRead candidate) left modulus reconstruction recovered).1
+    (scopedMultiplyStep (model := model) (wordRead candidate) left modulus reconstruction
+      recovered).1
   let checked := reconstructed.applyOp (recoveryEqualOp right reconstruction verified)
-  have candidateValue := nativePower_scopedMultiply_result right inverse modulus candidate store
-  have oldLeft := nativePower_scopedMultiply_read_other right inverse modulus candidate
+  have candidateValue := nativePower_scopedMultiply_result (model := model) right inverse modulus
+    candidate store
+  have oldLeft := nativePower_scopedMultiply_read_other (model := model) right inverse modulus
+    candidate
     left candidateLeft store
-  have oldRight := nativePower_scopedMultiply_read_other right inverse modulus candidate
+  have oldRight := nativePower_scopedMultiply_read_other (model := model) right inverse modulus
+    candidate
     right candidateRight store
-  have oldModulus := nativePower_scopedMultiply_read_other right inverse modulus candidate
+  have oldModulus := nativePower_scopedMultiply_read_other (model := model) right inverse modulus
+    candidate
     modulus candidateModulus store
-  have reconstructedValue := nativePower_scopedMultiply_result (wordRead candidate) left
+  have reconstructedValue := nativePower_scopedMultiply_result (model := model)
+    (wordRead candidate) left
     modulus reconstruction recovered
-  have savedCandidate := nativePower_scopedMultiply_read_other (wordRead candidate) left
+  have savedCandidate := nativePower_scopedMultiply_read_other (model := model)
+    (wordRead candidate) left
     modulus reconstruction (wordRead candidate) reconstructionCandidate recovered
-  have savedRight := nativePower_scopedMultiply_read_other (wordRead candidate) left
+  have savedRight := nativePower_scopedMultiply_read_other (model := model)
+    (wordRead candidate) left
     modulus reconstruction right reconstructionRight recovered
   have checkedCandidate := Store.read_applyOp_of_not_mem_storageKeys reconstructed
     (recoveryEqualOp right reconstruction verified) (wordRead candidate) verifiedCandidate
@@ -147,7 +111,8 @@ theorem recoveryBody_result (left right inverse : CInputRef ctx (.unsignedWord w
   rfl
 
 /-- The unplaced body preserves every structural read outside its four real output keys. -/
-theorem recoveryBody_read_other (left right inverse : CInputRef ctx (.unsignedWord width))
+theorem recoveryBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
@@ -156,16 +121,17 @@ theorem recoveryBody_read_other (left right inverse : CInputRef ctx (.unsignedWo
     (reconstructionFree : reconstruction.key ∉ other.storageKeys)
     (verifiedFree : verified.key ∉ other.storageKeys) (outputFree : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (recoveryBodyStep left right inverse modulus candidate reconstruction verified output
-      store).1.read other = store.read other := by
+    (recoveryBodyStep (model := model) left right inverse modulus candidate reconstruction
+      verified output store).1.read other =
+      store.read other := by
   unfold recoveryBodyStep
-  dsimp only
+  dsimp only [BitWord.instructionStep]
   rw [Store.read_applyOp_of_not_mem_storageKeys _
     (recoveryPackOp candidate verified output) other outputFree,
     Store.read_applyOp_of_not_mem_storageKeys _
       (recoveryEqualOp right reconstruction verified) other verifiedFree,
-    nativePower_scopedMultiply_read_other _ _ _ _ other reconstructionFree,
-    nativePower_scopedMultiply_read_other _ _ _ _ other candidateFree]
+    nativePower_scopedMultiply_read_other (model := model) _ _ _ _ other reconstructionFree,
+    nativePower_scopedMultiply_read_other (model := model) _ _ _ _ other candidateFree]
 
 /-- All original reads are preserved on the three actual lexical entries. -/
 theorem enterRecovery_read (store : Store ctx) {shape : CShape}
@@ -219,15 +185,16 @@ private theorem verified_candidate_separate :
   exact List.mem_cons_of_mem _ List.mem_cons_self
 
 /-- The complete lexical component depends only on the original four actual input reads. -/
-theorem withRecovery_value (input : CInputRef ctx (InputShape width))
+theorem withRecovery_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
-    (withRecoveryStep input modulus output store).1.read (wordRead output) =
+    (withRecoveryStep (model := model) input modulus output store).1.read (wordRead output) =
       recoveryValue (store.read (.first input)) (store.read (.first (.second input)))
         (store.read (.second (.second input))) (store.read modulus) := by
   unfold withRecoveryStep
   rw [leaveRecovery_read]
-  change (recoveryBodyStep _ _ _ _ _ _ _ _ _).1.read
+  change (recoveryBodyStep (model := model) _ _ _ _ _ _ _ _ _).1.read
     (wordRead (writeUnderRecovery output width)) = _
   rw [recoveryBody_result _ _ _ _ _ _ _ _ (candidate_free _) (candidate_free _)
     (candidate_free _) (reconstruction_free _) reconstruction_candidate_separate
@@ -235,11 +202,13 @@ theorem withRecovery_value (input : CInputRef ctx (InputShape width))
   simp only [enterRecovery_read]
 
 /-- Only the original output cell changes after all real scratch entries are released. -/
-theorem withRecovery_read_other (input : CInputRef ctx (InputShape width))
+theorem withRecovery_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (withRecoveryStep input modulus output store).1.read other = store.read other := by
+    (withRecoveryStep (model := model) input modulus output store).1.read other =
+      store.read other := by
   unfold withRecoveryStep
   rw [leaveRecovery_read, recoveryBody_read_other _ _ _ _ _ _ _ _ _
     (candidate_free other) (reconstruction_free other) (verified_free other)]
@@ -248,7 +217,8 @@ theorem withRecovery_read_other (input : CInputRef ctx (InputShape width))
     simpa only [underRecovery, CInputRef.storageKeys_underWorkspace] using separate
 
 /-- The retained pair is the original pure model for any canonical supplied inverse word. -/
-theorem withRecovery_original_value (input : CInputRef ctx (InputShape width))
+theorem withRecovery_original_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (spec : ModulusSpec width)
     (semantic : Input spec) (store : Store ctx)
@@ -256,7 +226,8 @@ theorem withRecovery_original_value (input : CInputRef ctx (InputShape width))
     (leftValue : (store.read (.first input)).toNat = semantic.leftFrequency.val)
     (rightValue : (store.read (.first (.second input))).toNat = semantic.negatedRightFrequency.val)
     (inverseValue : (store.read (.second (.second input))).toNat = semantic.leftInverse.val) :
-    let result := (withRecoveryStep input modulus output store).1.read (wordRead output)
+    let result := (withRecoveryStep (model := model) input modulus output store).1.read
+      (wordRead output)
     result.first.toNat = (outputOf spec semantic).candidate.val ∧
       result.second.toBool = (outputOf spec semantic).verified := by
   dsimp only
@@ -276,38 +247,42 @@ theorem withRecovery_original_value (input : CInputRef ctx (InputShape width))
   constructor <;> rfl
 
 /-- Actual allocation, arithmetic and release compose on every full quantum-reference block. -/
-theorem withRecovery_execute (input : CInputRef ctx (InputShape width))
+theorem withRecovery_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (withRecovery input modulus output).execute Reference state = state.mapClassical (fun entry =>
-      ((withRecoveryStep input modulus output entry.1).1,
-        (entry.2, (withRecoveryStep input modulus output entry.1).2))) := by
-  let inner := recoveryPlaced input modulus output
-  let innerStep : Store (recoveryCtx ctx width) → Store (recoveryCtx ctx width) × inner.Path :=
-    recoveryBodyStep (underRecovery (.first input) width)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (withRecovery (model := model) input modulus output).execute Reference state =
+      state.mapClassical (fun entry =>
+      let result := withRecoveryStep (model := model) input modulus output entry.1
+      (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  let inner := recoveryPlaced (model := model) input modulus output
+  let innerStep : Store (recoveryCtx ctx width) × model.HiddenState →
+      (Store (recoveryCtx ctx width) × model.HiddenState) × inner.Path := fun before =>
+    let result := recoveryBodyStep (model := model) (underRecovery (.first input) width)
       (underRecovery (.first (.second input)) width)
       (underRecovery (.second (.second input)) width) (underRecovery modulus width)
       (candidateCell ctx width) (reconstructionCell ctx width) (verifiedCell ctx width)
-      (writeUnderRecovery output width)
+      (writeUnderRecovery output width) before.1
+    ((result.1, before.2), result.2)
   let flag := Circuit.workspace (reconstructionCtx ctx width)
     (reconstructionCtx ctx width).canonicalFreshKey .bit
       (reconstructionCtx ctx width).canonicalFreshKey_fresh inner
-  let flagStep : Store (reconstructionCtx ctx width) →
-      Store (reconstructionCtx ctx width) × flag.Path := fun store =>
-    let result := innerStep (store.pushWorkspace (reconstructionCtx ctx width).canonicalFreshKey
-      .bit (reconstructionCtx ctx width).canonicalFreshKey_fresh)
-    (Store.popWorkspace (reconstructionCtx ctx width).canonicalFreshKey .bit
-      (reconstructionCtx ctx width).canonicalFreshKey_fresh result.1, result.2)
+  let flagStep : Store (reconstructionCtx ctx width) × model.HiddenState →
+      (Store (reconstructionCtx ctx width) × model.HiddenState) × flag.Path := fun before =>
+    let result := innerStep (before.1.pushWorkspace (reconstructionCtx ctx width).canonicalFreshKey
+      .bit (reconstructionCtx ctx width).canonicalFreshKey_fresh, before.2)
+    ((Store.popWorkspace (reconstructionCtx ctx width).canonicalFreshKey .bit
+      (reconstructionCtx ctx width).canonicalFreshKey_fresh result.1.1, result.1.2), result.2)
   let middle := Circuit.workspace (candidateCtx ctx width)
     (candidateCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (candidateCtx ctx width).canonicalFreshKey_fresh flag
-  let middleStep : Store (candidateCtx ctx width) →
-      Store (candidateCtx ctx width) × middle.Path := fun store =>
-    let result := flagStep (store.pushWorkspace (candidateCtx ctx width).canonicalFreshKey
-      (.unsignedWord width) (candidateCtx ctx width).canonicalFreshKey_fresh)
-    (Store.popWorkspace (candidateCtx ctx width).canonicalFreshKey (.unsignedWord width)
-      (candidateCtx ctx width).canonicalFreshKey_fresh result.1, result.2)
+  let middleStep : Store (candidateCtx ctx width) × model.HiddenState →
+      (Store (candidateCtx ctx width) × model.HiddenState) × middle.Path := fun before =>
+    let result := flagStep (before.1.pushWorkspace (candidateCtx ctx width).canonicalFreshKey
+      (.unsignedWord width) (candidateCtx ctx width).canonicalFreshKey_fresh, before.2)
+    ((Store.popWorkspace (candidateCtx ctx width).canonicalFreshKey (.unsignedWord width)
+      (candidateCtx ctx width).canonicalFreshKey_fresh result.1.1, result.1.2), result.2)
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh middle middleStep (fun reference {_} _ initial => ?_)
     Reference state).trans ?_
@@ -317,10 +292,11 @@ theorem withRecovery_execute (input : CInputRef ctx (InputShape width))
     · refine (Circuit.execute_workspace_mapClassical (reconstructionCtx ctx width).canonicalFreshKey
         .bit (reconstructionCtx ctx width).canonicalFreshKey_fresh inner innerStep
         (fun reference'' {_} _ initial'' => ?_) reference' initial').trans ?_
-      · exact recoveryBody_execute _ _ _ _ _ _ _ _ reference'' initial''
-      · congr 1
-    · congr 1
-  · congr 1
+      · exact (recoveryBody_execute _ _ _ _ _ _ _ _ reference'' initial'').trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)
+      · exact ExecutionState.executionState_mapClassical_congr _ rfl
+    · exact ExecutionState.executionState_mapClassical_congr _ rfl
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Reindex
+public import QuantumAlg.Core.Base.Control.Operator
 import all QuantumAlg.Core.Execution.Reference.Unitary
 import all QuantumAlg.Core.Execution.Input
 import all QuantumAlg.Core.Execution.Reindex
@@ -53,7 +55,7 @@ theorem localUnitary_marginalLeft {R Reference : Register}
       rw [marginalMatrix, Matrix.mul_sum, Matrix.sum_mul]
     _ = _ := (applyUnitary_matrix operator state.marginalLeft).symm
 
-theorem applyUnitary_reindex {R S : Register} (operator : UnitaryOperator R)
+public theorem applyUnitary_reindex {R S : Register} (operator : UnitaryOperator R)
     (state : DensityOperator R) (basisEquiv : R.Index ≃ S.Index) :
     (applyUnitary operator state).reindex basisEquiv =
       applyUnitary (UnitaryOperator.reindex basisEquiv operator) (state.reindex basisEquiv) := by

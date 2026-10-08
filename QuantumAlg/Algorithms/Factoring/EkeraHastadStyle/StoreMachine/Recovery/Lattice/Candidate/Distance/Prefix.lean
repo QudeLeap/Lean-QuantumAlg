@@ -22,10 +22,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual candidate-point construction precedes explicit initialized squared-distance work. -/
-def candidateDistanceInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def candidateDistanceInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeShortLogCandidatePoint.candidatePointInto refs.candidate)
     (LatticeSquaredDistanceMachine.squaredDistanceInto refs.distance)
 
@@ -38,7 +39,7 @@ def candidateDistanceStep (refs : Refs ctx width) (store : Store ctx) :
 
 /-- Original offset loading, original candidate construction and actual initialized distance. -/
 def candidateDistancePrefixInto (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .seq (LatticeOffsetMaterializer.setOffsetInto offset refs.materializer)
     (candidateDistanceInto refs)
 
@@ -51,35 +52,30 @@ def prefixStep (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width) (st
 
 /-- Actual candidate and distance composition retains all incoming histories and state blocks. -/
 theorem candidateDistanceInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistanceInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((candidateDistanceStep refs entry.1).1,
-        (entry.2, (candidateDistanceStep refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeShortLogCandidatePoint.candidatePointInto refs.candidate)
-    (LatticeSquaredDistanceMachine.squaredDistanceInto refs.distance)
-    (LatticeShortLogCandidatePoint.candidateStep refs.candidate)
-    (LatticeSquaredDistanceMachine.distanceStep refs.distance)
-    (LatticeShortLogCandidatePoint.candidatePointInto_execute refs.candidate)
-    (LatticeSquaredDistanceMachine.squaredDistanceInto_execute refs.distance)
-    Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := candidateDistanceStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [candidateDistanceInto, Circuit.execute_seq,
+    LatticeShortLogCandidatePoint.candidatePointInto_execute,
+    LatticeSquaredDistanceMachine.squaredDistanceInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual three-phase prefix preserves every original reference correlation and history. -/
 theorem candidateDistancePrefixInto_execute (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistancePrefixInto offset refs).execute Reference state =
       state.mapClassical (fun entry =>
-      ((prefixStep offset refs entry.1).1, (entry.2, (prefixStep offset refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical
-    (LatticeOffsetMaterializer.setOffsetInto offset refs.materializer) (candidateDistanceInto refs)
-    (LatticeOffsetMaterializer.setOffsetStep offset refs.materializer) (candidateDistanceStep refs)
-    (LatticeOffsetMaterializer.setOffsetInto_execute offset refs.materializer)
-    (candidateDistanceInto_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+        let actual := prefixStep offset refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [candidateDistancePrefixInto, Circuit.execute_seq,
+    LatticeOffsetMaterializer.setOffsetInto_execute, candidateDistanceInto_execute,
+    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual caller read outside the three original phase footprints is retained. -/
 theorem candidateDistancePrefixInto_callerFrame (offset : NumberTheory.IntegerPoint3)

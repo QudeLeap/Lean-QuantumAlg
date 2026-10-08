@@ -57,9 +57,11 @@ theorem remainingState_of_init (refs : Refs ctx inputWidth) (positive : 0 < inpu
   · rw [holds.root]
     simpa only [Nat.zero_add, CShape.wordModulus, workWidth] using Nat.le_refl (2 ^ inputWidth)
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Every actual caller read outside the driver's writes is preserved without value premises. -/
 theorem into_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
-    IntoCallerFrame refs store (step refs store).1 := by
+    IntoCallerFrame refs store (step (model := model) refs store).1 := by
   intro shape other avoidsWide avoidsRound avoidsOutput
   rw [step_store, Store.read_applyOp_of_not_mem_storageKeys _ (finishOp refs) other avoidsOutput]
   exact (roundsStep_callerFrame refs inputWidth _ other avoidsRound).trans
@@ -69,20 +71,23 @@ theorem into_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
 /-- The actual finite driver writes Nat.sqrt of the original input into the caller output. -/
 theorem step_correct (refs : Refs ctx inputWidth) (separation : Separation refs)
     (positive : 0 < inputWidth) (store : Store ctx) :
-    Outcome refs store (step refs store).1 := by
-  have initialized := initializeInto_correct refs separation positive store
-  have finalInterval := roundsStep_correct refs inputWidth separation _
+    Outcome refs store (step (model := model) refs store).1 := by
+  have initialized := initializeInto_correct (model := model) refs separation positive store
+  have finalInterval := roundsStep_correct (model := model) refs inputWidth separation _
     (remainingState_of_init refs positive store _ initialized)
   have rootSqrt := remainingState_zero_root_eq_sqrt refs _ finalInterval
-  have wideFrame := roundsStep_callerFrame refs inputWidth (initializeStep refs store).1
+  have wideFrame := roundsStep_callerFrame (model := model) refs inputWidth (initializeStep (model
+    := model) refs store).1
     (wideInput refs) separation.round.1
   refine ⟨?_, into_callerFrame refs store⟩
   rw [step_store]
-  change (((roundsStep refs inputWidth (initializeStep refs store).1).1.applyOp
+  change (((roundsStep (model := model) refs inputWidth (initializeStep (model := model) refs
+    store).1).1.applyOp
     (finishOp refs)).read
     (.storage (finishOp refs).outputRef.toCStorageRef)).toNat = _
   rw [Store.read_applyOp_output]
-  change ((roundsStep refs inputWidth (initializeStep refs store).1).1.read
+  change ((roundsStep (model := model) refs inputWidth (initializeStep (model := model) refs
+    store).1).1.read
     (writeInput refs.round.root)).toNat = _
   rw [rootSqrt, wideFrame, initialized.wide]
 

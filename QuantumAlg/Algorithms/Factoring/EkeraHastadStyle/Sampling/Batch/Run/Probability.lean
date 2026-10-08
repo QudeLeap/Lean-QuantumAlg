@@ -21,7 +21,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
-open Execution
+open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -29,23 +29,21 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : 
 
 /-- The real run enters the same code while recording the original caller store as history. -/
 theorem nativeBatch_run_enter (Reference : Register)
-    (state : ExecutionState (Store base) (Register.prod base.register Reference)) :
+    (state : ExecutionState (Store base × RuntimeRound.model.HiddenState)
+      (Register.prod base.register Reference)) :
     (run base noQuantum N).execute Reference state =
       (code base noQuantum N).execute Reference
-        (state.mapClassical (fun store => (store, store))) := by
-  unfold AlgorithmRun.execute
-  apply congrArg (fun initial : State base Reference (Store base) =>
-    (code base noQuantum N).execute Reference initial)
-  congr 1
+        (state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))) := rfl
 
 /-- The complete run's actual Output probabilities have the original same-source batch law. -/
 theorem nativeBatch_run_outputDistribution (specification : Input N)
-    {Reference : Register} (input : Execution.Input base Reference) :
+    {Reference : Register}
+    (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (run base noQuantum N).outputDistribution input = sourceDistribution specification := by
-  let entered : State base Reference (Store base) :=
-    input.state.mapClassical (fun store => (store, store))
+  let entered : State base Reference (RuntimeRound.model.HiddenState × Store base) :=
+    input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have normalized := input.state.mapClassical_normalized input.normalized
-    (fun store => (store, store))
+    (fun entry => (entry.1, (entry.2, entry.1)))
   have actual : (run base noQuantum N).executionDistribution input =
       ((code base noQuantum N).execute Reference entered).toPMF
         (((code base noQuantum N).execute_mass Reference entered).trans normalized) := by

@@ -142,7 +142,8 @@ theorem refresh_eventTrace_length (width : Nat) :
 theorem refresh_unitDepth (width : Nat) :
     (LengthRefresh.program width).evaluatedEventDepth (fun _ => 1) =
       (LengthRefresh.gates width).length :=
-  GateSpec.programList_evaluatedEventDepth_unit _
+  GateSpec.programList_evaluatedEventDepth_unit
+    (QubitLayout.canonical _) .empty (LengthRefresh.gates width)
 
 /-- The literal inverse restores all fields and has exactly the same actual elementary count. -/
 theorem refresh_reverse_length (width : Nat) :

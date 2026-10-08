@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.Encoded.BitGates.Realization
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Selector
 
 /-!
@@ -65,8 +66,10 @@ def activeConditionBranchHistoryWriteProgram
     (hconditionScratchB :
       condition.wire ≠ (RegisterBits.scratchBBit n counterWidth).wire)
     (branch : Branch) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeConditionBranchHistoryWriteGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch
       historyIndex)
@@ -108,7 +111,7 @@ theorem activeConditionBranchHistoryWrite_realizes
       (activeConditionBranchHistoryWriteStep n counterWidth condition
         hactiveCondition hconditionScratchA hconditionScratchB branch
         historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (activeConditionBranchHistoryWriteGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch
       historyIndex)
@@ -360,8 +363,10 @@ def uGreaterBranchHistoryWriteGates
 comparison ancilla. -/
 def uGreaterBranchHistoryWriteProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (uGreaterBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- Semantic step for writing the `uGreater` history bit from the comparison
@@ -380,7 +385,7 @@ theorem uGreaterBranchHistoryWrite_realizes
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (uGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
       (uGreaterBranchHistoryWriteStep n counterWidth historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (uGreaterBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- On clean scratchB, the comparison-conditioned `uGreater` slice toggles the
@@ -610,9 +615,10 @@ def liftedUGreaterBranchHistoryWriteStep
 /-- Circuit for the lifted comparison-conditioned `uGreater` history write. -/
 def liftedUGreaterBranchHistoryWriteProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (uGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The lifted `uGreater` history-write circuit realizes its product action. -/
@@ -624,7 +630,7 @@ theorem liftedUGreaterBranchHistoryWrite_realizes
   unfold liftedUGreaterBranchHistoryWriteProgram
     liftedUGreaterBranchHistoryWriteStep
   simpa [registersWithComparisonWorkEncoding] using
-    UnitaryCircuit.Realizes.prodLeft
+    UnitaryCircuit.Realizes.onBinaryPrefix
       (right := comparisonWorkEncoding n)
       (uGreaterBranchHistoryWrite_realizes n counterWidth historyIndex)
 
@@ -729,8 +735,9 @@ def uGreaterSelectorBranchHistoryWriteStep
 /-- Circuit for the composed `uGreater` selector/history-write slice. -/
 def uGreaterSelectorBranchHistoryWriteProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (uGreaterScratchACompareSelectorProgram n counterWidth bit)
     (liftedUGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
@@ -970,8 +977,10 @@ def vLeBranchHistoryWriteGates
 slice. -/
 def vLeBranchHistoryWriteProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (registerEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registerEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (vLeBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- Semantic step for the comparison-conditioned `vLe` history-write slice. -/
@@ -989,7 +998,7 @@ theorem vLeBranchHistoryWrite_realizes
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (vLeBranchHistoryWriteProgram n counterWidth historyIndex)
       (vLeBranchHistoryWriteStep n counterWidth historyIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (vLeBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- On clean scratchB, the comparison-conditioned `vLe` slice leaves the
@@ -1218,9 +1227,10 @@ def liftedVLeBranchHistoryWriteStep
 /-- Circuit for the lifted comparison-conditioned `vLe` history write. -/
 def liftedVLeBranchHistoryWriteProgram
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
-  UnitaryCircuit.prodLeft (n := (comparisonWorkEncoding n).width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
+  UnitaryCircuit.onBinaryPrefix (comparisonWorkEncoding n).width
     (vLeBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The lifted `vLe` history-write circuit realizes its product action. -/
@@ -1231,7 +1241,7 @@ theorem liftedVLeBranchHistoryWrite_realizes
       (liftedVLeBranchHistoryWriteStep n counterWidth historyIndex) := by
   unfold liftedVLeBranchHistoryWriteProgram liftedVLeBranchHistoryWriteStep
   simpa [registersWithComparisonWorkEncoding] using
-    UnitaryCircuit.Realizes.prodLeft
+    UnitaryCircuit.Realizes.onBinaryPrefix
       (right := comparisonWorkEncoding n)
       (vLeBranchHistoryWrite_realizes n counterWidth historyIndex)
 
@@ -1328,8 +1338,9 @@ def vLeSelectorBranchHistoryWriteStep
 /-- Circuit for the composed selector/`vLe` history-write slice. -/
 def vLeSelectorBranchHistoryWriteProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithComparisonWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithComparisonWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (uGreaterScratchACompareSelectorProgram n counterWidth bit)
     (liftedVLeBranchHistoryWriteProgram n counterWidth historyIndex)
@@ -1536,9 +1547,10 @@ def coeffWorkUGreaterScratchACompareSelectorGates
 `uGreater` comparison selector. -/
 def coeffWorkUGreaterScratchACompareSelectorProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit)
 
 /-- Coefficient-work-lifted cleanup-compatible `uGreater` comparison selector.
@@ -1589,6 +1601,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_xMultiplicity_sum
         ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
           EncodedBit.GateSpec.xMultiplicity).sum :=
       EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+        .empty
         (EncodedBit.GateSpec.map_event_prodLeft (coeffAdderWorkEncoding n)
           (uGreaterScratchACompareSelectorGates n counterWidth bit))
     _ = 4 * n :=
@@ -1606,6 +1619,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
         ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
           EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (EncodedBit.GateSpec.map_event_prodLeft (coeffAdderWorkEncoding n)
           (uGreaterScratchACompareSelectorGates n counterWidth bit))
     _ = 1 :=
@@ -1623,6 +1637,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
         ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
           EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (EncodedBit.GateSpec.map_event_prodLeft (coeffAdderWorkEncoding n)
           (uGreaterScratchACompareSelectorGates n counterWidth bit))
     _ = 6 * n :=
@@ -1638,6 +1653,7 @@ theorem coeffWorkUGreaterScratchACompareSelector_realizes
       (coeffWorkUGreaterScratchACompareSelectorProgram n counterWidth bit)
       (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit)
     (coeffWorkUGreaterScratchACompareSelectorStep_eq_gateList
       n counterWidth bit)
@@ -2031,9 +2047,10 @@ def coeffWorkCompareSelectorThenSelectedOddDataPathGates
 data path. -/
 def coeffWorkCompareSelectorThenSelectedOddDataPathProgram
     (n counterWidth : Nat) (bit : Fin n) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectorThenSelectedOddDataPathGates n counterWidth bit)
 
 /-- The explicit comparison-selector/selected-odd gate list has the existing
@@ -2061,6 +2078,7 @@ theorem coeffWorkCompareSelectorThenSelectedOddDataPath_realizes
       (coeffWorkCompareSelectorThenSelectedOddDataPathStep
         n counterWidth bit) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectorThenSelectedOddDataPathGates n counterWidth bit)
     (coeffWorkCompareSelectorThenSelectedOddDataPathStep_eq_gateList
       n counterWidth bit)
@@ -3171,8 +3189,9 @@ def coeffWorkUGreaterSelectorBranchHistoryWriteStep
 /-- Circuit for the coefficient-work-lifted `uGreater` selector/history write. -/
 def coeffWorkUGreaterSelectorBranchHistoryWriteProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (uGreaterSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
@@ -3201,8 +3220,9 @@ def coeffWorkVLeSelectorBranchHistoryWriteStep
 /-- Circuit for the coefficient-work-lifted `vLe` selector/history write. -/
 def coeffWorkVLeSelectorBranchHistoryWriteProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   liftComparisonWorkProgramToCoeffAdderWork n counterWidth
     (vLeSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
@@ -3762,8 +3782,9 @@ def coeffWorkUGreaterSelectorThenAddRIntoSStep
 /-- Circuit for the `uGreater` selector plus `r`-into-`s` data path. -/
 def coeffWorkUGreaterSelectorThenAddRIntoSProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUGreaterSelectorBranchHistoryWriteProgram n counterWidth bit
       historyIndex)
@@ -3868,8 +3889,9 @@ def coeffWorkVLeSelectorThenAddSIntoRStep
 /-- Circuit for the `vLe` selector plus `s`-into-`r` data path. -/
 def coeffWorkVLeSelectorThenAddSIntoRProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVLeSelectorBranchHistoryWriteProgram n counterWidth bit
       historyIndex)
@@ -3967,8 +3989,9 @@ def coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep
 /-- Circuit for the `uGreater` selector and subtract/add data path. -/
 def coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkUGreaterSelectorBranchHistoryWriteProgram n counterWidth bit
       historyIndex)
@@ -4007,8 +4030,9 @@ def coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep
 /-- Circuit for the `vLe` selector and subtract/add data path. -/
 def coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSProgram
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
-    UnitaryCircuit (Qubits
-      (registersWithCoeffAdderWorkEncoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (registersWithCoeffAdderWorkEncoding n counterWidth).width).toQuantum :=
   UnitaryCircuit.seq
     (coeffWorkVLeSelectorBranchHistoryWriteProgram n counterWidth bit
       historyIndex)
@@ -4524,9 +4548,12 @@ def activeScratchBToHistoryGate
 /-- Physical one-gate history-write program on the compact carrier. -/
 def activeScratchBToHistoryProgram
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
-    UnitaryCircuit (Qubits (encoding n counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding n counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.program
     (activeScratchBToHistoryGate n counterWidth bit)
+    (QubitLayout.canonical _) .empty
 
 /-- Semantic action of the compact history-write atom. -/
 def activeScratchBToHistoryStep
@@ -4540,7 +4567,7 @@ theorem activeScratchBToHistory_realizes
     UnitaryCircuit.Realizes (encoding n counterWidth)
       (activeScratchBToHistoryProgram n counterWidth bit)
       (activeScratchBToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes
+  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
     (activeScratchBToHistoryGate n counterWidth bit)
 
 /-- The compact history atom records the active staged history code. -/

@@ -30,12 +30,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual selected branch either writes its computed payload or leaves the old one intact. -/
-theorem selectedRecoveryChoice_value
+theorem selectedRecoveryChoice_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width)) (value : CShape.Value .bit)
     (before : Store ctx) :
-    (selectedRecoveryChoiceStep input modulus payload value before).1.read (scaleRead payload) =
+    (selectedRecoveryChoiceStep (model := model) input modulus payload value before).1.read
+      (scaleRead payload) =
       if value.toBool then recoveryValue (before.read (.first input))
         (before.read (.first (.second input))) (before.read (.second (.second input)))
         (before.read modulus) else before.read (scaleRead payload) := by
@@ -46,54 +48,65 @@ theorem selectedRecoveryChoice_value
     · exact withRecovery_value input modulus payload before
 
 /-- Actual branch selection and the three real copies return their complete Store and path. -/
-def exposureBodyStep (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def exposureBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (before : Store ctx) :
-    Store ctx × (exposureBody input modulus success payload inverseSuccess candidate
+    Store ctx × (exposureBody (model := model) input modulus success payload inverseSuccess
+      candidate
       reconstruction).Path :=
   let selected := before.read success
-  let chosen := selectedRecoveryChoiceStep input modulus payload selected before
-  (exposureCopyStore success (.first (scaleRead payload)) (.second (scaleRead payload))
-    inverseSuccess candidate reconstruction chosen.1,
-    (⟨selected, chosen.2⟩, ((), ((), ()))))
+  let chosen := selectedRecoveryChoiceStep (model := model) input modulus payload selected before
+  let copied := exposureCopyStep (model := model) success (.first (scaleRead payload))
+    (.second (scaleRead payload)) inverseSuccess candidate reconstruction chosen.1
+  (copied.1, (⟨selected, chosen.2⟩, copied.2))
 
 /-- Real selection and copying preserve complete quantum-reference matrices and original history. -/
-theorem exposureBody_execute (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (exposureBody input modulus success payload inverseSuccess candidate reconstruction).execute
-      Reference state = state.mapClassical (fun entry =>
-        ((exposureBodyStep input modulus success payload inverseSuccess candidate reconstruction
-          entry.1).1, (entry.2, (exposureBodyStep input modulus success payload inverseSuccess
-            candidate reconstruction entry.1).2))) := by
-  let selectedStep : Store ctx → Store ctx ×
-      (Circuit.branch success (selectedRecoveryChoice input modulus payload)).Path := fun before =>
-    let value := before.read success
-    let chosen := selectedRecoveryChoiceStep input modulus payload value before
-    (chosen.1, ⟨value, chosen.2⟩)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (exposureBody (model := model) input modulus success payload inverseSuccess candidate
+      reconstruction).execute Reference state = state.mapClassical (fun entry =>
+        let result := exposureBodyStep (model := model) input modulus success payload
+          inverseSuccess candidate reconstruction entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  let selectedStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (Circuit.branch success (selectedRecoveryChoice (model := model) input modulus
+        payload)).Path :=
+    fun before =>
+      let value := before.1.read success
+      let chosen := selectedRecoveryChoiceStep (model := model) input modulus payload value before.1
+      ((chosen.1, before.2), ⟨value, chosen.2⟩)
   refine (Circuit.execute_seq_mapClassical
-    (.branch success (selectedRecoveryChoice input modulus payload))
-    (exposureCopyBody success (.first (scaleRead payload)) (.second (scaleRead payload))
-      inverseSuccess candidate reconstruction) selectedStep
-    (fun before => (exposureCopyStore success (.first (scaleRead payload))
-      (.second (scaleRead payload)) inverseSuccess candidate reconstruction before,
-      ((), ((), ()))))
-    (fun reference {_} _ initial => Circuit.execute_branch_mapClassical success _
-      (selectedRecoveryChoiceStep input modulus payload)
-      (selectedRecoveryChoice_execute input modulus payload) reference initial)
-    (fun reference {_} _ initial => by
-      refine (exposureCopyBody_execute success (.first (scaleRead payload))
-        (.second (scaleRead payload)) inverseSuccess candidate reconstruction reference
-        initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (.branch success (selectedRecoveryChoice (model := model) input modulus payload))
+    (exposureCopyBody (model := model) success (.first (scaleRead payload))
+      (.second (scaleRead payload)) inverseSuccess candidate reconstruction) selectedStep
+    (fun before =>
+      let result := exposureCopyStep (model := model) success (.first (scaleRead payload))
+        (.second (scaleRead payload)) inverseSuccess candidate reconstruction before.1
+      ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    refine (Circuit.execute_branch_mapClassical success _
+      (fun value before =>
+        let result := selectedRecoveryChoiceStep (model := model)
+          input modulus payload value before.1
+        ((result.1, before.2), result.2)) ?_ reference initial).trans ?_
+    · intro value reference history _ initial
+      exact (selectedRecoveryChoice_execute (model := model)
+        input modulus payload value reference initial).trans
+          (ExecutionState.executionState_mapClassical_congr _ rfl)
+    · exact ExecutionState.executionState_mapClassical_congr _ rfl
+  · intro reference history _ initial
+    exact (exposureCopyBody_execute (model := model) success (.first (scaleRead payload))
+      (.second (scaleRead payload)) inverseSuccess candidate reconstruction reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem payload_initialized (cells : Cells ctx [FiniteCyclicDLP.OutputShape width])
     (before : Store ctx) (initialized : cells.Initialized before) :
@@ -126,14 +139,16 @@ private theorem output_payload_free {outer : RuntimeCtx kind}
   simpa only [transport.liftWrite_key, scaleRead, CInputRef.storageKeys, List.mem_singleton]
     using different.symm
 
-private theorem withSelectedExposure_eq_cells
+private theorem withSelectedExposure_eq_cells {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) :
-    withSelectedExposure input modulus success inverseSuccess candidate reconstruction =
+    withSelectedExposure (model := model) input modulus success inverseSuccess candidate
+      reconstruction =
       withCells ctx [FiniteCyclicDLP.OutputShape width]
-        (fun cells _ transport _ => exposureBody (transport.liftInput input)
+        (fun cells _ transport _ => exposureBody (model := model) (transport.liftInput input)
           (transport.liftInput modulus) (transport.liftInput success) cells.head.ref
           (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)
           (transport.liftWrite reconstruction)) := by
@@ -142,27 +157,30 @@ private theorem withSelectedExposure_eq_cells
   rfl
 
 /-- Actual fresh payload storage returns three writes, including caller destination aliases. -/
-theorem withSelectedExposure_actualRecord
+theorem withSelectedExposure_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) :
-    ∃ record : Store ctx → Store ctx ×
-        (withSelectedExposure input modulus success inverseSuccess candidate reconstruction).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+        (withSelectedExposure (model := model) input modulus success inverseSuccess candidate
+          reconstruction).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (withSelectedExposure input modulus success inverseSuccess candidate
+        (state : State ctx Reference (model.HiddenState × History)),
+        (withSelectedExposure (model := model) input modulus success inverseSuccess candidate
           reconstruction).execute Reference state = state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx, (record before).1 =
-        exposureWrite inverseSuccess candidate reconstruction before
-          (.product (before.read success) (if (before.read success).toBool then
-            recoveryValue (before.read (.first input)) (before.read (.first (.second input)))
-              (before.read (.second (.second input))) (before.read modulus)
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
+        exposureWrite inverseSuccess candidate reconstruction before.1
+          (.product (before.1.read success) (if (before.1.read success).toBool then
+            recoveryValue (before.1.read (.first input)) (before.1.read (.first (.second input)))
+              (before.1.read (.second (.second input))) (before.1.read modulus)
             else CShape.initialValue (FiniteCyclicDLP.OutputShape width))) := by
   rw [withSelectedExposure_eq_cells]
   apply withCells_actualRecord_initialized_post ctx [FiniteCyclicDLP.OutputShape width]
-    (fun cells _ transport _ => exposureBody (transport.liftInput input)
+    (fun cells _ transport _ => exposureBody (model := model) (transport.liftInput input)
       (transport.liftInput modulus) (transport.liftInput success) cells.head.ref
       (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)
       (transport.liftWrite reconstruction))
@@ -172,19 +190,25 @@ theorem withSelectedExposure_actualRecord
           (before.read (.second (.second input))) (before.read modulus)
         else CShape.initialValue (FiniteCyclicDLP.OutputShape width))))
   intro inner cells _distinct transport separated
-  refine ⟨exposureBodyStep (transport.liftInput input) (transport.liftInput modulus)
-    (transport.liftInput success) cells.head.ref (transport.liftWrite inverseSuccess)
-    (transport.liftWrite candidate) (transport.liftWrite reconstruction),
-    exposureBody_execute _ _ _ _ _ _ _, ?_⟩
-  intro source before reads initialized
-  let chosen := selectedRecoveryChoiceStep (transport.liftInput input)
+  let step := exposureBodyStep (model := model) (transport.liftInput input)
+    (transport.liftInput modulus) (transport.liftInput success) cells.head.ref
+    (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)
+    (transport.liftWrite reconstruction)
+  refine ⟨(fun before =>
+    let result := step before.1
+    ((result.1, before.2), result.2)), ?_, ?_⟩
+  · intro reference history _ initial
+    exact (exposureBody_execute (model := model) _ _ _ _ _ _ _ reference initial).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
+  rintro source ⟨before, hidden⟩ reads initialized
+  let chosen := selectedRecoveryChoiceStep (model := model) (transport.liftInput input)
     (transport.liftInput modulus) cells.head.ref (before.read (transport.liftInput success)) before
   have chosenReads : transport.ReadsAs source chosen.1 := by
     intro shape other
-    exact (selectedRecoveryChoice_read_other (transport.liftInput input)
+    exact (selectedRecoveryChoice_read_other (model := model) (transport.liftInput input)
       (transport.liftInput modulus) cells.head.ref _ (transport.liftInput other)
       (payload_input_free cells transport separated other) before).trans (reads other)
-  have payloadRead := selectedRecoveryChoice_value (transport.liftInput input)
+  have payloadRead := selectedRecoveryChoice_value (model := model) (transport.liftInput input)
     (transport.liftInput modulus) cells.head.ref
     (before.read (transport.liftInput success)) before
   change chosen.1.read (scaleRead cells.head.ref) = _ at payloadRead

@@ -26,7 +26,8 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem result_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
@@ -35,7 +36,8 @@ private theorem result_read_other (shared : Proposal.SharedRefs ctx width)
     (candidateFree : scratch.candidate.key ∉ other.storageKeys)
     (unitFree : shared.selector.selected.key ∉ other.storageKeys)
     (flagFree : scratch.eligible.key ∉ other.storageKeys) (store : Store ctx) :
-    (resultStep shared scratch gcdResult store).1.read other = store.read other := by
+    (resultStep (model := model)
+      shared scratch gcdResult store).1.read other = store.read other := by
   rw [decisionResult_store]
   split
   · exact (Store.read_applyOp_of_not_mem_storageKeys _ (clearWordOp scratch.candidate)
@@ -60,13 +62,17 @@ private theorem accepted_read_other (shared : Proposal.SharedRefs ctx width)
     (extendedFree : scratch.extended.key ∉ other.storageKeys)
     (positiveFree : scratch.positive.key ∉ other.storageKeys)
     (gcdFree : gcdResult.key ∉ other.storageKeys) (store : Store ctx) :
-    (acceptedStep shared scratch gcdResult store).1.read other = store.read other := by
+    (acceptedStep (model := model)
+      shared scratch gcdResult store).1.read other = store.read other := by
   rw [decisionAccepted_store]
-  exact (result_read_other shared scratch gcdResult other candidateFree unitFree flagFree
-    (comparisonStore shared scratch gcdResult (reducedStore shared scratch gcdResult store))).trans
+  exact (result_read_other (model := model)
+    shared scratch gcdResult other candidateFree unitFree flagFree
+    (comparisonStore shared scratch gcdResult (reducedStore (model := model)
+      shared scratch gcdResult store))).trans
       ((decisionComparison_read_other shared scratch gcdResult other extendedFree positiveFree
-        (reducedStore shared scratch gcdResult store)).trans
-        (decisionReduction_read_other shared scratch gcdResult other extendedFree gcdFree store))
+        (reducedStore (model := model) shared scratch gcdResult store)).trans
+        (decisionReduction_read_other (model := model)
+          shared scratch gcdResult other extendedFree gcdFree store))
 
 /-- The complete native decision preserves all reads outside its actual written cells. -/
 theorem decision_read_other (shared : Proposal.SharedRefs ctx width)
@@ -81,9 +87,10 @@ theorem decision_read_other (shared : Proposal.SharedRefs ctx width)
     (positiveFree : scratch.positive.key ∉ other.storageKeys)
     (gcdFree : gcdResult.key ∉ other.storageKeys)
     (outputFree : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step shared scratch gcdResult output store).1.read other = store.read other := by
+    (step (model := model)
+      shared scratch gcdResult output store).1.read other = store.read other := by
   let initialized := initializationStore shared scratch store
-  change (((acceptanceStep shared scratch gcdResult initialized).1).applyOp
+  change (((acceptanceStep (model := model) shared scratch gcdResult initialized).1).applyOp
     (packOp shared scratch output)).read other = _
   refine (Store.read_applyOp_of_not_mem_storageKeys _ (packOp shared scratch output)
     other outputFree).trans ?_
@@ -91,7 +98,8 @@ theorem decision_read_other (shared : Proposal.SharedRefs ctx width)
   have initializationRead := decisionInitialization_read_other shared scratch other
     candidateFree unitFree flagFree store
   split
-  · exact (accepted_read_other shared scratch gcdResult other candidateFree unitFree flagFree
+  · exact (accepted_read_other (model := model)
+    shared scratch gcdResult other candidateFree unitFree flagFree
       extendedFree positiveFree gcdFree initialized).trans initializationRead
   · exact (Store.read_applyOp_of_not_mem_storageKeys initialized (clearWordOp scratch.candidate)
       other candidateFree).trans initializationRead

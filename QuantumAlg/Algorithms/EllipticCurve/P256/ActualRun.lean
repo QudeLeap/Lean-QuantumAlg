@@ -46,7 +46,8 @@ public def OutputShape (I : DomainParameters.PublicKeyInstance) : CShape :=
 
 /-- Exactly one application of the generic complete actual measured run. -/
 def run (I : DomainParameters.PublicKeyInstance) :
-    AlgorithmRun (Pre I) (Post I) (OutputShape I) := by
+    AlgorithmRun (.quantum AlgorithmGate.model .empty BitWord.model)
+      (Pre I) (Post I) (OutputShape I) := by
   letI : Fact DomainParameters.fieldModulus.Prime := ⟨I.curveCert.prime⟩
   exact (LogicalResources.algorithm (DomainParameters.curve I.curveCert) 255
     Measured.fieldTail_sameWidth Measured.fieldTail_fits (Measured.fieldModulus_odd I.curveCert)

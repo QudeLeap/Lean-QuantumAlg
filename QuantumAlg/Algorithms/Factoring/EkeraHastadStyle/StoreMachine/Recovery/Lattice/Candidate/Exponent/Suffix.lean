@@ -19,7 +19,8 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original seven-instruction suffix's exact exponent and four Boolean outputs. -/
 structure SuffixOutcome (refs : Refs ctx width) (store : Store ctx)
@@ -31,6 +32,7 @@ structure SuffixOutcome (refs : Refs ctx width) (store : Store ctx)
   accepted : (store.read (writeInput refs.accepted)).toBool =
     ((decide (magnitude ≠ 0) && decide (magnitude < upper)) && !negative)
 
+omit [BitWord.Selected model] in
 /-- Actual stored values determine every original suffix check and the final acceptance bit. -/
 theorem suffixInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (magnitude upper : Nat) (negative : Bool)

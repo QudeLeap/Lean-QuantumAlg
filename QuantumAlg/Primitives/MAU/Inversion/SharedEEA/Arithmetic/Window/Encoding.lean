@@ -63,6 +63,11 @@ def groupedEncoding {width : Nat} (window : Window width) :
     BinaryLabelEncoding (Addition.TTK.OverflowRegisters window.length × Complement window) :=
   prod (Addition.TTK.overflowEncoding window.length) (complementEncoding window)
 
+/-- Every complete grouped binary label is the encoding of an actual grouped frame. -/
+theorem groupedEncoding_surjective {width : Nat} (window : Window width) :
+    Function.Surjective (groupedEncoding window).encode :=
+  prod_surjective _ _ (focus_surjective window.length) (complement_surjective window)
+
 /-- The grouped carrier contains exactly the original number of physical source bits. -/
 theorem groupedEncoding_width {width : Nat} (window : Window width) :
     (groupedEncoding window).width = (encoding width).width := by
@@ -78,7 +83,7 @@ private def groupedLabelEquiv {width : Nat} (window : Window width) :
       (Qubits (groupedEncoding window).width).Index :=
   Equiv.ofBijective (groupedEncoding window).encode
     ⟨(groupedEncoding window).encode_injective,
-      prod_surjective _ _ (focus_surjective window.length) (complement_surjective window)⟩
+      groupedEncoding_surjective window⟩
 
 private def registerLabelEquiv (width : Nat) :
     Registers width ≃ (Qubits (encoding width).width).Index :=

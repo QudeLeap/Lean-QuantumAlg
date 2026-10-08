@@ -28,34 +28,34 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {pre middle : RuntimeCtx kind}
+variable {model : ExecutionModel} {pre middle : RuntimeCtx model.kind}
   {key : StorageKey} {shape sourceShape resultShape : CShape} {fresh : key ∉ middle.keys}
 
 /-- Actual complete execution records are mapped with all quantum-reference blocks intact. -/
-def RetainedRecord (source : AlgorithmRun pre middle sourceShape)
-    (result : AlgorithmRun pre (middle.addRetained key shape fresh) resultShape)
+def RetainedRecord (source : AlgorithmRun model pre middle sourceShape)
+    (result : AlgorithmRun model pre (middle.addRetained key shape fresh) resultShape)
     (update : source.Record → result.Record) : Prop :=
   ∀ (Reference : Register)
-    (input : ExecutionState (Store pre) (Register.prod pre.register Reference)),
+    (input : ExecutionState (Store pre × model.HiddenState) (Register.prod pre.register Reference)),
     result.execute Reference input =
       (source.execute Reference input).mapClassical (D := result.Record) update
 
 /-- A real retained circuit record composes with any complete source run and output manifest. -/
-theorem RetainedRecord.ofTail (source : AlgorithmRun pre middle sourceShape)
-    (tail : Circuit middle (middle.addRetained key shape fresh))
+theorem RetainedRecord.ofTail (source : AlgorithmRun model pre middle sourceShape)
+    (tail : Circuit model middle (middle.addRetained key shape fresh))
     (output : Output (middle.addRetained key shape fresh) resultShape)
-    (step : Store middle → Store (middle.addRetained key shape fresh) × tail.Path)
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × tail.Path)
     (record : Circuit.RetainedRecord tail step) :
     RetainedRecord source { code := .seq source.code tail, output := output }
-      (fun entry => ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2)))) := by
+      (fun entry =>
+        let result := step (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2))))) := by
   intro Reference input
   unfold execute
-  refine (Circuit.RetainedRecord.after source.code tail step record Reference
-    (input.mapClassical (fun store => (store, store)))).trans ?_
-  let normalize := fun decision => Circuit.mapClassical_canonicalDecision decision
-    (source.code.execute Reference (input.mapClassical (fun store => (store, store))))
-    (fun entry => ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))
-  exact (normalize _).trans (normalize _).symm
+  exact (Circuit.RetainedRecord.after source.code tail step record Reference
+    (input.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))).trans
+      (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 end
 

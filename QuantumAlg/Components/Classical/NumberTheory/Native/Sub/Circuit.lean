@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual native saturating subtraction
@@ -61,22 +62,29 @@ def subtractOp (left right : CInputRef ctx (.unsignedWord width))
   .wordBinary .sub width (context ctx)
     (.product (underRead left) (underRead right)) (underWrite output)
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Closed native bodies selected by the actual stored underflow flag. -/
 def selected (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
-    CShape.Value .bit → Circuit (context ctx) (context ctx)
-  | .bit true => .classical (clearOp output)
-  | .bit false => .classical (subtractOp left right output)
+    CShape.Value .bit → Circuit model (context ctx) (context ctx)
+  | .bit true => BitWord.instruction (execution := model) (clearOp output)
+  | .bit false => BitWord.instruction (execution := model) (subtractOp left right output)
 
 /-- Real comparison followed by its stored-result branch. -/
 def body (left right : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit (context ctx) (context ctx) :=
-  .seq (.classical (compareOp left right))
-    (.branch (.storage (decision ctx).toCStorageRef) (selected left right output))
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model (context ctx) (context ctx) :=
+  .seq (BitWord.instruction (execution := model) (compareOp left right))
+    (.branch (.storage (decision ctx).toCStorageRef) (selected (model := model) left right output))
 
 /-- Full native saturating subtraction with one owned and released classical flag. -/
 def into (left right : CInputRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .workspace ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh (body left right output)
+    (output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .workspace ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh (body (model := model)
+    left right output)
+
+end
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSub

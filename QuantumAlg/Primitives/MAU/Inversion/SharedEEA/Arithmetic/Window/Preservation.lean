@@ -156,13 +156,18 @@ theorem coefficient_iteration {width : Nat} (window : Window width) (operation :
 theorem remainder_xorControl {width : Nat} (window : Window width) (operation : Operation)
     (value : Bool) (state : Registers width) :
     ArithmeticWindowProgram.step window operation (NativePredicate.xorControl value state) =
-      NativePredicate.xorControl value (ArithmeticWindowProgram.step window operation state) := rfl
+      NativePredicate.xorControl value (ArithmeticWindowProgram.step window operation state) := by
+  simp only [ArithmeticWindowProgram.step, ArithmeticWindowPlacement.placedStep_eq]
+  rfl
 
 /-- The same exact complete-frame commutation holds in the coefficient orientation. -/
 theorem coefficient_xorControl {width : Nat} (window : Window width) (operation : Operation)
     (value : Bool) (state : Registers width) :
     CoefficientWindowProgram.step window operation (NativePredicate.xorControl value state) =
-      NativePredicate.xorControl value (CoefficientWindowProgram.step window operation state) := rfl
+      NativePredicate.xorControl value (CoefficientWindowProgram.step window operation state) := by
+  simp only [CoefficientWindowProgram.step, EncodedBit.FullPlacement.step,
+    CoefficientWindowProgram.placement_grouping_equiv]
+  rfl
 
 end
 

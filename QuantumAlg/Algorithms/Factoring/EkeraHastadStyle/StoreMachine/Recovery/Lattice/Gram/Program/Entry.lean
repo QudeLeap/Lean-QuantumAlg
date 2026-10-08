@@ -23,12 +23,15 @@ open Execution
 
 noncomputable section
 
+local instance {α : Type} : DecidableEq α := Classical.decEq α
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-/-- Five native instructions compute the selected Gram entry in place. -/
-def entryInto (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
-    (entry : Entry) : Circuit ctx ctx :=
-  LatticeDotRefresh.refreshInto (rowRefs basis (leftRow entry))
+/-- Five selected native instructions compute the Gram entry in place. -/
+def entryInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (entry : Entry) : Circuit model ctx ctx :=
+  LatticeDotRefresh.refreshInto (model := model) (rowRefs basis (leftRow entry))
     (rowRefs basis (rightRow entry)) (entryRefs refs entry)
 
 /-- The five actual chronological writes of the selected entry. -/
@@ -36,6 +39,34 @@ def entryStore (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width
     (entry : Entry) (store : Store ctx) : Store ctx :=
   LatticeDotRefresh.refreshStore (rowRefs basis (leftRow entry))
     (rowRefs basis (rightRow entry)) (entryRefs refs entry) store
+
+/-- The selected instruction path for one actual Gram entry update. -/
+def entryStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (entry : Entry) (store : Store ctx) :
+    Store ctx × (entryInto (model := model) basis refs entry).Path :=
+  LatticeDotRefresh.refreshStep (model := model)
+    (rowRefs basis (leftRow entry)) (rowRefs basis (rightRow entry))
+    (entryRefs refs entry) store
+
+theorem entryStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (entry : Entry) (store : Store ctx) :
+    (entryStep (model := model) basis refs entry store).1 =
+      entryStore basis refs entry store :=
+  LatticeDotRefresh.refreshStep_store _ _ _ store
+
+/-- The selected Gram entry update keeps service state and external references. -/
+theorem entryInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
+    (refs : Refs ctx width) (entry : Entry) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (entryInto (model := model) basis refs entry).execute Reference state =
+      state.mapClassical (fun record =>
+        let actual := entryStep (model := model) basis refs entry record.1
+        (actual.1, (record.2.1, (record.2.2, actual.2)))) :=
+  LatticeDotRefresh.refreshInto_execute _ _ _ Reference state
 
 private theorem row_avoids (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
     (separation : Separation basis refs) (row : Row) (cell : MetricCell) :

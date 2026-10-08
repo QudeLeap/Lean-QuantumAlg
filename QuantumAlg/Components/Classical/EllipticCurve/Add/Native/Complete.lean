@@ -26,11 +26,12 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every original selected case executes its corresponding actual complete native arm. -/
 def additionArm (spec : CurveSpec width) (classifier : Classifier ctx width)
-    (output : CWriteRef ctx (PointShape width)) : Case → Circuit ctx ctx
+    (output : CWriteRef ctx (PointShape width)) : Case → Circuit model ctx ctx
   | .leftInfinity => repackRawInto (classifierRead classifier.rightRaw) output
   | .rightInfinity => repackRawInto (classifierRead classifier.leftRaw) output
   | .vertical => infinityInto output
@@ -40,7 +41,7 @@ def additionArm (spec : CurveSpec width) (classifier : Classifier ctx width)
 
 /-- Actual total point addition with original classification, branches, loaders and work scopes. -/
 def addInto (spec : CurveSpec width) (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx (PointShape width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (PointShape width)) : Circuit model ctx ctx :=
   withClassification left right fun classifier transport =>
     dispatch classifier (additionArm spec classifier (transport.liftWrite output))
 

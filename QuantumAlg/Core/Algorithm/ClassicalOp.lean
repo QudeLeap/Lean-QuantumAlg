@@ -6,30 +6,31 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Core.Base.Accounting.ResourcePool
 public import QuantumAlg.Core.Base.Accounting.Context
 import QuantumAlg.Init
 public import QuantumAlg.Core.Base.Accounting.Shape
+public import QuantumAlg.Core.Base.Classical.Value
+import all QuantumAlg.Core.Base.Classical.Value
 public import Mathlib.Data.Fintype.Card
 import all QuantumAlg.Core.Base.Accounting.Flow
-import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import Mathlib.Data.Nat.Bitwise
 
 /-!
 # Closed shape-indexed classical instructions
 
-`ClassicalOp input output pre post` is the atomic instruction boundary used by
-the circuit interpreter. Its constructors fix the operand and
-result shapes, preserve one exact live context, and determine executable
-semantics, one classical event, one singleton resource pool, and one local
-space flow together.
+`ClassicalOp input output pre post` describes the closed bit/word operations
+used by the built-in classical model. Its constructors fix operand and result
+shapes, preserve one exact live context, and determine value semantics and
+physical storage flow. Executable admission and event accounting belong to
+the selected model token placed in the circuit.
 
 The family intentionally contains only reusable bit, fixed-width word,
 fixed-vector, and narrow nominal-encoding operations.  The latter can only
 materialize or erase a statically prescribed storage representation; they do
 not interpret signed values, validate residues, or recover semantic data.
-Randomness, allocation, and lexical workspace belong to their explicit circuit
-instructions. Modular, elliptic-curve, and recovery algorithms must be expanded
+The built-in model also declares uniform random bits. Allocation and lexical
+workspace remain structural circuit instructions. Modular, elliptic-curve, and
+recovery algorithms must be expanded
 into their actual instructions.
 -/
 
@@ -38,35 +39,6 @@ section
 namespace QuantumAlg
 
 namespace CShape
-
-/-- Nominal runtime encodings carried by the closed storage shapes.
-
-Every constructor fixes its `CShape` index, so equal-width unsigned, signed,
-residue, unit-residue, bit-vector, and fixed-vector values remain distinct
-types.  Residue and elliptic-curve constructors are raw encodings only: their
-modulus, unit, curve, and validity proofs belong to later semantic carriers. -/
-public inductive Value : CShape → Type where
-  | unit : Value .unit
-  | bit (value : Bool) : Value .bit
-  | finite {cardinality : ℕ+} (value : Fin cardinality) :
-      Value (.finite cardinality)
-  | bits {count : Nat} (get : Fin count → Bool) : Value (.bits count)
-  | unsignedWord {width : Nat} (value : Fin (2 ^ width)) :
-      Value (.unsignedWord width)
-  | boundedSignedWord {width : Nat} (encoding : Fin (2 ^ width)) :
-      Value (.boundedSignedWord width)
-  | optionNone {payload : CShape} : Value (.option payload)
-  | optionSome {payload : CShape} (value : Value payload) : Value (.option payload)
-  | product {left right : CShape} (first : Value left) (second : Value right) :
-      Value (.product left right)
-  | fixedVector {length : Nat} {element : CShape}
-      (get : Fin length → Value element) : Value (.fixedVector length element)
-  | canonicalResidue {modulusWidth : Nat} (encoding : Fin (2 ^ modulusWidth)) :
-      Value (.canonicalResidue modulusWidth)
-  | unitResidue {modulusWidth : Nat} (encoding : Fin (2 ^ modulusWidth)) :
-      Value (.unitResidue modulusWidth)
-  | ellipticCurvePoint {fieldWidth : Nat} (infinityTag : Bool)
-      (x y : Fin (2 ^ fieldWidth)) : Value (.ellipticCurvePoint fieldWidth)
 
 namespace Value
 
@@ -145,14 +117,14 @@ end Value
 public abbrev Word (width : Nat) := Value (.unsignedWord width)
 
 /-- The positive modulus represented by one fixed word width. -/
-def wordModulus (width : Nat) : Nat :=
+@[expose] public def wordModulus (width : Nat) : Nat :=
   2 ^ width
 
-theorem wordModulus_pos (width : Nat) : 0 < wordModulus width := by
+public theorem wordModulus_pos (width : Nat) : 0 < wordModulus width := by
   exact Nat.two_pow_pos width
 
 /-- Canonically truncate a natural number to one fixed-width word. -/
-def wordOfNat (width value : Nat) : Word width :=
+@[expose] public def wordOfNat (width value : Nat) : Word width :=
   .unsignedWord
     ⟨value % wordModulus width, Nat.mod_lt value (wordModulus_pos width)⟩
 
@@ -579,14 +551,14 @@ end ClassicalRegister
 namespace Resource.BitOpcode
 
 /-- Operand shape fixed by one closed bit opcode. -/
-@[implicit_reducible]
+@[expose, implicit_reducible]
 public def inputShape : BitOpcode → CShape
   | .copy | .not => .bit
   | .and | .or | .xor => .product .bit .bit
   | .select => .product .bit (.product .bit .bit)
 
 /-- Every closed bit opcode returns one bit. -/
-@[implicit_reducible]
+@[expose, implicit_reducible]
 public def outputShape : BitOpcode → CShape
   | .copy | .not | .and | .or | .xor | .select => .bit
 
@@ -1437,24 +1409,6 @@ public def label {kind : ProblemKind} {input output : CShape}
   | .vectorRowXor length elementWidth _source _destination _ctx _input _output =>
       .vector .rowXor length elementWidth
 
-/-- The single classical event emitted by an instruction. -/
-public def event {kind : ProblemKind} {input output : CShape}
-    {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) : Resource.Event kind :=
-  .classicalOperation op.label
-
-/-- The actual one-step event trace of an atomic instruction. -/
-public def eventTrace {kind : ProblemKind} {input output : CShape}
-    {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) : List (Resource.Event kind) :=
-  [op.event]
-
-/-- The singleton resource pool derived from the emitted event. -/
-public def resourcePool {kind : ProblemKind} {input output : CShape}
-    {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) : ResourcePool kind :=
-  ResourcePool.singleton op.event
-
 /-- The local liveness flow fixed by the same instruction constructor. -/
 def flow {kind : ProblemKind} {input output : CShape}
     {pre post : RuntimeCtx kind} :
@@ -1872,93 +1826,6 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.packEllipticCurvePoint width) :=
   rfl
 
-@[simp] theorem event_wordResize {kind : ProblemKind}
-    (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
-    (outputRef : CWriteRef ctx (.unsignedWord targetWidth)) :
-    (ClassicalOp.wordResize sourceWidth targetWidth ctx inputRef outputRef).event =
-      .classicalOperation (.wordResize sourceWidth targetWidth) :=
-  rfl
-
-@[simp] theorem event_packProduct {kind : ProblemKind}
-    {left right : CShape} (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.product left right))
-    (outputRef : CWriteRef ctx (.product left right)) :
-    (ClassicalOp.packProduct ctx inputRef outputRef).event =
-      .classicalOperation
-        (.nominalEncoding (.packProduct left.bitWidth right.bitWidth)) :=
-  rfl
-
-@[simp] theorem event_packBoundedSignedWord {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.unsignedWord width))
-    (outputRef : CWriteRef ctx (.boundedSignedWord width)) :
-    (ClassicalOp.packBoundedSignedWord width ctx inputRef outputRef).event =
-      .classicalOperation
-        (.nominalEncoding (.packBoundedSignedWord width)) :=
-  rfl
-
-@[simp] theorem event_packOption {kind : ProblemKind}
-    {payload : CShape} (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.product .bit payload))
-    (outputRef : CWriteRef ctx (.option payload)) :
-    (ClassicalOp.packOption ctx inputRef outputRef).event =
-      .classicalOperation
-        (.nominalEncoding (.packOption payload.bitWidth)) :=
-  rfl
-
-@[simp] theorem event_unpackOption {kind : ProblemKind}
-    {payload : CShape} (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.option payload))
-    (outputRef : CWriteRef ctx (.product .bit payload)) :
-    (ClassicalOp.unpackOption ctx inputRef outputRef).event =
-      .classicalOperation
-        (.nominalEncoding (.unpackOption payload.bitWidth)) :=
-  rfl
-
-@[simp] theorem event_unpackUnitResidue {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.unitResidue width))
-    (outputRef : CWriteRef ctx (.unsignedWord width)) :
-    (ClassicalOp.unpackUnitResidue width ctx inputRef outputRef).event =
-      .classicalOperation
-        (.nominalEncoding (.unpackUnitResidue width)) :=
-  rfl
-
-@[simp] theorem event_unpackCanonicalResidue {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.canonicalResidue width))
-    (outputRef : CWriteRef ctx (.unsignedWord width)) :
-    (ClassicalOp.unpackCanonicalResidue width ctx inputRef outputRef).event =
-      .classicalOperation (.residueEncoding .unpack width) :=
-  rfl
-
-@[simp] theorem event_packCanonicalResidue {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.unsignedWord width))
-    (outputRef : CWriteRef ctx (.canonicalResidue width)) :
-    (ClassicalOp.packCanonicalResidue width ctx inputRef outputRef).event =
-      .classicalOperation (.residueEncoding .pack width) :=
-  rfl
-
-@[simp] theorem event_unpackEllipticCurvePoint {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx (.ellipticCurvePoint width))
-    (outputRef : CWriteRef ctx
-      (.product .bit (.product (.unsignedWord width) (.unsignedWord width)))) :
-    (ClassicalOp.unpackEllipticCurvePoint width ctx inputRef outputRef).event =
-      .classicalOperation (.nominalEncoding (.unpackEllipticCurvePoint width)) :=
-  rfl
-
-@[simp] theorem event_packEllipticCurvePoint {kind : ProblemKind}
-    (width : Nat) (ctx : RuntimeCtx kind)
-    (inputRef : CInputRef ctx
-      (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
-    (outputRef : CWriteRef ctx (.ellipticCurvePoint width)) :
-    (ClassicalOp.packEllipticCurvePoint width ctx inputRef outputRef).event =
-      .classicalOperation (.nominalEncoding (.packEllipticCurvePoint width)) :=
-  rfl
-
 @[simp] theorem flow_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
@@ -2043,29 +1910,6 @@ theorem pre_eq_post {kind : ProblemKind} {input output : CShape}
     {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) : pre = post := by
   cases op <;> rfl
-
-@[simp] theorem event_eq_classicalOperation {kind : ProblemKind}
-    {input output : CShape} {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) :
-    op.event = .classicalOperation op.label :=
-  rfl
-
-@[simp] theorem eventTrace_eq_singleton {kind : ProblemKind}
-    {input output : CShape} {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) : op.eventTrace = [op.event] :=
-  rfl
-
-@[simp] theorem resourcePool_eq_singleton {kind : ProblemKind}
-    {input output : CShape} {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) :
-    op.resourcePool = ResourcePool.singleton op.event :=
-  rfl
-
-theorem count_event_resourcePool {kind : ProblemKind}
-    {input output : CShape} {pre post : RuntimeCtx kind}
-    (op : ClassicalOp input output pre post) :
-    ResourcePool.count op.event op.resourcePool = 1 := by
-  simp [resourcePool]
 
 @[simp] theorem peakResidentSpace_flow {kind : ProblemKind}
     {input output : CShape} {pre post : RuntimeCtx kind}
@@ -2908,17 +2752,8 @@ example : (divide.eval
 example : ((swap.eval words3x2).get ⟨0, by decide⟩).toNat = 2 := by
   decide
 
-/-- Event, trace, resource, and liveness evidence come from one operation. -/
-example : add4.event =
-    .classicalOperation (.addCarry 4) := rfl
-
-example : add4.eventTrace =
-    [.classicalOperation (.addCarry 4)] := rfl
-
-example : ResourcePool.count
-    (.classicalOperation (.addCarry 4))
-    add4.resourcePool = 1 := by
-  decide
+/-- The typed instruction retains its declared bit/word coordinate. -/
+example : add4.label = .addCarry 4 := rfl
 
 example : add4.flow.peakResidentSpace = add4Ctx.residentSpace := by simp
 
@@ -2927,8 +2762,7 @@ the local flow therefore cannot report an empty detached footprint. -/
 example : add4.flow.peakResidentSpace .classicalBits = 13 := by decide
 example : add4.flow.peakAuxiliarySpace .classicalBits = 5 := by decide
 
-/-- A classical instruction inside a quantum context still emits no quantum
-event coordinate. -/
+/-- Classical placement retains the same operation in a quantum context. -/
 private def qAddCtx : RuntimeCtx .quantum :=
   operationCtx
     (.product (.unsignedWord 4) (.unsignedWord 4))
@@ -2942,29 +2776,11 @@ private def qAdd := ClassicalOp.addCarry 4 qAddCtx
     (.product (.unsignedWord 4) (.unsignedWord 4))
     (.product (.unsignedWord 4) .bit))
 
-private def cnot : Resource.GateLabel :=
-  { family := "builtin", name := "cnot" }
-
-private def zeroPreparation : Resource.PreparationLabel :=
-  { family := "builtin", name := "zero" }
-
-private def computationalMeasurement : Resource.MeasurementLabel :=
-  { family := "builtin", name := "computational" }
-
-private def opaqueQuantum : Resource.QuantumSubroutineLabel :=
-  ({ family := "fixture", name := "opaque" } : Resource.SubroutineLabel).quantum
-
 private def borrowedWordCtx : RuntimeCtx .classical :=
   RuntimeCtx.addBorrowedInput (kind := .classical) RuntimeCtx.empty
     ⟨0⟩ (.unsignedWord 4) (by simp [RuntimeCtx.keys])
 
-example : ResourcePool.count (.gate cnot) qAdd.resourcePool = 0 := by decide
-example : ResourcePool.count (.preparation zeroPreparation) qAdd.resourcePool = 0 := by
-  decide
-example : ResourcePool.count (.measurement computationalMeasurement)
-    qAdd.resourcePool = 0 := by decide
-example : ResourcePool.count (.quantumSubroutine opaqueQuantum)
-    qAdd.resourcePool = 0 := by decide
+example : qAdd.label = .addCarry 4 := rfl
 
 /-!
 The following importer-visible compile-time fixtures pin the construction

@@ -7,10 +7,18 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
-import all QuantumAlg.Components.Gates
-public import QuantumAlg.Core.Base
-import all QuantumAlg.Core.Base
+public import QuantumAlg.Components.Gates.SingleQubit.First.Binary
+public import QuantumAlg.Components.Kets
+public import QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Components.Gates.Operator
+import all QuantumAlg.Components.Gates.Construction
+import all QuantumAlg.Components.Gates.Hadamard.Action
+import all QuantumAlg.Components.Gates.SingleQubit.First.Binary
+import all QuantumAlg.Components.Kets
+import all QuantumAlg.Core.Base.Gate.Placement.Canonical
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
+import all QuantumAlg.Core.Base.Tensor.Certified
 
 /-!
 # Bell pair (EPR pair) and its preparation
@@ -98,20 +106,35 @@ theorem bell_eq_tensor :
 
 namespace BellStatePreparation
 
-/-- The first Bell layer applies `H` on physical qubit zero and identity on
-physical qubit one. -/
-def hadamardLayer : UnitaryCircuit (Qubits 2) :=
-  let rest := UnitaryCircuit.identity (Qubits 1) [] (by simp)
-  UnitaryCircuit.tensorQubits H rest
-    { left_nodup := H.physical_idx_nodup
-      right_nodup := rest.physical_idx_nodup
-      disjoint := by
-        change List.Disjoint [0] []
-        simp }
+/-- The actual two-qubit physical layout, in its original big-endian order. -/
+@[expose, implicit_reducible]
+public def layout : QuantumLayout 2 := (QuantumSignature.qubits 2).canonicalPlacement.layout
 
-/-- Bell preparation as two typed circuit atoms over one certified layout. -/
-public def circuit : UnitaryCircuit (Qubits 2) :=
-  UnitaryCircuit.seq hadamardLayer CNOT
+/-- One native Hadamard on the first physical wire, with the second wire untouched. -/
+def hadamardLayer : UnitaryCircuit AlgorithmGate.model .empty layout :=
+  Gate.singleQubitAt layout .empty HOp 0 rfl
+
+private def cnot : UnitaryCircuit AlgorithmGate.model .empty layout :=
+  .native (GateModel.Application.canonical AlgorithmGate.model .cnot)
+
+private theorem cnot_binaryMatrix : cnot.binaryMatrix = CNOTOp := by
+  unfold UnitaryCircuit.binaryMatrix cnot
+  rw [UnitaryCircuit.native_matrix, GateModel.Application.gateApplication_canonical_operator]
+  change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 2)
+    (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 2).symm CNOTOp) = CNOTOp
+  exact UnitaryOperator.unitaryOperator_reindex_cancel
+    (QuantumSignature.qubitsIndexEquiv 2).symm _
+
+/-- Bell preparation executes one actual native Hadamard followed by one actual CNOT. -/
+public def circuit : UnitaryCircuit AlgorithmGate.model .empty layout :=
+  hadamardLayer.seq cnot
+
+private theorem circuit_binaryMatrix :
+    circuit.binaryMatrix = CNOTOp * HOp.tensor (1 : UnitaryOperator (Qubits 1)) := by
+  rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, cnot_binaryMatrix,
+    hadamardLayer]
+  exact congrArg (fun op => CNOTOp * op)
+    (Gate.singleQubitAt_first_binaryMatrix .empty 1 HOp)
 
 /-- Bell preparation input state `|00⟩`. -/
 public def input : NormalizedVector (Qubits 2) :=
@@ -119,16 +142,8 @@ public def input : NormalizedVector (Qubits 2) :=
 
 /-- Raw-vector calculation underlying the normalized preparation theorem. -/
 private theorem bellPreparation_coe :
-    UnitaryCircuit.applyVec circuit input = (bell : HilbertVector (Qubits 2)) := by
-  rw [circuit, UnitaryCircuit.applyVec_seq]
-  have hLayer : hadamardLayer.matrix =
-      UnitaryOperator.tensor HOp (1 : UnitaryOperator (Qubits 1)) := by
-    unfold hadamardLayer
-    rw [UnitaryCircuit.tensorQubits_matrix]
-    rw [H_matrix]
-    congr 1
-  simp only [UnitaryCircuit.applyVec]
-  rw [CNOT_matrix, hLayer]
+    circuit.binaryMatrix.applyVec input = (bell : HilbertVector (Qubits 2)) := by
+  rw [circuit_binaryMatrix, UnitaryOperator.mul_applyVec]
   change CNOTOp.applyVec
       ((HOp.tensor (1 : UnitaryOperator (Qubits 1))).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1))
@@ -137,7 +152,7 @@ private theorem bellPreparation_coe :
   have hH : HOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ketPlus : HilbertVector (Qubits 1)) :=
     congrArg (fun ψ : NormalizedVector (Qubits 1) =>
-      (ψ : HilbertVector (Qubits 1))) H_apply_ket0
+      (ψ : HilbertVector (Qubits 1))) hadamardOperator_apply_ket0
   rw [hH, UnitaryOperator.one_applyVec]
   change CNOTOp.applyVec
       (HilbertVector.tensor (ketPlus : HilbertVector (Qubits 1))
@@ -149,9 +164,11 @@ private theorem bellPreparation_coe :
         (ket0 : HilbertVector (Qubits 1)) :=
     by
       have h := congrArg (fun ψ : NormalizedVector (Qubits 2) =>
-        (ψ : HilbertVector (Qubits 2))) CNOT_apply_ket0_tensor_ket0
-      simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, CNOT_matrix,
-        NormalizedVector.coe_tensor] using h
+        (ψ : HilbertVector (Qubits 2))) (show CNOTOp.apply (ket0.tensor ket0) = ket0.tensor ket0 by
+          simp only [CNOTOp, ket0, NormalizedVector.tensor_ket,
+            UnitaryOperator.ofPerm_apply_ket]
+          rfl)
+      simpa only [UnitaryOperator.apply_coe, NormalizedVector.coe_tensor] using h
   have hC10 : CNOTOp.applyVec
       (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1))
         (ket0 : HilbertVector (Qubits 1))) =
@@ -159,9 +176,11 @@ private theorem bellPreparation_coe :
         (ket1 : HilbertVector (Qubits 1)) :=
     by
       have h := congrArg (fun ψ : NormalizedVector (Qubits 2) =>
-        (ψ : HilbertVector (Qubits 2))) CNOT_apply_ket1_tensor_ket0
-      simpa only [UnitaryCircuit.applyNormalized_coe, UnitaryCircuit.applyVec, CNOT_matrix,
-        NormalizedVector.coe_tensor] using h
+        (ψ : HilbertVector (Qubits 2))) (show CNOTOp.apply (ket1.tensor ket0) = ket1.tensor ket1 by
+          simp only [CNOTOp, ket0, ket1, NormalizedVector.tensor_ket,
+            UnitaryOperator.ofPerm_apply_ket]
+          rfl)
+      simpa only [UnitaryOperator.apply_coe, NormalizedVector.coe_tensor] using h
   rw [bell_eq_tensor, ketPlus_coe, HilbertVector.smul_tensor,
     HilbertVector.add_tensor, UnitaryOperator.applyVec_smul,
     UnitaryOperator.applyVec_add,
@@ -170,25 +189,22 @@ private theorem bellPreparation_coe :
 
 /-- Bell-state preparation: the typed circuit turns `|00⟩` into the Bell state. -/
 public theorem bellPreparation_eq :
-    UnitaryCircuit.applyNormalized circuit input = bell := by
+    circuit.binaryMatrix.apply input = bell := by
   apply NormalizedVector.ext
   intro i
-  change UnitaryCircuit.applyVec circuit input i = (bell : HilbertVector (Qubits 2)) i
+  change circuit.binaryMatrix.applyVec input i = (bell : HilbertVector (Qubits 2)) i
   exact congrArg (fun ψ : HilbertVector (Qubits 2) => ψ i) bellPreparation_coe
 
 
-/-- Bell preparation exposes one literal Hadamard and one literal CNOT event. -/
+/-- The actual native pool contains one single-qubit instruction and one CNOT. -/
 @[simp] theorem circuit_eventCost :
     circuit.eventCost =
-      ResourcePool.singleton (Gate.atomicEvent (.builtin "hadamard")) +
-        ResourcePool.singleton (Gate.atomicEvent (.builtin "cnot")) := by
-  simp [circuit, hadamardLayer, Gate.atomicEventCost]
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) +
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty) (.gate .cnot) := rfl
 
-/-- Unit duration per strict event gives the two sequential Bell layers. -/
+/-- The two actual gates share the first wire and have two sequential unit-duration layers. -/
 @[simp] theorem circuit_evaluatedEventDepth_of_one :
-    circuit.evaluatedEventDepth (fun _event => 1) = 2 := by
-  simp [circuit, hadamardLayer, UnitaryCircuit.evaluatedEventDepth,
-    Gate.H_eventDepth, Gate.CNOT_eventDepth, Gate.atomicEventDepth]
+    circuit.evaluatedEventDepth (fun _ => 1) = 2 := by rfl
 
 end BellStatePreparation
 

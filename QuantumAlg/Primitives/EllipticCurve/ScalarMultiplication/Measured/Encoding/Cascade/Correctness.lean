@@ -41,7 +41,8 @@ def convertedCascadeTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.
 theorem convertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
-    (original : State (readyContext p.size count) Reference H)
+    (original : State (readyContext p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
         (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)

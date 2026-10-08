@@ -2293,9 +2293,10 @@ def modularSubtractGates (fieldTail counterWidth p : Nat) :
 
 /-- Circuit compiled from the literal reverse modular-add ledger. -/
 def modularSubtractProgram (fieldTail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (modularSubtractGates fieldTail counterWidth p)
 
 /-- Folded action of the exact reverse modular-add ledger. -/
@@ -2310,7 +2311,7 @@ theorem modularSubtract_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
       (modularSubtractProgram fieldTail counterWidth p)
       (modularSubtractStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (modularSubtractGates fieldTail counterWidth p)
 
 /-- Reversing the general clean modular-add endpoint subtracts the preserved
@@ -2771,9 +2772,10 @@ def targetUpdateGates (fieldTail counterWidth p : Nat) :
 
 /-- Circuit compiled from the literal compact target-update ledger. -/
 def targetUpdateProgram (fieldTail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (targetUpdateGates fieldTail counterWidth p)
 
 /-- Folded action of the exact compact target-update ledger. -/
@@ -2809,7 +2811,7 @@ theorem targetUpdate_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
       (targetUpdateProgram fieldTail counterWidth p)
       (targetUpdateStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (targetUpdateGates fieldTail counterWidth p)
 
 /-- Target update subtracts the retained corrected residue modulo `p`, which
@@ -3060,9 +3062,10 @@ def doublingCleanupStep (fieldTail counterWidth : Nat) :
 /-- Actual compact modular-doubling circuit compiled from its native gate
 ledger. -/
 def doublingProgram (fieldTail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (doublingGates fieldTail counterWidth p)
 
 /-- Folded semantic action of the literal compact modular-doubling ledger. -/
@@ -3579,7 +3582,7 @@ theorem doubling_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
       (doublingProgram fieldTail counterWidth p)
       (doublingStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (doublingGates fieldTail counterWidth p)
 
 /-! ## Reversible initial coefficient reduction -/
@@ -3637,9 +3640,10 @@ def coefficientReduceGates (fieldTail counterWidth p : Nat) :
 /-- Circuit compiled from the literal reversible coefficient-reduction
 ledger. -/
 def coefficientReduceProgram (fieldTail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (coefficientReduceGates fieldTail counterWidth p)
 
 /-- Folded action of the reversible coefficient-reduction ledger. -/
@@ -3722,7 +3726,7 @@ theorem coefficientReduce_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
       (coefficientReduceProgram fieldTail counterWidth p)
       (coefficientReduceStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (coefficientReduceGates fieldTail counterWidth p)
 
 /-! ## Clean-work control of modular doubling -/
@@ -4312,9 +4316,10 @@ def controlledDoublingGates (fieldTail counterWidth p : Nat) :
 
 /-- Actual circuit for path-controlled compact modular doubling. -/
 def controlledDoublingProgram (fieldTail counterWidth p : Nat) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (controlledDoublingGates fieldTail counterWidth p)
 
 /-- Folded action of path-controlled compact modular doubling. -/
@@ -4329,7 +4334,7 @@ theorem controlledDoubling_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
       (controlledDoublingProgram fieldTail counterWidth p)
       (controlledDoublingStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (controlledDoublingGates fieldTail counterWidth p)
 
 /-- Structured clean-work action of path-controlled modular doubling. -/
@@ -4723,10 +4728,10 @@ def correctionLtBorrowStep (n counterTail : Nat)
 theorem correctionLtBorrow_realizes (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n (counterTail + 1))
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (correctionLtBorrowGates n counterTail hwidth))
       (correctionLtBorrowStep n counterTail hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (correctionLtBorrowGates n counterTail hwidth)
 
 /-- The highest logarithmic borrow bit carries the full-word comparison. -/
@@ -4894,8 +4899,10 @@ def correctionLtSelectorGates (n counterTail : Nat)
 /-- Circuit compiled from the native correction-selector ledger. -/
 def correctionLtSelectorProgram (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
-    UnitaryCircuit (Qubits (MK.Compact.encoding n (counterTail + 1)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding n (counterTail + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (correctionLtSelectorGates n counterTail hwidth)
 
 /-- Folded action of the correction-count selector. -/
@@ -4913,7 +4920,7 @@ theorem correctionLtSelector_realizes (n counterTail : Nat)
     UnitaryCircuit.Realizes (MK.Compact.encoding n (counterTail + 1))
       (correctionLtSelectorProgram n counterTail hwidth)
       (correctionLtSelectorStep n counterTail hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (correctionLtSelectorGates n counterTail hwidth)
 
 /-- Reverse action of the logarithmic borrow ledger. -/
@@ -5261,9 +5268,10 @@ def correctionSlotProgram (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
     (slot : Fin fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (correctionSlotGates fieldTail counterTail p hcapacity hwidth slot)
 
 /-- Folded action of the five literal correction-slot segments. -/
@@ -5458,7 +5466,7 @@ theorem correctionSlot_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
       (correctionSlotProgram fieldTail counterTail p hcapacity hwidth slot)
       (correctionSlotStep fieldTail counterTail p hcapacity hwidth slot) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (correctionSlotGates fieldTail counterTail p hcapacity hwidth slot)
 
 /-! ## Complete fixed correction loop -/
@@ -5486,9 +5494,10 @@ def correctionLoopSteps (fieldTail counterTail p : Nat)
 def correctionLoopProgram (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (correctionLoopGates fieldTail counterTail p hcapacity hwidth)
 
 /-- Folded action of the complete flat correction-loop ledger. -/
@@ -5554,7 +5563,7 @@ theorem correctionLoop_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
       (correctionLoopProgram fieldTail counterTail p hcapacity hwidth)
       (correctionLoopStep fieldTail counterTail p hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (correctionLoopGates fieldTail counterTail p hcapacity hwidth)
 
 /-- Mathematical reduced coefficient after the first `rounds` static slots.
@@ -6545,9 +6554,10 @@ def compactCorrectionProgram
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
-    UnitaryCircuit (Qubits
-      (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding fieldTail.succ (counterTail + 1)).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compactCorrectionGates fieldTail counterTail p hcapacity hwidth)
 
 /-- Folded action of the literal reversible compact correction ledger. -/
@@ -6586,7 +6596,7 @@ theorem compactCorrection_realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
       (compactCorrectionProgram fieldTail counterTail p hcapacity hwidth)
       (compactCorrectionStep fieldTail counterTail p hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (compactCorrectionGates fieldTail counterTail p hcapacity hwidth)
 
 set_option maxHeartbeats 1200000 in
@@ -6941,8 +6951,10 @@ def signCorrectionGates (n counterWidth : Nat) :
 
 /-- Circuit compiled from the native compact sign-correction ledger. -/
 def signCorrectionProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (MK.Compact.encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (signCorrectionGates n counterWidth)
 
 /-- Folded action of the native compact sign-correction ledger. -/
@@ -7105,7 +7117,7 @@ theorem signCorrection_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n counterWidth)
       (signCorrectionProgram n counterWidth)
       (signCorrectionStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (signCorrectionGates n counterWidth)
 
 private theorem correctedValue_target_ne (n counterWidth : Nat) :
@@ -7127,8 +7139,11 @@ def outputCopyGates (n counterWidth : Nat) :
 
 /-- Circuit compiled from the literal public-output CNOT copy. -/
 def outputCopyProgram (n counterWidth : Nat) :
-    UnitaryCircuit (Qubits (MK.Compact.encoding n counterWidth).width) :=
-  EncodedBit.GateSpec.programList (outputCopyGates n counterWidth)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (MK.Compact.encoding n counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (outputCopyGates n counterWidth)
 
 /-- Folded action of the literal public-output CNOT copy. -/
 def outputCopyStep (n counterWidth : Nat) :
@@ -7141,7 +7156,8 @@ theorem outputCopy_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n counterWidth)
       (outputCopyProgram n counterWidth)
       (outputCopyStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (outputCopyGates n counterWidth)
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    (outputCopyGates n counterWidth)
 
 end
 

@@ -30,7 +30,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width resultWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {width resultWidth : Nat}
 
 /-- The actual eight outer scopes retain the already recorded candidate and checking path. -/
 def programStep (input : CInputRef ctx (.unsignedWord width))
@@ -47,10 +48,10 @@ def programStep (input : CInputRef ctx (.unsignedWord width))
 theorem nativeQuadratic_program_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (program input modulus original).execute Reference state =
       state.mapClassical (fun entry => ((programStep input modulus original entry.1).1,
-        (entry.2, (programStep input modulus original entry.1).2))) :=
+        (entry.2.1, (entry.2.2, (programStep input modulus original entry.1).2)))) :=
   SelectionLayout.nativeRecovery_selectionScopes_execute (RSA.quadraticWordWidth width)
     (Layout.scopes (LocalLayout.selectionContext ctx width) width
       (candidateBody input modulus original))
@@ -70,8 +71,8 @@ theorem nativeQuadratic_programStep_store (input : CInputRef ctx (.unsignedWord 
         (Layout.popStore width (candidateBodyStep input modulus original
           (Layout.pushStore width
             (SelectionLayout.pushStore (RSA.quadraticWordWidth width) store))).1) := by
-  let inner := candidateBody input modulus original
-  let update := candidateBodyStep input modulus original
+  let inner := candidateBody (model := model) input modulus original
+  let update := candidateBodyStep (model := model) input modulus original
   have outer := SelectionLayout.nativeRecovery_selectionScopeStep_store
     (RSA.quadraticWordWidth width)
     (Layout.scopes (LocalLayout.selectionContext ctx width) width inner)

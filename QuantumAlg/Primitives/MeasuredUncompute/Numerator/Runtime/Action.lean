@@ -34,28 +34,28 @@ open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 private theorem native_column (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput row : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.applyVec
+    (action : body.binaryMatrix.applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec) :
-    body.matrix row nativeInput = phase *
+    body.binaryMatrix row nativeInput = phase *
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput) row := by
   have values := congrArg
     (fun vector : HilbertVector (Qubits (OutputCopy.encoding width).width) => vector row) action
   have column := (HilbertOperator.applyVec_ket
-    (body.matrix : HilbertOperator (Qubits (OutputCopy.encoding width).width))
+    (body.binaryMatrix : HilbertOperator (Qubits (OutputCopy.encoding width).width))
     nativeInput row).symm.trans values
   simpa only [PiLp.smul_apply, smul_eq_mul] using column
 
 /-- The actual runtime matrix retains the complete native basis-column phase. -/
 theorem runtime_column (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.applyVec
+    (action : body.binaryMatrix.applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec)
@@ -63,7 +63,7 @@ theorem runtime_column (width : Nat)
     (NumeratorRuntime.program width body).matrix row ((frameBasis width).symm nativeInput) =
       phase * (NormalizedVector.ket (R := (context width).register)
         ((frameBasis width).symm nativeOutput)) row := by
-  have placed := NumeratorRuntime.program_matrix width body row
+  have placed := NumeratorRuntime.program_binary_matrix width body row
     ((frameBasis width).symm nativeInput)
   rw [Equiv.apply_symm_apply] at placed
   refine placed.trans ((native_column width body nativeInput nativeOutput
@@ -81,10 +81,10 @@ theorem runtime_column (width : Nat)
 
 /-- An arbitrary native phase action survives the actual runtime wire placement exactly. -/
 theorem runtime_ket (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.applyVec
+    (action : body.binaryMatrix.applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec) :
@@ -103,10 +103,10 @@ theorem runtime_ket (width : Nat)
 
 /-- Tensoring the same placed program with identity keeps every complete reference-labelled ket. -/
 theorem reference_ket (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.applyVec
+    (action : body.binaryMatrix.applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec)

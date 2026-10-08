@@ -82,97 +82,112 @@ def incrementOutputOp (refs : BodyRefs ctx width) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .increment width ctx (writeInput refs.output) refs.output
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Actual sign classification and magnitude normalization accept arbitrary initial scratch. -/
-def normalizeMagnitude (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  SignedWord.normalizeMagnitude refs.numerator refs.negative refs.magnitude
+def normalizeMagnitude (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  SignedWord.normalizeMagnitude (model := model) refs.numerator refs.negative refs.magnitude
 
 /-- The actual resize and doubling of the normalized magnitude. -/
-def widenMagnitude (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (resizeMagnitudeOp refs)) (.classical (doubleNumeratorOp refs))
+def widenMagnitude (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeMagnitudeOp refs)) (BitWord.instruction
+    (execution := model) (doubleNumeratorOp refs))
 
 /-- The actual original-denominator resize. -/
-def widenDenominator (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .classical (resizeDenominatorOp refs)
+def widenDenominator (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  BitWord.instruction (execution := model) (resizeDenominatorOp refs)
 
 /-- The complete overwrite-safe prefix before the signed rounding correction. -/
-def prepare (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .seq (normalizeMagnitude refs) (.seq (widenMagnitude refs) (widenDenominator refs))
+def prepare (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  .seq (normalizeMagnitude (model := model) refs) (.seq (widenMagnitude (model := model) refs)
+    (widenDenominator (model := model) refs))
 
 /-- Only the negative stored flag enables the one-unit dividend correction. -/
-def correctionChoice (refs : BodyRefs ctx width) : CShape.Value .bit → Circuit ctx ctx
+def correctionChoice (refs : BodyRefs ctx width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
-  | .bit true => .classical (correctNumeratorOp refs)
+  | .bit true => BitWord.instruction (execution := model) (correctNumeratorOp refs)
 
 /-- Real addition, stored-result correction and divisor doubling. -/
-def roundingArm (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (addDenominatorOp refs))
-    (.seq (.branch (writeInput refs.negative) (correctionChoice refs))
-      (.classical (doubleDenominatorOp refs)))
+def roundingArm (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (addDenominatorOp refs))
+    (.seq (.branch (writeInput refs.negative) (correctionChoice (model := model) refs))
+      (BitWord.instruction (execution := model) (doubleDenominatorOp refs)))
 
 /-- Execute the actual quotient-and-remainder instruction. -/
-def divide (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .classical (divideOp refs)
+def divide (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  BitWord.instruction (execution := model) (divideOp refs)
 
 /-- Select sign restoration from the actual stored sign of the original numerator. -/
-def restoreChoice (refs : BodyRefs ctx width) : CShape.Value .bit → Circuit ctx ctx
+def restoreChoice (refs : BodyRefs ctx width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
-  | .bit true => .seq (.classical (complementOutputOp refs))
-      (.classical (incrementOutputOp refs))
+  | .bit true => .seq (BitWord.instruction (execution := model) (complementOutputOp refs))
+      (BitWord.instruction (execution := model) (incrementOutputOp refs))
 
 /-- Resize the actual quotient and conditionally restore its sign. -/
-def finish (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (resizeQuotientOp refs))
-    (.branch (writeInput refs.negative) (restoreChoice refs))
+def finish (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (resizeQuotientOp refs))
+    (.branch (writeInput refs.negative) (restoreChoice (model := model) refs))
 
 /-- The complete actual signed nearest-division circuit, with no scratch reset prefix. -/
-def body (refs : BodyRefs ctx width) : Circuit ctx ctx :=
-  .seq (prepare refs) (.seq (roundingArm refs) (.seq (divide refs) (finish refs)))
+def body (refs : BodyRefs ctx width) : Circuit model ctx ctx :=
+  .seq (prepare (model := model) refs) (.seq (roundingArm (model := model) refs) (.seq (divide
+    (model := model) refs) (finish (model := model) refs)))
 
 /-- The three real wider-word writes following the actual normalization prefix. -/
 def prepareStep (refs : BodyRefs ctx width) (store : Store ctx) :
-    Store ctx × (prepare refs).Path :=
-  let normalized := normalizationStep refs.numerator refs.negative refs.magnitude store
-  (((normalized.1.applyOp (resizeMagnitudeOp refs)).applyOp
-    (doubleNumeratorOp refs)).applyOp (resizeDenominatorOp refs),
-      (normalized.2, (((), ()), ())))
+    Store ctx × (prepare (model := model) refs).Path :=
+  let normalized := normalizationStep (model := model) refs.numerator refs.negative refs.magnitude
+    store
+  let resized := BitWord.instructionStep (execution := model) (resizeMagnitudeOp refs) normalized.1
+  let doubled := BitWord.instructionStep (execution := model) (doubleNumeratorOp refs) resized.1
+  let denominator := BitWord.instructionStep (execution := model) (resizeDenominatorOp refs)
+    doubled.1
+  (denominator.1, (normalized.2, ((resized.2, doubled.2), denominator.2)))
 
 /-- Store update and instruction path of the chosen dividend correction. -/
 def correctionStep (refs : BodyRefs ctx width) (flag : CShape.Value .bit) (store : Store ctx) :
-    Store ctx × (correctionChoice refs flag).Path :=
+    Store ctx × (correctionChoice (model := model) refs flag).Path :=
   match flag with
   | .bit false => (store, ())
-  | .bit true => (store.applyOp (correctNumeratorOp refs), ())
+  | .bit true => BitWord.instructionStep (execution := model) (correctNumeratorOp refs) store
 
 /-- Actual chronological stores and selected path in the dividend/divisor preparation. -/
 def roundingStep (refs : BodyRefs ctx width) (store : Store ctx) :
-    Store ctx × (roundingArm refs).Path :=
-  let added := store.applyOp (addDenominatorOp refs)
-  let corrected := correctionStep refs (added.read (writeInput refs.negative)) added
-  (corrected.1.applyOp (doubleDenominatorOp refs),
-    ((), (⟨added.read (writeInput refs.negative), corrected.2⟩, ())))
+    Store ctx × (roundingArm (model := model) refs).Path :=
+  let added := BitWord.instructionStep (execution := model) (addDenominatorOp refs) store
+  let flag := added.1.read (writeInput refs.negative)
+  let corrected := correctionStep (model := model) refs flag added.1
+  let doubled := BitWord.instructionStep (execution := model) (doubleDenominatorOp refs) corrected.1
+  (doubled.1, (added.2, (⟨flag, corrected.2⟩, doubled.2)))
 
 /-- Actual stores and instruction path of the selected quotient-sign restoration. -/
 def restoreStep (refs : BodyRefs ctx width) (flag : CShape.Value .bit) (store : Store ctx) :
-    Store ctx × (restoreChoice refs flag).Path :=
+    Store ctx × (restoreChoice (model := model) refs flag).Path :=
   match flag with
   | .bit false => (store, ())
-  | .bit true => ((store.applyOp (complementOutputOp refs)).applyOp
-      (incrementOutputOp refs), ((), ()))
+  | .bit true =>
+      let complemented := BitWord.instructionStep (execution := model) (complementOutputOp refs)
+        store
+      let incremented := BitWord.instructionStep (execution := model) (incrementOutputOp refs)
+        complemented.1
+      (incremented.1, (complemented.2, incremented.2))
 
 /-- Actual quotient resize followed by the branch that reads the retained sign. -/
 def finishStep (refs : BodyRefs ctx width) (store : Store ctx) :
-    Store ctx × (finish refs).Path :=
-  let resized := store.applyOp (resizeQuotientOp refs)
-  let restored := restoreStep refs (resized.read (writeInput refs.negative)) resized
-  (restored.1, ((), ⟨resized.read (writeInput refs.negative), restored.2⟩))
+    Store ctx × (finish (model := model) refs).Path :=
+  let resized := BitWord.instructionStep (execution := model) (resizeQuotientOp refs) store
+  let flag := resized.1.read (writeInput refs.negative)
+  let restored := restoreStep (model := model) refs flag resized.1
+  (restored.1, (resized.2, ⟨flag, restored.2⟩))
 
 /-- The concrete native store updates and complete path used by the actual division body. -/
-def bodyStep (refs : BodyRefs ctx width) (store : Store ctx) : Store ctx × (body refs).Path :=
-  let prepared := prepareStep refs store
-  let rounded := roundingStep refs prepared.1
-  let divided := rounded.1.applyOp (divideOp refs)
-  let finished := finishStep refs divided
-  (finished.1, (prepared.2, (rounded.2, ((), finished.2))))
+def bodyStep (refs : BodyRefs ctx width) (store : Store ctx) : Store ctx × (body (model := model)
+  refs).Path :=
+  let prepared := prepareStep (model := model) refs store
+  let rounded := roundingStep (model := model) refs prepared.1
+  let divided := BitWord.instructionStep (execution := model) (divideOp refs) rounded.1
+  let finished := finishStep (model := model) refs divided.1
+  (finished.1, (prepared.2, (rounded.2, (divided.2, finished.2))))
 
 end
 

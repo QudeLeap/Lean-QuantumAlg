@@ -742,8 +742,10 @@ def productAccumulatorToInversionProgram
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth) :
-    UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList (productAccumulatorToInversionGates target)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (productAccumulatorToInversionGates target)
 
 /-- Basis-state action of the literal accumulator-to-inversion loader. -/
 def productAccumulatorToInversionStep
@@ -771,7 +773,7 @@ theorem productAccumulatorToInversion_realizes
         Arithmetic.ModularInversion.arithmeticWidth) :
     UnitaryCircuit.Realizes rawEncoding (productAccumulatorToInversionProgram target)
       (productAccumulatorToInversionStep target) :=
-  EncodedBit.Word.xorInto_realizes _ _ _
+  EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty _ _ _
 
 /-- The widened accumulator loader has one CNOT for every Kaliski input bit. -/
 theorem productAccumulatorToInversionGates_length
@@ -1070,11 +1072,11 @@ def sharedProductGates
 /-- Relabeling the direct multiplication schedule preserves its primitive
 event ledger. -/
 theorem multiplicationGates_map_event :
-    multiplicationGates.map EncodedBit.GateSpec.event =
+    multiplicationGates.map (EncodedBit.GateSpec.event .empty) =
       Arithmetic.VariableModularMulSchedule.gates.map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.map_event_relabel
-    Arithmetic.VariableModularMul.registersEquiv _
+    .empty Arithmetic.VariableModularMul.registersEquiv _
 
 /-- Relabeling the direct multiplication schedule preserves its literal
 primitive-list length. -/
@@ -1088,7 +1090,7 @@ theorem multiplicationGates_cnotMultiplicity_sum :
     (multiplicationGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       (Arithmetic.VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum :=
-  EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     multiplicationGates_map_event
 
 /-- Relabeling preserves the direct multiplication Toffoli coordinate. -/
@@ -1096,7 +1098,7 @@ theorem multiplicationGates_toffoliMultiplicity_sum :
     (multiplicationGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (Arithmetic.VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum :=
-  EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     multiplicationGates_map_event
 
 /-- Width-only event bound for the direct shared product schedule. -/
@@ -1158,11 +1160,11 @@ theorem selectedAdditionGates_stepList (bit : Fin params.width)
 
 /-- Relabeling the selected-add schedule preserves its primitive events. -/
 theorem selectedAdditionGates_map_event (bit : Fin params.width) :
-    (selectedAdditionGates bit).map EncodedBit.GateSpec.event =
+    (selectedAdditionGates bit).map (EncodedBit.GateSpec.event .empty) =
       (Arithmetic.VariableModularMul.selectedAddGates bit).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.map_event_relabel
-    Arithmetic.VariableModularMul.registersEquiv _
+    .empty Arithmetic.VariableModularMul.registersEquiv _
 
 /-- Relabeling preserves the selected-add primitive-list length. -/
 theorem selectedAdditionGates_length (bit : Fin params.width) :
@@ -1175,7 +1177,7 @@ theorem selectedAdditionGates_cnotMultiplicity_sum (bit : Fin params.width) :
     ((selectedAdditionGates bit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       8 * params.width + 1 := by
-  rw [EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  rw [EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (selectedAdditionGates_map_event bit)]
   exact Arithmetic.VariableModularMul.selectedAddGates_cnotMultiplicity_sum bit
 
@@ -1193,7 +1195,7 @@ theorem selectedAdditionGates_toffoliMultiplicity_sum_le
     ((selectedAdditionGates bit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       108 * params.width + 14 := by
-  rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  rw [EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (selectedAdditionGates_map_event bit)]
   simpa only [Arithmetic.VariableModularMul.selectedAddCircuit,
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum] using
@@ -1202,8 +1204,8 @@ theorem selectedAdditionGates_toffoliMultiplicity_sum_le
 /-- Lifting a product schedule changes only its physical wire addresses. -/
 theorem sharedProductGates_map_event
     (gates : List (EncodedBit.GateSpec productEncoding)) :
-    (sharedProductGates gates).map EncodedBit.GateSpec.event =
-      gates.map EncodedBit.GateSpec.event := by
+    (sharedProductGates gates).map (EncodedBit.GateSpec.event .empty) =
+      gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold sharedProductGates
   exact (EncodedBit.GateSpec.map_event_prodRight
     Arithmetic.ModularInversion.rawEncoding _).trans
@@ -1616,8 +1618,8 @@ theorem inversionGates_length :
 
 /-- Lifting inversion changes only its wire addresses. -/
 theorem inversionGates_map_event :
-    inversionGates.map EncodedBit.GateSpec.event =
-      Arithmetic.ModularInversion.gates.map EncodedBit.GateSpec.event := by
+    inversionGates.map (EncodedBit.GateSpec.event .empty) =
+      Arithmetic.ModularInversion.gates.map (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.map_event_prodLeft productTailEncoding _
 
 /-- Low inverse-result word inside the physical inversion prefix. -/
@@ -1683,9 +1685,9 @@ theorem divisionGates_cnotMultiplicity_sum :
         EncodedBit.GateSpec.cnotMultiplicity).sum + 2 * params.width +
         (Arithmetic.VariableModularMulSchedule.gates.map
           EncodedBit.GateSpec.cnotMultiplicity).sum := by
-  have hinversion := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hinversion := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     inversionGates_map_event
-  have hproduct := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+  have hproduct := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
     (sharedProductGates_map_event multiplicationGates)
   simp only [divisionGates, List.map_append, List.sum_append,
     List.map_reverse, List.sum_reverse]
@@ -1700,9 +1702,9 @@ theorem divisionGates_toffoliMultiplicity_sum :
         EncodedBit.GateSpec.toffoliMultiplicity).sum +
         (Arithmetic.VariableModularMulSchedule.gates.map
           EncodedBit.GateSpec.toffoliMultiplicity).sum := by
-  have hinversion := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hinversion := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     inversionGates_map_event
-  have hproduct := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+  have hproduct := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
     (sharedProductGates_map_event multiplicationGates)
   simp only [divisionGates, List.map_append, List.sum_append,
     List.map_reverse, List.sum_reverse]
@@ -1889,8 +1891,9 @@ theorem sharedProductGates_productReady
       divisionCoreWithTail core tail) hcore
 
 /-- Circuit compiled from the one literal direct division ledger. -/
-def divisionProgram : UnitaryCircuit (Qubits rawEncoding.width) :=
-  EncodedBit.GateSpec.programList divisionGates
+def divisionProgram : UnitaryCircuit AlgorithmGate.model .empty
+  (QubitLayout.canonical (rawEncoding.width)).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty divisionGates
 
 /-- Total basis action of the literal direct division ledger. -/
 def divisionStep : RawRegisters → RawRegisters :=
@@ -1906,7 +1909,7 @@ theorem divisionGates_stepList (state : RawRegisters) :
 ledger used for resources. -/
 theorem divisionProgram_realizes :
     UnitaryCircuit.Realizes rawEncoding divisionProgram divisionStep :=
-  EncodedBit.GateSpec.realizesList divisionGates
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty divisionGates
 
 /-- The complete literal direct division schedule maps a clean core to the
 quotient-updated clean core while preserving every retained point-addition

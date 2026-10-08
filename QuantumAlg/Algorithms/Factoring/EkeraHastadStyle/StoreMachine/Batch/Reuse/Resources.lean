@@ -29,8 +29,9 @@ noncomputable section
 attribute [local irreducible] NativeBatchReuse.context
 
 /-- Independent native multiplicities include the later sampled batch and full recovery. -/
-def eventEnvelope (N : Nat) : ResourcePool .quantum :=
-  NativeBatchReuse.nativeEnvelope N + LatticeFixedBatchRecoveryMachine.eventEnvelope N
+def eventEnvelope (N : Nat) : ResourcePool RuntimeRound.model :=
+  NativeBatchReuse.nativeEnvelope N +
+    LatticeFixedBatchRecoveryMachine.eventEnvelope (model := RuntimeRound.model) N
 
 /-- Independent sequential depth includes the dependence from sampling through final recovery. -/
 def depthBound (N : Nat) : Nat :=
@@ -39,14 +40,15 @@ def depthBound (N : Nat) : Nat :=
 /-- Recovery retains one factor and temporarily allocates the complete classical workspace. -/
 def tailAdditionalSpace (N : Nat) : SpacePool .quantum :=
   SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) +
-    LatticeFixedBatchRecoveryMachine.additionalSpace N
+    LatticeFixedBatchRecoveryMachine.additionalSpace (model := RuntimeRound.model) N
 
 /-- One bank, every retained result and the full classical recovery fit this parameter budget. -/
 def additionalSpace (N : Nat) : SpacePool .quantum :=
   NativeBatchReuse.additionalSpace N + tailAdditionalSpace N
 
 private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
-    (first : Circuit pre middle) (second : Circuit middle post)
+    (first : Circuit RuntimeRound.model pre middle)
+    (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).resourcePool path =
       first.resourcePool path.1 + second.resourcePool path.2 :=
@@ -54,19 +56,23 @@ private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
 
 private theorem retained_pool_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys)
-    (inner : Circuit (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
-    (budget : ResourcePool .quantum)
+    (inner : Circuit RuntimeRound.model
+      (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
+    (budget : ResourcePool RuntimeRound.model)
     (bounded : ∀ path, inner.resourcePool path ≤ budget)
-    (path : (Circuit.seq (.retain ctx key shape fresh) inner).Path) :
-    (Circuit.seq (.retain ctx key shape fresh) inner).resourcePool path ≤ budget :=
+    (path : (Circuit.seq (.retain (model := RuntimeRound.model) ctx key shape fresh) inner).Path) :
+    (Circuit.seq (.retain (model := RuntimeRound.model) ctx key shape fresh) inner).resourcePool
+        path ≤ budget :=
   bounded path.2
 
 private theorem retained_depth_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys)
-    (inner : Circuit (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
+    (inner : Circuit RuntimeRound.model
+      (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
     (budget : Nat) (bounded : ∀ path, inner.depth (fun _ => 1) path ≤ budget)
-    (path : (Circuit.seq (.retain ctx key shape fresh) inner).Path) :
-    (Circuit.seq (.retain ctx key shape fresh) inner).depth (fun _ => 1) path ≤ budget := by
+    (path : (Circuit.seq (.retain (model := RuntimeRound.model) ctx key shape fresh) inner).Path) :
+    (Circuit.seq (.retain (model := RuntimeRound.model) ctx key shape fresh) inner).depth
+        (fun _ => 1) path ≤ budget := by
   change 0 + inner.depth (fun _ => 1) path.2 ≤ budget
   exact (Nat.zero_add _).le.trans (bounded path.2)
 
@@ -95,12 +101,13 @@ private theorem context_auxiliarySpace (N : Nat) :
 /-- Real retained allocation emits no event, and the full body obeys its independent budget. -/
 theorem tail_pool_le (input : Input N) (path : (tail base input).Path) :
     (tail base input).resourcePool path ≤
-      LatticeFixedBatchRecoveryMachine.eventEnvelope N := by
+      LatticeFixedBatchRecoveryMachine.eventEnvelope (model := RuntimeRound.model) N := by
   unfold tail at path ⊢
   apply retained_pool_le
   intro selected
   unfold body at selected ⊢
-  exact LatticeFixedBatchRecoveryMachine.into_pool_le input (sourceParameter base N)
+  exact LatticeFixedBatchRecoveryMachine.into_pool_le
+    (model := RuntimeRound.model) input (sourceParameter base N)
     (terminals base N) (resultRef base N) selected
 
 /-- Retained allocation adds no event duration to the actual complete recovery dependence. -/
@@ -111,7 +118,8 @@ theorem tail_depth_le (input : Input N) (path : (tail base input).Path) :
   apply retained_depth_le
   intro selected
   unfold body at selected ⊢
-  exact LatticeFixedBatchRecoveryMachine.into_depth_le input
+  exact LatticeFixedBatchRecoveryMachine.into_depth_le
+    (model := RuntimeRound.model) input
     (sourceParameter base N) (terminals base N)
     (resultRef base N) selected
 
@@ -186,10 +194,11 @@ theorem tail_resident_le (input : Input N) (path : (tail base input).Path) :
     change max _ (max (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis + _) 0)
       ≤ (NativeBatchReuse.context base N).residentSpace axis +
         (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
-          LatticeFixedBatchRecoveryMachine.additionalSpace N axis)
+          LatticeFixedBatchRecoveryMachine.additionalSpace (model := RuntimeRound.model) N axis)
     omega
   · unfold body at path ⊢
-    have bound := LatticeFixedBatchRecoveryMachine.into_resident_le input
+    have bound := LatticeFixedBatchRecoveryMachine.into_resident_le
+      (model := RuntimeRound.model) input
       (sourceParameter base N) (terminals base N)
       (resultRef base N) path.2
     intro axis
@@ -197,8 +206,9 @@ theorem tail_resident_le (input : Input N) (path : (tail base input).Path) :
     rw [context_residentSpace] at actual
     change _ ≤ (NativeBatchReuse.context base N).residentSpace axis +
       (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
-        LatticeFixedBatchRecoveryMachine.additionalSpace N axis)
-    change _ ≤ LatticeFixedBatchRecoveryMachine.additionalSpace N axis +
+        LatticeFixedBatchRecoveryMachine.additionalSpace (model := RuntimeRound.model) N axis)
+    change _ ≤ LatticeFixedBatchRecoveryMachine.additionalSpace
+      (model := RuntimeRound.model) N axis +
       (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
         (NativeBatchReuse.context base N).residentSpace axis) at actual
     omega
@@ -217,10 +227,11 @@ theorem tail_auxiliary_le (input : Input N) (path : (tail base input).Path) :
     change max _ (max (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis + _) 0)
       ≤ (NativeBatchReuse.context base N).auxiliarySpace axis +
         (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
-          LatticeFixedBatchRecoveryMachine.additionalSpace N axis)
+          LatticeFixedBatchRecoveryMachine.additionalSpace (model := RuntimeRound.model) N axis)
     omega
   · unfold body at path ⊢
-    have bound := LatticeFixedBatchRecoveryMachine.into_auxiliary_le input
+    have bound := LatticeFixedBatchRecoveryMachine.into_auxiliary_le
+      (model := RuntimeRound.model) input
       (sourceParameter base N) (terminals base N)
       (resultRef base N) path.2
     intro axis
@@ -228,8 +239,9 @@ theorem tail_auxiliary_le (input : Input N) (path : (tail base input).Path) :
     rw [context_auxiliarySpace] at actual
     change _ ≤ (NativeBatchReuse.context base N).auxiliarySpace axis +
       (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
-        LatticeFixedBatchRecoveryMachine.additionalSpace N axis)
-    change _ ≤ LatticeFixedBatchRecoveryMachine.additionalSpace N axis +
+        LatticeFixedBatchRecoveryMachine.additionalSpace (model := RuntimeRound.model) N axis)
+    change _ ≤ LatticeFixedBatchRecoveryMachine.additionalSpace
+      (model := RuntimeRound.model) N axis +
       (SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) axis +
         (NativeBatchReuse.context base N).auxiliarySpace axis) at actual
     omega

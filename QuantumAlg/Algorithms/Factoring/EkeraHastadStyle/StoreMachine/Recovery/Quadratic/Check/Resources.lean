@@ -24,40 +24,60 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Original independent positive-candidate native coordinate allowance. -/
-def positiveEventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def positiveEventEnvelope (shortWidth : Nat) : ResourcePool model :=
   ResourcePool.singleton (.classicalOperation
-      (.wordResize (CandidateWidth shortWidth) (ModulusWidth shortWidth))) +
+      (BitWord.selectedCoordinate (execution := model)
+        (.wordResize (CandidateWidth shortWidth) (ModulusWidth shortWidth)))) +
     (ResourcePool.singleton
-        (.classicalOperation (.wordBinary .lessThan (ModulusWidth shortWidth))) +
+        (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+          (.wordBinary .lessThan (ModulusWidth shortWidth)))) +
       (NatModCheck.eventEnvelope (ModulusWidth shortWidth) (CandidateWidth shortWidth) +
-        ResourcePool.singleton (.classicalOperation (.bit .and))))
+        ResourcePool.singleton (.classicalOperation
+          (BitWord.selectedCoordinate (execution := model) (.bit .and)))))
 
 /-- Original independent decision plus maximum selected-branch coordinate allowance. -/
-def eventEnvelope (shortWidth : Nat) : ResourcePool kind :=
+def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
   ResourcePool.singleton
-      (.classicalOperation (.wordBinary .lessThan (CandidateWidth shortWidth))) +
+      (.classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .lessThan (CandidateWidth shortWidth)))) +
     ResourcePool.max (positiveEventEnvelope shortWidth)
-      (ResourcePool.singleton (.classicalOperation (.bit .xor)))
+      (ResourcePool.singleton (.classicalOperation
+        (BitWord.selectedCoordinate (execution := model) (.bit .xor))))
 
 /-- The original five chronological positive-candidate native operations. -/
-def positiveTrace (shortWidth : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordResize (CandidateWidth shortWidth) (ModulusWidth shortWidth)),
-    .classicalOperation (.wordBinary .lessThan (ModulusWidth shortWidth)),
-    .classicalOperation (.divRem (ModulusWidth shortWidth) (CandidateWidth shortWidth)),
-    .classicalOperation (.wordBinary .equal (CandidateWidth shortWidth)),
-    .classicalOperation (.bit .and)]
+def positiveTrace (shortWidth : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (CandidateWidth shortWidth) (ModulusWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .lessThan (ModulusWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.divRem (ModulusWidth shortWidth) (CandidateWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .equal (CandidateWidth shortWidth))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .and))]
 
 /-- Independent chronological formula selected by the actual recorded lower-bound flag. -/
-def nativeTrace (shortWidth : Nat) (selected : Bool) : List (Resource.Event kind) :=
-  .classicalOperation (.wordBinary .lessThan (CandidateWidth shortWidth)) ::
-    if selected then positiveTrace shortWidth else [.classicalOperation (.bit .xor)]
+def nativeTrace (shortWidth : Nat) (selected : Bool) : List (Resource.Event model) :=
+  .classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordBinary .lessThan (CandidateWidth shortWidth))) ::
+    if selected then positiveTrace shortWidth else
+      [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .xor))]
 
 /-- The actual positive suffix has exactly the original five-instruction trace. -/
 theorem positiveInto_events (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
-    (positiveInto refs).eventTrace path = positiveTrace shortWidth := rfl
+    (positiveInto refs).eventTrace path = positiveTrace shortWidth := by
+  change (BitWord.instruction (execution := model) (widenOp refs)).eventTrace path.1 ++
+    ((BitWord.instruction (execution := model) (belowOp refs)).eventTrace path.2.1 ++
+      ((NatModCheck.into refs.modulusCheck).eventTrace path.2.2.1 ++
+        (BitWord.instruction (execution := model) (combineOp refs)).eventTrace path.2.2.2))
+      = _
+  rw [BitWord.bitWord_instruction_eventTrace, BitWord.bitWord_instruction_eventTrace,
+    NatModCheck.into_events, BitWord.bitWord_instruction_eventTrace]
+  rfl
 
 /-- The actual positive suffix meets the original independent envelope with equality. -/
 theorem positiveInto_resourcePool (refs : Refs ctx shortWidth)
@@ -103,21 +123,42 @@ theorem positiveInto_auxiliary_le (refs : Refs ctx shortWidth) (path : (positive
 
 /-- The positive suffix restores the full borrowed-reference joint state. -/
 theorem positiveInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (positiveInto refs).BorrowedRestored Reference state
       ((positiveInto refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ _) ?_
-  refine Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _) ?_
+  refine Circuit.borrowedRestored_seq _ _ state
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (widenOp refs)) state) ?_
+  refine Circuit.borrowedRestored_seq _ _ _
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (belowOp refs)) _) ?_
   exact Circuit.borrowedRestored_seq _ _ _
     (NatModCheck.into_borrowedRestored refs.modulusCheck Reference _)
-    (Circuit.borrowedRestored_classical (combineOp refs) _)
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (combineOp refs)) _)
 
 /-- The total trace contains its real decision and only the selected branch's native events. -/
 theorem into_events (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path = nativeTrace shortWidth path.2.1.toBool := by
   rcases path with ⟨decision, flag, selected⟩
   cases flag with
-  | bit flag => cases flag <;> rfl
+  | bit flag =>
+      cases flag with
+      | false =>
+          change (BitWord.instruction (execution := model) (rejectOp refs)).Path at selected
+          change (BitWord.instruction (execution := model) (decisionOp refs)).eventTrace
+            decision ++
+              (BitWord.instruction (execution := model) (rejectOp refs)).eventTrace selected = _
+          rw [BitWord.bitWord_instruction_eventTrace,
+            BitWord.bitWord_instruction_eventTrace]
+          rfl
+      | true =>
+          change (positiveInto refs.positiveCheck).Path at selected
+          change (BitWord.instruction (execution := model) (decisionOp refs)).eventTrace
+            decision ++ (positiveInto refs.positiveCheck).eventTrace selected = _
+          rw [BitWord.bitWord_instruction_eventTrace, positiveInto_events]
+          rfl
 
 /-- Actual total-check multiplicities are those of the same selected chronological formula. -/
 theorem into_resourcePool (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
@@ -134,7 +175,7 @@ theorem into_pool_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path)
     exact add_le_add le_rfl (ResourcePool.le_max_right _ _)
   · simp only [nativeTrace, if_true, ResourcePool.ofList_cons]
     have positive : ResourcePool.ofList (positiveTrace shortWidth) =
-        (positiveEventEnvelope shortWidth : ResourcePool kind) := by
+        (positiveEventEnvelope shortWidth : ResourcePool model) := by
       simp only [positiveTrace, positiveEventEnvelope, NatModCheck.eventEnvelope,
         ResourcePool.ofList_cons, ResourcePool.ofList_nil, add_zero, add_assoc]
     rw [positive]
@@ -186,15 +227,20 @@ theorem into_auxiliary_le (refs : TotalRefs ctx shortWidth) (path : (into refs).
 
 /-- Decision and actual selected body restore the complete borrowed-reference joint state. -/
 theorem into_borrowedRestored (refs : TotalRefs ctx shortWidth) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ _) ?_
+  refine Circuit.borrowedRestored_seq _ _ state
+    (Circuit.borrowedRestored_classical
+      (BitWord.selectedApplication (execution := model) (decisionOp refs)) state) ?_
   apply Circuit.borrowedRestored_branch (writeInput refs.greaterThanOne) (arm refs) Reference
   intro flag history _ current
   cases flag with
   | bit flag =>
       cases flag with
-      | false => exact Circuit.borrowedRestored_classical (rejectOp refs) current
+      | false =>
+          exact Circuit.borrowedRestored_classical
+            (BitWord.selectedApplication (execution := model) (rejectOp refs)) current
       | true => exact positiveInto_borrowedRestored refs.positiveCheck Reference current
 
 end

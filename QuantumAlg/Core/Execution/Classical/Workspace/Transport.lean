@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace
+public import QuantumAlg.Core.Algorithm.ClassicalOp
+public import QuantumAlg.Core.Algorithm.ClassicalOp.Input.Map
+public import QuantumAlg.Core.Execution.Store.Read
 import all QuantumAlg.Core.Execution.Classical.Workspace
 import all QuantumAlg.Core.Algorithm.ClassicalOp.Input.Map
 
@@ -19,7 +23,8 @@ and ownership of every writable cell. It introduces no execution semantics.
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- A typed storage lift preserving physical identities and ownership roles. -/
-structure Transport {kind : ProblemKind} (outer inner : RuntimeCtx kind) where
+public structure Transport {kind : ProblemKind} (outer inner : RuntimeCtx kind) where
+  /-- Lift one typed storage reference into the inner workspace context. -/
   liftStorage : ∀ {shape : CShape}, CStorageRef outer shape → CStorageRef inner shape
   liftStorage_key : ∀ {shape : CShape} (ref : CStorageRef outer shape),
     (liftStorage ref).key = ref.key
@@ -29,13 +34,13 @@ structure Transport {kind : ProblemKind} (outer inner : RuntimeCtx kind) where
 namespace Transport
 
 /-- Lift an input by mapping only its storage leaves, retaining all constructors and indices. -/
-def liftInput {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+@[expose] public def liftInput {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (input : CInputRef outer shape) :
     CInputRef inner shape :=
   input.mapStorage transport.liftStorage
 
 /-- The same typed storage map lifts writable references with their existing ownership. -/
-def liftWrite {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+@[expose] public def liftWrite {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (output : CWriteRef outer shape) :
     CWriteRef inner shape where
   toCStorageRef := transport.liftStorage output.toCStorageRef
@@ -44,25 +49,25 @@ def liftWrite {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     exact output.writable
 
 /-- A transported output retains its declared ownership role. -/
-theorem liftWrite_role {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public theorem liftWrite_role {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (output : CWriteRef outer shape) :
     (transport.liftWrite output).toCStorageRef.role = output.toCStorageRef.role :=
   transport.liftStorage_role output.toCStorageRef
 
 /-- A transported output retains its exact physical identity. -/
-theorem liftWrite_key {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public theorem liftWrite_key {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (output : CWriteRef outer shape) :
     (transport.liftWrite output).key = output.key :=
   transport.liftStorage_key output.toCStorageRef
 
 /-- Reading and writing use the same transported storage reference. -/
-theorem liftWrite_input {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public theorem liftWrite_input {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (output : CWriteRef outer shape) :
     transport.liftInput (.storage output.toCStorageRef) =
       .storage (transport.liftWrite output).toCStorageRef := rfl
 
 /-- Structural lifting preserves the complete ordered support of every caller read. -/
-theorem liftInput_storageKeys {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public theorem liftInput_storageKeys {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) {shape : CShape} (input : CInputRef outer shape) :
     (transport.liftInput input).storageKeys = input.storageKeys := by
   induction input with
@@ -77,13 +82,13 @@ theorem liftInput_storageKeys {kind : ProblemKind} {outer inner : RuntimeCtx kin
   | wordBitGet input index ih => exact ih
 
 /-- Structural identity before entering a workspace scope. -/
-def id {kind : ProblemKind} (ctx : RuntimeCtx kind) : Transport ctx ctx where
+public def id {kind : ProblemKind} (ctx : RuntimeCtx kind) : Transport ctx ctx where
   liftStorage := fun ref => ref
   liftStorage_key := fun _ => rfl
   liftStorage_role := fun _ => rfl
 
 /-- Compose structural lifts through nested lexical scopes. -/
-def compose {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
+public def compose {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
     (first : Transport outer middle) (second : Transport middle inner) :
     Transport outer inner where
   liftStorage ref := second.liftStorage (first.liftStorage ref)
@@ -91,7 +96,7 @@ def compose {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
   liftStorage_role ref := (second.liftStorage_role _).trans (first.liftStorage_role ref)
 
 /-- Extend a structural lift through the actual existing workspace instruction. -/
-def underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public def underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys) :
     Transport outer (inner.addWorkspace key shape fresh) where
@@ -100,19 +105,19 @@ def underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx kind}
   liftStorage_role ref := transport.liftStorage_role ref
 
 /-- Identity transport retains the complete caller input expression. -/
-theorem liftInput_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public theorem liftInput_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape) : (id ctx).liftInput input = input :=
   CInputRef.input_mapStorage_id input
 
 /-- Input lifting follows the composition of its typed storage maps. -/
-theorem liftInput_compose {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
+public theorem liftInput_compose {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
     (first : Transport outer middle) (second : Transport middle inner)
     {shape : CShape} (input : CInputRef outer shape) :
     (first.compose second).liftInput input = second.liftInput (first.liftInput input) :=
   CInputRef.input_mapStorage_compose first.liftStorage second.liftStorage input
 
 /-- Lifting through an additional workspace uses the existing structural workspace lift. -/
-theorem liftInput_underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+public theorem liftInput_underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     (transport : Transport outer inner) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ inner.keys) {observed : CShape} (input : CInputRef outer observed) :
     (transport.underWorkspace key shape fresh).liftInput input =
@@ -122,7 +127,7 @@ theorem liftInput_underWorkspace {kind : ProblemKind} {outer inner : RuntimeCtx 
       (CInputRef.input_mapStorage_underWorkspace (transport.liftInput input) key shape fresh)
 
 /-- A transported read avoids exactly the same physical keys as its caller reference. -/
-theorem workspaceTransport_input_avoids_iff {kind : ProblemKind}
+public theorem workspaceTransport_input_avoids_iff {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {shape : CShape} (input : CInputRef outer shape) (key : StorageKey) :
     key ∉ (transport.liftInput input).storageKeys ↔ key ∉ input.storageKeys := by

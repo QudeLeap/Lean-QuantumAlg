@@ -45,7 +45,9 @@ def loadedTarget (refs : LatticeWideLllMachine.Refs ctx N) (store : Store ctx) :
     (LatticeWideLllMachine.sourceSamples refs store)
 
 /-- The full actual initialized LLL driver retains a supplied target-coordinate read. -/
-theorem pairToLllInto_targetFrame (refs : LatticeWideLllMachine.Refs ctx N) (store : Store ctx)
+theorem pairToLllInto_targetFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
+    (refs : LatticeWideLllMachine.Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : TargetInputSeparated refs other) :
     (LatticeWideLllMachine.pairToLllStep refs store).1.read other =
       (LatticeWideLllMachine.decodeTargetStep refs store).1.read other :=
@@ -54,7 +56,8 @@ theorem pairToLllInto_targetFrame (refs : LatticeWideLllMachine.Refs ctx N) (sto
     (LatticeWideLllMachine.decodeTargetStep refs store).1 other separate
 
 /-- All three actually loaded target coordinates survive the original initialized LLL run. -/
-theorem pairToLllInto_preserves_loadedTarget (refs : LatticeWideLllMachine.Refs ctx N)
+theorem pairToLllInto_preserves_loadedTarget {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : LatticeWideLllMachine.Refs ctx N)
     (separation : LatticeWideLllMachine.Separation refs)
     (targetSeparation : TargetPreservationSeparation refs) (store : Store ctx)
     (initial : LatticeWideLllMachine.InitialConditions store refs) :
@@ -87,7 +90,8 @@ structure RunTargetOutcome (refs : LatticeWideLllMachine.Refs ctx N)
     LatticeWideLllMachine.CallerSeparated refs other → after.read other = before.read other
 
 /-- The actual source-to-LLL run returns its original invariant and source target together. -/
-theorem pairToLllInto_correct_target (refs : LatticeWideLllMachine.Refs ctx N)
+theorem pairToLllInto_correct_target {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : LatticeWideLllMachine.Refs ctx N)
     (separation : LatticeWideLllMachine.Separation refs)
     (targetSeparation : TargetPreservationSeparation refs) (store : Store ctx)
     (initial : LatticeWideLllMachine.InitialConditions store refs) :

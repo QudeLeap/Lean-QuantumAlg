@@ -27,14 +27,15 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 private def outcomeEquiv (N : Nat) :
-    (Fin (2 ^ residueSamplingBits N) × OrderFinding.Outcome (phaseBits N)) ≃ SourceOutcome N where
+    (Fin (2 ^ residueSamplingBits N) ×
+      TerminalZMeasure.Outcome (phaseBits N)) ≃ SourceOutcome N where
   toFun pair := ⟨pair.1, pair.2⟩
   invFun outcome := (outcome.sample, outcome.measurement)
   left_inv _ := rfl
   right_inv outcome := by cases outcome; rfl
 
 local instance {N : Nat} : Fintype (SourceOutcome N) :=
-  Fintype.ofEquiv (Fin (2 ^ residueSamplingBits N) × OrderFinding.Outcome (phaseBits N))
+  Fintype.ofEquiv (Fin (2 ^ residueSamplingBits N) × TerminalZMeasure.Outcome (phaseBits N))
     (outcomeEquiv N)
 
 private theorem one_eq {N : Nat} (source : Input N) (weight : SourceOutcome N → ℂ) :
@@ -48,7 +49,7 @@ private theorem one_eq {N : Nat} (source : Input N) (weight : SourceOutcome N �
       (fun outcome => (⟨sample, outcome⟩ : SourceOutcome N))) weight).trans ?_
   change _ = ∑ sample : Fin (2 ^ residueSamplingBits N),
     (((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ : ℂ) *
-      ∑ outcome : OrderFinding.Outcome (phaseBits N),
+      ∑ outcome : TerminalZMeasure.Outcome (phaseBits N),
         weight ⟨sample, outcome⟩ * ((sourceSampleOutcomePMF source sample outcome).toReal : ℂ)
   apply Finset.sum_congr rfl
   intro sample _

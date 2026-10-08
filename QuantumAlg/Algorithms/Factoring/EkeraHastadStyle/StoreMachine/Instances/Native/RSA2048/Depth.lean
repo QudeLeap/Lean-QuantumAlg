@@ -25,25 +25,28 @@ open Execution ShortDLP.CompiledMAU
 noncomputable section
 
 /-- Independent unit-duration ceiling for one selected compiled circuit alone. -/
-def memberCircuitDepthBound : Nat := 823_919_233_128_965
+def memberCircuitDepthBound : Nat := 12_998_238_507_211_787
 
 /-- Complete measured-round ceiling includes measurements, packing, bank correction and reload. -/
-def roundDepthBound : Nat := 823_919_233_149_458
+def roundDepthBound : Nat := 12_998_238_507_232_280
 
 /-- Complete classical batch ceiling includes initialization, all 120 pairs and output packing. -/
 def recoveryDepthBound : Nat := 2_191_863_146_408_850_595
 
 /-- Full serial ceiling for seven sampled and recovered batches followed by actual selection. -/
-def unitDepthBound : Nat := 15_435_320_978_975_325_395
+def unitDepthBound : Nat := 16_798_844_737_672_601_459
 
 /-- The circuit-only scalar is proved from the independent MAU width envelope. -/
 theorem memberCircuitDepthWidthBound_eq :
     compiledCircuitEventUnitDepthWidthBound 1_025 513 2_048 = memberCircuitDepthBound := by
   norm_num [compiledCircuitEventUnitDepthWidthBound, groupActionPrimitiveWidthBound,
-    exponentiationPrimitiveWidthBound, MAU.Multiplication.Accumulate.Gidney.stageEventBound,
+    exponentiationPrimitiveWidthBound, MAU.Exponentiation.Gidney.eventBound,
+    MAU.Exponentiation.Gidney.stageEventBound, MAU.Multiplication.Gidney.eventBound,
+    MAU.Multiplication.Accumulate.Gidney.stageEventBound,
     MAU.Addition.Gidney.modularOffsetEventBound, MAU.Addition.Gidney.pivotEventBound,
     MAU.Addition.Gidney.biFlipEventBound, MAU.Addition.Gidney.comparisonEventBound,
-    MAU.Addition.Gidney.constantOffsetEventBound, ShortDLP.qftUnitDepth, memberCircuitDepthBound]
+    MAU.Addition.Gidney.constantOffsetEventBound, qftPrimitiveBound, Nat.choose_two_right,
+    memberCircuitDepthBound]
 
 /-- The complete measured-round number is obtained from its independent scalar formula. -/
 theorem roundDepthWidthBound_eq :
@@ -59,6 +62,8 @@ theorem recoveryDepthWidthBound_eq :
 
 -- Substitute the proved scalar coordinate width before considering the complete formula.
 attribute [local irreducible] RSA.ShortLogWidths.coordinateWidth
+attribute [local irreducible] NativeFiniteRetry.roundDepthWidthBound
+  NativeFiniteRetry.recoveryDepthWidthBound
 
 /-- Every original fixed key has the stated complete independent seven-batch scalar allowance. -/
 theorem model_scalarDepthBound_eq {N : Nat} (model : FixedWidthModel N) :

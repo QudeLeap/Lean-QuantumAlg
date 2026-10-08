@@ -42,7 +42,7 @@ variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 def exponentRun (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) :
-    AlgorithmRun (before p.size (2 * orderWidth problem))
+    AlgorithmRun (.quantum AlgorithmGate.model .empty) (before p.size (2 * orderWidth problem))
       (exponentMeasurementContext p (orderWidth problem))
       (.fixedVector (2 * orderWidth problem) (.finite 2)) :=
   AlgorithmRun.qubitReadout
@@ -70,7 +70,8 @@ theorem exponentRun_eventWeight (fieldTail : Nat) (sameWidth : fieldTail.succ = 
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register}
-    (input : ExecutionState (Store (before p.size (2 * orderWidth problem)))
+    (input : ExecutionState (Store (before p.size (2 * orderWidth problem)) ×
+      ClassicalOracleModel.empty.HiddenState)
       (Register.prod (before p.size (2 * orderWidth problem)).register Reference))
     (support : ∀ basis,
       ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
@@ -89,20 +90,20 @@ theorem exponentRun_eventWeight (fieldTail : Nat) (sameWidth : fieldTail.succ = 
   have domain : ∀ basis,
       ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
         (exponentPreparedDensity E problem Reference
-          (input.mapClassical (fun store => (store, store))).quantumMarginal).matrix
+          (input.mapClassical (fun value => (value.1, (value.2, value.1)))).quantumMarginal).matrix
             basis basis = 0 := by
     rw [ExecutionState.mapClassical_quantumMarginal]
     exact support
   have computed := preMeasurement_density E fieldTail sameWidth fits odd problem points seed
-    (input.mapClassical (fun store => (store, store))) domain
+    (input.mapClassical (fun value => (value.1, (value.2, value.1)))) domain
   rw [ExecutionState.mapClassical_quantumMarginal] at computed
   have allocated := exponentMeasurementAllocate_density p (orderWidth problem)
     ((preMeasurement E fieldTail odd problem points).execute Reference
-      (input.mapClassical (fun store => (store, store))))
+      (input.mapClassical (fun value => (value.1, (value.2, value.1)))))
   have density :
       (((preMeasurement E fieldTail odd problem points).seq
         (exponentMeasurementAllocate p (orderWidth problem))).execute Reference
-          (input.mapClassical (fun store => (store, store)))).quantumMarginal =
+          (input.mapClassical (fun value => (value.1, (value.2, value.1))))).quantumMarginal =
         exponentRunDensity E fieldTail odd problem points Reference input.quantumMarginal := by
     rw [Circuit.execute_seq, State.mapHistory_quantumMarginal]
     exact allocated.trans (congrArg
@@ -126,7 +127,7 @@ theorem exponentRun_eventProbability (fieldTail : Nat) (sameWidth : fieldTail.su
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register}
-    (input : Execution.Input (before p.size (2 * orderWidth problem)) Reference)
+    (input : Execution.OracleInput .empty (before p.size (2 * orderWidth problem)) Reference)
     (support : ∀ basis,
       ¬Encoding.pairedMontgomeryAllowed E fieldTail sameWidth fits points seed basis.1 →
         (exponentPreparedDensity E problem Reference input.state.quantumMarginal).matrix
@@ -153,11 +154,13 @@ theorem exponentRun_budget (fieldTail : Nat) (odd : Odd p)
           (exponentReadoutCircuit problem).eventCost +
             (2 * orderWidth problem) • ResourcePool.singleton (Circuit.zEvent 2) := by
   change ((preMeasurement E fieldTail odd problem points).Path ×
-    (MeasurementCells.allocate (after p.size (2 * orderWidth problem)) 2
+    (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+      (after p.size (2 * orderWidth problem)) 2
       (2 * orderWidth problem)).Path) × (exponentMeasurements p (orderWidth problem)).Path at path
   change ResourcePool.ofList
     (((preMeasurement E fieldTail odd problem points).eventTrace path.1.1 ++
-      (MeasurementCells.allocate _ 2 (2 * orderWidth problem)).eventTrace path.1.2) ++
+      (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+        _ 2 (2 * orderWidth problem)).eventTrace path.1.2) ++
       (exponentMeasurements p (orderWidth problem)).eventTrace path.2) ≤ _
   rw [MeasurementCells.allocate_eventTrace, List.append_nil, ResourcePool.ofList_append]
   exact ResourcePool.add_mono (preMeasurement_budget E fieldTail odd problem points path.1.1)
@@ -170,15 +173,20 @@ theorem exponentRun_depth (fieldTail : Nat) (odd : Odd p)
     (path : (exponentRun E fieldTail odd problem points).code.Path) :
     (exponentRun E fieldTail odd problem points).code.depth (fun _ => 1) path ≤
       (exponentPreparationCircuit problem).evaluatedEventDepth (fun _ => 1) +
-        (2 + (4 * MAU.Multiplication.Gidney.eventBound p.size +
+        (ResourcePool.weightedCount (fun _ => 1)
+          (ResourcePool.ofList (Allocation.initializationTrace p
+            (2 * orderWidth problem))) +
+          (4 * MAU.Multiplication.Gidney.eventBound p.size +
           (2 * orderWidth problem) * MeasuredPointAddition.depthBound p.size)) +
         (exponentReadoutCircuit problem).evaluatedEventDepth (fun _ => 1) +
           2 * orderWidth problem := by
   change ((preMeasurement E fieldTail odd problem points).Path ×
-    (MeasurementCells.allocate (after p.size (2 * orderWidth problem)) 2
+    (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+      (after p.size (2 * orderWidth problem)) 2
       (2 * orderWidth problem)).Path) × (exponentMeasurements p (orderWidth problem)).Path at path
   change ((preMeasurement E fieldTail odd problem points).depth (fun _ => 1) path.1.1 +
-    (MeasurementCells.allocate _ 2 (2 * orderWidth problem)).depth (fun _ => 1) path.1.2) +
+    (MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
+      _ 2 (2 * orderWidth problem)).depth (fun _ => 1) path.1.2) +
       (exponentMeasurements p (orderWidth problem)).depth (fun _ => 1) path.2 ≤ _
   rw [MeasurementCells.allocate_depth, Nat.add_zero]
   have measured : (exponentMeasurements p (orderWidth problem)).depth (fun _ => 1) path.2 =

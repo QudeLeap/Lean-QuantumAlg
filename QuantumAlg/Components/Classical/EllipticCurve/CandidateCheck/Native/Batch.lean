@@ -29,10 +29,12 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth count : Nat}
 
 /-- One real sample uses precisely the seven original persistent destinations. -/
-def persistentAttempt (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def persistentAttempt {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    Circuit (persistentCtx ctx width scalarWidth) (persistentCtx ctx width scalarWidth) :=
+    Circuit model (persistentCtx ctx width scalarWidth)
+      (persistentCtx ctx width scalarWidth) :=
   attemptInto curve modulus (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
@@ -41,24 +43,34 @@ def persistentAttempt (curve : CurveSpec width) (modulus : ModulusSpec scalarWid
     (persistentSelected ctx width scalarWidth)
 
 /-- Actual fixed-count attempts keep all original samples and reuse the same seven cells. -/
-def repeatedAttempts (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def repeatedAttempts {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    Circuit (persistentCtx ctx width scalarWidth) (persistentCtx ctx width scalarWidth) :=
+    Circuit model (persistentCtx ctx width scalarWidth)
+      (persistentCtx ctx width scalarWidth) :=
   Circuit.forRange count fun index => persistentAttempt curve modulus (samples index) base target
 
 /-- Allocate the original persistent cells once, then execute the original chronological loop. -/
-def recoveryBatch (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def recoveryBatch {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    Circuit ctx (persistentCtx ctx width scalarWidth) :=
+    Circuit model ctx (persistentCtx ctx width scalarWidth) :=
   .seq (retainPersistent ctx width scalarWidth) (repeatedAttempts curve modulus samples base target)
 
 /-- The final original optional result is retained after the complete persistent recovery loop. -/
-def batchResultCtx (ctx : RuntimeCtx kind) (width scalarWidth : Nat) : RuntimeCtx kind :=
-  let inner := persistentCtx ctx width scalarWidth
-  inner.addRetained inner.canonicalFreshKey (.option (.unsignedWord scalarWidth))
-    inner.canonicalFreshKey_fresh
+@[implicit_reducible] def batchResultCtx (ctx : RuntimeCtx kind)
+    (width scalarWidth : Nat) : RuntimeCtx kind :=
+  (persistentCtx ctx width scalarWidth).addRetained
+    (persistentCtx ctx width scalarWidth).canonicalFreshKey
+    (.option (.unsignedWord scalarWidth))
+    (persistentCtx ctx width scalarWidth).canonicalFreshKey_fresh
+
+/-- The final classical result leaves the complete quantum carrier unchanged. -/
+theorem batchResultCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+    (batchResultCtx ctx width scalarWidth).register = ctx.register := by
+  rfl
 
 /-- The original optional output is the actual final retained storage cell. -/
 def batchResultRead (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
@@ -81,16 +93,20 @@ def batchResultOp (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (CWriteRef.retainedHead inner inner.canonicalFreshKey shape inner.canonicalFreshKey_fresh)
 
 /-- Actual result retention precedes the original final option-pack instruction. -/
-def packBatchResult (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
-    Circuit (persistentCtx ctx width scalarWidth) (batchResultCtx ctx width scalarWidth) :=
+def packBatchResult {model : ExecutionModel} [BitWord.Selected model]
+    (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat) :
+    Circuit model (persistentCtx ctx width scalarWidth)
+      (batchResultCtx ctx width scalarWidth) :=
   let inner := persistentCtx ctx width scalarWidth
-  Circuit.retainedStep inner inner.canonicalFreshKey (.option (.unsignedWord scalarWidth))
-    inner.canonicalFreshKey_fresh (batchResultOp ctx width scalarWidth)
+  .seq (.retain inner inner.canonicalFreshKey (.option (.unsignedWord scalarWidth))
+      inner.canonicalFreshKey_fresh)
+    (BitWord.instruction (execution := model) (batchResultOp ctx width scalarWidth))
 
 /-- The complete original fixed-count tail includes the actual final output packing. -/
-def recoveryTail (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def recoveryTail {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
-    (base target : CInputRef ctx (PointShape width)) : Circuit ctx
+    (base target : CInputRef ctx (PointShape width)) : Circuit model ctx
       (batchResultCtx ctx width scalarWidth) :=
   .seq (recoveryBatch curve modulus samples base target) (packBatchResult ctx width scalarWidth)
 

@@ -22,29 +22,38 @@ namespace QuantumAlg.UnitaryCircuit
 
 noncomputable section
 
-private theorem normalized_of_matrix_eq {R : Register} (first second : UnitaryCircuit R)
-    (same : (first.matrix : HilbertOperator R) = (second.matrix : HilbertOperator R))
-    (state : NormalizedVector R) :
+private theorem normalized_of_matrix_eq {gates : GateModel} {oracles : OracleModel}
+    {count : Nat} {layout : QuantumLayout count}
+    (first second : UnitaryCircuit gates oracles layout)
+    (same : (first.matrix : HilbertOperator layout.register) =
+      (second.matrix : HilbertOperator layout.register))
+    (state : NormalizedVector layout.register) :
     first.applyNormalized state = second.applyNormalized state := by
   apply NormalizedVector.ext
   intro index
-  change HilbertOperator.applyVec (first.matrix : HilbertOperator R)
-      (state : HilbertVector R) index =
-    HilbertOperator.applyVec (second.matrix : HilbertOperator R) (state : HilbertVector R) index
+  change HilbertOperator.applyVec (first.matrix : HilbertOperator layout.register)
+      (state : HilbertVector layout.register) index =
+    HilbertOperator.applyVec (second.matrix : HilbertOperator layout.register)
+      (state : HilbertVector layout.register) index
   rw [same]
 
-private theorem iterate_applyNormalized (count : Nat) {R : Register} (body : UnitaryCircuit R)
-    (state : NormalizedVector R) :
+private theorem iterate_applyNormalized {gates : GateModel} {oracles : OracleModel}
+    (count : Nat) {systemCount : Nat} {layout : QuantumLayout systemCount}
+    (body : UnitaryCircuit gates oracles layout)
+    (state : NormalizedVector layout.register) :
     (iterate count body).applyNormalized state = (body.applyNormalized)^[count] state := by
   induction count with
   | zero =>
-    have same : ((iterate 0 body).matrix : HilbertOperator R) =
-        (identity R body.physical_idx body.physical_idx_nodup).matrix := by
+    have same : ((iterate 0 body).matrix : HilbertOperator layout.register) =
+        (identity gates oracles layout).matrix := by
       rw [iterate_matrix, pow_zero, identity_matrix]
-    exact (normalized_of_matrix_eq _ _ same state).trans
-      (applyNormalized_identity R body.physical_idx body.physical_idx_nodup state)
+    refine (normalized_of_matrix_eq _ _ same state).trans ?_
+    apply NormalizedVector.ext
+    intro index
+    change (1 : UnitaryOperator layout.register).applyVec state index = state index
+    rw [UnitaryOperator.one_applyVec]
   | succ count inductionHypothesis =>
-    have same : ((iterate (count + 1) body).matrix : HilbertOperator R) =
+    have same : ((iterate (count + 1) body).matrix : HilbertOperator layout.register) =
         ((iterate count body).seq body).matrix := by
       rw [iterate_matrix, seq_matrix, iterate_matrix, pow_succ']
     rw [normalized_of_matrix_eq _ _ same state, applyNormalized_seq, inductionHypothesis]
@@ -54,7 +63,9 @@ namespace Realizes
 
 /-- Repeating the actual symbolic native circuit repeats its exact encoded semantic action. -/
 theorem iterate {Data : Type} {encoding : BinaryLabelEncoding Data}
-    {body : UnitaryCircuit (Qubits encoding.width)} {step : Data → Data}
+    {gates : GateModel} {oracles : OracleModel}
+    {layout : QubitLayout encoding.width}
+    {body : UnitaryCircuit gates oracles layout.toQuantum} {step : Data → Data}
     (realizes : Realizes encoding body step) (count : Nat) :
     Realizes encoding (UnitaryCircuit.iterate count body) (step^[count]) where
   apply_encoded_ket := by

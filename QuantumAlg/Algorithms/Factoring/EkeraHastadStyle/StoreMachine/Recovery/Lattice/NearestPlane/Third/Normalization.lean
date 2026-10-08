@@ -26,6 +26,9 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual chronological normalization and numerator-sign writes before division. -/
 def signedInputsStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   (numeratorSignStep refs (normalizationStep (writeInput refs.denominator)

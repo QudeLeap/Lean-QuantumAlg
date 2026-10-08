@@ -94,8 +94,10 @@ def copyGates (exponentWidth width : Nat) :
     (fun index => source_target_disjoint exponentWidth width index index)
 
 def copyProgram (exponentWidth width : Nat) :
-    UnitaryCircuit (Qubits (oracleEncoding exponentWidth width).width) :=
-  EncodedBit.GateSpec.programList (copyGates exponentWidth width)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
+    (copyGates exponentWidth width)
 
 private theorem copy_step (exponentWidth width : Nat)
     (state : OracleRegisters exponentWidth width) :
@@ -123,6 +125,7 @@ theorem gidneyExponentCopy_realizes (exponentWidth width : Nat) :
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
       (copyProgram exponentWidth width) unitPowerCopyOutput :=
   (EncodedBit.Word.xorInto_realizes
+    (QubitLayout.canonical _) .empty
     (sourceWord exponentWidth width) (targetWord exponentWidth width)
     (fun index => source_target_disjoint exponentWidth width index index)).congrStep
       (copy_step exponentWidth width)
@@ -136,31 +139,36 @@ theorem gidneyExponentCopy_gate_count (exponentWidth width : Nat) :
 /-- The native ledger consists of precisely width uncontrolled CNOT occurrences. -/
 theorem gidneyExponentCopy_eventCost (exponentWidth width : Nat) :
     (copyProgram exponentWidth width).eventCost =
-      ResourcePool.ofList (List.replicate width (.gate (.builtin "cnot"))) := by
+      ResourcePool.ofList (List.replicate width
+        (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) := by
   rw [copyProgram, EncodedBit.GateSpec.programList_eventCost]
   unfold copyGates EncodedBit.Word.xorIntoGates
   rw [List.map_ofFn]
   change ResourcePool.ofList
-    (List.ofFn fun _ : Fin width => Resource.Event.gate (.builtin "cnot")) = _
+    (List.ofFn fun _ : Fin width =>
+      (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) = _
   rw [List.ofFn_const]
 
 theorem gidneyExponentCopy_serial_resources (exponentWidth width : Nat) :
     (copyProgram exponentWidth width).eventCost.card = width ∧
       (copyProgram exponentWidth width).evaluatedEventDepth (fun _ => 1) = width := by
   constructor
-  · exact (EncodedBit.GateSpec.programList_eventCost_card (copyGates exponentWidth width)).trans
+  · exact (EncodedBit.GateSpec.programList_eventCost_card (QubitLayout.canonical _) .empty
+      (copyGates exponentWidth width)).trans
       (gidneyExponentCopy_gate_count exponentWidth width)
   · exact (EncodedBit.GateSpec.programList_evaluatedEventDepth_unit
-      (copyGates exponentWidth width)).trans (gidneyExponentCopy_gate_count exponentWidth width)
+      (QubitLayout.canonical _) .empty (copyGates exponentWidth width)).trans
+        (gidneyExponentCopy_gate_count exponentWidth width)
 
-theorem gidneyExponentCopy_physical_range (exponentWidth width : Nat) :
-    (copyProgram exponentWidth width).physical_idx ⊆ List.range (exponentWidth + 3 * width) := by
-  have actual := EncodedBit.GateSpec.programList_physical_idx_subset_range
-    (copyGates exponentWidth width)
+/-- The copy occupies the exponent, two multiplication words and XOR target. -/
+theorem gidneyExponentCopy_interface (exponentWidth width : Nat) :
+    (oracleEncoding exponentWidth width).width = exponentWidth + 3 * width ∧
+      (QubitLayout.canonical (oracleEncoding exponentWidth width).width).systemIdx =
+        List.range (exponentWidth + 3 * width) := by
   have size : (oracleEncoding exponentWidth width).width = exponentWidth + 3 * width := by
     change (exponentWidth + (width + width)) + width = exponentWidth + 3 * width
     omega
-  simpa only [size, copyProgram] using actual
+  exact ⟨size, by rw [size]; exact QubitLayout.canonical_systemIdx _⟩
 
 end
 

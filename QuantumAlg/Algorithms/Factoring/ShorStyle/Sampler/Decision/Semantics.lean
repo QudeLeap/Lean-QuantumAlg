@@ -27,70 +27,77 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private def acceptanceChoiceStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (value : CShape.Value .bit)
     (store : Store ctx) : Store ctx ×
-      (if value.toBool then acceptedBody shared scratch gcdResult
-        else .classical (clearWordOp scratch.candidate)).Path :=
+      (if value.toBool then acceptedBody (model := model) shared scratch gcdResult
+        else BitWord.instruction (execution := model) (clearWordOp scratch.candidate)).Path :=
   match value with
-  | .bit false => (store.applyOp (clearWordOp scratch.candidate), ())
-  | .bit true => acceptedStep shared scratch gcdResult store
+  | .bit false => BitWord.instructionStep (execution := model)
+      (clearWordOp scratch.candidate) store
+  | .bit true => acceptedStep (model := model) shared scratch gcdResult store
 
 private theorem acceptanceChoice_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (if value.toBool then acceptedBody shared scratch gcdResult
-      else .classical (clearWordOp scratch.candidate)).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (if value.toBool then acceptedBody (model := model) shared scratch gcdResult
+      else BitWord.instruction (execution := model) (clearWordOp scratch.candidate)).execute
+        Reference state =
         state.mapClassical (fun entry =>
-          ((acceptanceChoiceStep shared scratch gcdResult value entry.1).1,
-            (entry.2, (acceptanceChoiceStep shared scratch gcdResult value entry.1).2))) := by
+          let result := acceptanceChoiceStep (model := model) shared scratch gcdResult value entry.1
+          (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
   | bit bit =>
       cases bit
       · simp only [CShape.Value.toBool, acceptanceChoiceStep]
-        refine (Circuit.execute_classical_mapClassical
-          (clearWordOp scratch.candidate) Reference state).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _
+        refine (BitWord.bitWord_instruction_execute
+          (clearWordOp scratch.candidate) (Reference := Reference) state).trans ?_
+        exact ExecutionState.executionState_mapClassical_congr _ rfl
       · simp only [CShape.Value.toBool, acceptanceChoiceStep]
         refine (decisionAccepted_execute shared scratch gcdResult Reference state).trans ?_
-        congr 1
+        exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual acceptance cell selects the computed GCD arm or one real payload-clearing write. -/
 def acceptanceStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    Store ctx × (chooseAccepted shared scratch gcdResult).Path :=
+    Store ctx × (chooseAccepted (model := model) shared scratch gcdResult).Path :=
   let value := store.read (FirstAccepted.cellRead shared.selector.accepted)
-  let selected := acceptanceChoiceStep shared scratch gcdResult value store
+  let selected := acceptanceChoiceStep (model := model) shared scratch gcdResult value store
   (selected.1, ⟨value, selected.2⟩)
 
 /-- Actual stored acceptance controls the full selected matrix-preserving execution. -/
 theorem decisionAcceptance_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (chooseAccepted shared scratch gcdResult).execute Reference state =
-      state.mapClassical (fun entry => ((acceptanceStep shared scratch gcdResult entry.1).1,
-        (entry.2, (acceptanceStep shared scratch gcdResult entry.1).2))) := by
-  exact Circuit.execute_branch_mapClassical (FirstAccepted.cellRead shared.selector.accepted)
-    (fun value => if value.toBool then acceptedBody shared scratch gcdResult
-      else .classical (clearWordOp scratch.candidate))
-    (acceptanceChoiceStep shared scratch gcdResult)
-    (acceptanceChoice_execute shared scratch gcdResult) Reference state
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (chooseAccepted (model := model) shared scratch gcdResult).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := acceptanceStep (model := model) shared scratch gcdResult entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_branch_mapClassical
+    (FirstAccepted.cellRead shared.selector.accepted) _
+    (fun value before =>
+      let result := acceptanceChoiceStep (model := model) shared scratch gcdResult value before.1
+      ((result.1, before.2), result.2))
+    (fun value reference history _ initial =>
+      (acceptanceChoice_execute shared scratch gcdResult value reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)) Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Forgetting the real branch path exposes exactly the store selected by the acceptance bit. -/
 theorem decisionAcceptance_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
-    (acceptanceStep shared scratch gcdResult store).1 =
+    (acceptanceStep (model := model) shared scratch gcdResult store).1 =
       if (store.read (FirstAccepted.cellRead shared.selector.accepted)).toBool then
-        (acceptedStep shared scratch gcdResult store).1
+        (acceptedStep (model := model) shared scratch gcdResult store).1
       else store.applyOp (clearWordOp scratch.candidate) := by
   cases value : store.read (FirstAccepted.cellRead shared.selector.accepted) with
   | bit bit =>
@@ -102,62 +109,71 @@ private def packedTailStep (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
-    Store ctx × (Circuit.seq (chooseAccepted shared scratch gcdResult)
-      (.classical (packOp shared scratch output))).Path :=
-  let selected := acceptanceStep shared scratch gcdResult store
-  (selected.1.applyOp (packOp shared scratch output), (selected.2, ()))
+    Store ctx × (Circuit.seq (chooseAccepted (model := model) shared scratch gcdResult)
+      (BitWord.instruction (execution := model) (packOp shared scratch output))).Path :=
+  let selected := acceptanceStep (model := model) shared scratch gcdResult store
+  let packed := BitWord.instructionStep (execution := model)
+    (packOp shared scratch output) selected.1
+  (packed.1, (selected.2, packed.2))
 
 private theorem packedTail_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (Circuit.seq (chooseAccepted shared scratch gcdResult)
-      (.classical (packOp shared scratch output))).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (chooseAccepted (model := model) shared scratch gcdResult)
+      (BitWord.instruction (execution := model) (packOp shared scratch output))).execute
+        Reference state =
         state.mapClassical (fun entry =>
-          ((packedTailStep shared scratch gcdResult output entry.1).1,
-          (entry.2, (packedTailStep shared scratch gcdResult output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (chooseAccepted shared scratch gcdResult)
-    (.classical (packOp shared scratch output)) (acceptanceStep shared scratch gcdResult)
-    (fun store => (store.applyOp (packOp shared scratch output), ()))
+          let result := packedTailStep (model := model) shared scratch gcdResult output entry.1
+          (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (chooseAccepted (model := model) shared scratch gcdResult)
+    (BitWord.instruction (execution := model) (packOp shared scratch output))
+    (fun entry =>
+      let result := acceptanceStep (model := model) shared scratch gcdResult entry.1
+      ((result.1, entry.2), result.2))
+    (fun entry =>
+      let result := BitWord.instructionStep (execution := model)
+        (packOp shared scratch output) entry.1
+      ((result.1, entry.2), result.2))
     (decisionAcceptance_execute shared scratch gcdResult)
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical
-        (packOp shared scratch output) reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
+    (fun reference {_} _ initial =>
+      (BitWord.bitWord_instruction_execute (packOp shared scratch output)
+        (Reference := reference) initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl))
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Store and actual nested instruction path of the complete decision and parameter write. -/
 def step (shared : Proposal.SharedRefs ctx width) (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
-    Store ctx × (circuit shared scratch gcdResult output).Path :=
-  let final := packedTailStep shared scratch gcdResult output
-    (initializationStore shared scratch store)
-  (final.1, (((), ((), ((), ()))), final.2))
+    Store ctx × (circuit (model := model) shared scratch gcdResult output).Path :=
+  let initialized := initializationStep (model := model) shared scratch store
+  let final := packedTailStep (model := model) shared scratch gcdResult output initialized.1
+  (final.1, (initialized.2, final.2))
 
 /-- The complete decision preserves every reference correlation under its exact store map. -/
 theorem decision_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (circuit shared scratch gcdResult output).execute Reference state =
-      state.mapClassical (fun entry => ((step shared scratch gcdResult output entry.1).1,
-        (entry.2, (step shared scratch gcdResult output entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (initializeBody shared scratch) _
-    (fun store => (initializationStore shared scratch store, ((), ((), ((), ())))))
-    (packedTailStep shared scratch gcdResult output)
-    (fun reference {_} _ initial => by
-      refine (decisionInitialization_execute shared scratch reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (circuit (model := model) shared scratch gcdResult output).execute Reference state =
+      state.mapClassical (fun entry =>
+        let result := step (model := model) shared scratch gcdResult output entry.1
+        (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
+  refine (Circuit.execute_seq_mapClassical (initializeBody (model := model) shared scratch) _
+    (fun entry =>
+      let result := initializationStep (model := model) shared scratch entry.1
+      ((result.1, entry.2), result.2))
+    (fun entry =>
+      let result := packedTailStep (model := model) shared scratch gcdResult output entry.1
+      ((result.1, entry.2), result.2))
+    (decisionInitialization_execute shared scratch)
     (packedTail_execute shared scratch gcdResult output) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

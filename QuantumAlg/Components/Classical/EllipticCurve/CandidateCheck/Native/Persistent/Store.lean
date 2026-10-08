@@ -41,7 +41,8 @@ def persistentInitialStore (width scalarWidth : Nat) (before : Store ctx) :
     (persistentCandidateCtx ctx scalarWidth).canonicalFreshKey_fresh)
 
 /-- The actual allocation record includes all seven literal retain paths. -/
-def persistentAllocationStep (width scalarWidth : Nat) (before : Store ctx) :
+def persistentAllocationStep {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} (width scalarWidth : Nat) (before : Store ctx) :
     Store (persistentCtx ctx width scalarWidth) × (retainPersistent ctx width scalarWidth).Path :=
   (persistentInitialStore width scalarWidth before, (((), ((), ((), ((), ())))), ((), ())))
 

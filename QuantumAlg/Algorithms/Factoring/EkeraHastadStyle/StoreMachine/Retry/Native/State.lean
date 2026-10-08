@@ -40,7 +40,7 @@ def restoredSeed : (context base noQuantum N count).register.Index :=
 /-- Every actual vector block is its original probability times the full seed-reference target. -/
 theorem output_joint_entry (specification : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (selected : (CShape.fixedVector (count + 1)
       (LatticeBatchRecoveryOutput.OutputShape N)).Value)
     (left right : (context base noQuantum N count).register.Index)
@@ -72,7 +72,8 @@ theorem output_joint_entry (specification : Input N)
 /-- The complete mixed seed-reference promise includes unsupported observed factor vectors. -/
 theorem output_statePromise (specification : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference History) (normalized : state.IsNormalized)
+    (state : State base Reference (RuntimeRound.model.HiddenState × History))
+    (normalized : state.IsNormalized)
     (selected : (CShape.fixedVector (count + 1)
       (LatticeBatchRecoveryOutput.OutputShape N)).Value) :
     (StatePromise.mixed

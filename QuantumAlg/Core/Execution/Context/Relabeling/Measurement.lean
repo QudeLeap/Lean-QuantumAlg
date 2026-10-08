@@ -6,10 +6,12 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Base.Model
 import all QuantumAlg.Core.Execution.Context.Relabeling.Local
 import all QuantumAlg.Core.Execution.Context.Relabeling.State
 import all QuantumAlg.Core.Execution.Context.Union.Measurement
 import all QuantumAlg.Core.Execution.State.Coordinate.Measurement
+import all QuantumAlg.Core.Execution.Interpret
 
 /-!
 # Actual Z outcomes and writes under injective placement
@@ -56,7 +58,7 @@ theorem measurement_write (original : Store source)
       (writable keys physical output) outcome).symm
 
 /-- The existing interpreter preserves the full conditional state and actual written outcome. -/
-theorem state_measureZ {Reference : Register} {H : Type} [Fintype H]
+private theorem state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference H)
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
     (state keys physical (original.measureZ wire output)).mapHistory
@@ -110,9 +112,32 @@ theorem state_measureZ {Reference : Register} {H : Type} [Fintype H]
   intro label
   apply DensityOperator.ext
   simp only [ExecutionState.mapClassical_block_matrix]
-  apply Finset.sum_congr rfl
-  intro entry _
-  split_ifs <;> rfl
+
+/-- Actual Z execution retains the persistent service on the prescribed mapped systems. -/
+theorem state_measureZ {gates : GateModel} {oracles : OracleModel}
+    {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    {Reference : Register} {H : Type} [Fintype H]
+    (original : State source Reference (services.HiddenState × H))
+    (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
+    (state keys physical ((Circuit.measureZ (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := services) wire output).execute
+        Reference original)).mapHistory (fun record =>
+          (record.1, (record.2.1, measurementOutcome source keys physical wire record.2.2))) =
+      (Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+        (classicalOracles := services) (positions source keys physical wire)
+        (measurement source keys physical wire output)).execute Reference
+          (state keys physical original) := by
+  have measured := congrArg
+    (fun value : State (source.relabel keys physical) Reference ((services.HiddenState × H) ×
+        Fin ((source.relabel keys physical).quantumLayout.wire
+          (positions source keys physical wire)).dimension) =>
+      value.mapHistory (fun record => (record.1.1, (record.1.2, record.2))))
+    (state_measureZ_raw source keys physical wire original output)
+  dsimp only [Circuit.execute, interpret, preserveService]
+  erw [state_mapHistory]
+  simp only [State.mapHistory_comp, Function.comp_def] at measured ⊢
+  erw [measured]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

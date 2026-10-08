@@ -24,7 +24,8 @@ open Execution ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Only the actual result can change among the pre-existing structural reads. -/
 theorem read_other (source : Input N)
@@ -33,7 +34,7 @@ theorem read_other (source : Input N)
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (step source base order output store).1.read other = store.read other := by
+    (step (model := model) source base order output store).1.read other = store.read other := by
   let entered := store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (phaseBits N + 1))
     ctx.canonicalFreshKey_fresh
   let shifted := entered.applyOp (shiftOp order)
@@ -49,7 +50,8 @@ theorem read_other (source : Input N)
       (liftInput (N := N) other).storageKeys := by
     rw [otherKeys]
     exact separate
-  have powerSame := Modular.NativePower.nativePower_into_read_other (modulusSpec source)
+  have powerSame := Modular.NativePower.nativePower_into_read_other (model := model)
+    (modulusSpec source)
     (liftInput base) (.storage (halfRef ctx N).toCStorageRef) (liftWrite output)
     shifted (liftInput other) outputFree
   have shiftedSame := Store.read_applyOp_of_not_mem_storageKeys entered (shiftOp order)
@@ -58,7 +60,7 @@ theorem read_other (source : Input N)
     (.unsignedWord (phaseBits N + 1)) ctx.canonicalFreshKey_fresh other
   have exited := Store.read_popWorkspace_underWorkspace ctx.canonicalFreshKey
     (.unsignedWord (phaseBits N + 1)) ctx.canonicalFreshKey_fresh
-    (Modular.NativePower.intoStep (modulusSpec source) (liftInput base)
+    (Modular.NativePower.intoStep (model := model) (modulusSpec source) (liftInput base)
       (.storage (halfRef ctx N).toCStorageRef) (liftWrite output) shifted).1 other
   exact exited.trans (powerSame.trans (shiftedSame.trans enteredSame))
 

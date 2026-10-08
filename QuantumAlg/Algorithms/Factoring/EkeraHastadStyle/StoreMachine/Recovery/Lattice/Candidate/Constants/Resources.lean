@@ -18,18 +18,23 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native zero initialization and original initialized upper-bound formula. -/
-def loadTrace (m width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .bitXor width)] ++
+def loadTrace (m width : Nat) : List (Resource.Event model) :=
+  [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+    (.wordBinary .bitXor width))] ++
     ClassicalRoutines.Word.PowerOfTwo.powerTrace width m
 
 /-- Every actual shared-constant path emits the complete independent native formula. -/
 theorem loadInto_events (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
-    (loadInto m refs).eventTrace path = loadTrace m width :=
-  congrArg₂ List.append rfl
-    (ClassicalRoutines.Word.PowerOfTwo.into_events m refs.upperBound path.2)
+    (loadInto m refs).eventTrace path = loadTrace m width := by
+  change (BitWord.instruction (execution := model)
+    (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero)).eventTrace path.1 ++ _ = _
+  rw [BitWord.bitWord_instruction_eventTrace,
+    ClassicalRoutines.Word.PowerOfTwo.into_events m refs.upperBound path.2]
+  rfl
 
 /-- Actual native multiplicities count zeroing, upper-bound initialization and every shift. -/
 theorem loadInto_resourcePool (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
@@ -54,7 +59,8 @@ theorem loadInto_depth (m : Nat) (refs : Refs ctx width) (path : (loadInto m ref
 
 /-- Actual constant initialization restores the complete original borrowed-reference joint state. -/
 theorem loadInto_borrowedRestored (m : Nat) (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (loadInto m refs).BorrowedRestored Reference state
       ((loadInto m refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
@@ -62,7 +68,8 @@ theorem loadInto_borrowedRestored (m : Nat) (refs : Refs ctx width) (Reference :
 
 /-- Every actual initialization instruction and shift retains the original supplied context. -/
 theorem loadInto_visited (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (loadInto m refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (loadInto m refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ [ctx] ++
     (ClassicalRoutines.Word.PowerOfTwo.into m refs.upperBound).visitedContexts path.2 at present

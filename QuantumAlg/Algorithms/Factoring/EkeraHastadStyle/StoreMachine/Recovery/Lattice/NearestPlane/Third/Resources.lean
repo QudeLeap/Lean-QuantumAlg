@@ -26,55 +26,53 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent nineteen-native-instruction formula for cross product and two dots. -/
-def prefixTrace (width : Nat) : List (Resource.Event kind) :=
-  [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .add width)]
+def prefixTrace (width : Nat) : List (Resource.Event model) :=
+  ([.wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .sub width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .mulLow width, .wordBinary .add width,
+    .wordBinary .mulLow width, .wordBinary .add width] :
+    List Resource.ClassicalOpLabel).map
+      (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Independent actual normalization/division/reduction formula with recorded branch flags. -/
 def normalizationTrace (width : Nat) (magnitudeNegative numeratorNegative
-    divisionMagnitude divisionCorrection divisionRestore : Bool) : List (Resource.Event kind) :=
+    divisionMagnitude divisionCorrection divisionRestore : Bool) : List (Resource.Event model) :=
   (signTrace width ++ magnitudeTrace width magnitudeNegative) ++
     ((if numeratorNegative then
-      [.classicalOperation (.wordUnary .complement width),
-        .classicalOperation (.wordUnary .increment width)] else []) ++
+      ([.wordUnary .complement width, .wordUnary .increment width] :
+        List Resource.ClassicalOpLabel).map
+        (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
+      else []) ++
       (RoundedDiv.bodyTrace width divisionMagnitude divisionCorrection divisionRestore ++
-        [.classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width)]))
+        ([.wordBinary .mulLow width, .wordBinary .sub width,
+          .wordBinary .mulLow width, .wordBinary .sub width,
+          .wordBinary .mulLow width, .wordBinary .sub width] :
+          List Resource.ClassicalOpLabel).map
+          (fun label => .classicalOperation
+            (BitWord.selectedCoordinate (execution := model) label))))
 
 /-- Independent full-phase native formula for the real recorded flags. -/
 def phaseTrace (width : Nat) (magnitudeNegative numeratorNegative
-    divisionMagnitude divisionCorrection divisionRestore : Bool) : List (Resource.Event kind) :=
+    divisionMagnitude divisionCorrection divisionRestore : Bool) : List (Resource.Event model) :=
   prefixTrace width ++ normalizationTrace width magnitudeNegative numeratorNegative
     divisionMagnitude divisionCorrection divisionRestore
 
 /-- Every actual metric-prefix path has the independent nineteen-instruction trace. -/
 theorem thirdMetricPrefixInto_events (refs : Refs ctx width)
     (path : (thirdMetricPrefixInto refs).Path) :
-    (thirdMetricPrefixInto refs).eventTrace path = prefixTrace width := rfl
+    (thirdMetricPrefixInto refs).eventTrace path = prefixTrace width := by
+  unfold thirdMetricPrefixInto at path ⊢
+  change _ ++ (_ ++ _) = _
+  rw [LatticeCross.pointCrossInto_events, LatticeDotRefresh.refreshInto_events,
+    LatticeDotRefresh.refreshInto_events]
+  rfl
 
 /-- The actual suffix events match the independent formula and recorded branch flags. -/
 theorem thirdNormalizeInto_events (refs : Refs ctx width)
@@ -128,7 +126,7 @@ theorem thirdNormalizeInto_eventCount_le (refs : Refs ctx width)
 theorem thirdInto_eventCount_le (refs : Refs ctx width) (path : (thirdInto refs).Path) :
     ((thirdInto refs).eventTrace path).length ≤ 43 := by
   have suffix := thirdNormalizeInto_eventCount_le refs path.2
-  have prefixLength : (prefixTrace (kind := kind) width).length = 19 := rfl
+  have prefixLength : (prefixTrace (model := model) width).length = 19 := rfl
   change List.length (_ ++ _) ≤ 43
   rw [List.length_append, thirdMetricPrefixInto_events, prefixLength]
   omega
@@ -164,7 +162,7 @@ theorem thirdInto_depth_le (refs : Refs ctx width) (path : (thirdInto refs).Path
 
 /-- Every actual suffix stage restores the complete borrowed interface on its incoming state. -/
 theorem thirdNormalizeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (thirdNormalizeInto refs).BorrowedRestored Reference state
       ((thirdNormalizeInto refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
@@ -177,7 +175,7 @@ theorem thirdNormalizeInto_borrowedRestored (refs : Refs ctx width) (Reference :
 
 /-- The full actual third phase restores borrowed correlations jointly with external references. -/
 theorem thirdInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (thirdInto refs).BorrowedRestored Reference state
       ((thirdInto refs).execute Reference state) := by
   exact Circuit.borrowedRestored_seq _ _ state
@@ -191,7 +189,7 @@ theorem thirdMetricPrefixInto_visited (refs : Refs ctx width)
 
 /-- The actual sign-normalizing suffix visits only the original supplied context. -/
 theorem thirdNormalizeInto_visited (refs : Refs ctx width)
-    (path : (thirdNormalizeInto refs).Path) (visited : RuntimeCtx kind)
+    (path : (thirdNormalizeInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (thirdNormalizeInto refs).visitedContexts path) : visited = ctx := by
   rcases path with ⟨normalizationPath, signPath, divisionPath, reductionPath⟩
   change visited ∈ (_ ++ (_ ++ (_ ++ _))) at present
@@ -209,7 +207,7 @@ theorem thirdNormalizeInto_visited (refs : Refs ctx width)
 
 /-- The complete actual third phase visits only the original caller context. -/
 theorem thirdInto_visited (refs : Refs ctx width) (path : (thirdInto refs).Path)
-    (visited : RuntimeCtx kind) (present : visited ∈ (thirdInto refs).visitedContexts path) :
+    (visited : RuntimeCtx model.kind) (present : visited ∈ (thirdInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ _) at present
   rcases List.mem_append.mp present with metric | suffix

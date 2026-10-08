@@ -97,13 +97,16 @@ theorem gates_step (width : Nat) (state : Registers width) :
       rfl
 
 /-- Compile those actual CNOT gates at the original supplied quotient/Phase1 coordinates. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  GateSpec.programList (gates width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact all-label realization of the same native complement circuit. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) step :=
-  GateSpec.realizesList_congrStep _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width) (gates_step width)
 
 /-- Two complements restore every field, including the complete finite quotient word. -/
 theorem step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
@@ -119,15 +122,12 @@ theorem complement_increment (width : Nat) (word : BitVec width) :
 /-- Every quotient bit contributes one actual CNOT occurrence, including unused control branches. -/
 theorem program_eventTrace (width : Nat) :
     (program width).eventTrace =
-      List.replicate width.size (.gate (.builtin "cnot")) := by
+      List.replicate width.size (.gate .cnot) := by
   rw [program, GateSpec.programList_eventTrace]
-  simp only [gates, Word.xorIntoGates, List.map_ofFn, Function.comp_def, GateSpec.event,
-    List.ofFn_const]
-
-/-- The actual complement uses only the already allocated complete frame. -/
-theorem program_physical_idx_subset (width : Nat) :
-    (program width).physical_idx ⊆ List.range (encoding width).width :=
-  GateSpec.programList_physical_idx_subset_range _
+  simp only [gates, Word.xorIntoGates, List.map_ofFn, Function.comp_def]
+  change (List.ofFn fun _ : Fin width.size =>
+    (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) = _
+  exact List.ofFn_const width.size _
 
 end
 

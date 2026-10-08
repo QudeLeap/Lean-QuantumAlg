@@ -38,7 +38,8 @@ def checkedContext (problem : KnownOrderProblem E.GroupPoint) : RuntimeCtx .quan
 def exponentCheckedRun (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (nontrivial : 2 ≤ problem.order) :
-    AlgorithmRun (PublicInput.before E (orderWidth problem)) (checkedContext E problem)
+    AlgorithmRun (.quantum AlgorithmGate.model .empty BitWord.model)
+      (PublicInput.before E (orderWidth problem)) (checkedContext E problem)
       (.option (.unsignedWord (orderWidth problem))) :=
   let measured := inputLeft (PublicInput.terminal_disjoint E (orderWidth problem))
     (QubitReadouts.input (exponentMeasurementCells p (orderWidth problem)))
@@ -47,7 +48,8 @@ def exponentCheckedRun (fieldTail : Nat) (odd : Odd p)
     (fun _ : Fin 1 => rawRecoveryInput problem measured)
     (PublicInput.terminalBaseRef E (orderWidth problem))
     (PublicInput.terminalTargetRef E (orderWidth problem))
-  { code := (PublicInput.exponentRun E fieldTail odd problem points).code.seq tail.code
+  { code := (BitWord.selectForCircuit
+      (PublicInput.exponentRun E fieldTail odd problem points).code).seq tail.code
     output := tail.output }
 
 end

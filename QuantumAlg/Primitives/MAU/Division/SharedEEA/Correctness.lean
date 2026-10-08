@@ -28,6 +28,11 @@ noncomputable section
 open NumberTheory.SharedEEA
 open Inversion.SharedEEA
 
+/-- Canonical physical ket for an encoded complete division frame. -/
+private def frameKet (width : Nat) (label : Fin (2 ^ (frameEncoding width).width)) :=
+  NormalizedVector.ket
+    ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm label)
+
 /-- Independent quotient accumulation using the canonical mathematical inverse. -/
 def output (modulus : Nat) (modulusPositive : 0 < modulus) (input : Nat)
     (numerator target : Fin (2 ^ modulus.size)) : Fin (2 ^ modulus.size) :=
@@ -41,10 +46,10 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
+        (frameKet modulus.size
           ((frameEncoding modulus.size).encode
             (InitialFrame.initial modulus input, numerator, target))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
+      frameKet modulus.size
         ((frameEncoding modulus.size).encode
           (InitialFrame.initial modulus input, numerator,
             output modulus (by omega) input.val numerator target)) := by
@@ -53,9 +58,11 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
   let result := output modulus (by omega) input.val numerator target
   have forward (value : Fin (2 ^ modulus.size)) :
       (forwardProgram modulus nontrivial).applyNormalized
-          (NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, numerator, value))) =
-        NormalizedVector.ket ((frameEncoding modulus.size).encode (computed, numerator, value)) :=
-    UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+          (frameKet modulus.size
+            ((frameEncoding modulus.size).encode (initial, numerator, value))) =
+        frameKet modulus.size
+          ((frameEncoding modulus.size).encode (computed, numerator, value)) :=
+    UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
       (Inversion.SharedEEA.encoding modulus.size)
       (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity modulus.size)
         (BinaryLabelEncoding.finIdentity modulus.size))
@@ -63,10 +70,11 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have accumulated :
       (middleProgram modulus.size (Accumulate.fittedModulus modulus)).applyNormalized
-          (NormalizedVector.ket
+          (frameKet modulus.size
             ((frameEncoding modulus.size).encode (computed, numerator, target))) =
-        NormalizedVector.ket
+        frameKet modulus.size
           ((frameEncoding modulus.size).encode (computed, numerator, result)) := by
+    unfold frameKet
     rw [(divisionMiddle_realizes modulus.size (Accumulate.fittedModulus modulus)).apply_encoded_ket]
     have fields : middleStep modulus.size (Accumulate.fittedModulus modulus)
         (computed, numerator, target) =
@@ -83,15 +91,20 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
           rfl
     rw [fields]
   have restored :
-      (forwardProgram modulus nontrivial).dagger.applyNormalized
-          (NormalizedVector.ket
+      ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+          (frameKet modulus.size
             ((frameEncoding modulus.size).encode (computed, numerator, result))) =
-        NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, numerator, result)) :=
-    (congrArg (forwardProgram modulus nontrivial).dagger.applyNormalized
+        frameKet modulus.size ((frameEncoding modulus.size).encode (initial, numerator, result)) :=
+    (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
       (forward result)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
-        (NormalizedVector.ket ((frameEncoding modulus.size).encode (initial, numerator, result))))
+        ((forwardProgram modulus nontrivial).dagger
+          (AlgorithmGate.oracleFreeAdjoints .empty))
+        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (frameKet modulus.size ((frameEncoding modulus.size).encode (initial, numerator, result))))
   exact UnitaryCircuit.applyNormalized_seq_of_eq (forward target)
     (UnitaryCircuit.applyNormalized_seq_of_eq accumulated restored)
 
@@ -102,10 +115,10 @@ theorem divisionProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     let numeratorWord := Accumulate.residueWord modulus (by omega) numerator
     let targetWord := Accumulate.residueWord modulus (by omega) target
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
+        (frameKet modulus.size
           ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
             numeratorWord, targetWord))) =
-      NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
+      frameKet modulus.size
         ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord, numeratorWord,
           output modulus (by omega) inputWord.val numeratorWord targetWord)) := by
   let : NeZero modulus := ⟨by omega⟩
@@ -120,15 +133,19 @@ theorem divisionProgram_reference {Reference : Type} (reference : BinaryLabelEnc
     (input numerator target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) (retained : Reference) :
-    (UnitaryCircuit.prodLeft (n := reference.width) (program modulus nontrivial)).applyNormalized
+    (UnitaryCircuit.onBinaryPrefix reference.width (program modulus nontrivial)).applyNormalized
         (NormalizedVector.ket
-          ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
-            ((InitialFrame.initial modulus input, numerator, target), retained))) =
+          ((QubitLayout.canonical
+            (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm
+            ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
+              ((InitialFrame.initial modulus input, numerator, target), retained)))) =
       NormalizedVector.ket
-        ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
-          ((InitialFrame.initial modulus input, numerator,
-            output modulus (by omega) input.val numerator target), retained)) :=
-  UnitaryCircuit.Realizes.prodLeft_applyNormalized_encoded_ket_of_eq
+        ((QubitLayout.canonical
+          (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm
+          ((BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).encode
+            ((InitialFrame.initial modulus input, numerator,
+              output modulus (by omega) input.val numerator target), retained))) :=
+  UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
     (frameEncoding modulus.size) reference (program modulus nontrivial) _ _ retained
     (divisionProgram_initial modulus nontrivial input numerator target coprime positive bounded
       targetBounded)

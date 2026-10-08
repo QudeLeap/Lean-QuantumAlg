@@ -41,13 +41,17 @@ private theorem visited_spaces {shape : CShape} (parameter : CInputRef ctx shape
       (code m ell width sameWires parameter N generator target cells result).visitedContexts path) :
     frame.residentSpace ≤ SpacePool.ofShape (.finite 2) + ctx.residentSpace ∧
       frame.auxiliarySpace ≤ SpacePool.ofShape (.finite 2) + ctx.auxiliarySpace := by
-  change frame ∈ [ctx] ++
-    ((Circuit.measurementSequence (readouts m ell width sameWires cells)).visitedContexts
-      path.2.1 ++ ([ctx] ++
-        (Circuit.visitedContexts (ZReset.BankScope.code
-          (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires))
-          path.2.2.2.1 ++ [ctx]))) at present
-  simp only [List.mem_append, List.mem_singleton] at present
+  change frame ∈ List.append (α := RuntimeCtx .quantum) [ctx]
+    (List.append (α := RuntimeCtx .quantum)
+      ((Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := .empty)
+        (operations := BitWord.model) (classicalOracles := .empty)
+        (readouts m ell width sameWires cells)).visitedContexts path.2.1)
+      (List.append (α := RuntimeCtx .quantum) [ctx]
+        (List.append (α := RuntimeCtx .quantum)
+          (Circuit.visitedContexts (ZReset.BankScope.code
+            (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) BitWord.model)
+            path.2.2.2.1) [ctx]))) at present
+  simp only [List.append_eq, List.mem_append, List.mem_singleton] at present
   rcases present with same | measured | same | reset | same
   · subst frame
     exact parent_space
@@ -58,9 +62,11 @@ private theorem visited_spaces {shape : CShape} (parameter : CInputRef ctx shape
   · subst frame
     exact parent_space
   · exact ⟨(Circuit.residentSpace_le_peak_of_visited _ path.2.2.2.1 frame reset).trans_eq
-      (ZReset.BankScope.zResetBankScope_peakResidentSpace _ path.2.2.2.1),
+      (ZReset.BankScope.zResetBankScope_peakResidentSpace
+        (operations := BitWord.model) _ path.2.2.2.1),
       (Circuit.auxiliarySpace_le_peak_of_visited _ path.2.2.2.1 frame reset).trans_eq
-      (ZReset.BankScope.zResetBankScope_peakAuxiliarySpace _ path.2.2.2.1)⟩
+      (ZReset.BankScope.zResetBankScope_peakAuxiliarySpace
+        (operations := BitWord.model) _ path.2.2.2.1)⟩
   · subst frame
     exact parent_space
 

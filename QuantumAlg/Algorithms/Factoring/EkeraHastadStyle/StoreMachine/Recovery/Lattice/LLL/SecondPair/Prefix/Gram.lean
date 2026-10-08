@@ -134,12 +134,16 @@ theorem inputs_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- The actual division input store contains the original basis and both Gram expressions. -/
-theorem refreshInputs_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem refreshInputs_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (initial : Initial refs store basis) :
-    LatticeMetricMachine.BasisRawRepresents (refreshInputsStep refs store).1 refs.basis basis ∧
-      RawSignedRepresents ((refreshInputsStep refs store).1.read refs.division32.numerator)
+    LatticeMetricMachine.BasisRawRepresents
+      (refreshInputsStep (model := model) refs store).1 refs.basis basis ∧
+      RawSignedRepresents
+        ((refreshInputsStep (model := model) refs store).1.read refs.division32.numerator)
         basis.secondReductionNumerator ∧
-      RawSignedRepresents ((refreshInputsStep refs store).1.read refs.division32.denominator)
+      RawSignedRepresents
+        ((refreshInputsStep (model := model) refs store).1.read refs.division32.denominator)
         basis.secondReductionDenominator := by
   have represented := refreshedDots_values refs separation store basis initial
   have values := LatticeSecondReductionInputs.secondReductionInputsInto_correct _ _

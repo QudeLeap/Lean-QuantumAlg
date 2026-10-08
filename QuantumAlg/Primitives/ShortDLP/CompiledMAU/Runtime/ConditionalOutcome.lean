@@ -47,7 +47,8 @@ theorem shortDLP_runtimeSeedBlocks_weighted_reference (N : Nat)
             (CompiledMAU.reloadLabel m ell width N), leftRef)
           ((RuntimePlacement.basisEquiv m ell width sameWires).symm
             (CompiledMAU.reloadLabel m ell width N), rightRef) := by
-  refine (fiber_store_blocks state (fun store _ => weight store) leftRef rightRef).trans ?_
+  refine (BasisSeeded.fiber_store_blocks
+    state (fun store _ => weight store) leftRef rightRef).trans ?_
   rw [Finset.sum_comm]
   apply Finset.sum_congr rfl
   intro original _
@@ -68,7 +69,8 @@ theorem shortDLP_runtimeRound_conditional_outcome_reference
       (CInputRef.product parameter previous).storageKeys)
     (resultSeparate : result.key ∉ (CInputRef.product parameter previous).storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
+    (state : State ctx Reference (model.HiddenState × History))
+    (seeded : HasSeedBlocks m ell width sameWires N state)
     (parameterValue : parameterShape.Value) (previousValue : previousShape.Value)
     (outcome : Fin (resultBits m ell width) → Bool) (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,

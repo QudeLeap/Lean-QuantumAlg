@@ -11,6 +11,7 @@ import all QuantumAlg.Components.Encoded.BitGates.DiagonalConjugation
 import all QuantumAlg.Components.Encoded.BitGates.PauliZ
 import all QuantumAlg.Components.Encoded.BitGates.Basic
 import all QuantumAlg.Components.Encoded.BitGates.GateSpec
+import all QuantumAlg.Core.Base.UnitaryCircuit.Vector
 
 /-!
 # Small controlled positive zero reflections without work wires
@@ -27,17 +28,22 @@ namespace QuantumAlg.EncodedBit
 noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
+variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
 /-- The existing three-gate controlled Z controls the one-wire positive zero reflection. -/
 theorem controlledZ_reflects_zero (control target : EncodedBit encoding)
     (different : control.wire ≠ target.wire) (state : Data) :
-    (control.controlledZ target different).applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+    (control.controlledZ physical oracles target different).applyVec
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       if control.get state then
         if target.get state = false then
-          (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec
-        else -(NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec
-      else (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+          (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+        else -(NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+      else (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   rw [controlledZ_applyVec_encoded_ket]
   cases control.get state <;> cases target.get state <;> simp
 
@@ -45,10 +51,12 @@ theorem controlledZ_reflects_zero (control target : EncodedBit encoding)
 def controlledTwoWireZeroReflection (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
-    (firstSecond : first.wire ≠ second.wire) : UnitaryCircuit (Qubits encoding.width) :=
-  (GateSpec.conjugateProgram [.x first, .x second]
-    (control.doubleControlledZ first second controlFirst controlSecond firstSecond)).seq
-      control.pauliZ
+    (firstSecond : first.wire ≠ second.wire) :
+    UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  (GateSpec.conjugateProgram physical oracles [.x first, .x second]
+    (control.doubleControlledZ physical oracles first second
+      controlFirst controlSecond firstSecond)).seq
+      (control.pauliZ physical oracles)
 
 /-- The two-source controlled reflection has the exact phase on both control branches. -/
 theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
@@ -56,14 +64,18 @@ theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) (state : Data) :
-    (control.controlledTwoWireZeroReflection first second controlFirst
+    (control.controlledTwoWireZeroReflection physical oracles first second controlFirst
       controlSecond firstSecond).applyVec
-        (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec =
+        (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec =
       if control.get state then
         if first.get state = false ∧ second.get state = false then
-          (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec
-        else -(NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec
-      else (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode state)).vec := by
+          (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+        else -(NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec
+      else (NormalizedVector.ket (R := physical.toQuantum.register)
+          (physical.basisEquiv.symm (encoding.encode state))).vec := by
   have controlRead :
       control.get (GateSpec.stepList [.x first, .x second] state) = control.get state := by
     change control.get (second.flip (first.flip state)) = _
@@ -77,12 +89,13 @@ theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
       second.get (GateSpec.stepList [.x first, .x second] state) = Bool.not (second.get state) := by
     change second.get (second.flip (first.flip state)) = _
     rw [get_flip_self, get_flip_of_wire_ne first second firstSecond]
-  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket
+  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket physical oracles
     [.x first, .x second]
-    (control.doubleControlledZ first second controlFirst controlSecond firstSecond)
+    (control.doubleControlledZ physical oracles first second
+      controlFirst controlSecond firstSecond)
     (fun state => if (control.get state = true ∧ first.get state = true) ∧ second.get state = true
       then (-1 : ℂ) else 1)
-    (control.doubleControlledZ_applyVec_encoded_ket first second
+    (control.doubleControlledZ_applyVec_encoded_ket physical oracles first second
       controlFirst controlSecond firstSecond) state
   rw [controlledTwoWireZeroReflection, UnitaryCircuit.applyVec_seq, middle,
     UnitaryCircuit.applyVec_smul, pauliZ_applyVec_encoded_ket]
@@ -95,8 +108,8 @@ theorem controlledTwoWireZeroReflection_eventTrace_length
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) :
-    (control.controlledTwoWireZeroReflection first second controlFirst controlSecond
-      firstSecond).eventTrace.length = 8 := by
+    (control.controlledTwoWireZeroReflection physical oracles first second
+      controlFirst controlSecond firstSecond).eventTrace.length = 8 := by
   simp only [controlledTwoWireZeroReflection, UnitaryCircuit.seq_eventTrace, List.length_append,
     GateSpec.conjugateProgram_eventTrace_length, List.length_cons, List.length_nil,
     doubleControlledZ_eventTrace_length, pauliZ_eventTrace]

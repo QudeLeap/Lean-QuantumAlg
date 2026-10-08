@@ -26,7 +26,8 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
@@ -98,6 +99,7 @@ theorem gf2RowBody_read_other (input : CInputRef ctx (.bits width)) (row : Fin r
     ((TerminalDecode.terminalDecode_fold_read_other loader _ _ other loaderSeparate).trans
       (Store.read_applyOp_of_not_mem_storageKeys store (rowClearOp loader) other loaderSeparate))
 
+omit [BitWord.Selected model] in
 private theorem loader_fresh {shape : CShape} (input : CInputRef ctx shape) :
     (rowCell ctx width).key ∉
       (input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
@@ -171,8 +173,9 @@ theorem gf2LoadMatrix_store (input : CInputRef ctx (.fixedVector rowCount (.bits
           (.unsignedWord (ClassicalAlgorithms.TerminalDecode.eval
             (TerminalDecode.decodeInput .bigEndian (current.read (.vectorGet input row)))))))).foldl
         (fun current update => update current) store := by
-  refine (Circuit.forRangeRecord_store rowCount (loadRow input matrix)
-    (loadRowStep input matrix) store).trans ?_
+  refine (Circuit.forRangeStoreRecord_store rowCount
+    (loadRow (model := model) input matrix)
+    (loadRowStep (model := model) input matrix) store).trans ?_
   congr 2
   funext row current
   exact gf2LoadRow_store input matrix row current

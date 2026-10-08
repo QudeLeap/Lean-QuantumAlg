@@ -9,7 +9,6 @@ module
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Resources
 import all QuantumAlg.Components.Oracle.AmplitudeAmplification
 import all QuantumAlg.Components.Oracle.ZeroReflection.Phase.Resources
-import all QuantumAlg.Core.Base.Accounting.Control
 import all QuantumAlg.Core.Base.Accounting.Weighted
 
 /-!
@@ -28,97 +27,59 @@ open AmplitudeAmplificationSource
 
 noncomputable section
 
-private theorem reflection_quantumSubroutineCount (n : Nat)
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label)
-      (ZeroReflection.controlledElementaryEventPool n) = 0 := by
-  match n with
-  | 0 => rfl
-  | 1 => rfl
-  | 2 => rfl
-  | extra + 3 =>
-      simp only [ZeroReflection.controlledElementaryEventPool,
-        ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
-      simp
-
-/-- The full elementary program contains only the three source-granted query families. -/
-theorem program_quantumSubroutineCount {n : Nat} (t : Nat)
+/-- The exact query ledger separates initial preparation from the three per-step calls. -/
+theorem program_oracleCount {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n))
-    (label : Resource.QuantumSubroutineLabel) :
-    ResourcePool.count (.quantumSubroutine label) (program t U good).eventCost =
-      (if preparationEvent n = .quantumSubroutine label then 1 else 0) +
-        (2 ^ t - 1) *
-          ((if (goodReflectionEvent n).controlForDimension 2 =
-              .quantumSubroutine label then 1 else 0) +
-            (if inversePreparationEvent n = .quantumSubroutine label then 1 else 0) +
-            (if preparationEvent n = .quantumSubroutine label then 1 else 0)) := by
+    (coordinate : AmplitudeAmplificationSource.Coordinate) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
+        (.oracle coordinate) (program t U good).eventCost =
+      (if coordinate = .preparation then 1 else 0) +
+        (2 ^ t - 1) * (if coordinate = .goodReflection then 0 else 1) := by
   rw [program_eventCost]
-  simp only [unitaryEventPool, stepEventPool, readoutEventPool,
-    ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton,
-    reflection_quantumSubroutineCount]
-  simp
+  cases coordinate <;> rcases n with _ | _ | _ | n <;>
+    simp [unitaryEventPool, stepEventPool, readoutEventPool,
+      ZeroReflection.controlledElementaryEventPool,
+      ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
-/-- The actual elementary gate total follows from its native event pool. -/
+/-- Native gates exclude every separately granted oracle query. -/
 theorem program_gateCount {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
     ResourcePool.weightedCount (fun event => match event with
       | .gate _ => 1 | _ => 0) (program t U good).eventCost = unitaryGateCount t n := by
-  let weight : Resource.Event .quantum → Nat := fun event => match event with
-    | .gate _ => 1 | _ => 0
-  change ResourcePool.weightedCount weight (program t U good).eventCost = _
-  have reflected : ResourcePool.weightedCount weight
-      (ZeroReflection.controlledElementaryEventPool n) =
-        ZeroReflection.controlledElementaryGateCount n := by
-    refine Eq.trans ?_ (ZeroReflection.controlledElementaryEventPool_gateCount n)
-    apply congrArg (fun assignment : Resource.Event .quantum → Nat =>
-      ResourcePool.weightedCount assignment (ZeroReflection.controlledElementaryEventPool n))
-    funext event
-    cases event <;> rfl
   rw [program_eventCost]
-  simp only [unitaryEventPool, stepEventPool, readoutEventPool, unitaryGateCount,
-    ResourcePool.weightedCount_add, ResourcePool.weightedCount_nsmul,
-    ResourcePool.weightedCount_singleton]
-  rw [reflected]
-  dsimp only [weight, preparationEvent, inversePreparationEvent, goodReflectionEvent,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions]
-  ring
+  rcases n with _ | _ | _ | n <;>
+    simp [unitaryEventPool, stepEventPool, readoutEventPool, unitaryGateCount,
+      ZeroReflection.controlledElementaryEventPool, ZeroReflection.controlledElementaryGateCount,
+      ResourcePool.weightedCount_add, ResourcePool.weightedCount_nsmul,
+      ResourcePool.weightedCount_singleton] <;> ring
 
-/-- The initial source preparation is included in the exact `L + 1` count. -/
+/-- The initial ordinary preparation remains present even with no phase-estimation stage. -/
 theorem program_preparationCount {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (preparationEvent n) (program t U good).eventCost =
-      (2 ^ t - 1) + 1 := by
-  have count := program_quantumSubroutineCount t U good (preparationLabel n).quantum
-  simpa [preparationEvent, inversePreparationEvent, goodReflectionEvent,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimensions,
-    Resource.SubroutineLabel.quantum, preparationLabel, inversePreparationLabel,
-    Nat.add_comm] using count
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
+      (.oracle .preparation) (program t U good).eventCost = (2 ^ t - 1) + 1 := by
+  simpa [Nat.add_comm] using program_oracleCount t U good .preparation
 
-/-- Every ladder call contains exactly one ordinary inverse query. -/
+/-- Every actual source step contains one ordinary inverse-preparation query. -/
 theorem program_inversePreparationCount {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (inversePreparationEvent n) (program t U good).eventCost =
-      2 ^ t - 1 := by
-  have count := program_quantumSubroutineCount t U good (inversePreparationLabel n).quantum
-  simpa [preparationEvent, inversePreparationEvent, goodReflectionEvent,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimensions,
-    Resource.SubroutineLabel.quantum, preparationLabel, inversePreparationLabel] using count
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
+      (.oracle .inversePreparation) (program t U good).eventCost = 2 ^ t - 1 := by
+  simpa using program_oracleCount t U good .inversePreparation
 
-/-- The source's good-reflection capability is queried once per controlled step. -/
+/-- Every actual source step contains one explicitly granted controlled recognizer. -/
 theorem program_controlledGoodReflectionCount {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count ((goodReflectionEvent n).controlForDimension 2)
-        (program t U good).eventCost = 2 ^ t - 1 := by
-  have count := program_quantumSubroutineCount t U good
-    ((goodReflectionLabel n).quantum.controlForDimension 2)
-  simpa [preparationEvent, inversePreparationEvent, goodReflectionEvent,
-    Resource.Event.controlForDimension, Resource.Event.controlForDimensions,
-    Resource.QuantumSubroutineLabel.controlForDimension,
-    Resource.QuantumSubroutineLabel.controlForDimensions,
-    Resource.SubroutineLabel.quantum] using count
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
+      (.oracle .controlledGoodReflection) (program t U good).eventCost = 2 ^ t - 1 := by
+  simpa using program_oracleCount t U good .controlledGoodReflection
 
+/-- The ordinary recognizer coordinate is not used in this controlled ladder. -/
+theorem program_goodReflectionCount {n : Nat} (t : Nat)
+    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
+      (.oracle .goodReflection) (program t U good).eventCost = 0 := by
+  simpa using program_oracleCount t U good .goodReflection
 
 end
 

@@ -20,41 +20,52 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-variable {kind : ProblemKind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {width : Nat}
 
 /-- Independent native coordinates for signed arithmetic, comparison, and bit latches. -/
-def nativeAlphabet (width : Nat) : ResourcePool kind :=
+def nativeAlphabet (width : Nat) : ResourcePool model :=
   ResourcePool.ofList [
-    .classicalOperation (.bit .copy),
-    .classicalOperation (.bit .xor),
-    .classicalOperation (.bit .not),
-    .classicalOperation (.wordUnary .copy width),
-    .classicalOperation (.wordUnary .complement width),
-    .classicalOperation (.wordUnary .increment width),
-    .classicalOperation (.wordUnary .shiftLeft width),
-    .classicalOperation (.wordBinary .mulLow width),
-    .classicalOperation (.wordBinary .sub width),
-    .classicalOperation (.wordBinary .add width),
-    .classicalOperation (.wordBinary .lessThan width),
-    .classicalOperation (.wordUnary .shiftLeft (width + 1)),
-    .classicalOperation (.wordUnary .decrement (width + 1)),
-    .classicalOperation (.wordBinary .add (width + 1)),
-    .classicalOperation (.wordResize width (width + 1)),
-    .classicalOperation (.wordResize (width + 1) width),
-    .classicalOperation (.divRem (width + 1) (width + 1))]
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .copy)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .xor)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .complement width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .increment width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .shiftLeft width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .sub width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordBinary .add width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .lessThan width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .shiftLeft (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordUnary .decrement (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .add (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize width (width + 1))),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordResize (width + 1) width)),
+    .classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.divRem (width + 1) (width + 1)))]
 
 /-- Every member of an instruction formula belongs to the independent native alphabet. -/
-def NativeTraceSupported (width : Nat) (events : List (Resource.Event kind)) : Prop :=
+def NativeTraceSupported (width : Nat) (events : List (Resource.Event model)) : Prop :=
   ∀ event ∈ events, event ∈ nativeAlphabet width
 
 /-- Concatenation preserves finite support independently in its two components. -/
-theorem nativeTraceSupported_append (left right : List (Resource.Event kind)) :
+theorem nativeTraceSupported_append (left right : List (Resource.Event model)) :
     NativeTraceSupported width (left ++ right) ↔
       NativeTraceSupported width left ∧ NativeTraceSupported width right := by
   simp only [NativeTraceSupported, List.mem_append, or_imp, forall_and]
 
 /-- Repeating a fixed instruction formula introduces no new native coordinates. -/
-theorem nativeTraceSupported_replicate (events : List (Resource.Event kind))
+theorem nativeTraceSupported_replicate (events : List (Resource.Event model))
     (supported : NativeTraceSupported width events) (count : Nat) :
     NativeTraceSupported width (List.replicate count events).flatten := by
   intro event present
@@ -65,13 +76,13 @@ theorem nativeTraceSupported_replicate (events : List (Resource.Event kind))
 
 /-- Sign classification stays in the alphabet even for a zero-width word. -/
 theorem signTrace_nativeSupported (width : Nat) :
-    NativeTraceSupported width (signTrace (kind := kind) width) := by
+    NativeTraceSupported width (signTrace (model := model) width) := by
   unfold signTrace
   split <;> simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
 
 /-- Both magnitude arms have finite native support without a sign assumption. -/
 theorem magnitudeTrace_nativeSupported (width : Nat) (negative : Bool) :
-    NativeTraceSupported width (magnitudeTrace (kind := kind) width negative) := by
+    NativeTraceSupported width (magnitudeTrace (model := model) width negative) := by
   cases negative <;> simp [magnitudeTrace, NativeTraceSupported, nativeAlphabet,
     ResourcePool.ofList]
 
@@ -79,21 +90,14 @@ theorem magnitudeTrace_nativeSupported (width : Nat) (negative : Bool) :
 theorem roundedDivBodyTrace_nativeSupported (width : Nat)
     (magnitudeNegative correctionNegative restoreNegative : Bool) :
     NativeTraceSupported width
-      (RoundedDiv.bodyTrace (kind := kind) width magnitudeNegative correctionNegative
+      (RoundedDiv.bodyTrace (model := model) width magnitudeNegative correctionNegative
         restoreNegative) := by
-  have correction : NativeTraceSupported (kind := kind) width
-      (if correctionNegative then
-        [.classicalOperation (.wordUnary .decrement (width + 1))] else []) := by
-    cases correctionNegative <;>
-      simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
-  have restore : NativeTraceSupported (kind := kind) width
-      (if restoreNegative then [.classicalOperation (.wordUnary .complement width),
-        .classicalOperation (.wordUnary .increment width)] else []) := by
-    cases restoreNegative <;>
-      simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
-  simp only [RoundedDiv.bodyTrace, nativeTraceSupported_append, and_assoc]
-  refine ⟨signTrace_nativeSupported width, magnitudeTrace_nativeSupported width magnitudeNegative,
-    ?_, correction, ?_, restore⟩
+  cases correctionNegative <;> cases restoreNegative <;>
+    simp only [RoundedDiv.bodyTrace, Bool.false_eq_true, if_false, if_true,
+      List.append_nil, nativeTraceSupported_append,
+      and_assoc]
+  all_goals refine ⟨signTrace_nativeSupported width,
+    magnitudeTrace_nativeSupported width magnitudeNegative, ?_⟩
   all_goals simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
 
 end

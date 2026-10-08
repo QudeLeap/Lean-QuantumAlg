@@ -39,7 +39,7 @@ def samplingPreparedDensity (problem : KnownOrderProblem E.GroupPoint) (Referenc
   DensityOperator.applyUnitary
     (UnitaryOperator.prodTensor
       (afterExponentProgram p (orderWidth problem) (exponentPreparationCircuit problem)
-        (exponentPreparationCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference))
+       ).matrix (1 : UnitaryOperator Reference))
     input
 
 /-- The original three quantum stages prescribe the full target on the existing systems. -/
@@ -52,7 +52,7 @@ def samplingPrefixDensity (fieldTail : Nat) (odd : Odd p)
   DensityOperator.applyUnitary
     (UnitaryOperator.prodTensor
       (afterExponentProgram p (orderWidth problem) (exponentReadoutCircuit problem)
-        (exponentReadoutCircuit_physical_idx problem)).matrix (1 : UnitaryOperator Reference))
+       ).matrix (1 : UnitaryOperator Reference))
     (DensityOperator.applyUnitary
       (Encoding.placedConvertedTarget E points (List.finRange (2 * orderWidth problem))
         (Semantics.radixUnit p fieldTail.succ odd) Reference)
@@ -63,7 +63,8 @@ theorem samplingPrefix_density_of_support (fieldTail : Nat) (odd : Odd p)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (after p.size (2 * orderWidth problem)) Reference History)
+    (state : State (after p.size (2 * orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (support : cascadeSupport E points Reference (List.finRange (2 * orderWidth problem))
       (DensityOperator.applyUnitary
         (Encoding.pairOperator p.size (2 * orderWidth problem) (InPlaceTarget.modulusWord p)
@@ -74,13 +75,13 @@ theorem samplingPrefix_density_of_support (fieldTail : Nat) (odd : Odd p)
     ((samplingPrefix E fieldTail odd problem points).execute Reference state).quantumMarginal =
       samplingPrefixDensity E fieldTail odd problem points Reference state.quantumMarginal := by
   have prepared := afterExponentCircuit_density p (orderWidth problem)
-    (exponentPreparationCircuit problem) (exponentPreparationCircuit_physical_idx problem) state
+    (exponentPreparationCircuit problem) state
   have domain : cascadeSupport E points Reference (List.finRange (2 * orderWidth problem))
       (DensityOperator.applyUnitary
         (Encoding.pairOperator p.size (2 * orderWidth problem) (InPlaceTarget.modulusWord p)
           (Semantics.radixUnit p fieldTail.succ odd)⁻¹ Reference)
         ((((afterExponentCircuit p (orderWidth problem) (exponentPreparationCircuit problem)
-          (exponentPreparationCircuit_physical_idx problem)).execute Reference state)
+         ).execute Reference state)
           |>.quantumMarginal).reindex
             (ContextPermutation.referenceBasis
               (body_entries p.size (2 * orderWidth problem)) Reference).symm)) := by
@@ -89,7 +90,7 @@ theorem samplingPrefix_density_of_support (fieldTail : Nat) (odd : Odd p)
   have scalar := Encoding.placedConvertedCascade_density E points
     (List.finRange (2 * orderWidth problem)) (Semantics.radixUnit p fieldTail.succ odd)
     ((afterExponentCircuit p (orderWidth problem) (exponentPreparationCircuit problem)
-      (exponentPreparationCircuit_physical_idx problem)).execute Reference state) domain
+     ).execute Reference state) domain
   rw [samplingPrefix, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     afterExponentReadout, afterExponentCircuit_density, Circuit.execute_seq,
     State.mapHistory_quantumMarginal, scalar, prepared]
@@ -101,7 +102,8 @@ theorem samplingPrefix_density_of_initialized (fieldTail : Nat)
     (problem : KnownOrderProblem E.GroupPoint)
     (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (after p.size (2 * orderWidth problem)) Reference History)
+    (state : State (after p.size (2 * orderWidth problem)) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (input : DensityOperator
       (Register.prod (before p.size (2 * orderWidth problem)).register Reference))
     (same : state.quantumMarginal = initializedDensity p (2 * orderWidth problem) Reference input)
@@ -115,7 +117,7 @@ theorem samplingPrefix_density_of_initialized (fieldTail : Nat)
         (exponentPreparedDensity E problem Reference input) := by
     rw [same]
     exact afterExponentOperator_initializedDensity p (orderWidth problem)
-      (exponentPreparationCircuit problem) (exponentPreparationCircuit_physical_idx problem)
+      (exponentPreparationCircuit problem)
       Reference input
   have domain := Encoding.convertedInitializedSupport_of_input_trajectory E points
     (List.finRange (2 * orderWidth problem)) (Semantics.radixUnit p fieldTail.succ odd)

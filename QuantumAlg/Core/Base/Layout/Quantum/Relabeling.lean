@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Base.Layout.Quantum
-import Mathlib.Logic.Embedding.Basic
+public import QuantumAlg.Core.Base.Layout.Quantum
+public import Mathlib.Logic.Embedding.Basic
 
 /-!
 # Injective placement of existing finite-dimensional systems
@@ -23,12 +23,13 @@ namespace QuantumAlg
 namespace QuantumWire
 
 /-- Place the same finite-dimensional system at its prescribed injective physical address. -/
-def relabel (physical : Nat ↪ Nat) (wire : QuantumWire) : QuantumWire where
+@[expose] public def relabel (physical : Nat ↪ Nat) (wire : QuantumWire) : QuantumWire where
   identity := physical wire.identity
   dimension := wire.dimension
 
 /-- Injective physical placement retains complete wire-record distinguishability. -/
-theorem relabel_injective (physical : Nat ↪ Nat) : Function.Injective (relabel physical) := by
+public theorem relabel_injective (physical : Nat ↪ Nat) :
+    Function.Injective (relabel physical) := by
   intro left right same
   have identities := physical.injective (congrArg QuantumWire.identity same)
   have dimensions := congrArg QuantumWire.dimension same
@@ -47,37 +48,38 @@ namespace QuantumLayout
 variable {count : Nat}
 
 /-- Every existing logical position receives its own injectively mapped physical identity. -/
-def relabel (layout : QuantumLayout count) (physical : Nat ↪ Nat) : QuantumLayout count where
+@[expose] public def relabel (layout : QuantumLayout count)
+    (physical : Nat ↪ Nat) : QuantumLayout count where
   wire index := QuantumWire.relabel physical (layout.wire index)
   identityInjective := fun _ _ equal => layout.identityInjective (physical.injective equal)
 
 /-- The ordered wire list uses exactly the same physical map as its per-position definition. -/
-theorem relabel_wires (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public theorem relabel_wires (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).wires = layout.wires.map (QuantumWire.relabel physical) := by
   simp only [wires, List.map_ofFn]
   rfl
 
 /-- The complete physical identity list is precisely the injective image of the original list. -/
-theorem relabel_identities (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public theorem relabel_identities (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).identities = layout.identities.map physical := by
   simp only [identities, List.map_ofFn]
   rfl
 
 /-- Placement preserves every positive native dimension in its original logical order. -/
-theorem relabel_dimensions (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public theorem relabel_dimensions (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).dimensions = layout.dimensions := rfl
 
 /-- Every dimension-indexed resident quantum count remains unchanged by placement. -/
-theorem relabel_dimensionCount (layout : QuantumLayout count) (physical : Nat ↪ Nat)
+public theorem relabel_dimensionCount (layout : QuantumLayout count) (physical : Nat ↪ Nat)
     (dimension : ℕ+) :
     (layout.relabel physical).dimensionCount dimension = layout.dimensionCount dimension := rfl
 
 /-- Logical basis values retain the same finite dimension at every original position. -/
-def relabelBasis (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+@[expose] public def relabelBasis (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     layout.register.Index ≃ (layout.relabel physical).register.Index := Equiv.refl _
 
 /-- The finite value at each mapped physical system is unchanged, including nonbinary systems. -/
-theorem relabelBasis_value (layout : QuantumLayout count) (physical : Nat ↪ Nat)
+public theorem relabelBasis_value (layout : QuantumLayout count) (physical : Nat ↪ Nat)
     (value : layout.register.Index) (index : Fin count) :
     (relabelBasis layout physical value index).val = (value index).val := rfl
 

@@ -8,6 +8,8 @@ module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Fold.SourceProgram
 import all QuantumAlg.Primitives.MAU.Addition.Gidney.Resources
+import all QuantumAlg.Core.Base.UnitaryCircuit.Adjoint
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 
 /-!
 # Actual output reflection controlled by the retained iteration bit
@@ -34,7 +36,8 @@ open Addition.Gidney FoldSourceProgram
 
 /-- Two real flag X gates select the existing controlled reflection on Iter zero. -/
 def program (modulus : Nat) :
-    UnitaryCircuit (Qubits (Addition.Gidney.encoding (wordWidth modulus)).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding (wordWidth modulus)).width).toQuantum :=
   ((flagFlipProgram (wordWidth modulus)).seq
     (biFlipProgram (wordWidth modulus) (reflectionPivot modulus))).seq
       (flagFlipProgram (wordWidth modulus))
@@ -99,25 +102,12 @@ theorem step_involutive (modulus : Nat) : Function.Involutive (step modulus) := 
 /-- The actual circuit adjoint has the same total label action and restores its helper. -/
 theorem inverse_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus))
-      (program modulus).dagger (step modulus) :=
-  (program_realizes modulus).dagger_of_rightInverse (step_involutive modulus)
-
-private theorem flag_range (width : Nat) :
-    (flagFlipProgram width).physical_idx ⊆ List.range (width + 2) := by
-  have actual := EncodedBit.GateSpec.program_physical_idx_subset_range (.x (flagBit width))
-  have encodedWidth : (Addition.Gidney.encoding width).width = width + 2 := by
-    change 1 + (width + 1) = width + 2
-    omega
-  unfold flagFlipProgram
-  simpa only [encodedWidth] using actual
-
-/-- Only the declared coefficient word, iteration bit, and existing helper are addressed. -/
-theorem program_physical_range (modulus : Nat) :
-    (program modulus).physical_idx ⊆ List.range (wordWidth modulus + 2) :=
-  UnitaryCircuit.seq_physical_idx_subset _ _
-    (UnitaryCircuit.seq_physical_idx_subset _ _ (flag_range (wordWidth modulus))
-      (gidneyBiFlip_physical_range (wordWidth modulus) (reflectionPivot modulus)))
-    (flag_range (wordWidth modulus))
+      ((program modulus).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+      (step modulus) := by
+  apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes modulus)
+  · rw [UnitaryCircuit.dagger_matrix]
+    exact Unitary.star_eq_inv _
+  · exact step_involutive modulus
 
 /-- The actual trace includes both flag operations and the selected controlled arithmetic body. -/
 theorem program_eventTrace (modulus : Nat) :

@@ -26,14 +26,16 @@ noncomputable section
 open EncodedBit.GateSpec
 
 private theorem hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
-    (focus : Resource.Event .quantum) (outside : focus ∉ primitiveAlphabet) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
+    (outside : focus ∉ primitiveAlphabet) :
     ResourcePool.count focus (oneDirtyProgram width constant).eventCost = 0 := by
-  have hx : (.gate (.builtin "x") : Resource.Event .quantum) ≠ focus := by
+  have hx : (.gate .singleQubit :
+      Resource.Event (.quantum AlgorithmGate.model .empty)) ≠ focus := by
     intro equality
     apply outside
     rw [← equality]
     simp [primitiveAlphabet, ResourcePool.ofList]
-  have hc : (.gate (.builtin "cnot") : Resource.Event .quantum) ≠ focus := by
+  have hc : (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty)) ≠ focus := by
     intro equality
     apply outside
     rw [← equality]
@@ -48,12 +50,14 @@ private theorem hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
         have hincrement : ResourcePool.count focus
             (controlledBorrowedIncrementProgram (highWidth width)).eventCost = 0 :=
           programList_count_zero_of_not_mem_primitiveAlphabet
+            (QubitLayout.canonical _)
             (controlledBorrowedIncrementGates (highWidth width))
             focus outside
         have hcarry : ResourcePool.count focus
             (carryProgram (lowWidth width) ((splitWord width) constant).1).eventCost =
               0 :=
           programList_count_zero_of_not_mem_primitiveAlphabet
+            (QubitLayout.canonical _)
             (carryGates (lowWidth width) ((splitWord width) constant).1) focus outside
         have hbridge : ResourcePool.count focus
             (recursiveBridgeProgram
@@ -65,7 +69,7 @@ private theorem hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
 
 /-- The actual recursive HRS program contains only the three native primitive coordinates. -/
 theorem hrsOneDirty_native_support (width : Nat) (constant : Fin (2 ^ width))
-    (focus : Resource.Event .quantum)
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (oneDirtyProgram width constant).eventCost) :
     focus ∈ primitiveAlphabet := by
   by_contra outside
@@ -74,7 +78,7 @@ theorem hrsOneDirty_native_support (width : Nat) (constant : Fin (2 ^ width))
   change 0 < ResourcePool.count focus (oneDirtyProgram width constant).eventCost at positive
   omega
 /-- The independent all-width envelope at each of the three native primitive coordinates. -/
-def nativeBudget (width : Nat) : ResourcePool .quantum :=
+def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (width * (39 * Nat.clog 2 width + 1)) • primitiveAlphabet
 
 /-- The actual one-dirty circuit meets the independently specified finite native pool. -/

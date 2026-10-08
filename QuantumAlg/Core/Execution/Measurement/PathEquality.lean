@@ -17,11 +17,17 @@ classical writes [dW19, qcnotes.tex:5409,5420].
 
 namespace QuantumAlg.Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 /-- Agreement on the actual measured wires gives equality of the actual finite outcome paths. -/
 theorem measurementBasisPath_eq_of_agree {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) (left right : ctx.register.Index)
     (same : measurementLabelsAgree readouts left right) :
-    measurementBasisPath readouts left = measurementBasisPath readouts right := by
+    measurementBasisPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts left =
+      measurementBasisPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts right := by
   induction readouts with
   | nil => rfl
   | cons head tail induction =>
@@ -31,9 +37,18 @@ theorem measurementBasisPath_eq_of_agree {ctx : RuntimeCtx .quantum}
 theorem writeMeasurementPath_eq_of_agree {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) (store : Execution.Store ctx)
     (left right : ctx.register.Index) (same : measurementLabelsAgree readouts left right) :
-    writeMeasurementPath readouts store (measurementBasisPath readouts left) =
-      writeMeasurementPath readouts store (measurementBasisPath readouts right) :=
-  congrArg (writeMeasurementPath readouts store)
-    (measurementBasisPath_eq_of_agree readouts left right same)
+    writeMeasurementPath (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles) readouts store
+      (measurementBasisPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts left) =
+      writeMeasurementPath (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles) readouts store
+        (measurementBasisPath (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := classicalOracles) readouts right) :=
+  congrArg (writeMeasurementPath (gates := gates) (oracles := oracles)
+    (operations := operations) (classicalOracles := classicalOracles) readouts store)
+    (measurementBasisPath_eq_of_agree (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+      readouts left right same)
 
 end QuantumAlg.Circuit

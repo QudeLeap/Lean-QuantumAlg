@@ -26,8 +26,10 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
@@ -35,6 +37,7 @@ private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
       cases right with
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
+omit [BitWord.Selected model] in
 private theorem word_vector_ne {size count : Nat} {shape : CShape}
     (word : CWriteRef ctx (.unsignedWord size))
     (vector : CWriteRef ctx (.fixedVector count shape)) :
@@ -44,6 +47,7 @@ private theorem word_vector_ne {size count : Nat} {shape : CShape}
     vector.toCStorageRef same
   cases impossible
 
+omit [BitWord.Selected model] in
 private theorem or_read (output mask : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (pivotOrOp output mask)).read (.storage output.toCStorageRef)).toNat =
       (store.read (.storage output.toCStorageRef)).toNat |||
@@ -134,6 +138,7 @@ private theorem columnBody_columns (output mask : CWriteRef ctx (.unsignedWord w
     (fun current => decide (current = column))).val = _
   rw [ClassicalAlgorithms.GF2.wordOfLogicalBits_singleton_val]
 
+omit [BitWord.Selected model] in
 private theorem mask_ne {shape : CShape} (output : CWriteRef ctx shape) (maskWidth : Nat) :
     (pivotMaskCell ctx maskWidth).key ≠ output.key := by
   intro same

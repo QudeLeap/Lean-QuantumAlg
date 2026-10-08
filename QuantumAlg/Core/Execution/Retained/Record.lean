@@ -26,70 +26,81 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {pre middle : RuntimeCtx kind}
+variable {model : ExecutionModel} {pre middle : RuntimeCtx model.kind}
   {key : StorageKey} {shape : CShape} {fresh : key ∉ middle.keys}
 
 /-- A real retained continuation deterministically maps every complete incoming store block. -/
 def RetainedRecord
-    (code : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × code.Path) : Prop :=
+    (code : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × code.Path) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
-    (state : State middle Reference History),
+    (state : State middle Reference (model.HiddenState × History)),
     code.execute Reference state = state.mapClassical
-      (D := Store (middle.addRetained key shape fresh) × (History × code.Path))
-      (fun entry => ((step entry.1).1, (entry.2, (step entry.1).2)))
+      (D := Store (middle.addRetained key shape fresh) ×
+        (model.HiddenState × (History × code.Path)))
+      (fun entry =>
+        let result := step (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2))))
 
 /-- A retained tail maps the actual source blocks and keeps both real execution paths. -/
-def RetainedTailRecord (first : Circuit pre middle)
-    (second : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × second.Path) : Prop :=
+def RetainedTailRecord (first : Circuit model pre middle)
+    (second : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × second.Path) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
-    (state : State pre Reference History),
+    (state : State pre Reference (model.HiddenState × History)),
     (Circuit.seq first second).execute Reference state =
       (first.execute Reference state).mapClassical
         (D := Store (middle.addRetained key shape fresh) ×
-          (History × (Circuit.seq first second).Path))
-        (fun entry => ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))
+          (model.HiddenState × (History × (Circuit.seq first second).Path)))
+        (fun entry =>
+          let result := step (entry.1, entry.2.1)
+          (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2)))))
 
 /-- Joint preservation covers the complete outgoing quantum register and arbitrary reference. -/
 def RetainedQuantumPreserved
-    (code : Circuit middle (middle.addRetained key shape fresh)) : Prop :=
+    (code : Circuit model middle (middle.addRetained key shape fresh)) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
-    (state : State middle Reference History),
+    (state : State middle Reference (model.HiddenState × History)),
     (code.execute Reference state).quantumMarginal = state.quantumMarginal
 
 /-- A classical retained tail preserves exactly the source's outgoing quantum-reference state. -/
-def RetainedTailQuantumPreserved (first : Circuit pre middle)
-    (second : Circuit middle (middle.addRetained key shape fresh)) : Prop :=
+def RetainedTailQuantumPreserved (first : Circuit model pre middle)
+    (second : Circuit model middle (middle.addRetained key shape fresh)) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
-    (state : State pre Reference History),
+    (state : State pre Reference (model.HiddenState × History)),
     ((Circuit.seq first second).execute Reference state).quantumMarginal =
       (first.execute Reference state).quantumMarginal
 
 /-- The existing sequential interpreter law composes a proved complete retained record. -/
-theorem RetainedRecord.after (first : Circuit pre middle)
-    (second : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × second.Path)
+theorem RetainedRecord.after (first : Circuit model pre middle)
+    (second : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × second.Path)
     (record : RetainedRecord second step) : RetainedTailRecord first second step := by
   intro Reference History historyFinite state
-  refine (execute_seq_retained_mapClassical_tail key shape fresh first second step record
+  refine (execute_seq_retained_mapClassical_tail key shape fresh first second step ?_
     Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+  · intro reference history _ input
+    exact (record reference input).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete record equation entails joint quantum-reference marginal preservation. -/
 theorem RetainedRecord.quantumPreserved
-    (code : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × code.Path)
+    (code : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × code.Path)
     (record : RetainedRecord code step) : RetainedQuantumPreserved code := by
   intro Reference History historyFinite state
   exact (congrArg ExecutionState.quantumMarginal (record Reference state)).trans
     (ExecutionState.mapClassical_quantumMarginal state _)
 
 /-- Keeping the actual source blocks also keeps their full joint quantum-reference marginal. -/
-theorem RetainedTailRecord.quantumPreserved (first : Circuit pre middle)
-    (second : Circuit middle (middle.addRetained key shape fresh))
-    (step : Store middle → Store (middle.addRetained key shape fresh) × second.Path)
+theorem RetainedTailRecord.quantumPreserved (first : Circuit model pre middle)
+    (second : Circuit model middle (middle.addRetained key shape fresh))
+    (step : Store middle × model.HiddenState →
+      (Store (middle.addRetained key shape fresh) × model.HiddenState) × second.Path)
     (record : RetainedTailRecord first second step) :
     RetainedTailQuantumPreserved first second := by
   intro Reference History historyFinite state

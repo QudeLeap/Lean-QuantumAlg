@@ -760,9 +760,11 @@ theorem realizes
     (x2 y2 : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ (counterTail + 2))
       (EncodedBit.GateSpec.programList
+        (QubitLayout.canonical _)
+        .empty
         (gates fieldTail counterTail p hpPos hp hfit hcapacity hwidth x2 y2))
       (step fieldTail counterTail p hpPos hp hfit hcapacity hwidth x2 y2) :=
-  EncodedBit.GateSpec.realizesList _
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
 
 /-- The P-256 specialization uses the already-proved 2587-qubit carrier. -/
 theorem p256_encoding_width :

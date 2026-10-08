@@ -8,13 +8,14 @@ module
 
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
 import all QuantumAlg.Util.Nat.FixedWidth
+import all QuantumAlg.Components.Encoded.BitGates.BinaryLabelEncoding
 
 /-!
 # Load a constant basis word through its actual X gates
 
 The constant's set bits select the existing constant-XOR gate list. The
 explicit little-endian-to-physical position map addresses each bit once.
-A zero-event identity retains the complete register. No system is allocated;
+The typed layout retains the complete register. No system is allocated;
 the zero-input theorem is an internal composition fact after preparation or
 an actual reset. Counts and depth describe this same literal gate list.
 -/
@@ -51,9 +52,9 @@ def gates {width : Nat} (constant : Fin (2 ^ width)) :
   EncodedBit.Word.xorConstantGates (word width) constant
 
 /-- Load the constant on the existing complete physical register, without preparation. -/
-def program {width : Nat} (constant : Fin (2 ^ width)) : UnitaryCircuit (Qubits width) :=
-  .seq (programList (gates constant))
-    (.identity (Qubits width) (List.range width) List.nodup_range)
+def program {width : Nat} (physical : QubitLayout width) (oracles : OracleModel)
+    (constant : Fin (2 ^ width)) : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
+  programList physical oracles (gates constant)
 
 private theorem step_zero {width : Nat} (constant : Fin (2 ^ width)) :
     stepList (gates constant) 0 = constant := by
@@ -66,47 +67,44 @@ private theorem step_zero {width : Nat} (constant : Fin (2 ^ width)) :
   simpa only [bit_get, Fin.val_zero, Nat.zero_testBit, Bool.false_xor] using action
 
 /-- The actual X sequence maps the internally established zero state to the specified basis word. -/
-theorem basisLoad_apply_zero {width : Nat} (constant : Fin (2 ^ width)) :
-    (program constant).applyNormalized (NormalizedVector.ket (R := Qubits width) 0) =
-      NormalizedVector.ket (R := Qubits width) constant := by
-  rw [program, UnitaryCircuit.applyNormalized_seq, UnitaryCircuit.applyNormalized_identity]
-  have action := (realizesList (gates constant)).apply_encoded_ket 0
-  change (programList (gates constant)).applyNormalized
-      (NormalizedVector.ket (R := Qubits width) 0) =
-      NormalizedVector.ket (R := Qubits width) (stepList (gates constant) 0) at action
+theorem basisLoad_apply_zero {width : Nat} (physical : QubitLayout width)
+    (oracles : OracleModel) (constant : Fin (2 ^ width)) :
+    (program physical oracles constant).applyNormalized
+        (NormalizedVector.ket (R := physical.toQuantum.register) (physical.basisEquiv.symm 0)) =
+      NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm constant) := by
+  have action := (realizesList physical oracles (gates constant)).apply_encoded_ket 0
+  change (programList physical oracles (gates constant)).applyNormalized
+      (NormalizedVector.ket (R := physical.toQuantum.register) (physical.basisEquiv.symm 0)) =
+      NormalizedVector.ket (R := physical.toQuantum.register)
+        (physical.basisEquiv.symm (stepList (gates constant) 0)) at action
   rw [step_zero] at action
   exact action
-
-/-- The actual program retains every physical wire exactly once in its complete placement. -/
-theorem basisLoad_physicalIdx {width : Nat} (constant : Fin (2 ^ width)) :
-    (program constant).physical_idx = List.range width := by
-  change UnitaryCircuit.unionPhysicalIdx (programList (gates constant)).physical_idx
-    (List.range width) = _
-  exact UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset _ _
-    (programList_physical_idx_subset_range (gates constant))
 
 /-- Independent number of set-bit positions in the constant, including zero-width words. -/
 def xCount {width : Nat} (constant : Fin (2 ^ width)) : Nat :=
   (EncodedBit.Word.constantOneIndices constant).length
 
 /-- Every actual event is one X gate at a selected position of the fixed constant. -/
-theorem basisLoad_eventCost {width : Nat} (constant : Fin (2 ^ width)) :
-    (program constant).eventCost =
-      xCount constant • ResourcePool.singleton (.gate (.builtin "x")) := by
-  rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero,
-    programList_eventCost]
-  have events : (gates constant).map event =
-      List.replicate (xCount constant) (.gate (.builtin "x")) := by
-    simp [gates, EncodedBit.Word.xorConstantGates, xCount, Function.comp_def, event]
+theorem basisLoad_eventCost {width : Nat} (physical : QubitLayout width)
+    (oracles : OracleModel) (constant : Fin (2 ^ width)) :
+    (program physical oracles constant).eventCost =
+      xCount constant • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
+        (.gate .singleQubit) := by
+  rw [program, programList_eventCost]
+  have nativeX (target : EncodedBit (finIdentity width)) :
+      event oracles (.x target) = .gate .singleQubit := rfl
+  have events : (gates constant).map (event oracles) =
+      List.replicate (xCount constant) (.gate .singleQubit) := by
+    simp [gates, EncodedBit.Word.xorConstantGates, xCount, Function.comp_def, nativeX]
   rw [events, ResourcePool.ofList_replicate]
   rfl
 
 /-- The literal sequential loading depth equals its exact number of selected X gates. -/
-theorem basisLoad_unitDepth {width : Nat} (constant : Fin (2 ^ width)) :
-    (program constant).evaluatedEventDepth (fun _ => 1) = xCount constant := by
-  rw [program, UnitaryCircuit.evaluatedEventDepth_seq, programList_evaluatedEventDepth_unit]
-  change (gates constant).length + 0 = _
-  rw [Nat.add_zero]
+theorem basisLoad_unitDepth {width : Nat} (physical : QubitLayout width)
+    (oracles : OracleModel) (constant : Fin (2 ^ width)) :
+    (program physical oracles constant).evaluatedEventDepth (fun _ => 1) = xCount constant := by
+  rw [program, programList_evaluatedEventDepth_unit]
   exact EncodedBit.Word.xorConstantGates_length _ _
 
 /-- Actual constant loading never requires more than one X gate per existing bit. -/

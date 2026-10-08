@@ -67,7 +67,8 @@ theorem circuit_density_of_paired_admissible {p : Nat} (E : PrimeFieldShortWeier
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size (2 * exponentWidth)) Reference H)
+    (original : State (before p.size (2 * exponentWidth)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input,
       ¬pairedInputAllowed E points seed input.1 →
         original.quantumMarginal.matrix input input = 0) :

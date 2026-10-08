@@ -136,8 +136,9 @@ def controlledBorrowedIncrementGates (n : Nat) :
 
 /-- Compile on exactly two operand words and one preserved control bit. -/
 def controlledBorrowedIncrementProgram (n : Nat) :
-    UnitaryCircuit (Qubits (TTK.overflowEncoding n).width) :=
-  programList (controlledBorrowedIncrementGates n)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (TTK.overflowEncoding n).width).toQuantum :=
+  programList (QubitLayout.canonical _) .empty (controlledBorrowedIncrementGates n)
 
 /-- Exact all-width controlled increment, with arbitrary borrowed and control values. -/
 theorem hrsControlledBorrowedIncrement_step (n : Nat) (state : TTK.OverflowRegisters n) :
@@ -150,7 +151,8 @@ theorem hrsControlledBorrowedIncrement_step (n : Nat) (state : TTK.OverflowRegis
 theorem hrsControlledBorrowedIncrement_realizes (n : Nat) :
     UnitaryCircuit.Realizes (TTK.overflowEncoding n) (controlledBorrowedIncrementProgram n)
       controlledBorrowedIncrementOutput :=
-  realizesList_congrStep (controlledBorrowedIncrementGates n)
+  realizesList_congrStep (QubitLayout.canonical _) .empty
+    (controlledBorrowedIncrementGates n)
     (hrsControlledBorrowedIncrement_step n)
 
 /-- The entire borrowed word and the control bit are restored. -/
@@ -164,11 +166,12 @@ theorem hrsControlledBorrowedIncrement_restores (n : Nat) (state : TTK.OverflowR
 /-- The implementation uses `n` borrowed bits, `n` target bits, and its control only. -/
 theorem hrsControlledBorrowedIncrement_interface (n : Nat) :
     (TTK.overflowEncoding n).width = 2 * n + 1 ∧
-      (controlledBorrowedIncrementProgram n).physical_idx ⊆ List.range (2 * n + 1) := by
+      (QubitLayout.canonical (TTK.overflowEncoding n).width).systemIdx =
+        List.range (2 * n + 1) := by
   constructor
   · exact TTK.ttkOverflowEncoding_width n
-  · simpa only [controlledBorrowedIncrementProgram, TTK.ttkOverflowEncoding_width] using
-      programList_physical_idx_subset_range (controlledBorrowedIncrementGates n)
+  · rw [TTK.ttkOverflowEncoding_width]
+    exact QubitLayout.canonical_systemIdx (2 * n + 1)
 
 end
 

@@ -65,8 +65,9 @@ private theorem word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word widt
 
 /-- Every actual slot execution preserves its original entry data and retains exactly the first
 source-accepted candidate, with the complete actual caller frame. -/
-theorem candidateSlotInto_correct {N m ell : Nat} {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} (input : Input N) (generator : (ZMod N)ˣ)
+theorem candidateSlotInto_correct {N m ell : Nat} {model : ExecutionModel}
+    [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3)
     (hoffset : offset ∈ NumberTheory.coefficientOffsetList3
@@ -77,16 +78,22 @@ theorem candidateSlotInto_correct {N m ell : Nat} {kind : ProblemKind}
     (frameSeparation : FrameSeparation refs) (store : Store ctx)
     (initial : LatticeCandidateSlotOutcome.InitialConditions input generator samples refs store) :
     LatticeCandidateSlotOutcome.Outcome input generator samples offset refs store
-      (LatticeCandidateSlotMachine.candidateSlotStep
+      (LatticeCandidateSlotMachine.candidateSlotStep (model := model)
         (LatticeCandidateModularSetup.modulusSpec input) offset refs store).1 := by
   let _ : NeZero N := input.neZero
   let spec := LatticeCandidateModularSetup.modulusSpec input
   let point := RSA.shortLogPointAtOffset m ell samples offset
-  let afterScale := distanceScaleStore offset refs store
-  let afterExponent := (LatticeCandidateExponent.exponentStep refs.exponent afterScale).1
-  let afterPower := (LatticeCandidatePowerMachine.candidateStep spec refs.power afterExponent).1
-  let finalStore := (LatticeCandidateSlotMachine.candidateSlotStep spec offset refs store).1
-  have prefixFacts := distanceScaleStore_correct input generator samples offset hoffset refs
+  let afterScale := distanceScaleStore (model := model) offset refs store
+  let afterExponent :=
+    (LatticeCandidateExponent.exponentStep (model := model) refs.exponent afterScale).1
+  let afterPower :=
+    (LatticeCandidatePowerMachine.candidateStep (model := model)
+      spec refs.power afterExponent).1
+  let finalStore :=
+    (LatticeCandidateSlotMachine.candidateSlotStep (model := model)
+      spec offset refs store).1
+  have prefixFacts := distanceScaleStore_correct (model := model)
+    input generator samples offset hoffset refs
     separation frameSeparation store initial
   have exponentFacts := LatticeCandidateExponent.candidateExponentInto_correct refs.exponent
     separation.exponent afterScale m point.2.2 prefixFacts.exponentInitial

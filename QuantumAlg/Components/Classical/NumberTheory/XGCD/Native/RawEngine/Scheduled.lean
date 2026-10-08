@@ -61,86 +61,101 @@ theorem xgcdNativeRawOutputs_matches_transport {outer : RuntimeCtx kind}
   simp only [RawOutputs.MatchesState, RawOutputs.transport, gcdRead, leftRead, rightRead]
 
 /-- The right-associated actual schedule records initialization, the loop and all final copies. -/
-def scheduledRawRecord (cells : Cells ctx (stateShapes width))
+def scheduledRawRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
-    (loopRecord : Store ctx → Store ctx ×
+    (loopRecord : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive cells zero)).Path) :
-    Store ctx → Store ctx × (scheduledRawBody cells input zero outputs).Path :=
-  Circuit.sequenceRecord (initializationBody cells input zero)
+        (guardedActive (model := model) cells zero)).Path) :
+    Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+      (scheduledRawBody (model := model) cells input zero outputs).Path :=
+  Circuit.sequenceRecord (initializationBody (model := model) cells input zero)
     (.seq (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-      (guardedActive cells zero)) (copyRawOutputs cells outputs))
-    (fun before => (initializationStore cells input zero before,
-      ((), ((), ((), ((), ((), ())))))))
+      (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells outputs))
+    (fun before =>
+      let result := initializationStep (model := model) cells input zero before.1
+      ((result.1, before.2), result.2))
     (Circuit.sequenceRecord
-      (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width) (guardedActive cells zero))
-      (copyRawOutputs cells outputs) loopRecord
-      (fun before => (copyRawOutputsStore cells outputs before, ((), ((), ())))))
+      (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
+        (guardedActive (model := model) cells zero))
+      (copyRawOutputs (model := model) cells outputs) loopRecord
+      (fun before =>
+        let result := copyRawOutputsStep (model := model) cells outputs before.1
+        ((result.1, before.2), result.2)))
 
 /-- One actual record supplies full execution, caller framing and the original decoded result. -/
-theorem xgcdNativeScheduledRaw_actualRecord {outer : RuntimeCtx kind}
+theorem xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef outer (.unsignedWord width)) (outputs : RawOutputs outer width)
     (outputsDistinct : outputs.Distinct) :
-    ∃ record : Store ctx → Store ctx ×
-        (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
+        (scheduledRawBody (model := model) cells (transport.liftInput input)
+          (transport.liftInput zero)
           (outputs.transport transport)).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (scheduledRawBody cells (transport.liftInput input) (transport.liftInput zero)
+        (state : State ctx Reference (model.HiddenState × History)),
+        (scheduledRawBody (model := model) cells (transport.liftInput input)
+          (transport.liftInput zero)
           (outputs.transport transport)).execute Reference state =
             state.mapClassical (fun entry =>
-              ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
+              let result := record (entry.1, entry.2.1)
+              (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
         (∀ {shape : CShape} (other : CInputRef outer shape),
           outputs.gcd.key ∉ other.storageKeys →
           outputs.leftCoefficient.key ∉ other.storageKeys →
           outputs.rightCoefficient.key ∉ other.storageKeys →
-            ((record before).1).read (transport.liftInput other) =
-              before.read (transport.liftInput other)) ∧
-        (cells.Initialized before →
-          (before.read (transport.liftInput zero)).toNat = 0 →
-            (outputs.transport transport).MatchesState (record before).1
+            ((record before).1.1).read (transport.liftInput other) =
+              before.1.read (transport.liftInput other)) ∧
+        (cells.Initialized before.1 →
+          (before.1.read (transport.liftInput zero)).toNat = 0 →
+            (outputs.transport transport).MatchesState (record before).1.1
               (PureXGCD.finalState (GCD.decodeOperands
-                (before.read (transport.liftInput input))))) := by
+                (before.1.read (transport.liftInput input))))) := by
   obtain ⟨loopRecord, loopEquation, loopCorrect⟩ := xgcdNativeInitializedLoop_actualRecord
-    cells distinct transport separated input zero
+    (model := model) cells distinct transport separated input zero
   let liftedInput := transport.liftInput input
   let liftedZero := transport.liftInput zero
   let liftedOutputs := outputs.transport transport
   let loop := Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-    (guardedActive cells liftedZero)
-  let copyRecord := fun before =>
-    (copyRawOutputsStore cells liftedOutputs before, ((), ((), ())))
-  refine ⟨scheduledRawRecord cells liftedInput liftedZero liftedOutputs loopRecord, ?_, ?_⟩
+    (guardedActive (model := model) cells liftedZero)
+  let copyRecord := fun before : Store ctx × model.HiddenState =>
+    let result := copyRawOutputsStep (model := model) cells liftedOutputs before.1
+    ((result.1, before.2), result.2)
+  refine ⟨scheduledRawRecord (model := model) cells liftedInput liftedZero liftedOutputs loopRecord,
+    ?_, ?_⟩
   · intro reference history historyFinite state
-    apply Circuit.execute_sequenceRecord (initializationBody cells liftedInput liftedZero)
-      (.seq loop (copyRawOutputs cells liftedOutputs))
-      (fun before => (initializationStore cells liftedInput liftedZero before,
-        ((), ((), ((), ((), ((), ())))))))
-      (Circuit.sequenceRecord loop (copyRawOutputs cells liftedOutputs) loopRecord copyRecord)
+    apply Circuit.execute_sequenceRecord
+      (initializationBody (model := model) cells liftedInput liftedZero)
+      (.seq loop (copyRawOutputs (model := model) cells liftedOutputs))
+      (fun before =>
+        let result := initializationStep (model := model) cells liftedInput liftedZero before.1
+        ((result.1, before.2), result.2))
+      (Circuit.sequenceRecord loop (copyRawOutputs (model := model) cells liftedOutputs)
+        loopRecord copyRecord)
     · intro reference history historyFinite state
       refine (xgcdNativeInitialization_execute
         cells liftedInput liftedZero reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
     · intro reference history historyFinite state
-      exact Circuit.execute_sequenceRecord loop (copyRawOutputs cells liftedOutputs)
+      exact Circuit.execute_sequenceRecord loop
+        (copyRawOutputs (model := model) cells liftedOutputs)
         loopRecord copyRecord loopEquation (by
           intro reference history historyFinite state
           refine (xgcdNativeCopyRawOutputs_execute cells liftedOutputs reference state).trans ?_
-          congr 1
-          exact Subsingleton.elim _ _) reference state
+          exact ExecutionState.executionState_mapClassical_congr _ rfl) reference state
   · intro before
-    let intermediate := (loopRecord (initializationStore cells liftedInput liftedZero before)).1
+    let intermediate :=
+      (loopRecord (initializationStore cells liftedInput liftedZero before.1, before.2)).1.1
     change (∀ {shape : CShape} (other : CInputRef outer shape),
       outputs.gcd.key ∉ other.storageKeys → outputs.leftCoefficient.key ∉ other.storageKeys →
       outputs.rightCoefficient.key ∉ other.storageKeys →
       (copyRawOutputsStore cells liftedOutputs intermediate).read (transport.liftInput other) =
-        before.read (transport.liftInput other)) ∧ _
+        before.1.read (transport.liftInput other)) ∧ _
     constructor
     · intro shape other gcdFree leftFree rightFree
       exact (xgcdNativeCopyRawOutputs_read_other cells liftedOutputs intermediate

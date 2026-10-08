@@ -13,13 +13,9 @@ import all QuantumAlg.Components.Encoded.BitGates.Word.Swap
 import all QuantumAlg.Primitives.MAU.Addition.VBE.Circuit
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit
 import all QuantumAlg.Components.Encoded.BitGates.Word.ConstantXor
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.MK.StructuredWitness
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.Physical
-import all QuantumAlg.Primitives.MAU.Multiplication.Accumulate.VBECircuit.Resource
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Correction
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Correction.Resource
-import all QuantumAlg.Primitives.MAU.Inversion.MK.Physical.Correction
 
 /-!
 # Exact inversion resources
@@ -58,8 +54,10 @@ def inversionProgram (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (hpOdd : Odd p) :
-    UnitaryCircuit (Qubits (Correction.encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Correction.encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (inversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Folded action of the complete inversion gate schedule. -/
@@ -80,7 +78,7 @@ theorem inversionProgram_realizes (tail counterWidth p : Nat)
     UnitaryCircuit.Realizes (Correction.encoding tail counterWidth)
       (inversionProgram tail counterWidth p comparisonIndex workIndex hpOdd)
       (inversionStep tail counterWidth p comparisonIndex workIndex hpOdd) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (inversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Complete scale-removing inversion gate schedule. -/
@@ -103,8 +101,10 @@ def unscaledInversionProgram (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (hpOdd : Odd p) :
-    UnitaryCircuit (Qubits (Correction.encoding tail counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Correction.encoding tail counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (unscaledInversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Folded action of the complete scale-removing inversion gate schedule. -/
@@ -125,7 +125,7 @@ theorem unscaledInversionProgram_realizes (tail counterWidth p : Nat)
     UnitaryCircuit.Realizes (Correction.encoding tail counterWidth)
       (unscaledInversionProgram tail counterWidth p comparisonIndex workIndex hpOdd)
       (unscaledInversionStep tail counterWidth p comparisonIndex workIndex hpOdd) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (unscaledInversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Width-only primitive-leaf bound for the complete scale-removing inversion
@@ -815,7 +815,9 @@ def inversionCircuit (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (hpOdd : Odd p) :
-    UnitaryCircuit (Qubits (Correction.encoding tail counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (Correction.encoding tail counterWidth).width).toQuantum :=
   inversionProgram tail counterWidth p comparisonIndex workIndex hpOdd
 
 /-- Normalized clean unit-input endpoint of the same static circuit used for
@@ -846,25 +848,25 @@ theorem inversionCircuit_applyNormalized_clean_ket
     (inversionCircuit tail counterWidth p.val comparisonIndex workIndex
         hpOdd).applyNormalized
       (NormalizedVector.ket
-        (R := Qubits (Correction.encoding tail counterWidth).width)
-        ((Correction.encoding tail counterWidth).encode
-          (cleanCorrectionRegisters tail counterWidth p.val
+        ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+          ((Correction.encoding tail counterWidth).encode
+            (cleanCorrectionRegisters tail counterWidth p.val
             (MK.Circuit.withCleanRouteHistory
               tail.succ counterWidth
               (MK.initialRegisters
                 tail.succ counterWidth p input))
-            0 target))) =
+            0 target)))) =
       NormalizedVector.ket
-        (R := Qubits (Correction.encoding tail counterWidth).width)
-        ((Correction.encoding tail counterWidth).encode
-          (cleanCorrectionRegisters tail counterWidth p.val
+        ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+          ((Correction.encoding tail counterWidth).encode
+            (cleanCorrectionRegisters tail counterWidth p.val
             (MK.Circuit.withCleanRouteHistory
               tail.succ counterWidth
               (MK.initialRegisters
                 tail.succ counterWidth p input))
             0
             (target + scaledInverseResidue
-              ((2 : ZMod p.val) ^ (2 * tail.succ)) u))) := by
+              ((2 : ZMod p.val) ^ (2 * tail.succ)) u)))) := by
   let inputData : Correction.Registers tail counterWidth :=
     cleanCorrectionRegisters tail counterWidth p.val
       (MK.Circuit.withCleanRouteHistory
@@ -891,9 +893,11 @@ theorem inversionCircuit_applyNormalized_clean_ket
     (inversionProgram tail counterWidth p.val comparisonIndex workIndex
       hpOdd).applyNormalized
         (NormalizedVector.ket
-          ((Correction.encoding tail counterWidth).encode inputData)) =
+          ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+            ((Correction.encoding tail counterWidth).encode inputData))) =
       NormalizedVector.ket
-        ((Correction.encoding tail counterWidth).encode outputData)
+        ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+          ((Correction.encoding tail counterWidth).encode outputData))
   rw [(inversionProgram_realizes tail counterWidth p.val comparisonIndex
     workIndex hpOdd).apply_encoded_ket, hstep]
 
@@ -914,25 +918,25 @@ theorem inversionCircuit_applyNormalized_clean_ket_of_unit
     (inversionCircuit tail counterWidth p.val comparisonIndex workIndex
         hpOdd).applyNormalized
       (NormalizedVector.ket
-        (R := Qubits (Correction.encoding tail counterWidth).width)
-        ((Correction.encoding tail counterWidth).encode
-          (cleanCorrectionRegisters tail counterWidth p.val
+        ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+          ((Correction.encoding tail counterWidth).encode
+            (cleanCorrectionRegisters tail counterWidth p.val
             (MK.Circuit.withCleanRouteHistory
               tail.succ counterWidth
               (MK.initialRegisters
                 tail.succ counterWidth p input))
-            0 target))) =
+            0 target)))) =
       NormalizedVector.ket
-        (R := Qubits (Correction.encoding tail counterWidth).width)
-        ((Correction.encoding tail counterWidth).encode
-          (cleanCorrectionRegisters tail counterWidth p.val
+        ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
+          ((Correction.encoding tail counterWidth).encode
+            (cleanCorrectionRegisters tail counterWidth p.val
             (MK.Circuit.withCleanRouteHistory
               tail.succ counterWidth
               (MK.initialRegisters
                 tail.succ counterWidth p input))
             0
             (target + scaledInverseResidue
-              ((2 : ZMod p.val) ^ (2 * tail.succ)) u))) := by
+              ((2 : ZMod p.val) ^ (2 * tail.succ)) u)))) := by
   let _ : NeZero p.val := ⟨Nat.ne_of_gt hpOdd.pos⟩
   have hinputUnit : IsUnit (input.val : ZMod p.val) := by
     rw [hinput]
@@ -956,28 +960,31 @@ theorem inversionCircuit_applyNormalized_clean_ket_of_unit
 def inversionEventTrace (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) : List (Resource.Event .quantum) :=
+    (hpOdd : Odd p) :
+      List (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (inversionCircuit tail counterWidth p comparisonIndex workIndex hpOdd).eventTrace
 
 /-- Strict event pool of the complete inversion circuit. -/
 def inversionEventCost (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) : ResourcePool .quantum :=
+    (hpOdd : Odd p) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (inversionCircuit tail counterWidth p comparisonIndex workIndex hpOdd).eventCost
 
 /-- Strict symbolic event critical path of the complete inversion circuit. -/
 def inversionEventDepth (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) : DepthExpr (Resource.Event .quantum) :=
+    (hpOdd : Odd p) :
+      DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   (inversionCircuit tail counterWidth p comparisonIndex workIndex hpOdd).eventDepth
 
 /-- Evaluate inversion depth under literal event durations. -/
 def inversionEvaluatedEventDepth (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) (assign : Resource.Event .quantum → Nat) : Nat :=
+    (hpOdd : Odd p)
+    (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) : Nat :=
   (inversionCircuit tail counterWidth p comparisonIndex workIndex
     hpOdd).evaluatedEventDepth assign
 
@@ -985,7 +992,8 @@ def inversionEvaluatedEventDepth (tail counterWidth p : Nat)
 def inversionEventQueryDepth (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) (event : Resource.Event .quantum) : Nat :=
+    (hpOdd : Odd p)
+    (event : Resource.Event (.quantum AlgorithmGate.model .empty)) : Nat :=
   (inversionCircuit tail counterWidth p comparisonIndex workIndex
     hpOdd).eventQueryDepth event
 
@@ -993,8 +1001,8 @@ def inversionEventQueryDepth (tail counterWidth p : Nat)
 def inversionEventGateCount (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
-    (hpOdd : Odd p) (label : Resource.GateLabel) : Nat :=
-  ResourcePool.count (.gate label)
+    (hpOdd : Odd p) (label : AlgorithmGate.Coordinate) : Nat :=
+  ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
     (inversionCircuit tail counterWidth p comparisonIndex workIndex hpOdd).eventCost
 
 

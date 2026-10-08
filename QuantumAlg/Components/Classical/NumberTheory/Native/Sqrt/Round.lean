@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Classical.Composition
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual native binary-refinement square-root round
@@ -71,99 +72,87 @@ def shiftOp (refs : RoundRefs ctx width) :
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .shiftRight width ctx (.storage refs.half.toCStorageRef) refs.half
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Closed conditional bodies retain or update the same real root cell. -/
-def selectBody (refs : RoundRefs ctx width) : CShape.Value .bit → Circuit ctx ctx
+def selectBody (refs : RoundRefs ctx width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit true => .id ctx
-  | .bit false => .classical (copyOp refs)
+  | .bit false => BitWord.instruction (execution := model) (copyOp refs)
 
 /-- The comparison result is read from the actual written bit. -/
-def select (refs : RoundRefs ctx width) : Circuit ctx ctx :=
-  .branch (.storage refs.tooLarge.toCStorageRef) (selectBody refs)
+def select (refs : RoundRefs ctx width) : Circuit model ctx ctx :=
+  .branch (.storage refs.tooLarge.toCStorageRef) (selectBody (model := model) refs)
 
 /-- One literal native refinement round, with no auxiliary execution language. -/
 def round (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : RoundRefs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (addOp refs))
-    (.seq (.classical (squareOp refs))
-      (.seq (.classical (compareOp input refs))
-        (.seq (select refs) (.classical (shiftOp refs)))))
-
-noncomputable section
+    (refs : RoundRefs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (addOp refs))
+    (.seq (BitWord.instruction (execution := model) (squareOp refs))
+      (.seq (BitWord.instruction (execution := model) (compareOp input refs))
+        (.seq (select (model := model) refs) (BitWord.instruction (execution := model) (shiftOp
+          refs)))))
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- Store and actual unique path of each closed conditional body. -/
+/-- Store and actual returned path of each closed conditional body. -/
 def selectBodyStep (refs : RoundRefs ctx width) :
-    (value : CShape.Value .bit) → Store ctx → Store ctx × (selectBody refs value).Path
+    (value : CShape.Value .bit) → Store ctx → Store ctx × (selectBody (model := model) refs
+      value).Path
   | .bit true, store => (store, ())
-  | .bit false, store => (store.applyOp (copyOp refs), ())
+  | .bit false, store => BitWord.instructionStep (execution := model) (copyOp refs) store
 
 /-- The branch records the same value that it actually reads. -/
 def selectStep (refs : RoundRefs ctx width) (store : Store ctx) :
-    Store ctx × (select refs).Path :=
+    Store ctx × (select (model := model) refs).Path :=
   let value := store.read (.storage refs.tooLarge.toCStorageRef)
-  let selected := selectBodyStep refs value store
+  let selected := selectBodyStep (model := model) refs value store
   (selected.1, ⟨value, selected.2⟩)
 
 /-- Complete actual selection preserves all incoming quantum-reference blocks. -/
 theorem nativeSqrt_select_execute (refs : RoundRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (select refs).execute Reference state = state.mapClassical (fun entry =>
-      ((selectStep refs entry.1).1, (entry.2, (selectStep refs entry.1).2))) := by
-  have selected := Circuit.execute_branch_mapClassical
-    (.storage refs.tooLarge.toCStorageRef) (selectBody refs) (selectBodyStep refs)
-    (fun value reference {Past} _ initial => by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (select (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+      ((selectStep (model := model) refs entry.1).1, (entry.2.1, (entry.2.2, (selectStep (model :=
+        model) refs entry.1).2)))) := by
+  refine (Circuit.execute_branch_mapClassical
+    (.storage refs.tooLarge.toCStorageRef) (selectBody (model := model) refs)
+    (fun flag before =>
+      let actual := selectBodyStep (model := model) refs flag before.1
+      ((actual.1, before.2), actual.2))
+    (fun value reference _history _ initial => by
       cases value with
-      | bit value =>
-          cases value with
-          | false =>
-              refine (Circuit.execute_classical_mapClassical
-                (copyOp refs) reference initial).trans ?_
-              exact congrArg
-                (fun equality : DecidableEq (Store ctx × (Past × Unit)) =>
-                  @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register reference)
-                    equality initial
-                    (fun entry => (entry.1.applyOp (copyOp refs), (entry.2, ()))))
-                (Subsingleton.elim _ _)
-          | true =>
-              refine (Circuit.execute_id_mapClassical reference initial).trans ?_
-              exact congrArg
-                (fun equality : DecidableEq (Store ctx × (Past × Unit)) =>
-                  @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register reference)
-                    equality initial (fun entry => (entry.1, (entry.2, ()))))
-                (Subsingleton.elim _ _))
-    Reference state
-  refine selected.trans ?_
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (select refs).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => ((selectStep refs entry.1).1, (entry.2, (selectStep refs entry.1).2))))
-    (Subsingleton.elim _ _)
+      | bit flag =>
+          cases flag
+          · exact BitWord.bitWord_instruction_execute _ initial
+          · exact (Circuit.execute_id_mapClassical reference initial).trans
+              (ExecutionState.executionState_mapClassical_congr _ rfl))
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual five-stage store update and chronological path. -/
 def roundStep (input : CInputRef ctx (.unsignedWord (width + width)))
-    (refs : RoundRefs ctx width) (store : Store ctx) : Store ctx × (round input refs).Path :=
-  let added := store.applyOp (addOp refs)
-  let squared := added.applyOp (squareOp refs)
-  let compared := squared.applyOp (compareOp input refs)
-  let selected := selectStep refs compared
-  (selected.1.applyOp (shiftOp refs), ((), ((), ((), (selected.2, ())))))
+    (refs : RoundRefs ctx width) (store : Store ctx) : Store ctx × (round (model := model) input
+      refs).Path :=
+  let added := BitWord.instructionStep (execution := model) (addOp refs) store
+  let squared := BitWord.instructionStep (execution := model) (squareOp refs) added.1
+  let compared := BitWord.instructionStep (execution := model) (compareOp input refs) squared.1
+  let selected := selectStep (model := model) refs compared.1
+  let shifted := BitWord.instructionStep (execution := model) (shiftOp refs) selected.1
+  (shifted.1, (added.2, (squared.2, (compared.2, (selected.2, shifted.2)))))
 
 /-- The real native round executes precisely that store update on every full reference block. -/
 theorem nativeSqrt_round_execute (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : RoundRefs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (round input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((roundStep input refs entry.1).1, (entry.2, (roundStep input refs entry.1).2))) := by
-  simp only [round, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (round (model := model) input refs).execute Reference state = state.mapClassical (fun entry =>
+      ((roundStep (model := model) input refs entry.1).1, (entry.2.1, (entry.2.2, (roundStep
+        (model := model) input refs entry.1).2)))) := by
+  simp only [round, roundStep, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     nativeSqrt_select_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (round input refs).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry =>
-          ((roundStep input refs entry.1).1, (entry.2, (roundStep input refs entry.1).2))))
-    (Subsingleton.elim _ _)
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

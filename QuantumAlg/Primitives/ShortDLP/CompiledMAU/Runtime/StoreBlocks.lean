@@ -34,7 +34,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
 theorem shortDLP_runtimeSelected_store_unitary {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx) :
+    (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx) :
     (ExecutionState.filterClassical
       ((selected m ell width sameWires parameter N generator target).execute Reference state)
       (fun entry => entry.1 = original)).quantumMarginal.matrix =
@@ -49,7 +49,7 @@ theorem shortDLP_runtimeSelected_store_unitary {shape : CShape} (parameter : CIn
     (RuntimePlacement.memberProgram m ell width sameWires N
       (generator (original.read parameter)) (target (original.read parameter))).matrix
     (1 : UnitaryOperator Reference)
-  have fixed (entry : Store ctx × History) :
+  have fixed (entry : Store ctx × (model.HiddenState × History)) :
       (DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor
           (RuntimePlacement.memberProgram m ell width sameWires N

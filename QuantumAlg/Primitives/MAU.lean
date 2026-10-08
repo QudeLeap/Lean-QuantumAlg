@@ -10,14 +10,9 @@ import QuantumAlg.Init
 import QuantumAlg.Primitives.MAU.Addition
 import QuantumAlg.Primitives.MAU.Addition.DirtyBorrowed
 import QuantumAlg.Primitives.MAU.Inversion.Layout
-import QuantumAlg.Primitives.MAU.VBEBlockCounting
 import QuantumAlg.Primitives.MAU.Multiplication
-import QuantumAlg.Primitives.MAU.Multiplication.Windowed.Comparison
-import QuantumAlg.Primitives.MAU.Inversion
 import QuantumAlg.Primitives.MAU.Division
-public import QuantumAlg.Primitives.MAU.Exponentiation
 public import QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Endpoint
-import QuantumAlg.Primitives.MAU.Exponentiation.Windowed
 
 /-!
 # Modular arithmetic units

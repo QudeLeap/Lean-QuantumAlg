@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Every original actual stage returns its complete Store and native execution path. -/
 def verificationStageRecord (spec : CurveSpec width)
@@ -35,17 +36,18 @@ def verificationStageRecord (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (index : Fin 4) : Store ctx → Store ctx ×
-      (verificationStage spec candidate base target inverseSuccess reconstruction
-        scalarResult accepted index).Path := by
+    (index : Fin 4) : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) ×
+        (verificationStage spec candidate base target inverseSuccess reconstruction
+          scalarResult accepted index).Path := by
   refine Fin.cases (ScalarMul.Native.scalarStep spec (candidateBits candidate) base scalarResult)
     (fun index => ?_) index
-  refine Fin.cases (PointEquality.Native.compareStep
-    (.storage scalarResult.toCStorageRef) target accepted) (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (conjunctionOp inverseSuccess accepted), ()))
-    (fun index => ?_) index
-  refine Fin.cases (fun store => (store.applyOp (conjunctionOp reconstruction accepted), ()))
-    (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord (PointEquality.Native.compareStep
+    (.storage scalarResult.toCStorageRef) target accepted)) (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord (BitWord.instructionStep
+    (execution := model) (conjunctionOp inverseSuccess accepted))) (fun index => ?_) index
+  refine Fin.cases (Circuit.preserveHiddenRecord (BitWord.instructionStep
+    (execution := model) (conjunctionOp reconstruction accepted))) (fun index => ?_) index
   exact Fin.elim0 index
 
 /-- The four original stages preserve every complete quantum-reference block. -/
@@ -55,27 +57,25 @@ theorem verificationStage_execute (spec : CurveSpec width)
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
     (index : Fin 4) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (verificationStage spec candidate base target inverseSuccess reconstruction scalarResult
       accepted index).execute Reference state = state.mapClassical (fun entry =>
-        ((verificationStageRecord spec candidate base target inverseSuccess reconstruction
-          scalarResult accepted index entry.1).1,
-          (entry.2, (verificationStageRecord spec candidate base target inverseSuccess
-            reconstruction scalarResult accepted index entry.1).2))) := by
+        let result := verificationStageRecord spec candidate base target inverseSuccess
+          reconstruction scalarResult accepted index (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   refine Fin.cases ?_ (fun index => ?_) index
   · exact ScalarMul.Native.scalarInto_execute _ _ _ _ Reference state
   refine Fin.cases ?_ (fun index => ?_) index
-  · exact PointEquality.Native.compareInto_execute _ _ _ Reference state
+  · refine (PointEquality.Native.compareInto_execute _ _ _ Reference state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   refine Fin.cases ?_ (fun index => ?_) index
-  · refine (Circuit.execute_classical_mapClassical
-      (conjunctionOp inverseSuccess accepted) Reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+  · refine (BitWord.bitWord_instruction_execute (execution := model)
+      (conjunctionOp inverseSuccess accepted) state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   refine Fin.cases ?_ (fun index => ?_) index
-  · refine (Circuit.execute_classical_mapClassical
-      (conjunctionOp reconstruction accepted) Reference state).trans ?_
-    congr 1
-    exact Subsingleton.elim _ _
+  · refine (BitWord.bitWord_instruction_execute (execution := model)
+      (conjunctionOp reconstruction accepted) state).trans ?_
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
   exact Fin.elim0 index
 
 /-- Actual chronological record of the original scalar, comparator and two conjunctions. -/
@@ -84,9 +84,10 @@ def verifyStep (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit) :
-    Store ctx → Store ctx ×
-      (verifyInto spec candidate base target inverseSuccess reconstruction
-        scalarResult accepted).Path :=
+    Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) ×
+        (verifyInto spec candidate base target inverseSuccess reconstruction
+          scalarResult accepted).Path :=
   Circuit.forRangeRecord 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted)
@@ -100,13 +101,12 @@ theorem verifyInto_execute (spec : CurveSpec width)
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (verifyInto spec candidate base target inverseSuccess reconstruction scalarResult
       accepted).execute Reference state = state.mapClassical (fun entry =>
-        ((verifyStep spec candidate base target inverseSuccess reconstruction
-          scalarResult accepted entry.1).1,
-          (entry.2, (verifyStep spec candidate base target inverseSuccess reconstruction
-            scalarResult accepted entry.1).2))) :=
+        let result := verifyStep spec candidate base target inverseSuccess reconstruction
+          scalarResult accepted (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   Circuit.execute_forRangeRecord 4 _ _
     (verificationStage_execute spec candidate base target inverseSuccess reconstruction
       scalarResult accepted) Reference state
@@ -117,13 +117,13 @@ theorem verifyStep_store (spec : CurveSpec width)
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
-    (store : Store ctx) :
+    (entry : Store ctx × model.HiddenState) :
     (verifyStep spec candidate base target inverseSuccess reconstruction
-      scalarResult accepted store).1 =
+      scalarResult accepted entry).1.1 =
       let scalar := (ScalarMul.Native.scalarStep spec (candidateBits candidate)
-        base scalarResult store).1
+        base scalarResult entry).1
       let compared := (PointEquality.Native.compareStep
-        (.storage scalarResult.toCStorageRef) target accepted scalar).1
+        (.storage scalarResult.toCStorageRef) target accepted scalar.1).1
       (compared.applyOp (conjunctionOp inverseSuccess accepted)).applyOp
         (conjunctionOp reconstruction accepted) := rfl
 

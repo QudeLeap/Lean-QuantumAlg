@@ -33,8 +33,8 @@ def suffixCode (input : Input N) : (start : RuntimeCtx .quantum) →
     (wires : start.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires) →
     (originalCells : Fin (measurementBits N) → CWriteRef start (.finite 2)) →
-    (count : Nat) → Circuit start (suffixContext N start count)
-  | start, _, _, 0 => .id start
+    (count : Nat) → Circuit RuntimeRound.model start (suffixContext N start count)
+  | start, _, _, 0 => .id (model := RuntimeRound.model) start
   | start, wires, originalCells, count + 1 =>
       .seq (NativeBatchReuseRecovery.code start wires originalCells input)
         (suffixCode input (NativeBatchReuseRecovery.context start N)
@@ -44,14 +44,15 @@ def suffixCode (input : Input N) : (start : RuntimeCtx .quantum) →
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- Exactly one first-batch constructor precedes the actual same-bank suffix. -/
-def code (input : Input N) (count : Nat) : Circuit base (context base noQuantum N count) :=
+def code (input : Input N) (count : Nat) :
+    Circuit RuntimeRound.model base (context base noQuantum N count) :=
   .seq (NativeBatchRecovery.code base noQuantum input)
     (suffixCode input (NativeBatchRecovery.context base noQuantum N)
       (firstWires base noQuantum N) (firstCells base noQuantum N) count)
 
 /-- Complete output reads each real retained factor cell without constructing new storage. -/
 def run (input : Input N) (count : Nat) :
-    AlgorithmRun base (context base noQuantum N count)
+    AlgorithmRun RuntimeRound.model base (context base noQuantum N count)
       (.fixedVector (count + 1) (LatticeBatchRecoveryOutput.OutputShape N)) where
   code := code base noQuantum input count
   output := Output.all (context base noQuantum N count)

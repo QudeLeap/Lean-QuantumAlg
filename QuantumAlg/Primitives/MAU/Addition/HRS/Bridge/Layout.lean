@@ -23,29 +23,44 @@ noncomputable section
 
 open BinaryLabelEncoding
 
-/-- Exact shared low/high/dirty encoding. -/
+/-- Re-express the semantic low/high pair in the physical word order
+`high/low`.  This is the order already used by the unsplit input word, so the
+recursive split does not manufacture a zero-cost basis permutation. -/
+def bridgeGrouping (low high : Nat) :
+    BridgeRegisters (Fin (2 ^ low)) high ≃
+      (Fin (2 ^ high) × Fin (2 ^ low)) × Bool :=
+  Equiv.prodCongr (Equiv.prodComm _ _) (Equiv.refl Bool)
+
+/-- Exact shared high/low/dirty physical encoding, with the public semantic
+state still presented as low/high/dirty. -/
 def bridgeEncoding (low high : Nat) :
     BinaryLabelEncoding (BridgeRegisters (Fin (2 ^ low)) high) :=
-  prod (prod (finIdentity low) (finIdentity high)) bool
+  (prod (prod (finIdentity high) (finIdentity low)) bool).relabel
+    (bridgeGrouping low high)
 
 theorem hrsBridgeEncoding_width (low high : Nat) :
-    (bridgeEncoding low high).width = low + high + 1 := rfl
+    (bridgeEncoding low high).width = low + high + 1 := by
+  change high + low + 1 = low + high + 1
+  omega
 
 /-- A little-endian input bit of the low word. -/
 def bridgeLowBit (low high : Nat) (bit : Fin low) : EncodedBit (bridgeEncoding low high) :=
-  prodLeftBit (prod (finIdentity low) (finIdentity high)) bool
-    (prodLeftBit (finIdentity low) (finIdentity high)
-      (finIdentityBit low (WireAddress.littleEndianWire bit)))
+  (prodLeftBit (prod (finIdentity high) (finIdentity low)) bool
+    (prodRightBit (finIdentity high) (finIdentity low)
+      (finIdentityBit low (WireAddress.littleEndianWire bit)))).relabel
+        (bridgeGrouping low high)
 
 /-- A little-endian target bit of the high word. -/
 def bridgeHighBit (low high : Nat) (bit : Fin high) : EncodedBit (bridgeEncoding low high) :=
-  prodLeftBit (prod (finIdentity low) (finIdentity high)) bool
-    (prodRightBit (finIdentity low) (finIdentity high)
-      (finIdentityBit high (WireAddress.littleEndianWire bit)))
+  (prodLeftBit (prod (finIdentity high) (finIdentity low)) bool
+    (prodLeftBit (finIdentity high) (finIdentity low)
+      (finIdentityBit high (WireAddress.littleEndianWire bit)))).relabel
+        (bridgeGrouping low high)
 
 /-- The sole external dirty bit. -/
 def bridgeDirtyBit (low high : Nat) : EncodedBit (bridgeEncoding low high) :=
-  prodRightBit (prod (finIdentity low) (finIdentity high)) bool boolBit
+  (prodRightBit (prod (finIdentity high) (finIdentity low)) bool boolBit).relabel
+    (bridgeGrouping low high)
 
 theorem hrsBridgeLowBit_get (low high : Nat) (bit : Fin low)
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
@@ -66,13 +81,15 @@ theorem hrsBridgeDirtyBit_get (low high : Nat)
     (bridgeDirtyBit low high).get state = state.2 := rfl
 
 theorem hrsBridgeLowBit_wire (low high : Nat) (bit : Fin low) :
-    (bridgeLowBit low high bit).wire.val = low - 1 - bit.val := rfl
+    (bridgeLowBit low high bit).wire.val = high + (low - 1 - bit.val) := rfl
 
 theorem hrsBridgeHighBit_wire (low high : Nat) (bit : Fin high) :
-    (bridgeHighBit low high bit).wire.val = low + (high - 1 - bit.val) := rfl
+    (bridgeHighBit low high bit).wire.val = high - 1 - bit.val := rfl
 
 theorem hrsBridgeDirtyBit_wire (low high : Nat) :
-    (bridgeDirtyBit low high).wire.val = low + high := rfl
+    (bridgeDirtyBit low high).wire.val = low + high := by
+  change high + low = low + high
+  omega
 
 theorem hrsBridgeLowHigh_disjoint (low high : Nat) (a : Fin low) (b : Fin high) :
     (bridgeLowBit low high a).wire ≠ (bridgeHighBit low high b).wire := by

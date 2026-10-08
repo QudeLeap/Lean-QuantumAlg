@@ -129,9 +129,11 @@ theorem reverse_step (width : Nat) (coefficient : Bool) (state : Registers width
 
 /-- Actual quantum amplitudes of the computed predicate, for arbitrary Ctrl and Iter. -/
 theorem program_realizes (width : Nat) (coefficient : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (GateSpec.programList (gates width coefficient))
+    UnitaryCircuit.Realizes (encoding width)
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates width coefficient))
       (fun state => PhaseGuard.xorControl (predicate coefficient state) state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width coefficient)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width coefficient) (gates_step width coefficient)
 
 /-- Exact predicate size includes every actual negative-control mask and its inverse. -/
 theorem gates_length (width : Nat) (coefficient : Bool) :

@@ -8,9 +8,11 @@ module
 
 import QuantumAlg.Init
 public import QuantumAlg.Components.Kets
-public import QuantumAlg.Core.Base
+public import QuantumAlg.Core.Base.Tensor.Certified
+public import QuantumAlg.Components.Gates.Swap.Register
+import all QuantumAlg.Components.Gates.Swap.Register
+import all QuantumAlg.Core.Base.Tensor.Basic
 import all QuantumAlg.Primitives.HadamardTest.Basic
-import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
 # The SWAP test
@@ -25,7 +27,7 @@ section
 
 namespace QuantumAlg
 
-open NormalizedVector Gate
+open NormalizedVector
 
 noncomputable section
 

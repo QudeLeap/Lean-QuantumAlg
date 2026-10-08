@@ -121,9 +121,9 @@ theorem model_additionalSpace_eq {N : Nat} (model : FixedWidthModel N) :
         exact (NativeFiniteRetry.additionalSpace_qubits N rounds).trans
           (model_qubitBound_eq model)
       · change NativeFiniteRetry.additionalSpace N (6 + 1) (.quantumSystems dimension) = _
-        rw [NativeFiniteRetry.additionalSpace_succ_quantum_layout]
-        simp only [ShortDLP.CompiledMAU.runtimeLayout,
-          QubitLayout.toQuantumLayout_dimensionCount, same, Ne.symm same, ↓reduceIte,
+        rw [NativeFiniteRetry.additionalSpace_succ_quantum_layout,
+          ShortDLP.CompiledMAU.shortDLP_runtimeLayout_eq_source]
+        simp only [QubitLayout.toQuantumLayout_dimensionCount, same, Ne.symm same, ↓reduceIte,
           additionalSpace]
 
 -- Reuse the accepted actual run bounds without unfolding its seven-batch path type.

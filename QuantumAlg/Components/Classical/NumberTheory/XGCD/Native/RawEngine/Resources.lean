@@ -23,18 +23,22 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The independent original initialization, public active slots, and result copies. -/
-def rawEnvelope (kind : ProblemKind) (width : Nat) : ResourcePool kind :=
-  ResourcePool.ofList (initializationEvents kind width) +
-    (ResourcePool.scale (Euclid.gcdFuel width) (ResourcePool.ofList (activeEvents kind width)) +
-      ResourcePool.ofList (rawOutputEvents kind width))
+def rawEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+    ResourcePool model :=
+  ResourcePool.ofList (initializationEvents model width) +
+    (ResourcePool.scale (Euclid.gcdFuel width) (ResourcePool.ofList (activeEvents model width)) +
+      ResourcePool.ofList (rawOutputEvents model width))
 
 /-- Each selected actual branch stays within one full original active sequence. -/
 theorem xgcdNativeGuardedActive_pool_le (cells : Cells ctx (stateShapes width))
-    (zero : CInputRef ctx (.unsignedWord width)) (path : (guardedActive cells zero).Path) :
-    (guardedActive cells zero).resourcePool path ≤ ResourcePool.ofList (activeEvents kind width) :=
+    (zero : CInputRef ctx (.unsignedWord width))
+    (path : (guardedActive (model := model) cells zero).Path) :
+    (guardedActive (model := model) cells zero).resourcePool path ≤
+      ResourcePool.ofList (activeEvents model width) :=
     by
   rw [Circuit.resourcePool, xgcdNativeGuardedActive_eventTrace]
   split
@@ -44,9 +48,9 @@ theorem xgcdNativeGuardedActive_pool_le (cells : Cells ctx (stateShapes width))
 /-- The actual finite path vector contains at most one active allowance per scheduled iteration. -/
 theorem xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat) :
-    ∀ path : (Circuit.iterate count (guardedActive cells zero)).Path,
-      (Circuit.iterate count (guardedActive cells zero)).resourcePool path ≤
-        ResourcePool.scale count (ResourcePool.ofList (activeEvents kind width)) := by
+    ∀ path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path,
+      (Circuit.iterate count (guardedActive (model := model) cells zero)).resourcePool path ≤
+        ResourcePool.scale count (ResourcePool.ofList (activeEvents model width)) := by
   induction count with
   | zero =>
       intro path
@@ -54,7 +58,7 @@ theorem xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
   | succ count ih =>
       intro path
       change ResourcePool.ofList ((List.ofFn (fun index : Fin (count + 1) =>
-        (guardedActive cells zero).eventTrace (path index))).flatten) ≤ _
+        (guardedActive (model := model) cells zero).eventTrace (path index))).flatten) ≤ _
       rw [List.ofFn_succ, List.flatten_cons, ResourcePool.ofList_append, ResourcePool.scale_succ]
       exact add_le_add (xgcdNativeGuardedActive_pool_le cells zero (path 0))
         (ih (fun index => path index.succ))
@@ -63,11 +67,15 @@ theorem xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
 theorem xgcdNativeScheduledRaw_pool_le (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
-    (path : (scheduledRawBody cells input zero outputs).Path) :
-    (scheduledRawBody cells input zero outputs).resourcePool path ≤ rawEnvelope kind width := by
-  change ResourcePool.ofList (initializationEvents kind width ++
-    ((Circuit.iterate (Euclid.gcdFuel width) (guardedActive cells zero)).eventTrace path.2.1 ++
-      rawOutputEvents kind width)) ≤ _
+    (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
+    (scheduledRawBody (model := model) cells input zero outputs).resourcePool path ≤
+      rawEnvelope model width := by
+  change ResourcePool.ofList
+    ((initializationBody (model := model) cells input zero).eventTrace path.1 ++
+      ((Circuit.iterate (Euclid.gcdFuel width)
+        (guardedActive (model := model) cells zero)).eventTrace path.2.1 ++
+        (copyRawOutputs (model := model) cells outputs).eventTrace path.2.2)) ≤ _
+  rw [xgcdNativeInitialization_eventTrace, xgcdNativeCopyRawOutputs_eventTrace]
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append]
   exact add_le_add le_rfl (add_le_add
     (xgcdNativeLoop_pool_le cells zero (Euclid.gcdFuel width) path.2.1) le_rfl)
@@ -76,31 +84,33 @@ theorem xgcdNativeScheduledRaw_pool_le (cells : Cells ctx (stateShapes width))
 theorem xgcdNativeWithRawState_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
-    (path : (withRawState input zero outputs).Path) :
-    (withRawState input zero outputs).resourcePool path ≤ rawEnvelope kind width := by
+    (path : (withRawState (model := model) input zero outputs).Path) :
+    (withRawState (model := model) input zero outputs).resourcePool path ≤
+      rawEnvelope model width := by
   exact withCellsFrom_pool_le (Transport.id ctx) (stateShapes width)
-    (fun cells _ transport _ => scheduledRawBody cells (transport.liftInput input)
-      (transport.liftInput zero) (outputs.transport transport)) (rawEnvelope kind width)
+    (fun cells _ transport _ => scheduledRawBody (model := model) cells (transport.liftInput input)
+      (transport.liftInput zero) (outputs.transport transport)) (rawEnvelope model width)
     (fun cells _ transport _ selected => xgcdNativeScheduledRaw_pool_le cells _ _ _ selected) path
 
-private theorem lexical_pool_le {inner : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem lexical_pool_le {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
-    (body : Circuit (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
-    (budget : ResourcePool kind) (bound : ∀ selected, body.resourcePool selected ≤ budget)
+    (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
+    (budget : ResourcePool model) (bound : ∀ selected, body.resourcePool selected ≤ budget)
     (path : (Circuit.workspace inner key shape fresh body).Path) :
     (Circuit.workspace inner key shape fresh body).resourcePool path ≤ budget := bound path
 
 /-- The entire actual raw engine obeys the same independent native coordinate allowance. -/
 theorem xgcdNativeRawEngine_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (outputs : RawOutputs ctx width) (path : (rawEngine input outputs).Path) :
-    (rawEngine input outputs).resourcePool path ≤ rawEnvelope kind width :=
+    (outputs : RawOutputs ctx width) (path : (rawEngine (model := model) input outputs).Path) :
+    (rawEngine (model := model) input outputs).resourcePool path ≤ rawEnvelope model width :=
   lexical_pool_le ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
-    (withRawState
+    (withRawState (model := model)
       (input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh)
       (GCD.cellRead (CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (.unsignedWord width)
         ctx.canonicalFreshKey_fresh)) outputs.underZero)
-    (rawEnvelope kind width)
+    (rawEnvelope model width)
     (xgcdNativeWithRawState_pool_le
       (ctx := ctx.addWorkspace ctx.canonicalFreshKey (.unsignedWord width)
         ctx.canonicalFreshKey_fresh) (width := width)

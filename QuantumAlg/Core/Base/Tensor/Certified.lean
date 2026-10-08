@@ -104,6 +104,87 @@ end
 
 end NormalizedVector
 
+namespace HilbertVector
+
+noncomputable section
+
+/-- Tensor product of raw vectors over arbitrary finite registers. -/
+@[expose] public def prodTensor {R S : Register}
+    (left : HilbertVector R) (right : HilbertVector S) :
+    HilbertVector (Register.prod R S) :=
+  WithLp.toLp 2 fun index => left index.1 * right index.2
+
+@[simp] public theorem prodTensor_apply {R S : Register}
+    (left : HilbertVector R) (right : HilbertVector S)
+    (index : (Register.prod R S).Index) :
+    prodTensor left right index = left index.1 * right index.2 :=
+  rfl
+
+/-- The norm of an arbitrary finite-register product vector is the product of
+the subsystem norms. -/
+public theorem norm_prodTensor {R S : Register}
+    (left : HilbertVector R) (right : HilbertVector S) :
+    ‖prodTensor left right‖ = ‖left‖ * ‖right‖ := by
+  rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq, EuclideanSpace.norm_eq,
+    ← Real.sqrt_mul (show (0 : ℝ) ≤ ∑ index, ‖left index‖ ^ 2 from
+      Finset.sum_nonneg fun index _ => sq_nonneg ‖left index‖)]
+  congr 1
+  simp only [prodTensor_apply]
+  change (∑ index : R.Index × S.Index,
+      ‖left index.1 * right index.2‖ ^ 2) =
+    (∑ leftIndex : R.Index, ‖left leftIndex‖ ^ 2) *
+      ∑ rightIndex : S.Index, ‖right rightIndex‖ ^ 2
+  rw [Fintype.sum_prod_type, Finset.sum_mul_sum]
+  refine Finset.sum_congr rfl fun leftIndex _ =>
+    Finset.sum_congr rfl fun rightIndex _ => ?_
+  rw [norm_mul, mul_pow]
+
+/-- Computational-basis vectors form the corresponding product-register basis vector. -/
+@[simp] public theorem prodTensor_ket {R S : Register}
+    (left : R.Index) (right : S.Index) :
+    prodTensor
+        (NormalizedVector.ket (R := R) left : HilbertVector R)
+        (NormalizedVector.ket (R := S) right : HilbertVector S) =
+      (NormalizedVector.ket (R := Register.prod R S) (left, right) :
+        HilbertVector (Register.prod R S)) := by
+  apply WithLp.ofLp_injective
+  funext index
+  by_cases same : index = (left, right)
+  · subst index
+    simp [NormalizedVector.ket_apply]
+  · have component : index.1 ≠ left ∨ index.2 ≠ right := by
+      apply not_and_or.mp
+      rintro ⟨leftSame, rightSame⟩
+      exact same (Prod.ext leftSame rightSame)
+    rcases component with leftDifferent | rightDifferent
+    · simp [NormalizedVector.ket_apply, same, leftDifferent]
+    · simp [NormalizedVector.ket_apply, same, rightDifferent]
+
+end
+
+end HilbertVector
+
+namespace NormalizedVector
+
+noncomputable section
+
+/-- Tensor product of normalized vectors over arbitrary finite registers. -/
+@[expose] public def prodTensor {R S : Register}
+    (left : NormalizedVector R) (right : NormalizedVector S) :
+    NormalizedVector (Register.prod R S) :=
+  ofVector (HilbertVector.prodTensor left.vec right.vec) (by
+    rw [HilbertVector.norm_prodTensor, left.norm_eq_one, right.norm_eq_one, one_mul])
+
+@[simp] public theorem prodTensor_apply {R S : Register}
+    (left : NormalizedVector R) (right : NormalizedVector S)
+    (index : (Register.prod R S).Index) :
+    prodTensor left right index = left index.1 * right index.2 :=
+  rfl
+
+end
+
+end NormalizedVector
+
 namespace UnitaryOperator
 
 noncomputable section
@@ -146,8 +227,31 @@ public theorem unitaryOperator_prodTensor_apply {R S : Register} (U : UnitaryOpe
     prodTensor U V i j = U i.1 j.1 * V i.2 j.2 :=
   prodTensor_apply U V i j
 
+/-- Product operators act factorwise on raw vectors over arbitrary finite
+registers. -/
+public theorem prodTensor_applyVec_prodTensor {R S : Register}
+    (U : UnitaryOperator R) (V : UnitaryOperator S)
+    (left : HilbertVector R) (right : HilbertVector S) :
+    (prodTensor U V).applyVec (HilbertVector.prodTensor left right) =
+      HilbertVector.prodTensor (U.applyVec left) (V.applyVec right) := by
+  apply WithLp.ofLp_injective
+  funext index
+  rw [applyVec_apply, HilbertVector.prodTensor_apply,
+    applyVec_apply, applyVec_apply]
+  change (∑ source : R.Index × S.Index,
+      U index.1 source.1 * V index.2 source.2 *
+        (left source.1 * right source.2)) =
+    (∑ sourceLeft, U index.1 sourceLeft * left sourceLeft) *
+      ∑ sourceRight, V index.2 sourceRight * right sourceRight
+  rw [Fintype.sum_prod_type, Finset.sum_mul_sum]
+  apply Finset.sum_congr rfl
+  intro sourceLeft _
+  apply Finset.sum_congr rfl
+  intro sourceRight _
+  ring
+
 /-- Tensor product of metadata-free unitary operators. -/
-def tensor (U : UnitaryOperator (Qubits m)) (V : UnitaryOperator (Qubits n)) :
+public def tensor (U : UnitaryOperator (Qubits m)) (V : UnitaryOperator (Qubits n)) :
     UnitaryOperator (Qubits (m + n)) :=
   ofMatrix
     (HilbertOperator.tensor (U : HilbertOperator (Qubits m))

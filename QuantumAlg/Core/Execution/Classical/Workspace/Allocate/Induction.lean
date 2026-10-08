@@ -19,21 +19,21 @@ the motive exposes exactly the caller references available in each scope.
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- Lift a body property through the allocator's actual nested workspace instructions. -/
-theorem withCellsFrom_property {kind : ProblemKind}
-    {outer ctx : RuntimeCtx kind} (transport : Transport outer ctx)
+theorem withCellsFrom_property {model : ExecutionModel}
+    {outer ctx : RuntimeCtx model.kind} (transport : Transport outer ctx)
     (shapes : List CShape)
-    (body : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes), cells.Distinct →
+    (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
-        Circuit inner inner)
-    (property : ∀ {inner : RuntimeCtx kind}, Transport outer inner →
-      Circuit inner inner → Prop)
-    (workspaceProperty : ∀ {inner : RuntimeCtx kind} (innerTransport : Transport outer inner)
+        Circuit model inner inner)
+    (property : ∀ {inner : RuntimeCtx model.kind}, Transport outer inner →
+      Circuit model inner inner → Prop)
+    (workspaceProperty : ∀ {inner : RuntimeCtx model.kind} (innerTransport : Transport outer inner)
       (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
-      (code : Circuit (inner.addWorkspace key shape fresh)
+      (code : Circuit model (inner.addWorkspace key shape fresh)
         (inner.addWorkspace key shape fresh)),
       property (innerTransport.underWorkspace key shape fresh) code →
         property innerTransport (Circuit.workspace inner key shape fresh code))
-    (bodyProperty : ∀ {inner : RuntimeCtx kind} (cells : Cells inner shapes)
+    (bodyProperty : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport),
       property innerTransport (body cells distinct innerTransport separated)) :

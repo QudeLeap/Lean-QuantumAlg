@@ -26,7 +26,8 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (basePoint targetPoint : Pure.Point curve)
@@ -35,14 +36,19 @@ local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
   unfold SampleAccepted
   infer_instance
 
-private theorem actualRecord_effectWeight (code : Circuit ctx ctx)
-    {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H)
-    (record : Store ctx → Store ctx × code.Path)
+omit [BitWord.Selected model] in
+private theorem actualRecord_effectWeight (code : Circuit model ctx ctx)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State ctx Reference (model.HiddenState × H))
+    (record : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × code.Path)
     (equation : code.execute Reference state = state.mapClassical
-      (fun entry => ((record entry.1).1, (entry.2, (record entry.1).2))))
+      (fun entry =>
+        let result := record (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (effects : Store ctx → Effect (ctx.register.prod Reference)) :
     (code.execute Reference state).effectWeight (fun entry => effects entry.1) =
-      state.effectWeight (fun entry => effects (record entry.1).1) := by
+      state.effectWeight (fun entry => effects (record (entry.1, entry.2.1)).1.1) := by
   rw [equation, ExecutionState.effectWeight_mapClassical_decision]
 
 private theorem persistentAttempt_flag_weight
@@ -50,7 +56,7 @@ private theorem persistentAttempt_flag_weight
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (represents : ∀ entry, 0 < (state.block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
@@ -89,18 +95,18 @@ private theorem persistentAttempt_flag_weight
   intro entry _
   by_cases positive : 0 < (state.block entry).mass
   · have points := represents entry positive
-    have latches := persistentAttemptStore_latches curve modulus sample base target entry.1
-      basePoint targetPoint points.1 points.2
+    have latches := persistentAttemptStore_latches curve modulus sample base target
+      (entry.1, entry.2.1) basePoint targetPoint points.1 points.2
     have flagEquation :
-        ((record entry.1).1.read
+        ((record (entry.1, entry.2.1)).1.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         ((entry.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool ||
           decide (SampleAccepted curve modulus basePoint targetPoint
             (entry.1.read (persistentInput width scalarWidth sample)))) := by
-      rw [stores]
+      rw [stores, ← persistentAttemptStore_eq]
       apply Bool.eq_iff_iff.mpr
-      simpa only [persistentAttemptStore, Bool.or_eq_true, decide_eq_true_eq] using latches.1
+      simpa only [Bool.or_eq_true, decide_eq_true_eq] using latches.1
     simp only [flagEquation]
   · have zeroMass := le_antisymm (le_of_not_gt positive) (state.block entry).mass_nonneg
     dsimp only
@@ -112,7 +118,7 @@ theorem persistentAttempt_acceptance_weight
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (represents : ∀ entry, 0 < (state.block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint) :
@@ -139,7 +145,7 @@ theorem persistentAttempt_failure_weight
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State (persistentCtx ctx width scalarWidth) Reference H)
+    (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (represents : ∀ entry, 0 < (state.block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint) :

@@ -22,12 +22,13 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
-private def serialEvents (events : List (Resource.Event .quantum)) :
-    DepthExpr (Resource.Event .quantum) :=
+private def serialEvents (events : List (Resource.Event (.quantum AlgorithmGate.model .empty))) :
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   events.foldr (fun event rest => .seq (.atom event) rest) .id
 
-private theorem serialEvents_eval (assignment : Resource.Event .quantum → Nat)
-    (events : List (Resource.Event .quantum)) :
+private theorem serialEvents_eval
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
+    (events : List (Resource.Event (.quantum AlgorithmGate.model .empty))) :
     DepthExpr.depthEval assignment (serialEvents events) = (events.map assignment).sum := by
   induction events with
   | nil => rfl
@@ -36,14 +37,14 @@ private theorem serialEvents_eval (assignment : Resource.Event .quantum → Nat)
         assignment event + (rest.map assignment).sum
       rw [ih]
 
-/-- A serialized independent native pool, retaining all controlled event labels. -/
+/-- A serialized independent pool for the actual native control expansion. -/
 def exponentiationDepthEnvelope (bits width N : Nat) :
-    DepthExpr (Resource.Event .quantum) :=
+    DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   serialEvents (exponentiationEventEnvelope bits width N).toList
 
 /-- The envelope evaluates the independent pool at exactly the requested event durations. -/
 theorem exponentiationDepthEnvelope_eval (bits width N : Nat)
-    (assignment : Resource.Event .quantum → Nat) :
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (exponentiationDepthEnvelope bits width N) =
       ResourcePool.weightedCount assignment (exponentiationEventEnvelope bits width N) := by
   rw [exponentiationDepthEnvelope, serialEvents_eval]
@@ -56,7 +57,7 @@ theorem exponentiationDepthEnvelope_eval (bits width N : Nat)
 
 /-- Every actual member obeys the independent envelope under every duration assignment. -/
 theorem exponentiationProgram_eventDepth_le (bits width N : Nat) (unit : (ZMod N)ˣ)
-    (assignment : Resource.Event .quantum → Nat) :
+    (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (exponentiationProgram bits width N unit).eventDepth ≤
       DepthExpr.depthEval assignment (exponentiationDepthEnvelope bits width N) := by
   rw [exponentiationDepthEnvelope_eval]
@@ -89,7 +90,7 @@ theorem exponentiationProgram_depth_eq_events (bits width N : Nat) (unit : (ZMod
 /-- The actual unit-duration serial depth satisfies the tighter total-occurrence bound. -/
 theorem exponentiationProgram_actual_depth_bound (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (exponentiationProgram bits width N unit).evaluatedEventDepth (fun _ => 1) ≤
-      bits * MAU.Multiplication.Gidney.eventBound width := by
+      MAU.Exponentiation.Gidney.eventBound bits width := by
   rw [exponentiationProgram_depth_eq_events]
   exact exponentiationProgram_actual_event_bound bits width N unit
 

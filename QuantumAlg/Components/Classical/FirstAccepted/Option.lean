@@ -38,12 +38,14 @@ def retainFirst {α : Type} (previous current : Option α) : Option α :=
   | some value => some value
   | none => current
 
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
 /-- Actual selection realizes the ordered first-success update of its existing output cells. -/
 theorem firstAccepted_selectedOption (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separated : Separated inputs refs) (store : Store ctx) :
-    selectedOption refs (step inputs refs store).1 =
+    selectedOption refs (step (model := model) inputs refs store).1 =
       retainFirst (selectedOption refs store) (candidateOption inputs store) := by
-  obtain ⟨accepted, selected⟩ := firstAccepted_latches inputs refs separated store
+  obtain ⟨accepted, selected⟩ := firstAccepted_latches (model := model) inputs refs separated store
   unfold selectedOption candidateOption
   rw [accepted, selected]
   cases old : (store.read (cellRead refs.accepted)).toBool <;>

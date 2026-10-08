@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Selection.Resources
-import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Phase.Quotient
+import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Phase.Quotient.Gates
 
 /-!
 # Actual complete source arithmetic block 2
@@ -35,8 +35,10 @@ noncomputable section
 open EncodedBit
 
 /-- Execute the actual location selector before the actual quotient update. -/
-def program (width : Nat) : UnitaryCircuit (Qubits (encoding width).width) :=
-  (SelectionSchedule.program width).seq (PhaseQuotient.program width)
+def program (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  (SelectionSchedule.program width).seq (PhaseQuotient.nativeProgram width)
 
 /-- Complete frame action of the same two executable native fragments. -/
 def step (width : Nat) (state : Registers width) : Registers width :=
@@ -49,7 +51,8 @@ def sourceStep (width : Nat) (state : Registers width) : Registers width :=
 /-- Full native realization, with no condition on the incoming quantum label. -/
 theorem program_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width) (step width) :=
-  (SelectionSchedule.program_realizes width).seq (PhaseQuotient.program_realizes width)
+  (SelectionSchedule.program_realizes width).seq
+    (PhaseQuotient.phaseQuotient_nativeProgram_realizes width)
 
 private theorem indices_control (width : Nat) (indices : List (SelectionKey.Key width))
     (state : Registers width) :
@@ -86,8 +89,11 @@ theorem step_eq_sourceStep (width : Nat) (state : Registers width)
 /-- Exact ket execution includes the original relative phase, rather than merely the output bits. -/
 theorem program_apply_prepared (width : Nat) (state : Registers width)
     (preparedControl : state.control = false) :
-    (program width).applyNormalized (NormalizedVector.ket ((encoding width).encode state)) =
-      NormalizedVector.ket ((encoding width).encode (sourceStep width state)) := by
+    (program width).applyNormalized
+      (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode state))) =
+      NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
+        ((encoding width).encode (sourceStep width state))) := by
   rw [(program_realizes width).apply_encoded_ket,
     step_eq_sourceStep width state preparedControl]
 
@@ -151,7 +157,8 @@ theorem step_secondWord (width : Nat) (state : Registers width) :
 theorem program_eventTrace (width : Nat) :
     (program width).eventTrace =
       SelectionResources.events width ++ (PhaseQuotient.program width).eventTrace := by
-  rw [program, UnitaryCircuit.seq_eventTrace, SelectionResources.program_eventTrace]
+  rw [program, UnitaryCircuit.seq_eventTrace, SelectionResources.program_eventTrace,
+    PhaseQuotient.phaseQuotient_nativeProgram_trace]
 
 /-- Literal native occurrences include the selector enumeration and the actual HRS incrementer. -/
 theorem program_eventTrace_length (width : Nat) :
@@ -162,14 +169,15 @@ theorem program_eventTrace_length (width : Nat) :
     rw [SelectionSchedule.program, GateSpec.programList_eventTrace, List.length_map,
       SelectionResources.gates_length]
   rw [program, UnitaryCircuit.seq_eventTrace, List.length_append, selectorLength,
-    PhaseQuotient.program_eventTrace_length]
+    PhaseQuotient.phaseQuotient_nativeProgram_trace, PhaseQuotient.program_eventTrace_length]
   omega
 
 /-- The actual sequential depth preserves the dependency between the two source operations. -/
 theorem program_unitDepth (width : Nat) :
     (program width).evaluatedEventDepth (fun _ => 1) = SelectionResources.count width +
-      (PhaseQuotient.program width).evaluatedEventDepth (fun _ => 1) := by
-  rw [program, UnitaryCircuit.evaluatedEventDepth_seq, SelectionResources.program_unitDepth]
+      ((LowShiftIncrement.program width).eventTrace.length + 2 * width.size + 4) := by
+  rw [program, UnitaryCircuit.evaluatedEventDepth_seq, SelectionResources.program_unitDepth,
+    PhaseQuotient.phaseQuotient_nativeProgram_unitDepth]
 
 end
 

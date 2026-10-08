@@ -58,7 +58,8 @@ theorem initialized_cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) 
 theorem circuit_density_of_input_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size count) Reference H)
+    (original : State (before p.size count) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬inputTrajectory E points order input.1 → original.quantumMarginal.matrix input input = 0) :
     ((circuit E points order).execute Reference original).quantumMarginal =

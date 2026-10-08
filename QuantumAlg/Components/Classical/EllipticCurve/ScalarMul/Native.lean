@@ -30,12 +30,13 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The original stored-bit choice contains a real complete addition only for true. -/
 def scalarBitArm (spec : CurveSpec width) (point : CInputRef ctx (PointShape width))
     (accumulator : CWriteRef ctx (PointShape width)) (value : CShape.Value .bit) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   if value.toBool then
     Add.Native.addInto spec (Add.Native.classifierRead accumulator) point accumulator
   else .id ctx
@@ -44,7 +45,7 @@ def scalarBitArm (spec : CurveSpec width) (point : CInputRef ctx (PointShape wid
 def scalarSlot (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
-    (index : Fin scalarWidth) : Circuit ctx ctx :=
+    (index : Fin scalarWidth) : Circuit model ctx ctx :=
   .seq (Add.Native.addInto spec (Add.Native.classifierRead accumulator)
     (Add.Native.classifierRead accumulator) accumulator)
     (.branch (.vectorGet bits index) (scalarBitArm spec point accumulator))
@@ -53,21 +54,21 @@ def scalarSlot (spec : CurveSpec width)
 def scalarFold (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   Circuit.forRange scalarWidth (scalarSlot spec bits point accumulator)
 
 /-- The actual infinity constructor precedes the complete original scalar fold. -/
 def scalarInto (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .seq (Add.Native.infinityInto accumulator) (scalarFold spec bits point accumulator)
 
 /-- Allocate the original retained point result before the same literal scalar program. -/
 def scalarRetained (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys) :
-    Circuit ctx (ctx.addRetained key (PointShape width) fresh) :=
+    Circuit model ctx (ctx.addRetained key (PointShape width) fresh) :=
   .seq (.retain ctx key (PointShape width) fresh)
     (scalarInto spec (bits.underRetained key (PointShape width) fresh)
       (point.underRetained key (PointShape width) fresh)

@@ -23,13 +23,13 @@ open Execution ClassicalRoutines
 noncomputable section
 
 /-- A coordinatewise branch allowance has cardinality at most the sum of its two arms. -/
-theorem poolMax_card_le_add {kind : ProblemKind} (left right : ResourcePool kind) :
+theorem poolMax_card_le_add {model : ExecutionModel} (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card := by
   simpa only [ResourcePool.max, Multiset.card_add] using
     Multiset.card_le_card (Multiset.union_le_add left right)
 
 /-- Reusing one coordinate allowance as both branch bounds leaves it unchanged. -/
-theorem poolMax_self {kind : ProblemKind} (pool : ResourcePool kind) :
+theorem poolMax_self {model : ExecutionModel} (pool : ResourcePool model) :
     ResourcePool.max pool pool = pool := by
   rw [Multiset.ext]
   intro event
@@ -40,8 +40,9 @@ def powerCardBound (width exponentWidth : Nat) : Nat :=
   2 * width + 5 + 6 * exponentWidth
 
 /-- The independent native-power coordinate formula has the stated exact cardinality. -/
-theorem powerEventEnvelope_card_eq {kind : ProblemKind} (width exponentWidth : Nat) :
-    (Modular.NativePower.eventEnvelope kind width exponentWidth).card =
+theorem powerEventEnvelope_card_eq {model : ExecutionModel} [BitWord.Selected model]
+    (width exponentWidth : Nat) :
+    (Modular.NativePower.eventEnvelope model width exponentWidth).card =
       powerCardBound width exponentWidth := by
   simp [Modular.NativePower.eventEnvelope, Modular.NativePower.exponentEnvelope,
     Modular.NativePower.bitEnvelope, Modular.NativePower.multiplyEnvelope,
@@ -50,7 +51,8 @@ theorem powerEventEnvelope_card_eq {kind : ProblemKind} (width exponentWidth : N
   omega
 
 /-- Actual native-power paths satisfy the complete independent count bound. -/
-theorem nativePower_eventCount_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem nativePower_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {width exponentWidth : Nat} (spec : ClassicalAlgorithms.Modular.ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
@@ -67,8 +69,9 @@ theorem nativePower_eventCount_le {kind : ProblemKind} {ctx : RuntimeCtx kind}
 def modularSetupCardBound (modulusWidth : Nat) : Nat := 12 * modulusWidth + 8
 
 /-- The original shared setup's independent coordinate allowance has the stated cardinality. -/
-theorem modularSetupEventEnvelope_card_eq {kind : ProblemKind} (modulusWidth : Nat) :
-    (LatticeCandidateModularSetup.setupEventEnvelope kind modulusWidth).card =
+theorem modularSetupEventEnvelope_card_eq {model : ExecutionModel} [BitWord.Selected model]
+    (modulusWidth : Nat) :
+    (LatticeCandidateModularSetup.setupEventEnvelope model modulusWidth).card =
       modularSetupCardBound modulusWidth := by
   unfold LatticeCandidateModularSetup.setupEventEnvelope
   rw [Multiset.card_add, powerEventEnvelope_card_eq]
@@ -78,7 +81,8 @@ theorem modularSetupEventEnvelope_card_eq {kind : ProblemKind} (modulusWidth : N
   omega
 
 /-- Every actual shared setup path satisfies the independent public-modulus-width event bound. -/
-theorem modularSetup_eventCount_le {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+theorem modularSetup_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} {N : Nat}
     (input : Input N) (refs : LatticeCandidateModularSetup.Refs ctx N)
     (path : (LatticeCandidateModularSetup.setupInto input refs).Path) :
     ((LatticeCandidateModularSetup.setupInto input refs).eventTrace path).length ≤

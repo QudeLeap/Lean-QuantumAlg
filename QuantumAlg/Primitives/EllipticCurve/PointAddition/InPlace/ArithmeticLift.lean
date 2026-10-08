@@ -70,8 +70,8 @@ theorem gates_eq_map (fieldWidth counterWidth : Nat)
 theorem gates_map_event (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
-    (gates fieldWidth counterWidth source).map EncodedBit.GateSpec.event =
-      source.map EncodedBit.GateSpec.event := by
+    (gates fieldWidth counterWidth source).map (EncodedBit.GateSpec.event .empty) =
+      source.map (EncodedBit.GateSpec.event .empty) := by
   simp [gates]
 
 /-- The arithmetic lift preserves literal gate-list length. -/

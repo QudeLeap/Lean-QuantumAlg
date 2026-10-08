@@ -26,7 +26,7 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {kind : ProblemKind}
 
 /-- The parameter's later allocation gives it a different actual key from the sample. -/
 theorem samplerRetained_parameter_key_ne_sample (ctx : RuntimeCtx kind) (N : Nat) :
@@ -36,24 +36,31 @@ theorem samplerRetained_parameter_key_ne_sample (ctx : RuntimeCtx kind) (N : Nat
   change (sampleContext ctx N).canonicalFreshKey ∈ ctx.canonicalFreshKey :: ctx.keys
   exact List.mem_cons.mpr (Or.inl same)
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {N : Nat}
+
 /-- The actual store and complete body path selected by one genuine random outcome. -/
-def outcomeStep (ctx : RuntimeCtx kind) (N : Nat) (store : Store (context ctx N))
-    (value : Fin (2 ^ residueSamplingBits N)) : Store (context ctx N) × (body ctx N).Path :=
+def outcomeStep (ctx : RuntimeCtx model.kind) (N : Nat) (store : Store (context ctx N))
+    (value : Fin (2 ^ residueSamplingBits N)) :
+      Store (context ctx N) × (body (model := model) ctx N).Path :=
   let sampled := store.write (sampleRef ctx N) (.bits (PackedSample.storedBits value))
-  let prepared := Program.step N (FirstAccepted.cellRead (sampleRef ctx N))
+  let prepared := Program.step (model := model) N (FirstAccepted.cellRead (sampleRef ctx N))
     (parameterRef ctx N) sampled
-  (prepared.1, (value, prepared.2))
+  (prepared.1, ((PackedSample.drawPathEquiv (model := model) N (sampleRef ctx N)).symm value,
+    prepared.2))
 
 /-- The real source sample remains readable after the full scoped parameter computation. -/
 theorem samplerRetained_outcome_sample (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (outcomeStep ctx N store value).1.read (FirstAccepted.cellRead (sampleRef ctx N)) =
+    (outcomeStep (model := model) ctx N store value).1.read
+      (FirstAccepted.cellRead (sampleRef ctx N)) =
       .bits (PackedSample.storedBits value) := by
   have separate : (parameterRef ctx N).key ∉
       (FirstAccepted.cellRead (sampleRef ctx N)).storageKeys := by
     simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using
       samplerRetained_parameter_key_ne_sample ctx N
-  exact (Program.samplerProgram_read_other N (FirstAccepted.cellRead (sampleRef ctx N))
+  exact (Program.samplerProgram_read_other (model := model)
+    N (FirstAccepted.cellRead (sampleRef ctx N))
     (parameterRef ctx N) (FirstAccepted.cellRead (sampleRef ctx N)) separate
     (store.write (sampleRef ctx N) (.bits (PackedSample.storedBits value)))).trans
       (Store.read_write_same store (sampleRef ctx N) _)
@@ -61,9 +68,10 @@ theorem samplerRetained_outcome_sample (store : Store (context ctx N))
 /-- Every actually sampled outcome yields exactly the source's complete unit/factor parameter. -/
 theorem samplerRetained_outcome_parameter (input : Input N) (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (outcomeStep ctx N store value).1.read (FirstAccepted.cellRead (parameterRef ctx N)) =
+    (outcomeStep (model := model) ctx N store value).1.read
+      (FirstAccepted.cellRead (parameterRef ctx N)) =
       parameterValue input value :=
-  Program.samplerProgram_read input (FirstAccepted.cellRead (sampleRef ctx N))
+  Program.samplerProgram_read (model := model) input (FirstAccepted.cellRead (sampleRef ctx N))
     (parameterRef ctx N) (store.write (sampleRef ctx N) (.bits (PackedSample.storedBits value)))
     value (Store.read_write_same store (sampleRef ctx N) _)
 

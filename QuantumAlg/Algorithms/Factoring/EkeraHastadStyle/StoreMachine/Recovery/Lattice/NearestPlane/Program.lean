@@ -28,13 +28,15 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Execute the actual third, second and first nearest-plane reductions in order. -/
-def threeInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def threeInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (LatticeNearestPlaneThird.thirdInto (thirdRefs refs))
     (.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
       (LatticeNearestPlaneFirst.firstInto (firstRefs refs)))
 
 /-- Actual second and first stage stores and their two selected paths. -/
-def secondFirstStep (refs : Refs ctx width) (store : Store ctx) :
+def secondFirstStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (Circuit.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
       (LatticeNearestPlaneFirst.firstInto (firstRefs refs))).Path :=
   let second := LatticeNearestPlaneSecond.secondStep (secondRefs refs) store
@@ -42,56 +44,79 @@ def secondFirstStep (refs : Refs ctx width) (store : Store ctx) :
   (first.1, (second.2, first.2))
 
 /-- Complete chronological stores and actual path of all three reductions. -/
-def threeStep (refs : Refs ctx width) (store : Store ctx) : Store ctx × (threeInto refs).Path :=
+def threeStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (threeInto refs).Path :=
   let third := LatticeNearestPlaneThird.thirdStep (thirdRefs refs) store
   let rest := secondFirstStep refs third.1
   (rest.1, (third.2, rest.2))
 
-private theorem secondFirst_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+private theorem secondFirst_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
       (LatticeNearestPlaneFirst.firstInto (firstRefs refs))).execute Reference state =
-      state.mapClassical (fun entry => ((secondFirstStep refs entry.1).1,
-        (entry.2, (secondFirstStep refs entry.1).2))) := by
+      state.mapClassical (fun entry =>
+        let actual := secondFirstStep refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical
     (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
     (LatticeNearestPlaneFirst.firstInto (firstRefs refs))
-    (LatticeNearestPlaneSecond.secondStep (secondRefs refs))
-    (LatticeNearestPlaneFirst.firstStep (firstRefs refs))
-    (LatticeNearestPlaneSecond.secondInto_execute (secondRefs refs))
-    (LatticeNearestPlaneFirst.firstInto_execute (firstRefs refs)) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeNearestPlaneSecond.secondStep (secondRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := LatticeNearestPlaneFirst.firstStep (firstRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeNearestPlaneSecond.secondInto_execute (secondRefs refs) reference current)
+    (fun reference _history _ current =>
+      LatticeNearestPlaneFirst.firstInto_execute (firstRefs refs) reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-/-- Complete actual execution preserves histories and full quantum-reference correlations. -/
-theorem threeInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+/-- Complete actual execution preserves the selected hidden state and reference correlations. -/
+theorem threeInto_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (threeInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((threeStep refs entry.1).1, (entry.2, (threeStep refs entry.1).2))) := by
+      let actual := threeStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (LatticeNearestPlaneThird.thirdInto (thirdRefs refs))
     (.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
       (LatticeNearestPlaneFirst.firstInto (firstRefs refs)))
-    (LatticeNearestPlaneThird.thirdStep (thirdRefs refs)) (secondFirstStep refs)
-    (LatticeNearestPlaneThird.thirdInto_execute (thirdRefs refs))
-    (secondFirst_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := LatticeNearestPlaneThird.thirdStep (thirdRefs refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := secondFirstStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current =>
+      LatticeNearestPlaneThird.thirdInto_execute (thirdRefs refs) reference current)
+    (fun reference _history _ current => secondFirst_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual third phase preserves every read outside its written footprint. -/
-theorem thirdInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : ThirdFrameAvoids refs other) :
     (LatticeNearestPlaneThird.thirdStep (thirdRefs refs) store).1.read other = store.read other :=
   LatticeNearestPlaneThird.thirdInto_callerFrame (thirdRefs refs) store other avoids
 
 /-- The actual second phase preserves every read outside its written footprint. -/
-theorem secondInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : SecondFrameAvoids refs other) :
     (LatticeNearestPlaneSecond.secondStep (secondRefs refs) store).1.read other =
       store.read other :=
   LatticeNearestPlaneSecond.secondInto_callerFrame (secondRefs refs) store other avoids
 
 /-- The actual first phase preserves every read outside its written footprint. -/
-theorem firstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FirstFrameAvoids refs other) :
     (LatticeNearestPlaneFirst.firstStep (firstRefs refs) store).1.read other = store.read other :=
   LatticeNearestPlaneFirst.firstInto_callerFrame (firstRefs refs) store other
@@ -99,7 +124,8 @@ theorem firstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     avoids.reduceProduct avoids.targetFirst avoids.targetSecond avoids.targetThird
 
 /-- All three actual stages preserve every read outside their combined written footprint. -/
-theorem threeInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem threeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs other) :
     (threeStep refs store).1.read other = store.read other := by
   unfold threeStep secondFirstStep

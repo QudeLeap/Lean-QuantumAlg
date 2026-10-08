@@ -42,6 +42,14 @@ private theorem layout_wires (width : Nat) :
   change (layout width).wires = (layout width).wires ++ []
   exact (List.append_nil _).symm
 
+/-- The canonical typed-qubit layout has exactly the ordered wires of the
+supplied owned-word context. -/
+public theorem canonical_wires (width : Nat) :
+    (QubitLayout.canonical width).toQuantum.wires =
+      (context width).quantumLayout.wires := by
+  rw [← layout_wires width]
+  rfl
+
 /-- Big-endian binary labels of exactly the context's physical qubit word. -/
 public def basisEquiv (width : Nat) : (context width).register.Index ≃ (Qubits width).Index :=
   (Execution.basisOfEqualWires (layout width) (context width).quantumLayout

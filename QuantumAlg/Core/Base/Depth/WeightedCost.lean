@@ -11,9 +11,9 @@ import all QuantumAlg.Core.Base.Depth.Expr
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 
 /-!
-# Weighted total cost from the same expression's strict native event pool
+# Weighted total cost from the same expression's model-selected event pool
 
-Summing the event weights after collecting a syntactic expression's native
+Summing the event weights after collecting a syntactic expression's event
 coordinates gives its total cost. Coordinatewise domination by an independent
 pool therefore bounds every nonnegative duration assignment and, in
 particular, the expression's critical path. No gate expansion or resource
@@ -23,17 +23,17 @@ conversion occurs in this arithmetic bridge.
 namespace QuantumAlg.ResourcePool
 
 /-- A literal coordinatewise event budget dominates every natural-number weighted observation. -/
-theorem weightedCount_mono {kind : ProblemKind} (weight : Resource.Event kind → Nat)
-    {actual budget : ResourcePool kind} (bounded : actual ≤ budget) :
+theorem weightedCount_mono {model : ExecutionModel} (weight : Resource.Event model → Nat)
+    {actual budget : ResourcePool model} (bounded : actual ≤ budget) :
     weightedCount weight actual ≤ weightedCount weight budget := by
   obtain ⟨remainder, rfl⟩ := exists_add_of_le bounded
   rw [weightedCount_add]
   exact Nat.le_add_right _ _
 
 /-- Weighted observation commutes with a finite sum of strict event pools. -/
-theorem weightedCount_sum {kind : ProblemKind} {ι : Type}
-    (weight : Resource.Event kind → Nat) (indices : Finset ι)
-    (pool : ι → ResourcePool kind) :
+theorem weightedCount_sum {model : ExecutionModel} {ι : Type}
+    (weight : Resource.Event model → Nat) (indices : Finset ι)
+    (pool : ι → ResourcePool model) :
     weightedCount weight (∑ index ∈ indices, pool index) =
       ∑ index ∈ indices, weightedCount weight (pool index) := by
   classical
@@ -47,8 +47,8 @@ end QuantumAlg.ResourcePool
 namespace QuantumAlg.DepthExpr
 
 /-- Total syntactic cost is exactly the weighted observation of that syntax's strict event pool. -/
-theorem costEval_eq_weightedCount {kind : ProblemKind}
-    (assign : Resource.Event kind → Nat) (expression : DepthExpr (Resource.Event kind)) :
+theorem costEval_eq_weightedCount {model : ExecutionModel}
+    (assign : Resource.Event model → Nat) (expression : DepthExpr (Resource.Event model)) :
     costEval assign expression = ResourcePool.weightedCount assign
       (costEval (fun event => ResourcePool.singleton event) expression) := by
   induction expression with
@@ -69,9 +69,9 @@ theorem costEval_eq_weightedCount {kind : ProblemKind}
       exact Finset.sum_congr rfl (fun index _ => stepIH index)
 
 /-- An independent coordinatewise pool budget bounds the actual critical path for every duration. -/
-theorem depthEval_le_weightedCount_of_eventPool_le {kind : ProblemKind}
-    (assign : Resource.Event kind → Nat) (expression : DepthExpr (Resource.Event kind))
-    (budget : ResourcePool kind)
+theorem depthEval_le_weightedCount_of_eventPool_le {model : ExecutionModel}
+    (assign : Resource.Event model → Nat) (expression : DepthExpr (Resource.Event model))
+    (budget : ResourcePool model)
     (bounded : costEval (fun event => ResourcePool.singleton event) expression ≤ budget) :
     depthEval assign expression ≤ ResourcePool.weightedCount assign budget :=
   (depthEval_le_costEval assign expression).trans

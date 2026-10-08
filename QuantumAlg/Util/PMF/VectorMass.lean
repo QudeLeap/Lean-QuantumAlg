@@ -6,6 +6,11 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Util.PMF
+public import Mathlib.Data.Finite.Defs
+public import Mathlib.Data.Vector.Defs
+public import Mathlib.Probability.ProbabilityMassFunction.Basic
+public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 import all QuantumAlg.Util.PMF
 import Mathlib.Data.Fintype.Vector
 import Mathlib.Data.ENNReal.BigOperators
@@ -62,7 +67,7 @@ theorem independentReplicateVector_cons_apply [Finite Sample] (distribution : PM
     Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- Every point probability is the product of the original single-sample probabilities. -/
-theorem independentReplicateVector_apply_prod [Finite Sample] (distribution : PMF Sample) :
+public theorem independentReplicateVector_apply_prod [Finite Sample] (distribution : PMF Sample) :
     ∀ (count : Nat) (samples : List.Vector Sample count),
       independentReplicateVector distribution count samples =
         ∏ index : Fin count, distribution (samples.get index) := by

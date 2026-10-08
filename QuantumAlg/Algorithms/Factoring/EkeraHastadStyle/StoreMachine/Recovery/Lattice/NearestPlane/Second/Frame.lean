@@ -64,11 +64,12 @@ def mutableKeys (refs : Refs ctx width) : List StorageKey :=
       [refs.reduceProduct.key, refs.target.first.key, refs.target.second.key, refs.target.third.key]
 
 /-- Complete caller frame of the actual second-coordinate interpreter. -/
-theorem secondInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ key ∈ mutableKeys refs, key ∉ other.storageKeys) :
     (secondStep refs store).1.read other = store.read other := by
-  unfold secondStep numeratorReductionStep divisionReductionStep
+  rw [secondStep_store]
   rw [LatticeArithmetic.pointReduce_callerFrame _ _ _ _ _ other
       (avoids refs.reduceProduct.key (by simp [mutableKeys]))
       (avoids refs.target.first.key (by simp [mutableKeys]))

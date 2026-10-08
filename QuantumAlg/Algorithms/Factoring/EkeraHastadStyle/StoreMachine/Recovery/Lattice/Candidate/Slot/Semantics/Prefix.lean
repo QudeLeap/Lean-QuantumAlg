@@ -23,21 +23,24 @@ open LatticeCandidateSlotOutcome (initialConditions_transport)
 noncomputable section
 
 /-- The actual caller store after the original distance and near-target stages. -/
-def distanceScaleStore {kind : ProblemKind} {ctx : RuntimeCtx kind}
+def distanceScaleStore {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {coordinateWidth modulusWidth : Nat} (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) : Store ctx :=
-  (LatticeNearTargetScale.scaleStep refs.nearTarget
-    (LatticeCandidateDistancePrefix.prefixStep offset refs.distance store).1).1
+  (LatticeNearTargetScale.scaleStep (model := model) refs.nearTarget
+    (LatticeCandidateDistancePrefix.prefixStep (model := model)
+      offset refs.distance store).1).1
 
 /-- All caller reads outside the original two-stage footprint survive actual execution. -/
-theorem distanceScaleStore_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem distanceScaleStore_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     {coordinateWidth modulusWidth : Nat} (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (distance : AvoidsStageWrites refs other .distance)
     (near : AvoidsStageWrites refs other .near) :
-    (distanceScaleStore offset refs store).read other = store.read other :=
+    (distanceScaleStore (model := model) offset refs store).read other = store.read other :=
   (scaleInto_callerFrame refs _ other near).trans
     (candidateDistancePrefixInto_callerFrame offset refs store other distance)
 
@@ -59,8 +62,9 @@ structure DistanceScaleFacts {N m ell : Nat} {kind : ProblemKind}
     LatticeCandidateSlotMachine.selectedOption refs.selector.selection before
 
 /-- Actual distance and range instructions establish the original source checks and next input. -/
-theorem distanceScaleStore_correct {N m ell : Nat} {kind : ProblemKind}
-    {ctx : RuntimeCtx kind} (input : Input N) (generator : (ZMod N)ˣ)
+theorem distanceScaleStore_correct {N m ell : Nat} {model : ExecutionModel}
+    [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3)
     (hoffset : offset ∈ NumberTheory.coefficientOffsetList3
@@ -71,12 +75,14 @@ theorem distanceScaleStore_correct {N m ell : Nat} {kind : ProblemKind}
     (frameSeparation : FrameSeparation refs) (store : Store ctx)
     (initial : LatticeCandidateSlotOutcome.InitialConditions input generator samples refs store) :
     DistanceScaleFacts input generator samples offset refs store
-      (distanceScaleStore offset refs store) := by
+      (distanceScaleStore (model := model) offset refs store) := by
   let point := RSA.shortLogPointAtOffset m ell samples offset
   let target := RSA.shortLogLatticeTarget m ell samples
   let distance := NumberTheory.integerPointSquaredNorm (point.sub target)
-  let afterDistance := (LatticeCandidateDistancePrefix.prefixStep offset refs.distance store).1
-  let afterScale := distanceScaleStore offset refs store
+  let afterDistance :=
+    (LatticeCandidateDistancePrefix.prefixStep (model := model)
+      offset refs.distance store).1
+  let afterScale := distanceScaleStore (model := model) offset refs store
   have distanceInitial : LatticeCandidateDistancePrefix.InitialConditions m ell samples
       target refs.distance store := ⟨initial.basis, initial.center, initial.originalTarget⟩
   have distanceFacts := LatticeCandidateDistancePrefix.candidateDistancePrefixInto_correct

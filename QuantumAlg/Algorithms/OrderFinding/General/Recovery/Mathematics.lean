@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.OrderFinding.Oracle
-import all QuantumAlg.Algorithms.OrderFinding.General.Model
+public import QuantumAlg.Algorithms.OrderFinding.General.Recovery.Specification
+import all QuantumAlg.Algorithms.OrderFinding.General.Recovery.Specification
+import all QuantumAlg.Algorithms.OrderFinding.General.Recovery.SourceEvent
 import all QuantumAlg.Util.Classical.OrderRecovery
 import all QuantumAlg.Util.Order.Finding
 
@@ -25,43 +27,11 @@ namespace QuantumAlg.OrderFinding.ShorSourceJoint
 
 noncomputable section
 
-/-- Source modulus and its original target-capacity certificate. -/
-def modulusSpec {N x r t m : Nat} (hinput : OrderFinding.Input N x r)
-    (A : ModExpOracleAccess N x t m) :
-    ClassicalAlgorithms.Modular.ModulusSpec m where
-  modulus := N
-  two_le := hinput.modulus_ge_two
-  le_capacity := A.register_fits
-
-/-- The canonical reduced source base, before its actual runtime encoding. -/
-def baseResidue {N x r t m : Nat} (hinput : OrderFinding.Input N x r)
-    (A : ModExpOracleAccess N x t m) :
-    ClassicalAlgorithms.Modular.Residue (modulusSpec hinput A) :=
-  ⟨x % N, Nat.mod_lt x A.modulus_pos⟩
-
-/-- The intrinsic recovery problem with the original source modulus and phase width. -/
-def recoverySpec {N x r t m : Nat} (hinput : OrderFinding.Input N x r)
-    (A : ModExpOracleAccess N x t m) :
-    ClassicalAlgorithms.OrderRecovery.Spec m t :=
-  ⟨modulusSpec hinput A⟩
-
-/-- Pure fixed-width input corresponding to one actually retained outcome. -/
-def semanticInput {N x r t m : Nat}
-    (hinput : OrderFinding.Input N x r) (A : ModExpOracleAccess N x t m)
-    (outcome : Outcome t) :
-    ClassicalAlgorithms.OrderRecovery.Input
-      (recoverySpec hinput A) :=
-  { base := ⟨x % N,
-      lt_of_lt_of_le (Nat.mod_lt x A.modulus_pos) A.register_fits⟩
-    baseInDomain := Nat.mod_lt x A.modulus_pos
-    baseCoprime := (ZMod.coprime_mod_iff_coprime x N).2 hinput.coprime
-    terminalBits := outcome }
-
 /-- The source minimal-order hypothesis is exactly the typed validation
 predicate for the reduced borrowed base. -/
 theorem semanticInput_minimalUnitOrder {N x r t m : Nat}
     (hinput : OrderFinding.Input N x r) (A : ModExpOracleAccess N x t m)
-    (outcome : Outcome t) :
+    (outcome : TerminalZMeasure.Outcome t) :
     ClassicalAlgorithms.OrderRecovery.MinimalUnitOrder
       (recoverySpec hinput A)
       (semanticInput hinput A outcome) r := by
@@ -84,8 +54,8 @@ theorem semanticInput_minimalUnitOrder {N x r t m : Nat}
 theorem recoverUnitOrder_eq_some_of_recoverableOutcome
     {N x t m r : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (hfit : r < 2 ^ (t + 1))
-    {outcome : Outcome t}
-    (hrecoverable : RecoverableOutcome
+    {outcome : TerminalZMeasure.Outcome t}
+    (hrecoverable : NativeRecoverableOutcome
       (ZMod.unitOfCoprime x hinput.coprime) r outcome) :
     ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
         (recoverySpec hinput A)
@@ -104,14 +74,15 @@ theorem recoverUnitOrder_eq_some_of_recoverableOutcome
       ClassicalAlgorithms.OrderRecovery.realConvergentDen_mem_candidateSchedule
         spec input index
     have decodedTrace :
-        ((((decodeOutcome outcome).val : Real) / (2 : Real) ^ t).convergent
+        ((((ClassicalAlgorithms.TerminalDecode.fullRegisterIndex outcome).val : Real) /
+          (2 : Real) ^ t).convergent
           index).den ∈
             ClassicalAlgorithms.OrderRecovery.candidateSchedule
               spec input := by
       simpa [spec, input,
         ClassicalAlgorithms.OrderRecovery.decodedIndex,
         ClassicalAlgorithms.OrderRecovery.fullRegisterIndex_val,
-        semanticInput, decodeOutcome] using trace
+        semanticInput] using trace
     rw [hdenominator] at decodedTrace
     exact decodedTrace
   rcases ClassicalAlgorithms.OrderRecovery.candidateSchedule_firstOccurrence

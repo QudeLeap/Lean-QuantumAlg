@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Execution.Classical.Workspace.Cells.Index
+public import QuantumAlg.Core.Execution.Classical.Workspace.Transport
 import all QuantumAlg.Core.Execution.Classical.Workspace.Cells.Index
 import all QuantumAlg.Core.Execution.Classical.Workspace.Transport
 
@@ -16,7 +18,7 @@ import all QuantumAlg.Core.Execution.Classical.Workspace.Transport
 namespace QuantumAlg.Execution.ClassicalWorkspace.Cells
 
 /-- Every caller read remains separate from every allocated workspace cell. -/
-def TransportSeparated {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
+public def TransportSeparated {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes)
     (transport : Transport outer ctx) : Prop :=
   match cells with
@@ -26,11 +28,11 @@ def TransportSeparated {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
         head.ref.key ∉ (transport.liftInput input).storageKeys) ∧
       tail.TransportSeparated transport
 
-theorem workspaceCells_transportSeparated_nil {kind : ProblemKind}
+public theorem workspaceCells_transportSeparated_nil {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} (transport : Transport outer ctx) :
     TransportSeparated (.nil : Cells ctx []) transport := by trivial
 
-theorem workspaceCells_transportSeparated_underWorkspace {kind : ProblemKind}
+public theorem workspaceCells_transportSeparated_underWorkspace {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -65,7 +67,7 @@ theorem workspaceCells_transportSeparated_extend {kind : ProblemKind}
   rw [CInputRef.storageKeys_underWorkspace]
   exact fun member => fresh (CInputRef.storageKeys_subset_context _ member)
 
-theorem workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKind}
+public theorem workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
@@ -81,7 +83,7 @@ theorem workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKind}
       · exact ih separated.2 member
 
 /-- An indexed workspace cell is disjoint from all transported caller reads. -/
-theorem workspaceCells_cellAt_transport_avoids {kind : ProblemKind}
+public theorem workspaceCells_cellAt_transport_avoids {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)

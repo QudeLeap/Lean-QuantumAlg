@@ -29,47 +29,56 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Four original phases on the same real work, sign and remainder cells. -/
-def signedReductionBody (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def signedReductionBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
-    (remainder output : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (signClassification raw work negative)
-    (.seq (signedMagnitude raw work (signedRead negative))
-      (.seq (reduceWord (signedRead work) modulus remainder)
-        (finalCorrection (signedRead remainder) modulus (signedRead negative) output)))
+    (remainder output : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (signClassification (model := model) raw work negative)
+    (.seq (signedMagnitude (model := model) raw work (signedRead negative))
+      (.seq (reduceWord (model := model) (signedRead work) modulus remainder)
+        (finalCorrection (model := model) (signedRead remainder) modulus (signedRead negative)
+          output)))
 
 /-- Actual intermediate stores, retained signs and instruction paths compose chronologically. -/
-def signedReductionBodyStep (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+def signedReductionBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
     (remainder output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    Store ctx × (signedReductionBody raw modulus work negative remainder output).Path :=
-  let classified := signClassificationStep raw work negative store
-  let magnitude := signedMagnitudeStep raw work (signedRead negative) classified.1
-  let reduced := reduceWordStep (signedRead work) modulus remainder magnitude.1
-  let result := finalCorrectionStep (signedRead remainder) modulus (signedRead negative)
+    Store ctx × (signedReductionBody (model := model) raw modulus work negative remainder
+      output).Path :=
+  let classified := signClassificationStep (model := model) raw work negative store
+  let magnitude := signedMagnitudeStep (model := model) raw work (signedRead negative) classified.1
+  let reduced := reduceWordStep (model := model) (signedRead work) modulus remainder magnitude.1
+  let result := finalCorrectionStep (model := model) (signedRead remainder) modulus (signedRead
+    negative)
     output reduced.1
   (result.1, (classified.2, (magnitude.2, (reduced.2, result.2))))
 
 /-- All real phases preserve complete quantum-reference blocks and retain the actual histories. -/
-theorem signedReductionBody_execute (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signedReductionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
     (remainder output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (signedReductionBody raw modulus work negative remainder output).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (signedReductionBody (model := model) raw modulus work negative remainder output).execute
+      Reference state =
       state.mapClassical (fun entry =>
-        ((signedReductionBodyStep raw modulus work negative remainder output entry.1).1,
-          (entry.2, (signedReductionBodyStep raw modulus work negative remainder output
-            entry.1).2))) := by
+        ((signedReductionBodyStep (model := model) raw modulus work negative remainder output
+          entry.1).1,
+          (entry.2.1, (entry.2.2, (signedReductionBodyStep (model := model) raw modulus work
+            negative remainder output
+            entry.1).2)))) := by
   simp only [signedReductionBody, Circuit.execute_seq, signClassification_execute,
     signedMagnitude_execute, reduceWord_execute, finalCorrection_execute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The only writes target the three true internal cells and the original output. -/
-theorem signedReductionBody_read_other (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
+theorem signedReductionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
     (remainder output : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
@@ -78,7 +87,8 @@ theorem signedReductionBody_read_other (raw : CInputRef ctx (.unsignedWord (sign
     (remainderFree : remainder.key ∉ other.storageKeys)
     (outputFree : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (signedReductionBodyStep raw modulus work negative remainder output store).1.read other =
+    (signedReductionBodyStep (model := model) raw modulus work negative remainder output
+      store).1.read other =
       store.read other := by
   unfold signedReductionBodyStep
   dsimp only
@@ -88,7 +98,8 @@ theorem signedReductionBody_read_other (raw : CInputRef ctx (.unsignedWord (sign
   exact signClassification_read_other raw work negative other workFree negativeFree store
 
 /-- Internal fresh-cell obligations suffice for the exact original canonical signed residue. -/
-theorem signedReductionBody_original_value
+theorem signedReductionBody_original_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
@@ -100,11 +111,12 @@ theorem signedReductionBody_original_value
     (modulusRemainder : remainder.key ∉ modulus.storageKeys)
     (workNegative : work.key ≠ negative.key) (remainderNegative : remainder.key ≠ negative.key)
     (modulusValue : (store.read modulus).toNat = spec.modulus) :
-    ((signedReductionBodyStep raw modulus work negative remainder output store).1.read
+    ((signedReductionBodyStep (model := model) raw modulus work negative remainder output
+      store).1.read
       (signedRead output)).toNat = rawCanonicalNat spec (store.read raw) := by
-  let classified := signClassificationStep raw work negative store
-  let magnitude := signedMagnitudeStep raw work (signedRead negative) classified.1
-  let reduced := reduceWordStep (signedRead work) modulus remainder magnitude.1
+  let classified := signClassificationStep (model := model) raw work negative store
+  let magnitude := signedMagnitudeStep (model := model) raw work (signedRead negative) classified.1
+  let reduced := reduceWordStep (model := model) (signedRead work) modulus remainder magnitude.1
   have signClassified : (classified.1.read (signedRead negative)).toBool =
       rawIsNegative (store.read raw) :=
     (signClassification_values raw work negative store initialZero rawWork workNegative.symm).1
@@ -146,7 +158,7 @@ theorem signedReductionBody_original_value
     exact Nat.mod_lt _ (modulusSpec_modulus_pos spec)
   have loaded : (reduced.1.read modulus).toNat = spec.modulus := by
     rw [modulusReduced, modulusValue]
-  change ((finalCorrectionStep (signedRead remainder) modulus (signedRead negative)
+  change ((finalCorrectionStep (model := model) (signedRead remainder) modulus (signedRead negative)
     output reduced.1).1.read (reductionRead output)).toNat = _
   rw [finalCorrection_original_value _ _ _ _ spec reduced.1 loaded remainderRange,
     signReduced, reducedValue]

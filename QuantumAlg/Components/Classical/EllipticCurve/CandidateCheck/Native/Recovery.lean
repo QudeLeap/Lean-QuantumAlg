@@ -28,14 +28,15 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- The original raw recovery and all four verification stages share the actual caller cells. -/
-def recoveryInto (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+def recoveryInto {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord scalarWidth))
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .seq (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells modulus sample
       inverseSuccess candidate reconstruction)
     (verifyInto curve (.storage candidate.toCStorageRef) base target

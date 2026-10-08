@@ -163,7 +163,7 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
       (_distinct : Function.Injective (fun index => (originalCells index).key))
       (_separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
       {Reference : Register} {History : Type} [Fintype History]
-      (state : State start Reference History),
+      (state : State start Reference (RuntimeRound.model.HiddenState × History)),
       RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
         wires N state →
       ∀ (weight : previousShape.Value →
@@ -187,17 +187,19 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
         Reference History _ state _seeded weight leftRef rightRef
       let observe := fun store : Store start => weight (store.read previous) List.Vector.nil
       have executed := congrArg
-        (fun final : State start Reference (History × Unit) =>
+        (fun final : State start Reference (RuntimeRound.model.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum final (fun entry _ => observe entry.1)
-            leftRef rightRef) (Circuit.execute_id_mapClassical Reference state)
+            leftRef rightRef)
+        (Circuit.execute_id_mapClassical (model := RuntimeRound.model) Reference state)
       have transported := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
-        (fun entry => (entry.1, (entry.2, ())))
+        (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
         (fun entry _ => observe entry.1) leftRef rightRef)
       have empty (store : Store start) : suffixValues N start 0 store = List.Vector.nil :=
         Subsingleton.elim _ _
       have aligned := congrArg
         (fun read : Store start → ℂ => ExecutionState.referenceFiberSum
-          ((Circuit.id start).execute Reference state) (fun entry _ => read entry.1)
+          ((Circuit.id (model := RuntimeRound.model) start).execute Reference state)
+          (fun entry _ => read entry.1)
             leftRef rightRef)
         (funext fun store => congrArg (weight (store.read previous)) (empty store))
       exact aligned.trans (transported.trans (congrArg
@@ -217,7 +219,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
       let joint := CInputRef.product nextPrevious (.storage head.toCStorageRef)
       let first := NativeBatchReuseRecovery.code start wires originalCells input
       let rest := suffixCode input next nextWires nextCells count
-      let advanced : State next Reference (History × first.Path) := first.execute Reference state
+      let advanced : State next Reference
+          (RuntimeRound.model.HiddenState × (History × first.Path)) := first.execute Reference state
       let finalWeight := fun store : Store (suffixContext N start (count + 1)) =>
         weight (store.read (suffixInput N previous (count + 1)))
           (suffixValues N start (count + 1) store)

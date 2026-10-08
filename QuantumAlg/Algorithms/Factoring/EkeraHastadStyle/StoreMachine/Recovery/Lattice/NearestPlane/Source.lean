@@ -55,7 +55,8 @@ theorem shortLog_threeFits (N m ell : Nat)
   exact ⟨fits.third, fits.second, fits.first, fits.firstDenominatorNonzero⟩
 
 /-- The three stored coefficients are the source trace center; the target is its exact residual. -/
-theorem threeInto_shortLog_correct {kind : ProblemKind} {ctx : RuntimeCtx kind}
+theorem threeInto_shortLog_correct {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind}
     (N m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeNearestPlaneThree.Refs ctx (RSA.ShortLogWidths.coordinateWidth N m ell))
     (separation : LatticeNearestPlaneThree.Separation refs) (store : Store ctx)

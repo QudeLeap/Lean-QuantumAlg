@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Encoding
-import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Mathematics
+import all QuantumAlg.Algorithms.Factoring.ShorStyle.FactorRecovery.Parameters
 import all QuantumAlg.Components.Classical.OrderRecovery.Native.Correctness
 import all QuantumAlg.Components.Classical.OrderRecovery.Native.Frame
 
@@ -27,8 +27,10 @@ open Execution ClassicalRoutines
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
+omit [BitWord.Selected model] in
 private theorem canonical_eq_of_val {width : Nat}
     (actual : CShape.Value (.canonicalResidue width)) (expected : Fin (2 ^ width))
     (same : actual.residueEncoding.val = expected.val) : actual = .canonicalResidue expected := by
@@ -40,9 +42,11 @@ def recoveredInputStore (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N) (store : Store ctx) :
     Store ctx :=
-  (OrderRecovery.Native.intoStep (recoverySpec source) (.storage cells.base.toCStorageRef)
+  (OrderRecovery.Native.intoStep (model := model) (recoverySpec source) (.storage
+    cells.base.toCStorageRef)
     phase cells.order (store.applyOp (packBaseOp parameter cells))).1.applyOp (unpackOrderOp cells)
 
+omit [BitWord.Selected model] in
 /-- Base packing writes exactly the source input's canonical word from its original raw value. -/
 theorem packedBase_source (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
@@ -61,7 +65,8 @@ theorem recoveredInput_order (source : Input N)
     (baseFree : cells.base.key ∉ phase.storageKeys)
     (baseValue : (store.read parameter).first.toNat = semantic.base.val)
     (phaseValue : store.read phase = .bits semantic.terminalBits) :
-    (recoveredInputStore source parameter phase cells store).read (expandedRead cells) =
+    (recoveredInputStore (model := model) source parameter phase cells store).read (expandedRead
+      cells) =
       match ClassicalAlgorithms.OrderRecovery.recoverUnitOrder
           (recoverySpec source) semantic with
       | none => .product (.bit false) (CShape.wordOfNat (phaseBits N + 1) 0)
@@ -70,10 +75,11 @@ theorem recoveredInput_order (source : Input N)
   have packedPhase : packed.read phase = .bits semantic.terminalBits :=
     (Store.read_applyOp_of_not_mem_storageKeys store (packBaseOp parameter cells) phase
       baseFree).trans phaseValue
-  have actual := OrderRecovery.Native.nativeRecovery_into_result (recoverySpec source) semantic
+  have actual := OrderRecovery.Native.nativeRecovery_into_result (model := model) (recoverySpec
+    source) semantic
     (.storage cells.base.toCStorageRef) phase cells.order packed
     (packedBase_source source semantic parameter cells store baseValue) packedPhase
-  change (OrderRecovery.Native.intoStep (recoverySpec source)
+  change (OrderRecovery.Native.intoStep (model := model) (recoverySpec source)
     (.storage cells.base.toCStorageRef) phase cells.order packed).1.read
       (.storage cells.order.toCStorageRef) =
         OrderRecovery.Native.encodeOutput
@@ -83,11 +89,13 @@ theorem recoveredInput_order (source : Input N)
       (recoverySpec source) semantic with
   | none =>
     exact unpackOrder_encoded cells
-      (OrderRecovery.Native.intoStep (recoverySpec source) (.storage cells.base.toCStorageRef)
+      (OrderRecovery.Native.intoStep (model := model) (recoverySpec source) (.storage
+        cells.base.toCStorageRef)
         phase cells.order packed).1 none (by simpa only [recovered] using actual)
   | some word =>
     exact unpackOrder_encoded cells
-      (OrderRecovery.Native.intoStep (recoverySpec source) (.storage cells.base.toCStorageRef)
+      (OrderRecovery.Native.intoStep (model := model) (recoverySpec source) (.storage
+        cells.base.toCStorageRef)
         phase cells.order packed).1 (some word) (by simpa only [recovered] using actual)
 
 /-- The actual recovery prefix keeps the same retained sampler parameter for its priority branch. -/
@@ -97,13 +105,14 @@ theorem recoveredInput_parameter (source : Input N)
     (baseFree : cells.base.key ∉ parameter.storageKeys)
     (orderFree : cells.order.key ∉ parameter.storageKeys)
     (expandedFree : cells.expanded.key ∉ parameter.storageKeys) :
-    (recoveredInputStore source parameter phase cells store).read parameter =
+    (recoveredInputStore (model := model) source parameter phase cells store).read parameter =
       store.read parameter :=
   (Store.read_applyOp_of_not_mem_storageKeys
-    (OrderRecovery.Native.intoStep (recoverySpec source) (.storage cells.base.toCStorageRef)
+    (OrderRecovery.Native.intoStep (model := model) (recoverySpec source) (.storage
+      cells.base.toCStorageRef)
       phase cells.order (store.applyOp (packBaseOp parameter cells))).1
     (unpackOrderOp cells) parameter expandedFree).trans
-    ((OrderRecovery.Native.nativeRecovery_into_read_other (recoverySpec source)
+    ((OrderRecovery.Native.nativeRecovery_into_read_other (model := model) (recoverySpec source)
       (.storage cells.base.toCStorageRef) phase cells.order parameter orderFree
       (store.applyOp (packBaseOp parameter cells))).trans
       (Store.read_applyOp_of_not_mem_storageKeys store (packBaseOp parameter cells)
@@ -117,14 +126,15 @@ theorem recoveredInput_base (source : Input N)
     (orderBase : cells.order.key ≠ cells.base.key)
     (expandedBase : cells.expanded.key ≠ cells.base.key)
     (baseValue : (store.read parameter).first.toNat = semantic.base.val) :
-    (recoveredInputStore source parameter phase cells store).read
+    (recoveredInputStore (model := model) source parameter phase cells store).read
       (.storage cells.base.toCStorageRef) = .canonicalResidue semantic.base :=
   (Store.read_applyOp_of_not_mem_storageKeys
-    (OrderRecovery.Native.intoStep (recoverySpec source) (.storage cells.base.toCStorageRef)
+    (OrderRecovery.Native.intoStep (model := model) (recoverySpec source) (.storage
+      cells.base.toCStorageRef)
       phase cells.order (store.applyOp (packBaseOp parameter cells))).1
     (unpackOrderOp cells) (.storage cells.base.toCStorageRef)
     (fun member => expandedBase (List.mem_singleton.mp member))).trans
-    ((OrderRecovery.Native.nativeRecovery_into_read_other (recoverySpec source)
+    ((OrderRecovery.Native.nativeRecovery_into_read_other (model := model) (recoverySpec source)
       (.storage cells.base.toCStorageRef) phase cells.order (.storage cells.base.toCStorageRef)
       (fun member => orderBase (List.mem_singleton.mp member))
       (store.applyOp (packBaseOp parameter cells))).trans

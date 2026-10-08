@@ -8,6 +8,9 @@ module
 
 public import QuantumAlg.Core.Execution.Owned.Borrowed.Qubits
 public import QuantumAlg.Algorithms.QPE.Basic
+public import QuantumAlg.Components.Classical.Model.BitWord
+public import QuantumAlg.Algorithms.QPE.Circuit
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Execution.Owned.Borrowed.Qubits
 import all QuantumAlg.Core.Execution.Owned.Borrowed.Positions
 import all QuantumAlg.Core.Execution.Context.Layout
@@ -31,6 +34,10 @@ namespace QuantumAlg.QuantumPhaseEstimation
 noncomputable section
 
 open QuantumAlg.Execution
+
+/-- Default native gates, granted controlled source queries, and finite bit/word operations. -/
+public abbrev model {n : Nat} (P : QPEEigenstateInput n) : ExecutionModel :=
+  .quantum AlgorithmGate.model (UnitarySource.model P.unitary true) BitWord.model .empty
 
 /-- The original source eigenstate is supplied in the borrowed physical suffix. -/
 @[reducible] public def pre (t n : Nat) : RuntimeCtx .quantum :=
@@ -91,19 +98,16 @@ theorem preparedContext_physicalIdx (t n : Nat) :
     (preparedContext t n).physicalIdx = List.range (t + n) :=
   OwnedBorrowedQubits.context_physicalIdx t n
 
-/-- One actual all-zero basis preparation of the phase prefix, including width zero. -/
+/-- Fixed zero preparation of each phase qubit; the borrowed source is untouched. -/
 def inputPreparation (t : Nat) : BasisPreparation (phaseRuntimeLayout t) :=
-  ⟨(OwnedBorrowedQubits.wordLayout t).binaryIndexEquiv.symm (0 : Fin (2 ^ t))⟩
+  BasisPreparation.zero (phaseRuntimeLayout t)
 
-/-- The exact structural QPE unitary in the complete live register's coordinates. -/
+/-- The actual native QPE word on the complete prepared physical register. -/
 def nativeProgram {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    UnitaryCircuit (preparedContext t n).register :=
-  UnitaryCircuit.reindex (preparedBasisEquiv t n).symm (qpeCircuit t P.unitary)
-
-theorem nativeProgram_placement {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    (nativeProgram P t).physical_idx = (preparedContext t n).physicalIdx := by
-  change (qpeCircuit t P.unitary).physical_idx = _
-  rw [qpeCircuit_physical_idx, preparedContext_physicalIdx]
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model P.unitary true)
+      (preparedContext t n).quantumLayout :=
+  Execution.unitaryOfEqualWires (runtimeLayout t n) (preparedContext t n).quantumLayout
+    (runtime_wires t n) (Native.circuit t P.unitary)
 
 end
 

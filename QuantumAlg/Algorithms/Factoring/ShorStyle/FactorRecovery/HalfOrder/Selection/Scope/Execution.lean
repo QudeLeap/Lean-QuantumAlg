@@ -26,21 +26,22 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+  {N : Nat}
 
 -- Bound only elaboration of these concrete nested path dictionaries, not execution resources.
 private def part5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (upperContext ctx N) (upperContext ctx N) :=
+    Circuit model (upperContext ctx N) (upperContext ctx N) :=
   .workspace (upperContext ctx N) (upperContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh
-    (body halfPower output)
+    (body (model := model) halfPower output)
 
 private def update5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (upperContext ctx N)) :
-    Store (upperContext ctx N) × (part5 halfPower output).Path :=
-  let selected := (bodyStep halfPower output)
+    Store (upperContext ctx N) × (body (model := model) halfPower output).Path :=
+  let selected := (bodyStep (model := model) halfPower output)
     (store.pushWorkspace (upperContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh)
   (Store.popWorkspace (upperContext ctx N).canonicalFreshKey
@@ -52,34 +53,31 @@ set_option maxHeartbeats 1000000 in
 private theorem equation5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State (upperContext ctx N) reference history) :
-    (part5 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update5 halfPower output entry.1).1, (entry.2, (update5 halfPower output entry.1).2))) := by
+    (initial : State (upperContext ctx N) reference (model.HiddenState × history)) :
+    (part5 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update5 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update5
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical (upperContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh
-    (body halfPower output) (bodyStep halfPower output) (body_execute halfPower output)
-    reference initial).trans ?_
-  dsimp only [update5]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (upperContext ctx N) × history)
-    (D := Store (upperContext ctx N) × (history × (part5 halfPower output).Path))
-    (R := Register.prod (upperContext ctx N).register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (upperContext ctx N) × history)
-    (D := Store (upperContext ctx N) × (history × (part5 halfPower output).Path))
-    (R := Register.prod (upperContext ctx N).register reference) _ initial _).symm
+    (body (model := model) halfPower output)
+    (fun entry =>
+      let actual := bodyStep (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (body_execute (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (lowerContext ctx N) (lowerContext ctx N) :=
+    Circuit model (lowerContext ctx N) (lowerContext ctx N) :=
   .workspace (lowerContext ctx N) (lowerContext ctx N).canonicalFreshKey
-    .bit (lowerContext ctx N).canonicalFreshKey_fresh (part5 halfPower output)
+    .bit (lowerContext ctx N).canonicalFreshKey_fresh (part5 (model := model) halfPower output)
 
 private def update4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (lowerContext ctx N)) :
-    Store (lowerContext ctx N) × (part4 halfPower output).Path :=
-  let selected := (update5 halfPower output)
+    Store (lowerContext ctx N) × (body (model := model) halfPower output).Path :=
+  let selected := (update5 (model := model) halfPower output)
     (store.pushWorkspace (lowerContext ctx N).canonicalFreshKey
       .bit (lowerContext ctx N).canonicalFreshKey_fresh)
   (Store.popWorkspace (lowerContext ctx N).canonicalFreshKey
@@ -90,34 +88,31 @@ set_option maxHeartbeats 1000000 in
 private theorem equation4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State (lowerContext ctx N) reference history) :
-    (part4 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update4 halfPower output entry.1).1, (entry.2, (update4 halfPower output entry.1).2))) := by
+    (initial : State (lowerContext ctx N) reference (model.HiddenState × history)) :
+    (part4 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update4 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update4
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical (lowerContext ctx N).canonicalFreshKey
     .bit (lowerContext ctx N).canonicalFreshKey_fresh
-    (part5 halfPower output) (update5 halfPower output)
-    (equation5 halfPower output) reference initial).trans ?_
-  dsimp only [update4]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (lowerContext ctx N) × history)
-    (D := Store (lowerContext ctx N) × (history × (part4 halfPower output).Path))
-    (R := Register.prod (lowerContext ctx N).register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (lowerContext ctx N) × history)
-    (D := Store (lowerContext ctx N) × (history × (part4 halfPower output).Path))
-    (R := Register.prod (lowerContext ctx N).register reference) _ initial _).symm
+    (part5 (model := model) halfPower output)
+    (fun entry =>
+      let actual := update5 (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (equation5 (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (modulusContext ctx N) (modulusContext ctx N) :=
+    Circuit model (modulusContext ctx N) (modulusContext ctx N) :=
   .workspace (modulusContext ctx N) (modulusContext ctx N).canonicalFreshKey
-    .bit (modulusContext ctx N).canonicalFreshKey_fresh (part4 halfPower output)
+    .bit (modulusContext ctx N).canonicalFreshKey_fresh (part4 (model := model) halfPower output)
 
 private def update3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (modulusContext ctx N)) :
-    Store (modulusContext ctx N) × (part3 halfPower output).Path :=
-  let selected := (update4 halfPower output)
+    Store (modulusContext ctx N) × (body (model := model) halfPower output).Path :=
+  let selected := (update4 (model := model) halfPower output)
     (store.pushWorkspace (modulusContext ctx N).canonicalFreshKey
       .bit (modulusContext ctx N).canonicalFreshKey_fresh)
   (Store.popWorkspace (modulusContext ctx N).canonicalFreshKey
@@ -128,35 +123,32 @@ set_option maxHeartbeats 1000000 in
 private theorem equation3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State (modulusContext ctx N) reference history) :
-    (part3 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update3 halfPower output entry.1).1, (entry.2, (update3 halfPower output entry.1).2))) := by
+    (initial : State (modulusContext ctx N) reference (model.HiddenState × history)) :
+    (part3 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update3 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update3
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical (modulusContext ctx N).canonicalFreshKey
     .bit (modulusContext ctx N).canonicalFreshKey_fresh
-    (part4 halfPower output) (update4 halfPower output)
-    (equation4 halfPower output) reference initial).trans ?_
-  dsimp only [update3]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (modulusContext ctx N) × history)
-    (D := Store (modulusContext ctx N) × (history × (part3 halfPower output).Path))
-    (R := Register.prod (modulusContext ctx N).register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (modulusContext ctx N) × history)
-    (D := Store (modulusContext ctx N) × (history × (part3 halfPower output).Path))
-    (R := Register.prod (modulusContext ctx N).register reference) _ initial _).symm
+    (part4 (model := model) halfPower output)
+    (fun entry =>
+      let actual := update4 (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (equation4 (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (oneContext ctx N) (oneContext ctx N) :=
+    Circuit model (oneContext ctx N) (oneContext ctx N) :=
   .workspace (oneContext ctx N) (oneContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh
-    (part3 halfPower output)
+    (part3 (model := model) halfPower output)
 
 private def update2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (oneContext ctx N)) :
-    Store (oneContext ctx N) × (part2 halfPower output).Path :=
-  let selected := (update3 halfPower output)
+    Store (oneContext ctx N) × (body (model := model) halfPower output).Path :=
+  let selected := (update3 (model := model) halfPower output)
     (store.pushWorkspace (oneContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh)
   (Store.popWorkspace (oneContext ctx N).canonicalFreshKey
@@ -168,35 +160,32 @@ set_option maxHeartbeats 1000000 in
 private theorem equation2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State (oneContext ctx N) reference history) :
-    (part2 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update2 halfPower output entry.1).1, (entry.2, (update2 halfPower output entry.1).2))) := by
+    (initial : State (oneContext ctx N) reference (model.HiddenState × history)) :
+    (part2 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update2 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update2
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical (oneContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh
-    (part3 halfPower output) (update3 halfPower output)
-    (equation3 halfPower output) reference initial).trans ?_
-  dsimp only [update2]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (oneContext ctx N) × history)
-    (D := Store (oneContext ctx N) × (history × (part2 halfPower output).Path))
-    (R := Register.prod (oneContext ctx N).register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (oneContext ctx N) × history)
-    (D := Store (oneContext ctx N) × (history × (part2 halfPower output).Path))
-    (R := Register.prod (oneContext ctx N).register reference) _ initial _).symm
+    (part3 (model := model) halfPower output)
+    (fun entry =>
+      let actual := update3 (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (equation3 (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (candidateContext ctx N) (candidateContext ctx N) :=
+    Circuit model (candidateContext ctx N) (candidateContext ctx N) :=
   .workspace (candidateContext ctx N) (candidateContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh
-    (part2 halfPower output)
+    (part2 (model := model) halfPower output)
 
 private def update1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (candidateContext ctx N)) :
-    Store (candidateContext ctx N) × (part1 halfPower output).Path :=
-  let selected := (update2 halfPower output)
+    Store (candidateContext ctx N) × (body (model := model) halfPower output).Path :=
+  let selected := (update2 (model := model) halfPower output)
     (store.pushWorkspace (candidateContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh)
   (Store.popWorkspace (candidateContext ctx N).canonicalFreshKey
@@ -208,35 +197,32 @@ set_option maxHeartbeats 1000000 in
 private theorem equation1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State (candidateContext ctx N) reference history) :
-    (part1 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update1 halfPower output entry.1).1, (entry.2, (update1 halfPower output entry.1).2))) := by
+    (initial : State (candidateContext ctx N) reference (model.HiddenState × history)) :
+    (part1 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update1 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update1
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical (candidateContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh
-    (part2 halfPower output) (update2 halfPower output)
-    (equation2 halfPower output) reference initial).trans ?_
-  dsimp only [update1]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store (candidateContext ctx N) × history)
-    (D := Store (candidateContext ctx N) × (history × (part1 halfPower output).Path))
-    (R := Register.prod (candidateContext ctx N).register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store (candidateContext ctx N) × history)
-    (D := Store (candidateContext ctx N) × (history × (part1 halfPower output).Path))
-    (R := Register.prod (candidateContext ctx N).register reference) _ initial _).symm
+    (part2 (model := model) halfPower output)
+    (fun entry =>
+      let actual := update2 (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (equation2 (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private def part0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
-    (part1 halfPower output)
+    (part1 (model := model) halfPower output)
 
 private def update0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store ctx) :
-    Store ctx × (part0 halfPower output).Path :=
-  let selected := (update1 halfPower output)
+    Store ctx × (body (model := model) halfPower output).Path :=
+  let selected := (update1 (model := model) halfPower output)
     (store.pushWorkspace ctx.canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh)
   (Store.popWorkspace ctx.canonicalFreshKey
@@ -247,22 +233,19 @@ set_option maxHeartbeats 1000000 in
 private theorem equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
-    (initial : State ctx reference history) :
-    (part0 halfPower output).execute reference initial = initial.mapClassical (fun entry =>
-      ((update0 halfPower output entry.1).1, (entry.2, (update0 halfPower output entry.1).2))) := by
+    (initial : State ctx reference (model.HiddenState × history)) :
+    (part0 (model := model) halfPower output).execute reference initial = initial.mapClassical
+        (fun entry =>
+      ((update0 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update0
+          (model := model) halfPower output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
-    (part1 halfPower output) (update1 halfPower output)
-    (equation1 halfPower output) reference initial).trans ?_
-  dsimp only [update0]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × history)
-    (D := Store ctx × (history × (part0 halfPower output).Path))
-    (R := Register.prod ctx.register reference) _ initial _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × history)
-    (D := Store ctx × (history × (part0 halfPower output).Path))
-    (R := Register.prod ctx.register reference) _ initial _).symm
+    (part1 (model := model) halfPower output)
+    (fun entry =>
+      let actual := update1 (model := model) halfPower output entry.1
+      ((actual.1, entry.2), actual.2))
+    (equation1 (model := model) halfPower output) reference initial).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
@@ -270,20 +253,12 @@ set_option maxHeartbeats 1000000 in
 theorem code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (code halfPower output).execute Reference state =
-      state.mapClassical (fun entry => ((step halfPower output entry.1).1,
-        (entry.2, (step halfPower output entry.1).2))) := by
-  refine (equation0 halfPower output Reference state).trans ?_
-  dsimp only [update0, update1, update2, update3, update4, update5, step, enter, leave]
-  refine (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × History)
-    (D := Store ctx × (History × (code halfPower output).Path))
-    (R := Register.prod ctx.register Reference) _ state _).trans ?_
-  exact (Circuit.mapClassical_canonicalDecision
-    (C := Store ctx × History)
-    (D := Store ctx × (History × (code halfPower output).Path))
-    (R := Register.prod ctx.register Reference) _ state _).symm
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (code (model := model) halfPower output).execute Reference state =
+      state.mapClassical (fun entry => ((step (model := model) halfPower output entry.1).1,
+        (entry.2.1, (entry.2.2, (step (model := model) halfPower output entry.1).2)))) := by
+  refine (equation0 (model := model) halfPower output Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

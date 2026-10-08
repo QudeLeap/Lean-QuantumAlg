@@ -229,8 +229,9 @@ def toggleFlag {N : Nat} (s : PipelineState N) : PipelineState N where
 
 /-- One X gate on the field-encoded cleanup flag. -/
 def toggleFlagProgram {N n : Nat} (E : BinaryResidueEncoding N n) :
-    UnitaryCircuit (Qubits (fieldEncoding E).width) :=
-  (QubitPrimitive.x (flagBit E).wire).circuit
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (fieldEncoding E).width).toQuantum :=
+  (QubitPrimitive.x (flagBit E).wire).circuit (QubitLayout.canonical _) .empty
 
 /-- The flag X gate realizes cleanup-flag toggling on the same field encoding. -/
 theorem toggleFlagProgram_realizes {N n : Nat}

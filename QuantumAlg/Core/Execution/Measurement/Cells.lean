@@ -11,6 +11,9 @@ import all QuantumAlg.Core.Execution.Trace
 import all QuantumAlg.Core.Execution.Store
 import all QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Core.Base.Accounting.Space
+public import QuantumAlg.Core.Execution.Circuit
+public import QuantumAlg.Core.Base.Accounting.Context
+public import Mathlib.Data.PNat.Notation
 
 /-!
 # Actual finite classical cells for measurement results
@@ -32,7 +35,7 @@ variable {kind : ProblemKind}
 
 /-- Extend the live context by exactly the requested number of finite cells. -/
 @[implicit_reducible]
-def context (ctx : RuntimeCtx kind) (dimension : ℕ+) : Nat → RuntimeCtx kind
+public def context (ctx : RuntimeCtx kind) (dimension : ℕ+) : Nat → RuntimeCtx kind
   | 0 => ctx
   | count + 1 =>
       (context ctx dimension count).addRetained
@@ -41,7 +44,7 @@ def context (ctx : RuntimeCtx kind) (dimension : ℕ+) : Nat → RuntimeCtx kind
 
 /-- The newest cell has index zero; all older cells retain their relative order. -/
 @[implicit_reducible]
-def reference (ctx : RuntimeCtx kind) (dimension : ℕ+) :
+public def reference (ctx : RuntimeCtx kind) (dimension : ℕ+) :
     (count : Nat) → Fin count → CWriteRef (context ctx dimension count) (.finite dimension)
   | 0, index => Fin.elim0 index
   | count + 1, index =>
@@ -70,11 +73,11 @@ def liftWrite {ctx : RuntimeCtx kind} {shape : CShape} (dimension : ℕ+)
 
 /-- Allocate every cell through the single existing circuit interpreter. -/
 @[implicit_reducible]
-def allocate (ctx : RuntimeCtx kind) (dimension : ℕ+) :
-    (count : Nat) → Circuit ctx (context ctx dimension count)
+public def allocate {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (dimension : ℕ+) :
+    (count : Nat) → Circuit model ctx (context ctx dimension count)
   | 0 => .id ctx
   | count + 1 =>
-      .seq (allocate ctx dimension count)
+      .seq (allocate (model := model) ctx dimension count)
         (.retain (context ctx dimension count)
           (context ctx dimension count).canonicalFreshKey (.finite dimension)
           (context ctx dimension count).canonicalFreshKey_fresh)
@@ -122,23 +125,26 @@ theorem context_auxiliarySpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count
       ac_rfl
 
 /-- Retained cell allocation itself emits no native operation. -/
-theorem allocate_eventTrace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
-    (path : (allocate ctx dimension count).Path) :
-    (allocate ctx dimension count).eventTrace path = [] := by
+theorem allocate_eventTrace {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+    (path : (allocate (model := model) ctx dimension count).Path) :
+    (allocate (model := model) ctx dimension count).eventTrace path = [] := by
   induction count with
   | zero => rfl
   | succ count ih =>
-      change (allocate ctx dimension count).eventTrace path.1 ++ [] = []
+      change (allocate (model := model) ctx dimension count).eventTrace path.1 ++ [] = []
       rw [ih, List.append_nil]
 
 /-- Cell allocation contributes no event duration, while still allocating real storage. -/
-theorem allocate_depth (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
-    (duration : Resource.Event kind → Nat) (path : (allocate ctx dimension count).Path) :
-    (allocate ctx dimension count).depth duration path = 0 := by
+theorem allocate_depth {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+    (duration : Resource.Event model → Nat)
+    (path : (allocate (model := model) ctx dimension count).Path) :
+    (allocate (model := model) ctx dimension count).depth duration path = 0 := by
   induction count with
   | zero => rfl
   | succ count ih =>
-      change (allocate ctx dimension count).depth duration path.1 + 0 = 0
+      change (allocate (model := model) ctx dimension count).depth duration path.1 + 0 = 0
       rw [ih, Nat.add_zero]
 
 /-- Each newly allocated cell initially reads its declared finite zero encoding. -/

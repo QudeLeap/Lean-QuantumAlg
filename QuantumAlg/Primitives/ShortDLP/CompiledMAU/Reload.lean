@@ -16,8 +16,8 @@ import all QuantumAlg.Util.Nat.FixedWidth
 The source clean input has zero exponent words, the unit seed in its power
 word and zero arithmetic auxiliary. This module loads that fixed basis label
 using actual X gates on its set bits. Low integer bit indices are translated
-to the existing physical big-endian wire order explicitly. The full register
-is retained by a zero-event identity carrier, including at width zero.
+to the existing physical big-endian wire order explicitly. The circuit's
+layout retains the full register, including at width zero.
 
 This is a unitary component used after the actual reset proof. It performs no
 new preparation or allocation and does not impose a clean-state premise on
@@ -64,10 +64,10 @@ def reloadGates (m ell width N : Nat) :
 
 /-- Load the seed on the existing complete bank, without allocating another system. -/
 def reloadProgram (m ell width N : Nat) :
-    UnitaryCircuit (Qubits (totalQubits (registerParameters m ell width))) :=
-  .seq (programList (reloadGates m ell width N))
-    (.identity (Qubits (totalQubits (registerParameters m ell width)))
-      (List.range (totalQubits (registerParameters m ell width))) List.nodup_range)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (totalQubits (registerParameters m ell width))).toQuantum :=
+  programList (QubitLayout.canonical (totalQubits (registerParameters m ell width)))
+    .empty (reloadGates m ell width N)
 
 private theorem reload_step_zero (m ell width N : Nat) :
     stepList (reloadGates m ell width N) 0 = reloadLabel m ell width N := by
@@ -84,29 +84,16 @@ private theorem reload_step_zero (m ell width N : Nat) :
 theorem shortDLP_reload_apply_zero (m ell width N : Nat) :
     (reloadProgram m ell width N).applyNormalized
       (NormalizedVector.ket
-        (R := Qubits (totalQubits (registerParameters m ell width))) 0) =
+        ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+          0)) =
       NormalizedVector.ket
-        (R := Qubits (totalQubits (registerParameters m ell width)))
-        (reloadLabel m ell width N) := by
-  rw [reloadProgram, UnitaryCircuit.applyNormalized_seq, UnitaryCircuit.applyNormalized_identity]
-  have action := (realizesList (reloadGates m ell width N)).apply_encoded_ket 0
-  change (programList (reloadGates m ell width N)).applyNormalized
-      (NormalizedVector.ket
-        (R := Qubits (totalQubits (registerParameters m ell width))) 0) =
-      NormalizedVector.ket
-        (R := Qubits (totalQubits (registerParameters m ell width)))
-        (stepList (reloadGates m ell width N) 0) at action
+        ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
+          (reloadLabel m ell width N)) := by
+  have action := (realizesList
+    (QubitLayout.canonical (totalQubits (registerParameters m ell width)))
+    .empty (reloadGates m ell width N)).apply_encoded_ket 0
   rw [reload_step_zero] at action
   exact action
-
-/-- Every original physical wire remains in the advertised complete register. -/
-theorem shortDLP_reload_physical_idx (m ell width N : Nat) :
-    (reloadProgram m ell width N).physical_idx =
-      List.range (totalQubits (registerParameters m ell width)) := by
-  change UnitaryCircuit.unionPhysicalIdx (programList (reloadGates m ell width N)).physical_idx
-    (List.range (totalQubits (registerParameters m ell width))) = _
-  exact UnitaryCircuit.unionPhysicalIdx_eq_right_of_subset _ _
-    (programList_physical_idx_subset_range (reloadGates m ell width N))
 
 /-- The selected positions are independently determined by the fixed source seed. -/
 def reloadXCount (m ell width N : Nat) : Nat :=
@@ -115,12 +102,14 @@ def reloadXCount (m ell width N : Nat) : Nat :=
 /-- The entire native ledger consists of exactly one X per selected seed bit. -/
 theorem shortDLP_reload_eventCost (m ell width N : Nat) :
     (reloadProgram m ell width N).eventCost =
-      reloadXCount m ell width N • ResourcePool.singleton (.gate (.builtin "x")) := by
-  rw [reloadProgram, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero,
-    programList_eventCost]
-  have events : (reloadGates m ell width N).map event =
-      List.replicate (reloadXCount m ell width N) (.gate (.builtin "x")) := by
-    simp [reloadGates, EncodedBit.Word.xorConstantGates, reloadXCount, Function.comp_def, event]
+      reloadXCount m ell width N • ResourcePool.singleton
+        (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
+  rw [reloadProgram, programList_eventCost]
+  have events : (reloadGates m ell width N).map (event .empty) =
+      List.replicate (reloadXCount m ell width N) (.gate .singleQubit) := by
+    simp [reloadGates, EncodedBit.Word.xorConstantGates, reloadXCount, Function.comp_def,
+      event, primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+      AlgorithmGate.model, AlgorithmGate.coordinate]
   rw [events, ResourcePool.ofList_replicate]
   rfl
 
@@ -128,10 +117,7 @@ theorem shortDLP_reload_eventCost (m ell width N : Nat) :
 theorem shortDLP_reload_unitDepth (m ell width N : Nat) :
     (reloadProgram m ell width N).evaluatedEventDepth (fun _ => 1) =
       reloadXCount m ell width N := by
-  rw [reloadProgram, UnitaryCircuit.evaluatedEventDepth_seq,
-    programList_evaluatedEventDepth_unit]
-  change (reloadGates m ell width N).length + 0 = _
-  rw [Nat.add_zero]
+  rw [reloadProgram, programList_evaluatedEventDepth_unit]
   exact EncodedBit.Word.xorConstantGates_length _ _
 
 /-- The exact seed count is bounded independently by the actual bank width. -/

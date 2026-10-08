@@ -27,7 +27,8 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Actual selected instruction and its same-context path. -/
 def eliminationChoiceStep
@@ -36,62 +37,67 @@ def eliminationChoiceStep
     Store ctx × (eliminationChoice matrix pivot target value).Path :=
   match value with
   | .bit false => (store, ())
-  | .bit true => (store.applyOp (eliminationXorOp matrix pivot target), ())
+  | .bit true =>
+      BitWord.instructionStep (execution := model)
+        (eliminationXorOp matrix pivot target) store
 
 private theorem eliminationChoice_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (value : CShape.Value .bit) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (eliminationChoice matrix pivot target value).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (eliminationChoice (model := model) matrix pivot target value).execute Reference state =
       state.mapClassical (fun entry =>
         ((eliminationChoiceStep matrix pivot target value entry.1).1,
-          (entry.2, (eliminationChoiceStep matrix pivot target value entry.1).2))) := by
+          (entry.2.1, (entry.2.2,
+            (eliminationChoiceStep matrix pivot target value entry.1).2)))) := by
   cases value with
   | bit bit =>
       cases bit
-      · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+      · refine (Circuit.execute_id_mapClassical (model := model) Reference state).trans ?_
         congr 1
         exact Subsingleton.elim _ _
-      · refine (Circuit.execute_classical_mapClassical
-          (eliminationXorOp matrix pivot target) Reference state).trans ?_
-        congr 1
-        exact Subsingleton.elim _ _
+      · exact BitWord.bitWord_instruction_execute (execution := model)
+          (eliminationXorOp matrix pivot target) state
 
 private def staticRecord (condition : Prop) (decision : Decidable condition)
-    (first second : Circuit ctx ctx)
+    (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path) (store : Store ctx) :
-    Store ctx × (@ite (Circuit ctx ctx) condition decision first second).Path :=
+    Store ctx × (@ite (Circuit model ctx ctx) condition decision first second).Path :=
   match decision with
   | .isTrue _ => firstStep store
   | .isFalse _ => secondStep store
 
+omit [BitWord.Selected model] in
 private theorem staticRecord_store (condition : Prop) (decision : Decidable condition)
-    (first second : Circuit ctx ctx)
+    (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path) (store : Store ctx) :
     (staticRecord condition decision first second firstStep secondStep store).1 =
       @ite (Store ctx) condition decision (firstStep store).1 (secondStep store).1 := by
   cases decision <;> rfl
 
+omit [BitWord.Selected model] in
 private theorem staticRecord_execute (condition : Prop) (decision : Decidable condition)
-    (first second : Circuit ctx ctx)
+    (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History), first.execute Reference state =
-        state.mapClassical (fun entry => ((firstStep entry.1).1, (entry.2, (firstStep entry.1).2))))
-    (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference History), second.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), first.execute Reference state =
         state.mapClassical (fun entry =>
-          ((secondStep entry.1).1, (entry.2, (secondStep entry.1).2))))
+          ((firstStep entry.1).1, (entry.2.1, (entry.2.2, (firstStep entry.1).2)))))
+    (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
+      (state : State ctx Reference (model.HiddenState × History)), second.execute Reference state =
+        state.mapClassical (fun entry =>
+          ((secondStep entry.1).1, (entry.2.1, (entry.2.2, (secondStep entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (@ite (Circuit ctx ctx) condition decision first second).execute Reference state =
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (@ite (Circuit model ctx ctx) condition decision first second).execute Reference state =
       state.mapClassical (fun entry =>
         ((staticRecord condition decision first second firstStep secondStep entry.1).1,
-          (entry.2,
-            (staticRecord condition decision first second firstStep secondStep entry.1).2))) := by
+          (entry.2.1, (entry.2.2,
+            (staticRecord condition decision first second firstStep secondStep entry.1).2)))) := by
   cases decision with
   | isTrue _ => exact firstEquation Reference state
   | isFalse _ => exact secondEquation Reference state
@@ -100,8 +106,10 @@ private theorem staticRecord_execute (condition : Prop) (decision : Decidable co
 def eliminateTargetStep (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (store : Store ctx) :
     Store ctx × (eliminateTarget matrix pivot target column).Path :=
-  staticRecord (target = pivot) (instDecidableEqFin rowCount target pivot) (.id ctx)
-    (.branch (eliminationBit matrix target column) (eliminationChoice matrix pivot target))
+  staticRecord (target = pivot) (instDecidableEqFin rowCount target pivot)
+    (.id (model := model) ctx)
+    (.branch (eliminationBit matrix target column)
+      (eliminationChoice (model := model) matrix pivot target))
     (fun current => (current, ()))
     (fun current =>
       let value := current.read (eliminationBit matrix target column)
@@ -112,28 +120,34 @@ def eliminateTargetStep (matrix : CWriteRef ctx (.fixedVector rowCount (.unsigne
 theorem gf2EliminateTarget_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (eliminateTarget matrix pivot target column).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (eliminateTarget (model := model) matrix pivot target column).execute Reference state =
       state.mapClassical (fun entry =>
         ((eliminateTargetStep matrix pivot target column entry.1).1,
-          (entry.2, (eliminateTargetStep matrix pivot target column entry.1).2))) := by
+          (entry.2.1, (entry.2.2,
+            (eliminateTargetStep matrix pivot target column entry.1).2)))) := by
   exact staticRecord_execute (target = pivot) (instDecidableEqFin rowCount target pivot)
-    (.id ctx)
-    (.branch (eliminationBit matrix target column) (eliminationChoice matrix pivot target))
+    (.id (model := model) ctx)
+    (.branch (eliminationBit matrix target column)
+      (eliminationChoice (model := model) matrix pivot target))
     (fun current => (current, ()))
     (fun current =>
       let value := current.read (eliminationBit matrix target column)
       let actual := eliminationChoiceStep matrix pivot target value current
       (actual.1, ⟨value, actual.2⟩))
     (fun reference {_} _ current => by
-      refine (Circuit.execute_id_mapClassical reference current).trans ?_
+      refine (Circuit.execute_id_mapClassical (model := model) reference current).trans ?_
       congr 1
       exact Subsingleton.elim _ _)
     (fun reference {_} _ current =>
-      Circuit.execute_branch_mapClassical (eliminationBit matrix target column)
-        (eliminationChoice matrix pivot target) (eliminationChoiceStep matrix pivot target)
-        (eliminationChoice_execute matrix pivot target) reference current) Reference state
+      Circuit.execute_branchStoreRecord (model := model) (eliminationBit matrix target column)
+        (eliminationChoice (model := model) matrix pivot target)
+        (eliminationChoiceStep matrix pivot target)
+        (eliminationChoice_execute (model := model) matrix pivot target) reference current)
+    Reference state
 
+omit [BitWord.Selected model] in
 /-- The actual bit read has exactly the original MSB-first logical column coordinate. -/
 theorem gf2EliminationBit_value
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
@@ -181,20 +195,24 @@ def eliminateWithPivotStep
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     Store ctx × (eliminateWithPivot matrix pivot column).Path :=
-  Circuit.forRangeRecord rowCount (fun target => eliminateTarget matrix pivot target column)
+  Circuit.forRangeStoreRecord rowCount
+    (fun target => eliminateTarget (model := model) matrix pivot target column)
     (fun target => eliminateTargetStep matrix pivot target column) store
 
 /-- The full target pass preserves every original Store/Reference/History correlation. -/
 theorem gf2EliminateWithPivot_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (eliminateWithPivot matrix pivot column).execute Reference state =
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (eliminateWithPivot (model := model) matrix pivot column).execute Reference state =
       state.mapClassical (fun entry =>
         ((eliminateWithPivotStep matrix pivot column entry.1).1,
-          (entry.2, (eliminateWithPivotStep matrix pivot column entry.1).2))) :=
-  Circuit.execute_forRangeRecord rowCount _ _
-    (fun target => gf2EliminateTarget_execute matrix pivot target column) Reference state
+          (entry.2.1, (entry.2.2,
+            (eliminateWithPivotStep matrix pivot column entry.1).2)))) :=
+  Circuit.execute_forRangeStoreRecord (model := model) rowCount _ _
+    (fun target => gf2EliminateTarget_execute (model := model) matrix pivot target column)
+    Reference state
 
 /-- Every target uses its actual current matrix in the original chronological fold. -/
 theorem gf2EliminateWithPivot_store
@@ -207,7 +225,7 @@ theorem gf2EliminateWithPivot_store
           current.write matrix (CShape.vectorRowXor
             (current.read (.storage matrix.toCStorageRef)) pivot target)
         else current)).foldl (fun current update => update current) store := by
-  refine (Circuit.forRangeRecord_store rowCount _ _ store).trans ?_
+  refine (Circuit.forRangeStoreRecord_store rowCount _ _ store).trans ?_
   congr 2
   funext target current
   exact gf2EliminateTarget_store matrix pivot target column current
@@ -218,7 +236,7 @@ theorem gf2EliminateWithPivot_read_other
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : matrix.key ∉ other.storageKeys) :
     (eliminateWithPivotStep matrix pivot column store).1.read other = store.read other :=
-  Circuit.forRangeRecord_invariant rowCount _ _
+  Circuit.forRangeStoreRecord_invariant rowCount _ _
     (fun _ current => current.read other = store.read other)
     (fun target current preserved =>
       (gf2EliminateTarget_read_other matrix pivot target column current other separate).trans

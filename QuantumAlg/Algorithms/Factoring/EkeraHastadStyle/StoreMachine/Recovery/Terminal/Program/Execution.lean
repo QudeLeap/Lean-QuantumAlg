@@ -27,59 +27,88 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual native bit fold materializes the full word and retains every original state block. -/
 theorem fullDecodeInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (fullDecodeInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((fullDecodeStep refs entry.1).1, (entry.2, (fullDecodeStep refs entry.1).2))) := by
+      let actual := fullDecodeStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (TerminalDecode.terminalDecode_fold_execute refs.full
     (List.ofFn (fun index => decoderInputs refs (TerminalDecode.sourceIndex .littleEndian index)))
     Reference state).trans ?_
-  congr 1
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The original scratch word is split by the complete actual native interpreter. -/
 theorem splitFullInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (splitFullInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((splitFullStep refs entry.1).1, (entry.2, (splitFullStep refs entry.1).2))) := by
+      let actual := splitFullStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Word.Split.splitInto_execute (splitRefs refs) Reference state).trans ?_
-  congr 1
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Copying the actual full word feeds its actual split without altering reference correlations. -/
 theorem copySplitInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (copySplitInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((copySplitStep refs entry.1).1, (entry.2, (copySplitStep refs entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (copyOp refs)) (splitFullInto refs)
-    (fun store => (store.applyOp (copyOp refs), ())) (splitFullStep refs) (by
-      intro Reference History _ state
-      refine (Circuit.execute_classical_mapClassical (copyOp refs) Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _) (splitFullInto_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := copySplitStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (copyOp refs)) (splitFullInto refs)
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model) (copyOp refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := splitFullStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => splitFullInto_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- One actual terminal result feeds the actual native full-word and pair extraction. -/
 theorem decodeInto_execute (refs : Refs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodeInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((decodeStep refs entry.1).1, (entry.2, (decodeStep refs entry.1).2))) := by
+      let actual := decodeStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (fullDecodeInto refs) (copySplitInto refs)
-    (fullDecodeStep refs) (copySplitStep refs) (fullDecodeInto_execute refs)
-    (copySplitInto_execute refs) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := fullDecodeStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := copySplitStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => fullDecodeInto_execute refs reference current)
+    (fun reference _history _ current => copySplitInto_execute refs reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Two actual terminal results are decoded sequentially in the original full state. -/
 theorem decodePairInto_execute (refs : PairRefs ctx N) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (decodePairInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((decodePairStep refs entry.1).1, (entry.2, (decodePairStep refs entry.1).2))) := by
+      let actual := decodePairStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (decodeInto refs.first) (decodeInto refs.second)
-    (decodeStep refs.first) (decodeStep refs.second) (decodeInto_execute refs.first)
-    (decodeInto_execute refs.second) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := decodeStep refs.first before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := decodeStep refs.second before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => decodeInto_execute refs.first reference current)
+    (fun reference _history _ current => decodeInto_execute refs.second reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

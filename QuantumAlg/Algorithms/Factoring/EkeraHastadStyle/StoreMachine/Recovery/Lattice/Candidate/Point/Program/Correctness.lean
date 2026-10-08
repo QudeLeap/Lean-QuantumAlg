@@ -20,7 +20,7 @@ open LatticeArithmetic (writeInput)
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem coefficient_coordinate_correct (refs : Refs ctx width) (coordinate : Coordinate)
     (store : Store ctx) (left right : Int)
@@ -152,11 +152,12 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- The actual eighteen native instructions realize the original candidate construction. -/
-theorem candidatePointInto_correct (refs : Refs ctx width) (separation : Separation refs)
+theorem candidatePointInto_correct [BitWord.Selected model]
+    (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (center offset : NumberTheory.IntegerPoint3)
     (initial : InitialConditions store refs basis center offset) :
-    Outcome refs store (candidateStep refs store).1 basis center offset := by
+    Outcome refs store (candidateStep (model := model) refs store).1 basis center offset := by
   have coefficients := coefficientInto_correct refs separation store center offset
     initial.2.1 initial.2.2
   have basisLoaded := basis_after_coefficient refs separation store basis initial.1

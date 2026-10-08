@@ -33,24 +33,32 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Every earlier untouched structural read commutes with the entire actual reset sequence. -/
-theorem zReset_sequence_filter_read {ctx : RuntimeCtx .quantum}
+theorem zReset_sequence_filter_read {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum}
+    (implementations : ∀ wire,
+      QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     (readouts : List (ZReadout ctx)) {shape : CShape} (observed : CInputRef ctx shape)
     (separate : ∀ item ∈ readouts, item.output.key ∉ observed.storageKeys)
     (value : shape.Value) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    ((sequence readouts).execute Reference state).filterClassical
+    {History : Type} [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
+    ((sequence implementations readouts).execute Reference state).filterClassical
         (fun entry => entry.1.read observed = value) =
-      (sequence readouts).execute Reference
+      (sequence implementations readouts).execute Reference
         (state.filterClassical (fun entry => entry.1.read observed = value)) := by
   induction readouts generalizing Reference History with
   | nil =>
-      exact filter_mapHistory (ctx := ctx) (Reference := Reference)
-        (History := History) (Later := History × Unit) state
-        (fun history => (history, ())) (fun store => store.read observed = value)
+      change ((Circuit.id (model := .quantum gates oracles) ctx).execute
+          Reference state).filterClassical (fun entry => entry.1.read observed = value) =
+        (Circuit.id (model := .quantum gates oracles) ctx).execute Reference
+          (state.filterClassical (fun entry => entry.1.read observed = value))
+      rw [Circuit.execute_id, Circuit.execute_id]
+      simp only [filter_map]
   | cons head tail ih =>
-      exact filter_seq (circuit head.wire head.output) (sequence tail)
+      exact filter_seq (circuit head.wire head.output (implementations head.wire))
+        (sequence implementations tail)
         (fun store => store.read observed = value)
-        (zReset_execute_filter_read head.wire head.output observed
+        (zReset_execute_filter_read head.wire head.output (implementations head.wire) observed
           (separate head (.head tail)) value)
         (fun reference {_history} _historyFinite initial =>
           ih (fun item present => separate item (.tail head present)) reference initial)
@@ -58,15 +66,19 @@ theorem zReset_sequence_filter_read {ctx : RuntimeCtx .quantum}
 
 /-- The complete register becomes zero separately in every preserved classical-reference block.
 This is the state equation required to reuse one actual register in later rounds. -/
-theorem zReset_sequence_complete_read_entry {ctx : RuntimeCtx .quantum}
+theorem zReset_sequence_complete_read_entry {gates : GateModel} {oracles : OracleModel}
+    {ctx : RuntimeCtx .quantum}
+    (implementations : ∀ wire,
+      QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     (readouts : List (ZReadout ctx))
     (covers : ∀ wire : Fin ctx.systemCount, wire ∈ readouts.map ZReadout.wire)
     {shape : CShape} (observed : CInputRef ctx shape)
     (separate : ∀ item ∈ readouts, item.output.key ∉ observed.storageKeys)
     (value : shape.Value) {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (left right : ctx.quantumLayout.Basis)
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
+    (left right : ctx.quantumLayout.Basis)
     (leftRef rightRef : Reference.Index) :
-    (((sequence readouts).execute Reference state).filterClassical
+    (((sequence implementations readouts).execute Reference state).filterClassical
       (fun entry => entry.1.read observed = value)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       if left = ctx.quantumLayout.zeroLabel ∧ right = ctx.quantumLayout.zeroLabel then
@@ -75,8 +87,9 @@ theorem zReset_sequence_complete_read_entry {ctx : RuntimeCtx .quantum}
             (fun entry => entry.1.read observed = value)).quantumMarginal.matrix
             (basis, leftRef) (basis, rightRef)
       else 0 := by
-  rw [zReset_sequence_filter_read readouts observed separate value Reference state]
-  exact zReset_sequence_complete_entry readouts covers _ left right leftRef rightRef
+  rw [zReset_sequence_filter_read implementations readouts observed separate value Reference state]
+  exact zReset_sequence_complete_entry implementations readouts covers _
+    left right leftRef rightRef
 
 end
 

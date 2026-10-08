@@ -25,21 +25,24 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- One actual state-path record returns a tuple satisfying the original total XGCD relation. -/
 theorem xgcdNativePublicIntoResult_accepts
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) :
-    ∃ record : Store ctx → Store ctx × (publicIntoResult input result).Path,
+    ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
+      (model := model) input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
-        (publicIntoResult input result).execute Reference state =
+        (state : State ctx Reference (model.HiddenState × History)),
+        (publicIntoResult (model := model) input result).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ before : Store ctx,
-        let value := decodeXGCDTuple ((record before).1.read (GCD.cellRead result))
-        PureXGCD.accepts (GCD.decodeOperands (before.read input))
+            let actual := record (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        let value := decodeXGCDTuple ((record before).1.1.read (GCD.cellRead result))
+        PureXGCD.accepts (GCD.decodeOperands (before.1.read input))
           ⟨value.1, value.2.1, value.2.2⟩ := by
   obtain ⟨record, equation, correct⟩ := xgcdNativePublicIntoResult_actualRecord input result
   refine ⟨record, equation, ?_⟩
@@ -47,7 +50,7 @@ theorem xgcdNativePublicIntoResult_accepts
   dsimp only
   rw [correct before]
   simp only [GCD.cellRead, Store.read_write_same, decode_encode_xgcdTuple]
-  exact PureXGCD.xgcdEval_accepts (GCD.decodeOperands (before.read input))
+  exact PureXGCD.xgcdEval_accepts (GCD.decodeOperands (before.1.read input))
 
 end
 

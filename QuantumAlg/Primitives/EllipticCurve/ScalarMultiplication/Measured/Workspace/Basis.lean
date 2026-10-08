@@ -40,12 +40,14 @@ theorem indexedPositions_wire (width : Nat) (indices : List Nat) (distinct : ind
     (index : Fin indices.length) :
     (indexedContext width indices distinct).quantumLayout.wire
       (indexedPositions width indices distinct index) =
-        QuantumWire.mk (InPlaceControlled.frameWidth width + indices[index.val]) 2 := by
+        QuantumWire.mk (InPlaceControlled.frameWidth width + indices[index.val]'index.isLt) 2 := by
   have bound : index.val <
-      ((indices.map (indexedEntry width)).flatMap RuntimeEntry.quantumWires).length := by
-    rw [indexed_wires, List.length_map]
+      (indexedContext width indices distinct).quantumWires.length := by
+    change index.val < (indexedContext width indices distinct).systemCount
+    rw [indexedContext_systemCount]
     exact index.isLt
-  change ((indices.map (indexedEntry width)).flatMap RuntimeEntry.quantumWires)[index.val]'bound = _
+  change ((indices.map (indexedEntry width)).flatMap
+    RuntimeEntry.quantumWires)[index.val]'bound = _
   simp only [indexed_wires, List.getElem_map]
 
 private theorem indexed_dimension (width : Nat) (indices : List Nat) (distinct : indices.Nodup)

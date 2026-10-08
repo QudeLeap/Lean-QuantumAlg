@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Pipeline
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
+
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Storage
@@ -42,14 +45,18 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 private theorem packedRead (n : Nat) (store : Store (post n)) :
-    (store.applyOp (packing n)).read (.storage (resultRef n).toCStorageRef) =
+    (store.write (BitWord.application (packing n)).output
+      ((packing n).eval (store.read (BitWord.application (packing n)).input))).read
+        (.storage (resultRef n).toCStorageRef) =
       (packing n).eval (store.read (MeasurementCells.input (resultContext n) 2 n)) :=
   Store.read_applyOp_output store (packing n)
 
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass (n : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (post n) Reference H) (output : CShape.Value (.bits n)) :
-    ((((readoutCode n).execute Reference state).mapClassical
+theorem readoutCode_block_mass {n : Nat} (function : WalshHadamard.Oracle n)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State (post n) Reference (ClassicalOracleModel.empty.HiddenState × H))
+    (output : CShape.Value (.bits n)) :
+    ((((readoutCode function).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n).toCStorageRef))).block output).mass =
       (∑ basis : (post n).register.Index,
         if CShape.Value.bits ((measurement n).readout (outputBasisEquiv n basis)) = output then
@@ -58,8 +65,10 @@ theorem readoutCode_block_mass (n : Nat) {Reference : Register} {H : Type} [Fint
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical]
-  simp only [State.classicalStep, ExecutionState.diagonalSum_mapClassical]
+  rw [Circuit.execute_classical_mapClassical (model := model function)
+    (BitWord.application (packing n))
+    (packing n).eval (BitWord.bitWord_application_evaluate (packing n))]
+  simp only [ExecutionState.diagonalSum_mapClassical]
   rw [Circuit.measurementSequence_diagonalSum]
   simp only [packedRead, packing_measured_value]
   calc
@@ -84,7 +93,8 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
 /-- Every final output-block mass is the original query-readout Born fiber,
 derived from actual preparation, gates, measurements, storage writes and packing. -/
 theorem code_block_mass {n : Nat} (f : WalshHadamard.Oracle n)
-    {Reference : Register} {H : Type} [Fintype H] (state : State pre Reference H)
+    {Reference : Register} {H : Type} [Fintype H]
+    (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits n)) :
     ((((code f).execute Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n).toCStorageRef))).block output).mass =
@@ -99,7 +109,7 @@ theorem code_block_mass {n : Nat} (f : WalshHadamard.Oracle n)
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass n ((beforeMeasurement f).execute Reference state) output
+          readoutCode_block_mass f ((beforeMeasurement f).execute Reference state) output
     _ = (∑ basis : Fin (2 ^ (n + 1)),
         if CShape.Value.bits ((measurement n).readout basis) = output then
           (DensityOperator.ofPure (WalshHadamard.finalJointState f)).matrix basis basis

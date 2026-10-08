@@ -31,20 +31,26 @@ local instance (proposition : Prop) : Decidable proposition := Classical.propDec
 
 /-- Keep the complete quantum-reference block for an actual final classical store. -/
 def density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     DensityOperator (Register.prod (context width).register Reference) :=
   (ExecutionState.filterClassical ((NumeratorMeasurement.measure width).execute Reference state)
     (fun entry => entry.1 = stored)).quantumMarginal
 
 /-- The actual interpreter preserves exactly equal numerator labels and their real store writes. -/
 theorem matrix_entry (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width))
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index) :
     (density width state stored).matrix (left, leftRef) (right, rightRef) =
       if word width left = word width right then
         ExecutionState.weightedMatrixEntry state (fun original =>
-          if Circuit.writeMeasurementPath (readouts width) original.1
-            (Circuit.measurementBasisPath (readouts width) left) = stored then 1 else 0)
+          if Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+            (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+            (readouts width) original.1
+            (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+              (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+              (readouts width) left) = stored then 1 else 0)
               (left, leftRef) (right, rightRef)
       else 0 := by
   rw [density, NumeratorMeasurement.measure,
@@ -53,7 +59,8 @@ theorem matrix_entry (width : Nat) {Reference : Register} {History : Type} [Fint
 
 /-- A branch's entire row is zero unless its numerator equals that branch's actual stored result. -/
 theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width))
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index)
     (different : word width left ≠ NumeratorReset.outcome (stored.read (input width))) :
     (density width state stored).matrix (left, leftRef) (right, rightRef) = 0 := by
@@ -62,8 +69,12 @@ theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype 
   · unfold ExecutionState.weightedMatrixEntry
     apply Finset.sum_eq_zero
     intro original _
-    by_cases actual : Circuit.writeMeasurementPath (readouts width) original.1
-        (Circuit.measurementBasisPath (readouts width) left) = stored
+    by_cases actual : Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width) original.1
+        (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+          (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+          (readouts width) left) = stored
     · have result := stored_outcome width original.1 left
       rw [actual] at result
       exact False.elim (different result.symm)
@@ -72,7 +83,8 @@ theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype 
 
 /-- The locally observable support restriction is inherited from the same full reference rows. -/
 theorem local_support (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width))
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width))
     (basis : (context width).register.Index)
     (different : word width basis ≠ NumeratorReset.outcome (stored.read (input width))) :
     (density width state stored).marginalLeft.matrix basis basis = 0 := by

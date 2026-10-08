@@ -18,26 +18,38 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent three-subtraction and five-instruction self-dot refresh formula. -/
-def distanceTrace (width : Nat) : List (Resource.Event kind) :=
-  List.replicate 3 (.classicalOperation (.wordBinary .sub width)) ++
-    [.classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .add width),
-      .classicalOperation (.wordBinary .mulLow width),
-      .classicalOperation (.wordBinary .add width)]
+def distanceTrace (width : Nat) : List (Resource.Event model) :=
+  LatticePointDifferenceMachine.differenceTrace (model := model) width ++
+    [.classicalOperation (BitWord.selectedCoordinate (execution := model)
+      (.wordBinary .mulLow width)),
+      .classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+      .classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .add width)),
+      .classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .mulLow width)),
+      .classicalOperation (BitWord.selectedCoordinate (execution := model)
+        (.wordBinary .add width))]
 
 /-- The actual distance path emits exactly the independently specified eight native instructions. -/
 theorem squaredDistanceInto_events (refs : Refs ctx width)
     (path : (squaredDistanceInto refs).Path) :
-    (squaredDistanceInto refs).eventTrace path = distanceTrace width := rfl
+    (squaredDistanceInto refs).eventTrace path = distanceTrace width := by
+  change _ ++ _ = _
+  rw [LatticePointDifferenceMachine.pointDifferenceInto_events,
+    LatticeDotRefresh.refreshInto_events]
+  rfl
 
 /-- Actual native multiplicities include explicit initialization and all subsequent arithmetic. -/
 theorem squaredDistanceInto_resourcePool (refs : Refs ctx width)
     (path : (squaredDistanceInto refs).Path) :
-    (squaredDistanceInto refs).resourcePool path = ResourcePool.ofList (distanceTrace width) := rfl
+    (squaredDistanceInto refs).resourcePool path =
+      ResourcePool.ofList (distanceTrace width) :=
+  congrArg ResourcePool.ofList (squaredDistanceInto_events refs path)
 
 /-- The actual initialized calculation uses exactly eight native instructions. -/
 theorem squaredDistanceInto_eventCount (refs : Refs ctx width)
@@ -51,7 +63,8 @@ theorem squaredDistanceInto_depth (refs : Refs ctx width)
 
 /-- The actual subtraction and self-dot restore the complete borrowed-reference joint state. -/
 theorem squaredDistanceInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (squaredDistanceInto refs).BorrowedRestored Reference state
       ((squaredDistanceInto refs).execute Reference state) :=
   Circuit.borrowedRestored_seq _ _ state

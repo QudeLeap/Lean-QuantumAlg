@@ -10,6 +10,7 @@ import all QuantumAlg.Algorithms.Simon.FixedSample.Model
 import all QuantumAlg.Core.Execution.Measurement.Cells.Inputs
 import all QuantumAlg.Core.Execution.Owned.ClassicalInputs
 import all QuantumAlg.Core.Execution.Context.Layout
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 
 /-!
@@ -28,12 +29,13 @@ open Execution
 noncomputable section
 
 /-- Exactly the original two-register physical layout. -/
+@[implicit_reducible]
 def bankLayout (n : Nat) : QuantumLayout (2 * n) :=
-  (SimonsProblem.layout n).toQuantumLayout
+  (SimonsProblem.layout n).toQuantum
 
 /-- The original binary zero label, on those same physical wires. -/
 def preparation (n : Nat) : BasisPreparation (bankLayout n) :=
-  ⟨(SimonsProblem.layout n).binaryIndexEquiv.symm 0⟩
+  ⟨(SimonsProblem.layout n).basisEquiv.symm 0⟩
 
 /-- Allocate one retained bit-string slot for every fixed sample index. -/
 @[implicit_reducible]
@@ -155,12 +157,13 @@ include sameWires in
 theorem nativeSimon_context_qubits (wire : Fin ctx.systemCount) :
     (ctx.quantumLayout.wire wire).dimension = 2 := by
   obtain ⟨original, rfl⟩ := (wireEquiv n sameWires).surjective wire
-  exact congrArg QuantumWire.dimension (nativeSimon_wire_preserved n sameWires original)
+  simpa only [bankLayout, QubitLayout.toQuantum_wire] using
+    congrArg QuantumWire.dimension (nativeSimon_wire_preserved n sameWires original)
 
 /-- The original big-endian binary label and the actual wirewise label describe the same basis. -/
 def basisEquiv : ctx.register.Index ≃ (Qubits (2 * n)).Index :=
   (Execution.basisOfEqualWires (bankLayout n) ctx.quantumLayout
-    (layoutWires n sameWires)).symm.trans (SimonsProblem.layout n).binaryIndexEquiv
+    (layoutWires n sameWires)).symm.trans (SimonsProblem.layout n).basisEquiv
 
 include sameWires in
 /-- Reindexing the source basis leaves every original physical identity unchanged. -/
@@ -168,17 +171,14 @@ theorem nativeSimon_physicalIdx :
     ctx.physicalIdx = (SimonsProblem.layout n).systemIdx := by
   change ctx.quantumWires.map QuantumWire.identity = _
   rw [sameWires]
-  exact (layout_identities_eq_map_wires (bankLayout n)).symm.trans
-    (SimonsProblem.layout n).toQuantumLayout_identities
+  simp only [bankLayout, QuantumLayout.wires, List.map_ofFn, Function.comp_def,
+    QubitLayout.toQuantum_wire, QubitLayout.systemIdx]
 
 /-- Place the supplied original circuit on this same physical bank. -/
-def member (sampling : SamplingCircuit n) : UnitaryCircuit ctx.register :=
-  UnitaryCircuit.reindex (basisEquiv n sameWires).symm sampling.circuit
-
-/-- The placed circuit uses exactly the complete original bank. -/
-theorem nativeSimon_member_physicalIdx (sampling : SamplingCircuit n) :
-    (member n sameWires sampling).physical_idx = ctx.physicalIdx :=
-  sampling.circuitLayout.trans (nativeSimon_physicalIdx n sameWires).symm
+def member (sampling : SamplingCircuit n) :
+    UnitaryCircuit AlgorithmGate.model (sourceModel sampling.oracle) ctx.quantumLayout :=
+  Execution.unitaryOfEqualWires (bankLayout n) ctx.quantumLayout
+    (layoutWires n sameWires) sampling.circuit
 
 end
 

@@ -28,7 +28,8 @@ open Execution MAU.Inversion.SharedEEA NumeratorMeasurement NumeratorObservation
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 private theorem source_hadamard (width : Nat) {Reference : Register} {History : Type}
-    [Fintype History] (state : State (context width) Reference History)
+    [Fintype History] (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width)) :
     NumeratorStoredProjection.source width
       ((NumeratorReset.hadamard width).execute Reference state) stored =
@@ -39,16 +40,20 @@ private theorem source_hadamard (width : Nat) {Reference : Register} {History : 
         (NumeratorStoredProjection.source width state stored) :=
   Circuit.unitary_store_filter
     (NumeratorRuntime.program width (NumeratorReset.hadamardMember width))
-    (NumeratorRuntime.program_physical width (NumeratorReset.hadamardMember width)
-      (NumeratorReset.hadamard_within width)) state
-    (fun original => Circuit.writeMeasurementPath (readouts width) original
-      (Circuit.measurementBasisPath (readouts width)
+    state
+    (fun original => Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+      (readouts width) original
+      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
+        (readouts width)
         (NumeratorStoredProjection.representative width
           (NumeratorReset.outcome (stored.read (input width))))) = stored)
 
 /-- The actual H/Z/reset state keeps exactly its selected source fiber and complete reference. -/
 theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     (ExecutionState.filterClassical ((NumeratorReset.code width).execute Reference state)
       (fun entry => entry.1 = stored)).quantumMarginal =
       DensityOperator.applyUnitary
@@ -88,7 +93,8 @@ def operator (width : Nat) (Reference : Register) (stored : Store (context width
 
 /-- Full conjugation is an equality of the actual retained-store block, not a separate execution. -/
 theorem actual_matrix (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference History) (stored : Store (context width)) :
+    (state : State (context width) Reference
+      (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     (ExecutionState.filterClassical ((NumeratorReset.code width).execute Reference state)
       (fun entry => entry.1 = stored)).quantumMarginal.matrix =
       operator width Reference stored *

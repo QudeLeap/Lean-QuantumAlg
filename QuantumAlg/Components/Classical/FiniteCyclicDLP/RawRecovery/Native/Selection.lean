@@ -50,21 +50,25 @@ def selectionPayloadCell (ctx : RuntimeCtx kind) (width : Nat) :
     ctx.canonicalFreshKey_fresh
 
 /-- The actual stored status selects the original recovery component or identity. -/
-def selectedRecoveryChoice (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def selectedRecoveryChoice {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
-    (value : CShape.Value .bit) : Circuit ctx ctx :=
-  if value.toBool then NormalizedRecovery.Native.withRecovery input modulus payload else .id ctx
+    (value : CShape.Value .bit) : Circuit model ctx ctx :=
+  if value.toBool then NormalizedRecovery.Native.withRecovery (model := model) input modulus
+      payload else .id ctx
 
 /-- Actual selected store and path, including the unchanged store on failure. -/
-def selectedRecoveryChoiceStep (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def selectedRecoveryChoiceStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (value : CShape.Value .bit) (store : Store ctx) :
-    Store ctx × (selectedRecoveryChoice input modulus payload value).Path :=
+    Store ctx × (selectedRecoveryChoice (model := model) input modulus payload value).Path :=
   match value with
   | .bit false => (store, ())
-  | .bit true => NormalizedRecovery.Native.withRecoveryStep input modulus payload store
+  | .bit true => NormalizedRecovery.Native.withRecoveryStep (model := model) input modulus
+      payload store
 
 /-- One actual optional-result pack reads the stored status and computed payload. -/
 def selectedRecoveryPackOp (success : CInputRef ctx .bit)
@@ -74,45 +78,54 @@ def selectedRecoveryPackOp (success : CInputRef ctx .bit)
   .packOption ctx (.product success (wordRead payload)) output
 
 /-- Original selected suffix: status-controlled recovery, then common optional packing. -/
-def selectedRecoveryBody (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def selectedRecoveryBody {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
-    (output : CWriteRef ctx (OutputShape width)) : Circuit ctx ctx :=
-  .seq (.branch success (selectedRecoveryChoice input modulus payload))
-    (.classical (selectedRecoveryPackOp success payload output))
+    (output : CWriteRef ctx (OutputShape width)) : Circuit model ctx ctx :=
+  .seq (.branch success (selectedRecoveryChoice (model := model) input modulus payload))
+    (BitWord.instruction (execution := model) (selectedRecoveryPackOp success payload output))
 
 /-- Actual selection followed by the actual common output write. -/
-def selectedRecoveryBodyStep (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def selectedRecoveryBodyStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
-    Store ctx × (selectedRecoveryBody input modulus success payload output).Path :=
+    Store ctx × (selectedRecoveryBody (model := model) input modulus success payload output).Path :=
   let value := store.read success
-  let chosen := selectedRecoveryChoiceStep input modulus payload value store
-  (chosen.1.applyOp (selectedRecoveryPackOp success payload output), (⟨value, chosen.2⟩, ()))
+  let chosen := selectedRecoveryChoiceStep (model := model) input modulus payload value store
+  let packed := BitWord.instructionStep (execution := model)
+    (selectedRecoveryPackOp success payload output) chosen.1
+  (packed.1, (⟨value, chosen.2⟩, packed.2))
 
 /-- The real suffix is placed below its fresh payload allocation. -/
-def selectedRecoveryPlaced (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def selectedRecoveryPlaced {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) :
-    Circuit (selectionCtx ctx width) (selectionCtx ctx width) :=
-  selectedRecoveryBody (underSelection input width) (underSelection modulus width)
+    Circuit model (selectionCtx ctx width) (selectionCtx ctx width) :=
+  selectedRecoveryBody (model := model) (underSelection input width) (underSelection modulus width)
     (underSelection success width) (selectionPayloadCell ctx width)
     (writeUnderSelection output width)
 
 /-- Allocate the true payload, run the actual suffix and release exactly that payload. -/
-def withSelectedRecovery (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def withSelectedRecovery {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
-    (output : CWriteRef ctx (OutputShape width)) : Circuit ctx ctx :=
+    (output : CWriteRef ctx (OutputShape width)) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (FiniteCyclicDLP.OutputShape width)
-    ctx.canonicalFreshKey_fresh (selectedRecoveryPlaced input modulus success output)
+    ctx.canonicalFreshKey_fresh (selectedRecoveryPlaced (model := model) input modulus success
+        output)
 
 /-- Complete actual store and branch path through the payload allocation and release. -/
-def withSelectedRecoveryStep (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+def withSelectedRecoveryStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
-    Store ctx × (withSelectedRecovery input modulus success output).Path :=
-  let result := selectedRecoveryBodyStep (underSelection input width) (underSelection modulus width)
+    Store ctx × (withSelectedRecovery (model := model) input modulus success output).Path :=
+  let result := selectedRecoveryBodyStep (model := model) (underSelection input width)
+      (underSelection modulus width)
     (underSelection success width) (selectionPayloadCell ctx width)
     (writeUnderSelection output width) (store.pushWorkspace ctx.canonicalFreshKey
       (FiniteCyclicDLP.OutputShape width) ctx.canonicalFreshKey_fresh)

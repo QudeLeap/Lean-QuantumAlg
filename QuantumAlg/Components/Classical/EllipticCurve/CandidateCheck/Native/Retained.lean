@@ -54,18 +54,19 @@ def retainedInput (width : Nat) {shape : CShape} (input : CInputRef ctx shape) :
     (acceptedCtx ctx).canonicalFreshKey_fresh
 
 /-- Both original retained outputs are allocated in their original chronological order. -/
-def retainOutputs (ctx : RuntimeCtx kind) (width : Nat) :
-    Circuit ctx (retainedCtx ctx width) :=
+def retainOutputs {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat) :
+    Circuit model ctx (retainedCtx ctx width) :=
   .seq (.retain ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh)
     (.retain (acceptedCtx ctx) (acceptedCtx ctx).canonicalFreshKey (PointShape width)
       (acceptedCtx ctx).canonicalFreshKey_fresh)
 
 /-- Retain both original outputs, then execute all four original actual verification stages. -/
-def retainedCircuit (spec : CurveSpec width)
+def retainedCircuit {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit) :
-    Circuit ctx (retainedCtx ctx width) :=
+    Circuit model ctx (retainedCtx ctx width) :=
   .seq (retainOutputs ctx width)
     (verifyInto spec (retainedInput width candidate) (retainedInput width base)
       (retainedInput width target) (retainedInput width inverseSuccess)

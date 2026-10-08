@@ -57,36 +57,39 @@ def measurementCellsReference : Nat → Register → Register
         ((measurementCellFrame ctx dimension count).register.prod reference)
 
 /-- Split all existing cells while preserving their complete Stores and arbitrary joint state. -/
-def underMeasurementCellsSplitState : (count : Nat) →
+def underMeasurementCellsSplitState {Hidden : Type} [Fintype Hidden] : (count : Nat) →
     {Reference : Register} → {H : Type} → [Fintype H] →
-    State (MeasurementCells.context ctx dimension count) Reference H →
+    State (MeasurementCells.context ctx dimension count) Reference (Hidden × H) →
     State ctx (measurementCellsReference ctx dimension count Reference)
-      (measurementCellsHistory ctx dimension count × H)
-  | 0, _, _, _, state => state.mapHistory (fun history => ((), history))
+      (Hidden × (measurementCellsHistory ctx dimension count × H))
+  | 0, _, _, _, state => state.mapHistory (fun history => (history.1, ((), history.2)))
   | count + 1, _, _, _, state =>
       let inner := MeasurementCells.context ctx dimension count
       (underMeasurementCellsSplitState count
         (underRetainedSplitState inner.canonicalFreshKey (.finite dimension)
           inner.canonicalFreshKey_fresh state)).mapHistory
-            (fun record => ((record.1, record.2.1), record.2.2))
+            (fun record => (record.1, ((record.2.1, record.2.2.1), record.2.2.2)))
 
 private theorem retainedSplit_history {inner : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
-    {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
-    (state : State (inner.addRetained key shape fresh) Reference H) (update : H → K) :
-    underRetainedSplitState key shape fresh (state.mapHistory update) =
+    {Reference : Register} {Hidden H K : Type} [Fintype Hidden] [Fintype H] [Fintype K]
+    (state : State (inner.addRetained key shape fresh) Reference (Hidden × H)) (update : H → K) :
+    underRetainedSplitState key shape fresh
+        (state.mapHistory (fun record => (record.1, update record.2))) =
       (underRetainedSplitState key shape fresh state).mapHistory
-        (fun record => (record.1, update record.2)) := by
+        (fun record => (record.1, (record.2.1, update record.2.2))) := by
   unfold underRetainedSplitState
-  rw [retainedUnionState_history, ContextUnion.contextUnion_splitState_mapHistory]
+  rw [retainedUnionState_history, ContextUnion.contextUnion_splitServiceState_mapHistory]
 
 /-- Splitting the real cells commutes with any change of the original history coordinates. -/
 theorem underMeasurementCellsSplitState_history (count : Nat)
-    {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
-    (state : State (MeasurementCells.context ctx dimension count) Reference H) (update : H → K) :
-    underMeasurementCellsSplitState ctx dimension count (state.mapHistory update) =
+    {Reference : Register} {Hidden H K : Type} [Fintype Hidden] [Fintype H] [Fintype K]
+    (state : State (MeasurementCells.context ctx dimension count) Reference (Hidden × H))
+    (update : H → K) :
+    underMeasurementCellsSplitState ctx dimension count
+        (state.mapHistory (fun record => (record.1, update record.2))) =
       (underMeasurementCellsSplitState ctx dimension count state).mapHistory
-        (fun record => (record.1, update record.2)) := by
+        (fun record => (record.1, (record.2.1, update record.2.2))) := by
   induction count generalizing Reference H K with
   | zero =>
       simp only [underMeasurementCellsSplitState, State.mapHistory_comp, Function.comp_def]
@@ -94,35 +97,61 @@ theorem underMeasurementCellsSplitState_history (count : Nat)
       rfl
   | succ count ih =>
       simp only [underMeasurementCellsSplitState]
-      rw [retainedSplit_history, ih]
-      simp only [State.mapHistory_comp, Function.comp_def]
-      erw [State.mapHistory_comp]
+      rw [retainedSplit_history]
+      erw [ih (underRetainedSplitState
+        (MeasurementCells.context ctx dimension count).canonicalFreshKey (.finite dimension)
+        (MeasurementCells.context ctx dimension count).canonicalFreshKey_fresh state)
+        (fun record : Store (measurementCellFrame ctx dimension count) × H =>
+          (record.1, update record.2))]
+      repeat' erw [State.mapHistory_comp]
       rfl
 
 /-- The complete state executes the original local code along the corresponding actual path. -/
-theorem underMeasurementCells_execute (code : Circuit ctx ctx) (supported : code.IsLocal)
+theorem underMeasurementCells_execute {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) (dimension : ℕ+)
+    (code : Circuit model ctx ctx) (supported : code.IsLocal)
     (count : Nat) {Reference : Register} {H : Type} [Fintype H]
-    (state : State (MeasurementCells.context ctx dimension count) Reference H) :
+    (state : State (MeasurementCells.context ctx dimension count) Reference
+      (model.HiddenState × H)) :
     underMeasurementCellsSplitState ctx dimension count
         ((underMeasurementCells code supported dimension count).execute Reference state) =
       (code.execute (measurementCellsReference ctx dimension count Reference)
         (underMeasurementCellsSplitState ctx dimension count state)).mapHistory
-          (fun record => (record.1.1,
-            (record.1.2,
-              underMeasurementCellsPathEquiv code supported dimension count record.2))) := by
+          (fun record => (record.1, (record.2.1.1,
+            (record.2.1.2,
+              underMeasurementCellsPathEquiv code supported dimension count record.2.2)))) := by
   induction count generalizing Reference H with
   | zero =>
       simp only [underMeasurementCellsSplitState, measurementCellsReference,
-        underMeasurementCells, localUnderMeasurementCells, underMeasurementCellsPathEquiv,
-        execute_mapHistory]
+        underMeasurementCells, localUnderMeasurementCells, underMeasurementCellsPathEquiv]
+      erw [execute_mapHistory code Reference state (fun history : H => ((), history))]
       erw [State.mapHistory_comp]
       rfl
   | succ count ih =>
+      let inner := MeasurementCells.context ctx dimension count
+      let prior := localUnderMeasurementCells code supported dimension count
+      let split := underRetainedSplitState inner.canonicalFreshKey (.finite dimension)
+        inner.canonicalFreshKey_fresh state
+      let retainedPath := underRetainedPathEquiv prior.val prior.property inner.canonicalFreshKey
+        (.finite dimension) inner.canonicalFreshKey_fresh
       simp only [underMeasurementCellsSplitState, measurementCellsReference,
         underMeasurementCells, localUnderMeasurementCells]
-      erw [underRetained_execute, underMeasurementCellsSplitState_history, ih,
-        execute_mapHistory]
-      erw [State.mapHistory_comp, State.mapHistory_comp, State.mapHistory_comp]
+      erw [underRetained_execute inner.canonicalFreshKey (.finite dimension)
+        inner.canonicalFreshKey_fresh prior.val prior.property state]
+      erw [underMeasurementCellsSplitState_history ctx dimension count
+        (prior.val.execute ((measurementCellFrame ctx dimension count).register.prod Reference)
+          split)
+        (fun record : (Store (measurementCellFrame ctx dimension count) × H) × prior.val.Path =>
+          (record.1.1, (record.1.2, retainedPath record.2)))]
+      erw [ih (state := split)]
+      erw [execute_mapHistory code
+        (measurementCellsReference ctx dimension count
+          ((measurementCellFrame ctx dimension count).register.prod Reference))
+        (underMeasurementCellsSplitState ctx dimension count split)
+        (fun record : measurementCellsHistory ctx dimension count ×
+          (Store (measurementCellFrame ctx dimension count) × H) =>
+          ((record.1, record.2.1), record.2.2))]
+      repeat' erw [State.mapHistory_comp]
       rfl
 
 end

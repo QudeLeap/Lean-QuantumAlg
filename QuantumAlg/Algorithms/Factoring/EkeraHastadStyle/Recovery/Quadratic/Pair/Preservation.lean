@@ -22,29 +22,36 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines.NumberTheory
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private theorem three_classical_restore {input₀ output₀ input₁ output₁ input₂ output₂ : CShape}
     (first : ClassicalOp input₀ output₀ ctx ctx) (second : ClassicalOp input₁ output₁ ctx ctx)
     (third : ClassicalOp input₂ output₂ ctx ctx) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (Circuit.seq (.classical first) (.seq (.classical second) (.classical third))).BorrowedRestored
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (Circuit.seq (BitWord.instruction (execution := model) first) (.seq (BitWord.instruction
+      (execution := model) second) (BitWord.instruction (execution := model)
+      third))).BorrowedRestored
       Reference state
-      ((Circuit.seq (.classical first) (.seq (.classical second) (.classical third))).execute
+      ((Circuit.seq (BitWord.instruction (execution := model) first) (.seq (BitWord.instruction
+        (execution := model) second) (BitWord.instruction (execution := model) third))).execute
         Reference state) :=
-  Circuit.borrowedRestored_seq (.classical first) (.seq (.classical second) (.classical third))
-    state (Circuit.borrowedRestored_classical first state)
-    (Circuit.borrowedRestored_seq (.classical second) (.classical third) _
-      (Circuit.borrowedRestored_classical second _) (Circuit.borrowedRestored_classical third _))
+  Circuit.borrowedRestored_seq (BitWord.instruction (execution := model) first) (.seq
+    (BitWord.instruction (execution := model) second) (BitWord.instruction (execution := model)
+    third))
+    state (Circuit.borrowedRestored_classical _ state)
+    (Circuit.borrowedRestored_seq (BitWord.instruction (execution := model) second)
+      (BitWord.instruction (execution := model) third) _
+      (Circuit.borrowedRestored_classical _ _) (Circuit.borrowedRestored_classical _ _))
 
 /-- Both complete range and divisibility blocks restore the original full borrowed interface. -/
 theorem nativeQuadratic_check_borrowedRestored (refs : Check.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Check.code refs).BorrowedRestored Reference state
-      ((Check.code refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (FactorRange.code (Check.rangeRefs refs))
-    (Divisibility.code refs.divisor) state
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Check.code (model := model) refs).BorrowedRestored Reference state
+      ((Check.code (model := model) refs).execute Reference state) :=
+  Circuit.borrowedRestored_seq (FactorRange.code (model := model) (Check.rangeRefs refs))
+    (Divisibility.code (model := model) refs.divisor) state
     (three_classical_restore (FactorRange.lowerOp (Check.rangeRefs refs))
       (FactorRange.upperOp (Check.rangeRefs refs)) (FactorRange.combineOp (Check.rangeRefs refs))
       Reference state)
@@ -54,16 +61,18 @@ theorem nativeQuadratic_check_borrowedRestored (refs : Check.Refs ctx width)
 /-- Complete candidate-pair checking and selection returns every borrowed joint state exactly. -/
 theorem nativeQuadratic_pair_borrowedRestored (refs : Pair.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    (Pair.code refs).BorrowedRestored Reference state
-      ((Pair.code refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (Check.code refs.first)
-    (.seq (Check.code refs.second)
-      (Selection.code (Pair.selectedInputs refs.first) (Pair.selectedInputs refs.second)
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (Pair.code (model := model) refs).BorrowedRestored Reference state
+      ((Pair.code (model := model) refs).execute Reference state) :=
+  Circuit.borrowedRestored_seq (Check.code (model := model) refs.first)
+    (.seq (Check.code (model := model) refs.second)
+      (Selection.code (model := model) (Pair.selectedInputs refs.first) (Pair.selectedInputs
+        refs.second)
         refs.selection)) state
     (nativeQuadratic_check_borrowedRestored refs.first Reference state)
-    (Circuit.borrowedRestored_seq (Check.code refs.second)
-      (Selection.code (Pair.selectedInputs refs.first) (Pair.selectedInputs refs.second)
+    (Circuit.borrowedRestored_seq (Check.code (model := model) refs.second)
+      (Selection.code (model := model) (Pair.selectedInputs refs.first) (Pair.selectedInputs
+        refs.second)
         refs.selection) _
       (nativeQuadratic_check_borrowedRestored refs.second Reference _)
       (Selection.nativeQuadratic_selection_borrowedRestored

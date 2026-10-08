@@ -8,7 +8,6 @@ module
 
 public import QuantumAlg.Primitives.ShortDLP.CompiledMAU.Family
 public import QuantumAlg.Primitives.ShortDLP.CompiledMAU.GateCounts
-public import QuantumAlg.Primitives.ShortDLP.CompiledMAU.NativeSupport
 
 /-!
 # Actual modular arithmetic for the short-DLP group action

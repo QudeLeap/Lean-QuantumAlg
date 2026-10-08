@@ -36,28 +36,31 @@ def negativeCorrectionValue (remainder : CShape.Word width)
     modulus
 
 /-- All four actual operations retain complete quantum-reference blocks and original histories. -/
-theorem correctionBody_execute (remainder : CInputRef ctx (.unsignedWord width))
+theorem correctionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (correctionBody remainder modulus extended output).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (correctionBody (model := model) remainder modulus extended output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((correctionBodyStep remainder modulus extended output entry.1).1,
-          (entry.2, (correctionBodyStep remainder modulus extended output entry.1).2))) := by
-  simp only [correctionBody, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
+        ((correctionBodyStep (model := model) remainder modulus extended output entry.1).1,
+          (entry.2.1, (entry.2.2, (correctionBodyStep (model := model) remainder modulus extended
+            output entry.1).2)))) := by
+  simp only [correctionBody, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
     reduceWord_execute, State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Internal scratch separation suffices for the exact finite word, without a range promise. -/
-theorem correctionBody_value (remainder : CInputRef ctx (.unsignedWord width))
+theorem correctionBody_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (modulusFree : extended.key ∉ modulus.storageKeys) :
-    (correctionBodyStep remainder modulus extended output store).1.read (reductionRead output) =
+    (correctionBodyStep (model := model) remainder modulus extended output store).1.read
+      (reductionRead output) =
       negativeCorrectionValue (store.read remainder) (store.read modulus) := by
   let resized := store.applyOp (correctionResizeOp remainder extended)
   let subtracted := resized.applyOp (correctionSubtractOp modulus extended)
@@ -73,22 +76,24 @@ theorem correctionBody_value (remainder : CInputRef ctx (.unsignedWord width))
   have subtractedModulus : subtracted.read modulus = store.read modulus :=
     (Store.read_applyOp_of_not_mem_storageKeys _ (correctionSubtractOp modulus extended)
       modulus modulusFree).trans resizedModulus
-  change (reduceWordStep (reductionRead extended) modulus output subtracted).1.read
+  change (reduceWordStep (model := model) (reductionRead extended) modulus output subtracted).1.read
     (reductionRead output) = _
   rw [reduceWord_value, subtractedValue, subtractedModulus, resizedModulus, resizedValue]
   rfl
 
 /-- Every structural read outside scratch and result keys survives all four operations. -/
-theorem correctionBody_read_other (remainder : CInputRef ctx (.unsignedWord width))
+theorem correctionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (extendedFree : extended.key ∉ other.storageKeys) (outputFree : output.key ∉ other.storageKeys)
     (store : Store ctx) :
-    (correctionBodyStep remainder modulus extended output store).1.read other =
+    (correctionBodyStep (model := model) remainder modulus extended output store).1.read other =
       store.read other := by
-  unfold correctionBodyStep
-  dsimp only
+  change (reduceWordStep (model := model) (reductionRead extended) modulus output
+    ((store.applyOp (correctionResizeOp remainder extended)).applyOp
+      (correctionSubtractOp modulus extended))).1.read other = _
   rw [reduceWord_read_other _ _ _ other outputFree,
     Store.read_applyOp_of_not_mem_storageKeys _ (correctionSubtractOp modulus extended)
       other extendedFree,
@@ -96,22 +101,29 @@ theorem correctionBody_read_other (remainder : CInputRef ctx (.unsignedWord widt
       other extendedFree]
 
 /-- Actual widened-word entry and both matching scratch releases preserve full reference data. -/
-theorem withNegativeCorrection_execute (remainder : CInputRef ctx (.unsignedWord width))
+theorem withNegativeCorrection_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (withNegativeCorrection remainder modulus output).execute Reference state =
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (withNegativeCorrection (model := model) remainder modulus output).execute Reference state =
       state.mapClassical (fun entry =>
-        ((withNegativeCorrectionStep remainder modulus output entry.1).1,
-          (entry.2, (withNegativeCorrectionStep remainder modulus output entry.1).2))) := by
+        ((withNegativeCorrectionStep (model := model) remainder modulus output entry.1).1,
+          (entry.2.1, (entry.2.2, (withNegativeCorrectionStep (model := model) remainder modulus
+            output entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord (width + 1))
-    ctx.canonicalFreshKey_fresh (correctionPlaced remainder modulus output)
-    (correctionBodyStep (underCorrection remainder width) (underCorrection modulus width)
-      (correctionExtendedCell ctx width) (writeUnderCorrection output width))
-    (correctionBody_execute (underCorrection remainder width) (underCorrection modulus width)
-      (correctionExtendedCell ctx width) (writeUnderCorrection output width))
-    Reference state).trans ?_
-  congr 1
+    ctx.canonicalFreshKey_fresh (correctionPlaced (model := model) remainder modulus output)
+    (fun before =>
+      let result := correctionBodyStep (model := model) (underCorrection remainder width)
+        (underCorrection modulus width) (correctionExtendedCell ctx width)
+        (writeUnderCorrection output width) before.1
+      ((result.1, before.2), result.2)) ?_ Reference state).trans ?_
+  · intro reference history _ initial
+    exact (correctionBody_execute (model := model) (underCorrection remainder width)
+      (underCorrection modulus width) (correctionExtendedCell ctx width)
+      (writeUnderCorrection output width) reference initial).trans
+        (ExecutionState.executionState_mapClassical_congr _ rfl)
+  · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 private theorem correctionExtended_free {shape : CShape} (input : CInputRef ctx shape) :
     (correctionExtendedCell ctx width).key ∉ (underCorrection input width).storageKeys := by
@@ -119,28 +131,31 @@ private theorem correctionExtended_free {shape : CShape} (input : CInputRef ctx 
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 /-- The actual original result has its exact finite native value for every caller store. -/
-theorem withNegativeCorrection_value (remainder : CInputRef ctx (.unsignedWord width))
+theorem withNegativeCorrection_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
-    (withNegativeCorrectionStep remainder modulus output store).1.read (reductionRead output) =
+    (withNegativeCorrectionStep (model := model) remainder modulus output store).1.read
+      (reductionRead output) =
       negativeCorrectionValue (store.read remainder) (store.read modulus) := by
   unfold withNegativeCorrectionStep
   rw [Store.read_popWorkspace_underWorkspace _ _ _ _ (reductionRead output)]
-  change (correctionBodyStep _ _ _ _ _).1.read
+  change (correctionBodyStep (model := model) _ _ _ _ _).1.read
     (reductionRead (writeUnderCorrection output width)) = _
   rw [correctionBody_value _ _ _ _ _ (correctionExtended_free modulus)]
   simp only [underCorrection, Store.read_pushWorkspace_underWorkspace]
 
 /-- Only the caller result key may change once both actual scratch scopes have been released. -/
-theorem withNegativeCorrection_read_other (remainder : CInputRef ctx (.unsignedWord width))
+theorem withNegativeCorrection_read_other {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
-    (withNegativeCorrectionStep remainder modulus output store).1.read other =
+    (withNegativeCorrectionStep (model := model) remainder modulus output store).1.read other =
       store.read other := by
   unfold withNegativeCorrectionStep
   rw [Store.read_popWorkspace_underWorkspace _ _ _ _ other]
-  change (correctionBodyStep _ _ _ _ _).1.read (underCorrection other width) = _
+  change (correctionBodyStep (model := model) _ _ _ _ _).1.read (underCorrection other width) = _
   rw [correctionBody_read_other _ _ _ _ _ (correctionExtended_free other)]
   · exact Store.read_pushWorkspace_underWorkspace _ _ _ _ other
   · change output.key ∉ (underCorrection other width).storageKeys
@@ -170,12 +185,13 @@ theorem negativeCorrectionValue_original_toNat (remainder : CShape.Word width)
     (modulusValue ▸ spec.le_capacity), difference, modulusValue]
 
 /-- Real reduction maps modulus minus zero back to zero even at full word capacity. -/
-theorem withNegativeCorrection_original_value (remainder : CInputRef ctx (.unsignedWord width))
+theorem withNegativeCorrection_original_value {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)
     (modulusValue : (store.read modulus).toNat = spec.modulus)
     (remainderRange : (store.read remainder).toNat < spec.modulus) :
-    ((withNegativeCorrectionStep remainder modulus output store).1.read
+    ((withNegativeCorrectionStep (model := model) remainder modulus output store).1.read
       (reductionRead output)).toNat =
       if (store.read remainder).toNat = 0 then 0
         else spec.modulus - (store.read remainder).toNat := by

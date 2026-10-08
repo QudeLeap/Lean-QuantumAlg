@@ -11,6 +11,9 @@ public import QuantumAlg.Core.Base.UnitaryCircuit
 public import QuantumAlg.Core.Base.Layout.Qubit
 public import QuantumAlg.Core.Base.Accounting.ResourcePool
 public import QuantumAlg.Core.Base.Depth.Expr
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Oracle.UnitarySource.Model
+public import QuantumAlg.Components.Classical.Model.BitWord
 public import QuantumAlg.Core.Measure.Distribution
 public import QuantumAlg.Util.Classical.GF2
 public import Mathlib.Probability.ProbabilityMassFunction.Constructions
@@ -20,6 +23,10 @@ import all QuantumAlg.Algorithms.Simon.Model
 import all QuantumAlg.Core.Algorithm.QuantumState
 import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Base.Layout.Qubit
+import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
+import all QuantumAlg.Components.GateModel.Algorithm
+import all QuantumAlg.Components.Oracle.UnitarySource.Model
+import all QuantumAlg.Components.Classical.Model.BitWord
 import all QuantumAlg.Core.Measure.Distribution
 import all QuantumAlg.Util.Classical.GF2
 import all QuantumAlg.Util.Classical.TerminalDecode
@@ -60,12 +67,6 @@ def measurement (n : ℕ) : TerminalZMeasure (layout n) n :=
 public abbrev Outcome (n : ℕ) : Type :=
   Fin n → Bool
 
-/-- Stable subroutine family for the Simon XOR-query stage. -/
-def oracleLabel (n : ℕ) : QuantumAlg.Resource.SubroutineLabel where
-  family := "simon"
-  name := "simon-xor-oracle"
-  parameters := [n]
-
 /-! ### Canonical fixed-sample endpoint -/
 
 namespace FixedSample
@@ -87,19 +88,32 @@ public structure SecurityParameter where
 /-- Exact number of fresh Simon attempts. -/
 def sampleCount (n : Nat) (κ : SecurityParameter) : Nat := n + κ.value
 
-/-- Strict Hadamard coordinate used by the fixed sampling contract. -/
-def hadamardEvent : Resource.Event .quantum :=
-  .gate (.builtin "hadamard")
+/-- The supplied source unitary grants one ordinary query on the original two registers. -/
+public abbrev sourceModel {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
+    OracleModel := UnitarySource.model oracle
+
+/-- Native gates and fixed-width classical operations share the same source declaration. -/
+public abbrev nativeModel (oracles : OracleModel) : ExecutionModel :=
+  .quantum AlgorithmGate.model oracles BitWord.model .empty
+
+/-- The executable Simon model grants only its supplied ordinary source query. -/
+public abbrev executionModel {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
+    ExecutionModel := nativeModel (sourceModel oracle)
+
+/-- Native one-qubit coordinate for the two source Hadamard layers. -/
+def hadamardEvent {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
+    Resource.Event (executionModel oracle) := .gate .singleQubit
 
 /-- Strict opaque Simon-oracle coordinate used by the fixed sampling contract. -/
-def oracleEvent (n : Nat) : Resource.Event .quantum :=
-  .quantumSubroutine (oracleLabel n).quantum
+def oracleEvent {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
+    Resource.Event (executionModel oracle) := .oracle .ordinary
 
 /-- Implementation-independent circuit envelope for the two Hadamard layers
 and one Simon XOR-oracle call. -/
-public def circuitEventLimit (n : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton hadamardEvent (2 * n) +
-    ResourcePool.singleton (oracleEvent n)
+public def circuitEventLimit {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
+    ResourcePool (executionModel oracle) :=
+  ResourcePool.singleton (hadamardEvent oracle) (2 * n) +
+    ResourcePool.singleton (oracleEvent oracle)
 
 /-- The endpoint starts every attempt from a sealed all-zero preparation. -/
 def inputPreparation (n : Nat) : KnownPreparation (2 * n) :=
@@ -109,21 +123,26 @@ def inputPreparation (n : Nat) : KnownPreparation (2 * n) :=
 public structure SamplingCircuit (n : Nat) where
   /-- A nonempty measured register is required by terminal execution. -/
   widthPositive : 0 < n
+  /-- The granted source operator is fixed independently of each call's placement. -/
+  oracle : UnitaryOperator (Qubits (2 * n))
   /-- Real Simon sampling circuit on the two `n`-qubit registers. -/
-  circuit : UnitaryCircuit (Qubits (2 * n))
-  /-- The circuit occupies the canonical two-register layout. -/
-  circuitLayout : circuit.physical_idx = (layout n).systemIdx
+  circuit : UnitaryCircuit AlgorithmGate.model (sourceModel oracle) (layout n).toQuantum
   /-- The real circuit emits exactly the independent strict event limit. -/
-  circuitEventCost : circuit.eventCost = circuitEventLimit n
+  circuitEventCost : circuit.eventCost BitWord.model .empty = circuitEventLimit oracle
   /-- The standard Hadamard/oracle/Hadamard circuit has unit depth at most 3. -/
   circuitUnitDepth :
-    DepthExpr.depthEval (fun _event => 1) circuit.eventDepth ≤ 3
+    DepthExpr.depthEval (fun _event => 1) (circuit.eventDepth BitWord.model .empty) ≤ 3
+
+/-- Complete source matrix in the original big-endian mathematical qubit coordinates. -/
+public def SamplingCircuit.binaryOperator {n : Nat} (sampling : SamplingCircuit n) :
+    UnitaryOperator (Qubits (2 * n)) :=
+  UnitaryOperator.reindex (layout n).basisEquiv sampling.circuit.matrix
 
 /-- The original normalized state after the supplied circuit acts on its fixed zero input. -/
 def SamplingCircuit.evolvedState {n : Nat} (sampling : SamplingCircuit n) :
     QubitLayout.State (layout n) where
   state := PureState.ofNormalized
-    (sampling.circuit.applyNormalized (inputPreparation n).normalized) (layout n).systemIdx
+    (sampling.binaryOperator.apply (inputPreparation n).normalized) (layout n).systemIdx
   system_idx_eq := rfl
 
 /-- The source one-attempt Born law, with the original first-register readout. -/

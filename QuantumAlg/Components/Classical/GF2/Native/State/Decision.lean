@@ -27,13 +27,16 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
+omit [BitWord.Selected model] in
 private theorem typed_avoid {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys :=
   avoids output other (shapes_ne output other different)
 
+omit [BitWord.Selected model] in
 private theorem flip_read (success : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (pivotFoundOp success)).read (.storage success.toCStorageRef) =
       .bit (!(store.read (.storage success.toCStorageRef)).toBool) := by
@@ -54,6 +57,7 @@ private theorem decision_suffix_read
     other successFree).trans ?_
   exact gf2ComplementPivotMask_read_other columns store other columnsFree
 
+omit [BitWord.Selected model] in
 private theorem allocation_values
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (store : Store ctx) (initialized : cells.Initialized store) :
@@ -80,7 +84,8 @@ private theorem allocation_values
                 exact ⟨initialized.1, initialized.2.1, initialized.2.2.1,
                   distinct.2.1.2.1, distinct.2.2.1.1, distinct.2.2.1.2.1⟩
 
-private theorem allocation_caller {outer : RuntimeCtx kind}
+omit [BitWord.Selected model] in
+private theorem allocation_caller {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
     {shape : CShape} (other : CInputRef outer shape) :
@@ -97,7 +102,7 @@ private theorem allocation_caller {outer : RuntimeCtx kind}
           exact ⟨separated.1 other, separated.2.2.2.1 other⟩
 
 /-- The actual candidate-entry store has the original decision and every required original field. -/
-theorem gf2Decision_cellValues {outer : RuntimeCtx kind}
+theorem gf2Decision_cellValues {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

@@ -106,9 +106,10 @@ private theorem latch_when_skipped (accepted eligible : Bool)
   cases accepted <;> cases eligible <;> simp_all
 
 /-- The latch becomes an OR fold, and the selected word changes only on first acceptance. -/
-theorem firstAccepted_latches (inputs : Inputs ctx width) (refs : Refs ctx width)
+theorem firstAccepted_latches {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separated : Separated inputs refs) (store : Store ctx) :
-    let final := (step inputs refs store).1
+    let final := (step (model := model) inputs refs store).1
     (final.read (cellRead refs.accepted)).toBool =
         ((store.read (cellRead refs.accepted)).toBool || (store.read inputs.eligible).toBool) ∧
       final.read (cellRead refs.selected) =

@@ -32,7 +32,8 @@ open NumberTheory.SharedEEA
 
 /-- Actual independent forward schedule followed by every native weighted decoder sweep. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   (NativeSchedule.program modulus nontrivial).seq (ClockDecode.program modulus.size)
 
 /-- Mathematical final physical frame retains the complete recorded clock while unrotating Work2. -/
@@ -47,10 +48,12 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode (result modulus input.val positive bounded)) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode (result modulus input.val positive bounded))) := by
   have within : QuotientSchedule.padding modulus input.val < 2 ^ (2 + modulus.size.size) := by
     simpa only [Nat.add_comm] using
       QuotientSchedule.padding_fits_extended_clock modulus input.val coprime positive bounded

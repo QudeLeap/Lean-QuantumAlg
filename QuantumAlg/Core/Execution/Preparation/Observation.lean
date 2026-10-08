@@ -13,7 +13,7 @@ import all QuantumAlg.Core.Execution.Measurement.Fibers
 /-!
 # Preparation preserves old structural-input reference observations
 
-The actual normalized preparation tensors the new systems beside the old
+The actual canonical zero preparation tensors the new systems beside the old
 context-reference matrix. Tracing those new systems preserves every original
 classical block and both reference coordinates. The actual owned-layout
 store extension then transports the weight through its structural input lift.
@@ -64,57 +64,62 @@ end Execution
 
 namespace Circuit
 
+variable {gates : GateModel} {oracles : OracleModel}
+  {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
 open Execution
 
 variable {ctx : RuntimeCtx .quantum} {systemCount : Nat}
 
 /-- Actual preparation observes the weight transported through its owned-layout store push. -/
-theorem referenceFiberSum_execute_prepare
+theorem referenceFiberSum_execute_prepareZero
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
     (weight : Store (ctx.addOwnedLayout key layout fresh disjoint) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state)
+        ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := classicalOracles)
+          ctx key layout fresh disjoint).execute Reference state)
         (fun entry _ => weight entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (entry.1.pushOwnedLayout key layout fresh disjoint))
         leftRef rightRef := by
-  have executed := congrArg
-    (fun output : State (ctx.addOwnedLayout key layout fresh disjoint) Reference (History × Unit) =>
-      ExecutionState.referenceFiberSum output (fun entry _ => weight entry.1) leftRef rightRef)
-    (Circuit.execute_prepare state key layout fresh disjoint preparation)
-  have mapped := ExecutionState.referenceFiberSum_mapClassical
-    (prepareContext state key layout fresh disjoint preparation.normalized)
-    (fun entry => (entry.1.pushOwnedLayout key layout fresh disjoint, (entry.2, ())))
-    (fun entry _ => weight entry.1) leftRef rightRef
-  exact executed.trans (mapped.trans
-    (referenceFiberSum_prepareContext state key layout fresh disjoint preparation.normalized
-      (fun entry => weight (entry.1.pushOwnedLayout key layout fresh disjoint)) leftRef rightRef))
+  rw [Circuit.execute_prepareZero]
+  dsimp only [State.mapHistory, State.prepare]
+  rw [ExecutionState.referenceFiberSum_mapClassical,
+    ExecutionState.referenceFiberSum_mapClassical]
+  exact referenceFiberSum_prepareContext state key layout fresh disjoint
+    (BasisPreparation.zero layout).normalized
+    (fun entry => weight (entry.1.pushOwnedLayout key layout fresh disjoint)) leftRef rightRef
 
 /-- Every lifted earlier structural operand retains its full weighted reference observation. -/
-theorem referenceFiberSum_execute_prepare_input {inputShape : CShape}
+theorem referenceFiberSum_execute_prepareZero_input {inputShape : CShape}
     (input : CInputRef ctx inputShape)
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
-    (preparation : BasisPreparation layout)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (weight : inputShape.Value → ℂ)
+    (state : State ctx Reference (classicalOracles.HiddenState × History))
+    (weight : inputShape.Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((Circuit.prepare ctx key layout fresh disjoint preparation).execute Reference state)
+        ((Circuit.prepareZero (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := classicalOracles)
+          ctx key layout fresh disjoint).execute Reference state)
         (fun entry _ => weight
           (entry.1.read (input.underOwnedLayout key layout fresh disjoint))) leftRef rightRef =
       ExecutionState.referenceFiberSum state (fun entry _ => weight (entry.1.read input))
         leftRef rightRef := by
-  refine (referenceFiberSum_execute_prepare key layout fresh disjoint preparation state
+  refine (referenceFiberSum_execute_prepareZero (gates := gates) (oracles := oracles)
+      (operations := operations) (classicalOracles := classicalOracles)
+    key layout fresh disjoint state
     (fun store => weight (store.read (input.underOwnedLayout key layout fresh disjoint)))
     leftRef rightRef).trans ?_
   exact congrArg
-    (fun observe : (Store ctx × History) → ctx.register.Index → ℂ =>
+    (fun observe : (Store ctx × (classicalOracles.HiddenState × History)) →
+        ctx.register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observe leftRef rightRef)
     (funext fun entry => funext fun _ => congrArg weight
       (Store.read_pushOwnedLayout_underOwnedLayout entry.1 key layout fresh disjoint input))

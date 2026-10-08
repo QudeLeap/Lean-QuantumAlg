@@ -18,8 +18,10 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
+omit [BitWord.Selected model] in
 /-- Differently named original outputs have disjoint actual structural identities. -/
 theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
@@ -31,6 +33,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
   intro equal
   exact different (separation.mutableKeyInjective equal.symm)
 
+omit [BitWord.Selected model] in
 /-- The original actual caller separation supplies the shared direct selector's full source
 frame. -/
 theorem selection_separated (refs : Refs ctx width) (separation : Separation refs) :

@@ -7,15 +7,18 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Primitives.PhaseKickback.Basic
+public import QuantumAlg.Components.Oracle.Xor.Model
 public import QuantumAlg.Components.Oracle.UnitarySource.Controlled
-import all QuantumAlg.Primitives.PhaseKickback.Basic
+public import QuantumAlg.Components.GateModel.Algorithm
+import all QuantumAlg.Components.Oracle.Xor.Model
 import all QuantumAlg.Components.Oracle.UnitarySource.Controlled
+import all QuantumAlg.Core.Base.UnitaryCircuit
 
 /-!
 # Concrete phase-kickback queries
 
-Each construction uses one declared source query, preserves its exact phase,
-and touches only the complete supplied control/input word
+Each construction executes exactly one explicitly granted source query on
+its complete control/input word and retains its exact operator and phase
 [dW19, qcnotes.tex:1145-1173; CEMM98, cemm6.tex:140-166].
 -/
 
@@ -25,18 +28,21 @@ noncomputable section
 
 namespace PhaseKickback
 
-/-- One actual XOR query on the complete supplied input and target. -/
+/-- One actual XOR query on the complete supplied input and target word. -/
 public def circuit {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    UnitaryCircuit (Qubits (n + 1)) := Gate.xorOracle f
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model f)
+      (QuantumSignature.qubits (n + 1)).canonicalPlacement.layout :=
+  XorOracle.circuit AlgorithmGate.model f
 
 theorem circuit_matrix {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).matrix = xorOracleOp f := rfl
-
-theorem circuit_physicalIdx {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).physical_idx = List.range (n + 1) := rfl
+    (circuit f).matrix =
+      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (n + 1)).symm
+        (xorOracleOp f) := XorOracle.xorOracle_native_matrix AlgorithmGate.model f
 
 theorem circuit_events {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).eventCost = ResourcePool.singleton (phaseKickbackEvent n) := rfl
+    (circuit f).eventCost = ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (XorOracle.model f))
+      (.oracle XorOracle.Coordinate.xor) := rfl
 
 theorem circuit_depth {n : Nat} (f : Fin (2 ^ n) → Bool) :
     (circuit f).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
@@ -45,25 +51,25 @@ end PhaseKickback
 
 namespace GeneralizedPhaseKickback
 
-/-- One structurally controlled query to the supplied source unitary. -/
+/-- One actual granted controlled source query on the complete control/target word. -/
 public def circuit {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit (Qubits (1 + n)) := UnitarySource.controlledProgram U
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true)
+      (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
+  UnitarySource.controlledProgram AlgorithmGate.model U
 
 theorem circuit_matrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).matrix = UnitaryOperator.controlledQubits U :=
-  UnitarySource.controlledProgram_matrix U
-
-theorem circuit_physicalIdx {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).physical_idx = List.range (1 + n) :=
-  UnitarySource.controlledProgram_physicalIdx U
+    (circuit U).matrix =
+      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + n)).symm
+        (UnitaryOperator.controlledQubits U) :=
+  UnitarySource.controlledProgram_matrix AlgorithmGate.model U
 
 theorem circuit_events {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).eventCost = ResourcePool.singleton (UnitarySource.controlledEvent n) :=
-  UnitarySource.controlledProgram_events U
+    (circuit U).eventCost = ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (UnitarySource.model U true))
+      (.oracle UnitarySource.Coordinate.controlled) := rfl
 
 theorem circuit_depth {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).evaluatedEventDepth (fun _ => 1) ≤ 1 :=
-  le_of_eq (UnitarySource.controlledProgram_depth U)
+    (circuit U).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
 
 end GeneralizedPhaseKickback
 

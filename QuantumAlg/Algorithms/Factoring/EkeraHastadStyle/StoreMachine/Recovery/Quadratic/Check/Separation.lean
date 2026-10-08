@@ -233,6 +233,31 @@ private theorem selectorSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
   rw [eligibleEq]
   exact cellAvoidsFactor cells selection separation .eligible .available
 
+/-- The zero input's caller frame is proved independently of the full pair certificate. -/
+private theorem zeroFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+    {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
+    (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
+    (selection : FirstAccepted.Refs ctx (QuadraticScratchLayout.CandidateWidth N))
+    (factorSeparation : FactorSeparation cells selection) :
+    QuadraticCandidateSelect.CallerFrameAvoids
+      (QuadraticScratchViews.firstSelectRefs cells
+        (QuadraticScratchViews.candidateRefs cells shortLog) selection)
+      (QuadraticScratchViews.zeroInput cells) := by
+  let firstCandidate := QuadraticCandidates.firstCandidate
+    (QuadraticScratchViews.candidateRefs cells shortLog)
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · exact totalCallerFrame cells firstCandidate (QuadraticScratchViews.zeroInput cells)
+      (cellAvoids cells distinct .zero .greaterThanOne (by decide))
+      (cellAvoids cells distinct .zero .candidateWide (by decide))
+      (cellAvoids cells distinct .zero .belowModulus (by decide))
+      (cellAvoids cells distinct .zero .division (by decide))
+      (cellAvoids cells distinct .zero .modulusAccepted (by decide))
+      (cellAvoids cells distinct .zero .eligible (by decide))
+  · exact cellAvoidsFactor cells selection factorSeparation .zero .accepted
+  · exact cellAvoidsFactor cells selection factorSeparation .zero .selected
+  · exact cellAvoidsFactor cells selection factorSeparation .zero .available
+  · exact cellAvoidsFactor cells selection factorSeparation .zero .take
+
 /-- The two ordered checks follow from physical and selector separation. -/
 theorem pairSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
@@ -324,18 +349,7 @@ theorem pairSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     · exact cellAvoidsFactor cells selection factorSeparation .modulus .selected
     · exact cellAvoidsFactor cells selection factorSeparation .modulus .available
     · exact cellAvoidsFactor cells selection factorSeparation .modulus .take
-  · refine ⟨?_, ?_, ?_, ?_, ?_⟩
-    · exact totalCallerFrame cells firstCandidate (QuadraticScratchViews.zeroInput cells)
-        (cellAvoids cells distinct .zero .greaterThanOne (by decide))
-        (cellAvoids cells distinct .zero .candidateWide (by decide))
-        (cellAvoids cells distinct .zero .belowModulus (by decide))
-        (cellAvoids cells distinct .zero .division (by decide))
-        (cellAvoids cells distinct .zero .modulusAccepted (by decide))
-        (cellAvoids cells distinct .zero .eligible (by decide))
-    · exact cellAvoidsFactor cells selection factorSeparation .zero .accepted
-    · exact cellAvoidsFactor cells selection factorSeparation .zero .selected
-    · exact cellAvoidsFactor cells selection factorSeparation .zero .available
-    · exact cellAvoidsFactor cells selection factorSeparation .zero .take
+  · exact zeroFrame cells distinct shortLog selection factorSeparation
 
 end
 

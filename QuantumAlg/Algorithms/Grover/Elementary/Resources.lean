@@ -6,19 +6,13 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
-
 import all QuantumAlg.Algorithms.Grover.Elementary.Construction
-import all QuantumAlg.Algorithms.Grover.Construction
 import all QuantumAlg.Components.Oracle.ZeroReflection.Resources
-import all QuantumAlg.Components.Oracle.ZeroReflection.Small.Program
-import all QuantumAlg.Components.Oracle.ZeroReflection.OneDirty.Program
-import all QuantumAlg.Core.Base.UnitaryCircuit.IdleSuffix
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint.Resources
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix
 import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Accounting.Weighted
-import all QuantumAlg.Primitives.WalshHadamard
-import all QuantumAlg.Components.Oracle.Common
 
 /-!
 # The elementary Grover circuit's own independent event and depth formulas
@@ -39,12 +33,17 @@ open QuantumAlg.ZeroReflection.Workspace
 def hadamardDepth (n : Nat) : Nat := if n = 0 then 0 else 1
 
 /-- Independent native occurrences for the complete search unitary. -/
-def unitaryEventPool (n k : Nat) : ResourcePool .quantum :=
-  n • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-    k • (ResourcePool.singleton (.quantumSubroutine (phaseOracleSubroutineLabel n).quantum) +
-      (n • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-        (ZeroReflection.elementaryEventPool n +
-          n • ResourcePool.singleton (.gate (.builtin "hadamard")))))
+def unitaryEventPool {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model (oracles marked)) :=
+  n • ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (oracles marked)) (.gate .singleQubit) +
+    k • (ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (oracles marked)) (.oracle .ordinary) +
+      ((n • ResourcePool.singleton
+          (model := .quantum AlgorithmGate.model (oracles marked)) (.gate .singleQubit) +
+        ZeroReflection.elementaryEventPool (oracles marked) n) +
+          n • ResourcePool.singleton
+            (model := .quantum AlgorithmGate.model (oracles marked)) (.gate .singleQubit)))
 
 /-- Independent depth keeps each source Hadamard tensor as one nonempty parallel layer. -/
 def unitaryDepth (n k : Nat) : Nat :=
@@ -55,86 +54,80 @@ def unitaryDepth (n k : Nat) : Nat :=
 def unitaryGateCount (n k : Nat) : Nat :=
   n + k * (2 * n + ZeroReflection.elementaryGateCount n)
 
-private theorem hadamards_eventCost (n k : Nat) :
-    (hadamards n k).eventCost = n • ResourcePool.singleton (.gate (.builtin "hadamard")) := by
-  rw [hadamards, UnitaryCircuit.idleSuffix_eventCost, initialPreparationCircuit,
-    WalshHadamard.hadamardLayer_eventCost]
-  apply Multiset.ext.mpr
-  intro event
-  simp only [ResourcePool.singleton, WalshHadamard.hadamardEvent,
-    Multiset.count_replicate, Multiset.count_nsmul]
-  split <;> simp_all
+private theorem hadamards_eventCost (queries : OracleModel) (n k : Nat) :
+    (hadamards queries n k).eventCost = n • ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model queries) (.gate .singleQubit) := by
+  rw [hadamards, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost]
+  exact Gate.HadamardLayer.hadamardLayer_circuit_eventCost queries n
 
-private theorem hadamards_unitDepth (n k : Nat) :
-    (hadamards n k).evaluatedEventDepth (fun _ => 1) = hadamardDepth n := by
-  rw [hadamards, UnitaryCircuit.idleSuffix_evaluatedEventDepth]
-  change DepthExpr.depthEval (fun _ => 1) (WalshHadamard.hadamardLayer n).eventDepth = _
-  rw [WalshHadamard.hadamardLayer_eventDepth,
-    WalshHadamard.parallelHadamardEventDepth_unit_depth]
+private theorem inverseHadamards_eventCost (queries : OracleModel) (n k : Nat) :
+    (inverseHadamards queries n k).eventCost = n • ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model queries) (.gate .singleQubit) := by
+  rw [inverseHadamards, AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
+    hadamards_eventCost, map_nsmul]
   rfl
 
+private theorem hadamards_unitDepth (queries : OracleModel) (n k : Nat) :
+    (hadamards queries n k).evaluatedEventDepth (fun _ => 1) = hadamardDepth n := by
+  rw [hadamards, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_unit_depth]
+  exact Gate.HadamardLayer.hadamardLayer_circuit_unit_depth queries n
+
+private theorem inverseHadamards_unitDepth (queries : OracleModel) (n k : Nat) :
+    (inverseHadamards queries n k).evaluatedEventDepth (fun _ => 1) = hadamardDepth n := by
+  rw [inverseHadamards, AlgorithmGate.algorithmGate_oracleFreeAdjoints_unit_depth,
+    hadamards_unitDepth]
+
 private theorem oracle_eventCost {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (oracle marked k).eventCost =
-      ResourcePool.singleton (.quantumSubroutine (phaseOracleSubroutineLabel n).quantum) := by
-  have within : (phaseOracleCircuit marked).physical_idx ⊆ List.range n :=
-    List.Subset.refl _
-  exact (UnitaryCircuit.idleSuffix_eventCost (phaseOracleCircuit marked) within
-    (helperWidth n k)).trans (phaseOracleCircuit_eventCost marked)
+    (oracle marked k).eventCost = ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (oracles marked)) (.oracle .ordinary) := rfl
 
 private theorem oracle_unitDepth {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (oracle marked k).evaluatedEventDepth (fun _ => 1) = 1 := by
-  have within : (phaseOracleCircuit marked).physical_idx ⊆ List.range n :=
-    List.Subset.refl _
-  calc
-    _ = (phaseOracleCircuit marked).evaluatedEventDepth (fun _ => 1) :=
-      UnitaryCircuit.idleSuffix_evaluatedEventDepth (phaseOracleCircuit marked) within
-        (helperWidth n k) (fun _ => 1)
-    _ = _ := by
-      rw [UnitaryCircuit.evaluatedEventDepth, phaseOracleCircuit_eventDepth]
-      rfl
+    (oracle marked k).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
-/-- The actual complete elementary search unitary has exactly the independent native ledger. -/
+/-- The complete elementary search unitary has exactly the independent native ledger. -/
 theorem circuit_eventCost {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).eventCost = unitaryEventPool n k := by
-  rw [circuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
+    (circuit marked k).eventCost = unitaryEventPool marked k := by
   by_cases zero : k = 0
   · subst k
-    rw [body, dif_pos rfl, hadamards_eventCost]
+    rw [circuit, dif_pos rfl, hadamards_eventCost]
     simp only [unitaryEventPool, zero_nsmul, add_zero]
-  · simp only [body, dif_neg zero, step, diffusion, UnitaryCircuit.seq_eventCost,
-      UnitaryCircuit.iterate_eventCost, UnitaryCircuit.dagger_eventCost,
+  · simp only [circuit, dif_neg zero, step, diffusion, UnitaryCircuit.seq_eventCost,
+      UnitaryCircuit.iterate_eventCost, inverseHadamards_eventCost,
       hadamards_eventCost, oracle_eventCost, reflection_eventCost]
     rfl
 
-/-- Unit-event depth is derived from the actual parallel H syntax and sequential reflection. -/
+/-- Depth is derived from the actual parallel H syntax and sequential reflection. -/
 theorem circuit_unitDepth {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     (circuit marked k).evaluatedEventDepth (fun _ => 1) = unitaryDepth n k := by
-  rw [circuit, UnitaryCircuit.evaluatedEventDepth_seq]
-  have finalIdentity :
-      (UnitaryCircuit.identity (Qubits (totalQubits n k))
-        (List.range (totalQubits n k)) List.nodup_range).evaluatedEventDepth (fun _ => 1) = 0 := rfl
-  rw [finalIdentity, add_zero]
+  have repeated (count : Nat)
+      (body : UnitaryCircuit AlgorithmGate.model (oracles marked)
+        (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout) :
+      (UnitaryCircuit.iterate count body).evaluatedEventDepth (fun _ => 1) =
+        count * body.evaluatedEventDepth (fun _ => 1) := rfl
   by_cases zero : k = 0
   · subst k
-    rw [body, dif_pos rfl, hadamards_unitDepth]
+    rw [circuit, dif_pos rfl, hadamards_unitDepth]
     simp only [unitaryDepth, Nat.zero_mul, Nat.add_zero]
-  · simp only [body, dif_neg zero, step, diffusion, UnitaryCircuit.evaluatedEventDepth_seq,
-      UnitaryCircuit.evaluatedEventDepth_iterate, UnitaryCircuit.evaluatedEventDepth_dagger,
-      hadamards_unitDepth, oracle_unitDepth, reflection_unitDepth]
-    rfl
+  · simp only [circuit, dif_neg zero, step, diffusion, UnitaryCircuit.evaluatedEventDepth_seq,
+      repeated, inverseHadamards_unitDepth, hadamards_unitDepth, oracle_unitDepth,
+      reflection_unitDepth]
+    simp only [unitaryDepth, Nat.add_assoc]
 
 /-- The actual elementary gate total follows from its own native ledger. -/
 theorem circuit_gateCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     ResourcePool.weightedCount (fun event => match event with
       | .gate _ => 1 | _ => 0) (circuit marked k).eventCost = unitaryGateCount n k := by
-  let weight : Resource.Event .quantum → Nat := fun event => match event with
+  let weight : Resource.Event (.quantum AlgorithmGate.model (oracles marked)) → Nat :=
+    fun event => match event with
     | .gate _ => 1 | _ => 0
   change ResourcePool.weightedCount weight (circuit marked k).eventCost = _
-  have reflected : ResourcePool.weightedCount weight (ZeroReflection.elementaryEventPool n) =
+  have reflected : ResourcePool.weightedCount weight
+      (ZeroReflection.elementaryEventPool (oracles marked) n) =
       ZeroReflection.elementaryGateCount n := by
-    refine Eq.trans ?_ (ZeroReflection.elementaryEventPool_gateCount n)
-    apply congrArg (fun assignment : Resource.Event .quantum → Nat =>
-      ResourcePool.weightedCount assignment (ZeroReflection.elementaryEventPool n))
+    refine Eq.trans ?_ (ZeroReflection.elementaryEventPool_gateCount (oracles marked) n)
+    apply congrArg (fun assignment :
+        Resource.Event (.quantum AlgorithmGate.model (oracles marked)) → Nat =>
+      ResourcePool.weightedCount assignment (ZeroReflection.elementaryEventPool (oracles marked) n))
     funext event
     cases event <;> rfl
   rw [circuit_eventCost]
@@ -147,15 +140,18 @@ theorem circuit_gateCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
 /-- All source-query occurrences in this same elementary execution are the original k queries. -/
 theorem circuit_queryCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .quantumSubroutine _ => 1 | _ => 0) (circuit marked k).eventCost = k := by
-  let weight : Resource.Event .quantum → Nat := fun event => match event with
-    | .quantumSubroutine _ => 1 | _ => 0
+      | .oracle _ => 1 | _ => 0) (circuit marked k).eventCost = k := by
+  let weight : Resource.Event (.quantum AlgorithmGate.model (oracles marked)) → Nat :=
+    fun event => match event with
+    | .oracle _ => 1 | _ => 0
   change ResourcePool.weightedCount weight (circuit marked k).eventCost = _
   have reflected :
-      ResourcePool.weightedCount weight (ZeroReflection.elementaryEventPool n) = 0 := by
-    refine Eq.trans ?_ (ZeroReflection.elementaryEventPool_queryCount n)
-    apply congrArg (fun assignment : Resource.Event .quantum → Nat =>
-      ResourcePool.weightedCount assignment (ZeroReflection.elementaryEventPool n))
+      ResourcePool.weightedCount weight
+        (ZeroReflection.elementaryEventPool (oracles marked) n) = 0 := by
+    refine Eq.trans ?_ (ZeroReflection.elementaryEventPool_queryCount (oracles marked) n)
+    apply congrArg (fun assignment :
+        Resource.Event (.quantum AlgorithmGate.model (oracles marked)) → Nat =>
+      ResourcePool.weightedCount assignment (ZeroReflection.elementaryEventPool (oracles marked) n))
     funext event
     cases event <;> rfl
   rw [circuit_eventCost]

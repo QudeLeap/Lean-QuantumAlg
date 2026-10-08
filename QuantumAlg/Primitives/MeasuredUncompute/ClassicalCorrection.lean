@@ -9,6 +9,7 @@ module
 import all QuantumAlg.Components.Encoded.BitGates.Word.PhaseCorrection
 import all QuantumAlg.Core.Execution.Selected.Unitary
 import all QuantumAlg.Core.Execution.Trace
+import all QuantumAlg.Core.Execution.Context.Layout.Unitary
 
 /-!
 # Actual stored-result selection of arithmetic phase corrections
@@ -40,66 +41,67 @@ def mask (value : CShape.Value (.bits width)) : Fin width → Bool :=
 
 /-- Place the actual selected Z gates into the existing complete quantum frame. -/
 def member (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (value : CShape.Value (.bits width)) : UnitaryCircuit ctx.register :=
-  .reindex basis (PhaseCorrection.program word (mask value))
-
-/-- The selected member retains exactly the existing frame's physical identities. -/
-theorem member_physical (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
     (value : CShape.Value (.bits width)) :
-    (member word basis value).physical_idx = ctx.physicalIdx :=
-  (PhaseCorrection.phaseCorrection_sequence_physical word
-    (PhaseCorrection.selected (mask value))).trans placed
+    UnitaryCircuit AlgorithmGate.model .empty ctx.quantumLayout :=
+  unitaryOfEqualWires (QubitLayout.canonical encoding.width).toQuantum
+    ctx.quantumLayout sameWires
+      (PhaseCorrection.program (QubitLayout.canonical _) .empty word (mask value))
 
 /-- Read the actual classical register before choosing the concrete correction gates. -/
 def code (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
-    (result : CInputRef ctx (.bits width)) : Circuit ctx ctx :=
-  .branch result (fun value =>
-    .unitary (member word basis value) (member_physical word basis placed value))
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
+    (result : CInputRef ctx (.bits width)) :
+    Circuit (.quantum AlgorithmGate.model .empty) ctx ctx :=
+  .branch result (fun value => .unitary (member word sameWires value))
 
 /-- Each original store block chooses its stored correction, with the full reference. -/
 theorem measuredCorrection_actual_reference (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
-    ((code word basis placed result).execute Reference state).quantumMarginal =
+    (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
+    ((code word sameWires result).execute Reference state).quantumMarginal =
       (state.applyUnitary (fun entry => UnitaryOperator.prodTensor
-        (member word basis (entry.1.read result)).matrix
+        (member word sameWires (entry.1.read result)).matrix
         (1 : UnitaryOperator Reference))).quantumMarginal :=
-  Circuit.selectedUnitary_quantumMarginal result (member word basis)
-    (member_physical word basis placed) state
+  Circuit.selectedUnitary_quantumMarginal result (member word sameWires) state
 
 /-- The actual selected trace contains only the executed native Pauli-Z occurrences. -/
 theorem measuredCorrection_actual_trace (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
-    (result : CInputRef ctx (.bits width)) (path : (code word basis placed result).Path) :
-    (code word basis placed result).eventTrace path =
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
+    (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :
+    (code word sameWires result).eventTrace path =
       List.replicate (PhaseCorrection.selected (mask path.1)).length
-        (Gate.atomicEvent (.declared "QuantumAlg.Components.Gate" "pauli-z")) :=
-  PhaseCorrection.phaseCorrection_sequence_trace word (PhaseCorrection.selected (mask path.1))
+        (.gate .singleQubit) := by
+  change (member word sameWires path.1).eventTrace .empty .empty = _
+  rw [member, unitaryOfEqualWires_trace, PhaseCorrection.program,
+    PhaseCorrection.phaseCorrection_sequence_trace]
 
 /-- The same actual path's unit depth equals its selected correction count. -/
 theorem measuredCorrection_actual_depth (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
-    (result : CInputRef ctx (.bits width)) (path : (code word basis placed result).Path) :
-    (code word basis placed result).depth (fun _ => 1) path =
-      (PhaseCorrection.selected (mask path.1)).length :=
-  PhaseCorrection.phaseCorrection_sequence_depth word (PhaseCorrection.selected (mask path.1))
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
+    (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :
+    (code word sameWires result).depth (fun _ => 1) path =
+      (PhaseCorrection.selected (mask path.1)).length := by
+  change (member word sameWires path.1).evaluatedEventDepth (fun _ => 1) = _
+  rw [member, UnitaryCircuit.evaluatedEventDepth, unitaryOfEqualWires_depth]
+  change (PhaseCorrection.program (QubitLayout.canonical _) .empty word
+    (mask path.1)).evaluatedEventDepth (fun _ => 1) = _
+  rw [PhaseCorrection.program,
+    PhaseCorrection.phaseCorrection_sequence_depth]
 
 /-- Correction executes within the same complete context, with no allocation or release. -/
 theorem measuredCorrection_actual_context (word : EncodedBit.Word encoding width)
-    (basis : (Qubits encoding.width).Index ≃ ctx.register.Index)
-    (placed : List.range encoding.width = ctx.physicalIdx)
-    (result : CInputRef ctx (.bits width)) (path : (code word basis placed result).Path) :
-    (code word basis placed result).visitedContexts path = [ctx] := rfl
+    (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
+      ctx.quantumLayout.wires)
+    (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :
+    (code word sameWires result).visitedContexts path = [ctx] := rfl
 
 end
 

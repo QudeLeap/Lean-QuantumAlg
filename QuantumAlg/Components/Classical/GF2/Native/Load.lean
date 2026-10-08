@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.TerminalDecode.Circuit
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 import all QuantumAlg.Core.Execution.Classical.Composition.Range
 import all QuantumAlg.Core.Execution.Classical.Workspace
 
@@ -22,6 +23,8 @@ the actual destination; no mathematical evaluation chooses an instruction.
 namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
+
+noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
 
@@ -41,12 +44,16 @@ def rowWriteOp (row : Fin rowCount)
   .vectorWrite rowCount width row ctx
     (.product (.storage matrix.toCStorageRef) (.storage loader.toCStorageRef)) matrix
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The three original stages run on the same real matrix and decoded word. -/
 def rowBody (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
-    (loader : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (rowClearOp loader))
-    (.seq (TerminalDecode.into .bigEndian input loader) (.classical (rowWriteOp row matrix loader)))
+    (loader : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (rowClearOp loader))
+    (.seq (TerminalDecode.into (model := model) .bigEndian input loader)
+      (BitWord.instruction (execution := model) (rowWriteOp row matrix loader)))
 
 /-- The single actual temporary word used during a row's decoding. -/
 @[reducible] def rowContext (ctx : RuntimeCtx kind) (width : Nat) : RuntimeCtx kind :=
@@ -61,8 +68,8 @@ def rowCell (ctx : RuntimeCtx kind) (width : Nat) :
 /-- The source row and matrix are lifted without changing any original key. -/
 def placedRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount) :
-    Circuit (rowContext ctx width) (rowContext ctx width) :=
-  rowBody ((CInputRef.vectorGet input row).underWorkspace ctx.canonicalFreshKey
+    Circuit model (rowContext ctx width) (rowContext ctx width) :=
+  rowBody (model := model) ((CInputRef.vectorGet input row).underWorkspace ctx.canonicalFreshKey
     (.unsignedWord width) ctx.canonicalFreshKey_fresh) row
     (matrix.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh) (rowCell ctx width)
@@ -70,13 +77,16 @@ def placedRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
 /-- Allocate the one temporary word, execute the original row stages, then release it. -/
 def loadRow (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
-    (placedRow input matrix row)
+    (placedRow (model := model) input matrix row)
 
 /-- Increasing row order reuses the same one-word lexical scope across the complete matrix. -/
 def loadMatrix (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
-    (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) : Circuit ctx ctx :=
-  Circuit.forRange rowCount (loadRow input matrix)
+    (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) :
+    Circuit model ctx ctx :=
+  Circuit.forRange rowCount (loadRow (model := model) input matrix)
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

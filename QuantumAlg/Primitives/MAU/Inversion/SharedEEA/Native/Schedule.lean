@@ -84,7 +84,8 @@ theorem iterate_initial (modulus input : Nat) (coprime : Nat.Coprime input modul
 
 /-- Actual input preprocessing followed by the independently bounded native repetition. -/
 def program (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit (Qubits (encoding modulus.size).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum :=
   (InitialFrame.program modulus).seq
     (UnitaryCircuit.iterate (QuotientSchedule.schedule modulus.size)
       (NativeMicrostep.program modulus.size
@@ -95,12 +96,14 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (program modulus nontrivial).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode
-          (TerminalPosition.frame (terminalFrame modulus input.val positive bounded)
-            (QuotientSchedule.padding modulus input.val))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode
+            (TerminalPosition.frame (terminalFrame modulus input.val positive bounded)
+              (QuotientSchedule.padding modulus input.val)))) := by
   rw [program, UnitaryCircuit.applyNormalized_seq,
     InitialMacroFrame.program_initial modulus input positive bounded,
     (NativeActiveProgram.iterate_realizes modulus.size (QuotientSchedule.schedule modulus.size)
@@ -109,11 +112,15 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
 
 /-- The complete emitted inverse restores every normalized forward state and all its history. -/
 theorem dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
-    (state : NormalizedVector (Qubits (encoding modulus.size).width)) :
-    (program modulus nontrivial).dagger.applyNormalized
+    (state : NormalizedVector
+      (QubitLayout.canonical (encoding modulus.size).width).toQuantum.register) :
+    ((program modulus nontrivial).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
         ((program modulus nontrivial).applyNormalized state) =
       state :=
-  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial) state
+  UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial)
+    ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
 
 end
 

@@ -11,6 +11,7 @@ import all QuantumAlg.Core.Execution.Classical.Composition
 import all QuantumAlg.Core.Execution.Borrowed.Preservation
 import all QuantumAlg.Core.Execution.Trace.Bounds
 import all QuantumAlg.Core.Execution.Store.Read
+import all QuantumAlg.Components.Classical.Model.BitWord.Execution
 
 /-!
 # Actual comparison with a doubled unsigned word
@@ -61,24 +62,9 @@ def compareOp (refs : Refs ctx width) :
 def complementOp (refs : Refs ctx width) : ClassicalOp .bit .bit ctx ctx :=
   .bit .not ctx (.storage refs.passes.toCStorageRef) refs.passes
 
-/-- Execute the three native operations in their data-dependent order. -/
-def compareInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (doubleOp refs))
-    (.seq (.classical (compareOp refs)) (.classical (complementOp refs)))
-
 /-- The actual three-write store, including the compared value and the complemented result. -/
 def comparedStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   ((store.applyOp (doubleOp refs)).applyOp (compareOp refs)).applyOp (complementOp refs)
-
-/-- Full actual execution preserves history and quantum-reference blocks. -/
-theorem compareInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (compareInto refs).execute Reference state = state.mapClassical (fun entry =>
-      (comparedStore refs entry.1, (entry.2, ((), ((), ()))))) := by
-  simp only [compareInto, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
 
 /-- Reads outside the two actual writable cells are unchanged by the comparison. -/
 theorem compareInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
@@ -90,6 +76,35 @@ theorem compareInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
   rw [Store.read_applyOp_of_not_mem_storageKeys _ (complementOp refs) other passes,
     Store.read_applyOp_of_not_mem_storageKeys _ (compareOp refs) other passes,
     Store.read_applyOp_of_not_mem_storageKeys _ (doubleOp refs) other doubled]
+
+variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+
+/-- Execute the three selected instructions in their data-dependent order. -/
+def compareInto (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (doubleOp refs))
+    (.seq (BitWord.instruction (execution := model) (compareOp refs))
+      (BitWord.instruction (execution := model) (complementOp refs)))
+
+/-- The actual returned paths accompany the three chronological store writes. -/
+def executionStep (refs : Refs ctx width) (store : Store ctx) :
+    Store ctx × (compareInto (model := model) refs).Path :=
+  let doubled := BitWord.instructionStep (execution := model) (doubleOp refs) store
+  let compared := BitWord.instructionStep (execution := model) (compareOp refs) doubled.1
+  let complemented := BitWord.instructionStep (execution := model) (complementOp refs) compared.1
+  (complemented.1, (doubled.2, (compared.2, complemented.2)))
+
+/-- Full actual execution preserves service history and quantum-reference blocks. -/
+theorem compareInto_execute (refs : Refs ctx width) (Reference : Register)
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (compareInto (model := model) refs).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := executionStep (model := model) refs entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [compareInto, executionStep, Circuit.execute_seq,
+    BitWord.bitWord_instruction_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

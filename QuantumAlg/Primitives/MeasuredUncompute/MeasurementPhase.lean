@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.WalshHadamard
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
 import all QuantumAlg.Core.Measure.Instrument
 import all QuantumAlg.Core.Base.Tensor.Certified
 
@@ -33,15 +34,14 @@ theorem measuredHadamard_reference_entry (width : Nat) {Reference : Register}
     (outcome row column : Fin (2 ^ width)) (leftRef rightRef : Reference.Index) :
     (ZMeasurement.projector (R := Register.prod (Qubits width) Reference)
         (fun index => index.1) outcome *
-      (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayer width).matrix
+      (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayerOperator width)
         (1 : UnitaryOperator Reference) : HilbertOperator
           (Register.prod (Qubits width) Reference))) (row, leftRef) (column, rightRef) =
       if row = outcome ∧ leftRef = rightRef then
         WalshHadamard.invSqrtCard width * WalshHadamard.walshSign outcome column
       else 0 := by
   rw [ZMeasurement.projector, Matrix.diagonal_mul,
-    UnitaryOperator.prodTensor_apply, WalshHadamard.hadamardLayer_matrix,
-    WalshHadamard.hadamardLayerOperator_apply]
+    UnitaryOperator.prodTensor_apply, WalshHadamard.hadamardLayerOperator_apply]
   change (if row = outcome then (1 : ℂ) else 0) *
       ((WalshHadamard.invSqrtCard width * WalshHadamard.walshSign row column) *
         if leftRef = rightRef then 1 else 0) = _
@@ -54,7 +54,7 @@ theorem measuredHadamard_corrected_reference_entry (width : Nat) {Reference : Re
     WalshHadamard.walshSign outcome column *
       (ZMeasurement.projector (R := Register.prod (Qubits width) Reference)
           (fun index => index.1) outcome *
-        (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayer width).matrix
+        (UnitaryOperator.prodTensor (WalshHadamard.hadamardLayerOperator width)
           (1 : UnitaryOperator Reference) : HilbertOperator
             (Register.prod (Qubits width) Reference))) (row, leftRef) (column, rightRef) =
       if row = outcome ∧ leftRef = rightRef then WalshHadamard.invSqrtCard width else 0 := by

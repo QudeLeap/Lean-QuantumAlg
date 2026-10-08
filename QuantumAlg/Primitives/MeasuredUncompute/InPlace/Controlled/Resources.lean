@@ -8,16 +8,16 @@ module
 
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Division.Resources
+import all QuantumAlg.Primitives.MeasuredUncompute.Native.Frame.Controlled
 
 /-!
 # Resources of the actual controlled measured arithmetic body
 
-Every original arithmetic event acquires its actual emitted quantum-control
-coordinate. The inactive copy and phase correction are controlled and charged
-too. The H/Z/reset and final three-CNOT swap remain unconditional. One real
-owned control augments the original three-word frame, without another field
-bank, and all n finite measurement cells remain live. The actual body allocates
-nothing. Its extension of the source arithmetic is a project construction
+Quantum control is lowered to literal X, CNOT and Toffoli instructions.
+The independent pools charge this expansion, both H-CNOT-H phase corrections,
+the unconditional reset, and the final three-CNOT swap. One real owned control
+augments the original three-word frame, without another field bank, and all
+finite measurement cells remain live. The actual body allocates nothing
 [LYL+26, sec_point_add/sec_point_add.tex:24-36,52-121].
 -/
 
@@ -26,132 +26,300 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceControlled
 noncomputable section
 
 open Execution MAU.Inversion.SharedEEA MAU.Multiplication
+open ProductPlacement EncodedBit GateSpec
+
+-- Resource composition uses certified list interfaces rather than evaluating arithmetic lists.
+attribute [local irreducible] NativeEEAFrame.backwardGates NativeReusedEEA.forwardGates
+  WorkspaceReuse.placement
 
 /-- Complete live storage includes the real coherent control and all retained measurement cells. -/
 def space (width : Nat) : SpacePool .quantum :=
   width • SpacePool.ofShape (.finite 2) + OwnedQubits.space (3 * width + 4 * width.size + 12)
 
-private def copyBudget (width : Nat) : ResourcePool .quantum :=
-  width • ResourcePool.singleton (.gate (.builtin "cnot"))
+private def controlledBudget (count : Nat) (active : Bool) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  count • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot) +
+    (4 * count) • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli) +
+    (if active then 0 else 2) •
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
 
-private def maskBudget (width : Nat) : ResourcePool .quantum :=
-  width • ResourcePool.singleton (Gate.atomicEvent (.declared "QuantumAlg.Components.Gate"
-    "pauli-z"))
+private def copyBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  width • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli) +
+    2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
 
-private def saveBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2 (VariableGidney.nativeBudget width) +
-    ResourcePool.controlForDimension 2 (copyBudget width)
+private def maskBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  width • (2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit) +
+    ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot))
 
-private def correctionBudget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.controlForDimension 2 (NativeProductCorrection.nativeBudget width) +
-    ResourcePool.controlForDimension 2 (maskBudget width)
+private def saveBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  controlledBudget (VariableGidney.eventBound width) true + copyBudget width
+
+private def correctionBudget (width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  2 • VariableGidney.nativeBudget width + 2 • maskBudget width +
+    2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
 
 /-- Independent event allowance before the one real unconditional measurement sequence. -/
-def beforeBudget (operation : InPlaceTarget.Operation) (width : Nat) : ResourcePool .quantum :=
+def beforeBudget (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   match operation with
-  | .division => ResourcePool.controlForDimension 2 (NativeBudget.inPlace width) + saveBudget width
+  | .division => controlledBudget (ForwardResources.inPlaceBound width) true + saveBudget width
   | .multiplication => saveBudget width
 
 /-- Independent event allowance for the actual stored correction and full final swap. -/
-def afterBudget (operation : InPlaceTarget.Operation) (width : Nat) : ResourcePool .quantum :=
+def afterBudget (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   match operation with
-  | .division => ResourcePool.controlForDimension 2 (NativeBudget.inPlace width) +
-      (correctionBudget width + (3 * width) • ResourcePool.singleton (.gate (.builtin "cnot")))
-  | .multiplication => ResourcePool.controlForDimension 2 (NativeBudget.inPlace width) +
+  | .division => controlledBudget (ForwardResources.inPlaceBound width) true +
       (correctionBudget width +
-        (ResourcePool.controlForDimension 2 (NativeBudget.inPlace width) +
-          (3 * width) • ResourcePool.singleton (.gate (.builtin "cnot"))))
+        (3 * width) • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot))
+  | .multiplication => controlledBudget (ForwardResources.inPlaceBound width) true +
+      (correctionBudget width +
+        (controlledBudget (ForwardResources.inPlaceBound width) true +
+          (3 * width) • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)))
 
 /-- All allowances are independent width formulas, in the same three-block execution order. -/
-def events (operation : InPlaceTarget.Operation) (width : Nat) : ResourcePool .quantum :=
+def events (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model .empty) :=
   beforeBudget operation width + (NumeratorReset.budget width + afterBudget operation width)
+
+/-- Both controlled arithmetic arms reserve the same one-qubit coordinate. -/
+theorem events_singleQubit_count (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) (events operation width) =
+      4 + 6 * width + 2 * VariableGidney.eventBound width := by
+  cases operation <;>
+    simp [events, beforeBudget, afterBudget, saveBudget, correctionBudget,
+      controlledBudget, copyBudget, maskBudget, NumeratorReset.budget,
+      VariableGidney.nativeBudget_singleQubit_count, Circuit.zEvent] <;> omega
+
+/-- Division and multiplication differ in control placement, but reserve equal CNOT totals. -/
+theorem events_cnot_count (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .cnot) (events operation width) =
+      2 * ForwardResources.inPlaceBound width +
+        3 * VariableGidney.eventBound width + 5 * width := by
+  cases operation <;>
+    simp [events, beforeBudget, afterBudget, saveBudget, correctionBudget,
+      controlledBudget, copyBudget, maskBudget, NumeratorReset.budget,
+      VariableGidney.nativeBudget_cnot_count, Circuit.zEvent] <;> omega
+
+/-- Both arithmetic arms reserve equal Toffoli totals despite different control order. -/
+theorem events_toffoli_count (operation : InPlaceTarget.Operation) (width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate .toffoli) (events operation width) =
+      8 * ForwardResources.inPlaceBound width +
+        6 * VariableGidney.eventBound width + width := by
+  cases operation <;>
+    simp [events, beforeBudget, afterBudget, saveBudget, correctionBudget,
+      controlledBudget, copyBudget, maskBudget, NumeratorReset.budget,
+      VariableGidney.nativeBudget_toffoli_count, Circuit.zEvent] <;> omega
 
 /-- Serial dependence includes H, all Z writes, and the selected reset before the final
 correction. -/
 def depthBound (operation : InPlaceTarget.Operation) (width : Nat) : Nat :=
   (beforeBudget operation width).card + ((1 + 2 * width) + (afterBudget operation width).card)
 
-private theorem copy_cost (width : Nat) : (copy width).eventCost = copyBudget width := by
-  have actual : (EncodedBit.Word.xorIntoGates (FramePorts.numerator width)
-      (FramePorts.accumulator width)
-      (fun index => (FramePorts.accumulator_numerator_ne width index index).symm)).map
-        EncodedBit.GateSpec.event = List.replicate width (.gate (.builtin "cnot")) := by
-    rw [EncodedBit.Word.xorIntoGates, List.map_ofFn]
-    change List.ofFn (fun _ : Fin width =>
-      (Resource.Event.gate (.builtin "cnot") : Resource.Event .quantum)) = _
-    exact List.ofFn_const _ _
-  have trace : (copy width).eventTrace = List.replicate width (.gate (.builtin "cnot")) :=
-    (EncodedBit.GateSpec.programList_eventTrace _).trans actual
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, trace, ResourcePool.ofList_replicate]
-  rfl
+private theorem copy_cost (width : Nat) :
+    (controlled width false (copyGates width)).eventCost = copyBudget width := by
+  have counts :
+      ((NativeFrameControl.gates width false (copyGates width)).map xMultiplicity).sum = 2 ∧
+      ((NativeFrameControl.gates width false (copyGates width)).map cnotMultiplicity).sum = 0 ∧
+      ((NativeFrameControl.gates width false (copyGates width)).map toffoliMultiplicity).sum =
+        width := by
+    simpa [NativeFrameControl.lifted, copyGates, Word.xorIntoGates,
+      List.map_ofFn, Function.comp_def, GateSpec.prodLeft, xMultiplicity,
+      cnotMultiplicity, toffoliMultiplicity] using
+      NativeFrameControl.nativeFrameControl_counts width false (copyGates width)
+  apply Multiset.ext.mpr
+  intro focus
+  change ResourcePool.count focus (programList (nativeLayout width) .empty
+    (NativeFrameControl.gates width false (copyGates width))).eventCost = _
+  by_cases single : focus = .gate .singleQubit
+  · subst focus
+    rw [programList_x_count_eq_sum]
+    rw [show ((NativeFrameControl.gates width false (copyGates width)).map
+      xMultiplicity).sum = 2 from counts.1]
+    simp [copyBudget, ResourcePool.singleton]
+  by_cases cnot : focus = .gate .cnot
+  · subst focus
+    rw [programList_cnot_count_eq_sum]
+    rw [show ((NativeFrameControl.gates width false (copyGates width)).map
+      cnotMultiplicity).sum = 0 from counts.2.1]
+    simp [copyBudget, ResourcePool.singleton]
+  by_cases toffoli : focus = .gate .toffoli
+  · subst focus
+    rw [programList_toffoli_count_eq_sum]
+    rw [show ((NativeFrameControl.gates width false (copyGates width)).map
+      toffoliMultiplicity).sum = width from counts.2.2]
+    simp [copyBudget, ResourcePool.singleton]
+  have outside : focus ∉ primitiveAlphabet := by
+    simpa [primitiveAlphabet, ResourcePool.ofList] using And.intro single (And.intro cnot toffoli)
+  rw [programList_count_zero_of_not_mem_primitiveAlphabet _ _ _ outside]
+  simp [copyBudget, ResourcePool.singleton, single, toffoli]
 
-private theorem mask_cost (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2))) :
-    (inactiveMask width value).eventCost ≤ maskBudget width := by
-  rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, inactiveMask,
-    EncodedBit.Word.PhaseCorrection.program,
-    EncodedBit.Word.PhaseCorrection.phaseCorrection_sequence_trace, ResourcePool.ofList_replicate]
+private theorem controlled_bound (width : Nat) (active : Bool)
+    (source : List (GateSpec (frameEncoding width))) (count : Nat)
+    (bounded : source.length ≤ count) :
+    (controlled width active source).eventCost ≤ controlledBudget count active := by
+  have counts := NativeFrameControl.nativeFrameControl_counts width active source
+  have sourceLength := length_eq_multiplicity_sums (NativeFrameControl.lifted width source)
+  have liftedBound : (NativeFrameControl.lifted width source).length ≤ count := by
+    simpa only [NativeFrameControl.lifted, List.length_map] using bounded
   apply ResourcePool.le_iff_count.mpr
-  intro event
-  rw [maskBudget, ResourcePool.count_scale, ResourcePool.count_nsmul]
-  exact Nat.mul_le_mul_right _
-    (EncodedBit.Word.PhaseCorrection.phaseCorrection_selected_count_le (QubitReadouts.mask value))
+  intro focus
+  by_cases single : focus = .gate .singleQubit
+  · subst focus
+    change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.singleQubit)
+      (programList (nativeLayout width) .empty
+        (NativeFrameControl.gates width active source)).eventCost ≤ _
+    rw [programList_x_count_eq_sum, counts.1]
+    cases active <;> simp [controlledBudget, ResourcePool.count_singleton]
+  by_cases cnot : focus = .gate .cnot
+  · subst focus
+    change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)
+      (programList (nativeLayout width) .empty
+        (NativeFrameControl.gates width active source)).eventCost ≤ _
+    rw [programList_cnot_count_eq_sum, counts.2.1]
+    simp only [controlledBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
+      ResourcePool.count_singleton, ↓reduceIte, mul_one]
+    change ((NativeFrameControl.lifted width source).map xMultiplicity).sum ≤ count
+    omega
+  by_cases toffoli : focus = .gate .toffoli
+  · subst focus
+    change ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.toffoli)
+      (programList (nativeLayout width) .empty
+        (NativeFrameControl.gates width active source)).eventCost ≤ _
+    rw [programList_toffoli_count_eq_sum, counts.2.2]
+    simp only [controlledBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
+      ResourcePool.count_singleton, ↓reduceIte, mul_one]
+    omega
+  have outside : focus ∉ primitiveAlphabet := by
+    simpa [primitiveAlphabet, ResourcePool.ofList] using And.intro single (And.intro cnot toffoli)
+  change ResourcePool.count focus (programList (nativeLayout width) .empty
+    (NativeFrameControl.gates width active source)).eventCost ≤ _
+  rw [programList_count_zero_of_not_mem_primitiveAlphabet _ _ _ outside]
+  exact Nat.zero_le _
 
-private theorem controlled_bound (width : Nat) (active : Fin 2)
-    (program : UnitaryCircuit (Qubits (frameWidth width)))
-    (within : program.physical_idx ⊆ List.range (frameWidth width))
-    (budget : ResourcePool .quantum) (bounded : program.eventCost ≤ budget) :
-    (controlled width active program within).eventCost ≤ ResourcePool.controlForDimension 2
-      budget := by
-  rw [controlled_cost]
-  exact (ResourcePool.controlForDimension_le_controlForDimension_iff 2).mpr bounded
+private theorem forward_length_bound (modulus : Nat) (prime : Nat.Prime modulus) :
+    (NativeEEAFrame.forwardGates modulus prime).length ≤
+      ForwardResources.inPlaceBound modulus.size := by
+  have count := ForwardResources.inPlace_count modulus prime.one_lt
+  rw [← InPlaceDivisionResources.forward_cost modulus prime] at count
+  simpa only [NativeEEAFrame.forward, programList_eventCost_card] using count
+
+private theorem backward_length_bound (modulus : Nat) (prime : Nat.Prime modulus) :
+    (NativeEEAFrame.backwardGates modulus prime).length ≤
+      ForwardResources.inPlaceBound modulus.size := by
+  simpa only [NativeEEAFrame.backwardGates, List.length_map, List.length_reverse] using
+    forward_length_bound modulus prime
 
 private theorem forward_cost_bound (modulus : Nat) (prime : Nat.Prime modulus) :
-    (forward modulus prime).eventCost ≤ ResourcePool.controlForDimension 2
-      (NativeBudget.inPlace modulus.size) := by
-  apply controlled_bound
-  exact (InPlaceDivisionResources.forward_cost modulus prime).le.trans
-    (NativeBudget.inPlace_bound modulus prime.one_lt)
+    (forward modulus prime).eventCost ≤
+      controlledBudget (ForwardResources.inPlaceBound modulus.size) true :=
+  controlled_bound modulus.size true _ _ (forward_length_bound modulus prime)
 
 private theorem backward_cost_bound (modulus : Nat) (prime : Nat.Prime modulus) :
-    (backward modulus prime).eventCost ≤ ResourcePool.controlForDimension 2
-      (NativeBudget.inPlace modulus.size) := by
-  apply controlled_bound
-  exact (InPlaceDivisionResources.backward_cost modulus prime).le.trans
-    (NativeBudget.inPlace_bound modulus prime.one_lt)
+    (backward modulus prime).eventCost ≤
+      controlledBudget (ForwardResources.inPlaceBound modulus.size) true :=
+  controlled_bound modulus.size true _ _ (backward_length_bound modulus prime)
 
 private theorem reused_cost_bound (modulus : Nat) (prime : Nat.Prime modulus) :
-    (reusedForward modulus prime).eventCost ≤ ResourcePool.controlForDimension 2
-      (NativeBudget.inPlace modulus.size) := by
-  apply controlled_bound
-  exact ((NativeReusedEEA.forward_cost modulus prime).trans
-    (InPlaceDivisionResources.backward_cost modulus prime)).le.trans
-      (NativeBudget.inPlace_bound modulus prime.one_lt)
+    (reusedForward modulus prime).eventCost ≤
+      controlledBudget (ForwardResources.inPlaceBound modulus.size) true := by
+  have same : (reusedForward modulus prime).eventCost =
+      (backward modulus prime).eventCost := by
+    rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
+      ← UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+    simp only [reusedForward, backward,
+      NativeEEAFrame.Controlled.nativeEEAControlled_reusedForward_trace,
+      NativeEEAFrame.Controlled.nativeEEAControlled_backward_trace,
+      NativeEEAFrame.Controlled.reusedForwardGates, List.map_reverse,
+      ResourcePool.ofList, Multiset.coe_reverse]
+  have bound := backward_cost_bound modulus prime
+  exact same.le.trans bound
+
+private theorem seq_cost_bound (width : Nat) (first second : NativeCircuit width)
+    (left right : ResourcePool (.quantum AlgorithmGate.model .empty))
+    (firstBound : first.eventCost ≤ left) (secondBound : second.eventCost ≤ right) :
+    (first.seq second).eventCost ≤ left + right :=
+  (UnitaryCircuit.seq_eventCost first second).le.trans (add_le_add firstBound secondBound)
 
 private theorem save_cost_bound (modulus : Nat) :
     (save modulus).eventCost ≤ saveBudget modulus.size := by
-  rw [save, UnitaryCircuit.seq_eventCost]
-  exact add_le_add
-    (controlled_bound _ _ _ _ _ (NativeProductFrame.nativeProductFrame_budget _ _))
-    (controlled_bound _ _ _ _ _ (copy_cost modulus.size).le)
+  have active := controlled_bound modulus.size true
+    (NativeProductFrame.gates modulus.size (InPlaceArithmetic.modulusWord modulus))
+    (VariableGidney.eventBound modulus.size)
+    (NativeProductFrame.nativeProductFrame_gates_length_bound _ _)
+  dsimp only [controlled, NativeFrameControl.program, NativeFrameControl.gates] at active
+  change (programList (nativeLayout modulus.size) .empty
+    (NativeProductFrame.Controlled.gates modulus.size
+      (InPlaceArithmetic.modulusWord modulus))).eventCost ≤ _ at active
+  exact seq_cost_bound modulus.size _ _ _ _ active (copy_cost modulus.size).le
+
+private theorem selected_mask_budget (width : Nat) (mask : Fin width → Bool) :
+    (Word.PhaseCorrection.selected mask).length •
+      (2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate AlgorithmGate.Coordinate.singleQubit) +
+        ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot)) ≤ maskBudget width := by
+  apply ResourcePool.le_iff_count.mpr
+  intro focus
+  rw [maskBudget, ResourcePool.count_nsmul, ResourcePool.count_nsmul]
+  exact Nat.mul_le_mul_right _
+    (Word.PhaseCorrection.phaseCorrection_selected_count_le mask)
+
+private theorem correction_compute_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+    ResourcePool.ofList ((ReusedProduct.Controlled.computeGates width modulus).map
+      (event .empty)) ≤ VariableGidney.nativeBudget width := by
+  have trace : (ReusedProduct.Controlled.computeGates width modulus).map (event .empty) =
+      (NativeProductFrame.program width modulus).eventTrace := by
+    rw [ReusedProduct.Controlled.computeGates, map_event_prodLeft]
+    simp only [List.map_map, Function.comp_def, FullPlacement.placeGate_event]
+    exact NativeProductFrame.nativeProductFrame_gates_trace width modulus
+  rw [trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
+  exact NativeProductFrame.nativeProductFrame_budget width modulus
 
 private theorem correction_cost_bound (modulus : Nat)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2))) :
     (correction modulus value).eventCost ≤ correctionBudget modulus.size := by
-  rw [correction, UnitaryCircuit.seq_eventCost]
-  exact add_le_add
-    (controlled_bound _ _ _ _ _ (ReusedProduct.correction_budget modulus.size
-      (InPlaceArithmetic.modulusWord modulus) (QubitReadouts.mask value)))
-    (controlled_bound _ _ _ _ _ (mask_cost modulus.size value))
+  have arithmetic := correction_compute_budget modulus.size (InPlaceArithmetic.modulusWord modulus)
+  have selected := selected_mask_budget modulus.size (QubitReadouts.mask value)
+  have bound := add_le_add (add_le_add (add_le_add arithmetic selected) arithmetic)
+    (add_le_add selected (le_refl (2 • ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model .empty) (.gate AlgorithmGate.Coordinate.singleQubit))))
+  rw [correction, UnitaryCircuit.seq_eventCost,
+    ReusedProduct.Controlled.reusedProductControlled_cost, inactiveCorrection,
+    Word.PhaseCorrection.Controlled.program,
+    Word.PhaseCorrection.Controlled.controlledPhaseCorrection_sequence_cost]
+  simp only [if_true, add_zero, ResourcePool.ofList, Multiset.coe_reverse]
+  convert bound using 1
+  · rfl
+  · rw [correctionBudget, two_nsmul, two_nsmul]
+    abel
 
 private theorem swap_cost_bound (width : Nat) :
-    (swap width).eventCost ≤ (3 * width) • ResourcePool.singleton (.gate (.builtin "cnot")) := by
+    (swap width).eventCost ≤
+      (3 * width) • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate AlgorithmGate.Coordinate.cnot) := by
   have actual : (swap width).eventCost = (FrameSwap.program width).eventCost := by
-    have trace : (swap width).eventTrace = (FrameSwap.program width).eventTrace :=
-      uncontrolled_trace width (FrameSwap.program width) _
-    rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, trace,
-      UnitaryCircuit.ofList_eventTrace_eq_eventCost]
-  have oldPool := InPlaceDivisionResources.native_pool width (FrameSwap.program width)
-    (InPlaceDivision.full_within width _ (FrameSwap.frameSwap_physical width)) ()
+    exact (UnitaryCircuit.ofList_eventTrace_eq_eventCost (swap width)).symm.trans
+      ((congrArg ResourcePool.ofList (uncontrolled_trace width (FrameSwap.program width))).trans
+        (UnitaryCircuit.ofList_eventTrace_eq_eventCost (FrameSwap.program width)))
+  have oldPool := InPlaceDivisionResources.native_pool width (FrameSwap.program width) ()
   exact actual.le.trans (oldPool.symm.le.trans (InPlaceDivisionResources.swap_budget width ()))
 
 /-- The native prefix's literal events meet the independently prescribed controlled coordinates. -/
@@ -160,24 +328,30 @@ theorem beforeReset_budget (operation : InPlaceTarget.Operation) (modulus : Nat)
     (beforeReset operation modulus prime).eventCost ≤ beforeBudget operation modulus.size := by
   cases operation
   · exact save_cost_bound modulus
-  · exact add_le_add (forward_cost_bound modulus prime) (save_cost_bound modulus)
+  · exact seq_cost_bound modulus.size _ _ _ _
+      (forward_cost_bound modulus prime) (save_cost_bound modulus)
 
 /-- Every actual stored vector selects a suffix within the same independent native allowance. -/
 theorem suffix_budget (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (value : CShape.Value (.fixedVector modulus.size (.finite 2))) :
     (suffix operation modulus prime value).eventCost ≤ afterBudget operation modulus.size := by
+  have reused := reused_cost_bound modulus prime
+  have backwardBound := backward_cost_bound modulus prime
+  have correctionBound := correction_cost_bound modulus value
+  have swapBound := swap_cost_bound modulus.size
   cases operation
-  · exact add_le_add (reused_cost_bound modulus prime)
-      (add_le_add (correction_cost_bound modulus value)
-        (add_le_add (backward_cost_bound modulus prime) (swap_cost_bound modulus.size)))
-  · exact add_le_add (backward_cost_bound modulus prime)
-      (add_le_add (correction_cost_bound modulus value) (swap_cost_bound modulus.size))
+  · exact seq_cost_bound modulus.size _ _ _ _ reused
+      (seq_cost_bound modulus.size _ _ _ _ correctionBound
+        (seq_cost_bound modulus.size _ _ _ _
+          backwardBound swapBound))
+  · exact seq_cost_bound modulus.size _ _ _ _ backwardBound
+      (seq_cost_bound modulus.size _ _ _ _
+        correctionBound swapBound)
 
 private theorem native_pool (width : Nat)
-    (program : UnitaryCircuit (Qubits (1 + frameWidth width)))
-    (within : program.physical_idx ⊆ List.range (1 + frameWidth width))
-    (path : (nativeCode width program within).Path) :
-    (nativeCode width program within).resourcePool path = program.eventCost := by
+    (program : NativeCircuit width)
+    (path : (nativeCode width program).Path) :
+    (nativeCode width program).resourcePool path = program.eventCost := by
   change ResourcePool.ofList (runtimeProgram width program).eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, runtimeProgram_cost]
 
@@ -195,22 +369,20 @@ theorem body_budget (operation : InPlaceTarget.Operation) (modulus : Nat) (prime
     (path : (body operation modulus prime).Path) :
     (body operation modulus prime).resourcePool path ≤ events operation modulus.size := by
   change ResourcePool.ofList
-    ((nativeCode modulus.size (beforeReset operation modulus prime)
-      (beforeReset_within operation modulus prime)).eventTrace path.1 ++
+    ((nativeCode modulus.size (beforeReset operation modulus prime)).eventTrace path.1 ++
       ((reset modulus.size).eventTrace path.2.1 ++
         (selectedSuffix operation modulus prime).eventTrace path.2.2)) ≤ _
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append]
-  exact add_le_add ((native_pool _ _ _ _).le.trans (beforeReset_budget operation modulus prime))
+  exact add_le_add ((native_pool _ _ _).le.trans (beforeReset_budget operation modulus prime))
     (add_le_add (reset_budget modulus.size path.2.1)
-      ((native_pool _ _ _ _).le.trans (suffix_budget operation modulus prime path.2.2.1)))
+      ((native_pool _ _ _).le.trans (suffix_budget operation modulus prime path.2.2.1)))
 
 private theorem native_depth (width : Nat)
-    (program : UnitaryCircuit (Qubits (1 + frameWidth width)))
-    (within : program.physical_idx ⊆ List.range (1 + frameWidth width))
-    (path : (nativeCode width program within).Path) :
-    (nativeCode width program within).depth (fun _ => 1) path ≤ program.eventCost.card := by
-  change program.evaluatedEventDepth (fun _ => 1) + 0 ≤ _
-  rw [Nat.add_zero]
+    (program : NativeCircuit width)
+    (path : (nativeCode width program).Path) :
+    (nativeCode width program).depth (fun _ => 1) path ≤ program.eventCost.card := by
+  change (runtimeProgram width program).evaluatedEventDepth (fun _ => 1) + 0 ≤ _
+  rw [runtimeProgram, UnitaryCircuit.placeAt_evaluatedEventDepth, Nat.add_zero]
   exact ShiftResources.unitDepth_le_count program
 
 private theorem reset_depth (width : Nat) (path : (reset width).Path) :
@@ -225,16 +397,15 @@ private theorem reset_depth (width : Nat) (path : (reset width).Path) :
 theorem body_depth (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (body operation modulus prime).Path) :
     (body operation modulus prime).depth (fun _ => 1) path ≤ depthBound operation modulus.size := by
-  change (nativeCode modulus.size (beforeReset operation modulus prime)
-      (beforeReset_within operation modulus prime)).depth (fun _ => 1) path.1 +
+  change (nativeCode modulus.size (beforeReset operation modulus prime)).depth (fun _ => 1) path.1 +
     ((reset modulus.size).depth (fun _ => 1) path.2.1 +
-      (nativeCode modulus.size (suffix operation modulus prime path.2.2.1)
-        (suffix_within operation modulus prime path.2.2.1)).depth (fun _ => 1) path.2.2.2) ≤ _
+      (nativeCode modulus.size (suffix operation modulus prime path.2.2.1)).depth
+        (fun _ => 1) path.2.2.2) ≤ _
   exact Nat.add_le_add
-    ((native_depth _ _ _ _).trans (Multiset.card_le_card (beforeReset_budget operation modulus
+    ((native_depth _ _ _).trans (Multiset.card_le_card (beforeReset_budget operation modulus
       prime)))
     (Nat.add_le_add (reset_depth modulus.size path.2.1)
-      ((native_depth _ _ _ _).trans
+      ((native_depth _ _ _).trans
         (Multiset.card_le_card (suffix_budget operation modulus prime path.2.2.1))))
 
 /-- Actual event multiplicities also give the complete event-count allowance. -/

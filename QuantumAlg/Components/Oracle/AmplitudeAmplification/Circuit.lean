@@ -6,98 +6,88 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Oracle.AmplitudeAmplification
+public import QuantumAlg.Core.Base.Oracle.Placement.Construction
+public import QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Components.Oracle.AmplitudeAmplification
+import all QuantumAlg.Core.Base.Oracle.Placement.Construction
+import all QuantumAlg.Core.Base.Oracle.Placement
 import all QuantumAlg.Core.Base.UnitaryCircuit
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Core.Base.Tensor.Certified
+import all QuantumAlg.Core.Base.Layout.Qubit
+import all QuantumAlg.Components.Oracle.Reflection
 
 /-!
-# Physically placed amplitude-amplification source queries
+# Actual granted amplitude-amplification queries
 
-These actual occurrences implement the three distinct source operations on
-consecutive source wires. Only the good-reflection occurrence is offered
-with a leading control. Known all-zero reflections are implemented by the
-separate elementary zero-reflection owners.
+A source occurrence fixes its operator and coordinate through the selected
+oracle model. Placement supplies only the actual physical wires. Inverse and
+controlled calls consume the grant evidence required by that model.
 -/
 
 namespace QuantumAlg.AmplitudeAmplificationSource.Circuit
 
 noncomputable section
 
-/-- One source preparation on the consecutive source wires. -/
-def preparation {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (preparationLeafAt U (List.range' offset n))
-    List.nodup_range'
+variable (gates : GateModel) {width : Nat}
+  (U : UnitaryOperator (Qubits width)) (good : NormalizedVector (Qubits width))
+  (allowInverse allowControlledGood : Bool)
 
-/-- One inverse call to the same source preparation. -/
-def inversePreparation {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (inversePreparationLeafAt U (List.range' offset n))
-    List.nodup_range'
+/-- Execute one available source instance at its complete dimension-correct placement. -/
+def program (query : Query allowInverse allowControlledGood)
+    (placement : ((model U good allowInverse allowControlledGood).signature query).Placement) :
+    UnitaryCircuit gates (model U good allowInverse allowControlledGood) placement.layout :=
+  .query (OracleModel.Application.onPlacement
+    (model U good allowInverse allowControlledGood) query placement)
 
-/-- The source good-state phase reflection on the source wires. -/
-def goodReflection {n : Nat} (offset : Nat) (good : NormalizedVector (Qubits n)) :
-    UnitaryCircuit (Qubits n) :=
-  UnitaryCircuit.ofLeaf (goodReflectionLeafAt good (List.range' offset n))
-    List.nodup_range'
+/-- The complete matrix is fixed by the declared query, with exact physical coordinate transport. -/
+theorem program_matrix (query : Query allowInverse allowControlledGood)
+    (placement : ((model U good allowInverse allowControlledGood).signature query).Placement) :
+    (program gates U good allowInverse allowControlledGood query placement).matrix =
+      UnitaryOperator.reindex placement.indexEquiv.symm
+        ((model U good allowInverse allowControlledGood).operator query) := by
+  rw [program, UnitaryCircuit.query_matrix,
+    OracleModel.Application.queryApplication_onPlacement_operator]
+  rfl
 
-private theorem leadingLayout {n : Nat} (body : UnitaryCircuit (Qubits n))
-    (placed : body.physical_idx = List.range' 1 n) :
-    PhysicalLayout.DisjointMerge [0] body.physical_idx :=
-  { left_nodup := by simp
-    right_nodup := body.physical_idx_nodup
-    disjoint := by
-      rw [placed, List.disjoint_left]
-      intro index atControl atSource
-      have startsAtOne := List.left_le_of_mem_range' atSource
-      simp only [List.mem_singleton] at atControl
-      omega }
+/-- One actual call contributes exactly its declared coordinate to the query ledger. -/
+theorem program_eventCost (query : Query allowInverse allowControlledGood)
+    (placement : ((model U good allowInverse allowControlledGood).signature query).Placement) :
+    (program gates U good allowInverse allowControlledGood query placement).eventCost =
+      ResourcePool.singleton
+        (model := .quantum gates (model U good allowInverse allowControlledGood))
+        (.oracle ((model U good allowInverse allowControlledGood).coordinate query)) := rfl
 
-/-- Only the source good-state phase reflection receives quantum control. -/
-def controlledGoodReflection {n : Nat} (good : NormalizedVector (Qubits n)) :
-    UnitaryCircuit (Qubits (1 + n)) :=
-  UnitaryCircuit.controlQubitsAt [0] (goodReflection 1 good) (leadingLayout _ rfl) 1
+/-- One granted source query occupies one abstract dependency step. -/
+theorem program_unitDepth (query : Query allowInverse allowControlledGood)
+    (placement : ((model U good allowInverse allowControlledGood).signature query).Placement) :
+    (program gates U good allowInverse allowControlledGood query placement).evaluatedEventDepth
+        (fun _ => 1) = 1 := rfl
 
-theorem controlledGoodReflection_physical_idx {n : Nat}
-    (good : NormalizedVector (Qubits n)) :
-    (controlledGoodReflection good).physical_idx =
-      List.range (1 + n) := by
-  change 0 :: List.range' 1 n = List.range (1 + n)
-  simpa only [List.range_eq_range', Nat.add_comm] using
-    (List.range'_succ (s := 0) (n := n)).symm
+/-- Place the declared preparation call on exactly the supplied source wires. -/
+def preparation (physical : QubitLayout width) :
+    UnitaryCircuit gates (model U good allowInverse allowControlledGood) physical.toQuantum :=
+  program gates U good allowInverse allowControlledGood .preparation
+    ((QuantumSignature.qubits width).place physical.physical_idx physical.physical_idx_injective)
 
-theorem preparation_physical_idx {n : Nat} (offset : Nat)
-    (U : UnitaryOperator (Qubits n)) :
-    (preparation offset U).physical_idx = List.range' offset n := rfl
+/-- Place the declared inversePreparation call on exactly the supplied source wires. -/
+def inversePreparation (granted : allowInverse = true) (physical : QubitLayout width) :
+    UnitaryCircuit gates (model U good allowInverse allowControlledGood) physical.toQuantum :=
+  program gates U good allowInverse allowControlledGood (.inversePreparation granted)
+    ((QuantumSignature.qubits width).place physical.physical_idx physical.physical_idx_injective)
 
-theorem inversePreparation_physical_idx {n : Nat} (offset : Nat)
-    (U : UnitaryOperator (Qubits n)) :
-    (inversePreparation offset U).physical_idx = List.range' offset n := rfl
+/-- Place the declared goodReflection call on exactly the supplied source wires. -/
+def goodReflection (physical : QubitLayout width) :
+    UnitaryCircuit gates (model U good allowInverse allowControlledGood) physical.toQuantum :=
+  program gates U good allowInverse allowControlledGood .goodReflection
+    ((QuantumSignature.qubits width).place physical.physical_idx physical.physical_idx_injective)
 
-theorem goodReflection_physical_idx {n : Nat} (offset : Nat)
-    (good : NormalizedVector (Qubits n)) :
-    (goodReflection offset good).physical_idx = List.range' offset n := rfl
-
-theorem preparation_matrix {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    (preparation offset U).matrix = U := rfl
-
-theorem inversePreparation_matrix {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    (inversePreparation offset U).matrix = U.dagger := rfl
-
-theorem goodReflection_matrix {n : Nat} (offset : Nat) (good : NormalizedVector (Qubits n)) :
-    (goodReflection offset good).matrix = OrthogonalProjector.rankOnePhaseReflectionOp good := rfl
-
-theorem preparation_eventCost {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    (preparation offset U).eventCost = ResourcePool.singleton (preparationEvent n) := rfl
-
-theorem inversePreparation_eventCost {n : Nat} (offset : Nat) (U : UnitaryOperator (Qubits n)) :
-    (inversePreparation offset U).eventCost =
-      ResourcePool.singleton (inversePreparationEvent n) := rfl
-
-theorem goodReflection_eventCost {n : Nat} (offset : Nat)
-    (good : NormalizedVector (Qubits n)) :
-    (goodReflection offset good).eventCost = ResourcePool.singleton (goodReflectionEvent n) := rfl
+/-- Place the declared controlledGoodReflection call on exactly the supplied source wires. -/
+def controlledGoodReflection (granted : allowControlledGood = true)
+    (physical : QubitLayout (1 + width)) :
+    UnitaryCircuit gates (model U good allowInverse allowControlledGood) physical.toQuantum :=
+  program gates U good allowInverse allowControlledGood (.controlledGoodReflection granted)
+    ((QuantumSignature.qubits (1 + width)).place
+      physical.physical_idx physical.physical_idx_injective)
 
 end
 

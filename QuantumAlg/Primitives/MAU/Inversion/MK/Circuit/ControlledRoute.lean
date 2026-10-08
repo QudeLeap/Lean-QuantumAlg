@@ -61,8 +61,10 @@ def controlledActiveOnlyProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
-  EncodedBit.GateSpec.programList
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical
+        (encoding tail.succ counterWidth).width).toQuantum :=
+  EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (controlledActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 
@@ -88,7 +90,7 @@ theorem controlledActiveOnly_realizes
         historyIndex workIndex)
       (controlledActiveOnlyStep tail counterWidth comparisonIndex
         historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
     (controlledActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 

@@ -23,6 +23,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
 
 /-- The original free mask is copied into the real candidate before any row contributions. -/
@@ -38,26 +40,31 @@ def candidateMaskOp (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWor
   .wordBinary .bitAnd width ctx
     (.product (.vectorGet (.storage matrix.toCStorageRef) row) (.storage free.toCStorageRef)) work
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The original nonzero coefficient branch performs the actual one-hot/OR scope. -/
 def candidateCoefficientChoice (candidate : CWriteRef ctx (.unsignedWord width))
-    (column : Fin width) : CShape.Value .bit → Circuit ctx ctx
-  | .bit false => materializePivotColumn candidate column
+    (column : Fin width) : CShape.Value .bit → Circuit model ctx ctx
+  | .bit false => materializePivotColumn (model := model) candidate column
   | .bit true => .id ctx
 
 /-- The reduced row is masked and compared before the actual coefficient branch. -/
 def candidateRowBody (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
-    (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
-  .seq (.classical (candidateMaskOp matrix free work row))
-    (.seq (.classical (decisionEqualityOp work zero flag))
-      (.branch (.storage flag.toCStorageRef) (candidateCoefficientChoice candidate column)))
+    (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width) :
+    Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (candidateMaskOp matrix free work row))
+    (.seq (BitWord.instruction (execution := model) (decisionEqualityOp work zero flag))
+      (.branch (.storage flag.toCStorageRef)
+        (candidateCoefficientChoice (model := model) candidate column)))
 
 /-- The selected row runs below its actual masked word and equality flag. -/
 def placedCandidateRow (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) :
-    Circuit (decisionContext ctx width) (decisionContext ctx width) :=
-  candidateRowBody (decisionWrite width matrix) (decisionWrite width free)
+    Circuit model (decisionContext ctx width) (decisionContext ctx width) :=
+  candidateRowBody (model := model) (decisionWrite width matrix) (decisionWrite width free)
     (decisionWrite width candidate) (decisionWrite width zero) (decisionWork ctx width)
     (pivotLatch (pivotMaskContext ctx width)) row column
 
@@ -65,39 +72,41 @@ def placedCandidateRow (matrix : CWriteRef ctx (.fixedVector rowCount (.unsigned
 def scopedCandidateRow (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) :
-    Circuit (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
+    Circuit model (pivotMaskContext ctx width) (pivotMaskContext ctx width) :=
   .workspace (pivotMaskContext ctx width) (pivotMaskContext ctx width).canonicalFreshKey
     .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh
-      (placedCandidateRow matrix free candidate zero row column)
+      (placedCandidateRow (model := model) matrix free candidate zero row column)
 
 /-- A selected pivot record enters both original scopes before evaluating its coefficient. -/
 def candidateRowSelected (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
-    (row : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
+    (row : Fin rowCount) (column : Fin width) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
-    (scopedCandidateRow matrix free candidate zero row column)
+    (scopedCandidateRow (model := model) matrix free candidate zero row column)
 
 /-- The actual pivot-record bit selects its original row contribution or identity. -/
 def candidatePivotChoice (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
-    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit ctx ctx
+    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
-  | .bit true => candidateRowSelected matrix free candidate zero row column
+  | .bit true => candidateRowSelected (model := model) matrix free candidate zero row column
 
 /-- The original MSB-first column-to-row pivot record controls each contribution. -/
 def candidatePivotRow (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
-    (row : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
+    (row : Fin rowCount) (column : Fin width) : Circuit model ctx ctx :=
   .branch (eliminationBit rows column row)
-    (candidatePivotChoice matrix free candidate zero row column)
+    (candidatePivotChoice (model := model) matrix free candidate zero row column)
 
 /-- The original free-mask copy is followed by increasing columns and then increasing rows. -/
 def buildCandidate (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (free candidate zero : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
-  .seq (.classical (candidateCopyOp free candidate))
+    (free candidate zero : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (candidateCopyOp free candidate))
     (Circuit.forRange width (fun column => Circuit.forRange rowCount
-      (fun row => candidatePivotRow matrix rows free candidate zero row column)))
+      (fun row => candidatePivotRow (model := model) matrix rows free candidate zero row column)))
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.Compact.Correction
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.Compact.Fold
 import all QuantumAlg.Primitives.MAU.Inversion.MK.Circuit.RoutedRound
@@ -167,9 +168,9 @@ private theorem
 private theorem detectorCounterVZeroDetectorGates_events_eq_source
     (tail counterWidth : Nat) :
     (detectorCounterVZeroDetectorGates tail.succ counterWidth).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   unfold detectorCounterVZeroDetectorGates
   exact EncodedBit.GateSpec.map_event_prodLeft
     (counterIncrementWorkEncoding counterWidth)
@@ -183,6 +184,7 @@ private theorem detectorCounterVZeroDetectorGates_xMultiplicity_sum
     _ = ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
           EncodedBit.GateSpec.xMultiplicity).sum :=
       EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+        .empty
         (detectorCounterVZeroDetectorGates_events_eq_source
           tail counterWidth)
     _ = 2 * tail.succ :=
@@ -197,6 +199,7 @@ private theorem detectorCounterVZeroDetectorGates_cnotMultiplicity_sum
     _ = ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
           EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (detectorCounterVZeroDetectorGates_events_eq_source
           tail counterWidth)
     _ = 3 := vZeroDetectorWithComparisonWorkGates_cnotMultiplicity_sum
@@ -210,6 +213,7 @@ private theorem detectorCounterVZeroDetectorGates_toffoliMultiplicity_sum
     _ = ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
           EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (detectorCounterVZeroDetectorGates_events_eq_source
           tail counterWidth)
     _ = 2 * tail :=
@@ -253,9 +257,9 @@ private theorem
 private theorem fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
     (tail counterWidth : Nat) :
     (fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (detectorGatedTerminatingCounterModeWithWorkGates
-        tail counterWidth).map EncodedBit.GateSpec.event := by
+        tail counterWidth).map (EncodedBit.GateSpec.event .empty) := by
   unfold fullRoundWorkTerminatingStandardLayoutGates
   simp only [List.map_map]
   apply List.map_congr_left
@@ -271,6 +275,7 @@ private theorem
     _ = ((detectorGatedTerminatingCounterModeWithWorkGates
           tail counterWidth).map EncodedBit.GateSpec.xMultiplicity).sum :=
       EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
           tail counterWidth)
     _ = 4 * tail.succ :=
@@ -286,6 +291,7 @@ private theorem
     _ = ((detectorGatedTerminatingCounterModeWithWorkGates
           tail counterWidth).map EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
           tail counterWidth)
     _ = 7 :=
@@ -302,6 +308,7 @@ private theorem
     _ = ((detectorGatedTerminatingCounterModeWithWorkGates
           tail counterWidth).map EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
           tail counterWidth)
     _ = 4 * tail + 2 * counterWidth + 18 * (counterWidth - 1) :=
@@ -502,9 +509,9 @@ private theorem
 
 private theorem inactivePaddingGates_events_eq_source
     (tail counterWidth : Nat) :
-    (inactivePaddingGates tail counterWidth).map EncodedBit.GateSpec.event =
+    (inactivePaddingGates tail counterWidth).map (EncodedBit.GateSpec.event .empty) =
       (detectorCounterActiveFalseControlledInactivePaddingGates
-        tail counterWidth).map EncodedBit.GateSpec.event := by
+        tail counterWidth).map (EncodedBit.GateSpec.event .empty) := by
   let detectorGates :
       List (EncodedBit.GateSpec
         (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)) :=
@@ -536,21 +543,21 @@ private theorem inactivePaddingGates_events_eq_source
     ((pathControlGates.map
       (EncodedBit.GateSpec.prodLeft
         (wordEncoding (2 * tail.succ)))).map
-          EncodedBit.GateSpec.event) =
-      detectorGates.map EncodedBit.GateSpec.event
+          (EncodedBit.GateSpec.event .empty)) =
+      detectorGates.map (EncodedBit.GateSpec.event .empty)
   calc
-    _ = pathControlGates.map EncodedBit.GateSpec.event :=
+    _ = pathControlGates.map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft
         (wordEncoding (2 * tail.succ)) pathControlGates
-    _ = pathGates.map EncodedBit.GateSpec.event := by
+    _ = pathGates.map (EncodedBit.GateSpec.event .empty) := by
       simpa only [pathControlGates] using
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool pathGates)
-    _ = fullRoundGates.map EncodedBit.GateSpec.event := by
+    _ = fullRoundGates.map (EncodedBit.GateSpec.event .empty) := by
       simpa only [pathGates] using
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool fullRoundGates)
-    _ = detectorGates.map EncodedBit.GateSpec.event := by
+    _ = detectorGates.map (EncodedBit.GateSpec.event .empty) := by
       simp only [fullRoundGates, List.map_map]
       apply List.map_congr_left
       intro gate _
@@ -565,6 +572,7 @@ private theorem inactivePaddingGates_cnotMultiplicity_sum
     _ = ((detectorCounterActiveFalseControlledInactivePaddingGates
           tail counterWidth).map EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (inactivePaddingGates_events_eq_source tail counterWidth)
     _ = 0 :=
       detectorCounterActiveFalseControlledInactivePaddingGates_cnotMultiplicity_sum
@@ -579,6 +587,7 @@ private theorem inactivePaddingGates_toffoliMultiplicity_sum
     _ = ((detectorCounterActiveFalseControlledInactivePaddingGates
           tail counterWidth).map EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (inactivePaddingGates_events_eq_source tail counterWidth)
     _ = 2 * counterWidth + 18 * (counterWidth - 1) :=
       detectorCounterActiveFalseControlledInactivePaddingGates_toffoliMultiplicity_sum
@@ -732,10 +741,10 @@ private theorem liftedActiveOnlyGates_events_eq_source
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     (liftedActiveOnlyGates tail counterWidth comparisonIndex historyIndex
-      workIndex).map EncodedBit.GateSpec.event =
+      workIndex).map (EncodedBit.GateSpec.event .empty) =
       (fullRoundWorkKaliskiActiveOnlyRoundConcreteGates
         tail counterWidth comparisonIndex historyIndex workIndex).map
-          EncodedBit.GateSpec.event := by
+          (EncodedBit.GateSpec.event .empty) := by
   let baseGates :
       List (EncodedBit.GateSpec
         (registersWithFullRoundWorkEncoding tail.succ counterWidth)) :=
@@ -761,17 +770,17 @@ private theorem liftedActiveOnlyGates_events_eq_source
     ((pathControlGates.map
       (EncodedBit.GateSpec.prodLeft
         (wordEncoding (2 * tail.succ)))).map
-          EncodedBit.GateSpec.event) =
-      baseGates.map EncodedBit.GateSpec.event
+          (EncodedBit.GateSpec.event .empty)) =
+      baseGates.map (EncodedBit.GateSpec.event .empty)
   calc
-    _ = pathControlGates.map EncodedBit.GateSpec.event :=
+    _ = pathControlGates.map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft
         (wordEncoding (2 * tail.succ)) pathControlGates
-    _ = pathGates.map EncodedBit.GateSpec.event := by
+    _ = pathGates.map (EncodedBit.GateSpec.event .empty) := by
       simpa only [pathControlGates] using
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool pathGates)
-    _ = baseGates.map EncodedBit.GateSpec.event := by
+    _ = baseGates.map (EncodedBit.GateSpec.event .empty) := by
       simpa only [pathGates] using
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool baseGates)
@@ -788,6 +797,7 @@ private theorem liftedActiveOnlyGates_xMultiplicity_sum
           tail counterWidth comparisonIndex historyIndex workIndex).map
         EncodedBit.GateSpec.xMultiplicity).sum :=
       EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
+        .empty
         (liftedActiveOnlyGates_events_eq_source tail counterWidth
           comparisonIndex historyIndex workIndex)
     _ = 4 * tail + 6 :=
@@ -806,6 +816,7 @@ private theorem liftedActiveOnlyGates_cnotMultiplicity_sum
           tail counterWidth comparisonIndex historyIndex workIndex).map
         EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (liftedActiveOnlyGates_events_eq_source tail counterWidth
           comparisonIndex historyIndex workIndex)
     _ = 4 * tail + 19 :=
@@ -824,6 +835,7 @@ private theorem liftedActiveOnlyGates_toffoliMultiplicity_sum
           tail counterWidth comparisonIndex historyIndex workIndex).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (liftedActiveOnlyGates_events_eq_source tail counterWidth
           comparisonIndex historyIndex workIndex)
     _ = 370 * tail + 2 * counterWidth +
@@ -923,9 +935,9 @@ private theorem resetWorkingPathGates_length
 private theorem originalActiveLatchGates_events_eq_source
     (tail counterWidth : Nat) :
     (originalActiveLatchGates tail counterWidth).map
-        EncodedBit.GateSpec.event =
+        (EncodedBit.GateSpec.event .empty) =
       (fullRoundPathWorkOriginalActiveLatchGates tail counterWidth).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   let baseGates :
       List (EncodedBit.GateSpec
         (registersWithFullRoundPathWorkEncoding tail.succ counterWidth)) :=
@@ -941,13 +953,13 @@ private theorem originalActiveLatchGates_events_eq_source
     ((controlGates.map
       (EncodedBit.GateSpec.prodLeft
         (wordEncoding (2 * tail.succ)))).map
-          EncodedBit.GateSpec.event) =
-      baseGates.map EncodedBit.GateSpec.event
+          (EncodedBit.GateSpec.event .empty)) =
+      baseGates.map (EncodedBit.GateSpec.event .empty)
   calc
-    _ = controlGates.map EncodedBit.GateSpec.event :=
+    _ = controlGates.map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft
         (wordEncoding (2 * tail.succ)) controlGates
-    _ = baseGates.map EncodedBit.GateSpec.event := by
+    _ = baseGates.map (EncodedBit.GateSpec.event .empty) := by
       simpa only [controlGates] using
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool baseGates)
@@ -960,6 +972,7 @@ private theorem originalActiveLatchGates_cnotMultiplicity_sum
     _ = ((fullRoundPathWorkOriginalActiveLatchGates
           tail counterWidth).map EncodedBit.GateSpec.cnotMultiplicity).sum :=
       EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
+        .empty
         (originalActiveLatchGates_events_eq_source tail counterWidth)
     _ = 1 := by
       simp [fullRoundPathWorkOriginalActiveLatchGates,
@@ -973,6 +986,7 @@ private theorem originalActiveLatchGates_toffoliMultiplicity_sum
     _ = ((fullRoundPathWorkOriginalActiveLatchGates
           tail counterWidth).map EncodedBit.GateSpec.toffoliMultiplicity).sum :=
       EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
+        .empty
         (originalActiveLatchGates_events_eq_source tail counterWidth)
     _ = 0 := by
       simp [fullRoundPathWorkOriginalActiveLatchGates,
@@ -1073,7 +1087,8 @@ def roundPrograms (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
-    List (UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding tail.succ
+      counterWidth).width)).toQuantum) :=
   [ originalActiveLatchProgram tail counterWidth
   , inactivePaddingProgram tail counterWidth
   , controlledActiveOnlyProgram tail counterWidth comparisonIndex
@@ -1128,11 +1143,12 @@ def roundProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding tail.succ
+      counterWidth).width)).toQuantum :=
   (roundPrograms tail counterWidth comparisonIndex workIndex roundIndex).foldr
     UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits (encoding tail.succ counterWidth).width)
-      [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding tail.succ counterWidth).width).toQuantum)
 
 /-- Structured action realized by the complete six-stage round ledger. -/
 def roundStep (tail counterWidth : Nat)
@@ -1189,10 +1205,11 @@ theorem roundGates_realizes
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (roundGates tail counterWidth comparisonIndex workIndex roundIndex))
       (roundStep tail counterWidth comparisonIndex workIndex roundIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (roundGates tail counterWidth comparisonIndex workIndex roundIndex)
     (roundGates_stepList_eq tail counterWidth comparisonIndex workIndex
       roundIndex)
@@ -1206,7 +1223,7 @@ theorem roundProgram_eventTrace
     (roundIndex : Fin (2 * tail.succ)) :
     (roundProgram tail counterWidth comparisonIndex workIndex roundIndex).eventTrace =
       (roundGates tail counterWidth comparisonIndex workIndex roundIndex).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   simp [roundProgram, roundPrograms, roundGates,
     originalActiveLatchProgram_eventTrace,
     inactivePaddingProgram_eventTrace,
@@ -1388,6 +1405,7 @@ theorem round_realizes (tail counterWidth : Nat)
       (roundStep tail counterWidth comparisonIndex workIndex roundIndex) :=
   UnitaryCircuit.Realizes.appendList
     (encoding tail.succ counterWidth)
+    (QubitLayout.canonical _)
     (roundPrograms tail counterWidth comparisonIndex workIndex roundIndex)
     (roundSteps tail counterWidth comparisonIndex workIndex roundIndex)
     (roundSchedules_forall₂_realizes tail counterWidth comparisonIndex
@@ -1403,11 +1421,15 @@ theorem roundProgram_gateList_applyNormalized_eq
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (roundProgram tail counterWidth comparisonIndex workIndex roundIndex).applyNormalized
         (NormalizedVector.ket
-          ((encoding tail.succ counterWidth).encode x)) =
-      (EncodedBit.GateSpec.programList
+          ((QubitLayout.canonical
+              (encoding tail.succ counterWidth).width).basisEquiv.symm
+            ((encoding tail.succ counterWidth).encode x))) =
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (roundGates tail counterWidth comparisonIndex workIndex roundIndex)).applyNormalized
           (NormalizedVector.ket
-            ((encoding tail.succ counterWidth).encode x)) := by
+            ((QubitLayout.canonical
+                (encoding tail.succ counterWidth).width).basisEquiv.symm
+              ((encoding tail.succ counterWidth).encode x))) := by
   rw [(round_realizes tail counterWidth comparisonIndex workIndex
     roundIndex).apply_encoded_ket]
   rw [(roundGates_realizes tail counterWidth comparisonIndex workIndex
@@ -1419,7 +1441,8 @@ theorem roundProgram_gateList_applyNormalized_eq
 def foldPrograms (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    List (UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width)) :=
+    List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding tail.succ
+      counterWidth).width)).toQuantum) :=
   List.ofFn fun roundIndex : Fin (2 * tail.succ) =>
     roundProgram tail counterWidth comparisonIndex workIndex roundIndex
 
@@ -1584,7 +1607,8 @@ theorem foldSteps_get (tail counterWidth : Nat)
 
 /-- Fixed-width relation used during schedule induction. -/
 abbrev FoldRealizesRelation (tail counterWidth : Nat)
-    (program : UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width))
+    (program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding
+      tail.succ counterWidth).width)).toQuantum)
     (step : RegistersWithRouteHistory tail.succ counterWidth ->
       RegistersWithRouteHistory tail.succ counterWidth) :
     Prop :=
@@ -1627,11 +1651,12 @@ theorem foldSchedules_forall₂_realizes
 def foldProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding tail.succ
+      counterWidth).width)).toQuantum :=
   (foldPrograms tail counterWidth comparisonIndex workIndex).foldr
     UnitaryCircuit.seq
-    (UnitaryCircuit.identity (Qubits (encoding tail.succ counterWidth).width)
-      [] (by simp))
+    (UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding tail.succ counterWidth).width).toQuantum)
 
 private theorem foldrSeq_roundPrograms_eventTrace
     (tail counterWidth : Nat)
@@ -1641,11 +1666,12 @@ private theorem foldrSeq_roundPrograms_eventTrace
       ((roundIndices.map
           (roundProgram tail counterWidth comparisonIndex workIndex)).foldr
         UnitaryCircuit.seq
-        (UnitaryCircuit.identity (Qubits (encoding tail.succ counterWidth).width)
-          [] (by simp))).eventTrace =
+        (UnitaryCircuit.identity AlgorithmGate.model .empty
+          (QubitLayout.canonical
+            (encoding tail.succ counterWidth).width).toQuantum)).eventTrace =
         (roundIndices.flatMap
           (roundGates tail counterWidth comparisonIndex workIndex)).map
-          EncodedBit.GateSpec.event
+          (EncodedBit.GateSpec.event .empty)
   | [] => by simp
   | roundIndex :: rest => by
       simp only [List.map_cons, List.foldr_cons, UnitaryCircuit.seq_eventTrace,
@@ -1661,7 +1687,7 @@ theorem foldProgram_eventTrace (tail counterWidth : Nat)
     (workIndex : Fin (counterWidth - 1)) :
     (foldProgram tail counterWidth comparisonIndex workIndex).eventTrace =
       (foldGates tail counterWidth comparisonIndex workIndex).map
-        EncodedBit.GateSpec.event := by
+        (EncodedBit.GateSpec.event .empty) := by
   simpa only [foldProgram, foldPrograms, foldGates, List.map_ofFn,
     Function.comp_def] using
     foldrSeq_roundPrograms_eventTrace tail counterWidth comparisonIndex
@@ -1674,7 +1700,7 @@ theorem foldProgram_eventCost_eq_gateList (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (foldProgram tail counterWidth comparisonIndex workIndex).eventCost =
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (foldGates tail counterWidth comparisonIndex workIndex)).eventCost := by
   calc
     (foldProgram tail counterWidth comparisonIndex workIndex).eventCost =
@@ -1684,9 +1710,9 @@ theorem foldProgram_eventCost_eq_gateList (tail counterWidth : Nat)
       exact UnitaryCircuit.ofList_eventTrace_eq_eventCost _
     _ = ResourcePool.ofList
           ((foldGates tail counterWidth comparisonIndex workIndex).map
-            EncodedBit.GateSpec.event) := by
+            (EncodedBit.GateSpec.event .empty)) := by
       rw [foldProgram_eventTrace]
-    _ = (EncodedBit.GateSpec.programList
+    _ = (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
           (foldGates tail counterWidth comparisonIndex workIndex)).eventCost := by
       rw [← EncodedBit.GateSpec.programList_eventTrace]
       exact UnitaryCircuit.ofList_eventTrace_eq_eventCost _
@@ -1751,10 +1777,11 @@ theorem foldGates_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (EncodedBit.GateSpec.programList
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (foldGates tail counterWidth comparisonIndex workIndex))
       (foldStep tail counterWidth comparisonIndex workIndex) :=
   EncodedBit.GateSpec.realizesList_congrStep
+    (QubitLayout.canonical _) .empty
     (foldGates tail counterWidth comparisonIndex workIndex)
     (foldStep_eq_gateList tail counterWidth comparisonIndex workIndex)
 
@@ -2168,6 +2195,7 @@ theorem fold_realizes (tail counterWidth : Nat)
       (foldStep tail counterWidth comparisonIndex workIndex) :=
   UnitaryCircuit.Realizes.appendList
     (encoding tail.succ counterWidth)
+    (QubitLayout.canonical _)
     (foldPrograms tail counterWidth comparisonIndex workIndex)
     (foldSteps tail counterWidth comparisonIndex workIndex)
     (foldSchedules_forall₂_realizes
@@ -2182,11 +2210,15 @@ theorem foldProgram_gateList_applyNormalized_eq
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (foldProgram tail counterWidth comparisonIndex workIndex).applyNormalized
         (NormalizedVector.ket
-          ((encoding tail.succ counterWidth).encode x)) =
-      (EncodedBit.GateSpec.programList
+          ((QubitLayout.canonical
+              (encoding tail.succ counterWidth).width).basisEquiv.symm
+            ((encoding tail.succ counterWidth).encode x))) =
+      (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (foldGates tail counterWidth comparisonIndex workIndex)).applyNormalized
           (NormalizedVector.ket
-            ((encoding tail.succ counterWidth).encode x)) := by
+            ((QubitLayout.canonical
+                (encoding tail.succ counterWidth).width).basisEquiv.symm
+              ((encoding tail.succ counterWidth).encode x))) := by
   rw [(fold_realizes tail counterWidth comparisonIndex workIndex).apply_encoded_ket]
   rw [(foldGates_realizes tail counterWidth comparisonIndex workIndex).apply_encoded_ket]
 
@@ -2245,8 +2277,10 @@ theorem foldInverseStep_foldStep (tail counterWidth : Nat)
 def foldInverseProgram (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
-    UnitaryCircuit (Qubits (encoding tail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((encoding tail.succ
+      counterWidth).width)).toQuantum :=
   (foldProgram tail counterWidth comparisonIndex workIndex).dagger
+    (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The actual reversed circuit realizes the selected semantic inverse. -/
 theorem foldInverse_realizes (tail counterWidth : Nat)
@@ -2258,6 +2292,9 @@ theorem foldInverse_realizes (tail counterWidth : Nat)
       (foldInverseStep tail counterWidth comparisonIndex workIndex) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse
     (fold_realizes tail counterWidth comparisonIndex workIndex)
+    (by
+      rw [foldInverseProgram, UnitaryCircuit.dagger_matrix]
+      exact Unitary.star_eq_inv _)
     (foldStep_compute_rightInverse tail counterWidth comparisonIndex workIndex)
 
 /-- The reversed actual circuit cleans every route-history bit and all other
@@ -2269,9 +2306,14 @@ theorem foldInverseProgram_cleans_route_history
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (foldInverseProgram tail counterWidth comparisonIndex workIndex).applyNormalized
         (NormalizedVector.ket
-          ((encoding tail.succ counterWidth).encode
-            (foldStep tail counterWidth comparisonIndex workIndex x))) =
-      NormalizedVector.ket ((encoding tail.succ counterWidth).encode x) := by
+          ((QubitLayout.canonical
+              (encoding tail.succ counterWidth).width).basisEquiv.symm
+            ((encoding tail.succ counterWidth).encode
+              (foldStep tail counterWidth comparisonIndex workIndex x)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical
+            (encoding tail.succ counterWidth).width).basisEquiv.symm
+          ((encoding tail.succ counterWidth).encode x)) := by
   rw [(foldInverse_realizes tail counterWidth comparisonIndex
     workIndex).apply_encoded_ket]
   rw [foldInverseStep_foldStep]

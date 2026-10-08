@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Placement.Framing
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Placement.Correctness
+import all QuantumAlg.Core.Execution.Context.Union.Preparation.Density
 
 /-!
 # Full point action with a physically resident correlated frame
@@ -29,12 +30,13 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 private theorem split_marginal (left right : RuntimeCtx .quantum)
-    (separate : RuntimeCtx.StorageDisjoint left right) {Reference : Register} {H : Type}
-    [Fintype H] (original : State (left.disjointUnion right separate) Reference H) :
-    (ContextUnion.splitState left right separate original).quantumMarginal =
+    (separate : RuntimeCtx.StorageDisjoint left right) {Reference : Register}
+    {Hidden H : Type} [Fintype Hidden] [Fintype H]
+    (original : State (left.disjointUnion right separate) Reference (Hidden × H)) :
+    (ContextUnion.splitServiceState left right separate original).quantumMarginal =
       original.quantumMarginal.reindex
-        (ContextUnion.referenceBasis left right separate Reference) := by
-  rw [ContextUnion.splitState, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
+        (ContextUnion.referenceBasis left right separate Reference) :=
+  ContextUnion.contextUnion_splitServiceState_quantumMarginal left right separate original
 
 /-- The original point domain is read from its mapped systems inside the complete resident union. -/
 def admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
@@ -65,7 +67,8 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint (Placement.context p.size keys physical) frame)
     {Reference : Register} {H : Type} [Fintype H]
-    (original : State (context p.size keys physical frame separate) Reference H)
+    (original : State (context p.size keys physical frame separate) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input :
       (Register.prod (context p.size keys physical frame separate).register Reference).Index,
       ¬admissible E Q keys physical frame separate input.1 →
@@ -75,7 +78,7 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         original.quantumMarginal := by
   let coordinates := ContextUnion.referenceBasis
     (Placement.context p.size keys physical) frame separate Reference
-  let splitInput := ContextUnion.splitState
+  let splitInput := ContextUnion.splitServiceState
     (Placement.context p.size keys physical) frame separate original
   have splitSupport : ∀ input :
       (Register.prod (Placement.context p.size keys physical).register
@@ -97,16 +100,10 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     rw [returns]
     exact outside
   have execution := body_execute E Q keys physical frame separate original
-  have marginal := congrArg (fun result : State (Placement.context p.size keys physical)
-    (Register.prod frame.register Reference)
-    (Store frame × (H × (body E Q keys physical frame separate).Path)) =>
-      result.quantumMarginal) execution
-  let histories := fun record : (Store frame × H) × (Placement.body E Q keys physical).Path =>
-    (record.1.1, (record.1.2, ContextUnion.frameLocalPathEquiv _
-      (Placement.body_isLocal E Q keys physical) frame separate record.2))
+  have marginal := congrArg (fun result => result.quantumMarginal) execution
   have collapsed := marginal.trans (State.mapHistory_quantumMarginal
     ((Placement.body E Q keys physical).execute (Register.prod frame.register Reference) splitInput)
-    histories)
+    _)
   rw [Placement.body_density E Q keys physical splitInput splitSupport,
     split_marginal, split_marginal] at collapsed
   have result := congrArg (fun density => density.reindex coordinates.symm) collapsed

@@ -36,14 +36,14 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-variable {ctx : RuntimeCtx .quantum}
+variable {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
 
 /-- Execute the real scoped reset and then the real placed reload gate sequence. -/
 def code (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (reload : UnitaryCircuit ctx.register) (placed : reload.physical_idx = ctx.physicalIdx) :
-    Circuit ctx ctx :=
-  .seq (BankScope.code qubits) (.unitary reload placed)
+    (reload : UnitaryCircuit AlgorithmGate.model oracles ctx.quantumLayout) :
+    Circuit (.quantum AlgorithmGate.model oracles) ctx ctx :=
+  .seq (BankScope.code (oracles := oracles) qubits) (.unitary reload)
 
 private theorem local_basis_block {R Reference : Register} (program : UnitaryOperator R)
     (state : DensityOperator (Register.prod R Reference)) (zero : R.Index)
@@ -60,7 +60,9 @@ private theorem local_basis_block {R Reference : Register} (program : UnitaryOpe
     ite_and, mul_ite, mul_zero, ite_mul, zero_mul, Finset.sum_ite_eq',
     Finset.mem_univ, if_true]
 
-private theorem reload_column (reload : UnitaryCircuit ctx.register) (seed : ctx.register.Index)
+private theorem reload_column
+    (reload : UnitaryCircuit AlgorithmGate.model oracles ctx.quantumLayout)
+    (seed : ctx.register.Index)
     (action : reload.applyNormalized
       (NormalizedVector.ket (R := ctx.register) ctx.quantumLayout.zeroLabel) =
         NormalizedVector.ket (R := ctx.register) seed) (row : ctx.register.Index) :
@@ -75,16 +77,18 @@ private theorem reload_column (reload : UnitaryCircuit ctx.register) (seed : ctx
 /-- Every complete actual classical store keeps its reference block and receives the exact seed. -/
 theorem zResetReload_store_entry
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
-    (reload : UnitaryCircuit ctx.register) (placed : reload.physical_idx = ctx.physicalIdx)
+    (reload : UnitaryCircuit AlgorithmGate.model oracles ctx.quantumLayout)
     (seed : ctx.register.Index)
     (action : reload.applyNormalized
       (NormalizedVector.ket (R := ctx.register) ctx.quantumLayout.zeroLabel) =
         NormalizedVector.ket (R := ctx.register) seed)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference History) (original : Store ctx)
+    (state : State ctx Reference
+      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History))
+    (original : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((code qubits reload placed).execute Reference state)
+      ((code qubits reload).execute Reference state)
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       NormalizedVector.ket (R := ctx.register) seed left *
@@ -92,27 +96,35 @@ theorem zResetReload_store_entry
           (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix
             (basis, leftRef) (basis, rightRef)) *
         star (NormalizedVector.ket (R := ctx.register) seed right) := by
-  let reset := BankScope.code qubits
-  let reloadCode := Circuit.unitary reload placed
+  let reset := BankScope.code (oracles := oracles) qubits
+  let reloadCode : Circuit (.quantum AlgorithmGate.model oracles) ctx ctx :=
+    .unitary reload
   let predicate := fun store : Store ctx => store = original
   let resetState := reset.execute Reference state
   let reloaded := reloadCode.execute Reference resetState
-  let reassociate := fun history : (History × reset.Path) × reloadCode.Path =>
-    (history.1.1, (history.1.2, history.2))
+  let reassociate := fun history :
+      (ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
+        ((History × reset.Path) × reloadCode.Path) =>
+    (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))
   have executed := congrArg
-    (fun output : State ctx Reference (History × (Circuit.seq reset reloadCode).Path) =>
+    (fun output : State ctx Reference
+      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
+        (History × (Circuit.seq reset reloadCode).Path)) =>
       (output.filterClassical (fun entry => predicate entry.1)).quantumMarginal)
     (Circuit.execute_seq reset reloadCode state)
   have history := congrArg ExecutionState.quantumMarginal
     (ZReset.filter_mapHistory (ctx := ctx) (Reference := Reference)
-      (History := (History × reset.Path) × reloadCode.Path)
-      (Later := History × (reset.Path × reloadCode.Path))
+      (History := (ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
+        ((History × reset.Path) × reloadCode.Path))
+      (Later := (ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
+        (History × (reset.Path × reloadCode.Path)))
       reloaded reassociate predicate)
   have erased := State.mapHistory_quantumMarginal
     (reloaded.filterClassical (fun entry => predicate entry.1)) reassociate
   have filtered := congrArg ExecutionState.quantumMarginal
-    (ZReset.filter_unitary resetState reload placed predicate)
-  have acted := Circuit.unitary_jointDensity reload placed
+    (ZReset.filter_unitary resetState reload predicate)
+  have acted := Circuit.unitary_jointDensity (operations := .empty)
+    (services := .empty) reload
     (resetState.filterClassical (fun entry => predicate entry.1))
   have composed := executed.trans (history.trans (erased.trans (filtered.trans acted)))
   refine (congrArg

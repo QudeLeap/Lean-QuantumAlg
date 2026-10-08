@@ -8,10 +8,12 @@ module
 
 import all QuantumAlg.Components.Oracle.ZeroReflection.Small.Program
 import all QuantumAlg.Components.Oracle.ZeroReflection.OneDirty.Program
-import all QuantumAlg.Components.Oracle.ZeroReflection.Support
 import all QuantumAlg.Components.Oracle.ZeroReflection.Resources
 import all QuantumAlg.Components.Oracle.ZeroReflection
-import all QuantumAlg.Core.Base.UnitaryCircuit.IdleSuffix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
+import all QuantumAlg.Core.Base.Layout.Qubit
 import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
 import all QuantumAlg.Core.Base.UnitaryCircuit
 import all QuantumAlg.Core.Base.Tensor.Certified
@@ -46,90 +48,118 @@ theorem helperWidth_large (n k : Nat) (nonzero : k ≠ 0) (large : ¬n ≤ 3) :
     helperWidth n k = 1 := by
   simp [helperWidth, nonzero, large]
 
-/-- The exact elementary source reflection is selected only for an executed iteration. -/
-def reflection : (n k : Nat) → k ≠ 0 → UnitaryCircuit (Qubits (totalQubits n k))
-  | 0, k, _ => (ZeroReflection.Small.program 0 (by omega)).idleSuffix
-      (ZeroReflection.Small.program_physical_idx_subset_range 0 (by omega)) (helperWidth 0 k)
+private abbrev physical (width : Nat) : QubitLayout width where
+  physical_idx := Fin.val
+  physical_idx_injective := Fin.val_injective
+
+private def castCircuit (oracles : OracleModel) {left right : Nat} (same : left = right)
+    (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
+    UnitaryCircuit AlgorithmGate.model oracles (physical right).toQuantum := same ▸ body
+
+private theorem castCircuit_matrix (oracles : OracleModel) {left right : Nat}
+    (same : left = right)
+    (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
+    (castCircuit oracles same body).binaryMatrix =
+      UnitaryOperator.reindex (finCongr (congrArg (fun width => 2 ^ width) same))
+        body.binaryMatrix := by
+  cases same
+  apply Subtype.ext
+  rfl
+
+private theorem castCircuit_eventCost (oracles : OracleModel) {left right : Nat}
+    (same : left = right)
+    (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
+    (castCircuit oracles same body).eventCost = body.eventCost := by
+  cases same
+  rfl
+
+private theorem castCircuit_unitDepth (oracles : OracleModel) {left right : Nat}
+    (same : left = right)
+    (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
+    (castCircuit oracles same body).evaluatedEventDepth (fun _ => 1) =
+      body.evaluatedEventDepth (fun _ => 1) := by
+  cases same
+  rfl
+
+/-- Execute a source reflection with precisely the selected existing work suffix. -/
+def reflection (oracles : OracleModel) : (n k : Nat) → k ≠ 0 →
+    UnitaryCircuit AlgorithmGate.model oracles
+      (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout
+  | 0, k, _ => (Small.program oracles 0 (physical 0) (by omega)).onBinaryPrefix
+      (helperWidth 0 k)
   | n + 1, k, nonzero =>
       if small : n + 1 ≤ 3 then
-        (ZeroReflection.Small.program (n + 1) small).idleSuffix
-          (ZeroReflection.Small.program_physical_idx_subset_range (n + 1) small)
+        (Small.program oracles (n + 1) (physical (n + 1)) small).onBinaryPrefix
           (helperWidth (n + 1) k)
       else
-        UnitaryCircuit.reindex
-          (finCongr (congrArg (fun width : Nat => 2 ^ width)
-            (show n + 1 + 1 = totalQubits (n + 1) k by
-              rw [totalQubits, helperWidth_large (n + 1) k nonzero small])))
-          (ZeroReflection.OneDirty.program n)
+        castCircuit oracles
+          (show n + 1 + 1 = totalQubits (n + 1) k by
+            rw [totalQubits, helperWidth_large (n + 1) k nonzero small])
+          (OneDirty.program oracles n (physical (n + 1 + 1)))
 
-theorem reflection_contained (n k : Nat) (nonzero : k ≠ 0) :
-    (reflection n k nonzero).physical_idx ⊆ List.range (totalQubits n k) := by
+/-- Full matrix equality preserves the entire arbitrary work suffix and its correlations. -/
+theorem reflection_matrix (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
+    (reflection oracles n k nonzero).binaryMatrix =
+      UnitaryOperator.tensor (zeroReflectionOperator n)
+        (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   cases n with
   | zero =>
-      exact UnitaryCircuit.idleSuffix_physical_idx_subset_range
-        (ZeroReflection.Small.program 0 (by omega))
-        (ZeroReflection.Small.program_physical_idx_subset_range 0 (by omega)) (helperWidth 0 k)
+      rw [reflection, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
+      exact congrArg (fun operator => operator.tensor
+        (1 : UnitaryOperator (Qubits (helperWidth 0 k))))
+        (Small.program_matrix oracles 0 (physical 0) (by omega))
   | succ n =>
       by_cases small : n + 1 ≤ 3
-      · rw [reflection, dif_pos small]
-        exact UnitaryCircuit.idleSuffix_physical_idx_subset_range _ _ _
-      · rw [reflection, dif_neg small]
-        change (ZeroReflection.OneDirty.program n).physical_idx ⊆ List.range (totalQubits (n + 1) k)
-        rw [totalQubits, helperWidth_large (n + 1) k nonzero small]
-        exact ZeroReflection.OneDirty.program_physical_idx_subset_range n
-
-theorem reflection_matrix (n k : Nat) (nonzero : k ≠ 0) :
-    (reflection n k nonzero).matrix =
-      UnitaryOperator.tensor (ZeroReflection.zeroReflectionOperator n)
-      (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
-  cases n with
-  | zero =>
-      rw [reflection, UnitaryCircuit.idleSuffix_matrix, ZeroReflection.Small.program_matrix]
-  | succ n =>
-      by_cases small : n + 1 ≤ 3
-      · rw [reflection, dif_pos small, UnitaryCircuit.idleSuffix_matrix,
-          ZeroReflection.Small.program_matrix]
-      · rw [reflection, dif_neg small, UnitaryCircuit.reindex_matrix,
-          ZeroReflection.OneDirty.program_matrix]
+      · rw [reflection, dif_pos small, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
+        exact congrArg (fun operator => operator.tensor
+          (1 : UnitaryOperator (Qubits (helperWidth (n + 1) k))))
+          (Small.program_matrix oracles (n + 1) (physical (n + 1)) small)
+      · rw [reflection, dif_neg small, castCircuit_matrix]
+        have actual := OneDirty.program_matrix oracles n (physical (n + 1 + 1))
+        change (OneDirty.program oracles n (physical (n + 1 + 1))).binaryMatrix = _ at actual
+        rw [actual]
         have transport (suffix : Nat) (same : 1 = suffix) :
             UnitaryOperator.reindex
               (finCongr (congrArg (fun width : Nat => 2 ^ width)
                 (congrArg (fun extra => n + 1 + extra) same)))
-              (UnitaryOperator.tensor (ZeroReflection.zeroReflectionOperator (n + 1))
+              (UnitaryOperator.tensor (zeroReflectionOperator (n + 1))
                 (1 : UnitaryOperator (Qubits 1))) =
-              UnitaryOperator.tensor (ZeroReflection.zeroReflectionOperator (n + 1))
+              UnitaryOperator.tensor (zeroReflectionOperator (n + 1))
                 (1 : UnitaryOperator (Qubits suffix)) := by
           cases same
+          apply Subtype.ext
           rfl
         exact transport (helperWidth (n + 1) k)
           (helperWidth_large (n + 1) k nonzero small).symm
 
-theorem reflection_eventCost (n k : Nat) (nonzero : k ≠ 0) :
-    (reflection n k nonzero).eventCost = ZeroReflection.elementaryEventPool n := by
+/-- Actual native multiplicities agree with the independently stated source-width budget. -/
+theorem reflection_eventCost (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
+    (reflection oracles n k nonzero).eventCost = elementaryEventPool oracles n := by
   cases n with
   | zero =>
-      rw [reflection, UnitaryCircuit.idleSuffix_eventCost, ZeroReflection.Small.program_eventCost]
+      rw [reflection, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost]
+      exact Small.program_eventCost oracles 0 (physical 0) (by omega)
   | succ n =>
       by_cases small : n + 1 ≤ 3
-      · rw [reflection, dif_pos small, UnitaryCircuit.idleSuffix_eventCost,
-          ZeroReflection.Small.program_eventCost]
-      · rw [reflection, dif_neg small, UnitaryCircuit.reindex_eventCost]
-        exact ZeroReflection.OneDirty.program_eventCost n (by omega)
+      · rw [reflection, dif_pos small, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost]
+        exact Small.program_eventCost oracles (n + 1) (physical (n + 1)) small
+      · rw [reflection, dif_neg small, castCircuit_eventCost]
+        exact OneDirty.program_eventCost oracles n (physical (n + 1 + 1)) (by omega)
 
-theorem reflection_unitDepth (n k : Nat) (nonzero : k ≠ 0) :
-    (reflection n k nonzero).evaluatedEventDepth (fun _ => 1) =
-      ZeroReflection.elementaryGateCount n := by
+/-- The complete native sequence retains its independently bounded dependency depth. -/
+theorem reflection_unitDepth (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
+    (reflection oracles n k nonzero).evaluatedEventDepth (fun _ => 1) =
+      elementaryGateCount n := by
   cases n with
   | zero =>
-      rw [reflection, UnitaryCircuit.idleSuffix_evaluatedEventDepth,
-        ZeroReflection.Small.program_unitDepth]
+      rw [reflection, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_unit_depth]
+      exact Small.program_unitDepth oracles 0 (physical 0) (by omega)
   | succ n =>
       by_cases small : n + 1 ≤ 3
-      · rw [reflection, dif_pos small, UnitaryCircuit.idleSuffix_evaluatedEventDepth,
-          ZeroReflection.Small.program_unitDepth]
-      · rw [reflection, dif_neg small]
-        change (ZeroReflection.OneDirty.program n).evaluatedEventDepth (fun _ => 1) = _
-        exact ZeroReflection.OneDirty.program_unitDepth n (by omega)
+      · rw [reflection, dif_pos small, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_unit_depth]
+        exact Small.program_unitDepth oracles (n + 1) (physical (n + 1)) small
+      · rw [reflection, dif_neg small, castCircuit_unitDepth]
+        exact OneDirty.program_unitDepth oracles n (physical (n + 1 + 1)) (by omega)
 
 end
 

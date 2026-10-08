@@ -102,18 +102,22 @@ theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
       cellKey, LatticeSecondPairMachine.cellKey] using keyNe
 
 /-- The actual prefix preserves all reads outside its embedded writable footprint. -/
-theorem prefix_frame (refs : Refs ctx width) (store : Store ctx)
+theorem prefix_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs prefixCells other) :
-    (LatticeSecondPairMachine.secondPairPrefixStep refs.machine store).1.read other =
+    (LatticeSecondPairMachine.secondPairPrefixStep (model := model) refs.machine store).1.read
+      other =
       store.read other := by
   apply LatticeSecondPairMachine.secondPairPrefixInto_callerFrame refs.machine store other
   intro cell member
   exact avoids (.transition cell) (List.mem_map.mpr ⟨cell, member, rfl⟩)
 
 /-- The actual final direction preserves reads outside its original embedded writes. -/
-theorem post_frame (refs : Refs ctx width) (store : Store ctx)
+theorem post_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs postCells other) :
-    (LatticeSecondPairPostReduction.postReductionStep refs.post store).1.read other =
+    (LatticeSecondPairPostReduction.postReductionStep (model := model) refs.post store).1.read
+      other =
       store.read other := by
   apply LatticeSecondPairPostReduction.postReductionInto_callerFrame refs.post store other
   rw [refs.postMachine]
@@ -155,26 +159,29 @@ theorem branch_key (refs : Refs ctx width) (cell : LatticeSecondLovaszBranch.Bra
     refs.branchBasis, LatticeSecondPairMachine.cellKey]
 
 /-- Actual comparison and selected row exchange preserve reads outside their global footprint. -/
-theorem branch_frame (refs : Refs ctx width) (store : Store ctx)
+theorem branch_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs branchCells other) :
-    (LatticeSecondLovaszBranch.branchStep refs.branch store).1.read other = store.read other := by
+    (LatticeSecondLovaszBranch.branchStep (model := model) refs.branch store).1.read other =
+      store.read other := by
   apply LatticeSecondLovaszBranch.branchInto_callerFrame refs.branch store other
   intro cell member
   rw [branch_key]
   exact avoids (branchCell cell) (List.mem_map.mpr ⟨cell, member, rfl⟩)
 
 /-- Both actual area refreshes and the selected exchange preserve all reads outside their writes. -/
-theorem areaBranch_frame (refs : Refs ctx width) (store : Store ctx)
+theorem areaBranch_frame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs areaBranchCells other) :
-    (areaBranchStep refs store).1.read other = store.read other := by
+    (areaBranchStep (model := model) refs store).1.read other = store.read other := by
   have area12 : FrameAvoids refs area12Cells other := fun cell member =>
     avoids cell (by simp [areaBranchCells, member])
   have area13 : FrameAvoids refs area13Cells other := fun cell member =>
     avoids cell (by simp [areaBranchCells, member])
   have branch : FrameAvoids refs branchCells other := fun cell member =>
     avoids cell (by simp [areaBranchCells, member])
-  change (LatticeSecondLovaszBranch.branchStep refs.branch
+  change (LatticeSecondLovaszBranch.branchStep (model := model) refs.branch
     (LatticeAreaRefresh.refreshStore refs.machine.basis.first refs.machine.basis.third refs.area13
       (LatticeAreaRefresh.refreshStore refs.machine.basis.first refs.machine.basis.second
         refs.area12 store))).1.read other = _
@@ -182,18 +189,21 @@ theorem areaBranch_frame (refs : Refs ctx width) (store : Store ctx)
     area12_frame refs _ other area12]
 
 /-- All five actual second-pair stages preserve the complete caller frame outside their writes. -/
-theorem secondPairInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+theorem secondPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :
-    (secondPairStep refs store).1.read other = store.read other := by
+    (secondPairStep (model := model) refs store).1.read other = store.read other := by
   have prefixPhase : FrameAvoids refs prefixCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
   have post : FrameAvoids refs postCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
   have suffix : FrameAvoids refs areaBranchCells other := fun cell member =>
     avoids cell (by simp [mutableCells, member])
-  change (areaBranchStep refs (LatticeSecondPairPostReduction.postReductionStep refs.post
-    (LatticeSecondPairMachine.secondPairPrefixStep refs.machine store).1).1).1.read other = _
+  change (areaBranchStep (model := model) refs
+    (LatticeSecondPairPostReduction.postReductionStep (model := model) refs.post
+      (LatticeSecondPairMachine.secondPairPrefixStep (model := model)
+        refs.machine store).1).1).1.read other = _
   rw [areaBranch_frame refs _ other suffix, post_frame refs _ other post,
     prefix_frame refs _ other prefixPhase]
 

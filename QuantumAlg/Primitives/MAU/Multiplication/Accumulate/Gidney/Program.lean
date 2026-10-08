@@ -28,8 +28,10 @@ open Nat.FixedWidth
 
 /-- Execute the first in-bounds source-bit stages in their actual sequential order. -/
 def prefixProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    (count : Nat) → count ≤ width → UnitaryCircuit (Qubits (encoding width).width)
-  | 0, _ => UnitaryCircuit.identity (Qubits (encoding width).width) [] (by simp)
+    (count : Nat) → count ≤ width → UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum
+  | 0, _ => UnitaryCircuit.identity AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum
   | index + 1, within => (prefixProgram width modulus coefficient index (by omega)).seq
       (stageProgram width ⟨index, by omega⟩ modulus
         (accumulateConstant modulus coefficient index))
@@ -46,7 +48,8 @@ theorem gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width 
       (prefixOutput modulus coefficient count) := by
   induction count with
   | zero =>
-      apply (UnitaryCircuit.Realizes.identity (encoding width)).congrStep
+      apply (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        (encoding width) (QubitLayout.canonical (encoding width).width)).congrStep
       rintro ⟨source, target⟩
       rfl
   | succ index ih =>
@@ -55,19 +58,6 @@ theorem gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width 
           (accumulateConstant modulus coefficient index))).congrStep
       rintro ⟨source, target⟩
       rfl
-
-theorem gidneyAccumulatePrefix_physical_range (width : Nat)
-    (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width) :
-    (prefixProgram width modulus coefficient count within).physical_idx ⊆
-      List.range (2 * width) := by
-  induction count with
-  | zero =>
-      intro wire membership
-      cases membership
-  | succ index ih =>
-      exact UnitaryCircuit.seq_physical_idx_subset _ _ (ih (by omega))
-        (gidneyStage_physical_range width ⟨index, by omega⟩ modulus
-          (accumulateConstant modulus coefficient index))
 
 /-- The circuit-facing independent event envelope is linear in the number of scanned bits. -/
 theorem gidneyAccumulatePrefix_event_count_bound (width : Nat)
@@ -88,32 +78,24 @@ theorem gidneyAccumulatePrefix_event_count_bound (width : Nat)
         (accumulateConstant modulus coefficient index)
       omega
 
-/-- The final zero-event identity declares the complete existing source and target carrier. -/
+/-- The complete selected-add sequence on the original two-word carrier. -/
 def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    UnitaryCircuit (Qubits (encoding width).width) :=
-  (prefixProgram width modulus coefficient width (Nat.le_refl width)).seq
-    (UnitaryCircuit.identity (Qubits (encoding width).width) (List.range (2 * width))
-      List.nodup_range)
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (encoding width).width).toQuantum :=
+  prefixProgram width modulus coefficient width (Nat.le_refl width)
 
 /-- Exact all-label coherent action of the actual complete multiply-accumulate program. -/
 theorem gidneyAccumulate_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient)
-      (prefixOutput modulus coefficient width) := by
-  apply ((gidneyAccumulatePrefix_realizes width modulus coefficient width (Nat.le_refl width)).seq
-    (UnitaryCircuit.Realizes.identityAt (encoding width) (List.range (2 * width))
-      List.nodup_range)).congrStep
-  intro state
-  rfl
+      (prefixOutput modulus coefficient width) :=
+  gidneyAccumulatePrefix_realizes width modulus coefficient width (Nat.le_refl width)
 
-/-- Every original source and target wire is present; no external borrowed bit is allocated. -/
-theorem gidneyAccumulate_physical (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : Nat) :
-    (program width modulus coefficient).physical_idx = List.range (2 * width) := by
-  change (prefixProgram width modulus coefficient width (Nat.le_refl width)).physical_idx ∪
-    List.range (2 * width) = List.range (2 * width)
-  exact (gidneyAccumulatePrefix_physical_range width modulus coefficient width
-    (Nat.le_refl width)).union_eq_right
+/-- The complete carrier is the original source and target, with no external borrowed bit. -/
+theorem gidneyAccumulate_interface (width : Nat) :
+    (encoding width).width = 2 * width ∧
+      (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
+  gidneyStage_interface width
 
 /-- Complete source preservation is part of the independent output on every label. -/
 theorem gidneyAccumulate_source (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -138,21 +120,19 @@ theorem gidneyAccumulate_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
 /-- The actual full program meets the independently stated numerical event envelope. -/
 theorem gidneyAccumulate_event_count_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
-    (program width modulus coefficient).eventCost.card ≤ width * stageEventBound width := by
-  change ((prefixProgram width modulus coefficient width (Nat.le_refl width)).seq
-    (UnitaryCircuit.identity (Qubits (encoding width).width)
-      (List.range (2 * width)) List.nodup_range)).eventCost.card ≤ _
-  rw [UnitaryCircuit.seq_eventCost, UnitaryCircuit.identity_eventCost, add_zero]
-  exact gidneyAccumulatePrefix_event_count_bound width modulus coefficient width (Nat.le_refl width)
+    (program width modulus coefficient).eventCost.card ≤ width * stageEventBound width :=
+  gidneyAccumulatePrefix_event_count_bound width modulus coefficient width (Nat.le_refl width)
 
 /-- External encoded references are preserved jointly by the exact two-word circuit. -/
 theorem gidneyAccumulate_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
-      (UnitaryCircuit.prodLeft (n := reference.width) (program width modulus coefficient))
+      (layout := QubitLayout.canonical ((encoding width).width + reference.width))
+      (UnitaryCircuit.onBinaryPrefix reference.width (program width modulus coefficient))
       (fun state => (prefixOutput modulus coefficient width state.1, state.2)) :=
-  (gidneyAccumulate_realizes width modulus coefficient).prodLeft
+  UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
+    (gidneyAccumulate_realizes width modulus coefficient)
 
 end
 

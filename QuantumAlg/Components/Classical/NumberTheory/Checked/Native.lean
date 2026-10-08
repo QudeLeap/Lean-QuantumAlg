@@ -44,12 +44,14 @@ def checkedRawOutputs (cells : Cells ctx (checkedInverseShapes width)) :
   rightCoefficient := (cellAt cells ⟨0, by change 0 < 4; decide⟩).ref
 
 /-- The original checked inverse uses its own real modulus loader and four internal cells. -/
-def withCheckedInverse (spec : ModulusSpec width)
+def withCheckedInverse {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width)) :
-    Circuit ctx ctx :=
+    Circuit model ctx ctx :=
   withCells ctx (checkedInverseShapes width) fun cells _ transport _ =>
-    checkedInverseBody spec (transport.liftInput denominator) (checkedModulusCell cells)
+    checkedInverseBody (model := model) spec
+      (transport.liftInput denominator) (checkedModulusCell cells)
       (checkedRawOutputs cells) (transport.liftWrite success) (transport.liftWrite inverse)
 
 end

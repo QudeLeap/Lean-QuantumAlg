@@ -20,8 +20,10 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
+omit [BitWord.Selected model] in
 private theorem positiveSeed_frame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (wide : refs.candidateWide.key ∉ other.storageKeys)
@@ -30,6 +32,7 @@ private theorem positiveSeed_frame (refs : Refs ctx shortWidth) (store : Store c
   (Store.read_applyOp_of_not_mem_storageKeys _ (belowOp refs) other below).trans
     (Store.read_applyOp_of_not_mem_storageKeys store (widenOp refs) other wide)
 
+omit [BitWord.Selected model] in
 private theorem widened_value (refs : Refs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (widenOp refs)).read (writeInput refs.candidateWide)).toNat =
       (store.read refs.candidate).toNat := by
@@ -44,6 +47,7 @@ private theorem widened_value (refs : Refs ctx shortWidth) (store : Store ctx) :
   exact (store.read refs.candidate).toNat_lt.trans_le
     (Nat.pow_le_pow_right (by omega) widthLe)
 
+omit [BitWord.Selected model] in
 private theorem below_value (refs : Refs ctx shortWidth) (separation : PositiveSeparation refs)
     (store : Store ctx) :
     ((positiveSeed refs store).read (writeInput refs.belowModulus)).toBool =
@@ -56,6 +60,7 @@ private theorem below_value (refs : Refs ctx shortWidth) (separation : PositiveS
   rw [widened_value, Store.read_applyOp_of_not_mem_storageKeys store (widenOp refs)
     refs.modulus separation.modulusAvoidsWide]
 
+omit [BitWord.Selected model] in
 private theorem combine_value (refs : Refs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (combineOp refs)).read (writeInput refs.eligible)).toBool =
       ((store.read (writeInput refs.belowModulus)).toBool &&
@@ -113,6 +118,7 @@ theorem positiveInto_correct (refs : Refs ctx shortWidth) (separation : Positive
   rw [combine_value, belowFrame, below_value refs separation store, accepted]
   simp only [Bool.decide_and]
 
+omit [BitWord.Selected model] in
 private theorem decision_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (decisionOp refs)).read (writeInput refs.greaterThanOne)).toBool =
       decide ((store.read refs.one).toNat < (store.read refs.positiveCheck.candidate).toNat) := by
@@ -121,6 +127,7 @@ private theorem decision_value (refs : TotalRefs ctx shortWidth) (store : Store 
   rw [Store.read_applyOp_output]
   rfl
 
+omit [BitWord.Selected model] in
 private theorem reject_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (rejectOp refs)).read (writeInput refs.positiveCheck.eligible)).toBool =
       false := by

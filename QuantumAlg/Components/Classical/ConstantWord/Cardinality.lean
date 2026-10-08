@@ -17,11 +17,11 @@ The bound counts the existing trace and allows every public constant.
 
 namespace QuantumAlg.ClassicalRoutines.ConstantWord
 
-variable (kind : ProblemKind) (width : Nat)
+variable (model : ExecutionModel) [BitWord.Selected model] (width : Nat)
 
 /-- The actual bit loader emits at most two instructions per supplied bit. -/
 theorem loaderTrace_length_le (bits : List Bool) :
-    (loaderTrace kind width bits).length ≤ 2 * bits.length := by
+    (loaderTrace model width bits).length ≤ 2 * bits.length := by
   induction bits with
   | nil => rfl
   | cons bit remaining ih =>
@@ -31,8 +31,8 @@ theorem loaderTrace_length_le (bits : List Bool) :
 
 /-- The existing public constant representation supplies exactly the declared number of bits. -/
 theorem constantLoader_length_le (value : Nat) :
-    (loaderTrace kind width (List.ofFn (constantBits width value))).length ≤ 2 * width := by
+    (loaderTrace model width (List.ofFn (constantBits width value))).length ≤ 2 * width := by
   simpa only [List.length_ofFn] using
-    loaderTrace_length_le kind width (List.ofFn (constantBits width value))
+    loaderTrace_length_le model width (List.ofFn (constantBits width value))
 
 end QuantumAlg.ClassicalRoutines.ConstantWord

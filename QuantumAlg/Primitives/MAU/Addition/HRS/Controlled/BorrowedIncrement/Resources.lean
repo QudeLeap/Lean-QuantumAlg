@@ -24,53 +24,58 @@ noncomputable section
 open EncodedBit.GateSpec
 
 private theorem gate_weight (n : Nat) (gate : EncodedBit.GateSpec (TTK.encoding n))
-    (weight : Resource.Event .quantum → Nat) :
-    ((controlledBorrowedGate n gate).map fun emitted => weight emitted.event).sum =
-      gate.xMultiplicity * weight (.gate (.builtin "cnot")) +
-        gate.cnotMultiplicity * weight (.gate (.builtin "toffoli")) +
-        gate.toffoliMultiplicity * (4 * weight (.gate (.builtin "toffoli"))) := by
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
+    ((controlledBorrowedGate n gate).map fun emitted => weight (event .empty emitted)).sum =
+      gate.xMultiplicity * weight (.gate .cnot) +
+        gate.cnotMultiplicity * weight (.gate .toffoli) +
+        gate.toffoliMultiplicity * (4 * weight (.gate .toffoli)) := by
   cases gate with
   | x target =>
       simp [controlledBorrowedGate, xMultiplicity, cnotMultiplicity,
-        toffoliMultiplicity, eventMultiplicity, event, Resource.GateLabel.builtin]
+        toffoliMultiplicity, EncodedBit.GateSpec.event,
+        EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+        AlgorithmGate.model, AlgorithmGate.coordinate]
   | cnot source target hst =>
       simp [controlledBorrowedGate, xMultiplicity, cnotMultiplicity,
-        toffoliMultiplicity, eventMultiplicity, event, Resource.GateLabel.builtin]
+        toffoliMultiplicity, EncodedBit.GateSpec.event,
+        EncodedBit.GateSpec.primitive, QubitPrimitive.event, QubitPrimitive.nativeToken,
+        AlgorithmGate.model, AlgorithmGate.coordinate]
   | toffoli a b target hab hat hbt =>
       dsimp only [controlledBorrowedGate, controlledOperandToffoli]
       rw [hrsDirtyControlledToffoli_weight]
-      simp [xMultiplicity, cnotMultiplicity, toffoliMultiplicity,
-        eventMultiplicity, event, Resource.GateLabel.builtin]
+      simp [xMultiplicity, cnotMultiplicity, toffoliMultiplicity]
 
 private theorem list_weight (n : Nat) (gates : List (EncodedBit.GateSpec (TTK.encoding n)))
-    (weight : Resource.Event .quantum → Nat) :
-    ((controlledBorrowedList n gates).map fun gate => weight gate.event).sum =
-      (gates.map xMultiplicity).sum * weight (.gate (.builtin "cnot")) +
-        (gates.map cnotMultiplicity).sum * weight (.gate (.builtin "toffoli")) +
-        (gates.map toffoliMultiplicity).sum * (4 * weight (.gate (.builtin "toffoli"))) := by
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
+    ((controlledBorrowedList n gates).map fun gate => weight (event .empty gate)).sum =
+      (gates.map xMultiplicity).sum * weight (.gate .cnot) +
+        (gates.map cnotMultiplicity).sum * weight (.gate .toffoli) +
+        (gates.map toffoliMultiplicity).sum * (4 * weight (.gate .toffoli)) := by
   induction gates with
   | nil => simp [controlledBorrowedList]
   | cons gate rest ih =>
       change (((controlledBorrowedGate n gate) ++ controlledBorrowedList n rest).map
-        fun emitted => weight emitted.event).sum = _
+        fun emitted => weight (event .empty emitted)).sum = _
       rw [List.map_append, List.sum_append, gate_weight, ih]
       simp only [List.map_cons, List.sum_cons]
       ring
 
-private theorem increment_weight (n : Nat) (weight : Resource.Event .quantum → Nat) :
-    ((controlledBorrowedIncrementGates n).map fun gate => weight gate.event).sum =
-      (2 * n) * weight (.gate (.builtin "cnot")) +
-        (2 * n + 20 * (n - 1) + 4 * (n - 2)) * weight (.gate (.builtin "toffoli")) := by
+private theorem increment_weight (n : Nat)
+    (weight : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
+    ((controlledBorrowedIncrementGates n).map fun gate => weight (event .empty gate)).sum =
+      (2 * n) * weight (.gate .cnot) +
+        (2 * n + 20 * (n - 1) + 4 * (n - 2)) * weight (.gate .toffoli) := by
   have h := list_weight n (borrowedIncrementGates n) weight
   rw [← programList_x_count_eq_sum, ← programList_cnot_count_eq_sum,
     ← programList_toffoli_count_eq_sum] at h
-  change ((controlledBorrowedIncrementGates n).map fun gate => weight gate.event).sum =
-      ResourcePool.count (.gate (.builtin "x")) (borrowedIncrementProgram n).eventCost *
-          weight (.gate (.builtin "cnot")) +
-        ResourcePool.count (.gate (.builtin "cnot")) (borrowedIncrementProgram n).eventCost *
-          weight (.gate (.builtin "toffoli")) +
-        ResourcePool.count (.gate (.builtin "toffoli")) (borrowedIncrementProgram n).eventCost *
-          (4 * weight (.gate (.builtin "toffoli"))) at h
+  change ((controlledBorrowedIncrementGates n).map
+      fun gate => weight (event .empty gate)).sum =
+      ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+          (borrowedIncrementProgram n).eventCost * weight (.gate .cnot) +
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
+          (borrowedIncrementProgram n).eventCost * weight (.gate .toffoli) +
+        ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
+          (borrowedIncrementProgram n).eventCost * (4 * weight (.gate .toffoli)) at h
   rw [hrsBorrowedIncrement_x_count, hrsBorrowedIncrement_cnot_count,
     hrsBorrowedIncrement_toffoli_count] at h
   rw [h]
@@ -78,36 +83,36 @@ private theorem increment_weight (n : Nat) (weight : Resource.Event .quantum →
 
 /-- Every native event coordinate comes from the actual controlled expansion. -/
 theorem hrsControlledBorrowedIncrement_native_count (n : Nat)
-    (focus : Resource.Event .quantum) :
+    (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (controlledBorrowedIncrementProgram n).eventCost =
       (2 * n) *
-        (if (.gate (.builtin "cnot") : Resource.Event .quantum) = focus then 1 else 0) +
+        (if (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
+          then 1 else 0) +
       (2 * n + 20 * (n - 1) + 4 * (n - 2)) *
-        (if (.gate (.builtin "toffoli") : Resource.Event .quantum) = focus then 1 else 0) := by
+        (if (.gate .toffoli : Resource.Event (.quantum AlgorithmGate.model .empty)) = focus
+          then 1 else 0) := by
   rw [controlledBorrowedIncrementProgram, programList_event_count_eq_sum_eventMultiplicity]
   exact increment_weight n (fun emitted => if emitted = focus then 1 else 0)
 
 /-- No uncontrolled X leaf remains in the controlled program. -/
 theorem hrsControlledBorrowedIncrement_x_count (n : Nat) :
-    ResourcePool.count (.gate (.builtin "x")) (controlledBorrowedIncrementProgram n).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
+      (controlledBorrowedIncrementProgram n).eventCost =
       0 := by
-  simpa [Resource.GateLabel.builtin] using
-    hrsControlledBorrowedIncrement_native_count n (.gate (.builtin "x"))
+  simpa using hrsControlledBorrowedIncrement_native_count n (.gate .singleQubit)
 
 /-- Each borrowed-word complement contributes one CNOT per bit. -/
 theorem hrsControlledBorrowedIncrement_cnot_count (n : Nat) :
-    ResourcePool.count (.gate (.builtin "cnot"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (controlledBorrowedIncrementProgram n).eventCost = 2 * n := by
-  simpa [Resource.GateLabel.builtin] using
-    hrsControlledBorrowedIncrement_native_count n (.gate (.builtin "cnot"))
+  simpa using hrsControlledBorrowedIncrement_native_count n (.gate .cnot)
 
 /-- Every original CNOT contributes one Toffoli and every original Toffoli four. -/
 theorem hrsControlledBorrowedIncrement_toffoli_count (n : Nat) :
-    ResourcePool.count (.gate (.builtin "toffoli"))
+    ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (controlledBorrowedIncrementProgram n).eventCost =
       2 * n + 20 * (n - 1) + 4 * (n - 2) := by
-  simpa [Resource.GateLabel.builtin] using
-    hrsControlledBorrowedIncrement_native_count n (.gate (.builtin "toffoli"))
+  simpa using hrsControlledBorrowedIncrement_native_count n (.gate .toffoli)
 
 /-- Exact all-width count of executed primitive events. -/
 theorem hrsControlledBorrowedIncrement_event_count (n : Nat) :

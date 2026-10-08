@@ -79,7 +79,8 @@ theorem convertedCircuit_density_of_pairedMontgomery_admissible {p : Nat}
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     {exponentWidth : Nat} (points : Fin (2 * exponentWidth) → AffinePoint E)
     (seed : AffinePoint E) {Reference : Register} {H : Type} [Fintype H]
-    (original : State (before p.size (2 * exponentWidth)) Reference H)
+    (original : State (before p.size (2 * exponentWidth)) Reference
+      (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input,
       ¬pairedMontgomeryAllowed E fieldTail sameWidth fits points seed input.1 →
         original.quantumMarginal.matrix input input = 0) :

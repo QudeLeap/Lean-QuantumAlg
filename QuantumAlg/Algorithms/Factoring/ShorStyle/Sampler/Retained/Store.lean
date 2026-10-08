@@ -39,19 +39,23 @@ def resultStore (input : Input N) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N)) : Store (context ctx N) :=
   outputStore input (pushStore N store) value
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The actual sampled path produces exactly the independent complete store update. -/
 theorem samplerRetained_outcome_store (input : Input N) (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (outcomeStep ctx N store value).1 = outputStore input store value :=
-  Program.samplerProgram_store input (FirstAccepted.cellRead (sampleRef ctx N))
+    (outcomeStep (model := model) ctx N store value).1 = outputStore input store value :=
+  Program.samplerProgram_store (model := model) input (FirstAccepted.cellRead (sampleRef ctx N))
     (parameterRef ctx N) (store.write (sampleRef ctx N) (.bits (PackedSample.storedBits value)))
     value (Store.read_write_same store (sampleRef ctx N) _)
 
 /-- The actual allocations and native sampled path have the prescribed complete store result. -/
 theorem samplerRetained_result_store (input : Input N) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (outcomeStep ctx N (pushStore N store) value).1 = resultStore input store value :=
-  samplerRetained_outcome_store input (pushStore N store) value
+    (outcomeStep (model := model) ctx N (pushStore N store) value).1 =
+      resultStore input store value :=
+  samplerRetained_outcome_store (model := model) input (pushStore N store) value
 
 end
 

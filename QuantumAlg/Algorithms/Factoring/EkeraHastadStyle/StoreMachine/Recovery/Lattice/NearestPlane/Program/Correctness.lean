@@ -23,7 +23,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original basis and target representations, without initial scratch-value conditions. -/
 structure Initial (refs : Refs ctx width) (store : Store ctx)

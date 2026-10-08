@@ -20,6 +20,8 @@ import all QuantumAlg.Primitives.WalshHadamard.Readout.Space
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Borrowed.Preservation
+import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 
 /-!
 # The complete native Deutsch-Jozsa endpoint
@@ -58,30 +60,40 @@ public theorem problem_accepts_bits_iff {n : Nat} (f : WalshHadamard.Oracle n)
 
 /-- The actual internally prepared circuit, with n real Z writes and complete live Output. -/
 public def algorithm {n : Nat} (f : WalshHadamard.Oracle n) :
-    Algorithm .quantum pre (post n) (.bits n) where
+    Algorithm (model f) pre (post n) (.bits n) where
   run := run f
 
 /-- For every width, including zero, the native execution solves the original promise problem
 with probability one and the independently stated complete resource bounds. -/
 public theorem main {n : Nat} (f : WalshHadamard.Oracle n) :
-    ∃ candidate : Algorithm .quantum pre (post n) (.bits n),
+    ∃ candidate : Algorithm (model f) pre (post n) (.bits n),
       Algorithm.Solves candidate (problem f) := by
   refine ⟨algorithm f, ?_⟩
   constructor
-  · intro Reference input promised
+  · intro Reference input promised _initialized
     exact le_of_eq (actual_success f promised input).symm
-  · intro _Reference _input _promised requirement present
+  · intro _Reference _input _promised _initialized requirement present
     exact False.elim (List.not_mem_nil present)
-  · intro Reference input _promised
-    exact code_borrowedRestored f
-      (input.state.mapClassical (fun store => (store, store)))
-  · intro _Reference _input _promised path _supported
+  · intro Reference input _promised _initialized
+    have restored := code_borrowedRestored f
+      (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
+    have history := Execution.observeBorrowed_mapClassical input.state
+      (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
+    change (code f).BorrowedRestored Reference input.state
+      ((code f).execute Reference
+        (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
+    unfold Circuit.BorrowedRestored at restored ⊢
+    rw [restored]
+    refine Eq.trans ?_ history
+    apply congrArg (Execution.observeBorrowed Reference)
+    exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
+  · intro _Reference _input _promised _initialized path _supported
     exact le_of_eq (code_events f path)
-  · intro _Reference _input _promised path _supported
+  · intro _Reference _input _promised _initialized path _supported
     exact code_residentSpace f path
-  · intro _Reference _input _promised path _supported
+  · intro _Reference _input _promised _initialized path _supported
     exact code_auxiliarySpace f path
-  · intro _Reference _input _promised path _supported
+  · intro _Reference _input _promised _initialized path _supported
     exact le_of_eq (code_depth f path)
 
 end

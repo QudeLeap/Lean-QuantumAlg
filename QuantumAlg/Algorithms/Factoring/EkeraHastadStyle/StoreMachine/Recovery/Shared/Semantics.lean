@@ -46,18 +46,19 @@ theorem Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kin
     transport quadratic reads initial.quadratic
 
 /-- Both real allocations establish initialization and the actual returned caller postcondition. -/
-theorem withWorkspaces_actualRecord_initialized_post {kind : ProblemKind}
-    (ctx : RuntimeCtx kind) {N : Nat} (parameter : CInputRef ctx (ParameterShape N))
-    (body : ∀ {inner : RuntimeCtx kind}
+theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
+    (ctx : RuntimeCtx model.kind) {N : Nat}
+    (parameter : CInputRef ctx (ParameterShape N))
+    (body : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N), shared.Distinct →
       (quadratic : Quadratic.Cells inner N) → quadratic.Distinct →
       (transport : Transport ctx inner) → shared.TransportSeparated transport →
       quadratic.TransportSeparated transport →
       (cross : CrossSeparated shared quadratic) →
       LatticeSharedQuadraticInitialization.Separation
-        (refs shared quadratic transport parameter) → Circuit inner inner)
+        (refs shared quadratic transport parameter) → Circuit model inner inner)
     (Post : Store ctx → Store ctx → Prop)
-    (bodyContract : ∀ {inner : RuntimeCtx kind}
+    (bodyContract : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
       (transport : Transport ctx inner) (sharedSeparated : shared.TransportSeparated transport)
@@ -65,24 +66,29 @@ theorem withWorkspaces_actualRecord_initialized_post {kind : ProblemKind}
       (cross : CrossSeparated shared quadratic)
       (initialization : LatticeSharedQuadraticInitialization.Separation
         (refs shared quadratic transport parameter)),
-      ∃ step : Store inner → Store inner ×
-        (body shared sharedDistinct quadratic quadraticDistinct transport
-          sharedSeparated quadraticSeparated cross initialization).Path,
+      ∃ step : Store inner × model.HiddenState →
+        (Store inner × model.HiddenState) ×
+          (body shared sharedDistinct quadratic quadraticDistinct transport
+            sharedSeparated quadraticSeparated cross initialization).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
-          (state : State inner Reference History),
+          (state : State inner Reference (model.HiddenState × History)),
           (body shared sharedDistinct quadratic quadraticDistinct transport
             sharedSeparated quadraticSeparated cross initialization).execute Reference state =
               state.mapClassical (fun entry =>
-                ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
-        ∀ before : Store inner, Initialized before shared quadratic →
-          Post (transport.restrict before) (transport.restrict (step before).1)) :
-    ∃ step : Store ctx → Store ctx × (withWorkspaces ctx parameter body).Path,
+                let actual := step (entry.1, entry.2.1)
+                (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+        ∀ before : Store inner × model.HiddenState,
+          Initialized before.1 shared quadratic →
+          Post (transport.restrict before.1) (transport.restrict (step before).1.1)) :
+    ∃ step : Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (withWorkspaces ctx parameter body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (withWorkspaces ctx parameter body).execute Reference state =
           state.mapClassical (fun entry =>
-            ((step entry.1).1, (entry.2, (step entry.1).2)))) ∧
-      ∀ before : Store ctx, Post before (step before).1 := by
+            let actual := step (entry.1, entry.2.1)
+            (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
   unfold withWorkspaces
   apply withCells_actualRecord_initialized_restricted_post _ _ _ Post
   intro sharedCtx shared sharedDistinct rootTransport sharedSeparated
@@ -96,7 +102,7 @@ theorem withWorkspaces_actualRecord_initialized_post {kind : ProblemKind}
   refine ⟨equation, ?_⟩
   intro before quadraticInitialized sharedInitialized
   have sharedInitial := ClassicalWorkspace.Cells.workspaceCells_initialized_transport
-    innerTransport shared (innerTransport.workspaceTransport_restrict_readsAs before)
+    innerTransport shared (innerTransport.workspaceTransport_restrict_readsAs before.1)
     sharedInitialized
   simpa only [Transport.workspaceTransport_restrict_compose] using
     correct before ⟨sharedInitial, quadraticInitialized⟩

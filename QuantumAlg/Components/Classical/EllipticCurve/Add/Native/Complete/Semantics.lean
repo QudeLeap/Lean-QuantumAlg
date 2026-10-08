@@ -29,7 +29,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Exact finite nominal result of each original complete branch. -/
 def additionCaseValue (spec : CurveSpec width) (selected : Case)
@@ -50,12 +51,17 @@ def additionOutputValue (spec : CurveSpec width)
 /-- Each actual original arm contributes its own complete Store and native selected path. -/
 def additionArmRecord (spec : CurveSpec width) (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width)) :
-    ∀ selected, Store ctx → Store ctx × (additionArm spec classifier output selected).Path
-  | .leftInfinity => fun store =>
-      (repackStore (classifierRead classifier.rightRaw) output store, ())
-  | .rightInfinity => fun store =>
-      (repackStore (classifierRead classifier.leftRaw) output store, ())
-  | .vertical => infinityStep output
+    ∀ selected, Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (additionArm spec classifier output selected).Path
+  | .leftInfinity => Circuit.preserveHiddenRecord (fun store =>
+      (repackStore (classifierRead classifier.rightRaw) output store,
+        (BitWord.instructionStep (execution := model)
+          (repackOp (classifierRead classifier.rightRaw) output) store).2))
+  | .rightInfinity => Circuit.preserveHiddenRecord (fun store =>
+      (repackStore (classifierRead classifier.leftRaw) output store,
+        (BitWord.instructionStep (execution := model)
+          (repackOp (classifierRead classifier.leftRaw) output) store).2))
+  | .vertical => Circuit.preserveHiddenRecord (infinityStep output)
   | .doubling => doublingIntoStep spec (classifierRead classifier.leftRaw) output
   | .generic => genericIntoStep spec.field (classifierRead classifier.leftRaw)
       (classifierRead classifier.rightRaw) output
@@ -63,30 +69,32 @@ def additionArmRecord (spec : CurveSpec width) (classifier : Classifier ctx widt
 /-- Every actual complete arm preserves the complete quantum-reference blocks and history. -/
 theorem additionArm_execute (spec : CurveSpec width) (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width)) (selected : Case) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (additionArm spec classifier output selected).execute Reference state =
       state.mapClassical (fun entry =>
-        ((additionArmRecord spec classifier output selected entry.1).1,
-          (entry.2, (additionArmRecord spec classifier output selected entry.1).2))) := by
+        let result := additionArmRecord spec classifier output selected (entry.1, entry.2.1)
+        (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   cases selected with
   | leftInfinity =>
       refine (repackRawInto_execute _ _ Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
   | rightInfinity =>
       refine (repackRawInto_execute _ _ Reference state).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _
-  | vertical => exact infinityInto_execute output Reference state
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
+  | vertical =>
+      refine (infinityInto_execute output Reference state).trans ?_
+      exact ExecutionState.executionState_mapClassical_congr _ rfl
   | doubling => exact doublingInto_execute _ _ _ Reference state
   | generic => exact genericInto_execute _ _ _ _ Reference state
 
 /-- Actual snapshots give each selected original arm's exact sole destination write. -/
 theorem additionArmRecord_ready_store (spec : CurveSpec width)
     (classifier : Classifier ctx width) (output : CWriteRef ctx (PointShape width))
-    (selected : Case) (store : Store ctx) (left right : CShape.Value (PointShape width))
+    (selected : Case) (store : Store ctx) (hidden : model.HiddenState)
+    (left right : CShape.Value (PointShape width))
     (ready : classifier.Ready store left right) :
-    (additionArmRecord spec classifier output selected store).1 =
+    (additionArmRecord spec classifier output selected (store, hidden)).1.1 =
       store.write output (additionCaseValue spec selected left right) := by
   cases selected with
   | leftInfinity =>
@@ -101,26 +109,30 @@ theorem additionArmRecord_ready_store (spec : CurveSpec width)
       rfl
   | vertical => exact infinityStep_store output store
   | doubling =>
-      change (doublingIntoStep spec (classifierRead classifier.leftRaw) output store).1 = _
+      change (doublingIntoStep spec (classifierRead classifier.leftRaw) output
+        (store, hidden)).1.1 = _
       rw [doublingIntoStep_store, ready.leftRaw]
       rfl
   | generic =>
       change (genericIntoStep spec.field (classifierRead classifier.leftRaw)
-        (classifierRead classifier.rightRaw) output store).1 = _
+        (classifierRead classifier.rightRaw) output (store, hidden)).1.1 = _
       rw [genericIntoStep_store, ready.leftRaw, ready.rightRaw]
       rfl
 
 /-- Complete actual classification, branch execution and cleanup require no caller workspace. -/
 theorem addInto_completeRecord (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx (PointShape width)) :
-    ∃ record : Store ctx → Store ctx × (addInto spec left right output).Path,
+    ∃ record : Store ctx × model.HiddenState →
+        (Store ctx × model.HiddenState) × (addInto spec left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference History),
+        (state : State ctx Reference (model.HiddenState × History)),
         (addInto spec left right output).execute Reference state =
           state.mapClassical (fun entry =>
-            ((record entry.1).1, (entry.2, (record entry.1).2)))) ∧
-      ∀ store : Store ctx, (record store).1 = store.write output
-        (additionOutputValue spec (store.read left) (store.read right)) := by
+            let result := record (entry.1, entry.2.1)
+            (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
+      ∀ before : Store ctx × model.HiddenState,
+        (record before).1.1 = before.1.write output
+          (additionOutputValue spec (before.1.read left) (before.1.read right)) := by
   apply withClassification_actualRecord_post left right
     (fun classifier transport =>
       dispatch classifier (additionArm spec classifier (transport.liftWrite output)))
@@ -135,38 +147,43 @@ theorem addInto_completeRecord (spec : CurveSpec width)
   refine ⟨source.write output (additionOutputValue spec (source.read left) (source.read right)),
     rfl, ?_⟩
   rw [dispatchRecord_ready_store _ _ _ _ _ _ ready,
-    additionArmRecord_ready_store _ _ _ _ _ _ _ ready]
+    additionArmRecord_ready_store _ _ _ _ _ _ _ _ ready]
   exact Transport.workspaceTransport_readsAs_write transport reads output
     (additionOutputValue spec (source.read left) (source.read right))
 
 /-- Actual complete-addition path and full caller Store, including every original complete case. -/
 def addIntoStep (spec : CurveSpec width) (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width)) :
-    Store ctx → Store ctx × (addInto spec left right output).Path :=
+    Store ctx × model.HiddenState →
+      (Store ctx × model.HiddenState) × (addInto spec left right output).Path :=
   Classical.choose (addInto_completeRecord spec left right output)
 
 /-- Actual total addition retains every quantum-reference block and original history. -/
 theorem addInto_execute (spec : CurveSpec width) (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (addInto spec left right output).execute Reference state = state.mapClassical (fun entry =>
-      ((addIntoStep spec left right output entry.1).1,
-        (entry.2, (addIntoStep spec left right output entry.1).2))) :=
+      let result := addIntoStep spec left right output (entry.1, entry.2.1)
+      (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
   (Classical.choose_spec (addInto_completeRecord spec left right output)).1 Reference state
 
 /-- All actual internal work is released, leaving precisely the original finite output write. -/
 theorem addIntoStep_store (spec : CurveSpec width) (left right : CInputRef ctx (PointShape width))
-    (output : CWriteRef ctx (PointShape width)) (store : Store ctx) :
-    (addIntoStep spec left right output store).1 =
+    (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
+    (hidden : model.HiddenState) :
+    (addIntoStep spec left right output (store, hidden)).1.1 =
       store.write output (additionOutputValue spec (store.read left) (store.read right)) :=
-  (Classical.choose_spec (addInto_completeRecord spec left right output)).2 store
+  (Classical.choose_spec (addInto_completeRecord spec left right output)).2 (store, hidden)
 
 /-- Every structural caller read outside the chosen actual destination remains bitwise unchanged. -/
 theorem addInto_preserves_read (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx (PointShape width))
-    (store : Store ctx) {shape : CShape} (observed : CInputRef ctx shape)
+    (store : Store ctx) (hidden : model.HiddenState)
+    {shape : CShape} (observed : CInputRef ctx shape)
     (separate : output.key ∉ observed.storageKeys) :
-    (addIntoStep spec left right output store).1.read observed = store.read observed := by
+    (addIntoStep spec left right output (store, hidden)).1.1.read observed =
+      store.read observed := by
   rw [addIntoStep_store]
   exact Store.read_write_of_not_mem_storageKeys store output _ observed separate
 

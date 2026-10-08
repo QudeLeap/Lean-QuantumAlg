@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {width : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -31,17 +32,20 @@ def eligibleOp (refs : Refs ctx width) : ClassicalOp (.product .bit .bit) .bit c
   .bit .and ctx (.product (writeInput refs.intermediate) refs.powerMatches) refs.eligible
 
 /-- Both original conjunctions execute before persistent first-success selection. -/
-def candidateEligibilityInto (refs : Refs ctx width) : Circuit ctx ctx :=
-  .seq (.classical (intermediateOp refs)) (.classical (eligibleOp refs))
+def candidateEligibilityInto (refs : Refs ctx width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (intermediateOp refs))
+    (BitWord.instruction (execution := model) (eligibleOp refs))
 
 /-- The actual two chronological eligibility writes and their native paths. -/
 def eligibilityStep (refs : Refs ctx width) (store : Store ctx) :
     Store ctx × (candidateEligibilityInto refs).Path :=
-  ((store.applyOp (intermediateOp refs)).applyOp (eligibleOp refs), ((), ()))
+  let first := BitWord.instructionStep (execution := model) (intermediateOp refs) store
+  let second := BitWord.instructionStep (execution := model) (eligibleOp refs) first.1
+  (second.1, (first.2, second.2))
 
 /-- The direct actual selector reads the stored eligibility and existing persistent accepted
 latch. -/
-def selectionInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def selectionInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   ClassicalRoutines.FirstAccepted.Direct.into
     (writeInput refs.eligible) refs.candidate refs.selection
 
@@ -53,7 +57,7 @@ def selectionStep (refs : Refs ctx width) (store : Store ctx) :
     store
 
 /-- Original three-check candidate selection, with no additional available/take cells. -/
-def candidateSelectorInto (refs : Refs ctx width) : Circuit ctx ctx :=
+def candidateSelectorInto (refs : Refs ctx width) : Circuit model ctx ctx :=
   .seq (candidateEligibilityInto refs) (selectionInto refs)
 
 /-- Complete actual eligibility and persistent-selection store, with both component paths. -/
@@ -65,26 +69,47 @@ def selectorStep (refs : Refs ctx width) (store : Store ctx) :
 
 /-- Both actual Boolean operations retain the complete incoming quantum-reference blocks. -/
 theorem candidateEligibilityInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateEligibilityInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((eligibilityStep refs entry.1).1, (entry.2, (eligibilityStep refs entry.1).2))) := by
-  simp only [candidateEligibilityInto, Circuit.execute_seq, Circuit.execute_classical_mapClassical,
-    State.mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+      let actual := eligibilityStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  refine (Circuit.execute_seq_mapClassical
+    (BitWord.instruction (execution := model) (intermediateOp refs))
+    (BitWord.instruction (execution := model) (eligibleOp refs))
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model)
+        (intermediateOp refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := BitWord.instructionStep (execution := model) (eligibleOp refs) before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual closing suffix follows its stored three-way predicate and persistent accepted
 latch. -/
 theorem candidateSelectorInto_execute (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSelectorInto refs).execute Reference state = state.mapClassical (fun entry =>
-      ((selectorStep refs entry.1).1, (entry.2, (selectorStep refs entry.1).2))) := by
+      let actual := selectorStep refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   refine (Circuit.execute_seq_mapClassical (candidateEligibilityInto refs) (selectionInto refs)
-    (eligibilityStep refs) (selectionStep refs) (candidateEligibilityInto_execute refs)
-    (ClassicalRoutines.FirstAccepted.Direct.into_execute
-      (writeInput refs.eligible) refs.candidate refs.selection) Reference state).trans ?_
-  congr 1
-  exact Subsingleton.elim _ _
+    (fun before =>
+      let actual := eligibilityStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun before =>
+      let actual := selectionStep refs before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference _history _ current => candidateEligibilityInto_execute refs reference current)
+    (fun reference _history _ current =>
+      ClassicalRoutines.FirstAccepted.Direct.into_execute
+        (writeInput refs.eligible) refs.candidate refs.selection reference current)
+    Reference state).trans ?_
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end
 

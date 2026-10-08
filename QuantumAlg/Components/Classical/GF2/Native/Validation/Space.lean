@@ -23,7 +23,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 private theorem column_resident
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
@@ -33,8 +34,10 @@ private theorem column_resident
     (validationColumn input candidate parity product row column).peakResidentSpace path =
       ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
-    (.classical (validationProductOp input candidate product row column))
-    (.classical (validationParityOp parity product)) path).trans ?_
+    (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column))
+    (BitWord.instruction (execution := model) (validationParityOp parity product)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_classical]
   exact SpacePool.max_self _
 
@@ -45,9 +48,11 @@ private theorem rowBody_resident
     (path : (validationRowBody input candidate success parity product row).Path) :
     (validationRowBody input candidate success parity product row).peakResidentSpace path =
       ctx.residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (.classical (pivotClearOp parity))
+  refine (Circuit.peakResidentSpace_seq
+    (BitWord.instruction (execution := model) (pivotClearOp parity))
     (.seq (Circuit.forRange width (validationColumn input candidate parity product row))
       (.branch (.storage parity.toCStorageRef) (decisionChoice true success))) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_seq]
   apply SpacePool.max_eq_left
   refine SpacePool.max_le (Circuit.forRange_resident_le width _ _ le_rfl
@@ -113,7 +118,8 @@ theorem gf2ValidationSamples_resident_le
     omega
   refine (Circuit.peakResidentSpace_seq
     (Circuit.forRange rowCount (validationSample input candidate success))
-    (.classical (pivotSelectedOp success)) path).le.trans ?_
+    (BitWord.instruction (execution := model) (pivotSelectedOp success)) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical]
   exact SpacePool.max_le (Circuit.forRange_resident_le rowCount _ _ entry
     (gf2ValidationSample_resident_le input candidate success) path.1) entry
@@ -126,8 +132,10 @@ private theorem column_auxiliary
     (validationColumn input candidate parity product row column).peakAuxiliarySpace path =
       ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
-    (.classical (validationProductOp input candidate product row column))
-    (.classical (validationParityOp parity product)) path).trans ?_
+    (BitWord.instruction (execution := model)
+      (validationProductOp input candidate product row column))
+    (BitWord.instruction (execution := model) (validationParityOp parity product)) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_self _
 
@@ -138,9 +146,11 @@ private theorem rowBody_auxiliary
     (path : (validationRowBody input candidate success parity product row).Path) :
     (validationRowBody input candidate success parity product row).peakAuxiliarySpace path =
       ctx.auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (.classical (pivotClearOp parity))
+  refine (Circuit.peakAuxiliarySpace_seq
+    (BitWord.instruction (execution := model) (pivotClearOp parity))
     (.seq (Circuit.forRange width (validationColumn input candidate parity product row))
       (.branch (.storage parity.toCStorageRef) (decisionChoice true success))) path).trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_seq]
   apply SpacePool.max_eq_left
   refine SpacePool.max_le (Circuit.forRange_auxiliary_le width _ _ le_rfl
@@ -206,7 +216,8 @@ theorem gf2ValidationSamples_auxiliary_le
     omega
   refine (Circuit.peakAuxiliarySpace_seq
     (Circuit.forRange rowCount (validationSample input candidate success))
-    (.classical (pivotSelectedOp success)) path).le.trans ?_
+    (BitWord.instruction (execution := model) (pivotSelectedOp success)) path).le.trans ?_
+  unfold BitWord.instruction
   rw [Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_le (Circuit.forRange_auxiliary_le rowCount _ _ entry
     (gf2ValidationSample_auxiliary_le input candidate success) path.1) entry

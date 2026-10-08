@@ -122,10 +122,13 @@ theorem selected_output_flip (width : Nat) (field : Field) (key : BitVec width.s
 theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
-      (GateSpec.programList (gates width field key firstWord position output))
+      (GateSpec.programList (QubitLayout.canonical _) .empty
+        (gates width field key firstWord position output))
       (fun state => if Selected field key firstWord position state
         then (outputBit width field output).flip state else state) :=
-  GateSpec.realizesList_congrStep _ (gates_step width field key firstWord position output)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    (gates width field key firstWord position output)
+    (gates_step width field key firstWord position output)
 
 /-- The original arbitrary Iter work value is restored, whether or not this candidate matches. -/
 theorem gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)

@@ -49,7 +49,7 @@ namespace PhaseWorkspace
 
 /-- The existing physical control selected by the original binary-power stage. -/
 def controlWire {t : Nat} (stage : Fin t) : Fin t :=
-  ⟨qpeStagePrefixWidth stage, by unfold qpeStagePrefixWidth; omega⟩
+  stage.rev
 
 /-- Choose one different existing phase wire; no new wire is allocated. -/
 def workWire {t : Nat} (stage : Fin t) (wide : 2 ≤ t) : Fin t :=

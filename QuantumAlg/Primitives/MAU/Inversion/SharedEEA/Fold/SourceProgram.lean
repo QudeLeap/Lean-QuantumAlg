@@ -52,7 +52,8 @@ def reflectionPivot (modulus : Nat) : Fin (2 ^ wordWidth modulus + 1) :=
 
 /-- The complete actual comparison, one flag X, and the already certified controlled bi-flip. -/
 def program (modulus : Nat) :
-    UnitaryCircuit (Qubits (Addition.Gidney.encoding (wordWidth modulus)).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Addition.Gidney.encoding (wordWidth modulus)).width).toQuantum :=
   ((Addition.Gidney.comparisonProgram (wordWidth modulus) (comparisonPivot modulus)).seq
     (Addition.Gidney.flagFlipProgram (wordWidth modulus))).seq
       (Addition.Gidney.biFlipProgram (wordWidth modulus) (reflectionPivot modulus))

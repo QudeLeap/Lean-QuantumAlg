@@ -24,16 +24,20 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original success-controlled stages share the same literal false identity arm. -/
-private def successChoice (body : Circuit ctx ctx) : CShape.Value .bit → Circuit ctx ctx
+private def successChoice (body : Circuit model ctx ctx) :
+    CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .id ctx
   | .bit true => body
 
 /-- Each original conditional reads the current actual success cell before selecting its body. -/
-private def whenSuccessful (success : CWriteRef ctx .bit) (body : Circuit ctx ctx) :
-    Circuit ctx ctx :=
+private def whenSuccessful (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx) :
+    Circuit model ctx ctx :=
   .branch (.storage success.toCStorageRef) (successChoice body)
 
 /-- The original pivot-mask complement retains its actual fixed machine width. -/
@@ -44,8 +48,8 @@ def complementPivotMaskOp (columns : CWriteRef ctx (.unsignedWord width)) :
 /-- The original final packOption reads the real current success and candidate cells. -/
 def packOutput (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit ctx ctx :=
-  .classical (.packOption ctx
+    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit model ctx ctx :=
+  BitWord.instruction (execution := model) (.packOption ctx
     (.product (.storage success.toCStorageRef) (.storage candidate.toCStorageRef)) output)
 
 variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
@@ -56,14 +60,19 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   (success : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
 
 /-- Every original recovery stage runs in its original order on the same actual caller cells. -/
-def into : Circuit ctx ctx :=
-  .seq (loadAndReduce input matrix used rows columns)
-    (.seq (.classical (complementPivotMaskOp columns))
-      (.seq (.classical (pivotFoundOp success))
-        (.seq (selectUniqueFree columns zero success)
-          (.seq (whenSuccessful success (buildCandidate matrix rows columns candidate zero))
-            (.seq (whenSuccessful success (checkCandidateNonzero candidate zero success))
-              (.seq (whenSuccessful success (validateSamples input candidate success))
-                (packOutput success candidate output)))))))
+def into : Circuit model ctx ctx :=
+  .seq (loadAndReduce (model := model) input matrix used rows columns)
+    (.seq (BitWord.instruction (execution := model) (complementPivotMaskOp columns))
+      (.seq (BitWord.instruction (execution := model) (pivotFoundOp success))
+        (.seq (selectUniqueFree (model := model) columns zero success)
+          (.seq (whenSuccessful success
+              (buildCandidate (model := model) matrix rows columns candidate zero))
+            (.seq (whenSuccessful success
+                (checkCandidateNonzero (model := model) candidate zero success))
+              (.seq (whenSuccessful success
+                  (validateSamples (model := model) input candidate success))
+                (packOutput (model := model) success candidate output)))))))
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

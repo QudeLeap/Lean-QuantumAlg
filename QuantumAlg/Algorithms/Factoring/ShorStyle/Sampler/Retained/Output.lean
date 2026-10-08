@@ -48,13 +48,18 @@ public def outputValue {N : Nat} (input : Input N)
 theorem samplerRetained_output_listing (ctx : RuntimeCtx kind) (N : Nat) :
     (output ctx N).listing = (parameterRef ctx N).key :: (sampleRef ctx N).key :: ctx.keys := rfl
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+
 /-- Every actual sampled native path reads the independently specified complete source value. -/
-theorem samplerRetained_output_outcome (ctx : RuntimeCtx kind) {N : Nat} (input : Input N)
+theorem samplerRetained_output_outcome (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
     (store : Store (context ctx N)) (value : Fin (2 ^ residueSamplingBits N)) :
-    (output ctx N).eval (outcomeStep ctx N store value).1 = outputValue input value := by
+    (output ctx N).eval (outcomeStep (model := model) ctx N store value).1 =
+      outputValue input value := by
   change CShape.Value.product
-    ((outcomeStep ctx N store value).1.read (FirstAccepted.cellRead (sampleRef ctx N)))
-    ((outcomeStep ctx N store value).1.read (FirstAccepted.cellRead (parameterRef ctx N))) = _
+    ((outcomeStep (model := model) ctx N store value).1.read
+      (FirstAccepted.cellRead (sampleRef ctx N)))
+    ((outcomeStep (model := model) ctx N store value).1.read
+      (FirstAccepted.cellRead (parameterRef ctx N))) = _
   exact congrArg₂ CShape.Value.product (samplerRetained_outcome_sample store value)
     (samplerRetained_outcome_parameter input store value)
 

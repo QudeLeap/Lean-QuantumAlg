@@ -22,6 +22,8 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution
 
+noncomputable section
+
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
 
 /-- The original real copy operation for a rejected row probe. -/
@@ -47,44 +49,48 @@ def pivotUsedBit (used : CWriteRef ctx (.unsignedWord rowCount)) (row : Fin rowC
     CInputRef ctx .bit :=
   .wordBitGet (.storage used.toCStorageRef) row
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- A selected row follows the original marker, latch, two records and elimination order. -/
 def selectPivot (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (pivot : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
-  .seq (.classical (pivotSelectedOp sink))
-    (.seq (.classical (pivotFoundOp found))
-      (.seq (materializePivotRow used rows pivot column)
-        (.seq (materializePivotColumn columns column) (eliminateWithPivot matrix pivot column))))
+    (pivot : Fin rowCount) (column : Fin width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (pivotSelectedOp sink))
+    (.seq (BitWord.instruction (execution := model) (pivotFoundOp found))
+      (.seq (materializePivotRow (model := model) used rows pivot column)
+        (.seq (materializePivotColumn (model := model) columns column)
+          (eliminateWithPivot (model := model) matrix pivot column))))
 
 /-- The actual matrix bit chooses selection or the real rejected-probe copy. -/
 def pivotMatrixChoice (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit ctx ctx
-  | .bit false => .classical (pivotRejectedOp sink)
-  | .bit true => selectPivot matrix used rows columns found sink row column
+    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit model ctx ctx
+  | .bit false => BitWord.instruction (execution := model) (pivotRejectedOp sink)
+  | .bit true => selectPivot (model := model) matrix used rows columns found sink row column
 
 /-- A used row is rejected before reading any matrix bit. -/
 def pivotUsedChoice (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit ctx ctx
+    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .branch (eliminationBit matrix row column)
-      (pivotMatrixChoice matrix used rows columns found sink row column)
-  | .bit true => .classical (pivotRejectedOp sink)
+      (pivotMatrixChoice (model := model) matrix used rows columns found sink row column)
+  | .bit true => BitWord.instruction (execution := model) (pivotRejectedOp sink)
 
 /-- The stored found bit suppresses all later probes after the first selected row. -/
 def pivotFoundChoice (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit ctx ctx
+    (row : Fin rowCount) (column : Fin width) : CShape.Value .bit → Circuit model ctx ctx
   | .bit false => .branch (pivotUsedBit used row)
-      (pivotUsedChoice matrix used rows columns found sink row column)
+      (pivotUsedChoice (model := model) matrix used rows columns found sink row column)
   | .bit true => .id ctx
 
 /-- A row probe reads the actual found, used and matrix bits in precisely that order. -/
@@ -92,13 +98,13 @@ def pivotProbeRow (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord 
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (row : Fin rowCount) (column : Fin width) : Circuit ctx ctx :=
+    (row : Fin rowCount) (column : Fin width) : Circuit model ctx ctx :=
   .branch (.storage found.toCStorageRef)
-    (pivotFoundChoice matrix used rows columns found sink row column)
+    (pivotFoundChoice (model := model) matrix used rows columns found sink row column)
 
 /-- Only an actual unfound column emits the original no-pivot self-XOR. -/
-def pivotAbsentChoice (sink : CWriteRef ctx .bit) : CShape.Value .bit → Circuit ctx ctx
-  | .bit false => .classical (pivotClearOp sink)
+def pivotAbsentChoice (sink : CWriteRef ctx .bit) : CShape.Value .bit → Circuit model ctx ctx
+  | .bit false => BitWord.instruction (execution := model) (pivotClearOp sink)
   | .bit true => .id ctx
 
 /-- The original clear, increasing row scan and final no-pivot branch. -/
@@ -106,11 +112,13 @@ def reduceColumnBody (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWo
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
-    (column : Fin width) : Circuit ctx ctx :=
-  .seq (.classical (pivotClearOp found))
+    (column : Fin width) : Circuit model ctx ctx :=
+  .seq (BitWord.instruction (execution := model) (pivotClearOp found))
     (.seq (Circuit.forRange rowCount
-      (fun row => pivotProbeRow matrix used rows columns found sink row column))
-      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice sink)))
+      (fun row => pivotProbeRow (model := model) matrix used rows columns found sink row column))
+      (.branch (.storage found.toCStorageRef) (pivotAbsentChoice (model := model) sink)))
+
+variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The first real bit scope holds the original trace sink. -/
 @[reducible] def pivotSinkContext (ctx : RuntimeCtx kind) : RuntimeCtx kind :=
@@ -130,13 +138,17 @@ def pivotSearchWrite {shape : CShape} (output : CWriteRef ctx shape) :
   (output.underWorkspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh).underWorkspace
     (pivotSinkContext ctx).canonicalFreshKey .bit (pivotSinkContext ctx).canonicalFreshKey_fresh
 
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- The complete search body runs on the original destinations beneath both actual latches. -/
 def placedPivotSearch (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (column : Fin width) :
-    Circuit (pivotSearchContext ctx) (pivotSearchContext ctx) :=
-  reduceColumnBody (pivotSearchWrite matrix) (pivotSearchWrite used) (pivotSearchWrite rows)
+    Circuit model (pivotSearchContext ctx) (pivotSearchContext ctx) :=
+  reduceColumnBody (model := model) (pivotSearchWrite matrix) (pivotSearchWrite used)
+    (pivotSearchWrite rows)
     (pivotSearchWrite columns) (pivotLatch (pivotSinkContext ctx))
     ((pivotLatch ctx).underWorkspace (pivotSinkContext ctx).canonicalFreshKey .bit
       (pivotSinkContext ctx).canonicalFreshKey_fresh) column
@@ -146,17 +158,19 @@ def scopedPivotSearch (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedW
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (columns : CWriteRef ctx (.unsignedWord width)) (column : Fin width) :
-    Circuit (pivotSinkContext ctx) (pivotSinkContext ctx) :=
+    Circuit model (pivotSinkContext ctx) (pivotSinkContext ctx) :=
   .workspace (pivotSinkContext ctx) (pivotSinkContext ctx).canonicalFreshKey .bit
-    (pivotSinkContext ctx).canonicalFreshKey_fresh (placedPivotSearch matrix used rows columns
-      column)
+    (pivotSinkContext ctx).canonicalFreshKey_fresh
+      (placedPivotSearch (model := model) matrix used rows columns column)
 
 /-- One complete original column pass allocates its two bits once, then releases them in order. -/
 def reduceColumn (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
-    (columns : CWriteRef ctx (.unsignedWord width)) (column : Fin width) : Circuit ctx ctx :=
+    (columns : CWriteRef ctx (.unsignedWord width)) (column : Fin width) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh
-    (scopedPivotSearch matrix used rows columns column)
+    (scopedPivotSearch (model := model) matrix used rows columns column)
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

@@ -714,8 +714,10 @@ def t0IntoLambdaGates
 /-- Compiled out-of-place `t0`-by-`y` multiplication program. -/
 def t0IntoLambdaProgram
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
-    UnitaryCircuit (Qubits (Layout.encoding fieldTail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Layout.encoding fieldTail.succ counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.programList
+    (QubitLayout.canonical _) .empty
     (t0IntoLambdaGates fieldTail counterWidth p hp)
 
 /-- Folded action of the out-of-place `t0`-by-`y` multiplication ledger. -/
@@ -732,6 +734,7 @@ theorem t0IntoLambda_realizes
       (t0IntoLambdaProgram fieldTail counterWidth p hp)
       (t0IntoLambdaStep fieldTail counterWidth p hp) :=
   EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty
     (t0IntoLambdaGates fieldTail counterWidth p hp)
 
 set_option maxHeartbeats 1200000 in
@@ -1135,8 +1138,10 @@ def xIntoYGates
 
 def xIntoYProgram
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
-    UnitaryCircuit (Qubits (Layout.encoding fieldTail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Layout.encoding fieldTail.succ counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.programList
+    (QubitLayout.canonical _) .empty
     (xIntoYGates fieldTail counterWidth p hp)
 
 def xIntoYStep
@@ -1152,6 +1157,7 @@ theorem xIntoY_realizes
       (xIntoYProgram fieldTail counterWidth p hp)
       (xIntoYStep fieldTail counterWidth p hp) :=
   EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty
     (xIntoYGates fieldTail counterWidth p hp)
 
 set_option maxHeartbeats 1200000 in
@@ -1642,8 +1648,10 @@ def squareLambdaGates
 
 def squareLambdaProgram
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
-    UnitaryCircuit (Qubits (Layout.encoding fieldTail.succ counterWidth).width) :=
+    UnitaryCircuit AlgorithmGate.model .empty
+      (QubitLayout.canonical (Layout.encoding fieldTail.succ counterWidth).width).toQuantum :=
   EncodedBit.GateSpec.programList
+    (QubitLayout.canonical _) .empty
     (squareLambdaGates fieldTail counterWidth p hp)
 
 def squareLambdaStep
@@ -1659,6 +1667,7 @@ theorem squareLambda_realizes
       (squareLambdaProgram fieldTail counterWidth p hp)
       (squareLambdaStep fieldTail counterWidth p hp) :=
   EncodedBit.GateSpec.realizesList
+    (QubitLayout.canonical _) .empty
     (squareLambdaGates fieldTail counterWidth p hp)
 
 set_option maxHeartbeats 1200000 in

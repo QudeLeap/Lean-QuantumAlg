@@ -27,19 +27,23 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Independent native formula for the final coefficient's three recorded sign decisions. -/
 def postReductionTrace (width : Nat)
     (magnitudeNegative correctionNegative restoreNegative : Bool) :
-    List (Resource.Event kind) :=
-  LatticeSecondPairMachine.dotTrace width ++
-    (RoundedDiv.bodyTrace width magnitudeNegative correctionNegative restoreNegative ++
-      LatticeSecondPairMachine.reductionTrace width)
+    List (Resource.Event model) :=
+  LatticeSecondPairMachine.dotTrace (model := model) width ++
+    (RoundedDiv.bodyTrace (model := model) width magnitudeNegative correctionNegative
+      restoreNegative ++
+      LatticeSecondPairMachine.reductionTrace (model := model) width)
 
 /-- The actual path emits exactly the original three-stage native instruction sequence. -/
-theorem postReductionInto_events (refs : Refs ctx width) (path : (postReductionInto refs).Path) :
-    (postReductionInto refs).eventTrace path = postReductionTrace width
+theorem postReductionInto_events (refs : Refs ctx width)
+    (path : (postReductionInto (model := model) refs).Path) :
+    (postReductionInto (model := model) refs).eventTrace path =
+      postReductionTrace (model := model) width
       path.2.1.1.1.2.1.toBool path.2.1.2.1.2.1.1.toBool path.2.1.2.2.2.2.1.toBool := by
   change _ ++ (_ ++ _) = _
   rw [LatticeDotRefresh.refreshInto_events, RoundedDiv.body_events,
@@ -48,46 +52,54 @@ theorem postReductionInto_events (refs : Refs ctx width) (path : (postReductionI
 
 /-- Actual native multiplicity comes from the independently specified three-stage formula. -/
 theorem postReductionInto_resourcePool (refs : Refs ctx width)
-    (path : (postReductionInto refs).Path) :
-    (postReductionInto refs).resourcePool path = ResourcePool.ofList (postReductionTrace width
+    (path : (postReductionInto (model := model) refs).Path) :
+    (postReductionInto (model := model) refs).resourcePool path =
+      ResourcePool.ofList (postReductionTrace (model := model) width
       path.2.1.1.1.2.1.toBool path.2.1.2.1.2.1.1.toBool path.2.1.2.2.2.2.1.toBool) := by
-  change ResourcePool.ofList ((postReductionInto refs).eventTrace path) = _
+  change ResourcePool.ofList ((postReductionInto (model := model) refs).eventTrace path) = _
   rw [postReductionInto_events]
 
 /-- Every actual final-direction reduction uses at most 24 native classical operations. -/
 theorem postReductionInto_eventCount_le (refs : Refs ctx width)
-    (path : (postReductionInto refs).Path) :
-    ((postReductionInto refs).eventTrace path).length ≤ 24 := by
+    (path : (postReductionInto (model := model) refs).Path) :
+    ((postReductionInto (model := model) refs).eventTrace path).length ≤ 24 := by
   have division := RoundedDiv.body_eventCount_le refs.machine.division31 path.2.1
   change List.length (_ ++ (_ ++ _)) ≤ 24
   simp only [List.length_append]
-  change 5 + (((RoundedDiv.body refs.machine.division31).eventTrace path.2.1).length + 6) ≤ 24
+  change 5 +
+    (((RoundedDiv.body (model := model) refs.machine.division31).eventTrace path.2.1).length +
+      6) ≤ 24
   omega
 
 /-- Unit-duration serial depth includes the actual dot, quotient and row-update dependencies. -/
-theorem postReductionInto_depth_le (refs : Refs ctx width) (path : (postReductionInto refs).Path) :
-    (postReductionInto refs).depth (fun _ => 1) path ≤ 24 := by
+theorem postReductionInto_depth_le (refs : Refs ctx width)
+    (path : (postReductionInto (model := model) refs).Path) :
+    (postReductionInto (model := model) refs).depth (fun _ => 1) path ≤ 24 := by
   have division := RoundedDiv.body_depth_le refs.machine.division31 path.2.1
-  change 5 + ((RoundedDiv.body refs.machine.division31).depth (fun _ => 1) path.2.1 + 6) ≤ 24
+  change 5 +
+    ((RoundedDiv.body (model := model) refs.machine.division31).depth (fun _ => 1) path.2.1 +
+      6) ≤ 24
   omega
 
 /-- Actual final-direction reduction restores the full borrowed-reference joint state. -/
 theorem postReductionInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (postReductionInto refs).BorrowedRestored Reference state
-      ((postReductionInto refs).execute Reference state) := by
+    {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
+    (postReductionInto (model := model) refs).BorrowedRestored Reference state
+      ((postReductionInto (model := model) refs).execute Reference state) := by
   apply Circuit.borrowedRestored_seq
-    (LatticeDotRefresh.refreshInto refs.machine.basis.third refs.machine.basis.first
-      (refreshG31Refs refs)) (divisionReductionInto refs)
+    (LatticeDotRefresh.refreshInto (model := model)
+      refs.machine.basis.third refs.machine.basis.first
+      (refreshG31Refs refs)) (divisionReductionInto (model := model) refs)
   · exact LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference state
   · exact Circuit.borrowedRestored_seq _ _ _
       (RoundedDiv.body_borrowedRestored refs.machine.division31 Reference _)
       (LatticeArithmetic.pointReduce_borrowedRestored _ _ _ _ Reference _)
 
 /-- Every actual post-reduction phase retains the complete supplied live context. -/
-theorem postReductionInto_visited (refs : Refs ctx width) (path : (postReductionInto refs).Path)
-    (visited : RuntimeCtx kind)
-    (present : visited ∈ (postReductionInto refs).visitedContexts path) :
+theorem postReductionInto_visited (refs : Refs ctx width)
+    (path : (postReductionInto (model := model) refs).Path)
+    (visited : RuntimeCtx model.kind)
+    (present : visited ∈ (postReductionInto (model := model) refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ (_ ++ _)) at present
   simp only [List.mem_append] at present
@@ -100,16 +112,16 @@ theorem postReductionInto_visited (refs : Refs ctx width) (path : (postReduction
 
 /-- Resident space includes all original quantum systems and actual classical storage. -/
 theorem postReductionInto_resident_le (refs : Refs ctx width)
-    (path : (postReductionInto refs).Path) :
-    (postReductionInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
+    (path : (postReductionInto (model := model) refs).Path) :
+    (postReductionInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [postReductionInto_visited refs path visited present]
 
 /-- Auxiliary space keeps every original role and scratch word counted throughout execution. -/
 theorem postReductionInto_auxiliary_le (refs : Refs ctx width)
-    (path : (postReductionInto refs).Path) :
-    (postReductionInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
+    (path : (postReductionInto (model := model) refs).Path) :
+    (postReductionInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [postReductionInto_visited refs path visited present]

@@ -23,7 +23,10 @@ namespace QuantumAlg.ClassicalRoutines.GF2.Native
 
 open Execution ClassicalWorkspace
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {rowCount width : Nat}
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original seven real workspaces, listed in deepest-first stack order. -/
 def stateShapes (rowCount width : Nat) : List CShape :=
@@ -34,17 +37,20 @@ def stateShapes (rowCount width : Nat) : List CShape :=
 /-- The original actual body uses the allocated cells and only structural caller lifts. -/
 def stateBody (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
-    {inner : RuntimeCtx kind} (cells : ClassicalWorkspace.Cells inner (stateShapes rowCount width))
-    (transport : Transport ctx inner) : Circuit inner inner :=
-  into (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
+    {inner : RuntimeCtx model.kind}
+    (cells : ClassicalWorkspace.Cells inner (stateShapes rowCount width))
+    (transport : Transport ctx inner) : Circuit model inner inner :=
+  into (model := model) (transport.liftInput input) cells.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.tail.head.ref cells.tail.tail.tail.tail.tail.tail.head.ref
     cells.tail.tail.tail.head.ref cells.tail.tail.head.ref cells.tail.head.ref cells.head.ref
     (transport.liftWrite output)
 
 /-- All seven original scopes enclose the actual complete same-context recovery. -/
 def withState (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
-    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit ctx ctx :=
-  ClassicalWorkspace.withCells ctx (stateShapes rowCount width)
-    (fun cells _ transport _ => stateBody input output cells transport)
+    (output : CWriteRef ctx (.option (.unsignedWord width))) : Circuit model ctx ctx :=
+  ClassicalWorkspace.withCells (model := model) ctx (stateShapes rowCount width)
+    (fun cells _ transport _ => stateBody (model := model) input output cells transport)
+
+end
 
 end QuantumAlg.ClassicalRoutines.GF2.Native

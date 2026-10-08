@@ -46,19 +46,21 @@ theorem folded_apply (modulus input : Nat) (nontrivial : 1 < modulus)
     (UnitaryCircuit.iterate (QuotientSchedule.phaseWeight modulus input)
       (NativeMicrostep.program modulus.size
         (PredicateLayout.modulus_length_width modulus nontrivial))).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode
+              (MacroBoundary.frame
+                (IterationState.initial modulus (foldInput modulus input).2) modulus
+                (folded_initial_admissible modulus input positive bounded)
+                (IterationState.initial_balance modulus (foldInput modulus input).2)
+                (foldInput modulus input).1)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
           ((encoding modulus.size).encode
-            (MacroBoundary.frame
-              (IterationState.initial modulus (foldInput modulus input).2) modulus
-              (folded_initial_admissible modulus input positive bounded)
-              (IterationState.initial_balance modulus (foldInput modulus input).2)
-              (foldInput modulus input).1))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode
-          (MacroBoundary.frame (TerminalPadding.finalState modulus input) modulus
-            (TerminalPadding.final_admissible modulus input positive bounded)
-            (TerminalPadding.final_balance modulus input)
-            (SignedTrajectory.finalIteration modulus input))) := by
+            (MacroBoundary.frame (TerminalPadding.finalState modulus input) modulus
+              (TerminalPadding.final_admissible modulus input positive bounded)
+              (TerminalPadding.final_balance modulus input)
+              (SignedTrajectory.finalIteration modulus input)))) := by
   rw [(iterate_realizes modulus.size (QuotientSchedule.phaseWeight modulus input)
     (PredicateLayout.modulus_length_width modulus nontrivial)).apply_encoded_ket,
     NativeTrajectory.folded_frame modulus input coprime positive bounded]
@@ -71,14 +73,16 @@ theorem preprocessed_apply (modulus : Nat) (nontrivial : 1 < modulus)
       (UnitaryCircuit.iterate (QuotientSchedule.phaseWeight modulus input.val)
         (NativeMicrostep.program modulus.size
           (PredicateLayout.modulus_length_width modulus nontrivial)))).applyNormalized
-        (NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-          ((encoding modulus.size).encode (InitialFrame.initial modulus input))) =
-      NormalizedVector.ket (R := Qubits (encoding modulus.size).width)
-        ((encoding modulus.size).encode
-          (MacroBoundary.frame (TerminalPadding.finalState modulus input.val) modulus
-            (TerminalPadding.final_admissible modulus input.val positive bounded)
-            (TerminalPadding.final_balance modulus input.val)
-            (SignedTrajectory.finalIteration modulus input.val))) := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+            ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
+      NormalizedVector.ket
+        ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
+          ((encoding modulus.size).encode
+            (MacroBoundary.frame (TerminalPadding.finalState modulus input.val) modulus
+              (TerminalPadding.final_admissible modulus input.val positive bounded)
+              (TerminalPadding.final_balance modulus input.val)
+              (SignedTrajectory.finalIteration modulus input.val)))) := by
   rw [UnitaryCircuit.applyNormalized_seq,
     InitialMacroFrame.program_initial modulus input positive bounded]
   exact folded_apply modulus input.val nontrivial coprime positive bounded

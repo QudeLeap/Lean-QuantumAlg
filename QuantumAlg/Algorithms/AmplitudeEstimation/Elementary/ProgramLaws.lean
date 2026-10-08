@@ -7,10 +7,12 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Construction
-import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Queries
+import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Queries.Matrix
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Power.Laws
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Elementary.Power.Coordinates
-import all QuantumAlg.Algorithms.QPE.Construction
+import all QuantumAlg.Algorithms.QPE.Circuit.Matrix
+import all QuantumAlg.Primitives.WalshHadamard.Native
+import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix.Matrix
 import all QuantumAlg.Core.Base.Control.Operator
 import all QuantumAlg.Util.FinPow
 
@@ -28,10 +30,46 @@ namespace QuantumAlg.AmplitudeEstimation.Elementary
 
 noncomputable section
 
+private theorem castCircuit_matrix (queries : OracleModel) {left right : Nat}
+    (same : left = right) (body : UnitaryCircuit AlgorithmGate.model queries
+      (QuantumSignature.qubits left).canonicalPlacement.layout) :
+    (castCircuit queries same body).binaryMatrix =
+      UnitaryOperator.reindex (finCongr (congrArg (fun width => 2 ^ width) same))
+        body.binaryMatrix := by
+  cases same
+  apply Subtype.ext
+  rfl
+
+private theorem phaseHadamards_matrix (queries : OracleModel) (t n : Nat) :
+    (phaseHadamards queries t n).binaryMatrix =
+      UnitaryOperator.reindex
+        (finCongr (congrArg (fun width => 2 ^ width) (Nat.add_assoc t (helperWidth t n) n).symm))
+        ((WalshHadamard.hadamardLayerOperator t).tensor
+          (1 : UnitaryOperator (Qubits (helperWidth t n + n)))) := by
+  rw [phaseHadamards, castCircuit_matrix,
+    UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
+  have hadamards : (Gate.HadamardLayer.circuit queries t).binaryMatrix =
+      WalshHadamard.hadamardLayerOperator t :=
+    WalshHadamard.Native.native_binary_matrix queries t
+  rw [hadamards]
+
+private theorem phaseReadout_matrix (queries : OracleModel) (t n : Nat) :
+    (phaseReadout queries t n).binaryMatrix =
+      UnitaryOperator.reindex
+        (finCongr (congrArg (fun width => 2 ^ width) (Nat.add_assoc t (helperWidth t n) n).symm))
+        ((invQFT t).tensor (1 : UnitaryOperator (Qubits (helperWidth t n + n)))) := by
+  rw [phaseReadout, castCircuit_matrix,
+    UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
+  have readout : (qpeReadoutCircuit queries t).binaryMatrix = invQFT t := by
+    change QuantumFourierTransform.Native.onBinaryLabels (qpeReadoutCircuit queries t) = _
+    rw [qpeReadoutCircuit, QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix,
+      qpeReadout_binary_matrix]
+  rw [readout]
+
 /-- The entire physical program has this full-space matrix, at every phase width. -/
 theorem program_matrix {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) :
-    (program t U good).matrix =
+    (program t U good).binaryMatrix =
       let powers : UnitaryOperator (Qubits (totalQubits t n)) :=
         qpeExponentOp (phaseWidth t n)
           (U * (ZeroReflection.zeroReflectionOperator n *
@@ -39,12 +77,13 @@ theorem program_matrix {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
           (fun phase => (originalPhase t n phase).val)
       let initial : UnitaryOperator (Qubits (totalQubits t n)) :=
         UnitaryOperator.tensor (1 : UnitaryOperator (Qubits (phaseWidth t n))) U
-      (phaseReadout t n).matrix * powers * (phaseHadamards t n).matrix * initial := by
+      (phaseReadout (oracles U good) t n).binaryMatrix * powers *
+        (phaseHadamards (oracles U good) t n).binaryMatrix * initial := by
   dsimp only
   apply Subtype.ext
-  rw [program, UnitaryCircuit.seq_matrix, UnitaryCircuit.seq_matrix,
-    UnitaryCircuit.seq_matrix, ladder_matrix, preparation_matrix]
-  rfl
+  rw [program, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
+    UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, ladder_matrix, preparation_matrix]
 
 /-- No absent work position changes the value of any existing basis coordinate. -/
 def unextendedBasisEquiv (t n : Nat) (empty : helperWidth t n = 0) :
@@ -82,38 +121,41 @@ private theorem assembled_noHelper (t n work : Nat) (empty : work = 0)
       (UnitaryOperator.reindex (R := Qubits (t + (work + n)))
           (S := Qubits ((t + work) + n))
           (finCongr (congrArg (fun width : Nat => 2 ^ width) (Nat.add_assoc t work n).symm))
-          (qpeReadoutFullCircuit t (work + n)).matrix *
+          ((invQFT t).tensor (1 : UnitaryOperator (Qubits (work + n)))) *
         qpeControlledPowerOp (t + work) source *
         UnitaryOperator.reindex (R := Qubits (t + (work + n)))
           (S := Qubits ((t + work) + n))
           (finCongr (congrArg (fun width : Nat => 2 ^ width) (Nat.add_assoc t work n).symm))
-          (qpePreparationCircuit t (work + n)).matrix *
+          ((WalshHadamard.hadamardLayerOperator t).tensor
+            (1 : UnitaryOperator (Qubits (work + n)))) *
         UnitaryOperator.tensor (1 : UnitaryOperator (Qubits (t + work))) preparation) =
-      (qpeCircuit t source).matrix *
+      (QuantumPhaseEstimation.Native.circuit t source).binaryMatrix *
         UnitaryOperator.tensor (1 : UnitaryOperator (Qubits t)) preparation := by
   subst work
   rw [reindex_qubits_self (width := t + n)]
   rw [reindex_width_family t (0 + n) n (Nat.zero_add n)
-    (fun width => (qpeReadoutFullCircuit t width).matrix)]
+    (fun width => (invQFT t).tensor (1 : UnitaryOperator (Qubits width)))]
   rw [reindex_width_family t (0 + n) n (Nat.zero_add n)
-    (fun width => (qpePreparationCircuit t width).matrix)]
-  rw [qpeCircuit_matrix]
-  simp only [Nat.add_zero]
+    (fun width => (WalshHadamard.hadamardLayerOperator t).tensor
+      (1 : UnitaryOperator (Qubits width)))]
+  rw [QuantumPhaseEstimation.Native.qpeNative_circuit_binaryMatrix]
+  simp only [Nat.add_zero, mul_assoc]
 
 /-- On the admitted width branch the actual full operator equals the original QPE target.
 The hypothesis is an internal layout fact derived from the original validity domain. -/
 theorem program_matrix_of_noHelper {n : Nat} (t : Nat) (empty : helperWidth t n = 0)
     (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    UnitaryOperator.reindex (unextendedBasisEquiv t n empty) (program t U good).matrix =
-      (qpeCircuit t (U * (ZeroReflection.zeroReflectionOperator n *
-        (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))).matrix *
+    UnitaryOperator.reindex (unextendedBasisEquiv t n empty) (program t U good).binaryMatrix =
+      (QuantumPhaseEstimation.Native.circuit t
+        (U * (ZeroReflection.zeroReflectionOperator n *
+          (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))).binaryMatrix *
           UnitaryOperator.tensor (1 : UnitaryOperator (Qubits t)) U := by
   rw [program_matrix]
   have exponent : (fun phase : Fin (2 ^ phaseWidth t n) => (originalPhase t n phase).val) =
       Fin.val := funext (originalPhase_val_of_noHelper empty)
   rw [exponent]
-  simp only [unextendedBasisEquiv, phaseReadout, phaseHadamards,
-    UnitaryCircuit.reindex_matrix, phaseRegroupEquiv, totalQubits, phaseWidth]
+  rw [phaseReadout_matrix, phaseHadamards_matrix]
+  simp only [unextendedBasisEquiv, totalQubits, phaseWidth]
   exact assembled_noHelper t n (helperWidth t n) empty
     (U * (ZeroReflection.zeroReflectionOperator n *
       (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good))) U

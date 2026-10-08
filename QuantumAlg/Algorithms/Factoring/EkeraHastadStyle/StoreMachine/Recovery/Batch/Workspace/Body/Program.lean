@@ -28,17 +28,21 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {kind : ProblemKind} {root topCtx inner : RuntimeCtx kind} {N : Nat}
+-- Observe the mathematical full-path record through the generic composition laws.
+attribute [local irreducible] Circuit.sequenceStoreRecord
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {root topCtx inner : RuntimeCtx model.kind} {N : Nat}
 
 /-- Run the shared constant prefix, every pair, and the caller output packing in order. -/
-def into (input : Input N) (refs : Refs root topCtx inner N) : Circuit inner inner :=
+def into (input : Input N) (refs : Refs root topCtx inner N) : Circuit model inner inner :=
   .seq (LatticeSharedQuadraticInitialization.into input (initializationRefs refs))
     (LatticeBatchRecoveryEndpoint.into input (endpointRefs refs))
 
 /-- Actual full store and both chronological paths of the allocated body. -/
-def step (input : Input N) (refs : Refs root topCtx inner N) (store : Store inner) :
+noncomputable def step (input : Input N) (refs : Refs root topCtx inner N) (store : Store inner) :
     Store inner × (into input refs).Path :=
-  Circuit.sequenceRecord
+  Circuit.sequenceStoreRecord
     (LatticeSharedQuadraticInitialization.into input (initializationRefs refs))
     (LatticeBatchRecoveryEndpoint.into input (endpointRefs refs))
     (LatticeSharedQuadraticInitialization.step input (initializationRefs refs))
@@ -49,15 +53,16 @@ theorem step_store (input : Input N) (refs : Refs root topCtx inner N) (store : 
     (step input refs store).1 =
       (LatticeBatchRecoveryEndpoint.step input (endpointRefs refs)
         (LatticeSharedQuadraticInitialization.step input (initializationRefs refs) store).1).1 :=
-  Circuit.sequenceRecord_store _ _ _ _ store
+  Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- Both phases execute on the full incoming history and arbitrary external reference. -/
 theorem into_execute (input : Input N) (refs : Refs root topCtx inner N)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State inner Reference History) :
+    (state : State inner Reference (model.HiddenState × History)) :
     (into input refs).execute Reference state = state.mapClassical (fun entry =>
-      ((step input refs entry.1).1, (entry.2, (step input refs entry.1).2))) :=
-  Circuit.execute_sequenceRecord _ _ _ _
+      let actual := step input refs entry.1
+      (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
+  Circuit.execute_sequenceStoreRecord _ _ _ _
     (LatticeSharedQuadraticInitialization.into_execute input (initializationRefs refs))
     (LatticeBatchRecoveryEndpoint.into_execute input (endpointRefs refs)) Reference state
 

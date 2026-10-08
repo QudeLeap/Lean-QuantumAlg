@@ -26,8 +26,9 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Execute the three original coordinate exchanges through the same actual scratch word. -/
-def pointSwap (left right : LatticeState.PointRefs ctx width)
-    (scratch : CWriteRef ctx (.unsignedWord width)) : Circuit ctx ctx :=
+def pointSwap {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (scratch : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
   .seq (coordinateSwap left.first right.first scratch)
     (.seq (coordinateSwap left.second right.second scratch)
       (coordinateSwap left.third right.third scratch))
@@ -39,18 +40,36 @@ def pointSwapStore (left right : LatticeState.PointRefs ctx width)
     (coordinateSwapStore left.second right.second scratch
       (coordinateSwapStore left.first right.first scratch store))
 
+/-- Actual three-coordinate exchange stores and selected operation paths. -/
+def pointSwapStep {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (scratch : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    Store ctx × (pointSwap (model := model) left right scratch).Path :=
+  let first := coordinateSwapStep (model := model) left.first right.first scratch store
+  let second := coordinateSwapStep (model := model) left.second right.second scratch first.1
+  let third := coordinateSwapStep (model := model) left.third right.third scratch second.1
+  (third.1, (first.2, (second.2, third.2)))
+
+theorem pointSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
+    (scratch : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+    (pointSwapStep (model := model) left right scratch store).1 =
+      pointSwapStore left right scratch store := rfl
+
 /-- Full actual execution preserves history and all quantum-reference blocks. -/
-theorem pointSwap_execute (left right : LatticeState.PointRefs ctx width)
+theorem pointSwap_execute {model : ExecutionModel} [BitWord.Selected model]
+    {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
-    {History : Type} [Fintype History] (state : State ctx Reference History) :
-    (pointSwap left right scratch).execute Reference state = state.mapClassical (fun entry =>
-      (pointSwapStore left right scratch entry.1,
-        (entry.2, (((), ((), ())), ((), ((), ())), ((), ((), ())))))) := by
-  simp only [pointSwap, coordinateSwap, Circuit.execute_seq,
-    Circuit.execute_classical_mapClassical, State.mapHistory,
+    {History : Type} [Fintype History]
+    (state : State ctx Reference (model.HiddenState × History)) :
+    (pointSwap (model := model) left right scratch).execute Reference state =
+      state.mapClassical (fun entry =>
+        let actual := pointSwapStep (model := model) left right scratch entry.1
+        (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
+  simp only [pointSwap, pointSwapStep, Circuit.execute_seq, coordinateSwap_execute,
+    State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
-  congr 1
-  exact Subsingleton.elim _ _
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Any caller read outside the full seven-cell actual footprint is preserved. -/
 theorem pointSwap_callerFrame (left right : LatticeState.PointRefs ctx width)

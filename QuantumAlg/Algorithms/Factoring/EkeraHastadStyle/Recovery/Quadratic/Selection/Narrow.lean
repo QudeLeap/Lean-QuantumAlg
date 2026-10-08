@@ -67,19 +67,23 @@ def refs (original : FirstAccepted.Refs ctx width) :
   available := underWrite original.available width
   take := underWrite original.take width
 
+noncomputable section
+
+variable {model : ExecutionModel} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
+
 /-- Actual conversion followed by existing native first-accepted selection. -/
 def body (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWord sourceWidth))
-    (original : FirstAccepted.Refs ctx width) : Circuit (context ctx width) (context ctx width) :=
-  .seq (.classical (resizeOp candidate width))
+    (original : FirstAccepted.Refs ctx width) :
+    Circuit model (context ctx width) (context ctx width) :=
+  .seq (BitWord.instruction (resizeOp candidate width))
     (FirstAccepted.circuit (inputs eligible width) (refs original))
 
 /-- The actual conversion word is allocated and released around the same real selector call. -/
 def code (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWord sourceWidth))
-    (original : FirstAccepted.Refs ctx width) : Circuit ctx ctx :=
+    (original : FirstAccepted.Refs ctx width) : Circuit model ctx ctx :=
   .workspace ctx ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (body eligible candidate original)
-
-noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
@@ -89,9 +93,10 @@ def bodyStep (eligible : CInputRef ctx .bit)
     (original : FirstAccepted.Refs ctx width)
     (store : Store (context ctx width)) :
     Store (context ctx width) × (body eligible candidate original).Path :=
-  let selected := FirstAccepted.step (inputs eligible width) (refs original)
-    (store.applyOp (resizeOp candidate width))
-  (selected.1, ((), selected.2))
+  let resized := BitWord.instructionStep (execution := model) (resizeOp candidate width) store
+  let selected := FirstAccepted.step (model := model) (inputs eligible width) (refs original)
+    resized.1
+  (selected.1, (resized.2, selected.2))
 
 /-- The real one-word scope encloses precisely the recorded conversion and selection update. -/
 def step (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWord sourceWidth))
@@ -107,52 +112,33 @@ theorem nativeQuadratic_narrow_body_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State (context ctx width) Reference History) :
+    (state : State (context ctx width) Reference (model.HiddenState × History)) :
     (body eligible candidate original).execute Reference state = state.mapClassical (fun entry =>
       ((bodyStep eligible candidate original entry.1).1,
-        (entry.2, (bodyStep eligible candidate original entry.1).2))) := by
-  refine (Circuit.execute_seq_mapClassical (.classical (resizeOp candidate width))
-    (FirstAccepted.circuit (inputs eligible width) (refs original))
-    (fun store => (store.applyOp (resizeOp candidate width), ()))
-    (FirstAccepted.step (inputs eligible width) (refs original))
-    (fun reference {_} _ initial => by
-      refine (Circuit.execute_classical_mapClassical (resizeOp candidate width)
-        reference initial).trans ?_
-      congr 1
-      exact Subsingleton.elim _ _)
-    (fun reference {_} _ initial => by
-      refine (FirstAccepted.firstAccepted_execute
-        (inputs eligible width) (refs original) reference initial).trans ?_
-      congr 1)
-    Reference state).trans ?_
-  exact congrArg
-    (fun equality : DecidableEq (Store (context ctx width) ×
-        (History × (body eligible candidate original).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _
-        (Register.prod (context ctx width).register Reference) equality state
-        (fun entry => ((bodyStep eligible candidate original entry.1).1,
-          (entry.2, (bodyStep eligible candidate original entry.1).2))))
-    (Subsingleton.elim _ _)
+        (entry.2.1, (entry.2.2, (bodyStep eligible candidate original entry.1).2)))) := by
+  simp only [body, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
+    FirstAccepted.firstAccepted_execute, State.mapHistory,
+    ExecutionState.executionState_mapClassical_comp, Function.comp_def]
+  exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Scope entry and release retain the complete original quantum-reference correlations. -/
 theorem nativeQuadratic_narrow_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference History) :
+    (state : State ctx Reference (model.HiddenState × History)) :
     (code eligible candidate original).execute Reference state = state.mapClassical (fun entry =>
       ((step eligible candidate original entry.1).1,
-        (entry.2, (step eligible candidate original entry.1).2))) := by
+        (entry.2.1, (entry.2.2, (step eligible candidate original entry.1).2)))) := by
   refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh (body eligible candidate original)
-    (bodyStep eligible candidate original)
-    (nativeQuadratic_narrow_body_execute eligible candidate original) Reference state).trans ?_
-  exact congrArg
-    (fun equality : DecidableEq (Store ctx × (History × (code eligible candidate original).Path)) =>
-      @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference) equality state
-        (fun entry => ((step eligible candidate original entry.1).1,
-          (entry.2, (step eligible candidate original entry.1).2))))
-    (Subsingleton.elim _ _)
+    (fun before =>
+      let actual := bodyStep eligible candidate original before.1
+      ((actual.1, before.2), actual.2))
+    (fun reference {_} _ initial =>
+      nativeQuadratic_narrow_body_execute eligible candidate original reference initial)
+    Reference state).trans ?_
+  congr 1
 
 end
 

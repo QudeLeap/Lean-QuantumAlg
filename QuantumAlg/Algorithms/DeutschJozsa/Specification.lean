@@ -13,7 +13,6 @@ public import QuantumAlg.Primitives.WalshHadamard.Readout.Storage
 import all QuantumAlg.Algorithms.DeutschJozsa.Construction
 import all QuantumAlg.Core.Base.Accounting.ResourcePool
 import all QuantumAlg.Core.Base.Accounting.Space
-import all QuantumAlg.Components.Oracle.Common
 
 /-!
 # The independent complete Deutsch-Jozsa problem
@@ -34,22 +33,18 @@ open WalshHadamard.Readout
 
 noncomputable section
 
-/-- The independent basis-preparation coordinate: n zeros followed by target one. -/
-def preparationEvent (n : Nat) : Resource.Event .quantum :=
-  .preparation
-    { family := "builtin"
-      name := "computational-basis"
-      parameters := (n + 1) ::
-        (List.replicate (n + 1) 2 ++ (List.replicate n 0 ++ [1])) }
-
-/-- Explicit event multiplicities for preparation, the query circuit, measurement, and packing. -/
-def eventBudget (n : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton (preparationEvent n) +
-    ((2 * n + 1) • ResourcePool.singleton (.gate (.builtin "hadamard")) +
-      ResourcePool.singleton (.quantumSubroutine (xorOracleSubroutineLabel n).quantum)) +
-    (n • ResourcePool.singleton
-      (.measurement { family := "builtin", name := "z", parameters := [2] }) +
-      ResourcePool.singleton (.classicalOperation (.nominalEncoding (.packFiniteBits n))))
+/-- Explicit native counts, independent of the candidate circuit. -/
+def eventBudget {n : Nat} (f : WalshHadamard.Oracle n) : ResourcePool (model f) :=
+  (n + 1) • ResourcePool.singleton (model := model f)
+      (.preparation (2 : ℕ+)) +
+    ((2 * n + 2) • ResourcePool.singleton (model := model f)
+      (.gate AlgorithmGate.Coordinate.singleQubit) +
+      ResourcePool.singleton (model := model f)
+      (.oracle XorOracle.Coordinate.xor)) +
+    (n • ResourcePool.singleton (model := model f)
+      (.measurement (2 : ℕ+)) +
+      ResourcePool.singleton (model := model f)
+      (.classicalOperation (Resource.ClassicalOpLabel.nominalEncoding (.packFiniteBits n))))
 
 /-- All prepared systems and both actual classical result representations remain live. -/
 def spaceBudget (n : Nat) : SpacePool .quantum
@@ -57,7 +52,7 @@ def spaceBudget (n : Nat) : SpacePool .quantum
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then n + 1 else 0
 
 /-- Preparation, the query circuit, n sequential measurements, and one actual packing step. -/
-def depthBudget (n : Nat) : Nat := 1 + (if n = 0 then 2 else 3) + n + 1
+def depthBudget (n : Nat) : Nat := 1 + (if n = 0 then 3 else 4) + n + 1
 
 /-- The accepted actual bit string makes the original constant-versus-balanced decision. -/
 def accepts {n : Nat} (f : WalshHadamard.Oracle n)
@@ -76,12 +71,13 @@ oracle is constant. All n+1 prepared quantum systems, n finite binary result
 cells, the final n-bit string, and the borrowed unit remain in complete Output.
 The target quantum system is not measured or released. At n = 0 the result is
 the unique empty bit string and there are zero measurement instructions.
-**Resource budget.** One preparation of n zero query qubits and target one,
-2n+1 Hadamards, one declared n-input XOR-oracle call, n binary Z measurements,
+**Resource budget.** Fixed zero preparation of all n+1 qubits, followed by
+one target X and 2n+1 Hadamards, charged as 2n+2 native single-qubit gates.
+One declared n-input XOR-oracle call, n binary Z measurements,
 and one width-tagged finite-bit packing operation. Resident and auxiliary
 space are at most n+1 dimension-two systems and 2n classical bits, with zero
 systems of other dimensions. Unit-event depth is at most
-1+(if n=0 then 2 else 3)+n+1; packing still executes at n=0.
+1+(if n=0 then 3 else 4)+n+1; packing still executes at n=0.
 **Success.** Probability one under the original promise, with mandatory joint
 restoration of the borrowed input and arbitrary external reference.
 **Source.** The promise, phase-query construction, signed amplitude and exact
@@ -91,13 +87,18 @@ execution additionally accounts for its actual preparation, measurement
 storage and final classical packing instructions.
 -/
 public def problem {n : Nat} (f : WalshHadamard.Oracle n) :
-    Problem .quantum pre (post n) (.bits n) where
+    Problem (model f) pre (post n) (.bits n) where
   valid := fun _ => Promise f
+  initialization := fun _ => True
   accepts := accepts f
   successLB := ⟨1, le_rfl⟩
   states := []
-  resources := { events := eventBudget n, resident := spaceBudget n, auxiliary := spaceBudget n }
-  depth := .quantum (fun _ => 1) (depthBudget n)
+  resources := { events := eventBudget f, resident := spaceBudget n, auxiliary := spaceBudget n }
+  depth :=
+    { duration := fun _ => 1
+      limit := depthBudget n
+      classicalQuery_unit := fun _ => rfl
+      quantumQuery_unit := fun _ => rfl }
 
 end
 

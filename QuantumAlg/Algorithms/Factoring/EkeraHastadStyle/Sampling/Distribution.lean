@@ -8,7 +8,8 @@ module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Parameters
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Recovery.Batch.Values
-import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit
+import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.ParameterLayout
+import all QuantumAlg.Primitives.ShortDLP.BornProbability
 import all QuantumAlg.Util.PMF
 import Mathlib.Probability.Distributions.Uniform
 
@@ -26,14 +27,18 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical
 
 noncomputable section
 
-/-- The original selected member's Born law, with no sampled-attempt execution wrapper. -/
+/-- The original selected member's mathematical Born law. Invalid RSA moduli
+have a total fallback; certified inputs always select the source Born branch. -/
 def selectedOutcomePMF {N : Nat} (parameter : (ParameterShape N).Value) :
     PMF (Fin (measurementBits N) → Bool) :=
-  (ShortDLP.measurement (ShortDLP.CompiledMAU.registerParameters
-    (shortLogBits N) (tradeoffBits N) (arithmeticBits N))).outcomePMF
-    (ShortDLP.CompiledMAU.evolvedState
-      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-      (parameterUnit parameter) (parameterTarget parameter))
+  if admissible : 1 < N ∧ N < 2 ^ arithmeticBits N then
+    (ShortDLP.measurement (ShortDLP.CompiledMAU.registerParameters
+      (shortLogBits N) (tradeoffBits N) (arithmeticBits N))).outcomePMF
+      (ShortDLP.BornProbability.evolvedState
+        (ShortDLP.CompiledMAU.unitEncoding (arithmeticBits N) N
+          admissible.1 admissible.2)
+        (parameterUnit parameter) (parameterTarget parameter))
+  else PMF.pure (fun _ => false)
 
 /-- One batch-recovery sample at the register widths fixed by `N`. -/
 abbrev PreparedBatchSample (N : Nat) : Type :=
@@ -43,9 +48,8 @@ abbrev PreparedBatchSample (N : Nat) : Type :=
 /-- Reinterpret the actual terminal outcome at the source register split. -/
 def terminalBitsOfOutcome {N : Nat}
     (outcome : TerminalZMeasure.Outcome (measurementBits N)) :
-    BatchRecovery.ShortLogTerminalBits (shortLogBits N) (tradeoffBits N) := by
-  simpa only [measurementBits, ShortDLP.firstBits, registerParameters,
-    ShortDLP.CompiledMAU.registerParameters] using outcome
+    BatchRecovery.ShortLogTerminalBits (shortLogBits N) (tradeoffBits N) :=
+  outcome
 
 /-- Seal the shared prepared residue together with one actual terminal result. -/
 def preparedSampleOfMeasurement {N : Nat}

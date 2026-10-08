@@ -84,12 +84,14 @@ theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
   have correctionNative :
       (NumeratorCorrection.member modulus.size (modulusWord modulus)
         (stored.read (input modulus.size))).applyVec
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-          ((frameEncoding modulus.size).encode inverse)).vec =
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode inverse))).vec =
       WalshHadamard.walshSign
         (NumeratorReset.outcome (stored.read (input modulus.size))) numerator •
-        (NormalizedVector.ket (R := Qubits (frameEncoding modulus.size).width)
-          ((frameEncoding modulus.size).encode inverse)).vec := by
+        (NormalizedVector.ket
+          ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
+            ((frameEncoding modulus.size).encode inverse))).vec := by
     change (ReusedProduct.correction modulus.size (modulusWord modulus)
       (QubitReadouts.mask (stored.read (input modulus.size)))).applyVec _ = _
     rw [mask]

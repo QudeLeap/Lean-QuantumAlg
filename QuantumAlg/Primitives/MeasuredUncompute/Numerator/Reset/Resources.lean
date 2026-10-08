@@ -27,19 +27,25 @@ noncomputable section
 open Execution MAU.Inversion.SharedEEA
 
 /-- Independent native allowance for H, Z measurement and the possible literal X corrections. -/
-def budget (width : Nat) : ResourcePool .quantum :=
-  ResourcePool.singleton WalshHadamard.hadamardEvent width +
-    (width • ResourcePool.singleton (Circuit.zEvent 2) +
-      width • ResourcePool.singleton (.gate (.builtin "x")))
+def budget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
+  width • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+      (.gate .singleQubit) +
+    (width • ResourcePool.singleton (Circuit.zEvent (gates := AlgorithmGate.model)
+      (oracles := .empty) 2 .empty .empty) +
+      width • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit))
 
 private theorem hadamard_cost (width : Nat) (path : (hadamard width).Path) :
     (hadamard width).resourcePool path =
-      ResourcePool.singleton WalshHadamard.hadamardEvent width := by
+      width • ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
+        (.gate .singleQubit) := by
   change ResourcePool.ofList (NumeratorRuntime.program width (hadamardMember width)).eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, NumeratorRuntime.program_cost]
-  have actual : (hadamardMember width).eventCost = (WalshHadamard.hadamardLayer width).eventCost :=
-    UnitaryCircuit.prodRight_eventCost _
-  exact actual.trans (WalshHadamard.hadamardLayer_eventCost width)
+  change (UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+    (Gate.HadamardLayer.circuit .empty width)).eventCost = _
+  exact (UnitaryCircuit.onCanonicalBinarySuffix_eventCost (encoding width).width
+    (Gate.HadamardLayer.circuit .empty width)).trans
+      (Gate.HadamardLayer.hadamardLayer_circuit_eventCost .empty width)
 
 /-- The exact actual trace satisfies the independent three-coordinate allowance. -/
 theorem code_budget (width : Nat) (path : (code width).Path) :
@@ -53,33 +59,35 @@ theorem code_budget (width : Nat) (path : (code width).Path) :
       (reset_budget width path.2.2))
 
 private theorem placement_depth (width : Nat)
-    (body : UnitaryCircuit (Qubits (OutputCopy.encoding width).width))
-    (duration : Resource.Event .quantum → Nat) :
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
+    (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (NumeratorRuntime.program width body).evaluatedEventDepth duration =
       body.evaluatedEventDepth duration := by
-  change body.evaluatedEventDepth duration + 0 = _
-  exact Nat.add_zero _
+  unfold UnitaryCircuit.evaluatedEventDepth NumeratorRuntime.program
+  rw [Execution.unitaryOfEqualWires_depth, InverseRuntimeFrame.program]
+  exact congrArg (DepthExpr.depthEval duration)
+    (UnitaryCircuit.placeAt_eventDepth _ _ _ _ body)
 
 private theorem hadamard_depth (width : Nat) (path : (hadamard width).Path) :
     (hadamard width).depth (fun _ => 1) path = if width = 0 then 0 else 1 := by
   change (NumeratorRuntime.program width (hadamardMember width)).evaluatedEventDepth
     (fun _ => 1) = _
   rw [placement_depth]
-  have actual : (hadamardMember width).evaluatedEventDepth (fun _ => 1) =
-      (WalshHadamard.hadamardLayer width).evaluatedEventDepth (fun _ => 1) :=
-    UnitaryCircuit.prodRight_evaluatedEventDepth _ _
-  rw [actual, UnitaryCircuit.evaluatedEventDepth, WalshHadamard.hadamardLayer_eventDepth]
-  exact WalshHadamard.parallelHadamardEventDepth_unit_depth width
+  change (UnitaryCircuit.onBinarySuffix (encoding width).width
+    (Gate.HadamardLayer.circuit .empty width)).evaluatedEventDepth (fun _ => 1) = _
+  rw [UnitaryCircuit.unitaryCircuit_onBinarySuffix_evaluatedEventDepth]
+  exact Gate.HadamardLayer.hadamardLayer_circuit_unit_depth .empty width
 
 private theorem reset_depth (width : Nat) (path : (reset width).Path) :
     (reset width).depth (fun _ => 1) path ≤ width := by
   change (NumeratorRuntime.program width (member width path.1)).evaluatedEventDepth
     (fun _ => 1) ≤ _
   rw [placement_depth]
-  have actual : (member width path.1).evaluatedEventDepth (fun _ => 1) =
-      (StoredWordReset.program (outcome path.1)).evaluatedEventDepth (fun _ => 1) :=
-    UnitaryCircuit.prodRight_evaluatedEventDepth _ _
-  rw [actual, StoredWordReset.storedWordReset_depth]
+  change (UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+    (StoredWordReset.program (QubitLayout.canonical width) (outcome path.1))).evaluatedEventDepth
+      (fun _ => 1) ≤ _
+  rw [UnitaryCircuit.onCanonicalBinarySuffix_evaluatedEventDepth,
+    StoredWordReset.storedWordReset_depth]
   exact EncodedBit.Word.BasisLoad.basisLoad_count_le _
 
 /-- Measurement-to-correction dependence is part of the same serial unit-duration bound. -/

@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import QuantumAlg.Core.Execution.Random.Kernel.Discard
 import all QuantumAlg.Core.Execution.Borrowed.State
 import all QuantumAlg.Core.Execution.Borrowed.Classical
 import all QuantumAlg.Core.Execution.Borrowed
@@ -55,8 +56,28 @@ theorem observeBorrowed_mapHistory (state : State ctx Reference H) (update : H �
   observeBorrowed_mapClassical state _ (fun _ => rfl)
 
 /-- When the live context is unchanged, borrowed observation transport is the identity. -/
-theorem observeBorrowedAfter_sameContext (code : Circuit ctx ctx) (state : State ctx Reference H) :
+theorem observeBorrowedAfter_sameContext {model : ExecutionModel}
+    {ctx : RuntimeCtx model.kind} (code : Circuit model ctx ctx)
+    (state : State ctx Reference H) :
     observeBorrowedAfter code Reference state = observeBorrowed Reference state := rfl
+
+/-- A declared stochastic service preserves the complete borrowed observation of its input. -/
+theorem observeBorrowed_queryStep {oracles : ClassicalOracleModel}
+    (application : oracles.Application ctx)
+    (state : State ctx Reference (oracles.HiddenState × H)) :
+    observeBorrowed Reference (queryStep application state) = observeBorrowed Reference state := by
+  apply ExecutionState.ext
+  intro value
+  rw [observeBorrowed_block, observeBorrowed_block]
+  congr 1
+  dsimp only [queryStep]
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  simpa only [Function.comp_def, Store.readBorrowedClassical_write] using
+    congrArg (fun observed : ExecutionState ctx.borrowedClassicalShape.Value
+      (Register.prod ctx.register Reference) => observed.block value)
+      (kernelChoice_map_ignore state
+        (fun entry => oracles.transition application.query entry.2.1
+          (entry.1.read application.input)) (fun entry => entry.1.readBorrowedClassical))
 
 end Execution
 
@@ -64,29 +85,59 @@ namespace Circuit
 
 open Execution
 
-variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
+variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {Reference : Register}
   {H : Type} [Fintype H]
 
-/-- Every closed classical operation restores all borrowed values and quantum correlations. -/
-theorem borrowedRestored_classical {input output : CShape}
-    (op : ClassicalOp input output ctx ctx) (state : State ctx Reference H) :
-    (Circuit.classical op).BorrowedRestored Reference state
-      ((Circuit.classical op).execute Reference state) := by
+/-- The identity instruction records its path without changing any borrowed correlation. -/
+theorem borrowedRestored_id (state : State ctx Reference (model.HiddenState × H)) :
+    (Circuit.id (model := model) ctx).BorrowedRestored Reference state
+      ((Circuit.id (model := model) ctx).execute Reference state) := by
+  rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_id]
+  apply ExecutionState.ext
+  intro value
+  rw [observeBorrowed_block, observeBorrowed_block]
+  congr 1
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  rfl
+
+/-- A granted native operation restores the complete borrowed classical-quantum interface. -/
+theorem borrowedRestored_classical
+    (application : model.classicalOperations.Application ctx)
+    (state : State ctx Reference (model.HiddenState × H)) :
+    (Circuit.classical (model := model) application).BorrowedRestored Reference state
+      ((Circuit.classical (model := model) application).execute Reference state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_classical]
   apply ExecutionState.ext
   intro value
-  simp only [observeBorrowed_block, State.classicalStep,
-    ExecutionState.executionState_mapClassical_comp, Function.comp_def,
-    Store.readBorrowedClassical_applyOp]
+  rw [observeBorrowed_block, observeBorrowed_block]
+  congr 1
+  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  simpa only [Function.comp_def, Store.readBorrowedClassical_write] using
+    congrArg (fun observed : ExecutionState ctx.borrowedClassicalShape.Value
+      (Register.prod ctx.register Reference) => observed.block value)
+      (kernelChoice_map_ignore state
+        (fun entry => model.classicalOperations.evaluate application.token
+          (entry.1.read application.input)) (fun entry => entry.1.readBorrowedClassical))
+
+/-- A stateful randomized query preserves every borrowed correlation after its actual update. -/
+theorem borrowedRestored_classicalQuery
+    (application : model.classicalOracles.Application ctx)
+    (state : State ctx Reference (model.HiddenState × H)) :
+    (Circuit.classicalQuery (model := model) application).BorrowedRestored Reference state
+      ((Circuit.classicalQuery (model := model) application).execute Reference state) := by
+  rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_classicalQuery]
+  exact observeBorrowed_queryStep application state
 
 /-- Allocating a retained classical cell restores the complete original borrowed interface. -/
 theorem borrowedRestored_retain (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (state : State ctx Reference H) :
-    (Circuit.retain ctx key shape fresh).BorrowedRestored Reference state
-      ((Circuit.retain ctx key shape fresh).execute Reference state) := by
+    (state : State ctx Reference (model.HiddenState × H)) :
+    (Circuit.retain (model := model) ctx key shape fresh).BorrowedRestored Reference state
+      ((Circuit.retain (model := model) ctx key shape fresh).execute Reference state) := by
+  rw [BorrowedRestored, observeBorrowedAfter, execute_retain]
   change observeBorrowed (ctx := ctx.addRetained key shape fresh) Reference
-    (state.mapClassical (fun value =>
-      (value.1.pushRetained key shape fresh, (value.2, ())))) = observeBorrowed Reference state
+    (state.mapClassical fun value =>
+      (value.1.pushRetained key shape fresh, (value.2.1, (value.2.2, ())))) =
+        observeBorrowed Reference state
   apply ExecutionState.ext
   intro value
   rw [observeBorrowed_block, observeBorrowed_block,
@@ -94,8 +145,9 @@ theorem borrowedRestored_retain (key : StorageKey) (shape : CShape) (fresh : key
   rfl
 
 /-- Two actual restoring executions restore the same complete borrowed interface in sequence. -/
-theorem borrowedRestored_seq {middle post : RuntimeCtx kind}
-    (first : Circuit ctx middle) (second : Circuit middle post) (state : State ctx Reference H)
+theorem borrowedRestored_seq {middle post : RuntimeCtx model.kind}
+    (first : Circuit model ctx middle) (second : Circuit model middle post)
+    (state : State ctx Reference (model.HiddenState × H))
     (firstRestores : first.BorrowedRestored Reference state (first.execute Reference state))
     (secondRestores : second.BorrowedRestored Reference (first.execute Reference state)
       (second.execute Reference (first.execute Reference state))) :
